@@ -99,7 +99,7 @@
     .btn { width: 100%; padding: 10px 12px; background: var(--accent-primary); color: #0a0a0f; border: none; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px; border-radius: 6px; transition: opacity 0.2s; }
     .btn:hover { opacity: 0.9; }
     .btn.secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--border); }
-    .btn.download { margin-top: 24px; padding: 12px; background: var(--accent-tertiary); color: white; }
+    .btn.download { margin-top: 24x; padding: 12px; background: var(--accent-tertiary); color: white; }
     .toggle-btn { width: 100%; padding: 8px 12px; background: transparent; border: 1px solid var(--border); color: var(--fg); margin: 4px 0; border-radius: 4px; cursor: pointer; font-size: 13px; text-align: left; transition: all 0.2s; }
     .toggle-btn:hover { background: rgba(255,255,255,0.05); }
     .toggle-btn.active { border-color: var(--accent-primary); color: var(--accent-primary); }
@@ -292,6 +292,46 @@
           <label>Show Footer</label>
           <label class="toggle-btn active" onclick="toggleSection('footer')">Show Footer</label>
         </div>
+        <div class="control-group">
+          <label>Advanced Settings</label>
+          <button class="btn secondary" style="width: 100%; padding: 8px; margin-top: 4px; background: transparent; border: 1px solid var(--border); color: var(--fg);" onclick="toggleAdvancedDesign()">Advanced Design</button>
+        </div>
+      </div>
+
+      <!-- Advanced Design Settings -->
+      <div class="section" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); display: none;" id="advancedDesign">
+        <div class="section-title">Advanced Design Settings</div>
+        <p style="color: var(--muted); font-size: 12px; margin-bottom: 16px;">
+          Fine-tune your quotation design with precise controls
+        </p>
+        <div class="control-group">
+          <label>Accent Color</label>
+          <input type="color" id="accentColor" value="#00d4aa" onchange="updateAccentColor(this.value)">
+        </div>
+        <div class="control-group">
+          <label>Border Thickness</label>
+          <input type="range" id="borderThickness" min="0" max="5" value="1" onchange="updateBorderWidth(this.value)">
+          <span id="borderThicknessVal">1px</span>
+        </div>
+        <div class="control-group">
+          <label>Watermark Text</label>
+          <input type="text" id="watermarkText" value="QUOTATION" onchange="updateWatermarkText(this.value)">
+        </div>
+        <div class="control-group">
+          <label>Line Height</label>
+          <input type="range" id="lineHeight" min="1.0" max="2.5" value="1.3" step="0.1" onchange="updateLineHeight(this.value)">
+          <span id="lineHeightVal">1.3</span>
+        </div>
+        <div class="control-group">
+          <letter-spacing: 1px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Letter Spacing</label>
+          <input type="range" id="letterSpacing" min="-2" max="5" value="0" step="0.1" onchange="updateLetterSpacing(this.value)">
+          <span id="letterSpacingVal">0</span>
+        </div>
+        <div class="control-group">
+          <label>Page Background</label>
+          <input type="color" id="pageBackground" value="#ffffff" onchange="updatePageBackground(this.value)">
+        </div>
+        <button class="btn secondary" style="width: 100%; padding: 10px; margin-top: 16px; background: var(--bg); color: var(--fg); border: 1px solid var(--border);" onclick="resetAdvancedDesign()">Reset Design</button>
       </div>
     </div>
 
@@ -374,7 +414,14 @@
       template: "teal",
       showHeader: true,
       showTable: true,
-      showFooter: true
+      showFooter: true,
+      accentColor: "#00d4aa",
+      borderThickness: "1",
+      watermarkText: "QUOTATION",
+      lineHeight: "1.3",
+      letterSpacing: "0",
+      pageBackground: "#ffffff",
+      advancedDesign: {}
     };
 
     // Quick packs data
@@ -404,13 +451,42 @@
       const ls = localStorage.getItem("quotation-studio-v1");
       if (ls) {
         const parsed = JSON.parse(ls);
+        // Merge with defaults to avoid losing new fields
         Object.assign(state, parsed);
+        // Restore advanced design settings if they exist
+        if (state.advancedDesign) {
+          document.getElementById("accentColor").value = state.advancedDesign.accentColor || "#00d4aa";
+          updateAccentColor(state.advancedDesign.accentColor || "#00d4aa");
+          document.getElementById("borderThickness").value = state.advancedDesign.borderThickness || "1";
+          updateBorderWidth(parseInt(state.advancedDesign.borderThickness) || 1);
+          document.getElementById("watermarkText").value = state.advancedDesign.watermarkText || "QUOTATION";
+          updateWatermarkText(state.advancedDesign.watermarkText || "QUOTATION");
+          document.getElementById("lineHeight").value = state.advancedDesign.lineHeight || "1.3";
+          document.getElementById("lineHeightVal").textContent = state.advancedDesign.lineHeight || "1.3";
+          document.getElementById("letterSpacing").value = state.advancedDesign.letterSpacing || "0";
+          document.getElementById("letterSpacingVal").textContent = state.advancedDesign.letterSpacing || "0";
+          document.getElementById("pageBackground").value = state.advancedDesign.pageBackground || "#ffffff";
+          updatePageBackground(state.advancedDesign.pageBackground || "#ffffff");
+        }
       }
       renderPreview();
       updateLocalStorageUI();
+      
+      // Initially hide advanced design settings, show template selector
+      document.getElementById("advancedDesign").style.display = "none";
+      document.querySelector('select[id="templateSelect"]').style.display = "block";
     }
 
     function saveState() {
+      // Save advanced design settings
+      state.advancedDesign = {
+        accentColor: document.getElementById("accentColor").value,
+        borderThickness: document.getElementById("borderThickness").value,
+        watermarkText: document.getElementById("watermarkText").value,
+        lineHeight: document.getElementById("lineHeight").value,
+        letterSpacing: document.getElementById("letterSpacing").value,
+        pageBackground: document.getElementById("pageBackground").value
+      };
       localStorage.setItem("quotation-studio-v1", JSON.stringify(state));
       updateLocalStorageUI();
     }
@@ -641,6 +717,83 @@
       renderPreview();
     };
 
+    // Advanced Design Controls
+    function updateAccentColor(color) {
+      state.accentColor = color;
+      const root = document.documentElement;
+      root.style.setProperty('--accent-primary', color);
+      saveState();
+      renderPreview();
+    }
+
+    function updateBorderWidth(thickness) {
+      document.getElementById("preview").style.borderWidth = thickness + "px";
+      document.getElementById("preview").style.borderStyle = "solid";
+      document.querySelectorAll(".page.border *").forEach(el => {
+        el.style.borderWidth = thickness + "px";
+      });
+      document.getElementById("borderThicknessVal").textContent = thickness + "px";
+      saveState();
+    }
+
+    function updateWatermarkText(text) {
+      const watermarkSpan = document.querySelector(".watermark-text");
+      if (watermarkSpan) {
+        watermarkSpan.textContent = text;
+      }
+      saveState();
+    }
+
+    function updateLineHeight(height) {
+      document.getElementById("preview").style.lineHeight = height;
+      document.getElementById("lineHeightVal").textContent = height;
+      saveState();
+    }
+
+    function updateLetterSpacing(spacing) {
+      document.querySelectorAll(".control-group label").forEach(el => {
+        el.style.letterSpacing = spacing + "px";
+      });
+      document.getElementById("letterSpacingVal").textContent = spacing;
+      saveState();
+    }
+
+    function updatePageBackground(color) {
+      document.body.style.backgroundColor = color;
+      saveState();
+    }
+
+    function resetAdvancedDesign() {
+      document.getElementById("accentColor").value = "#00d4aa";
+      updateAccentColor("#00d4aa");
+      document.getElementById("borderThickness").value = "1";
+      updateBorderWidth(1);
+      document.getElementById("watermarkText").value = "QUOTATION";
+      updateWatermarkText("QUOTATION");
+      document.getElementById("lineHeight").value = "1.3";
+      document.getElementById("lineHeightVal").textContent = "1.3";
+      document.getElementById("letterSpacing").value = "0";
+      document.getElementById("letterSpacingVal").textContent = "0";
+      document.getElementById("pageBackground").value = "#ffffff";
+      updatePageBackground("#ffffff");
+      applyTemplate("teal");
+      document.getElementById("advancedDesign").style.display = "none";
+      document.querySelector('select[id="templateSelect"]').style.display = "block";
+      saveState();
+    }
+
+    function toggleAdvancedDesign() {
+      const advDiv = document.getElementById("advancedDesign");
+      const templateSelect = document.querySelector('select[id="templateSelect"]');
+      if (advDiv.style.display === "none" || advDiv.style.display === "") {
+        advDiv.style.display = "block";
+        templateSelect.style.display = "none";
+      } else {
+        advDiv.style.display = "none";
+        templateSelect.style.display = "block";
+      }
+    }
+
     // ============================================
     // Download: PDF - Professional A4 Quotation
     // ============================================
@@ -660,7 +813,6 @@
         doc.addPage();
         doc.addImage(imgData, 'JPEG', leftMargin, margin, imgWidth, pageHeight);
         
-        // Add footer info
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
         doc.text(`Quotation No: ${state.quoteNo}`, leftMargin, height - 10);
@@ -730,7 +882,7 @@
           <p><strong>Subtotal:</strong> ₹ ${total.toFixed(2)}</p>
           <p><strong>Total in Words:</strong> ${totalWords}</p>
           <p><strong>Terms:</strong> ${document.getElementById("terms").value || "Terms and conditions apply."}</p>
-          <p style="margin-top: 40px; font-size: 11px; color: #6b6b80;;">Confidential - For Internal Use Only</p>
+          <p style="margin-top: 40px; font-size: 11px; color: #6b6b80;">Confidential - For Internal Use Only</p>
         </body></html>
       `;
     }
