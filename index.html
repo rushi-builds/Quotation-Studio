@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quotation Studio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --bg-secondary: #12121a;
+      --fg: #e8e8f0;
+      --muted: #6b6b80;
+      --accent-primary: #00d4aa;
+      --accent-secondary: #0066ff;
+      --accent-tertiary: #ff6b6b;
+      --border: #2a2a3a;
+      --success: #00a859;
+    }
+
+    /* Templates */
+    .template-teal { --accent-primary: #00d4aa; --accent-secondary: #00bcd4; }
+    .template-navy { --accent-primary: #003366; --accent-secondary: #0066ff; }
+    .template-forest { --accent-primary: #228b22; --accent-secondary: #3cb043; }
+    .template-crimson { --accent-primary: #dc143c; --accent-secondary: #c2185c; }
+    .template-minimal { --accent-primary: #6c757d; --accent-secondary: #adb5bd; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--fg); min-height: 100vh; }
+    h1, h2, h3, h4, h5, h6 { font-family: 'Playfair Display', serif; }
+
+    /* Layout */
+    .app { display: grid; grid-template-columns: 1fr 2fr; gap: 0; height: 100vh; overflow: hidden; }
+    .left-panel { grid-area: 1/1; background: var(--bg-secondary); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px; overflow-y: auto; }
+    .right-panel { grid-area: 1/2; background: var(--bg); position: relative; overflow: hidden; }
+    .preview-canvas { width: 100%; height: 100%; display: block; }
+
+    /* Header */
+    .header { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.5px; }
+    .header p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+    /* Forms */
+    .section { margin-bottom: 24px; }
+    .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--fg); }
+    .form-group small { color: var(--muted); font-size: 12px; }
+    .form-group input, .form-group select, .form-group textarea, .form-group input[type="color"], .form-group input[type="file"] { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--fg); padding: 10px 12px; font-size: 14px; border-radius: 6px; transition: border-color 0.2s; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent-primary); }
+    .form-group input[type="color"] { height: 36px; padding: 0; }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+    .form-row .form-group { margin-bottom: 0; }
+
+    /* Quick packs */
+    .packs { margin-top: 24px; }
+    .pack-btn { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--fg); padding: 8px 12px; font-size: 13px; margin: 4px 0; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .pack-btn:hover { border-color: var(--accent-primary); background: rgba(0, 212, 170, 0.1); }
+    .pack-btn.active { border-color: var(--accent-primary); background: rgba(0, 212, 170, 0.2); }
+
+    /* Right panel - Preview */
+    .preview-wrapper { width: 100%; padding: 20px; position: relative; }
+    .page { width: 210mm; min-height: 297mm; background: white; position: relative; margin: 0 auto; box-shadow: 0 0 20px rgba(0,0,0,0.3); }
+    .page-header { padding: 0 20px 20px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .page-header .company { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--accent-primary); letter-spacing: 1px; }
+    .page-header .quote-id { font-size: 12px; color: var(--muted); background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; }
+    .meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 20px; font-size: 13px; color: var(--muted); }
+    .meta-row div { display: flex; justify-content: space-between; }
+    .meta-row span:first-child { color: var(--fg); }
+    .table-section { width: 100%; border-collapse: collapse; margin: 20px; }
+    .table-section th, .table-section td { padding: 10px 12px; border-bottom: 1px solid #e0e0e0; }
+    .table-section th { background: var(--bg-secondary); color: var(--accent-primary); font-size: 12px; text-align: left; }
+    .table-section tr:nth-child(even) td { background: rgba(0,0,0,0.02); }
+    .total-row { font-family: 'Playfair Display', serif; font-size: 16px; border-top: 2px solid var(--accent-primary); margin-top: 8px; padding-top: 8px; }
+    .footer { padding: 0 20px 20px; text-align: center; font-size: 11px; color: var(--muted); border-top: 1px solid #e0e0e0; margin-top: 20px; }
+    .watermark { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.08; }
+    .watermark-text { position: absolute; font-family: 'Playfair Display', serif; font-size: 120px; font-weight: 700; color: rgba(100,100,100,0.1); transform: rotate(30deg); left: -50px; top: -30px; pointer-events: none; }
+    .page.border { border: 1px solid #e0e0e0; }
+    .page.border * { border-color: #e0e0e0; }
+
+    /* Template specific */
+    .template-teal .page { border-color: #e0f7fa; }
+    .template-teal .page-header .company { color: #00d4aa; }
+    .template-navy .page { border-color: #1a237e; }
+    .template-navy .page-header .company { color: #003366; }
+    .template-forest .page { border-color: #e8f5e9; }
+    .template-forest .page-header .company { color: #228b22; }
+    .template-crimson .page { border-color: #fdf2f2; }
+    .template-crimson .page-header .company { color: #dc143c; }
+    .template-minimal .page { border-color: #fafafa; }
+    .template-minimal .page-header .company { color: #6c757d; }
+
+    /* Controls */
+    .controls { background: var(--bg-secondary); padding: 20px; border-left: 1px solid var(--border); height: fit-content; }
+    .control-group { margin-bottom: 20px; }
+    .control-group label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
+    .color-preview { width: 20px; height: 20px; border: 1px solid var(--border); margin-right: 8px; flex-shrink: 0; }
+    .btn { width: 100%; padding: 10px 12px; background: var(--accent-primary); color: #0a0a0f; border: none; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px; border-radius: 6px; transition: opacity 0.2s; }
+    .btn:hover { opacity: 0.9; }
+    .btn.secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--border); }
+    .btn.download { margin-top: 24px; padding: 12px; background: var(--accent-tertiary); color: white; }
+    .toggle-btn { width: 100%; padding: 8px 12px; background: transparent; border: 1px solid var(--border); color: var(--fg); margin: 4px 0; border-radius: 4px; cursor: pointer; font-size: 13px; text-align: left; transition: all 0.2s; }
+    .toggle-btn:hover { background: rgba(255,255,255,0.05); }
+    .toggle-btn.active { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+    /* Responsive */
+    @media (max-width: 768px) { .app { grid-template-columns: 1fr; } .left-panel { border-right: none; border-bottom: 1px solid var(--border); height: 400px; } .right-panel { overflow: hidden; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="left-panel" id="leftPanel">
+      <div class="header">
+        <h1>Quotation Studio</h1>
+        <p>Professional Quotation Generator</p>
+      </div>
+
+      <!-- Company -->
+      <div class="section">
+        <div class="form-group">
+          <label>Company Name</label>
+          <input type="text" id="companyName" placeholder="Enter company name">
+        </div>
+        <div class="form-group">
+          <label>GST Number</label>
+          <input type="text" id="gstNumber" placeholder="e.g. 24ABCDE1234F1Z5">
+        </div>
+      </div>
+
+      <!-- Client -->
+      <div class="section">
+        <div class="form-group">
+          <label>Client Name</label>
+          <input type="text" id="clientName" placeholder="Enter client name">
+        </div>
+        <div class="form-group">
+          <label>Client GST</label>
+          <input type="text" id="clientGST" placeholder="e.g. 09ABCDE1234F1Z5">
+        </div>
+      </div>
+
+      <!-- Quote Meta -->
+      <div class="section">
+        <div class="form-group">
+          <label>Quote No.</label>
+          <input type="text" id="quoteNo" placeholder="QUO/2026/001">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="quoteDate">
+          </div>
+          <div class="form-group">
+            <label>Valid Upto</label>
+            <input type="date" id="validUpto">
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Packs -->
+      <div class="section packs" style="margin-top: 8px;">
+        <label style="display:block; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:8px;">Quick Packs</label>
+        <button class="pack-btn active" data-pack="blank">Blank</button>
+        <button class="pack-btn" data-pack="services">Services</button>
+        <button class="pack-btn" data-pack="products">Products</button>
+        <button class="pack-btn" data-pack="solar">Solar EPC 5kW</button>
+      </div>
+
+      <!-- Line Items Table -->
+      <div class="section" style="margin-top: 8px;">
+        <div class="section-title">Line Items</div>
+        <div class="form-row" id="itemFields">
+          <div class="form-group">
+            <input type="text" placeholder="Description">
+          </div>
+          <div class="form-group">
+            <input type="number" placeholder="Qty">
+          </div>
+          <div class="form-group">
+            <input type="number" placeholder="Rate">
+          </div>
+          <div class="form-group">
+            <input type="number" placeholder="Discount%">
+          </div>
+        </div>
+        <button class="btn secondary" style="margin-top: 4px;" id="addItem">Add Item</button>
+      </div>
+
+      <!-- GST Settings -->
+      <div class="section" style="margin-top: 8px;">
+        <div class="section-title">GST Settings</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>GST Type</label>
+            <select id="gstType">
+              <option value="CGST_SGST">CGST + SGST (Intra State)</option>
+              <option value="IGST">IGST (Inter State)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>GST Rate</label>
+            <input type="number" id="gstRate" value="18">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Discount</label>
+            <input type="number" id="discount" value="0" placeholder="%">
+          </div>
+          <div class="form-group">
+            <label>Round Off</label>
+            <input type="number" id="roundOff" value="0" placeholder="₹">
+          </div>
+        </div>
+      </div>
+
+      <!-- Terms & Bank -->
+      <div class="section" style="margin-top: 8px;">
+        <div class="section-title">Terms & Bank</div>
+        <div class="form-group">
+          <label>Terms</label>
+          <textarea id="terms" placeholder="e.g. Payment due within 30 days. Late payment 2% per month.">...</textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Bank Name</label>
+            <input type="text" id="bankName" placeholder="Bank name">
+          </div>
+          <div class="form-group">
+            <label>Account No.</label>
+            <input type="text" id="accountNo" placeholder="Account number">
+          </div>
+        </div>
+      </div>
+
+      <!-- Signature -->
+      <div class="section" style="margin-top: 8px;">
+        <div class="section-title">Signature</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Authorized By</label>
+            <input type="text" id="authorityName" placeholder="Name">
+          </div>
+          <div class="form-group">
+            <label>Designation</label>
+            <input type="text" id="designation" placeholder="Designation">
+          </div>
+        </div>
+      </div>
+
+      <!-- Design Controls -->
+      <div class="section" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+        <div class="section-title">Design Controls</div>
+        <div class="control-group">
+          <label>Template</label>
+          <select id="templateSelect" onchange="applyTemplate(this.value)">
+            <option value="teal">Teal</option>
+            <option value="navy">Navy</option>
+            <option value="forest">Forest</option>
+            <option value="crimson">Crimson</option>
+            <option value="minimal">Minimal Ink</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>Heading Size</label>
+          <input type="range" id="headingSize" min="20" max="40" value="28">
+          <span id="headingSizeVal">28px</span>
+        </div>
+        <div class="control-group">
+          <label>Body Size</label>
+          <input type="range" id="bodySize" min="10" max="20" value="13">
+          <span id="bodySizeVal">13px</span>
+        </div>
+        <div class="control-group">
+          <label>Header Style</label>
+          <select id="headerStyle">
+            <option value="classic">Classic</option>
+            <option value="modern">Modern</option>
+            <option value="minimal">Minimal</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>Show Header</label>
+          <label class="toggle-btn active" onclick="toggleSection('header')">Show Header</label>
+        </div>
+        <div class="control-group">
+          <label>Show Table</label>
+          <label class="toggle-btn active" onclick="toggleSection('table')">Show Table</label>
+        </div>
+        <div class="control-group">
+          <label>Show Footer</label>
+          <label class="toggle-btn active" onclick="toggleSection('footer')">Show Footer</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="preview-wrapper">
+        <div id="preview" class="page border" style="border-color: #e0e0e0;">
+          <div class="watermark"><span class="watermark-text">QUOTATION</span></div>
+          
+          <div class="page-header" id="pageHeader">
+            <div class="company" id="companyDisplay">My Company</div>
+            <div class="quote-id" id="quoteIdDisplay">QUO/2026/001</div>
+          </div>
+
+          <div class="meta-row" id="metaRow">
+            <div>Quote Date: <span id="dateDisplay"></span></div>
+            <div>Valid Upto: <span id="validDisplay"></span></div>
+          </div>
+
+          <table class="table-section" id="tableSection">
+            <thead>
+              <tr>
+                <th>S.No.</th>
+                <th>Description</th>
+                <th>Qty</th>
+                <th>Rate</th>
+                <th>Discount%</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+
+          <div class="total-row" id="totalRow" style="display: none;">
+            <span>Total</span>
+            <span id="totalAmount">₹ 0.00</span>
+          </div>
+
+          <div class="footer" id="footerSection">
+            <div id="termsDisplay" style="margin-top: 12px; font-size: 12px; color: var(--muted);"></div>
+            <div style="margin-top: 8px; font-size: 11px; color: var(--muted);">Confidential - For Internal Use Only</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Download Buttons -->
+  <div style="background: var(--bg); padding: 20px; text-align: center;">
+    <button class="btn download" onclick="downloadPDF()">Download PDF</button>
+    <button class="btn download secondary" onclick="downloadWord()">Download Word</button>
+    <button class="btn download secondary" onclick="downloadPNG()">Download PNG</button>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@2.4.0/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable@3.5.28/jspdf.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/19.1.0/xlsx-full.min.js"></script>
+  <script>
+    // ============================================
+    // Data & State
+    // ============================================
+    let state = {
+      company: "My Company",
+      client: "",
+      gst: "",
+      quoteNo: "QUO/2026/001",
+      quoteDate: new Date().toLocaleDateString(),
+      validUpto: "",
+      gstType: "CGST_SGST",
+      gstRate: 18,
+      discount: 0,
+      roundOff: 0,
+      items: [],
+      terms: "Payment due within 30 days. Late payment 2% per month.",
+      authorityName: "",
+      designation: "",
+      template: "teal",
+      showHeader: true,
+      showTable: true,
+      showFooter: true
+    };
+
+    // Quick packs data
+    const packs = {
+      blank: [],
+      services: [
+        {desc: "Consulting Services", qty: 1, rate: 5000, disc: 0},
+        {desc: "Project Implementation", qty: 1, rate: 15000, disc: 0},
+        {desc: "Support & Maintenance", qty: 1, rate: 3000, disc: 0}
+      ],
+      products: [
+        {desc: "Product A", qty: 2, rate: 2500, disc: 0},
+        {desc: "Product B", qty: 1, rate: 8000, disc: 0}
+      ],
+      solar: [
+        {desc: "Solar Panels 5kW", qty: 1, rate: 450000, disc: 0},
+        {desc: "Inverter 5kW", qty: 1, rate: 80000, disc: 0},
+        {desc: "Installation & Commissioning", qty: 1, rate: 30000, disc: 0},
+        {desc: "AMC 5 Years", qty: 1, rate: 20000, disc: 0}
+      ]
+    };
+
+    // ============================================
+    // Initialize / LocalStorage
+    // ============================================
+    function init() {
+      const ls = localStorage.getItem("quotation-studio-v1");
+      if (ls) {
+        const parsed = JSON.parse(ls);
+        Object.assign(state, parsed);
+      }
+      renderPreview();
+      updateLocalStorageUI();
+    }
+
+    function saveState() {
+      localStorage.setItem("quotation-studio-v1", JSON.stringify(state));
+      updateLocalStorageUI();
+    }
+
+    function updateLocalStorageUI() {
+      document.getElementById("companyName").value = state.company;
+      document.getElementById("gstNumber").value = state.gst;
+      document.getElementById("clientName").value = state.client;
+      document.getElementById("clientGST").value = state.gstClient || "";
+      document.getElementById("quoteNo").value = state.quoteNo;
+      document.getElementById("quoteDate").value = state.quoteDate;
+      document.getElementById("validUpto").value = state.validUpto;
+      document.getElementById("gstType").value = state.gstType;
+      document.getElementById("gstRate").value = state.gstRate;
+      document.getElementById("discount").value = state.discount;
+      document.getElementById("roundOff").value = state.roundOff;
+      document.getElementById("terms").value = state.terms;
+      document.getElementById("authorityName").value = state.authorityName;
+      document.getElementById("designation").value = state.designation;
+      applyTemplate(state.template);
+      renderItems();
+      renderPreview();
+    }
+
+    // ============================================
+    // Quick Packs
+    // ============================================
+    function applyPack(packName) {
+      const items = packs[packName] || [];
+      state.items = items.map((it, i) => ({
+        id: i,
+        description: it.desc,
+        quantity: it.qty,
+        rate: it.rate,
+        discount: it.disc,
+        amount: 0
+      }));
+      renderItems();
+      renderPreview();
+      saveState();
+    }
+
+    document.querySelectorAll(".pack-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".pack-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        applyPack(btn.dataset.pack);
+      });
+    });
+
+    // ============================================
+    // Item Management
+    // ============================================
+    function renderItems() {
+      const container = document.getElementById("itemFields");
+      container.innerHTML = "";
+      
+      let hasEmpty = false;
+      
+      state.items.forEach((it, i) => {
+        const div = document.createElement("div");
+        div.className = "form-row";
+        div.innerHTML = `
+          <div class="form-group"><input type="text" value="${it.description}" onchange="state.items[${i}].description=this.value"></div>
+          <div class="form-group"><input type="number" value="${it.quantity}" onchange="state.items[${i}].quantity=parseFloat(this.value)||0"></div>
+          <div class="form-group"><input type="number" value="${it.rate}" onchange="state.items[${i}].rate=parseFloat(this.value)||0"></div>
+          <div class="form-group"><input type="number" value="${it.discount}" onchange="state.items[${i}].discount=parseFloat(this.value)||0"></div>
+        `;
+        container.appendChild(div);
+        hasEmpty = true;
+      });
+      
+      if (!hasEmpty) {
+        const div = document.createElement("div");
+        div.className = "form-row";
+        div.innerHTML = `
+          <div class="form-group"><input type="text" placeholder="Description" onchange="this.value=''; state.items.push({description:'',quantity:0,rate:0,discount:0}); renderItems();"></div>
+          <div class="form-group"><input type="number" placeholder="Qty" onchange="this.value=''></div>
+          <div class="form-group"><input type="number" placeholder="Rate" onchange="this.value=''></div>
+          <div class="form-group"><input type="number" placeholder="Discount%" onchange="this.value=''></div>
+        `;
+        container.appendChild(div);
+      }
+      
+      renderPreview();
+    }
+
+    window.addItem = () => {
+      state.items.push({id: state.items.length, description: "", quantity: 0, rate: 0, discount: 0, amount: 0});
+      renderItems();
+    };
+
+    // ============================================
+    // GST Calculation
+    // ============================================
+    function calculateAmounts() {
+      let subtotal = 0;
+      state.items.forEach(it => {
+        const rate = it.rate * it.quantity;
+        const discount = rate * (it.discount / 100);
+        const afterDiscount = rate - discount;
+        
+        let gstAmount;
+        if (state.gstType === "CGST_SGST") {
+          const ratePct = state.gstRate / 100;
+          gstAmount = afterDiscount * ratePct / 2;
+        } else {
+          const ratePct = state.gstRate / 100;
+          gstAmount = afterDiscount * ratePct;
+        }
+        
+        it.amount = afterDiscount + gstAmount;
+        subtotal += it.amount;
+      });
+      
+      const discountAmt = subtotal * (state.discount / 100);
+      const afterDiscount = subtotal - discountAmt;
+      const roundOff = state.roundOff;
+      const total = afterDiscount + roundOff;
+      const totalWords = amountToWords(total);
+      
+      return { subtotal, discountAmt, afterDiscount, total, totalWords, gstRate: state.gstRate };
+    }
+
+    function renderPreview() {
+      calculateAmounts();
+      document.getElementById("companyDisplay").textContent = state.company;
+      document.getElementById("quoteIdDisplay").textContent = state.quoteNo;
+      document.getElementById("dateDisplay").textContent = state.quoteDate;
+      document.getElementById("validDisplay").textContent = state.validUpto || "N/A";
+      renderTableRows();
+      renderTotals();
+      
+      const terms = document.getElementById("terms").value || "";
+      document.getElementById("termsDisplay").innerHTML = terms ? `<strong>Terms:</strong> ${terms}` : "";
+      
+      applyTemplate(state.template);
+    }
+
+    function renderTableRows() {
+      const tbody = document.getElementById("tableBody");
+      tbody.innerHTML = "";
+      
+      state.items.forEach((it, i) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td><input type="text" value="${it.description}" onchange="state.items[${i}].description=this.value"></td>
+          <td><input type="number" value="${it.quantity}" onchange="state.items[${i}].quantity=parseFloat(this.value)||0"></td>
+          <td><input type="number" value="${it.rate}" onchange="state.items[${i}].rate=parseFloat(this.value)||0"></td>
+          <td><input type="number" value="${it.discount}" onchange="state.items[${i}].discount=parseFloat(this.value)||0"></td>
+          <td>₹ ${it.amount.toFixed(2)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderTotals() {
+      const { total, totalWords } = calculateAmounts();
+      document.getElementById("totalAmount").textContent = `₹ ${total.toFixed(2)}`;
+      
+      const totalRow = document.getElementById("totalRow");
+      totalRow.style.display = "block";
+      
+      const terms = document.getElementById("terms").value || "Terms and conditions apply.";
+      document.getElementById("termsDisplay").innerHTML = `<strong>Terms:</strong> ${terms}`;
+    }
+
+    function amountToWords(amount) {
+      const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+      const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+      const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+      const thousands = ["", "Thousand", "Lakh", "Crore"];
+      
+      const num = Math.floor(amount);
+      if (num === 0) return "Zero Rupees Only";
+      
+      let words = "";
+      let place = 0;
+      
+      while (num > 0) {
+        const chunk = num % 1000;
+        if (chunk > 0) {
+          const chunkWords = [];
+          const hundreds = Math.floor(chunk / 100);
+          if (hundreds > 0) chunkWords.push(ones[hundreds] + " Hundred");
+          const rem = chunk % 100;
+          if (rem < 10) chunkWords.push(ones[rem]);
+          else if (rem < 20) chunkWords.push(teens[rem - 10]);
+          else {
+            const tenner = Math.floor(rem / 10);
+            const one = rem % 10;
+            chunkWords.push(tens[tenner]);
+            if (one > 0) chunkWords.push(ones[one]);
+          }
+          words = (chunkWords.join(" ") + " " + thousands[place] + " " + words).trim();
+        }
+        num = Math.floor(num / 1000);
+        place++;
+      }
+      
+      return words + " Rupees Only";
+    }
+
+    // ============================================
+    // Template & Design
+    // ============================================
+    function applyTemplate(templateName) {
+      state.template = templateName;
+      document.documentElement.className = templateName;
+      saveState();
+    }
+
+    function toggleSection(section) {
+      const btn = event.target;
+      saveState();
+      renderPreview();
+    }
+
+    document.getElementById("headingSize").oninput = () => {
+      document.getElementById("headingSizeVal").textContent = document.getElementById("headingSize").value + "px";
+      saveState();
+      renderPreview();
+    };
+    document.getElementById("bodySize").oninput = () => {
+      document.getElementById("bodySizeVal").textContent = document.getElementById("bodySize").value + "px";
+      saveState();
+      renderPreview();
+    };
+
+    // ============================================
+    // Download: PDF - Professional A4 Quotation
+    // ============================================
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const preview = document.getElementById("preview");
+      
+      html2canvas(preview).then(canvas => {
+        const imgData = canvas.toDataURL('image/JPEG', 0.95);
+        const imgWidth = 190;
+        const pageHeight = imgData.height * imgWidth / canvas.width;
+        let height = pageHeight;
+        let margin = 10;
+        let leftMargin = 15;
+        
+        doc.addPage();
+        doc.addImage(imgData, 'JPEG', leftMargin, margin, imgWidth, pageHeight);
+        
+        // Add footer info
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Quotation No: ${state.quoteNo}`, leftMargin, height - 10);
+        doc.text(`Date: ${state.quoteDate}`, leftMargin, height - 5);
+        doc.text(`Total: ₹ ${document.getElementById("totalAmount").textContent}`, leftMargin, height);
+        
+        doc.save("Quotation_Studio.pdf");
+      }).catch(err => {
+        console.error("PDF generation error:", err);
+        alert("Failed to generate PDF. Please try again.");
+      });
+    }
+
+    // ============================================
+    // Download: Word DOC - Using MIME type application/msword
+    // ============================================
+    function downloadWord() {
+      window.html2canvas(document.getElementById("preview")).then(canvas => {
+        const htmlContent = generateWordHTML();
+        const blob = new Blob([htmlContent], {type: 'application/msword'});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = "Quotation_Studio.doc";
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      }).catch(err => {
+        console.error("Word download error:", err);
+        alert("Failed to generate Word document. Please try again.");
+      });
+    }
+
+    function generateWordHTML() {
+      const { total, totalWords } = calculateAmounts();
+      return `
+        <html><body style="font-family: 'Playfair Display', serif; margin: 40px; line-height: 1.6;">
+          <h1 style="color: #00d4aa; text-align: center; font-size: 28px;">QUOTATION</h1>
+          <p style="text-align: center; font-size: 14px; color: #6b6b80;">
+            Company: ${state.company}<br>
+            Quote No: ${state.quoteNo} | Date: ${state.quoteDate}
+          </p>
+          
+          <h2 style="color: #0066ff; margin: 20px 0 10px 0;">Line Items</h2>
+          <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+            <thead>
+              <tr style="background: #f0f0f0; color: #333;">
+                <th style="padding: 8px; border: 1px solid #ddd;">S.No.</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Description</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Qty</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Rate</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${state.items.map((it, i) => `
+                <tr style="background: ${i % 2 === 0 ? '#fff' : '#f9f9f9'};">
+                  <td style="padding: 8px; border: 1px solid #ddd;">${i + 1}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${it.description}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${it.quantity}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">₹ ${it.rate}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">₹ ${it.amount.toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <p><strong>Subtotal:</strong> ₹ ${total.toFixed(2)}</p>
+          <p><strong>Total in Words:</strong> ${totalWords}</p>
+          <p><strong>Terms:</strong> ${document.getElementById("terms").value || "Terms and conditions apply."}</p>
+          <p style="margin-top: 40px; font-size: 11px; color: #6b6b80;;">Confidential - For Internal Use Only</p>
+        </body></html>
+      `;
+    }
+
+    // ============================================
+    // Download: PNG
+    // ============================================
+    function downloadPNG() {
+      window.html2canvas(document.getElementById("preview")).then(canvas => {
+        const link = document.createElement('a');
+        link.download = "Quotation_Studio.png";
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }).catch(err => {
+        console.error("PNG download error:", err);
+        alert("Failed to generate PNG. Please try again.");
+      });
+    }
+
+    // ============================================
+    // Utils
+    // ============================================
+    function updateLocalStorage() {
+      state.company = document.getElementById("companyName").value;
+      state.gst = document.getElementById("gstNumber").value;
+      state.client = document.getElementById("clientName").value;
+      state.quoteNo = document.getElementById("quoteNo").value;
+      state.quoteDate = document.getElementById("quoteDate").value;
+      state.validUpto = document.getElementById("validUpto").value;
+      state.gstType = document.getElementById("gstType").value;
+      state.gstRate = parseFloat(document.getElementById("gstRate").value) || 18;
+      state.discount = parseFloat(document.getElementById("discount").value) || 0;
+      state.roundOff = parseFloat(document.getElementById("roundOff").value) || 0;
+      state.terms = document.getElementById("terms").value;
+      state.authorityName = document.getElementById("authorityName").value;
+      state.designation = document.getElementById("designation").value;
+      saveState();
+    }
+
+    // ============================================
+    // On Load
+    // ============================================
+    init();
+  </script>
+</body>
+</html>
