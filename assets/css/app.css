@@ -1,0 +1,422 @@
+/* ==========================================================================
+   Quotation Studio — Application Stylesheet
+   --------------------------------------------------------------------------
+   1. Self-hosted fonts (works offline, no CDN needed)
+   2. Design tokens & base
+   3. App shell (form panel + preview panel)
+   4. Form controls
+   5. Advanced editor
+   6. Quotation page canvas (A4)
+   7. Shared page components (cards, grids, labels, footers)
+   8. Cover page
+   9. Investment page
+   10. Content sections (benefits, scope, warranty, projects, contact)
+   11. Responsive behaviour
+   ========================================================================== */
+
+/* ---------- 1. Self-hosted fonts ---------- */
+@font-face{
+  font-family:'Poppins'; font-style:normal; font-display:swap; font-weight:400;
+  src:url('../fonts/poppins-latin-400-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Poppins'; font-style:normal; font-display:swap; font-weight:500;
+  src:url('../fonts/poppins-latin-500-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Poppins'; font-style:normal; font-display:swap; font-weight:600;
+  src:url('../fonts/poppins-latin-600-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Poppins'; font-style:normal; font-display:swap; font-weight:700;
+  src:url('../fonts/poppins-latin-700-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Poppins'; font-style:normal; font-display:swap; font-weight:800;
+  src:url('../fonts/poppins-latin-800-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Inter'; font-style:normal; font-display:swap; font-weight:400;
+  src:url('../fonts/inter-latin-400-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Inter'; font-style:normal; font-display:swap; font-weight:500;
+  src:url('../fonts/inter-latin-500-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Inter'; font-style:normal; font-display:swap; font-weight:600;
+  src:url('../fonts/inter-latin-600-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Inter'; font-style:normal; font-display:swap; font-weight:700;
+  src:url('../fonts/inter-latin-700-normal.woff2') format('woff2');
+}
+/* Extended latin (covers the ₹ symbol and other glyphs) */
+@font-face{
+  font-family:'Poppins'; font-style:normal; font-display:swap; font-weight:400;
+  src:url('../fonts/poppins-latin-ext-400-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Poppins'; font-style:normal; font-display:swap; font-weight:500;
+  src:url('../fonts/poppins-latin-ext-500-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Poppins'; font-style:normal; font-display:swap; font-weight:600;
+  src:url('../fonts/poppins-latin-ext-600-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Poppins'; font-style:normal; font-display:swap; font-weight:700;
+  src:url('../fonts/poppins-latin-ext-700-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Poppins'; font-style:normal; font-display:swap; font-weight:800;
+  src:url('../fonts/poppins-latin-ext-800-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Inter'; font-style:normal; font-display:swap; font-weight:400;
+  src:url('../fonts/inter-latin-ext-400-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Inter'; font-style:normal; font-display:swap; font-weight:500;
+  src:url('../fonts/inter-latin-ext-500-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Inter'; font-style:normal; font-display:swap; font-weight:600;
+  src:url('../fonts/inter-latin-ext-600-normal.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Inter'; font-style:normal; font-display:swap; font-weight:700;
+  src:url('../fonts/inter-latin-ext-700-normal.woff2') format('woff2');
+}
+
+/* ---------- 2. Design tokens & base ---------- */
+:root{
+  --orange:#F2811D;
+  --orange-dark:#D96A0E;
+  --navy:#1C2B3F;
+  --navy-2:#243B57;
+  --cream:#FDF1E1;
+  --cream-2:#FCE8CE;
+  --gray:#5B6472;
+  --line:#E7DED2;
+  --page-w:794px;   /* A4 @ 96dpi */
+  --page-h:1123px;
+  --page-pad:38px;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
+  background:#EDEFF2;
+  color:var(--navy);
+}
+h1,h2,h3,h4{font-family:'Poppins','Inter',sans-serif;margin:0;}
+
+/* ---------- 3. App shell ---------- */
+.app{display:flex;min-height:100vh;}
+.form-panel{
+  width:440px;flex-shrink:0;background:#fff;border-right:1px solid #DDE1E6;
+  padding:24px 22px 30px;overflow-y:auto;height:100vh;position:sticky;top:0;
+}
+.preview-panel{
+  flex:1;padding:32px;overflow:auto;height:100vh;
+  display:flex;flex-direction:column;align-items:center;gap:26px;
+}
+.brand-row{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+.brand-row img{height:28px;}
+.app-title{font-size:15px;font-weight:700;color:var(--navy);}
+.app-sub{font-size:12px;color:var(--gray);margin-bottom:16px;line-height:1.5;}
+
+/* ---------- 4. Form controls ---------- */
+fieldset{border:none;padding:0;margin:0 0 16px 0;}
+legend{
+  font-family:'Poppins',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--orange-dark);padding:0 0 6px 0;margin-bottom:9px;
+  border-bottom:1px solid var(--line);width:100%;
+}
+.field{margin-bottom:9px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--gray);margin-bottom:3px;}
+.field input,.field select,.field textarea{
+  width:100%;padding:7px 9px;font-size:12.5px;border:1px solid #D7DBE0;border-radius:6px;
+  font-family:'Inter',sans-serif;color:var(--navy);background:#fff;resize:vertical;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(242,129,29,.15);
+}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;}
+.hint{font-size:10px;color:#8A93A0;margin-top:3px;line-height:1.5;}
+.upload-btn{
+  display:inline-block;font-size:12px;padding:7px 10px;border:1px dashed #C9CFD6;
+  border-radius:6px;color:var(--gray);cursor:pointer;width:100%;text-align:center;
+}
+.upload-btn:hover{border-color:var(--orange);color:var(--orange-dark);}
+/* Hide only the file inputs that have a styled <label> button; the advanced
+   editor uses plain file inputs which must stay visible. */
+.form-panel > fieldset input[type=file]{display:none;}
+details.advanced input[type=file]{
+  display:block;width:100%;font-size:11px;color:var(--gray);margin-top:2px;
+}
+
+#downloadBtn{
+  width:100%;background:var(--orange);color:#fff;border:none;padding:13px;
+  font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;border-radius:8px;
+  cursor:pointer;box-shadow:0 4px 14px rgba(242,129,29,.35);margin-top:6px;
+}
+#downloadBtn:hover{background:var(--orange-dark);}
+#downloadBtn:disabled{background:#C9CFD6;box-shadow:none;cursor:wait;}
+#statusMsg{font-size:11px;text-align:center;color:var(--gray);margin-top:8px;min-height:14px;}
+
+/* ---------- 5. Advanced editor ---------- */
+details.advanced{
+  border:1px solid var(--line);border-radius:8px;margin-bottom:16px;background:#FAFBFC;
+}
+details.advanced > summary{
+  cursor:pointer;padding:12px 14px;font-family:'Poppins',sans-serif;
+  font-weight:700;font-size:12.5px;color:var(--navy);list-style:none;
+}
+details.advanced > summary::-webkit-details-marker{display:none;}
+details.advanced > summary:before{content:"▸ ";color:var(--orange);}
+details.advanced[open] > summary:before{content:"▾ ";}
+details.page-group{margin:0 14px 12px;border-top:1px dashed var(--line);padding-top:10px;}
+details.page-group > summary{
+  cursor:pointer;font-size:11.5px;font-weight:700;color:var(--orange-dark);
+  list-style:none;text-transform:uppercase;letter-spacing:.03em;
+}
+details.page-group > summary::-webkit-details-marker{display:none;}
+.item-block{
+  border:1px solid var(--line);border-radius:6px;padding:9px 10px;margin:8px 0;background:#fff;
+}
+.item-block .item-title{
+  font-size:10px;font-weight:700;color:var(--gray);text-transform:uppercase;margin-bottom:6px;
+}
+
+/* ---------- 6. Quotation page canvas (A4) ---------- */
+.page{
+  width:var(--page-w);height:var(--page-h);background:#fff;position:relative;
+  box-shadow:0 6px 24px rgba(0,0,0,.12);overflow:hidden;flex-shrink:0;
+  print-color-adjust:exact;-webkit-print-color-adjust:exact;
+}
+.page-label{
+  font-size:11px;color:var(--gray);margin-bottom:-14px;align-self:flex-start;
+  margin-left:calc((100% - var(--page-w))/2);
+}
+.pg-logo{position:absolute;top:32px;left:var(--page-pad);z-index:5;}
+.pg-logo img{height:32px;display:block;}
+.pg-body{padding:90px var(--page-pad) 30px;position:relative;height:100%;}
+.intro-col{max-width:370px;min-height:300px;}
+.clear-photo{margin-top:90px;}
+
+/* Corner photo with diagonal edge. Source images are high resolution
+   (1400px+) so they stay crisp on screen, retina displays and in print. */
+.photo-corner{
+  position:absolute;top:0;right:0;width:46%;height:33%;
+  clip-path:polygon(20% 0%,100% 0%,100% 100%,0% 100%);
+  overflow:hidden;background:var(--cream);
+}
+.photo-corner img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;}
+
+/* ---------- 7. Shared page components ---------- */
+.heading-block h2{
+  font-size:23px;font-weight:800;color:var(--navy);line-height:1.25;max-width:370px;
+}
+.heading-block .sub{color:var(--orange-dark);font-weight:600;font-size:12px;margin-top:5px;}
+.rule-orange{width:56px;height:3px;background:var(--orange);margin:10px 0;}
+.body-para{font-size:10.3px;color:var(--gray);line-height:1.55;margin:10px 0 14px;}
+.section-label{
+  font-size:10.5px;font-weight:700;color:var(--navy);background:var(--cream-2);
+  display:inline-block;padding:4px 10px;border-radius:3px;text-transform:uppercase;
+  letter-spacing:.03em;margin:8px 0 10px;
+}
+.icon-circle{
+  width:32px;height:32px;border-radius:50%;background:var(--orange);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;
+}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;}
+.grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;}
+.card{border:1px solid var(--line);border-radius:8px;padding:13px 14px;background:#fff;}
+.card-cream{background:var(--cream);border-radius:8px;padding:13px 14px;}
+.card-title{font-size:11.5px;font-weight:700;color:var(--navy);margin:7px 0 4px;line-height:1.35;}
+.card-desc{font-size:9.8px;color:var(--gray);line-height:1.5;}
+.card-value{font-size:15px;font-weight:800;color:var(--navy);font-family:'Poppins',sans-serif;}
+.footer-note{
+  position:absolute;bottom:18px;left:var(--page-pad);right:var(--page-pad);
+  font-size:8.6px;color:#9AA2AC;line-height:1.4;border-top:1px dashed var(--line);padding-top:8px;
+}
+.pg-footer-strip{
+  position:absolute;bottom:0;left:0;width:100%;background:var(--cream);
+  padding:10px var(--page-pad);display:flex;justify-content:space-between;gap:12px;
+  font-size:9px;color:var(--gray);border-top:2px solid var(--orange);
+}
+
+/* ---------- 8. Cover page ---------- */
+.cover-diag{
+  position:absolute;top:0;right:0;width:58%;height:46%;overflow:hidden;
+  clip-path:polygon(20% 0%,100% 0%,100% 100%,0% 100%);background:var(--cream);
+}
+.cover-diag img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;}
+.cover-body{position:absolute;top:150px;left:40px;width:400px;}
+.eyebrow{
+  display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--navy);
+  background:var(--cream-2);padding:5px 12px;border-radius:3px;margin-bottom:14px;
+}
+.cover-title{font-size:36px;font-weight:800;line-height:1.1;color:var(--navy);text-transform:uppercase;}
+.cover-title .accent{color:var(--orange);}
+.cover-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:14px;width:400px;
+  position:absolute;top:392px;left:40px;
+}
+.info-box{border:1px solid var(--line);border-radius:8px;padding:13px 15px;background:#fff;}
+.info-box .ib-icon{
+  width:30px;height:30px;border-radius:50%;background:var(--orange);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;margin-bottom:9px;
+}
+.info-box .ib-label{
+  font-size:10px;font-weight:700;color:var(--orange-dark);
+  text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;
+}
+.info-box .ib-value{font-size:13px;font-weight:600;color:var(--navy);line-height:1.35;}
+.cover-footer{
+  position:absolute;bottom:0;left:0;width:100%;background:var(--navy);color:#fff;
+  padding:18px var(--page-pad);display:flex;justify-content:space-between;gap:12px;
+}
+.cf-stat{text-align:left;max-width:160px;}
+.cf-stat .n{font-size:17px;font-weight:800;color:var(--orange);font-family:'Poppins',sans-serif;}
+.cf-stat .l{font-size:9.5px;color:#C9D2DE;margin-top:2px;line-height:1.3;}
+
+/* ---------- 9. Investment page ---------- */
+.fin-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:14px;}
+.fin-box{border:1px solid var(--line);border-radius:7px;padding:9px 11px;text-align:center;background:#fff;}
+.fin-box .fv{font-size:14px;font-weight:800;color:var(--navy);font-family:'Poppins',sans-serif;}
+.fin-box .fl{font-size:9px;color:var(--gray);margin-top:3px;line-height:1.3;}
+.pay-terms{display:flex;gap:9px;margin-top:2px;}
+.pay-chip{flex:1;background:var(--navy);color:#fff;border-radius:8px;padding:9px;text-align:center;}
+.pay-chip .pv{font-size:15px;font-weight:800;color:var(--orange);font-family:'Poppins',sans-serif;}
+.pay-chip .pl{font-size:8.5px;color:#C9D2DE;margin-top:2px;line-height:1.25;}
+.specs-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:7px 16px;font-size:11px;margin-top:6px;max-width:460px;
+}
+.specs-grid .k{color:var(--gray);}
+.specs-grid .v{color:var(--navy);font-weight:600;text-align:right;}
+
+/* ---------- 10a. Benefits / metrics (page 3) ---------- */
+.highlight-bar{
+  border-left:3px solid var(--orange);background:var(--cream);
+  padding:9px 12px;font-size:10.3px;font-style:italic;color:var(--navy);
+  line-height:1.5;margin:10px 0 14px;
+}
+.metric-row{display:flex;gap:9px;}
+.metric-chip{
+  flex:1;background:var(--cream);border-radius:7px;padding:9px 10px;
+  display:flex;align-items:center;gap:8px;
+}
+.metric-chip .mv{font-size:13px;font-weight:800;color:var(--navy);font-family:'Poppins',sans-serif;}
+.metric-chip .ml{font-size:8.6px;color:var(--gray);}
+
+/* ---------- 10b. Deliverables / responsibilities (page 5) ---------- */
+.deliv-box{
+  display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);
+  border-radius:7px;padding:9px 10px;background:var(--cream);
+}
+.deliv-box .card-title{margin:0;font-size:10.3px;}
+.resp-item{display:flex;gap:9px;align-items:flex-start;margin-bottom:10px;}
+.resp-item .rt{font-size:11px;font-weight:700;color:var(--orange-dark);}
+.resp-item .rd{font-size:9.3px;color:var(--gray);margin-top:1px;}
+.addl-box{
+  border-left:3px solid var(--orange);padding:8px 10px;background:#fff;
+  border-top:1px solid var(--line);border-right:1px solid var(--line);
+  border-bottom:1px solid var(--line);border-radius:0 6px 6px 0;
+}
+
+/* ---------- 10c. Warranty / journey (page 8) ---------- */
+.warr-card .card-title{font-size:11px;}
+.warr-card ul,.journey-card ul{
+  margin:4px 0 0;padding-left:14px;font-size:9.2px;color:var(--gray);line-height:1.5;
+}
+.journey-card{text-align:left;}
+.journey-num{
+  width:24px;height:24px;border-radius:50%;border:1.5px solid var(--orange);
+  color:var(--orange-dark);font-weight:700;font-size:11px;
+  display:flex;align-items:center;justify-content:center;margin-bottom:6px;
+}
+
+/* ---------- 10d. Projects portfolio (page 9) ---------- */
+.proj-cat-label{display:flex;align-items:center;gap:8px;margin:8px 0 6px;}
+.proj-cat-label .txt{
+  font-size:10px;font-weight:700;color:var(--navy);background:var(--cream-2);
+  padding:4px 10px;border-radius:3px;text-transform:uppercase;letter-spacing:.03em;
+}
+.proj-cat-label .icon-circle{width:26px;height:26px;font-size:11px;}
+.proj-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:10px;}
+.proj-card{border:1px solid var(--line);border-radius:7px;overflow:hidden;background:#fff;}
+.proj-card img{width:100%;height:70px;object-fit:cover;object-position:center;display:block;background:var(--cream);}
+.proj-card .pc-body{padding:6px 8px;}
+.proj-card .pc-name{font-size:10px;font-weight:700;color:var(--orange-dark);line-height:1.3;}
+.proj-card .pc-loc{font-size:8.6px;color:var(--gray);margin-top:2px;}
+.proj-card .pc-cap{font-size:8.6px;color:var(--navy);font-weight:600;margin-top:1px;}
+
+/* ---------- 10e. Contact / closing (page 10) ---------- */
+.contact-banner{position:relative;width:100%;height:300px;overflow:hidden;background:var(--navy);}
+.contact-banner img{
+  width:100%;height:100%;object-fit:cover;object-position:center;display:block;
+}
+.contact-banner-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(28,43,63,.45) 0%,rgba(28,43,63,.78) 100%);
+}
+.contact-hero{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:0 60px;
+}
+.contact-hero h2{font-size:27px;font-weight:800;color:#fff;line-height:1.25;}
+.contact-hero .sub{font-size:12.5px;font-weight:600;color:var(--cream-2);margin-top:8px;}
+.contact-para{
+  text-align:center;font-size:10.5px;color:var(--gray);line-height:1.6;margin:20px 70px;
+}
+/* White card overlapping the banner for a layered, professional look */
+.contact-card{
+  position:relative;z-index:2;margin:-58px var(--page-pad) 0;background:#fff;
+  border:1px solid var(--line);border-radius:12px;padding:22px 24px;
+  box-shadow:0 10px 30px rgba(28,43,63,.12);
+  display:grid;grid-template-columns:1fr 1fr;gap:24px;
+}
+.contact-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;}
+.contact-item:last-child{margin-bottom:0;}
+.contact-item .rt{font-size:11px;font-weight:700;color:var(--navy);}
+.contact-item .rd{font-size:10px;color:var(--gray);margin-top:2px;line-height:1.45;}
+.contact-item .icon-circle{width:30px;height:30px;font-size:12px;}
+/* Call-to-action band */
+.contact-cta{
+  margin:18px var(--page-pad) 0;background:var(--navy);border-radius:10px;
+  padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;
+}
+.contact-cta .cta-text{font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;color:#fff;}
+.contact-cta .cta-phone{
+  font-family:'Poppins',sans-serif;font-size:15px;font-weight:800;color:var(--orange);
+  white-space:nowrap;
+}
+.disclaimer-box{
+  border:1px solid var(--orange);border-radius:7px;padding:10px 14px;
+  margin:16px var(--page-pad) 0;font-size:9px;color:var(--gray);line-height:1.55;text-align:center;
+}
+
+/* ---------- 11. Responsive behaviour ---------- */
+@media (max-width:1100px){
+  .app{flex-direction:column;}
+  .form-panel{width:100%;height:auto;position:static;border-right:none;border-bottom:1px solid #DDE1E6;}
+  .preview-panel{height:auto;overflow:visible;}
+  .page-label{margin-left:0;align-self:center;}
+}
+
+/* ---------- 12. One-off layout helpers ---------- */
+.mt-12{margin-top:12px;}
+.mt-14{margin-top:14px;}
+.mt-16{margin-top:16px;}
+.commit-grid{grid-template-columns:repeat(5,1fr);}
+.scope-cols{margin-top:12px;}
+.invest-cards{margin-bottom:14px;}
+#pv_p9_categories{margin-top:90px;}
+.footer-note-lifted{bottom:56px;}
+.ib-value-dim{font-weight:400;font-size:11px;color:#8A93A0;}
+.fin-label{font-weight:700;color:var(--orange-dark);text-transform:uppercase;font-size:9.5px;}
