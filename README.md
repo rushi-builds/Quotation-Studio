@@ -1,6 +1,6 @@
 # Quotation Studio — KTM Energy Experts
 
-A single-page web app that builds a professional **10-page rooftop-solar quotation**:
+A single-page web app that builds a professional **11-page rooftop-solar quotation**:
 live A4 preview on the right, input form on the left, one-click PDF export.
 
 Open `quotation.html` in a browser (or serve the folder with any static server).
@@ -20,18 +20,20 @@ assets/
   vendor/               html2canvas 1.4.1 + jsPDF 4.2.1 (pinned, offline)
 ```
 
-## The 10 pages
+## The 11 pages
 
 1. About KTM (stats + differentiators) · 2. Cover (customer, capacity, date, ref)
 3. Why Rooftop Solar (benefits + live savings metrics) · 4. Proposed Solution
-5. EPC Scope (deliverables, responsibilities) · 6. Investment & Specification
-7. Why Choose KTM · 8. Warranty & Installation Journey · 9. Projects Portfolio
-10. Contact / Closing (banner, contact card, CTA band)
+5. EPC Scope (deliverables, responsibilities) · 6. Installation Quality (standards,
+six-point handover checklist, workmanship promise)
+7. Investment & Specification · 8. Why Choose KTM (nine differentiators)
+9. Warranty & Installation Journey · 10. Projects Portfolio (original KTM site
+photos: `site-*.jpg`) · 11. Contact / Closing (banner, contact card, CTA band)
 
 ## Editing text
 
 - **Quick edits** — "Advanced Edit" panel at the bottom of the form edits every
-  headline, paragraph, and card on all 10 pages (grouped: Shared + Page 1…10).
+  headline, paragraph, and card on all 11 pages (grouped: Shared + Page 1…11).
 - **Source edits** — change defaults in `assets/js/content.js` (`CONTENT` object).
 - **Labels** — static labels live in `quotation.html`; dynamic values render via
   `assets/js/app.js` (`renderAll()` re-renders every page on any input change).

@@ -189,6 +189,11 @@
     return '<div class="card"><div class="card-title" style="margin-top:0;">' + escapeHtml(it.title) +
       '</div><div class="card-desc">' + escapeHtml(it.desc) + '</div></div>';
   }
+  function checkItem(it) {
+    return '<div class="card check-card"><div class="icon-circle">&#10003;</div>' +
+      '<div><div class="card-title" style="margin-top:0;">' + escapeHtml(it.title) + '</div>' +
+      '<div class="card-desc">' + escapeHtml(it.desc) + '</div></div></div>';
+  }
   function commitCard(it) {
     return '<div class="card" style="text-align:center;padding:8px 6px;">' +
       '<div class="card-title" style="margin-top:0;font-size:9.5px;">' + escapeHtml(it.title) + '</div>' +
@@ -278,31 +283,42 @@
     $('pv_p5_closing').textContent = CONTENT.page5.closing;
   }
 
+  function renderPage6() {
+    $('pv_p6_heading').textContent = CONTENT.page6.heading;
+    $('pv_p6_sub').textContent = CONTENT.page6.sub;
+    $('pv_p6_para').textContent = CONTENT.page6.para;
+    $('pv_p6_standardsLabel').textContent = CONTENT.page6.standardsLabel;
+    $('pv_p6_standards').innerHTML = CONTENT.page6.standards.map(diffCard).join('');
+    $('pv_p6_checklistLabel').textContent = CONTENT.page6.checklistLabel;
+    $('pv_p6_checklist').innerHTML = CONTENT.page6.checklist.map(checkItem).join('');
+    $('pv_p6_promise').textContent = CONTENT.page6.promise;
+  }
+
   function renderPage7() {
-    $('pv_p7_heading').textContent = CONTENT.page7.heading;
-    $('pv_p7_sub').textContent = CONTENT.page7.sub;
-    $('pv_p7_para').textContent = CONTENT.page7.para;
-    $('pv_p7_diffLabel').textContent = CONTENT.page7.diffLabel;
-    $('pv_p7_differentiators').innerHTML = CONTENT.page7.differentiators.map(diffCard).join('');
-    $('pv_p7_commitLabel').textContent = CONTENT.page7.commitLabel;
-    $('pv_p7_commitments').innerHTML = CONTENT.page7.commitments.map(commitCard).join('');
+    $('pv_p8_heading').textContent = CONTENT.page7.heading;
+    $('pv_p8_sub').textContent = CONTENT.page7.sub;
+    $('pv_p8_para').textContent = CONTENT.page7.para;
+    $('pv_p8_diffLabel').textContent = CONTENT.page7.diffLabel;
+    $('pv_p8_differentiators').innerHTML = CONTENT.page7.differentiators.map(diffCard).join('');
+    $('pv_p8_commitLabel').textContent = CONTENT.page7.commitLabel;
+    $('pv_p8_commitments').innerHTML = CONTENT.page7.commitments.map(commitCard).join('');
   }
 
   function renderPage8() {
-    $('pv_p8_heading').textContent = CONTENT.page8.heading;
-    $('pv_p8_sub').textContent = CONTENT.page8.sub;
-    $('pv_p8_warrLabel').textContent = CONTENT.page8.warrLabel;
-    $('pv_p8_warranties').innerHTML = CONTENT.page8.warranties.map(warrCard).join('');
-    $('pv_p8_journeyLabel').textContent = CONTENT.page8.journeyLabel;
-    $('pv_p8_journey').innerHTML = CONTENT.page8.steps.map(journeyCard).join('');
-    $('pv_p8_closing').textContent = CONTENT.page8.closing;
+    $('pv_p9_heading').textContent = CONTENT.page8.heading;
+    $('pv_p9_sub').textContent = CONTENT.page8.sub;
+    $('pv_p9_warrLabel').textContent = CONTENT.page8.warrLabel;
+    $('pv_p9_warranties').innerHTML = CONTENT.page8.warranties.map(warrCard).join('');
+    $('pv_p9_journeyLabel').textContent = CONTENT.page8.journeyLabel;
+    $('pv_p9_journey').innerHTML = CONTENT.page8.steps.map(journeyCard).join('');
+    $('pv_p9_closing').textContent = CONTENT.page8.closing;
   }
 
   function renderPage9() {
     const catIcons = ['&#127981;', '&#127970;', '&#127968;']; // factory, office, home
-    $('pv_p9_heading').textContent = CONTENT.page9.heading;
-    $('pv_p9_sub').textContent = CONTENT.page9.sub;
-    $('pv_p9_categories').innerHTML = CONTENT.page9.categories.map((cat, ci) => {
+    $('pv_p10_heading').textContent = CONTENT.page9.heading;
+    $('pv_p10_sub').textContent = CONTENT.page9.sub;
+    $('pv_p10_categories').innerHTML = CONTENT.page9.categories.map((cat, ci) => {
       return '<div class="proj-cat-label"><div class="icon-circle">' + catIcons[ci % catIcons.length] + '</div>' +
         '<div class="txt">' + escapeHtml(cat.label) + '</div></div>' +
         '<div class="proj-grid">' + cat.projects.map(projCard).join('') + '</div>';
@@ -310,21 +326,21 @@
   }
 
   function renderPage10(s) {
-    $('pv_p10_heading').textContent = CONTENT.page10.heading;
-    $('pv_p10_sub').textContent = CONTENT.page10.sub;
-    $('pv_p10_para').textContent = fillTemplate(CONTENT.page10.para, s, {});
-    $('pv_p10_readyLabel').textContent = CONTENT.page10.readyLabel;
-    $('pv_p10_ready').innerHTML = CONTENT.page10.ready.map(readyItem).join('');
-    $('pv_p10_cta').textContent = CONTENT.page10.cta;
-    $('v_p10_ctaPhone').textContent = s.companyPhone;
-    $('pv_p10_disclaimer').textContent = fillTemplate(CONTENT.page10.disclaimer, s, {});
-    $('v_p10_companyName').textContent = s.companyName +
+    $('pv_p11_heading').textContent = CONTENT.page10.heading;
+    $('pv_p11_sub').textContent = CONTENT.page10.sub;
+    $('pv_p11_para').textContent = fillTemplate(CONTENT.page10.para, s, {});
+    $('pv_p11_readyLabel').textContent = CONTENT.page10.readyLabel;
+    $('pv_p11_ready').innerHTML = CONTENT.page10.ready.map(readyItem).join('');
+    $('pv_p11_cta').textContent = CONTENT.page10.cta;
+    $('v_p11_ctaPhone').textContent = s.companyPhone;
+    $('pv_p11_disclaimer').textContent = fillTemplate(CONTENT.page10.disclaimer, s, {});
+    $('v_p11_companyName').textContent = s.companyName +
       (s.companyName.match(/Pvt\.?\s*Ltd\.?/i) ? '' : ' Pvt. Ltd.');
-    $('v_p10_companyTagline').textContent = s.companyTagline;
-    $('v_p10_companyAddress').textContent = s.companyAddress;
-    $('v_p10_companyPhone').textContent = s.companyPhone;
-    $('v_p10_companyEmail').textContent = s.companyEmail;
-    $('v_p10_companyWebsite').textContent = s.companyWebsite;
+    $('v_p11_companyTagline').textContent = s.companyTagline;
+    $('v_p11_companyAddress').textContent = s.companyAddress;
+    $('v_p11_companyPhone').textContent = s.companyPhone;
+    $('v_p11_companyEmail').textContent = s.companyEmail;
+    $('v_p11_companyWebsite').textContent = s.companyWebsite;
   }
 
   function renderCoverAndInvestment(s, f) {
@@ -373,7 +389,7 @@
   function renderFooterStrips(s) {
     const tagline = CONTENT.shared.footerTagline;
     const contact = s.companyWebsite + ' &nbsp;|&nbsp; ' + s.companyPhone;
-    ['p1', 'p3', 'p4', 'p5', 'p7', 'p8', 'p9', 'p10'].forEach((pg) => {
+    ['p1', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9', 'p10', 'p11'].forEach((pg) => {
       const t = $('v_' + pg + '_footerTagline');
       const c = $('v_' + pg + '_footerContact');
       if (t) t.innerHTML = tagline;
@@ -389,6 +405,7 @@
     renderPage3(s, f);
     renderPage4(s);
     renderPage5();
+    renderPage6();
     renderCoverAndInvestment(s, f);
     renderPage7();
     renderPage8();
@@ -535,10 +552,49 @@
     });
     mkField(g, 'Closing note', CONTENT.page5.closing, (v) => { CONTENT.page5.closing = v; }, true);
 
-    // Page 6 (investment) — labels not already covered by the main form
-    g = mkGroup(root, 'Page 6 — Investment');
-    mkDomField(g, 'Heading', 'v_p6Heading');
-    mkDomField(g, 'Subheading', 'v_p6Subheading');
+    // Page 6
+    g = mkGroup(root, 'Page 6 — Installation Quality');
+    mkField(g, 'Heading', CONTENT.page6.heading, (v) => { CONTENT.page6.heading = v; });
+    mkField(g, 'Subheading', CONTENT.page6.sub, (v) => { CONTENT.page6.sub = v; });
+    mkField(g, 'Paragraph', CONTENT.page6.para, (v) => { CONTENT.page6.para = v; }, true);
+    mkField(g, 'Standards section label', CONTENT.page6.standardsLabel, (v) => { CONTENT.page6.standardsLabel = v; });
+    CONTENT.page6.standards.forEach((it, i) => {
+      const b = mkItemBlock(g, 'Standard ' + (i + 1));
+      mkField(b, 'Title', it.title, (v) => { it.title = v; });
+      mkField(b, 'Description', it.desc, (v) => { it.desc = v; }, true);
+    });
+    mkField(g, 'Checklist section label', CONTENT.page6.checklistLabel, (v) => { CONTENT.page6.checklistLabel = v; });
+    CONTENT.page6.checklist.forEach((it, i) => {
+      const b = mkItemBlock(g, 'Checklist point ' + (i + 1));
+      mkField(b, 'Title', it.title, (v) => { it.title = v; });
+      mkField(b, 'Description', it.desc, (v) => { it.desc = v; }, true);
+    });
+    mkField(g, 'Workmanship promise note', CONTENT.page6.promise, (v) => { CONTENT.page6.promise = v; }, true);
+    // Page 6 photo upload
+    {
+      const wrap = document.createElement('div');
+      wrap.className = 'field';
+      const lab = document.createElement('label');
+      lab.textContent = 'Page 6 photo (optional upload)';
+      wrap.appendChild(lab);
+      const fileInp = document.createElement('input');
+      fileInp.type = 'file';
+      fileInp.accept = 'image/*';
+      fileInp.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (ev) { $('img_p6').src = ev.target.result; };
+        reader.readAsDataURL(file);
+      });
+      wrap.appendChild(fileInp);
+      g.appendChild(wrap);
+    }
+
+    // Page 7 (investment) — labels not already covered by the main form
+    g = mkGroup(root, 'Page 7 — Investment');
+    mkDomField(g, 'Heading', 'v_p7Heading');
+    mkDomField(g, 'Subheading', 'v_p7Subheading');
     [
       ['v_labelProjectCost', '"Project Cost" label'],
       ['v_labelSubsidy', '"Government Subsidy" label'],
@@ -569,7 +625,7 @@
     ].forEach(([id, label]) => mkDomField(g, label, id));
 
     // Page 7
-    g = mkGroup(root, 'Page 7 — Why Choose KTM');
+    g = mkGroup(root, 'Page 8 — Why Choose KTM');
     mkField(g, 'Heading', CONTENT.page7.heading, (v) => { CONTENT.page7.heading = v; });
     mkField(g, 'Subheading', CONTENT.page7.sub, (v) => { CONTENT.page7.sub = v; });
     mkField(g, 'Paragraph', CONTENT.page7.para, (v) => { CONTENT.page7.para = v; }, true);
@@ -587,7 +643,7 @@
     });
 
     // Page 8
-    g = mkGroup(root, 'Page 8 — Warranty & Installation');
+    g = mkGroup(root, 'Page 9 — Warranty & Installation');
     mkField(g, 'Heading', CONTENT.page8.heading, (v) => { CONTENT.page8.heading = v; });
     mkField(g, 'Subheading', CONTENT.page8.sub, (v) => { CONTENT.page8.sub = v; });
     mkField(g, 'Warranty section label', CONTENT.page8.warrLabel, (v) => { CONTENT.page8.warrLabel = v; });
@@ -609,7 +665,7 @@
     mkField(g, 'Closing note', CONTENT.page8.closing, (v) => { CONTENT.page8.closing = v; }, true);
 
     // Page 9
-    g = mkGroup(root, 'Page 9 — Projects Portfolio');
+    g = mkGroup(root, 'Page 10 — Projects Portfolio');
     mkField(g, 'Heading', CONTENT.page9.heading, (v) => { CONTENT.page9.heading = v; });
     mkField(g, 'Subheading', CONTENT.page9.sub, (v) => { CONTENT.page9.sub = v; }, true);
     CONTENT.page9.categories.forEach((cat, ci) => {
@@ -641,12 +697,12 @@
     });
 
     // Page 10
-    g = mkGroup(root, 'Page 10 — Contact / Closing');
+    g = mkGroup(root, 'Page 11 — Contact / Closing');
     mkField(g, 'Heading', CONTENT.page10.heading, (v) => { CONTENT.page10.heading = v; });
     mkField(g, 'Subheading', CONTENT.page10.sub, (v) => { CONTENT.page10.sub = v; });
     mkField(g, 'Thank-you paragraph (use {company} for dynamic company name)', CONTENT.page10.para,
       (v) => { CONTENT.page10.para = v; }, true);
-    mkDomField(g, '"Get in Touch" section label', 'pv_p10_contactLabel');
+    mkDomField(g, '"Get in Touch" section label', 'pv_p11_contactLabel');
     mkField(g, '"Ready to Go Solar" section label', CONTENT.page10.readyLabel,
       (v) => { CONTENT.page10.readyLabel = v; });
     CONTENT.page10.ready.forEach((it, i) => {
@@ -676,7 +732,7 @@
     });
 
     // Per-page photo uploads
-    ['p1', 'p2', 'p3', 'p4', 'p5', 'p7', 'p8', 'p9', 'p10'].forEach((key) => {
+    ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8', 'p9', 'p10', 'p11'].forEach((key) => {
       const input = $('up_' + key);
       if (!input) return;
       input.addEventListener('change', function (e) {
@@ -699,7 +755,7 @@
       });
   }
 
-  /* ---------------- 8. PDF export (all 10 pages) ---------------- */
+  /* ---------------- 8. PDF export (all 11 pages) ---------------- */
   function wireExport() {
     $('downloadBtn').addEventListener('click', async function () {
       const btn = this, status = $('statusMsg');
@@ -708,7 +764,7 @@
         if (document.fonts && document.fonts.ready) await document.fonts.ready;
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
-        const pageIds = ['page1', 'page2', 'page3', 'page4', 'page5', 'page6', 'page7', 'page8', 'page9', 'page10'];
+        const pageIds = ['page1', 'page2', 'page3', 'page4', 'page5', 'page6', 'page7', 'page8', 'page9', 'page10', 'page11'];
         for (let i = 0; i < pageIds.length; i++) {
           status.textContent = 'Rendering page ' + (i + 1) + ' of ' + pageIds.length + '…';
           const canvas = await html2canvas($(pageIds[i]), { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
@@ -722,7 +778,7 @@
         const filename = 'KTM_Quotation_' + (s.custName || 'Customer').replace(/[^a-z0-9]+/gi, '_') +
           '_' + s.capacity + 'kWp.pdf';
         pdf.save(filename);
-        status.textContent = 'Downloaded ✓ (10 pages)';
+        status.textContent = 'Downloaded ✓ (11 pages)';
       } catch (err) {
         console.error(err);
         status.textContent = 'Something went wrong — please try again.';

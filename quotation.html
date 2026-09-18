@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KTM Energy Experts — Quotation Generator</title>
-<meta name="description" content="Generate a professional 10-page rooftop solar quotation with live preview and PDF export.">
+<meta name="description" content="Generate a professional 11-page rooftop solar quotation with live preview and PDF export.">
 <link rel="icon" href="assets/images/logo.png" type="image/png">
 <link rel="stylesheet" href="assets/css/app.css">
 </head>
@@ -15,7 +15,7 @@
   <aside class="form-panel">
     <div class="brand-row"><img id="formLogo" src="assets/images/logo.png" alt="Company logo"></div>
     <div class="app-title">Quotation Generator</div>
-    <div class="app-sub">Fill in the form — the design on the right updates live across all 10 pages. Open "Advanced Edit" below to change any line of text. Click "Generate PDF" when it's ready.</div>
+    <div class="app-sub">Fill in the form — the design on the right updates live across all 11 pages. Open "Advanced Edit" below to change any line of text. Click "Generate PDF" when it's ready.</div>
 
     <fieldset>
       <legend>Branding</legend>
@@ -25,10 +25,10 @@
         <input type="file" id="logoUpload" accept="image/*">
       </div>
       <div class="field"><label>Company name</label><input type="text" id="companyName" value="KTM Energy Experts"></div>
-      <div class="field"><label>Tagline (used on cover footer and contact page)</label><input type="text" id="companyTagline" value="Solar EPC Company | Est. 2015"></div>
+      <div class="field"><label>Tagline (used on cover footer and contact page)</label><input type="text" id="companyTagline" value="Govt. Approved Solar EPC Contractor | Est. 2015"></div>
       <div class="row2">
-        <div class="field"><label>Phone</label><input type="text" id="companyPhone" value="+91 9309421457"></div>
-        <div class="field"><label>Email</label><input type="text" id="companyEmail" value="sales@ktmenergyexperts.com"></div>
+        <div class="field"><label>Phone</label><input type="text" id="companyPhone" value="+91 93094 86769"></div>
+        <div class="field"><label>Email</label><input type="text" id="companyEmail" value="enquiry@ktmenergyexperts.com"></div>
       </div>
       <div class="field"><label>Office address</label><input type="text" id="companyAddress" value="Office No. 502, Vantage Towers C, Bramhacorp, Bavdhan, Pune - 411021, Maharashtra"></div>
       <div class="field"><label>Website</label><input type="text" id="companyWebsite" value="www.ktmenergyexperts.com"></div>
@@ -114,19 +114,20 @@
       <div class="field"><label>Page 3 — Why Rooftop Solar</label><label class="upload-btn" for="up_p3">Upload photo</label><input type="file" id="up_p3" accept="image/*"></div>
       <div class="field"><label>Page 4 — Proposed Solution</label><label class="upload-btn" for="up_p4">Upload photo</label><input type="file" id="up_p4" accept="image/*"></div>
       <div class="field"><label>Page 5 — EPC Scope</label><label class="upload-btn" for="up_p5">Upload photo</label><input type="file" id="up_p5" accept="image/*"></div>
-      <div class="field"><label>Page 7 — Why Choose KTM</label><label class="upload-btn" for="up_p7">Upload photo</label><input type="file" id="up_p7" accept="image/*"></div>
-      <div class="field"><label>Page 8 — Warranty &amp; Installation</label><label class="upload-btn" for="up_p8">Upload photo</label><input type="file" id="up_p8" accept="image/*"></div>
-      <div class="field"><label>Page 9 — Projects (header photo)</label><label class="upload-btn" for="up_p9">Upload photo</label><input type="file" id="up_p9" accept="image/*"></div>
-      <div class="field"><label>Page 10 — Contact banner</label><label class="upload-btn" for="up_p10">Upload photo</label><input type="file" id="up_p10" accept="image/*"></div>
-      <div class="hint">Tip: individual project thumbnail photos (page 9) can be replaced inside Advanced Edit → Page 9 → each project block.</div>
+      <div class="field"><label>Page 6 — Installation Quality</label><label class="upload-btn" for="up_p6">Upload photo</label><input type="file" id="up_p6" accept="image/*"></div>
+      <div class="field"><label>Page 8 — Why Choose KTM</label><label class="upload-btn" for="up_p8">Upload photo</label><input type="file" id="up_p8" accept="image/*"></div>
+      <div class="field"><label>Page 9 — Warranty &amp; Installation</label><label class="upload-btn" for="up_p9">Upload photo</label><input type="file" id="up_p9" accept="image/*"></div>
+      <div class="field"><label>Page 10 — Projects (header photo)</label><label class="upload-btn" for="up_p10">Upload photo</label><input type="file" id="up_p10" accept="image/*"></div>
+      <div class="field"><label>Page 11 — Contact banner</label><label class="upload-btn" for="up_p11">Upload photo</label><input type="file" id="up_p11" accept="image/*"></div>
+      <div class="hint">Tip: individual project thumbnail photos (page 9) can be replaced inside Advanced Edit → Page 10 → each project block.</div>
     </fieldset>
 
     <details class="advanced" id="advancedPanel">
-      <summary>Advanced Edit — Edit Every Text Element (All 10 Pages)</summary>
+      <summary>Advanced Edit — Edit Every Text Element (All 11 Pages)</summary>
       <div id="advContainer" style="padding:2px 0 10px;"></div>
     </details>
 
-    <button id="downloadBtn">Generate &amp; Download PDF (10 Pages)</button>
+    <button id="downloadBtn">Generate &amp; Download PDF (11 Pages)</button>
     <div id="statusMsg"></div>
   </aside>
 
@@ -134,7 +135,7 @@
   <main class="preview-panel">
 
     <!-- PAGE 1 — About KTM -->
-    <div class="page-label">Page 1 of 10 — About</div>
+    <div class="page-label">Page 1 of 11 — About</div>
     <div class="page" id="page1">
       <div class="pg-logo"><img id="pv_logo_p1" src="assets/images/logo.png" alt="Company logo"></div>
       <div class="photo-corner"><img id="img_p1" src="assets/images/page-about.jpg" alt="Rooftop solar installation"></div>
@@ -158,7 +159,7 @@
     </div>
 
     <!-- PAGE 2 — Cover -->
-    <div class="page-label">Page 2 of 10 — Cover</div>
+    <div class="page-label">Page 2 of 11 — Cover</div>
     <div class="page" id="page2">
       <div class="pg-logo"><img id="previewLogo" src="assets/images/logo.png" alt="Company logo"></div>
       <div class="cover-diag"><img id="img_p2" src="assets/images/page-cover.jpg" alt="Rooftop solar at sunset"></div>
@@ -198,7 +199,7 @@
     </div>
 
     <!-- PAGE 3 — Why Rooftop Solar -->
-    <div class="page-label">Page 3 of 10 — Why Rooftop Solar</div>
+    <div class="page-label">Page 3 of 11 — Why Rooftop Solar</div>
     <div class="page" id="page3">
       <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
       <div class="photo-corner"><img id="img_p3" src="assets/images/page-why-solar.jpg" alt="Solar panels under blue sky"></div>
@@ -223,7 +224,7 @@
     </div>
 
     <!-- PAGE 4 — Proposed Solution -->
-    <div class="page-label">Page 4 of 10 — Proposed Solution</div>
+    <div class="page-label">Page 4 of 11 — Proposed Solution</div>
     <div class="page" id="page4">
       <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
       <div class="photo-corner"><img id="img_p4" src="assets/images/page-solution.jpg" alt="Modern villa with solar roof"></div>
@@ -244,7 +245,7 @@
     </div>
 
     <!-- PAGE 5 — EPC Scope -->
-    <div class="page-label">Page 5 of 10 — EPC Scope</div>
+    <div class="page-label">Page 5 of 11 — EPC Scope</div>
     <div class="page" id="page5">
       <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
       <div class="photo-corner"><img id="img_p5" src="assets/images/page-epc.jpg" alt="Engineers installing solar panels"></div>
@@ -274,12 +275,35 @@
       </div>
     </div>
 
-    <!-- PAGE 6 — Investment -->
-    <div class="page-label">Page 6 of 10 — Investment &amp; Specification</div>
+    <!-- PAGE 6 — Installation Quality -->
+    <div class="page-label">Page 6 of 11 — Installation Quality</div>
     <div class="page" id="page6">
       <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+      <div class="photo-corner"><img id="img_p6" src="assets/images/page-install-quality.jpg" alt="Technician fastening a solar module mounting clamp"></div>
       <div class="pg-body">
-        <div class="heading-block"><h2 id="v_p6Heading">Your Solar Investment at a Glance</h2><div class="sub" id="v_p6Subheading">Transparent pricing. Outstanding long-term returns.</div></div>
+        <div class="intro-col">
+          <div class="heading-block"><h2 id="pv_p6_heading">Installation Quality</h2><div class="sub" id="pv_p6_sub">Precision in Every Connection.</div></div>
+          <div class="rule-orange"></div>
+          <div class="body-para" id="pv_p6_para"></div>
+        </div>
+        <div class="section-label clear-photo" id="pv_p6_standardsLabel">THE KTM INSTALLATION STANDARD</div>
+        <div class="grid-4" id="pv_p6_standards"></div>
+        <div class="section-label mt-14" id="pv_p6_checklistLabel">BEFORE WE HAND OVER</div>
+        <div class="grid-3 checklist-grid" id="pv_p6_checklist"></div>
+        <div class="footer-note footer-note-lifted" id="pv_p6_promise"></div>
+      </div>
+      <div class="pg-footer-strip">
+        <div id="v_p6_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
+        <div id="v_p6_footerContact">—</div>
+      </div>
+    </div>
+
+    <!-- PAGE 7 — Investment -->
+    <div class="page-label">Page 7 of 11 — Investment &amp; Specification</div>
+    <div class="page" id="page7">
+      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+      <div class="pg-body">
+        <div class="heading-block"><h2 id="v_p7Heading">Your Solar Investment at a Glance</h2><div class="sub" id="v_p7Subheading">Transparent pricing. Outstanding long-term returns.</div></div>
         <div class="body-para" id="v_desc"></div>
 
         <div class="grid-2 invest-cards">
@@ -323,43 +347,21 @@
       </div>
     </div>
 
-    <!-- PAGE 7 — Why Choose KTM -->
-    <div class="page-label">Page 7 of 10 — Why Choose KTM</div>
-    <div class="page" id="page7">
-      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p7" src="assets/images/page-why-ktm.jpg" alt="Solar engineer on rooftop"></div>
-      <div class="pg-body">
-        <div class="intro-col">
-          <div class="heading-block"><h2 id="pv_p7_heading">Why Choose KTM Energy Experts?</h2><div class="sub" id="pv_p7_sub">Engineering Excellence You Can Trust.</div></div>
-          <div class="rule-orange"></div>
-          <div class="body-para" id="pv_p7_para"></div>
-        </div>
-        <div class="section-label clear-photo" id="pv_p7_diffLabel">OUR DIFFERENTIATORS</div>
-        <div class="grid-3" id="pv_p7_differentiators"></div>
-        <div class="section-label mt-12" id="pv_p7_commitLabel">Five Commitments. Every Project. No Exceptions.</div>
-        <div class="grid-3 commit-grid" id="pv_p7_commitments"></div>
-      </div>
-      <div class="pg-footer-strip">
-        <div id="v_p7_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p7_footerContact">—</div>
-      </div>
-    </div>
-
-    <!-- PAGE 8 — Warranty & Installation Journey -->
-    <div class="page-label">Page 8 of 10 — Warranty &amp; Installation</div>
+    <!-- PAGE 8 — Why Choose KTM -->
+    <div class="page-label">Page 8 of 11 — Why Choose KTM</div>
     <div class="page" id="page8">
       <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p8" src="assets/images/page-warranty.jpg" alt="Technician servicing a solar panel"></div>
+      <div class="photo-corner"><img id="img_p8" src="assets/images/page-why-ktm.jpg" alt="Solar engineer on rooftop"></div>
       <div class="pg-body">
         <div class="intro-col">
-          <div class="heading-block"><h2 id="pv_p8_heading">Warranty &amp; Installation Journey</h2><div class="sub" id="pv_p8_sub">Quality Assured. Professionally Delivered.</div></div>
+          <div class="heading-block"><h2 id="pv_p8_heading">Why Choose KTM Energy Experts?</h2><div class="sub" id="pv_p8_sub">Engineering Excellence You Can Trust.</div></div>
           <div class="rule-orange"></div>
+          <div class="body-para" id="pv_p8_para"></div>
         </div>
-        <div class="section-label clear-photo" id="pv_p8_warrLabel">INDUSTRY-LEADING WARRANTY</div>
-        <div class="grid-4" id="pv_p8_warranties"></div>
-        <div class="section-label mt-14" id="pv_p8_journeyLabel">YOUR INSTALLATION JOURNEY</div>
-        <div class="grid-3" id="pv_p8_journey"></div>
-        <div class="footer-note footer-note-lifted" id="pv_p8_closing"></div>
+        <div class="section-label clear-photo" id="pv_p8_diffLabel">OUR DIFFERENTIATORS</div>
+        <div class="grid-3" id="pv_p8_differentiators"></div>
+        <div class="section-label mt-12" id="pv_p8_commitLabel">Five Commitments. Every Project. No Exceptions.</div>
+        <div class="grid-3 commit-grid" id="pv_p8_commitments"></div>
       </div>
       <div class="pg-footer-strip">
         <div id="v_p8_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
@@ -367,17 +369,21 @@
       </div>
     </div>
 
-    <!-- PAGE 9 — Projects Portfolio -->
-    <div class="page-label">Page 9 of 10 — Projects Portfolio</div>
+    <!-- PAGE 9 — Warranty & Installation Journey -->
+    <div class="page-label">Page 9 of 11 — Warranty &amp; Installation</div>
     <div class="page" id="page9">
       <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p9" src="assets/images/page-projects.jpg" alt="Industrial rooftops with solar panels"></div>
+      <div class="photo-corner"><img id="img_p9" src="assets/images/page-warranty.jpg" alt="Technician servicing a solar panel"></div>
       <div class="pg-body">
         <div class="intro-col">
-          <div class="heading-block"><h2 id="pv_p9_heading">Projects That Speak for Themselves</h2><div class="sub" id="pv_p9_sub">Over 200 Successful Solar Installations Across Residential, Commercial &amp; Industrial Sectors</div></div>
+          <div class="heading-block"><h2 id="pv_p9_heading">Warranty &amp; Installation Journey</h2><div class="sub" id="pv_p9_sub">Quality Assured. Professionally Delivered.</div></div>
           <div class="rule-orange"></div>
         </div>
-        <div id="pv_p9_categories"></div>
+        <div class="section-label clear-photo" id="pv_p9_warrLabel">INDUSTRY-LEADING WARRANTY</div>
+        <div class="grid-4" id="pv_p9_warranties"></div>
+        <div class="section-label mt-14" id="pv_p9_journeyLabel">YOUR INSTALLATION JOURNEY</div>
+        <div class="grid-3" id="pv_p9_journey"></div>
+        <div class="footer-note footer-note-lifted" id="pv_p9_closing"></div>
       </div>
       <div class="pg-footer-strip">
         <div id="v_p9_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
@@ -385,40 +391,58 @@
       </div>
     </div>
 
-    <!-- PAGE 10 — Contact / Closing -->
-    <div class="page-label">Page 10 of 10 — Contact</div>
+    <!-- PAGE 10 — Projects Portfolio -->
+    <div class="page-label">Page 10 of 11 — Projects Portfolio</div>
     <div class="page" id="page10">
+      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+      <div class="photo-corner"><img id="img_p10" src="assets/images/page-projects.jpg" alt="Industrial rooftops with solar panels"></div>
+      <div class="pg-body">
+        <div class="intro-col">
+          <div class="heading-block"><h2 id="pv_p10_heading">Projects That Speak for Themselves</h2><div class="sub" id="pv_p10_sub">Over 200 Successful Solar Installations Across Residential, Commercial &amp; Industrial Sectors</div></div>
+          <div class="rule-orange"></div>
+        </div>
+        <div id="pv_p10_categories"></div>
+      </div>
+      <div class="pg-footer-strip">
+        <div id="v_p10_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
+        <div id="v_p10_footerContact">—</div>
+      </div>
+    </div>
+
+    <!-- PAGE 11 — Contact / Closing -->
+    <div class="page-label">Page 11 of 11 — Contact</div>
+    <div class="page" id="page11">
       <div class="contact-banner">
-        <img id="img_p10" src="assets/images/page-contact.jpg" alt="Solar farm at sunset">
+        <img id="img_p11" src="assets/images/page-contact.jpg" alt="Solar farm at sunset">
         <div class="contact-banner-overlay"></div>
         <div class="contact-hero">
-          <h2 id="pv_p10_heading">Let's Build a Greener Future Together</h2>
-          <div class="sub" id="pv_p10_sub">Your Journey Towards Clean &amp; Affordable Energy Starts Here.</div>
+          <h2 id="pv_p11_heading">Let's Build a Greener Future Together</h2>
+          <div class="sub" id="pv_p11_sub">Your Journey Towards Clean &amp; Affordable Energy Starts Here.</div>
         </div>
       </div>
       <div class="contact-card">
         <div>
-          <div class="section-label" id="pv_p10_contactLabel">GET IN TOUCH</div>
-          <div class="contact-item"><div class="icon-circle">&#127970;</div><div><div class="rt" id="v_p10_companyName">KTM Energy Experts Pvt. Ltd.</div><div class="rd" id="v_p10_companyTagline">Solar EPC Company | Est. 2015</div></div></div>
-          <div class="contact-item"><div class="icon-circle">&#128205;</div><div><div class="rt">Office Address</div><div class="rd" id="v_p10_companyAddress">—</div></div></div>
-          <div class="contact-item"><div class="icon-circle">&#128222;</div><div><div class="rt">Phone</div><div class="rd" id="v_p10_companyPhone">—</div></div></div>
-          <div class="contact-item"><div class="icon-circle">&#9993;</div><div><div class="rt">Email</div><div class="rd" id="v_p10_companyEmail">—</div></div></div>
-          <div class="contact-item"><div class="icon-circle">&#127760;</div><div><div class="rt">Website</div><div class="rd" id="v_p10_companyWebsite">—</div></div></div>
+          <div class="section-label" id="pv_p11_contactLabel">GET IN TOUCH</div>
+          <div class="contact-item"><div class="icon-circle">&#127970;</div><div><div class="rt" id="v_p11_companyName">KTM Energy Experts Pvt. Ltd.</div><div class="rd" id="v_p11_companyTagline">Govt. Approved Solar EPC Contractor | Est. 2015</div></div></div>
+          <div class="contact-item"><div class="icon-circle">&#128205;</div><div><div class="rt">Office Address</div><div class="rd" id="v_p11_companyAddress">—</div></div></div>
+          <div class="contact-item"><div class="icon-circle">&#128222;</div><div><div class="rt">Phone</div><div class="rd" id="v_p11_companyPhone">—</div></div></div>
+          <div class="contact-item"><div class="icon-circle">&#9993;</div><div><div class="rt">Email</div><div class="rd" id="v_p11_companyEmail">—</div></div></div>
+          <div class="contact-item"><div class="icon-circle">&#127760;</div><div><div class="rt">Website</div><div class="rd" id="v_p11_companyWebsite">—</div></div></div>
         </div>
         <div>
-          <div class="section-label" id="pv_p10_readyLabel">READY TO GO SOLAR?</div>
-          <div id="pv_p10_ready"></div>
+          <div class="section-label" id="pv_p11_readyLabel">READY TO GO SOLAR?</div>
+          <div id="pv_p11_ready"></div>
         </div>
       </div>
-      <div class="contact-para" id="pv_p10_para"></div>
+      <div class="contact-para" id="pv_p11_para"></div>
       <div class="contact-cta">
-        <div class="cta-text" id="pv_p10_cta">Call us today for a free site survey:</div>
-        <div class="cta-phone" id="v_p10_ctaPhone">+91 9309421457</div>
+        <div class="cta-text" id="pv_p11_cta">Call us today for a free site survey:</div>
+        <div class="cta-phone" id="v_p11_ctaPhone">+91 93094 86769</div>
       </div>
-      <div class="disclaimer-box" id="pv_p10_disclaimer"></div>
+      <div class="disclaimer-box" id="pv_p11_disclaimer"></div>
       <div class="pg-footer-strip">
-        <div id="v_p10_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p10_footerContact">—</div>
+        <div id="v_p11_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
+        <div id="v_p11_footerContact">—</div>
       </div>
     </div>
 
