@@ -110,6 +110,29 @@ const CONTENT = {
     closing: 'Our integrated engineering, structure manufacturing and project execution capabilities ensure superior quality control, faster delivery and long-term system reliability.'
   },
 
+  page6: {
+    heading: 'Installation Quality',
+    sub: 'Precision in Every Connection.',
+    para: 'A solar system is only as good as the hands that install it. Every KTM installation follows a documented engineering standard — trained certified crews, torque-specified fastening, protected roof penetrations and dressing-level electrical work — so your system performs safely, day after day, for decades.',
+    standardsLabel: 'THE KTM INSTALLATION STANDARD',
+    standards: [
+      { title: 'Engineered Mounting', desc: 'Structures designed by in-house engineers and torqued to specification — built to withstand decades of monsoon wind loads.' },
+      { title: 'Roof Protection', desc: 'Leakproof roof penetrations with sealed anchors and elevated structure design — your roof stays watertight.' },
+      { title: 'Neat Electrical Work', desc: 'Dressed cable trays, labelled connections and organised DC/AC routing — clean enough to inspect anytime.' },
+      { title: 'Safety First', desc: 'Certified crews with harnesses, helmets and PPE on every site — zero-compromise safety culture.' }
+    ],
+    checklistLabel: 'BEFORE WE HAND OVER',
+    checklist: [
+      { title: 'Torque Audit', desc: 'Every module clamp and structural bolt torque-checked against spec.' },
+      { title: 'Earthing Test', desc: 'Earthing continuity and lightning protection resistance verified.' },
+      { title: 'String Testing', desc: 'Open-circuit voltage and current of every string measured and logged.' },
+      { title: 'Leak Check', desc: 'All roof penetrations water-tested — zero-leak confirmation.' },
+      { title: 'Inverter Setup', desc: 'Grid settings, Wi-Fi monitoring and safety parameters configured.' },
+      { title: 'Client Walkthrough', desc: 'System orientation, app monitoring and maintenance guidance demonstrated.' }
+    ],
+    promise: 'The KTM Workmanship Promise: every installation is covered by a 1-year workmanship warranty and a dedicated after-sales team — if anything is not right, we come back and make it right. No exceptions.'
+  },
+
   page7: {
     heading: 'Why Choose KTM Energy Experts?',
     sub: 'Engineering Excellence You Can Trust.',
@@ -123,7 +146,8 @@ const CONTENT = {
       { title: 'Drone Site Survey', desc: 'Precision aerial mapping for accurate shadow analysis, roof measurement and layout planning.' },
       { title: 'PVsyst Energy Simulation', desc: 'Every system is yield-optimised using PVsyst software before a single panel is installed.' },
       { title: 'Quality & Safety First', desc: 'IS/IEC-compliant installations with rigorous internal quality audits at every stage.' },
-      { title: 'End-to-End EPC & After-Sales Support', desc: 'From design to commissioning to long-term AMC — we are with you for the life of the system.' }
+      { title: 'End-to-End EPC & After-Sales Support', desc: 'From design to commissioning to long-term AMC — we are with you for the life of the system.' },
+      { title: '4.8-Star Rated on Google', desc: '400+ verified customer reviews across Maharashtra.' }
     ],
     commitLabel: 'Five Commitments. Every Project. No Exceptions.',
     commitments: [
@@ -208,13 +232,13 @@ const CONTENT = {
    via Advanced Edit → Page 9 → each project block.
    -------------------------------------------------------------------------- */
 const PROJECT_IMAGES = {
-  PROJ_1_1: 'assets/images/proj-industrial-1.jpg',
-  PROJ_1_2: 'assets/images/proj-industrial-2.jpg',
-  PROJ_1_3: 'assets/images/proj-industrial-3.jpg',
-  PROJ_2_1: 'assets/images/proj-commercial-1.jpg',
-  PROJ_2_2: 'assets/images/proj-commercial-2.jpg',
-  PROJ_2_3: 'assets/images/proj-commercial-3.jpg',
-  PROJ_3_1: 'assets/images/proj-residential-1.jpg',
-  PROJ_3_2: 'assets/images/proj-residential-2.jpg',
-  PROJ_3_3: 'assets/images/proj-residential-3.jpg'
+  PROJ_1_1: 'assets/images/site-agarwal.jpg',
+  PROJ_1_2: 'assets/images/site-serum.jpg',
+  PROJ_1_3: 'assets/images/site-grp.jpg',
+  PROJ_2_1: 'assets/images/site-reachglobal.jpg',
+  PROJ_2_2: 'assets/images/site-citypride.jpg',
+  PROJ_2_3: 'assets/images/site-par.jpg',
+  PROJ_3_1: 'assets/images/site-bramha.jpg',
+  PROJ_3_2: 'assets/images/site-prorigo.jpg',
+  PROJ_3_3: 'assets/images/site-nerolac.jpg'
 };

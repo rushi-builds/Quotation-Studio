@@ -422,3 +422,8 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 .fin-label{font-weight:700;color:var(--orange-dark);text-transform:uppercase;font-size:9.5px;}
 #pv_p4_specs,#pv_p8_warranties{row-gap:16px;}
 #pv_p8_journey{row-gap:18px;}
+#pv_p10_categories{margin-top:90px;}
+#pv_p6_standards{row-gap:16px;}
+.checklist-grid{row-gap:14px;}
+.check-card{display:flex;gap:8px;align-items:flex-start;padding:11px 12px;}
+.check-card .icon-circle{width:26px;height:26px;font-size:12px;}
