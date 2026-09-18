@@ -204,20 +204,17 @@ const CONTENT = {
 };
 
 /* --------------------------------------------------------------------------
-   Portfolio thumbnails (page 9). Replace these placeholder photos with real
-   project photographs — either by swapping the files or via Advanced Edit.
-   TODO: final art for PROJ_1_2…PROJ_3_3 is being produced; they temporarily
-   reuse the first thumbnail so no image slot is ever broken.
+   Portfolio thumbnails (page 9). Swap any file — or replace per project
+   via Advanced Edit → Page 9 → each project block.
    -------------------------------------------------------------------------- */
-const TEMP_THUMB = 'assets/images/proj-industrial-1.jpg';
 const PROJECT_IMAGES = {
   PROJ_1_1: 'assets/images/proj-industrial-1.jpg',
-  PROJ_1_2: TEMP_THUMB, // TODO -> assets/images/proj-industrial-2.jpg
-  PROJ_1_3: TEMP_THUMB, // TODO -> assets/images/proj-industrial-3.jpg
-  PROJ_2_1: TEMP_THUMB, // TODO -> assets/images/proj-commercial-1.jpg
-  PROJ_2_2: TEMP_THUMB, // TODO -> assets/images/proj-commercial-2.jpg
-  PROJ_2_3: TEMP_THUMB, // TODO -> assets/images/proj-commercial-3.jpg
-  PROJ_3_1: TEMP_THUMB, // TODO -> assets/images/proj-residential-1.jpg
-  PROJ_3_2: TEMP_THUMB, // TODO -> assets/images/proj-residential-2.jpg
-  PROJ_3_3: TEMP_THUMB  // TODO -> assets/images/proj-residential-3.jpg
+  PROJ_1_2: 'assets/images/proj-industrial-2.jpg',
+  PROJ_1_3: 'assets/images/proj-industrial-3.jpg',
+  PROJ_2_1: 'assets/images/proj-commercial-1.jpg',
+  PROJ_2_2: 'assets/images/proj-commercial-2.jpg',
+  PROJ_2_3: 'assets/images/proj-commercial-3.jpg',
+  PROJ_3_1: 'assets/images/proj-residential-1.jpg',
+  PROJ_3_2: 'assets/images/proj-residential-2.jpg',
+  PROJ_3_3: 'assets/images/proj-residential-3.jpg'
 };
