@@ -31,11 +31,11 @@ function mockCtx() {
   });
 }
 
-function bootApp(seedStorage, url) {
+function bootApp(seedStorage) {
   const html = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8')
     .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
   const dom = new JSDOM(html, {
-    url: url || 'http://localhost/quotation.html',
+    url: 'http://localhost/quotation.html',
     runScripts: 'dangerously',
     pretendToBeVisual: true,
     beforeParse(window) {
@@ -74,9 +74,8 @@ console.log('— boot —');
 const w = bootApp();
 const d = w.document;
 
-const visibleWraps = () => [...d.querySelectorAll('.page-wrap')].filter((w) => w.style.display !== 'none').length;
 t('no uncaught errors on boot', errors.length === 0, errors.join(' | '));
-t('15 pages visible (options off by default)', visibleWraps() === 15, visibleWraps());
+t('rendered all 16 page shells (options hidden by default)', d.querySelectorAll('.page').length === 16, d.querySelectorAll('.page').length);
 t('page labels generated', /Page 1 of 15/.test(d.querySelector('[data-page="pageCover"] .page-label').textContent),
   d.querySelector('[data-page="pageCover"] .page-label').textContent);
 t('cover shows customer', d.getElementById('v_coverCustName').textContent.includes('Bhooshan'));
@@ -254,37 +253,6 @@ t('switching proposals restores data (BOM repopulated)',
 t('switching restores capacity', d.getElementById('capacity').value === '7',
   d.getElementById('capacity').value);
 
-/* ---------- system options (Good / Better / Best) ---------- */
-console.log('— system options —');
-d.getElementById('optShow').checked = true;
-fire(w, d.getElementById('optShow'), 'change');
-t('options page visible (16 total)', visibleWraps() === 16, visibleWraps());
-t('nav chips 16', d.querySelectorAll('#pageNav .nav-chip').length === 16,
-  d.querySelectorAll('#pageNav .nav-chip').length);
-t('labels say "of 16"', /of 16/.test(d.querySelector('[data-page="pageExec"] .page-label').textContent),
-  d.querySelector('[data-page="pageExec"] .page-label').textContent);
-t('about shifted to page 4 of 16', /Page 4 of 16/.test(d.querySelector('[data-page="pageAbout"] .page-label').textContent),
-  d.querySelector('[data-page="pageAbout"] .page-label').textContent);
-d.getElementById('opt1Kwp').value = '5';
-fire(w, d.getElementById('opt1Kwp'), 'input');
-d.getElementById('opt2Kwp').value = '7';
-d.getElementById('opt2Cost').value = '92000';
-fire(w, d.getElementById('opt2Kwp'), 'input');
-fire(w, d.getElementById('opt2Cost'), 'input');
-const cardsTxt = d.getElementById('v_opCards').textContent;
-t('option 1 net = ₹4,12,050 (5 kWp @ ₹90k, subsidy ₹78k)', cardsTxt.includes('₹4,12,050'),
-  cardsTxt.slice(0, 160));
-t('option 1 generation 7,300 kWh', cardsTxt.includes('7,300 kWh'));
-t('option 2 net = ₹6,23,316 (7 kWp @ ₹92k)', cardsTxt.includes('₹6,23,316'), cardsTxt.slice(0, 260));
-t('RECOMMENDED badge on ★ option (default ★2)', cardsTxt.includes('RECOMMENDED'));
-t('IN THIS PROPOSAL on 7 kWp option (matches main)', cardsTxt.includes('IN THIS PROPOSAL'));
-t('comparison table has 6 metric rows', d.querySelectorAll('#v_opTable tbody tr').length === 6,
-  d.querySelectorAll('#v_opTable tbody tr').length);
-d.getElementById('optShow').checked = false;
-fire(w, d.getElementById('optShow'), 'change');
-t('options off → back to 15', visibleWraps() === 15, visibleWraps());
-t('about back to page 3 of 15', /Page 3 of 15/.test(d.querySelector('[data-page="pageAbout"] .page-label').textContent));
-
 /* ---------- persistence ---------- */
 setTimeout(() => {
   console.log('— persistence —');
@@ -329,24 +297,6 @@ setTimeout(() => {
   t('legacy customer on cover', d3.getElementById('v_coverCustName').textContent.includes('Legacy Customer'));
   t('legacy content applied', d3.getElementById('v_wsHeading').textContent === 'Legacy Heading',
     d3.getElementById('v_wsHeading').textContent);
-
-  /* run 4 — customer share mode (?p=<id>) */
-  console.log('— customer share mode —');
-  const otherId = Object.keys(dump)
-    .filter((k) => k.indexOf('qstudio.proposal.') === 0)
-    .map((k) => k.replace('qstudio.proposal.', ''))
-    .find((id) => id !== dump['qstudio.activeId']);
-  const w4 = bootApp(dump, 'http://localhost/quotation.html?p=' + otherId);
-  const d4 = w4.document;
-  t('customer mode class on body', d4.body.classList.contains('customer-mode'));
-  t('topbar shows company', d4.getElementById('ctCompany').textContent.includes('KTM'),
-    d4.getElementById('ctCompany').textContent);
-  t('topbar shows prepared-for', (d4.getElementById('ctFor').textContent || '').length > 5,
-    d4.getElementById('ctFor').textContent);
-  t('call link is tel:', (d4.getElementById('ctCall').getAttribute('href') || '').indexOf('tel:') === 0);
-  t('owner active pointer untouched', w4.Proposals.activeId() === dump['qstudio.activeId'],
-    w4.Proposals.activeId() + ' vs ' + dump['qstudio.activeId']);
-  t('no errors in customer mode', errors.length === 0, errors.join(' | '));
 
   /* ---------- pdf export smoke ---------- */
   console.log('— pdf export —');

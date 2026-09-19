@@ -93,7 +93,8 @@
       updatedAt: nowISO(),
       form: form || {},
       content: null,
-      projectImages: null
+      projectImages: null,
+      options: []
     }, extras || {});
     put(blob);
     return blob;
@@ -165,13 +166,14 @@
   function active() { return get(activeId()); }
 
   /** Save working state into the active proposal blob. */
-  function saveActive(form, content, projectImages) {
+  function saveActive(form, content, projectImages, options) {
     const id = activeId();
     let b = id ? get(id) : null;
     if (!b) { b = create(form || {}); setActive(b.id); }
     b.form = form || b.form || {};
     if (content) b.content = content;
     if (projectImages) b.projectImages = projectImages;
+    if (options) b.options = options;
     put(b);
     return b;
   }

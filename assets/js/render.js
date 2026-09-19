@@ -83,6 +83,22 @@
     set('v_coverStatProjects', s.statProjects);
     set('v_coverStatCapacity', s.statCapacity);
     set('v_coverStat4', CONTENT.cover.footerStat4);
+
+    /* cover QR — generated only from a real link provided by the user */
+    const qrWrap = $('coverQrWrap');
+    if (qrWrap) {
+      const url = (s.shareUrl || '').trim();
+      if (url && /^https?:\/\//i.test(url) && root.QRCode && $('qrCover')) {
+        qrWrap.style.display = '';
+        try {
+          root.QRCode.toCanvas($('qrCover'), url,
+            { width: 92, margin: 1, color: { dark: '#1C2B3F', light: '#FFFFFF' } },
+            function () { /* drawn */ });
+        } catch (e) { qrWrap.style.display = 'none'; }
+      } else {
+        qrWrap.style.display = 'none';
+      }
+    }
   }
 
   /* ================================================================== */
@@ -175,6 +191,101 @@
   }
   function f_moduleLine(s) {
     return (s.moduleTech ? s.moduleTech + ' modules.' : 'modules.');
+  }
+
+  /* ================================================================== */
+  /* PAGE — SYSTEM OPTIONS COMPARISON (visible when 2+ options saved)    */
+  /* ================================================================== */
+  const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
+    'inverterMake', 'inverterKw', 'costPerKwp', 'gstPercent', 'tariff', 'escalation',
+    'degradation', 'subsidyOverride'];
+
+  function optionFinance(opt, s) {
+    const merged = Object.assign({}, s, opt.fields || {});
+    merged.options = []; /* no recursion inside option computations */
+    return F.compute(merged);
+  }
+
+  function renderOptions(s /*, f, v */) {
+    const P = CONTENT.pageOptions;
+    const opts = (s.options || []).slice(0, 4);
+    set('v_opEyebrow', P.eyebrow);
+    set('v_opHeading', P.heading);
+    set('v_opSub', P.sub);
+    set('v_opPara', P.para);
+    set('v_opTableLabel', P.tableLabel);
+    set('v_opBoldNote', opts.length ? P.boldNote : '');
+    set('v_opNote', P.note);
+
+    const cols = opts.map((o) => ({ name: o.name, fin: optionFinance(o, s), rec: !!o.recommended }));
+    let html = '<thead><tr><th class="opt-metric"></th>' + cols.map((c) =>
+      '<th>' + esc(c.name) + (c.rec ? '<span class="opt-rec">' + esc(P.recommendedBadge) + '</span>' : '') + '</th>'
+    ).join('') + '</tr></thead><tbody>';
+
+    const bestIndex = (rawVals, mode) => {
+      const nums = rawVals.map((x) => (isFinite(x) ? x : NaN));
+      if (nums.filter((n) => !isNaN(n)).length < 2) return -1;
+      let bi = -1, bv = mode === 'min' ? Infinity : -Infinity;
+      nums.forEach((n, i) => {
+        if (isNaN(n)) return;
+        if (mode === 'min' ? n < bv : n > bv) { bv = n; bi = i; }
+      });
+      return bi;
+    };
+
+    const m = P.metrics;
+    const rows = [
+      { label: m.capacity, vals: cols.map((c) => c.fin.capacity + ' kWp') },
+      { label: m.modules, vals: cols.map((c) => c.fin.moduleCount ? c.fin.moduleCount + ' × ' + c.fin.moduleWattage + ' Wp' : '—') },
+      { label: m.annualGen, vals: cols.map((c) => c.fin.annualGen), fmt: (x) => F.fmtNum(x) + ' kWh', best: 'max' },
+      { label: m.annualSaving, vals: cols.map((c) => c.fin.annualSaving), fmt: F.fmtINR, best: 'max' },
+      { label: m.netInvestment, vals: cols.map((c) => c.fin.netInvestment), fmt: F.fmtINR, best: 'min' },
+      { label: m.costPerWp, vals: cols.map((c) => c.fin.costPerWp), fmt: (x) => '₹' + (Math.round(x * 10) / 10) + ' / Wp', best: 'min' },
+      { label: m.payback, vals: cols.map((c) => c.fin.payback), fmt: (x) => isFinite(x) ? x.toFixed(1) + ' yrs' : '—', best: 'min' },
+      { label: m.irr, vals: cols.map((c) => c.fin.irr), fmt: (x) => isFinite(x) ? x.toFixed(1) + '%' : '—', best: 'max' },
+      { label: m.lifetime, vals: cols.map((c) => c.fin.lifetimeSaving), fmt: F.fmtINR, best: 'max' },
+      { label: m.co2, vals: cols.map((c) => c.fin.co2Annual), fmt: (x) => x.toFixed(1) + ' t/yr', best: 'max' }
+    ];
+    rows.forEach((r) => {
+      const bi = r.best ? bestIndex(r.vals, r.best) : -1;
+      html += '<tr><td class="opt-metric">' + esc(r.label) + '</td>' +
+        r.vals.map((val, i) => {
+          const text = r.fmt ? r.fmt(val) : String(val);
+          return '<td' + (i === bi ? ' class="best"' : '') + '>' + esc(text) + '</td>';
+        }).join('') + '</tr>';
+    });
+    html += '</tbody>';
+    setHTML('v_opTable', html);
+    /* at-a-glance chips — computed winners from the same comparison */
+    const oldChips = document.getElementById('v_opChips');
+    if (oldChips) oldChips.remove();
+    if (opts.length >= 2) {
+      const chips = document.createElement('div');
+      chips.className = 'opt-chips';
+      chips.id = 'v_opChips';
+      const finite = (xs) => xs.map((x) => isFinite(x) ? x : NaN);
+      const pick = (vals, mode) => {
+        const nums = finite(vals);
+        let bi = -1, bv = mode === 'min' ? Infinity : -Infinity;
+        nums.forEach((n, i) => { if (!isNaN(n) && (mode === 'min' ? n < bv : n > bv)) { bv = n; bi = i; } });
+        return bi;
+      };
+      const mk = (label, o, fin, detail) =>
+        '<div class="opt-chip"><div class="oc-l">' + esc(label) + '</div>' +
+        '<div class="oc-v">' + esc(o.name) + '</div>' +
+        '<div class="oc-s">' + detail + '</div></div>';
+      const iInv = pick(cols.map((c) => c.fin.netInvestment), 'min');
+      const iPay = pick(finite(cols.map((c) => c.fin.payback)), 'min');
+      const iLife = pick(cols.map((c) => c.fin.lifetimeSaving), 'max');
+      chips.innerHTML =
+        '<div class="oc-lead">' + esc(P.chipsLead || 'At a glance') + '</div>' +
+        (iInv >= 0 ? mk(P.chips.invest, opts[iInv], cols[iInv].fin, F.fmtINR(cols[iInv].fin.netInvestment)) : '') +
+        (iPay >= 0 ? mk(P.chips.payback, opts[iPay], cols[iPay].fin, cols[iPay].fin.payback.toFixed(1) + ' yrs') : '') +
+        (iLife >= 0 ? mk(P.chips.lifetime, opts[iLife], cols[iLife].fin, F.fmtINR(cols[iLife].fin.lifetimeSaving)) : '');
+      const anchor = document.getElementById('v_opBoldNote');
+      if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(chips, anchor.nextSibling);
+    }
+
   }
 
   /* ================================================================== */
@@ -639,87 +750,13 @@
   }
 
   /* ================================================================== */
-  /* SYSTEM OPTIONS (Good / Better / Best)                               */
-  /* ================================================================== */
-  /** Compute the three optional systems with the SAME engine as the main
-      design — only capacity and cost/kWp are overridden per option. */
-  function computeOptions(s) {
-    const names = [s.opt1Name, s.opt2Name, s.opt3Name];
-    const kwps = [s.opt1Kwp, s.opt2Kwp, s.opt3Kwp];
-    const costs = [s.opt1Cost, s.opt2Cost, s.opt3Cost];
-    const rec = parseInt(s.optRec, 10) || 0;
-    return [0, 1, 2].map((i) => {
-      const kwpRaw = parseFloat(kwps[i]);
-      const kwp = (isFinite(kwpRaw) && kwpRaw > 0) ? kwpRaw : 0;
-      const cfg = Object.assign({}, s, {
-        capacity: kwp,
-        costPerKwp: (parseFloat(costs[i]) > 0) ? parseFloat(costs[i]) : s.costPerKwp
-      });
-      return {
-        i: i, name: names[i] || ('Option ' + (i + 1)), kwp: kwp,
-        rec: rec === i + 1, f: F.compute(cfg)
-      };
-    });
-  }
-
-  function renderOptions(s, f, v) {
-    const P = CONTENT.pageOptions;
-    set('v_opHeading', P.heading);
-    set('v_opSub', P.sub);
-    set('v_opIntro', P.intro);
-    set('v_opMetricsLabel', P.metricsLabel);
-    set('v_opChartTitle', P.chartTitle);
-    const list = computeOptions(s);
-    const row = (k, val) => '<div class="opt-r"><span class="k">' + esc(k) + '</span><span class="val">' + val + '</span></div>';
-    setHTML('v_opCards', list.map((o) => {
-      const m = o.f;
-      const cfgd = o.kwp > 0;
-      const isMain = cfgd && Math.abs(parseFloat(s.capacity) - o.kwp) < 0.001;
-      return '<div class="opt-card' + (o.rec ? ' opt-rec' : '') + '">' +
-        (o.rec && cfgd ? '<div class="opt-badge">' + esc(P.chips.recommended) + '</div>' : '') +
-        '<div class="opt-name">' + esc(o.name) + '</div>' +
-        (cfgd
-          ? '<div class="opt-kwp">' + o.kwp + ' kWp</div>' +
-            '<div class="opt-rows">' +
-            row(P.chips.invest, F.fmtINR(m.netInvestment)) +
-            row(P.chips.annual, F.fmtINR(m.annualSaving)) +
-            row(P.chips.monthly, F.fmtINR(m.annualSaving / 12)) +
-            row(P.chips.payback, isFinite(m.payback) ? m.payback.toFixed(1) + ' yrs' : '—') +
-            row(P.chips.lifetime, F.fmtINRshort(m.lifetimeSaving)) +
-            row(P.chips.gen, F.fmtNum(m.annualGen) + ' kWh') +
-            '</div>' +
-            (isMain ? '<div class="opt-match">' + esc(P.chips.match) + '</div>' : '')
-          : '<div class="opt-empty">' + esc(P.chips.notSet) + '</div>') +
-        '</div>';
-    }).join(''));
-    const metrics = [
-      [P.chips.invest, (m) => F.fmtINR(m.netInvestment)],
-      [P.chips.annual, (m) => F.fmtINR(m.annualSaving)],
-      [P.chips.payback, (m) => isFinite(m.payback) ? m.payback.toFixed(1) + ' yrs' : '—'],
-      [P.chips.lifetime, (m) => F.fmtINR(m.lifetimeSaving)],
-      [P.chips.gen, (m) => F.fmtNum(m.annualGen) + ' kWh'],
-      [P.chips.modules, (m) => (m.moduleCount ? m.moduleCount + ' × ' + m.moduleWattage + ' Wp' : '—')]
-    ];
-    setHTML('v_opTable',
-      '<thead><tr><th></th>' +
-      list.map((o) => '<th' + (o.rec ? ' class="opt-col-rec"' : '') + '>' + esc(o.name) + '</th>').join('') +
-      '</tr></thead><tbody>' +
-      metrics.map(([label, get]) =>
-        '<tr><td class="sv-y">' + esc(label) + '</td>' +
-        list.map((o) => '<td>' + (o.kwp > 0 ? get(o.f) : '—') + '</td>').join('') +
-        '</tr>').join('') +
-      '</tbody>');
-    set('v_opNote', tpl(P.note, v));
-  }
-
-  /* ================================================================== */
   /* PAGE REGISTRY                                                       */
   /* ================================================================== */
   const PAGES = [
     { id: 'pageCover', nav: 'Cover', title: 'Cover', render: renderCover, chrome: 'none' },
     { id: 'pageExec', nav: 'Summary', title: 'Executive Summary', render: renderExec },
-    { id: 'pageOptions', nav: 'Options', title: 'Choose Your System', render: renderOptions,
-      visible: (s) => !!s.optShow },
+    { id: 'pageOptions', nav: 'Options', title: 'System Options', render: renderOptions,
+      visible: (s) => ((s && s.options) || []).length >= 2 },
     { id: 'pageAbout', nav: 'About', title: 'About Us', render: renderAbout },
     { id: 'pageWhySolar', nav: 'Why Solar', title: 'Why Rooftop Solar', render: renderWhySolar },
     { id: 'pageSolution', nav: 'Solution', title: 'Proposed Solution', render: renderSolution },
@@ -735,32 +772,37 @@
     { id: 'pageClosing', nav: 'Contact', title: 'Acceptance & Contact', render: renderClosing }
   ];
 
-  /* The most recently rendered state — lets nav/PDF/chrome honour the same
-     page visibility (e.g. the optional System Options page). */
-  let CURRENT = null;
-  function visiblePages() {
-    if (!CURRENT) return PAGES;
-    return PAGES.filter((p) => !p.visible || p.visible(CURRENT.s));
-  }
   function pageNum(id) {
-    return visiblePages().findIndex((p) => p.id === id) + 1;
+    const list = lastVisible.length ? lastVisible : PAGES;
+    const i = list.findIndex((p) => p.id === id);
+    return i >= 0 ? i + 1 : '';
+  }
+
+  /* Pages shown for the current state (conditional pages may drop out). */
+  let lastVisible = [];
+  function visiblePages(s) {
+    return PAGES.filter((p) => !p.visible || p.visible(s));
   }
 
   /* Page labels, header meta and footer furniture on every page. */
   function renderChrome(s, f) {
-    const list = visiblePages();
-    const total = list.length;
-    PAGES.forEach((p) => {
+    lastVisible = visiblePages(s);
+    const total = lastVisible.length;
+    lastVisible.forEach((p, i) => {
       const wrap = document.querySelector('.page-wrap[data-page="' + p.id + '"]');
-      if (wrap) wrap.style.display = (p.visible && !p.visible(s)) ? 'none' : '';
-      const idx = list.indexOf(p);
-      const label = wrap && wrap.querySelector('.page-label');
-      if (label) label.textContent = idx >= 0 ? 'Page ' + (idx + 1) + ' of ' + total + ' — ' + p.title : '';
+      if (wrap) wrap.style.display = '';
+      const label = document.querySelector('.page-wrap[data-page="' + p.id + '"] .page-label');
+      if (label) label.textContent = 'Page ' + (i + 1) + ' of ' + total + ' — ' + p.title;
       const foot = $('v_pgnum_' + p.id);
-      if (foot) foot.textContent = idx >= 0 ? 'Page ' + (idx + 1) + ' of ' + total : '';
+      if (foot) foot.textContent = 'Page ' + (i + 1) + ' of ' + total;
     });
-    const dl = $('downloadLabel');
-    if (dl) dl.textContent = 'Generate & Download PDF (' + total + ' Pages)';
+    /* hide conditional pages that dropped out */
+    PAGES.forEach((p) => {
+      if (!lastVisible.includes(p)) {
+        const wrap = document.querySelector('.page-wrap[data-page="' + p.id + '"]');
+        if (wrap) wrap.style.display = 'none';
+      }
+    });
     const meta = s.propRef + '  •  v' + s.propVersion + '  •  ' + (F.fmtDate(s.propDate) || '—');
     document.querySelectorAll('[data-head-ref]').forEach((el) => { el.textContent = meta; });
     const footLeft = s.companyName + '  •  ' + s.companyPhone + '  •  ' + s.companyWebsite;
@@ -780,19 +822,21 @@
     C.annual($('chartAnnual'), f);
     C.bridge($('chartBridge'), f);
     C.donut($('chartDonut'), f.bomItems, f.projectCost);
-    C.options($('chartOptions'), computeOptions(CURRENT ? CURRENT.s : readState()));
   }
 
   /* ================================================================== */
-  function renderAll() {
-    const s = readState();
+  let lastState = null;
+  function renderAll(stateOverride) {
+    const s = stateOverride || readState();
+    lastState = s;
     const f = F.compute(s);
     const v = tplVars(s, f);
-    CURRENT = { s: s, f: f, v: v };
     renderChrome(s, f);
     PAGES.forEach((p) => { try { p.render(s, f, v); } catch (e) { console.error('render', p.id, e); } });
     drawCharts(f);
-    try { document.dispatchEvent(new Event('qs:rendered')); } catch (e) { /* noop */ }
+    if (typeof document !== 'undefined' && document.dispatchEvent) {
+      try { document.dispatchEvent(new CustomEvent('qs:rendered')); } catch (e) { /* noop */ }
+    }
     return { s, f };
   }
 
@@ -820,14 +864,12 @@
       bomModules: g('bomModules'), bomInverter: g('bomInverter'), bomStructure: g('bomStructure'),
       bomBos: g('bomBos'), bomInstall: g('bomInstall'), bomLiaison: g('bomLiaison'),
       durationText: g('durationText'), jurisdiction: g('jurisdiction'), surveyWindow: g('surveyWindow'),
-      optShow: ($('optShow') || {}).checked === true,
-      opt1Name: g('opt1Name'), opt1Kwp: g('opt1Kwp'), opt1Cost: g('opt1Cost'),
-      opt2Name: g('opt2Name'), opt2Kwp: g('opt2Kwp'), opt2Cost: g('opt2Cost'),
-      opt3Name: g('opt3Name'), opt3Kwp: g('opt3Kwp'), opt3Cost: g('opt3Cost'),
-      optRec: (document.querySelector('input[name="optRec"]:checked') || {}).value || '0',
-      shareLinkBase: g('shareLinkBase')
+      shareUrl: g('shareUrl'),
+      options: (root.__qsOptions || [])
     };
   }
 
-  root.Render = { renderAll, PAGES, drawCharts, readState, pageNum, visiblePages, computeOptions };
+  root.Render = { renderAll, PAGES, drawCharts, readState, pageNum, visiblePages,
+    get lastState() { return lastState; },
+    get lastVisible() { return lastVisible; } };
 })(typeof self !== 'undefined' ? self : this);

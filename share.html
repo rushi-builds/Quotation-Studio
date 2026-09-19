@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Solar Proposal</title>
+<meta name="description" content="Your personalised rooftop solar proposal — explore the system design, generation, savings and investment details.">
+<link rel="icon" href="assets/images/logo.png" type="image/png">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="share-mode">
+
+<main class="preview-panel share-panel">
+  <div class="share-topbar">
+    <div class="st-left">
+      <img src="assets/images/logo.png" alt="Company logo" id="shareLogo">
+      <div>
+        <div class="st-title" id="shareTitle">Your Solar Proposal</div>
+        <div class="st-sub" id="shareSub"></div>
+      </div>
+    </div>
+    <div class="st-actions">
+      <span class="st-status" id="shareStatus"></span>
+      <button type="button" id="sharePrint">Download PDF</button>
+    </div>
+  </div>
+  <div class="share-banner">
+    <div class="sb-eyebrow">PREPARED EXCLUSIVELY FOR</div>
+    <div class="sb-name" id="shareCustomer">—</div>
+    <div class="sb-cap" id="shareCapacity"></div>
+  </div>
+
+  <!-- proposal pages are injected here by share.js using the same renderers -->
+  <div id="sharePages"></div>
+
+  <div class="share-footer" id="shareFooter"></div>
+</main>
+
+<script>
+/* Share view flag — render.js and the modules detect this via the body class. */
+window.QS_SHARE = true;
+</script>
+<script src="assets/vendor/html2canvas.min.js"></script>
+<script src="assets/vendor/jspdf.umd.min.js"></script>
+<script src="assets/vendor/qrcode.min.js"></script>
+<script src="assets/js/content.js"></script>
+<script src="assets/js/finance.js"></script>
+<script src="assets/js/icons.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/model.js"></script>
+<script src="assets/js/state.js"></script>
+<script src="assets/js/equipment.js"></script>
+<script src="assets/js/render.js"></script>
+<script src="assets/js/export.js"></script>
+<script src="assets/js/share.js"></script>
+</body>
+</html>

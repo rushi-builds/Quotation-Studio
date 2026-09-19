@@ -68,15 +68,7 @@
     /* ---- Terms ---- */
     durationText: 'Typical completion within 6–8 weeks from advance payment, subject to DISCOM net-metering timelines.',
     jurisdiction: 'Pune, Maharashtra',
-    surveyWindow: 'A free detailed',
-    /* ---- System options (Good / Better / Best) ---- */
-    optShow: '',
-    opt1Name: 'Essential', opt1Kwp: '', opt1Cost: '',
-    opt2Name: 'Premium', opt2Kwp: '', opt2Cost: '',
-    opt3Name: 'Performance', opt3Kwp: '', opt3Cost: '',
-    optRec: '2',
-    /* ---- Sharing ---- */
-    shareLinkBase: ''
+    surveyWindow: 'A free detailed'
   };
 
   function collectForm() {
@@ -86,6 +78,8 @@
       if (el.disabled) return;
       /* proposal-manager controls are workflow state, not proposal fields */
       if (el.closest('.prop-manager')) return;
+      /* system-options controls store their data on the proposal blob instead */
+      if (el.closest('.opt-manager')) return;
       if (!el.id) return;
       out[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
@@ -133,6 +127,8 @@
           const created = root.Proposals.create(form, {
             content: p.content || data.content || null,
             projectImages: p.projectImages || data.projectImages || null,
+            options: Array.isArray(p.options) ? p.options :
+              (Array.isArray(data.options) ? data.options : []),
             status: 'draft'
           });
           if (p.ref || (data.form && data.form.propRef)) { /* keep ref from file */ }

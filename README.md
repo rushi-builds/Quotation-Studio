@@ -9,6 +9,11 @@ Open `quotation.html` in a browser, or serve the folder with any static server.
 
 ## The 15-page proposal journey
 
+The journey is now **15 or 16 pages**: when a proposal carries two or more
+saved system options (Good / Better / Best), a conditional **System Options
+comparison page** becomes page 3 and all later pages renumber automatically —
+in the preview, the exported PDF and the customer share view.
+
 | # | Page | Purpose |
 |---|------|---------|
 | 1 | Cover | Personalised, capacity badge, validity date, version chip |
@@ -57,22 +62,6 @@ calculation.** Charts are drawn from the same finance object as the text, so
 they can never disagree. Values that are not entered (BOM breakdown, monthly
 bill, available roof area) cause the related UI section to hide or show a
 clearly-marked placeholder — nothing is invented.
-
-## System options & sharing (Phase 3+5 increment)
-
-- **Good / Better / Best** — optional "Choose Your System" comparison page.
-  Each option can have its own capacity and ₹/kWp (blank = main rate); every
-  number is computed by the same finance engine (subsidy, payback, IRR…), and
-  the ★ recommended option is highlighted. The main design is badged
-  "IN THIS PROPOSAL". Page appears/disappears with one checkbox; numbering,
-  navigator and the PDF page count follow automatically.
-- **Share on WhatsApp / Copy link** — one-tap share message with the
-  proposal link, savings summary and payback (WhatsApp number taken from the
-  phone field; 10-digit numbers get 91 prefixed).
-- **Customer share view** — `index.html?p=<proposalId>` (or any share-link
-  base + reference) opens the proposal read-only with a customer topbar:
-  Call, WhatsApp and Download-PDF buttons. It never touches the sales rep's
-  active proposal or autosave.
 
 ## Proposal management (Phase 1 foundation)
 

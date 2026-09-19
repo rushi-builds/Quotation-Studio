@@ -26,8 +26,10 @@ const OUT = __dirname + '/shots';
   const t = (name, ok, extra) => console.log((ok ? '  ✓ ' : '  ✗ FAIL: ') + name + (ok || extra === undefined ? '' : ' → ' + extra));
 
   /* ---- integrity ---- */
-  const pageCount = await page.$$eval('.page-wrap', (ws) => ws.filter((w) => w.style.display !== 'none').length);
-  t('15 pages visible (options off)', pageCount === 15, pageCount);
+  const pageCount = await page.$$eval('.page', (els) => els.length);
+  const visibleCount = await page.$$eval('.page', (els) => els.filter((e) => e.getClientRects().length > 0).length);
+  t('16 page shells', pageCount === 16, pageCount);
+  t('15 visible (options hidden by default)', visibleCount === 15, visibleCount);
   const kv = await page.evaluate(() => ({
     coverName: document.getElementById('v_coverCustName').textContent,
     heroNet: document.getElementById('v_exHeroNet').textContent,
@@ -88,47 +90,99 @@ const OUT = __dirname + '/shots';
   });
   t('donut painted', donutPixels > 100, donutPixels);
 
-  /* ---- system options (Good / Better / Best) ---- */
-  await page.click('#optShow');
+  /* ---- system options (Good/Better/Best) + cover QR ---- */
+  await page.evaluate(() => { document.getElementById('optName').focus(); });
+  await page.type('#optName', 'Good — 5 kWp');
+  await page.evaluate(() => { const c = document.getElementById('capacity'); c.value = '5'; c.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.click('#optSave');
+  await page.evaluate(() => { const c = document.getElementById('capacity'); c.value = '8'; c.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.evaluate(() => { document.getElementById('optName').focus(); });
+  await page.type('#optName', 'Best — 8 kWp');
+  await page.click('#optSave');
   await new Promise((r) => setTimeout(r, 400));
-  const vis16 = await page.$$eval('.page-wrap', (ws) => ws.filter((w) => w.style.display !== 'none').length);
-  t('options page adds 16th page', vis16 === 16, vis16);
-  await page.type('#opt1Kwp', '5');
-  await page.type('#opt2Kwp', '7');
-  await new Promise((r) => setTimeout(r, 500));
-  const cardTxt = await page.$eval('#v_opCards', (e) => e.textContent);
-  t('options math rendered (₹4,12,050)', cardTxt.includes('₹4,12,050'), cardTxt.slice(0, 150));
-  t('RECOMMENDED badge present', cardTxt.includes('RECOMMENDED'));
-  const optPix = await page.evaluate(() => {
-    const c = document.getElementById('chartOptions');
-    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-    let n = 0;
-    for (let i = 3; i < d.length; i += 100) if (d[i] !== 0) n++;
-    return n;
-  });
-  t('options chart painted', optPix > 50, optPix);
-  const optEl = await page.$('#pageOptions');
-  await optEl.screenshot({ path: `${OUT}/pageOptions.png` });
-  await page.click('#optShow');
-  await new Promise((r) => setTimeout(r, 400));
-  const vis15 = await page.$$eval('.page-wrap', (ws) => ws.filter((w) => w.style.display !== 'none').length);
-  t('options off → 15 again', vis15 === 15, vis15);
+  const opt = await page.evaluate(() => ({
+    visible: document.querySelector('[data-page="pageOptions"]').getClientRects().length > 0,
+    chips: document.querySelectorAll('#pageNav .nav-chip').length,
+    opgnum: document.getElementById('v_pgnum_pageOptions').textContent,
+    cols: document.querySelectorAll('#v_opTable thead th').length,
+    rows: document.querySelectorAll('#v_opTable tbody tr').length,
+    bests: document.querySelectorAll('#v_opTable td.best').length,
+    names: document.getElementById('v_opTable').textContent.includes('Good — 5 kWp') &&
+           document.getElementById('v_opTable').textContent.includes('Best — 8 kWp'),
+    optCount: (window.__qsOptions || []).length
+  }));
+  t('options page visible with 2 options', opt.visible, opt.visible);
+  t('16 nav chips', opt.chips === 16, opt.chips);
+  t('options page numbered', opt.opgnum === 'Page 3 of 16', opt.opgnum);
+  t('comparison table 2 cols × 10 rows', opt.cols === 3 && opt.rows === 10, opt.cols + 'x' + opt.rows);
+  t('best cells highlighted', opt.bests >= 3, opt.bests);
+  t('option names in header', opt.names, opt.names);
 
-  /* ---- screenshots of every page (desktop) ---- */
-  const ids = await page.$$eval('.page-wrap', (ws) => ws
-    .filter((w) => w.style.display !== 'none')
-    .map((w) => w.querySelector('.page').id));
+  const rec = await page.evaluate(() => {
+    const btns = [...document.querySelectorAll('#optList button[data-act="rec"]')];
+    btns[btns.length - 1].click();
+    return !!document.querySelector('#v_opTable th .opt-rec');
+  });
+  t('recommended badge on table', rec, rec);
+  const chips = await page.evaluate(() => ({
+    n: document.querySelectorAll('#v_opChips .opt-chip').length,
+    lead: (document.querySelector('#v_opChips .oc-lead') || {}).textContent || ''
+  }));
+  t('3 at-a-glance chips', chips.n === 3, chips.n);
+  t('chips lead-in', /glance/i.test(chips.lead), chips.lead);
+
+  await page.evaluate(() => { const u = document.getElementById('shareUrl'); u.value = 'https://example.com/proposals/KTME-2026-013'; u.dispatchEvent(new Event('input', { bubbles: true })); });
+  await new Promise((r) => setTimeout(r, 600));
+  const qr = await page.evaluate(() => {
+    const wrap = document.getElementById('coverQrWrap');
+    const c = document.getElementById('qrCover');
+    if (!wrap || !c) return { shown: false };
+    const ctx = c.getContext('2d');
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    let dark = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] < 100) dark++;
+    return { shown: wrap.getClientRects().length > 0, w: c.width, dark };
+  });
+  t('cover QR shown for valid link', qr.shown === true, JSON.stringify(qr));
+  t('cover QR painted', qr.w >= 92 && qr.dark > 200, JSON.stringify(qr));
+  await page.evaluate(() => { const u = document.getElementById('shareUrl'); u.value = ''; u.dispatchEvent(new Event('input', { bubbles: true })); });
+  await new Promise((r) => setTimeout(r, 400));
+  const qrGone = await page.evaluate(() => document.getElementById('coverQrWrap').getClientRects().length === 0);
+  t('cover QR hidden when link cleared', qrGone, qrGone);
+  /* restore the demo link so the cover screenshot shows the QR */
+  await page.evaluate(() => { const u = document.getElementById('shareUrl'); u.value = 'https://example.com/proposals/KTME-2026-013'; u.dispatchEvent(new Event('input', { bubbles: true })); });
+  await new Promise((r) => setTimeout(r, 500));
+
+  /* ---- WhatsApp share opens wa.me with a crafted message ---- */
+  await page.evaluate(() => { window.__opened = null; window.open = (u) => { window.__opened = u; return {}; }; });
+  await page.click('#waShare');
+  const wa = await page.evaluate(() => window.__opened || '');
+  t('wa.me share opens', wa.startsWith('https://wa.me/?text='), wa.slice(0, 60));
+  t('wa.me message carries link + customer', decodeURIComponent(wa).includes('Bhooshan') && decodeURIComponent(wa).includes('KTME-2026-013'));
+
+  /* ---- screenshots of every VISIBLE page (desktop) ----
+     viewport 1260 + hidden sticky toolbar: element.screenshot clips
+     mis-align with the sticky toolbar and wide viewports. */
+  await page.setViewport({ width: 1260, height: 950 });
+  await new Promise((r) => setTimeout(r, 400));
+  await page.evaluate(() => { const tb = document.querySelector('.preview-toolbar'); if (tb) tb.style.visibility = 'hidden'; });
+  const ids = await page.$$eval('.page', (els) => els.filter((e) => e.getClientRects().length > 0).map((e) => e.id));
   for (const id of ids) {
     const el = await page.$('#' + id);
-    await el.screenshot({ path: `${OUT}/${id}.png` });
+    await el.evaluate((n) => n.scrollIntoView({ block: 'start' }));
+    await new Promise((r) => setTimeout(r, 150));
+    await el.screenshot({ path: `${OUT}/${id}.png`, captureBeyondViewport: false });
   }
+  await page.evaluate(() => { const tb = document.querySelector('.preview-toolbar'); if (tb) tb.style.visibility = ''; });
+  await page.setViewport({ width: 1440, height: 950 });
+  await new Promise((r) => setTimeout(r, 400));
   console.log('  ✓ desktop screenshots:', ids.length);
 
   /* ---- autosave indicator ---- */
   await new Promise((r) => setTimeout(r, 700));
-  const saved = await page.evaluate(() => !!localStorage.getItem('qstudio.activeId') &&
-    !!localStorage.getItem('qstudio.proposals.index'));
-  t('autosave persisted (proposal store)', saved);
+  const saved = await page.evaluate(() =>
+    Object.keys(localStorage).some((k) => k.startsWith('qstudio.proposal.')));
+  t('autosave persisted', saved);
 
   /* ---- mobile pass ---- */
   await page.setViewport({ width: 390, height: 844 });
@@ -158,15 +212,51 @@ const OUT = __dirname + '/shots';
   }
   t('PDF exported', pdfOk);
   if (pdfOk) {
-    const pdfFile = fs.existsSync(pdfPath) ? pdfPath
-      : OUT + '/' + fs.readdirSync(OUT).find((f) => f.endsWith('.pdf') && fs.statSync(OUT + '/' + f).size > 50000);
-    console.log('   PDF:', require('path').basename(pdfFile), (fs.statSync(pdfFile).size / 1048576).toFixed(2) + ' MB');
+    let pdfFile = null;
+    for (let i = 0; i < 100 && !pdfFile; i++) {
+      const f = fs.readdirSync(OUT).find((f) => f.endsWith('.pdf') && fs.statSync(OUT + '/' + f).size > 50000);
+      if (f) pdfFile = OUT + '/' + f; else await new Promise((r) => setTimeout(r, 100));
+    }
+    if (pdfFile) console.log('   PDF:', require('path').basename(pdfFile), (fs.statSync(pdfFile).size / 1048576).toFixed(2) + ' MB');
   }
   const status = await page.$eval('#statusMsg', (e) => e.textContent);
-  t('status confirms 15 pages', status.includes('15'), status);
+  t('status confirms 16 pages', status.includes('16'), status);
 
   console.log('\nERRORS (' + errors.length + '):');
   errors.slice(0, 10).forEach((e) => console.log(' ', e.slice(0, 250)));
+
+  /* ---- customer share view ---- */
+  const shareId = await page.evaluate(() => localStorage.getItem('qstudio.activeId'));
+  const p2 = await browser.newPage();
+  p2.on('pageerror', (e) => errors.push('[share pageerror] ' + e.message));
+  await p2.goto(BASE + '/share.html?p=' + shareId, { waitUntil: 'networkidle0', timeout: 60000 });
+  await p2.evaluate(() => document.fonts.ready);
+  await new Promise((r) => setTimeout(r, 900));
+  const sv = await p2.evaluate(() => ({
+    cust: document.getElementById('shareCustomer').textContent,
+    visible: [...document.querySelectorAll('.page-wrap')].filter((x) => x.getClientRects().length > 0).length,
+    hero: document.getElementById('v_exHeroNet') ? document.getElementById('v_exHeroNet').textContent : '',
+    noForm: !document.getElementById('quoteForm'),
+    optVisible: document.querySelector('[data-page="pageOptions"]').getClientRects().length > 0
+  }));
+  const expPages = await page.evaluate(() => {
+    const b = JSON.parse(localStorage.getItem('qstudio.proposal.' + localStorage.getItem('qstudio.activeId')));
+    return (b.options || []).length >= 2 ? 16 : 15;
+  });
+  t('share: customer banner', sv.cust.includes('Bhooshan'), sv.cust);
+  t('share: ' + expPages + ' pages visible (options-aware)', sv.visible === expPages, sv.visible);
+  t('share: finance rendered', /₹/.test(sv.hero), sv.hero);
+  t('share: read-only (no builder form)', sv.noForm, sv.noForm);
+  await p2.evaluate(() => document.querySelector('.share-topbar').scrollIntoView());
+  await p2.screenshot({ path: `${OUT}/share-view-top.png` });
+  await p2.evaluate(() => document.querySelector('[data-page="pageOptions"]').scrollIntoView());
+  await new Promise((r) => setTimeout(r, 400));
+  await p2.screenshot({ path: `${OUT}/share-view-options.png` });
+  t('share: options page present', sv.optVisible, sv.optVisible);
+  await p2.close();
+
+  console.log('---');
+  if (errors.length) { console.error('ERRORS:\n' + errors.join('\n')); process.exit(1); }
   await browser.close();
   process.exit(errors.length ? 2 : 0);
 })().catch((e) => { console.error('QA crashed:', e.message); process.exit(1); });

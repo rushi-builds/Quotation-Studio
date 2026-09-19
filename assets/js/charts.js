@@ -371,63 +371,6 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* 5. System options comparison (grouped bars)                         */
-  /* ------------------------------------------------------------------ */
-  function options(canvas, list) {
-    if (!canvas) return;
-    const W = canvas.clientWidth || 700, H = canvas.clientHeight || 200;
-    const ctx = setup(canvas, W, H);
-    list = (list || []).filter((o) => o.kwp > 0);
-    if (!list.length) { emptyNote(ctx, 'Enter option capacities to compare them here.'); return; }
-    const pad = { l: 56, r: 12, t: 30, b: 32 };
-    const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
-    const maxV = niceCeil(Math.max.apply(null,
-      list.map((o) => Math.max(o.f.lifetimeSaving, o.f.netInvestment))) * 1.08);
-    ctx.font = '500 10px ' + FONT;
-    const ticks = 3;
-    for (let i = 0; i <= ticks; i++) {
-      const v = (maxV / ticks) * i;
-      const y = pad.t + ih - (ih * v) / maxV;
-      ctx.strokeStyle = GRID; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
-      ctx.fillStyle = TEXT; ctx.textAlign = 'right';
-      ctx.fillText(shortINR(v), pad.l - 8, y + 3);
-    }
-    const slot = iw / list.length;
-    const bw = Math.min(slot * 0.26, 52);
-    list.forEach((o, i) => {
-      const cx = pad.l + slot * i + slot / 2;
-      const draw = (v, x, color) => {
-        const h = (ih * v) / maxV;
-        const y = pad.t + ih - h;
-        ctx.fillStyle = color;
-        roundRect(ctx, x, y, Math.max(h, 2) > 0 ? bw : bw, Math.max(h, 2), 3);
-        ctx.fill();
-        ctx.fillStyle = NAVY; ctx.font = '700 9.5px ' + FONT; ctx.textAlign = 'center';
-        ctx.fillText(shortINR(v), x + bw / 2, y - 5);
-      };
-      draw(o.f.netInvestment, cx - bw - 3, NAVY);
-      draw(o.f.lifetimeSaving, cx + 3, ORANGE);
-      ctx.fillStyle = TEXT; ctx.font = '600 10px ' + FONT; ctx.textAlign = 'center';
-      const nm = o.name + ' \u2014 ' + o.kwp + ' kWp';
-      if (ctx.measureText(nm).width > slot - 6) {
-        ctx.fillText(o.name, cx, pad.t + ih + 15);
-        ctx.font = '500 9px ' + FONT;
-        ctx.fillText(o.kwp + ' kWp', cx, pad.t + ih + 26);
-      } else {
-        ctx.fillText(nm, cx, pad.t + ih + 17);
-      }
-    });
-    /* legend */
-    ctx.font = '600 10px ' + FONT;
-    ctx.textAlign = 'left';
-    ctx.fillStyle = NAVY; ctx.fillRect(pad.l + 2, 15, 10, 10);
-    ctx.fillStyle = TEXT; ctx.fillText('Net investment', pad.l + 17, 23.5);
-    ctx.fillStyle = ORANGE; ctx.fillRect(pad.l + 118, 15, 10, 10);
-    ctx.fillStyle = TEXT; ctx.fillText('25-year savings', pad.l + 133, 23.5);
-  }
-
-  /* ------------------------------------------------------------------ */
   function roundRect(ctx, x, y, w, h, r) {
     r = Math.min(r, h / 2, w / 2);
     ctx.beginPath();
@@ -439,5 +382,5 @@
     ctx.closePath();
   }
 
-  root.Charts = { cumulative, annual, bridge, donut, options, shortINR };
+  root.Charts = { cumulative, annual, bridge, donut, shortINR };
 })(typeof self !== 'undefined' ? self : this);

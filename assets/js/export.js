@@ -17,7 +17,9 @@
     }
     const { jsPDF } = root.jspdf;
     const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true });
-    const pages = root.Render.visiblePages ? root.Render.visiblePages() : root.Render.PAGES;
+    /* only pages visible for the current state (conditional pages may drop out) */
+    const pages = (root.Render.lastVisible && root.Render.lastVisible.length)
+      ? root.Render.lastVisible : root.Render.PAGES;
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     for (let i = 0; i < pages.length; i++) {
@@ -36,7 +38,8 @@
       if (i > 0) pdf.addPage();
       pdf.addImage(img, 'JPEG', 0, 0, pageW, pageH, undefined, 'FAST');
     }
-    const s = root.Render.readState();
+    const s = (root.Render.lastState && root.Render.lastState.custName !== undefined)
+      ? root.Render.lastState : root.Render.readState();
     const cust = (s.custName || 'Customer').replace(/[^a-z0-9]+/gi, '_');
     const ref = (s.propRef || '').replace(/[^a-z0-9]+/gi, '-');
     pdf.setProperties({

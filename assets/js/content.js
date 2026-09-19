@@ -403,27 +403,36 @@ const CONTENT = {
   },
 
   /* ------------------------------------------------------------------ */
-  /* PAGE 3 — System Options (optional Good/Better/Best comparison)      */
+  /* PAGE — System Options comparison (visible when 2+ options are saved)*/
   /* ------------------------------------------------------------------ */
   pageOptions: {
-    heading: 'Choose Your System',
-    sub: 'Three Ways to Go Solar. Same Engineering. Your Choice.',
-    intro: 'Based on your roof and energy goals, we have prepared three system options. All of them use the same Tier-1 equipment and the same installation standard \u2014 the difference is capacity and investment. The detailed engineering pages of this proposal reflect the design marked \u201cIN THIS PROPOSAL\u201d.',
-    chips: {
-      invest: 'Net Investment',
-      annual: 'Year-1 Saving',
-      monthly: 'Saving / Month',
-      payback: 'Payback',
-      lifetime: '25-Yr Savings',
-      gen: 'Units / Year',
-      modules: 'Modules',
-      recommended: 'RECOMMENDED',
-      match: 'IN THIS PROPOSAL',
-      notSet: 'Option not configured'
+    eyebrow: 'SYSTEM OPTIONS',
+    heading: 'Choose What Fits You Best',
+    sub: 'Side-by-side comparison, computed from your actual inputs',
+    para: 'We have prepared more than one way to power your property. Every option below is a complete, installable system — compared on identical assumptions so you can choose with clarity. Ask us which one suits your roof and budget best.',
+    tableLabel: 'OPTION COMPARISON',
+    colCurrent: 'Current Design',
+    recommendedBadge: 'Recommended',
+    metrics: {
+      capacity: 'System Capacity',
+      modules: 'Solar Modules',
+      annualGen: 'Year-1 Generation',
+      annualSaving: 'Saving in Year 1',
+      netInvestment: 'Net Investment',
+      costPerWp: 'Effective Rate',
+      payback: 'Payback Period',
+      irr: 'Estimated IRR',
+      lifetime: 'Savings over 25 Years',
+      co2: 'CO₂ Offset / Year'
     },
-    metricsLabel: 'SIDE-BY-SIDE COMPARISON',
-    chartTitle: 'INVESTMENT VS 25-YEAR SAVINGS',
-    note: 'All options use the same generation assumption ({genFactor} kWh/kWp/yr), tariff (\u20b9{tariff}/unit) and subsidy eligibility. Every amount is computed live from the assumptions stated for this proposal.'
+    boldNote: 'Bold figures indicate the stronger value for you in that row.',
+    chipsLead: 'At a glance',
+    chips: {
+      invest: 'Lowest investment',
+      payback: 'Fastest payback',
+      lifetime: 'Highest lifetime savings'
+    },
+    note: 'All figures are computed live from each option\u2019s design and the shared financial assumptions of this proposal. Subsidy applies to residential connections per PM Surya Ghar.'
   },
 
   /* Cover footer stats (page 1) */

@@ -9,7 +9,6 @@
 
 (function () {
   const $ = (id) => document.getElementById(id);
-  const F = window.Finance;
 
   /* Pristine HTML form values = the template defaults for "New proposal".
      Captured before any saved data is applied. */
@@ -21,7 +20,7 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       const blob = window.Proposals.saveActive(
-        window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES);
+        window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES, window.__qsOptions || []);
       const el = $('saveIndicator');
       if (el) {
         el.textContent = blob ? 'Saved ✓' : 'Save failed';
@@ -32,6 +31,112 @@
     }, 400);
   }
   window.__qsScheduleSave = scheduleSave; /* used by the Advanced Edit panel */
+
+  /* ---------- system options (Good / Better / Best) ---------- */
+  const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
+    'inverterMake', 'inverterKw', 'costPerKwp', 'gstPercent', 'tariff', 'escalation',
+    'degradation', 'subsidyOverride'];
+
+  function optionsList() { return window.__qsOptions || (window.__qsOptions = []); }
+
+  function persistOptions() {
+    scheduleSave();
+    window.Render.renderAll();
+  }
+
+  function renderOptionsUI() {
+    const list = $('optList');
+    if (!list) return;
+    const opts = optionsList();
+    if (!opts.length) {
+      list.innerHTML = '<div class="hint">No saved options yet. Design a system above, then save it with a name — e.g. “Good — 5 kWp”.</div>';
+      return;
+    }
+    list.innerHTML = opts.map((o, i) => {
+      const fin = window.Finance.compute(Object.assign(
+        {}, window.StateStore.collectForm(), o.fields, { options: [] }));
+      const summary = o.fields.capacity + ' kWp · ' +
+        (isFinite(fin.payback) ? fin.payback.toFixed(1) + ' yr payback' : 'payback —') + ' · ' +
+        window.Finance.fmtINRshort(fin.netInvestment);
+      return '<div class="opt-row' + (o.recommended ? ' recommended' : '') + '" data-i="' + i + '">' +
+        '<div class="opt-info"><div class="opt-name">' +
+        o.name.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
+        (o.recommended ? '<span class="opt-rec-chip">★ Recommended</span>' : '') + '</div>' +
+        '<div class="opt-sum">' + summary + '</div></div>' +
+        '<div class="opt-actions">' +
+        '<button type="button" class="link-btn" data-act="apply" data-i="' + i + '">Apply</button>' +
+        '<button type="button" class="link-btn" data-act="rec" data-i="' + i + '" title="Mark as recommended">★</button>' +
+        '<button type="button" class="link-btn danger" data-act="del" data-i="' + i + '" title="Remove option">×</button>' +
+        '</div></div>';
+    }).join('');
+
+    list.querySelectorAll('button[data-act]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const i = parseInt(btn.dataset.i, 10);
+        const opts2 = optionsList();
+        const act = btn.dataset.act;
+        if (act === 'apply') {
+          window.StateStore.applyForm(opts2[i].fields);
+          Object.keys(opts2[i].fields).forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) { el.dispatchEvent(new Event('input', { bubbles: true })); }
+          });
+          persistOptions();
+        } else if (act === 'rec') {
+          const wasRec = opts2[i].recommended;
+          opts2.forEach((o) => { o.recommended = false; });
+          opts2[i].recommended = !wasRec;
+          persistOptions();
+          renderOptionsUI();
+        } else if (act === 'del') {
+          opts2.splice(i, 1);
+          persistOptions();
+          renderOptionsUI();
+        }
+      });
+    });
+  }
+
+  function captureOption() {
+    const s = window.StateStore.collectForm();
+    const fields = {};
+    OPTION_FIELDS.forEach((k) => { fields[k] = s[k]; });
+    return fields;
+  }
+
+  function wireOptions() {
+    const save = $('optSave');
+    if (!save) return;
+    save.addEventListener('click', () => {
+      const nameEl = $('optName');
+      let name = (nameEl.value || '').trim();
+      if (!name) {
+        const cap = window.StateStore.collectForm().capacity;
+        name = 'Option ' + (optionsList().length + 1) + ' — ' + cap + ' kWp';
+      }
+      optionsList().push({ id: 'o_' + Date.now().toString(36), name, fields: captureOption(), recommended: false });
+      nameEl.value = '';
+      persistOptions();
+      renderOptionsUI();
+    });
+  }
+
+  /* ---------- WhatsApp share ---------- */
+  function wireShare() {
+    const btn = $('waShare');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const s = window.StateStore.collectForm();
+      const link = (s.shareUrl || '').trim();
+      let msg = 'Hello ' + (s.custName || '').trim() + ',\n' +
+        'Here is your personalised rooftop solar proposal from ' + s.companyName + ' (' +
+        s.capacity + ' kWp).\n' +
+        (link ? '\nExplore it here: ' + link + '\n' : '') +
+        '\n— ' + s.companyName + ' | ' + s.companyPhone;
+      const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+      window.open(url, '_blank');
+    });
+  }
 
   /* ---------- proposal manager UI ---------- */
   function refreshManager(rebuildSelect) {
@@ -72,10 +177,12 @@
     }
   }
 
-  function loadProposalIntoUI(blob) {
+  function loadActiveIntoUI() {
+    const blob = window.Proposals.active();
     if (!blob) return;
     window.StateStore.applyForm(Object.assign({}, window.StateStore.DEFAULTS, blob.form || {}));
     if (blob.form && !blob.form.propDate) $('propDate').value = new Date().toISOString().slice(0, 10);
+    window.__qsOptions = Array.isArray(blob.options) ? blob.options : [];
     if (blob.content) {
       /* deep-merge page objects so partial overrides don't blank siblings */
       Object.keys(blob.content).forEach((k) => {
@@ -93,10 +200,7 @@
       Object.keys(blob.projectImages).forEach((k) => { PROJECT_IMAGES[k] = blob.projectImages[k]; });
     }
     window.EquipmentStore.refreshSelects();
-  }
-
-  function loadActiveIntoUI() {
-    loadProposalIntoUI(window.Proposals.active());
+    renderOptionsUI();
   }
 
   function switchTo(id) {
@@ -105,27 +209,6 @@
     loadActiveIntoUI();
     window.Render.renderAll();
     refreshManager();
-  }
-
-  /* ---------- sharing ---------- */
-  function waNumber(phone) {
-    let d = String(phone || '').replace(/\D/g, '');
-    if (d.length === 10) d = '91' + d; /* Indian mobile without country code */
-    return d;
-  }
-  function shareLink() {
-    const s = window.Render.readState();
-    const base = (s.shareLinkBase || '').trim();
-    if (base) return base + encodeURIComponent(s.propRef || '');
-    return location.origin + location.pathname + '?p=' + window.Proposals.activeId();
-  }
-  function shareMessage(s, f) {
-    const pb = isFinite(f.payback) ? f.payback.toFixed(1) : '—';
-    return 'Hello ' + (s.custName || 'there') + ',\n\n' +
-      'Your personalised rooftop solar proposal from ' + s.companyName + ' is ready:\n' +
-      s.capacity + ' kWp • approx ' + F.fmtINR(f.annualSaving / 12) + '/month savings • payback ~' + pb + ' years\n\n' +
-      'Explore it here: ' + shareLink() + '\n\n' +
-      'Happy to walk you through it anytime.\n— ' + (s.prepName || s.companyName);
   }
 
   function saveNow() {
@@ -201,17 +284,16 @@
   }
 
   /* ---------- preview page navigation ---------- */
-  let navIO = null;
   function buildNav() {
     const nav = $('pageNav');
     if (!nav) return;
-    const pages = window.Render.visiblePages();
+    const vis = (window.Render.lastVisible && window.Render.lastVisible.length)
+      ? window.Render.lastVisible : window.Render.visiblePages(window.Render.lastState || {});
     nav.innerHTML = '';
-    pages.forEach((p, i) => {
+    vis.forEach((p, i) => {
       const chipEl = document.createElement('button');
       chipEl.className = 'nav-chip';
       chipEl.type = 'button';
-      chipEl.dataset.page = p.id;
       chipEl.innerHTML = '<b>' + (i + 1) + '</b> ' + p.nav;
       chipEl.title = p.title;
       chipEl.addEventListener('click', () => {
@@ -222,27 +304,21 @@
       });
       nav.appendChild(chipEl);
     });
-    if (navIO) navIO.disconnect();
     if ('IntersectionObserver' in window) {
-      navIO = new IntersectionObserver((entries) => {
+      buildNav.io = buildNav.io || new IntersectionObserver((entries) => {
         entries.forEach((en) => {
           if (!en.isIntersecting) return;
-          nav.querySelectorAll('.nav-chip').forEach((c) => {
-            c.classList.toggle('active', c.dataset.page === en.target.id);
-          });
+          const idx = vis.findIndex((p) => p.id === en.target.id);
+          nav.querySelectorAll('.nav-chip').forEach((c, i) => c.classList.toggle('active', i === idx));
         });
       }, { rootMargin: '-40% 0px -55% 0px' });
-      pages.forEach((p) => { const el = $(p.id); if (el) navIO.observe(el); });
+      buildNav.io.disconnect();
+      window.Render.PAGES.forEach((p) => {
+        const el = $(p.id);
+        if (el) buildNav.io.observe(el);
+      });
     }
   }
-  /* rebuild the nav only when the set of visible pages changes */
-  function syncNav() {
-    const nav = $('pageNav');
-    if (!nav) return;
-    const want = window.Render.visiblePages().length;
-    if (nav.children.length !== want) buildNav();
-  }
-  document.addEventListener('qs:rendered', syncNav);
 
   /* ---------- form wiring ---------- */
   function wireForm() {
@@ -311,85 +387,37 @@
       const p = $('advancedPanel');
       if (p) p.open = !p.open;
     });
-
-    /* WhatsApp share */
-    $('waBtn').addEventListener('click', () => {
-      const s = window.Render.readState();
-      const f = window.Finance.compute(s);
-      const num = waNumber(s.companyPhone);
-      if (!num) { alert('Add a phone number in Company Branding first.'); return; }
-      window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(shareMessage(s, f)), '_blank', 'noopener');
-    });
-
-    /* Copy share link */
-    $('copyLinkBtn').addEventListener('click', () => {
-      const link = shareLink();
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(link).then(() => {
-          const el = $('copyLinkBtn');
-          const old = el.textContent;
-          el.textContent = 'Copied ✓';
-          setTimeout(() => { el.textContent = old; }, 1500);
-        }).catch(() => { prompt('Copy this proposal link:', link); });
-      } else {
-        prompt('Copy this proposal link:', link);
-      }
-    });
-  }
-
-  /* ---------- customer share mode (?p=<id>) ---------- */
-  function wireCustomerBar(blob) {
-    const s = Object.assign({}, window.StateStore.DEFAULTS, blob.form || {});
-    const f = window.Finance.compute(s);
-    $('ctCompany').textContent = s.companyName;
-    $('ctFor').textContent = 'Prepared for ' + (s.custName || 'you') +
-      (s.capacity ? '  •  ' + s.capacity + ' kWp' : '');
-    $('ctCall').href = 'tel:' + String(s.companyPhone || '').replace(/\s/g, '');
-    $('ctWa').href = 'https://wa.me/' + waNumber(s.companyPhone) + '?text=' +
-      encodeURIComponent('Hello, I would like to discuss the solar proposal you shared.');
-    $('ctPdf').addEventListener('click', () => {
-      const st = $('ctStatus');
-      window.Exporter.exportPdf((m) => { if (st) st.textContent = m; });
-    });
-    document.title = 'Solar Proposal — ' + (s.custName || '') + ' (' + s.capacity + ' kWp)';
   }
 
   /* ---------- boot ---------- */
   function boot() {
+    if (window.__qsBooted) return; /* idempotent — harnesses may fire DOMContentLoaded twice */
+    window.__qsBooted = true;
     pristine = window.StateStore.collectForm();       /* HTML defaults */
     if (!pristine.propDate) {
       $('propDate').value = new Date().toISOString().slice(0, 10);
       pristine.propDate = $('propDate').value;
     }
     window.Proposals.init();                           /* migrate legacy, ensure active */
-    const shareId = new URLSearchParams(location.search).get('p');
-    const sharedBlob = shareId ? window.Proposals.get(shareId) : null;
-    if (sharedBlob) {
-      /* Customer share view: render the requested proposal read-only and
-         never touch the sales rep's active pointer or autosave. */
-      document.body.classList.add('customer-mode');
-      loadProposalIntoUI(sharedBlob);
-      wireCustomerBar(sharedBlob);
-    } else {
-      loadActiveIntoUI();                              /* apply saved proposal if any */
-    }
+    loadActiveIntoUI();                                /* apply saved proposal if any */
     window.EquipmentStore.wire();
     window.EquipmentStore.refreshSelects();
-    if (!sharedBlob) {
-      window.EquipmentStore.renderManager($('eqCatalog'), () => {
-        window.Render.renderAll();
-        scheduleSave();
-      });
-      wireForm();
-      wireManager();
-      refreshManager();
-      window.Editor.build();
-    }
+    window.EquipmentStore.renderManager($('eqCatalog'), () => {
+      window.Render.renderAll();
+      scheduleSave();
+    });
+    wireForm();
+    wireManager();
+    wireOptions();
+    wireShare();
+    refreshManager();
+    window.Editor.build();
     window.Render.renderAll();
     window.Exporter.wire();
     buildNav();
     fitPages();
-    if (!sharedBlob) saveNow(); /* snapshot immediately — no lost first edits */
+    saveNow(); /* snapshot the working state immediately — no lost first edits */
+    document.addEventListener('qs:rendered', buildNav);
     window.addEventListener('resize', fitPages);
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => window.Render.renderAll());
