@@ -9,10 +9,16 @@ Open `quotation.html` in a browser, or serve the folder with any static server.
 
 ## The 15-page proposal journey
 
-The journey is now **15 or 16 pages**: when a proposal carries two or more
-saved system options (Good / Better / Best), a conditional **System Options
-comparison page** becomes page 3 and all later pages renumber automatically —
-in the preview, the exported PDF and the customer share view.
+The journey is now **15–17 pages**: two conditional pages appear only when
+their data exists and all later pages renumber automatically — in the
+preview, the exported PDF and the customer share view.
+
+- **System Options** (page 3): appears when a proposal carries two or more
+  saved system options (Good / Better / Best).
+- **Financing & EMI** (page 11): appears when loan amount, interest rate and
+  tenure are entered — reducing-balance EMI, total interest, monthly savings
+  vs EMI over the tenure with the crossover month, net monthly outgo. Leave
+  the loan fields blank for a cash-purchase proposal.
 
 | # | Page | Purpose |
 |---|------|---------|
@@ -26,11 +32,12 @@ in the preview, the exported PDF and the customer share view.
 | 8 | Installation Quality | Standards + six-point handover checklist |
 | 9 | Generation & Savings Analysis | Cumulative-savings-vs-investment chart, annual savings bars, milestone table, assumptions strip |
 | 10 | Investment & Cost Breakdown | Cost cards with ₹/Wp, cost build-up chart, optional BOM donut, payment schedule with ₹ amounts, "what the price includes" |
-| 11 | Why Choose Us | Differentiators + five commitments |
-| 12 | Projects Portfolio | 9 reference projects across 3 sectors |
-| 13 | Warranty & Installation Journey | Warranty cards + 6-step journey |
-| 14 | Terms & Conditions | 12 plain-language terms, auto-filled validity/duration/jurisdiction |
-| 15 | Acceptance & Contact | Next steps, urgency highlight, CTA band, signature blocks |
+| 11 | Financing & EMI *(optional)* | Loan recap, EMI/interest/savings cards, savings-vs-EMI chart, crossover callout |
+| 12 | Why Choose Us | Differentiators + five commitments |
+| 13 | Projects Portfolio | 9 reference projects across 3 sectors |
+| 14 | Warranty & Installation Journey | Warranty cards + 6-step journey |
+| 15 | Terms & Conditions | 12 plain-language terms, auto-filled validity/duration/jurisdiction |
+| 16 | Acceptance & Contact | Next steps, urgency highlight, CTA band, signature blocks |
 
 ## Architecture
 

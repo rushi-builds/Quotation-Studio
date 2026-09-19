@@ -75,7 +75,7 @@ const w = bootApp();
 const d = w.document;
 
 t('no uncaught errors on boot', errors.length === 0, errors.join(' | '));
-t('rendered all 16 page shells (options hidden by default)', d.querySelectorAll('.page').length === 16, d.querySelectorAll('.page').length);
+t('rendered all 17 page shells (options + financing hidden by default)', d.querySelectorAll('.page').length === 17, d.querySelectorAll('.page').length);
 t('page labels generated', /Page 1 of 15/.test(d.querySelector('[data-page="pageCover"] .page-label').textContent),
   d.querySelector('[data-page="pageCover"] .page-label').textContent);
 t('cover shows customer', d.getElementById('v_coverCustName').textContent.includes('Bhooshan'));
@@ -297,6 +297,60 @@ setTimeout(() => {
   t('legacy customer on cover', d3.getElementById('v_coverCustName').textContent.includes('Legacy Customer'));
   t('legacy content applied', d3.getElementById('v_wsHeading').textContent === 'Legacy Heading',
     d3.getElementById('v_wsHeading').textContent);
+
+  /* ---------- financing (EMI) page flow ---------- */
+  console.log('— financing (EMI) page —');
+  t('Financing page hidden by default',
+    d.querySelector('.page-wrap[data-page="pageFinance"]').style.display === 'none' &&
+    !Array.from(d.querySelectorAll('.nav-chip')).some((c) => c.textContent === 'Financing'));
+  d.getElementById('loanAmt').value = '500000';
+  fire(w, d.getElementById('loanAmt'), 'input');
+  d.getElementById('loanRate').value = '9';
+  fire(w, d.getElementById('loanRate'), 'input');
+  d.getElementById('loanYears').value = '10';
+  fire(w, d.getElementById('loanYears'), 'input');
+  t('Financing page appears with all three inputs',
+    d.querySelector('.page-wrap[data-page="pageFinance"]').style.display !== 'none');
+  t('nav gains Financing chip (16 pages)',
+    Array.from(d.querySelectorAll('.nav-chip')).some((c) => c.textContent.includes('Financing')) &&
+    d.querySelectorAll('.nav-chip').length === 16,
+    d.querySelectorAll('.nav-chip').length);
+  t('EMI card shows ₹6,334 / mo', d.getElementById('v_finCards').textContent.includes('₹6,334'),
+    d.getElementById('v_finCards').textContent);
+  t('recap line carries rate + tenure',
+    d.getElementById('v_finRecap').textContent.includes('9% p.a.') &&
+    d.getElementById('v_finRecap').textContent.includes('10 years'),
+    d.getElementById('v_finRecap').textContent);
+  t('cash-flow-positive highlight (Y1 saving > EMI)',
+    d.getElementById('v_finHighlight').style.display !== 'none' &&
+    d.getElementById('v_finHighlight').textContent.includes('cash-flow positive'),
+    d.getElementById('v_finHighlight').textContent);
+  t('net outgo card shows saving − EMI (₹6,441 / mo)',
+    d.getElementById('v_finCards').textContent.includes('₹6,441'),
+    d.getElementById('v_finCards').textContent);
+  d.getElementById('loanAmt').value = ''; fire(w, d.getElementById('loanAmt'), 'input');
+  d.getElementById('loanRate').value = ''; fire(w, d.getElementById('loanRate'), 'input');
+  d.getElementById('loanYears').value = ''; fire(w, d.getElementById('loanYears'), 'input');
+  t('Financing page hides again when inputs cleared',
+    d.querySelector('.page-wrap[data-page="pageFinance"]').style.display === 'none' &&
+    d.querySelectorAll('.nav-chip').length === 15,
+    d.querySelectorAll('.nav-chip').length);
+
+  /* financing persists with the proposal blob and survives a re-boot */
+  d.getElementById('loanAmt').value = '500000'; fire(w, d.getElementById('loanAmt'), 'input');
+  d.getElementById('loanRate').value = '9'; fire(w, d.getElementById('loanRate'), 'input');
+  d.getElementById('loanYears').value = '10'; fire(w, d.getElementById('loanYears'), 'input');
+  w.__qsSaveNow();
+  const dumpF = dumpStorage(w);
+  const blobF = JSON.parse(dumpF['qstudio.proposal.' + dumpF['qstudio.activeId']]);
+  t('loan inputs persisted in blob',
+    blobF.form.loanAmt === '500000' && blobF.form.loanRate === '9' && blobF.form.loanYears === '10',
+    JSON.stringify([blobF.form.loanAmt, blobF.form.loanRate, blobF.form.loanYears]));
+  const wF = bootApp(dumpF);
+  t('financing page restored after re-boot',
+    wF.document.querySelector('.page-wrap[data-page="pageFinance"]').style.display !== 'none');
+  t('restored EMI figure correct', wF.document.getElementById('v_finCards').textContent.includes('\u20B96,334'),
+    wF.document.getElementById('v_finCards').textContent.slice(0, 60));
 
   /* ---------- pdf export smoke ---------- */
   console.log('— pdf export —');

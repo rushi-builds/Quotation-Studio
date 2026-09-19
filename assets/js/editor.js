@@ -254,6 +254,20 @@
     mkField(g, 'Payment note', CONTENT.pageInvestment.paymentNote, (v) => { CONTENT.pageInvestment.paymentNote = v; }, true);
     mkField(g, 'Disclaimer', CONTENT.pageInvestment.disclaimer, (v) => { CONTENT.pageInvestment.disclaimer = v; }, true);
 
+    g = mkGroup(rootEl, 'Page 10b — Financing (optional page)');
+    mkField(g, 'Eyebrow label', CONTENT.pageFinance.eyebrow, (v) => { CONTENT.pageFinance.eyebrow = v; });
+    mkField(g, 'Heading', CONTENT.pageFinance.heading, (v) => { CONTENT.pageFinance.heading = v; });
+    mkField(g, 'Subheading', CONTENT.pageFinance.sub, (v) => { CONTENT.pageFinance.sub = v; });
+    mkField(g, 'Intro para', CONTENT.pageFinance.para, (v) => { CONTENT.pageFinance.para = v; }, true);
+    mkField(g, 'Recap label', CONTENT.pageFinance.recapLabel, (v) => { CONTENT.pageFinance.recapLabel = v; });
+    Object.keys(CONTENT.pageFinance.cards).forEach((k) => {
+      mkField(g, 'Card caption — ' + k, CONTENT.pageFinance.cards[k], (v) => { CONTENT.pageFinance.cards[k] = v; });
+    });
+    mkField(g, 'Chart title', CONTENT.pageFinance.chartTitle, (v) => { CONTENT.pageFinance.chartTitle = v; });
+    mkField(g, 'Crossing note (uses {m})', CONTENT.pageFinance.crossing, (v) => { CONTENT.pageFinance.crossing = v; }, true);
+    mkField(g, 'Cash-flow-positive note', CONTENT.pageFinance.cashflowPositive, (v) => { CONTENT.pageFinance.cashflowPositive = v; }, true);
+    mkField(g, 'Formula note (uses {rate} {years})', CONTENT.pageFinance.note, (v) => { CONTENT.pageFinance.note = v; }, true);
+
     /* ---------- why ktm ---------- */
     g = mkGroup(rootEl, 'Page 11 — Why Choose KTM');
     mkField(g, 'Heading', CONTENT.pageWhyKtm.heading, (v) => { CONTENT.pageWhyKtm.heading = v; });

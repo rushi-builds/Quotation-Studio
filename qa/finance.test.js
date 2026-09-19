@@ -83,6 +83,35 @@ t('treesAnnual uses editable factor', Math.abs(f.treesAnnual - (f.co2Annual * 10
 const fEnv = F.compute({ ...base, co2Factor: '0.71' });
 t('custom CO₂ factor respected', Math.abs(fEnv.co2Annual - 10220 * 0.71 / 1000) < 0.01);
 
+console.log('— Financing & EMI —');
+const fLoan = F.compute({ ...base, loanAmt: '500000', loanRate: '9', loanYears: '10' });
+/* independent EMI formula: P·r / (1 − (1+r)^−n) */
+(() => {
+  const r = 0.09 / 12, n = 120;
+  const expected = 500000 * r / (1 - Math.pow(1 + r, -n));
+  t('EMI matches reducing-balance formula (±₹1)',
+    Math.abs(fLoan.financing.emi - expected) < 1, fLoan.financing.emi.toFixed(2) + ' vs ' + expected.toFixed(2));
+})();
+t('tenure in months = 120', fLoan.financing.months === 120);
+t('totalInterest = totalPaid − loan', Math.abs(fLoan.financing.totalInterest - (fLoan.financing.totalPaid - 500000)) < 0.01);
+t('monthly savings series length = tenure', fLoan.financing.monthlySavings.length === 120);
+t('monthlySavingY1 = annualSaving / 12',
+  Math.abs(fLoan.financing.monthlySavingY1 - 153300 / 12) < 0.01, fLoan.financing.monthlySavingY1);
+t('netMonthlyY1 = savingY1 − EMI',
+  Math.abs(fLoan.financing.netMonthlyY1 - (153300 / 12 - fLoan.financing.emi)) < 0.01);
+/* Y1 saving/12 = 12,775 < EMI 6,333? No — 12,775 > 6,333 → crossing month 1 */
+t('savings exceed EMI from month 1 (this scenario)', fLoan.financing.crossingMonth === 1,
+  fLoan.financing.crossingMonth);
+const fLoan2 = F.compute({ ...base, loanAmt: '900000', loanRate: '11', loanYears: '5' });
+t('bigger loan: crossing beyond month 1 or absent', isNaN(fLoan2.financing.crossingMonth) ||
+  fLoan2.financing.crossingMonth > 1, fLoan2.financing.crossingMonth);
+t('no financing inputs → financing null',
+  F.compute({ ...base, loanAmt: '', loanRate: '', loanYears: '' }).financing === null);
+t('partial financing inputs → financing null',
+  F.compute({ ...base, loanAmt: '500000', loanRate: '', loanYears: '10' }).financing === null);
+t('zero-rate guard (rate 0 → null, no div-by-zero NaN)',
+  F.compute({ ...base, loanAmt: '500000', loanRate: '0', loanYears: '10' }).financing === null);
+
 console.log('— Edge cases —');
 const zero = F.compute({});
 t('zero inputs do not crash', isFinite(zero.projectCost) && zero.projectCost === 0);

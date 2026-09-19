@@ -765,3 +765,10 @@ body.share-mode{background:#EEF1F5;}
 body.presenting .form-panel{display:none !important;}
 body.presenting .present-toggle{display:none;}
 body.presenting .exit-present{display:block;}
+
+/* ---------- 19. Financing & EMI section ---------- */
+.fin-chips{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;}
+.fin-chip{border:1px solid var(--line-cool);border-radius:10px;padding:11px 12px;background:#fff;}
+.fin-chip .fc-v{font-size:14.5px;font-weight:800;color:var(--navy);font-family:'Poppins',sans-serif;}
+.fin-chip .fc-l{font-size:8.4px;font-weight:700;color:var(--gray-light);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;line-height:1.35;}
+.fin-recap{font-size:9.5px;font-weight:600;color:var(--gray-light);background:var(--cream);border:1px dashed var(--orange);border-radius:8px;padding:8px 12px;margin:10px 0;letter-spacing:.02em;}

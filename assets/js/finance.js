@@ -219,6 +219,37 @@
     };
     pay.sumPct = pay.advance.pct + pay.dispatch.pct + pay.completion.pct;
 
+    /* ----- financing (EMI) — only when all three loan inputs are entered;
+       standard reducing-balance formula, nothing else assumed ----- */
+    const loanAmt = num(s.loanAmt);
+    const loanRate = num(s.loanRate);
+    const loanYears = num(s.loanYears);
+    let financing = null;
+    if (loanAmt > 0 && loanRate > 0 && loanYears > 0) {
+      const r = loanRate / 1200;                    // monthly interest rate
+      const n = Math.max(1, Math.round(loanYears * 12)); // tenure in months
+      const pow = Math.pow(1 + r, n);
+      const emi = loanAmt * r * pow / (pow - 1);    // reducing-balance EMI
+      const totalPaid = emi * n;
+      /* month-wise savings across the tenure (step-wise from yearly series) */
+      const monthlySavings = [];
+      for (let m = 0; m < n; m++) {
+        const y = Math.min(Math.floor(m / 12), series.saving.length - 1);
+        monthlySavings.push(series.saving[y] / 12);
+      }
+      let crossingMonth = NaN;                      // first month savings ≥ EMI
+      for (let m = 0; m < n; m++) {
+        if (monthlySavings[m] >= emi) { crossingMonth = m + 1; break; }
+      }
+      financing = {
+        loan: loanAmt, ratePct: loanRate, years: loanYears, months: n,
+        emi, totalPaid, totalInterest: totalPaid - loanAmt,
+        monthlySavingY1: monthlySavings[0] || 0,
+        netMonthlyY1: (monthlySavings[0] || 0) - emi,
+        monthlySavings, crossingMonth
+      };
+    }
+
     return {
       // engineering
       capacity, moduleWattage, moduleCount, installedKwp, arrayArea,
@@ -235,6 +266,7 @@
       monthlyBill, billOffset, billOffsetCapped,
       // payments
       pay,
+      financing,
       constants: { YEARS: PROJECTION_YEARS, SUBSIDY_MAX }
     };
   }

@@ -28,7 +28,7 @@ const OUT = __dirname + '/shots';
   /* ---- integrity ---- */
   const pageCount = await page.$$eval('.page', (els) => els.length);
   const visibleCount = await page.$$eval('.page', (els) => els.filter((e) => e.getClientRects().length > 0).length);
-  t('16 page shells', pageCount === 16, pageCount);
+  t('17 page shells (options + financing hidden by default)', pageCount === 17, pageCount);
   t('15 visible (options hidden by default)', visibleCount === 15, visibleCount);
   const kv = await page.evaluate(() => ({
     coverName: document.getElementById('v_coverCustName').textContent,
@@ -221,6 +221,76 @@ const OUT = __dirname + '/shots';
   }
   const status = await page.$eval('#statusMsg', (e) => e.textContent);
   t('status confirms 16 pages', status.includes('16'), status);
+
+  /* ---- financing (EMI) page: appears, paints, exports as page 17 ---- */
+  console.log('— financing (EMI) —');
+  /* the first export must be fully finished (button re-enabled, status final)
+     before we mutate state — a mid-run click would be silently ignored */
+  let settled = false;
+  for (let i = 0; i < 120; i++) {
+    const st = await page.$eval('#statusMsg', (e) => e.textContent).catch(() => '');
+    const btnOff = await page.$eval('#downloadBtn', (e) => e.disabled).catch(() => true);
+    if (st.includes('Downloaded') && !btnOff) { settled = true; break; }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  t('first export settled before financing checks', settled);
+  await page.type('#loanAmt', '500000');
+  await page.type('#loanRate', '9');
+  await page.type('#loanYears', '10');
+  await new Promise((r) => setTimeout(r, 900));
+  const fin = await page.evaluate(() => {
+    const pg = document.getElementById('pageFinance');
+    let painted = 0;
+    try {
+      const d = document.getElementById('chartFinEmi').getContext('2d').getImageData(0, 0, 718, 330).data;
+      for (let i = 3; i < d.length; i += 4) if (d[i] !== 0) painted++;
+    } catch (e) { /* noop */ }
+    return {
+      visible: document.querySelector('.page-wrap[data-page="pageFinance"]').style.display !== 'none',
+      overflow: pg.scrollHeight > 1124,
+      painted,
+      nav: document.querySelectorAll('#pageNav .nav-chip').length
+    };
+  });
+  t('financing page visible', fin.visible);
+  t('financing nav chip (17 pages)', fin.nav === 17, fin.nav);
+  t('financing page fits (no overflow)', !fin.overflow, fin.overflow);
+  t('EMI chart painted', fin.painted > 500, fin.painted);
+  await page.evaluate(() => { const t = document.querySelector('.preview-toolbar'); if (t) t.style.visibility = 'hidden'; });
+  await page.setViewport({ width: 1260, height: 950 });
+  await new Promise((r) => setTimeout(r, 400));
+  const finEl = await page.$('#pageFinance');
+  await finEl.evaluate((n) => n.scrollIntoView({ block: 'start' }));
+  await new Promise((r) => setTimeout(r, 150));
+  await finEl.screenshot({ path: `${OUT}/financing.png`, captureBeyondViewport: false });
+  await page.evaluate(() => { const t = document.querySelector('.preview-toolbar'); if (t) t.style.visibility = ''; });
+  await page.setViewport({ width: 1440, height: 950 });
+  await new Promise((r) => setTimeout(r, 400));
+  fs.readdirSync(OUT).forEach((f) => { if (f.endsWith('.pdf')) fs.unlinkSync(OUT + '/' + f); });
+  await page.$eval('#statusMsg', (e) => { e.textContent = ''; });
+  await page.click('#downloadBtn');
+  let pdfOk2 = false, status2 = '';
+  for (let i = 0; i < 360; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const st = await page.$eval('#statusMsg', (e) => e.textContent).catch(() => '');
+    if (st && st !== lastStatus) { console.log('   …', st); lastStatus = st; }
+    if (st.includes('Downloaded')) { pdfOk2 = true; status2 = st; break; }
+  }
+  t('PDF with financing exported', pdfOk2);
+  if (pdfOk2) {
+    const f2 = fs.readdirSync(OUT).find((f) => f.endsWith('.pdf') && fs.statSync(OUT + '/' + f).size > 50000);
+    if (f2) console.log('   PDF:', f2, (fs.statSync(OUT + '/' + f2).size / 1048576).toFixed(2) + ' MB');
+  }
+  t('status confirms 17 pages with financing', status2.includes('17'), status2);
+  await page.evaluate(() => {
+    ['loanAmt', 'loanRate', 'loanYears'].forEach((id) => {
+      const e = document.getElementById(id); e.value = '';
+      e.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  t('financing page hides when loan cleared',
+    await page.evaluate(() => document.querySelector('.page-wrap[data-page="pageFinance"]').style.display === 'none'));
 
   console.log('\nERRORS (' + errors.length + '):');
   errors.slice(0, 10).forEach((e) => console.log(' ', e.slice(0, 250)));

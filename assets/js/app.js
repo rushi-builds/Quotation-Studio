@@ -31,6 +31,7 @@
     }, 400);
   }
   window.__qsScheduleSave = scheduleSave; /* used by the Advanced Edit panel */
+  window.__qsSaveNow = saveNow;           /* used by harnesses / before navigation */
 
   /* ---------- system options (Good / Better / Best) ---------- */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',

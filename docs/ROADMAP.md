@@ -103,11 +103,29 @@ Rules:
   is a read-only customer view driven by the same renderers and finance
   engine, with its own top bar, customer banner and PDF download.
 
+---
+
+## Done — financing & EMI page (optional, data-driven)
+
+- Enter **loan amount + interest % + tenure (years)** in the Payment terms
+  fieldset and a dedicated **Financing & EMI page** appears (15 ↔ 16 ↔ 17
+  pages across preview, PDF and share view; nav, numbering and export loop
+  all adapt). Leave the fields blank for a cash-purchase proposal.
+- EMI from the standard reducing-balance formula (`P·r/(1−(1+r)^−n)`) inside
+  `Finance.compute` — same engine as every other figure; month-wise savings
+  across the tenure derived from the proposal's own annual savings series.
+- Page shows a loan recap line, 4 KPI cards (EMI, total interest, monthly
+  saving Y1, net monthly outgo Y1), a **savings-vs-EMI step chart** with the
+  EMI line and a "month N" crossover marker, a cash-flow callout (month-1
+  positive or the crossover month), and an explicit formula/assumption note.
+- All figures traceable to user-entered loan terms + the proposal's own
+  assumptions; note states bank fees/eligibility are external. Financing
+  persists on the proposal blob and survives versioning/duplication/restore.
+
 ## Next up (remaining, in priority order)
 
 1. **Proposal status timeline** — created → sent → viewed → accepted trail on
    the manager card (statuses already exist; add timestamps UI).
-2. **EMI/financing section** — only when interest rate/tenure are entered.
 3. **Site model formalisation** — coordinates/orientation/shading fields with
    `DATA REQUIRED` states, feeding the generation factor instead of a bare
    assumption when available.

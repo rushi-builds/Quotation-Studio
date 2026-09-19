@@ -65,6 +65,10 @@
     bomBos: '',
     bomInstall: '',
     bomLiaison: '',
+    /* ---- Financing (optional — all three required to show EMI analysis) ---- */
+    loanAmt: '',
+    loanRate: '',
+    loanYears: '',
     /* ---- Terms ---- */
     durationText: 'Typical completion within 6–8 weeks from advance payment, subject to DISCOM net-metering timelines.',
     jurisdiction: 'Pune, Maharashtra',

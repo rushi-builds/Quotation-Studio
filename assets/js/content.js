@@ -259,6 +259,27 @@ const CONTENT = {
   },
 
   /* ------------------------------------------------------------------ */
+  /* PAGE 10b — Financing & EMI (optional; shown when loan is entered)   */
+  /* ------------------------------------------------------------------ */
+  pageFinance: {
+    eyebrow: 'OPTION 2 — FINANCE IT',
+    heading: 'Finance Your Rooftop. Keep Your Cash.',
+    sub: 'The Same System, Spread Across Easy Monthly Instalments',
+    para: 'If you would rather preserve working capital, the same system can be financed. The figures below are computed from the loan amount, interest rate and tenure entered for this proposal — compared against the savings your system is projected to generate. Many customers find their savings cover most or all of the EMI.',
+    recapLabel: 'LOAN ASSUMED',
+    cards: {
+      emi: 'Monthly EMI',
+      interest: 'Total Interest over Tenure',
+      saving: 'Monthly Saving — Year 1',
+      outgo: 'Net Outgo — Year 1'
+    },
+    chartTitle: 'MONTHLY SAVINGS VS EMI OVER THE LOAN TENURE',
+    crossing: 'From month {m} onward, your monthly savings overtake the EMI — the system funds its own repayment.',
+    cashflowPositive: 'Projected Year-1 savings already exceed the EMI — cash-flow positive from the very first month.',
+    note: 'EMI computed on the loan amount at {rate}% p.a. for {years} years using the standard reducing-balance formula; savings per the generation, tariff and escalation assumptions of this proposal. Actual loan terms, processing fees, eligibility and disbursement depend on your bank / NBFC.'
+  },
+
+  /* ------------------------------------------------------------------ */
   /* PAGE 11 — Why Choose KTM                                            */
   /* ------------------------------------------------------------------ */
   pageWhyKtm: {

@@ -626,6 +626,55 @@
   }
 
   /* ================================================================== */
+  /* PAGE 10b — FINANCING & EMI (optional page)                          */
+  /* ================================================================== */
+  /* page visibility: true when the three loan inputs are all entered     */
+  let _finKey = null, _finVis = false;
+  function hasFinancing(s) {
+    if (!s) return false;
+    const key = [s.loanAmt, s.loanRate, s.loanYears].join('|');
+    if (key !== _finKey) {
+      let fin = null;
+      try { fin = F.compute(s).financing; } catch (e) { fin = null; }
+      _finKey = key; _finVis = !!fin;
+    }
+    return _finVis;
+  }
+
+  function renderFinance(s, f /*, v */) {
+    const P = CONTENT.pageFinance;
+    const fin = f.financing;
+    if (!fin) return; /* page hidden; nothing to fill */
+    set('v_finEyebrow', P.eyebrow);
+    set('v_finHeading', P.heading);
+    set('v_finSub', P.sub);
+    set('v_finPara', P.para);
+    set('v_finRecap', P.recapLabel + ':  ₹' + F.fmtINR(fin.loan).replace('₹', '') +
+      '  @ ' + s.loanRate + '% p.a.  ×  ' + s.loanYears + ' years  →  EMI ' +
+      F.fmtINR(fin.emi) + ' / month for ' + fin.months + ' months');
+    setHTML('v_finCards', [
+      [P.cards.emi, F.fmtINR(fin.emi) + ' / mo', ''],
+      [P.cards.interest, F.fmtINR(fin.totalInterest), ''],
+      [P.cards.saving, F.fmtINR(fin.monthlySavingY1) + ' / mo', 'inv-card-sub'],
+      [P.cards.outgo, (fin.netMonthlyY1 < 0 ? '−' : '') + F.fmtINR(Math.abs(fin.netMonthlyY1)) + ' / mo', 'inv-card-net']
+    ].map((c) =>
+      '<div class="inv-card ' + c[2] + '"><div class="inv-l">' + esc(c[0]) + '</div>' +
+      '<div class="inv-v">' + esc(c[1]) + '</div></div>').join(''));
+    set('v_finChartTitle', P.chartTitle);
+    const hl = $('v_finHighlight');
+    if (fin.crossingMonth === 1) {
+      hl.style.display = '';
+      set('v_finHighlight', P.cashflowPositive);
+    } else if (isFinite(fin.crossingMonth)) {
+      hl.style.display = '';
+      set('v_finHighlight', tpl(P.crossing, { m: fin.crossingMonth }));
+    } else {
+      hl.style.display = 'none';
+    }
+    set('v_finNote', tpl(P.note, { rate: s.loanRate, years: s.loanYears }));
+  }
+
+  /* ================================================================== */
   /* PAGE 11 — WHY CHOOSE KTM                                            */
   /* ================================================================== */
   function renderWhyKtm(s, f, v) {
@@ -765,6 +814,8 @@
     { id: 'pageQuality', nav: 'Quality', title: 'Installation Quality', render: renderQuality },
     { id: 'pageSavings', nav: 'Savings', title: 'Generation & Savings', render: renderSavings },
     { id: 'pageInvestment', nav: 'Investment', title: 'Investment & Cost Breakdown', render: renderInvestment },
+    { id: 'pageFinance', nav: 'Financing', title: 'Financing & EMI', render: renderFinance,
+      visible: (s) => hasFinancing(s) },
     { id: 'pageWhyKtm', nav: 'Why KTM', title: 'Why Choose KTM', render: renderWhyKtm },
     { id: 'pageProjects', nav: 'Projects', title: 'Projects Portfolio', render: renderProjects },
     { id: 'pageWarranty', nav: 'Warranty', title: 'Warranty & Journey', render: renderWarranty },
@@ -822,6 +873,7 @@
     C.annual($('chartAnnual'), f);
     C.bridge($('chartBridge'), f);
     C.donut($('chartDonut'), f.bomItems, f.projectCost);
+    C.emi($('chartFinEmi'), f);
   }
 
   /* ================================================================== */
@@ -863,6 +915,7 @@
       payAdvance: g('payAdvance'), payDispatch: g('payDispatch'), payCompletion: g('payCompletion'),
       bomModules: g('bomModules'), bomInverter: g('bomInverter'), bomStructure: g('bomStructure'),
       bomBos: g('bomBos'), bomInstall: g('bomInstall'), bomLiaison: g('bomLiaison'),
+      loanAmt: g('loanAmt'), loanRate: g('loanRate'), loanYears: g('loanYears'),
       durationText: g('durationText'), jurisdiction: g('jurisdiction'), surveyWindow: g('surveyWindow'),
       shareUrl: g('shareUrl'),
       options: (root.__qsOptions || [])

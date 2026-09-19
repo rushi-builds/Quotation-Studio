@@ -371,6 +371,102 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* 5. Financing — monthly savings vs EMI over the loan tenure          */
+  /* ------------------------------------------------------------------ */
+  function emi(canvas, f) {
+    if (!canvas) return;
+    /* measure once: clientWidth/Height are 0 while the page is hidden, and
+       setup() rewrites the width/height attributes on every draw — so cache
+       the first reliable reading (falls back to the pristine attributes). */
+    if (!canvas.__qsW) {
+      canvas.__qsW = canvas.clientWidth || Number(canvas.getAttribute('width')) || 700;
+      canvas.__qsH = canvas.clientHeight || Number(canvas.getAttribute('height')) || 190;
+    }
+    const W = canvas.__qsW, H = canvas.__qsH;
+    const ctx = setup(canvas, W, H);
+    const fin = f && f.financing;
+    if (!fin || !fin.monthlySavings || fin.monthlySavings.length < 2) {
+      emptyNote(ctx, 'Enter loan amount, interest rate and tenure to see the EMI comparison.');
+      return;
+    }
+    const ms = fin.monthlySavings;
+    const n = ms.length;
+    const pad = { l: 56, r: 16, t: 26, b: 28 };
+    const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+    const maxY = niceCeil(Math.max(ms[n - 1], fin.emi) * 1.12);
+    const X = (m) => pad.l + (iw * m) / (n - 1);
+    const Y = (v) => pad.t + ih - (ih * v) / maxY;
+
+    /* grid */
+    ctx.font = '500 10px ' + FONT;
+    const ticks = 3;
+    for (let i = 0; i <= ticks; i++) {
+      const v = (maxY / ticks) * i;
+      ctx.strokeStyle = GRID; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(W - pad.r, Y(v)); ctx.stroke();
+      ctx.fillStyle = TEXT; ctx.textAlign = 'right';
+      ctx.fillText(shortINR(v), pad.l - 8, Y(v) + 3);
+    }
+    /* x labels: years */
+    ctx.textAlign = 'center';
+    for (let yr = 0; yr * 12 < n; yr++) {
+      ctx.fillText(yr === 0 ? 'Start' : 'Yr ' + yr, X(Math.min(yr * 12, n - 1)), H - 8);
+    }
+    if (n % 12 === 0) { /* end-of-tenure label, kept inside the plot */
+      ctx.textAlign = 'right';
+      ctx.fillText('Yr ' + (n / 12), W - pad.r, H - 8);
+      ctx.textAlign = 'center';
+    }
+
+    /* savings step line (changes each year) */
+    ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.2; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ms.forEach((v, m) => { if (m === 0) ctx.moveTo(X(0), Y(v)); else ctx.lineTo(X(m), Y(v)); });
+    ctx.stroke();
+
+    /* EMI line */
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = NAVY_SOFT; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(pad.l, Y(fin.emi)); ctx.lineTo(W - pad.r, Y(fin.emi)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '700 10px ' + FONT;
+    ctx.fillStyle = NAVY;
+    ctx.textAlign = 'right';
+    ctx.fillText('EMI ' + shortINR(fin.emi) + '/mo', W - pad.r - 4, Y(fin.emi) - 6);
+
+    /* crossing marker */
+    if (isFinite(fin.crossingMonth) && fin.crossingMonth > 1) {
+      const cx = X(fin.crossingMonth - 1), cy = Y(ms[fin.crossingMonth - 1]);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = ORANGE_DARK; ctx.lineWidth = 2.4; ctx.stroke();
+      const label = 'Month ' + fin.crossingMonth;
+      ctx.font = '700 10px ' + FONT_DISPLAY;
+      const tw = ctx.measureText(label).width;
+      const lx = Math.min(Math.max(cx - tw / 2, pad.l), W - pad.r - tw);
+      ctx.fillStyle = ORANGE_DARK;
+      roundRect(ctx, lx - 5, cy - 26, tw + 10, 16, 8);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, lx, cy - 14.5);
+    }
+
+    /* legend */
+    ctx.font = '600 10px ' + FONT;
+    ctx.textAlign = 'left';
+    let lx = pad.l + 2;
+    ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(lx, 10); ctx.lineTo(lx + 14, 10); ctx.stroke();
+    ctx.fillStyle = TEXT; ctx.fillText('Monthly savings', lx + 19, 13.5);
+    lx += 118;
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = NAVY_SOFT; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(lx, 10); ctx.lineTo(lx + 14, 10); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = TEXT; ctx.fillText('EMI', lx + 19, 13.5);
+  }
+
+  /* ------------------------------------------------------------------ */
   function roundRect(ctx, x, y, w, h, r) {
     r = Math.min(r, h / 2, w / 2);
     ctx.beginPath();
@@ -382,5 +478,5 @@
     ctx.closePath();
   }
 
-  root.Charts = { cumulative, annual, bridge, donut, shortINR };
+  root.Charts = { cumulative, annual, bridge, donut, emi, shortINR };
 })(typeof self !== 'undefined' ? self : this);

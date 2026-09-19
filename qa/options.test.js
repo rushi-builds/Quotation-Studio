@@ -203,7 +203,7 @@ setTimeout(async () => {
       d3.getElementById('shareCustomer').textContent);
     t('share: capacity line', d3.getElementById('shareCapacity').textContent.includes('kWp'));
     t('share: status chip', d3.getElementById('shareStatus').textContent.length > 0);
-    t('share: pages injected', d3.querySelectorAll('.page-wrap').length === 16, d3.querySelectorAll('.page-wrap').length);
+    t('share: pages injected', d3.querySelectorAll('.page-wrap').length === 17, d3.querySelectorAll('.page-wrap').length);
     t('share: pages visible', [...d3.querySelectorAll('.page-wrap')].filter((x) => x.style.display !== 'none').length === 15);
     t('share: hero matches proposal finance', d3.getElementById('v_exHeroNet').textContent === expectedNet,
       d3.getElementById('v_exHeroNet').textContent + ' vs ' + expectedNet);
