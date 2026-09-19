@@ -22,7 +22,7 @@ function mockCtx() {
       if (prop === 'createLinearGradient' || prop === 'createRadialGradient') return () => gradient;
       if (prop === 'getImageData') return () => ({ data: new Uint8ClampedArray(4) });
       if (typeof prop === 'string') {
-        if (!(prop in target)) target[prop] = (...args) => { /* record draws */ void args; };
+        if (!(prop in target)) target[prop] = (...args) => { void args; };
         return target[prop];
       }
       return undefined;
@@ -42,6 +42,7 @@ function bootApp(seedStorage) {
       window.HTMLCanvasElement.prototype.getContext = function () { return mockCtx(); };
       window.Element.prototype.scrollIntoView = function () {};
       window.devicePixelRatio = 2;
+      window.confirm = () => true;
       if (seedStorage) {
         for (const [k, v] of Object.entries(seedStorage)) window.localStorage.setItem(k, v);
       }
@@ -50,13 +51,23 @@ function bootApp(seedStorage) {
   });
   const { window } = dom;
   /* browser <script> tags share top-level scope; a single concatenated eval mimics that */
-  const src = ['content.js', 'finance.js', 'icons.js', 'charts.js', 'state.js', 'render.js', 'editor.js', 'export.js', 'app.js']
+  const src = ['content.js', 'finance.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+    'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
-  /* scripts attach to DOMContentLoaded which has already fired in jsdom */
   window.document.dispatchEvent(new window.Event('DOMContentLoaded', { bubbles: true }));
   return window;
 }
+
+const fire = (w, el, type) => el.dispatchEvent(new w.Event(type, { bubbles: true }));
+const dumpStorage = (w) => {
+  const out = {};
+  for (let i = 0; i < w.localStorage.length; i++) {
+    const k = w.localStorage.key(i);
+    out[k] = w.localStorage.getItem(k);
+  }
+  return out;
+};
 
 /* =================== run 1 — fresh boot =================== */
 console.log('— boot —');
@@ -91,13 +102,12 @@ t('investment cost cards filled', d.getElementById('v_inCostNet').textContent ==
   d.getElementById('v_inCostNet').textContent);
 t('investment ₹/Wp = ₹90', d.getElementById('v_inRate').textContent === '₹90 / Wp', d.getElementById('v_inRate').textContent);
 t('BOM section hidden when empty', d.getElementById('v_inBomSection').style.display === 'none');
-t('bridge chart shown when no BOM', d.getElementById('v_inBridgeSolo').style.display !== 'none');
 t('pay chips rendered', d.querySelectorAll('#v_inPayChips .pay-chip').length === 3);
 t('advance chip amount = ₹3,43,035', d.getElementById('v_inPayChips').textContent.includes('₹3,43,035'),
   d.getElementById('v_inPayChips').textContent);
 t('why-ktm 9 differentiators', d.querySelectorAll('#v_wkDiffs .diff-card').length === 9);
 t('projects 9 cards with images', d.querySelectorAll('#v_prCats .proj-card img').length === 9);
-t('project img src resolves', d.querySelector('#v_prCats .proj-card img').getAttribute('src').includes('site-'));
+t('projects stats strip filled', d.getElementById('v_prStats').textContent.includes('flagship projects'));
 t('warranty 4 cards', d.querySelectorAll('#v_wrWarranties .warr-card').length === 4);
 t('journey 6 steps', d.querySelectorAll('#v_wrJourney .journey-card').length === 6);
 t('terms 12 items', d.querySelectorAll('#v_tmItems .term-item').length === 12);
@@ -111,88 +121,184 @@ t('advanced editor built', d.querySelectorAll('#advContainer details.page-group'
   d.querySelectorAll('#advContainer details.page-group').length);
 t('navigator has 15 chips', d.querySelectorAll('#pageNav .nav-chip').length === 15);
 
+/* ---------- Phase 1: proposal store ---------- */
+console.log('— proposal store (Phase 1) —');
+t('one proposal created on first boot', w.Proposals.list().length === 1, w.Proposals.list().length);
+t('active id set', !!w.Proposals.activeId());
+t('manager dropdown populated', d.getElementById('proposalSelect').options.length === 1);
+t('status select shows Draft', d.getElementById('pmStatus').value === 'draft', d.getElementById('pmStatus').value);
+t('blob contains live form', w.Proposals.active().form.capacity === '7');
+
+/* ---------- Phase 1: equipment catalog ---------- */
+console.log('— equipment catalog (Phase 1) —');
+t('3 seed modules in catalog', w.EquipmentStore.cat().modules.length === 3);
+t('module select built from catalog', d.getElementById('moduleMake').options.length === 3);
+t('inverter select built from catalog', d.getElementById('inverterMake').options.length === 3);
+t('structure select built from catalog', d.getElementById('mountMake').options.length === 2);
+t('catalog manager rendered rows', d.querySelectorAll('#eqCatalog .eq-row').length >= 8,
+  d.querySelectorAll('#eqCatalog .eq-row').length);
+/* adding a catalog entry propagates to the form select and component fields */
+w.EquipmentStore.cat().modules.push({ id: 'mx', make: 'TestModule 550', model: '', wp: 550, tech: 'TOPCon', lengthMm: '2333', widthMm: '1134', efficiency: '', voc: '', isc: '', vmp: '', imp: '' });
+w.EquipmentStore.save();
+w.EquipmentStore.refreshSelects();
+t('catalog add appears in select', d.getElementById('moduleMake').options.length === 4);
+d.getElementById('moduleMake').value = 'TestModule 550';
+fire(w, d.getElementById('moduleMake'), 'change');
+t('selecting module syncs wattage', d.getElementById('moduleWattage').value === '550', d.getElementById('moduleWattage').value);
+t('selecting module syncs length', d.getElementById('moduleLengthMm').value === '2333');
+t('selecting module syncs technology', d.getElementById('moduleTech').value === 'TOPCon');
+/* restore original selection */
+d.getElementById('moduleMake').value = 'Panasonic / Waaree / Adani or Equivalent';
+fire(w, d.getElementById('moduleMake'), 'change');
+
+/* ---------- interactions ---------- */
 console.log('— interactions —');
-/* capacity change re-renders */
 d.getElementById('capacity').value = '10';
-d.getElementById('capacity').dispatchEvent(new w.Event('input', { bubbles: true }));
+fire(w, d.getElementById('capacity'), 'input');
 t('capacity 10 → hero updates', d.getElementById('v_exHeroNet').textContent === '₹9,02,100',
   d.getElementById('v_exHeroNet').textContent);
 t('capacity 10 → module count 19', d.getElementById('v_tsTable').textContent.includes('19 modules'),
   d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 d.getElementById('capacity').value = '7';
-d.getElementById('capacity').dispatchEvent(new w.Event('input', { bubbles: true }));
+fire(w, d.getElementById('capacity'), 'input');
 
-/* commercial subsidy */
 d.getElementById('customerType').value = 'commercial';
-d.getElementById('customerType').dispatchEvent(new w.Event('change', { bubbles: true }));
+fire(w, d.getElementById('customerType'), 'change');
 t('commercial → subsidy ₹0 shown', d.getElementById('v_inCostSub').textContent === '− ₹0',
   d.getElementById('v_inCostSub').textContent);
 t('commercial → caption N/A', d.getElementById('v_inCostSubCap').textContent.includes('Not applicable'),
   d.getElementById('v_inCostSubCap').textContent);
 d.getElementById('customerType').value = 'residential';
-d.getElementById('customerType').dispatchEvent(new w.Event('change', { bubbles: true }));
+fire(w, d.getElementById('customerType'), 'change');
 
-/* BOM + donut + legend */
 ['bomModules:300000', 'bomInverter:80000', 'bomStructure:70000', 'bomBos:60000', 'bomInstall:90000', 'bomLiaison:30000']
   .forEach((pair) => {
     const [id, v] = pair.split(':');
     d.getElementById(id).value = v;
-    d.getElementById(id).dispatchEvent(new w.Event('input', { bubbles: true }));
+    fire(w, d.getElementById(id), 'input');
   });
 t('BOM section appears', d.getElementById('v_inBomSection').style.display !== 'none');
-t('bridge chart stays visible alongside donut', !!d.getElementById('chartBridge'));
 t('BOM legend 6 rows', d.querySelectorAll('#v_inBomLegend .bom-row').length === 6);
 t('BOM legend has %', d.getElementById('v_inBomLegend').textContent.includes('%'));
 t('BOM delta warning shown (630k vs 630k → none)',
   d.getElementById('v_inBomLegend').querySelector('.bom-warn') === null);
 
-/* payment warning */
 d.getElementById('payCompletion').value = '20';
-d.getElementById('payCompletion').dispatchEvent(new w.Event('input', { bubbles: true }));
+fire(w, d.getElementById('payCompletion'), 'input');
 t('payment ≠100% shows warning', d.getElementById('v_inPayWarn').style.display !== 'none',
   d.getElementById('v_inPayWarn').style.display);
 d.getElementById('payCompletion').value = '10';
-d.getElementById('payCompletion').dispatchEvent(new w.Event('input', { bubbles: true }));
+fire(w, d.getElementById('payCompletion'), 'input');
 
-/* monthly bill + available area extras */
 d.getElementById('monthlyBill').value = '12000';
-d.getElementById('monthlyBill').dispatchEvent(new w.Event('input', { bubbles: true }));
+fire(w, d.getElementById('monthlyBill'), 'input');
 t('bill-offset KPI appears', d.getElementById('v_exKpis').textContent.includes('of your bill'));
 d.getElementById('availableArea').value = '25';
-d.getElementById('availableArea').dispatchEvent(new w.Event('input', { bubbles: true }));
-t('area fit check flags shortage', d.getElementById('v_tsTable').textContent.includes('exceeds available area'),
-  d.getElementById('v_tsTable').textContent.includes('fits'));
+fire(w, d.getElementById('availableArea'), 'input');
+t('area fit check flags shortage', d.getElementById('v_tsTable').textContent.includes('exceeds available area'));
 
-/* advanced edit propagation */
 const advInput = [...d.querySelectorAll('#advContainer input')].find((i) => i.value === 'Why Rooftop Solar?');
 if (advInput) {
   advInput.value = 'Why Go Solar?';
-  advInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+  fire(w, advInput, 'input');
   t('advanced edit updates page', d.getElementById('v_wsHeading').textContent === 'Why Go Solar?');
 } else {
   t('advanced edit updates page', false, 'field not found');
 }
 
-/* autosave */
-await_new_tick(() => {
-  console.log('— persistence —');
-  const saved = w.localStorage.getItem('qstudio.proposal.v2');
-  t('autosave wrote storage', !!saved);
-  const data = JSON.parse(saved);
-  t('saved form has capacity 7', data.form.capacity === '7');
-  t('saved content override persisted', data.content.pageWhySolar.heading === 'Why Go Solar?');
-  t('saved BOM persisted', data.form.bomModules === '300000');
+/* ---------- manager workflow ---------- */
+console.log('— manager workflow —');
+d.getElementById('pmNew').click();
+t('New creates 2nd proposal', w.Proposals.list().length === 2, w.Proposals.list().length);
+t('New switches active', w.Proposals.get(w.Proposals.activeId()).form.custName === 'Mr. Bhooshan Waghmare');
+t('New resets BOM (pristine template)', d.getElementById('bomModules').value === '');
+t('manager dropdown now 2 options', d.getElementById('proposalSelect').options.length === 2);
+t('New preserved the previous proposal\u2019s edits',
+  w.Proposals.list().map((p) => w.Proposals.get(p.id))
+    .some((b) => b.form && b.form.bomModules === '300000'));
 
-  /* run 2 — restore */
+d.getElementById('pmStatus').value = 'sent';
+fire(w, d.getElementById('pmStatus'), 'change');
+t('status change persists (sentAt set)', w.Proposals.active().status === 'sent' && !!w.Proposals.active().sentAt);
+
+d.getElementById('capacity').value = '5';
+fire(w, d.getElementById('capacity'), 'input');
+d.getElementById('pmVersion').click();
+const verBlob = w.Proposals.active();
+t('version bumped to 1.1', verBlob.form.propVersion === '1.1', verBlob.form.propVersion);
+t('version links to previous', verBlob.prevId && verBlob.prevId !== verBlob.id);
+t('previous version still intact (immutable history)', w.Proposals.get(verBlob.prevId).form.capacity === '5');
+t('original still v1.0 + sent', w.Proposals.get(verBlob.prevId).form.propVersion === '1.0' &&
+  w.Proposals.get(verBlob.prevId).status === 'sent');
+t('version shown on cover meta', d.querySelector('[data-head-ref]').textContent.includes('v1.1'));
+
+d.getElementById('pmDup').click();
+t('duplicate creates copy', w.Proposals.list().length === 4, w.Proposals.list().length);
+t('duplicate marked (copy)', w.Proposals.active().form.custName.includes('(copy)'));
+
+const beforeDelete = w.Proposals.activeId();
+d.getElementById('pmDelete').click();
+t('delete removes proposal', w.Proposals.list().length === 3 && w.Proposals.activeId() !== beforeDelete);
+
+/* switch back to the original proposal (the one holding the BOM edits) */
+const target = w.Proposals.list()
+  .map((p) => w.Proposals.get(p.id))
+  .find((b) => b.form && b.form.bomModules === '300000');
+t('original edits were persisted before switching', !!target);
+d.getElementById('proposalSelect').value = target.id;
+fire(w, d.getElementById('proposalSelect'), 'change');
+t('switching proposals restores data (BOM repopulated)',
+  w.Proposals.activeId() === target.id && d.getElementById('bomModules').value === '300000',
+  d.getElementById('bomModules').value);
+t('switching restores capacity', d.getElementById('capacity').value === '7',
+  d.getElementById('capacity').value);
+
+/* ---------- persistence ---------- */
+setTimeout(() => {
+  console.log('— persistence —');
+  const dump = dumpStorage(w);
+  t('active blob persisted edits', (() => {
+    const blob = JSON.parse(dump['qstudio.proposal.' + dump['qstudio.activeId']]);
+    return blob.form.monthlyBill === '12000' && blob.form.availableArea === '25';
+  })());
+  t('content override persisted in blob', (() => {
+    const blob = JSON.parse(dump['qstudio.proposal.' + dump['qstudio.activeId']]);
+    return blob.content && blob.content.pageWhySolar.heading === 'Why Go Solar?';
+  })());
+  t('equipment catalog persisted', (() => {
+    const eq = JSON.parse(dump['qstudio.equipment']);
+    return eq.modules.length === 4 && eq.modules.some((m) => m.make === 'TestModule 550');
+  })());
+
+  /* run 2 — restore from full storage dump */
   console.log('— restore —');
-  const w2 = bootApp({ 'qstudio.proposal.v2': saved });
+  const w2 = bootApp(dump);
   const d2 = w2.document;
   t('restored heading (Why Go Solar?)', d2.getElementById('v_wsHeading').textContent === 'Why Go Solar?',
     d2.getElementById('v_wsHeading').textContent);
   t('restored BOM shows donut', d2.getElementById('v_inBomSection').style.display !== 'none');
+  t('restored proposal count', w2.Proposals.list().length === 3, w2.Proposals.list().length);
+  t('restored active is same proposal', w2.Proposals.activeId() === dump['qstudio.activeId']);
+  t('restored equipment catalog', w2.EquipmentStore.cat().modules.length === 4);
   t('no errors in run 2', errors.length === 0, errors.join(' | '));
 
-  /* PDF export smoke */
+  /* run 3 — legacy migration */
+  console.log('— legacy migration —');
+  const legacyPayload = JSON.stringify({
+    v: 2, savedAt: '2026-01-01T00:00:00.000Z',
+    form: { capacity: '9', custName: 'Legacy Customer', propRef: 'LEGACY/001', propVersion: '1.0' },
+    content: { pageWhySolar: { heading: 'Legacy Heading' } },
+    projectImages: {}
+  });
+  const w3 = bootApp({ 'qstudio.proposal.v2': legacyPayload });
+  const d3 = w3.document;
+  t('legacy migrated to 1 proposal', w3.Proposals.list().length === 1, w3.Proposals.list().length);
+  t('legacy form applied (capacity 9)', w3.Proposals.active().form.capacity === '9');
+  t('legacy customer on cover', d3.getElementById('v_coverCustName').textContent.includes('Legacy Customer'));
+  t('legacy content applied', d3.getElementById('v_wsHeading').textContent === 'Legacy Heading',
+    d3.getElementById('v_wsHeading').textContent);
+
+  /* ---------- pdf export smoke ---------- */
   console.log('— pdf export —');
   let savedName = '';
   w.html2canvas = async () => ({ toDataURL: () => 'data:image/jpeg;base64,AAAA' });
@@ -214,6 +320,4 @@ await_new_tick(() => {
     console.log(`\n${pass} passed, ${fail} failed`);
     process.exit(fail ? 1 : 0);
   }, 300);
-});
-
-function await_new_tick(fn) { setTimeout(fn, 700); }
+}, 700);

@@ -37,15 +37,18 @@ assets/
   js/finance.js         Calculation engine (pure, UMD) — no DOM access
   js/icons.js           Inline-SVG icon set (emoji-free: safe for html2canvas PDF)
   js/charts.js          Dependency-free canvas charts (payback, bars, bridge, donut)
-  js/state.js           Form defaults, localStorage autosave, proposal import/export
+  js/model.js           Proposal store: object model, statuses, immutable versions
+  js/state.js           Form defaults + collect/apply + proposal file import/export
+  js/equipment.js       Company equipment catalog (modules/inverters/structures/cables)
   js/render.js          Page renderers + PAGES[] registry (order, numbering, nav, PDF loop)
   js/editor.js          "Advanced Edit" panel — every text element on all 15 pages
   js/export.js          html2canvas → jsPDF pipeline + PDF metadata
-  js/app.js             Bootstrap: wiring, autosave, preview navigator, scaling
+  js/app.js             Bootstrap: wiring, proposal manager, autosave, nav, scaling
   images/  fonts/  vendor/   Bundled photos, Inter/Poppins, html2canvas + jsPDF
+docs/ROADMAP.md         Master product vision & phased plan
 qa/
   finance.test.js       47 unit tests for the calculation engine (node qa/finance.test.js)
-  integration.test.js   60 end-to-end tests in jsdom (node qa/integration.test.js)
+  integration.test.js   95 end-to-end tests in jsdom (node qa/integration.test.js)
   browser.test.js       Real-browser QA (charts, overflow, PDF, mobile) — needs Chromium
 ```
 
@@ -54,6 +57,20 @@ calculation.** Charts are drawn from the same finance object as the text, so
 they can never disagree. Values that are not entered (BOM breakdown, monthly
 bill, available roof area) cause the related UI section to hide or show a
 clearly-marked placeholder — nothing is invented.
+
+## Proposal management (Phase 1 foundation)
+
+- **Multiple proposals** with a manager at the top of the form: New /
+  Duplicate / New version / Delete, status workflow (Draft → Internal Review →
+  Ready → Sent → Viewed → Negotiation → Accepted/Rejected/Expired/Archived)
+- **Immutable versioning** — "New version" clones the proposal, bumps v1.0 →
+  v1.1 and links back; historical versions are never overwritten
+- **Everything autosaves** per proposal (form + text edits + photos), with
+  export/import of proposal files for sharing between sales reps
+- **Equipment catalog** — company-level master data driving the System Design
+  dropdowns; electrical datasheet fields stay blank until entered
+- Storage is a thin `Proposals` store over localStorage today; the same API
+  maps 1:1 onto a backend when the platform goes multi-user (see ROADMAP.md)
 
 ## Financial engine (`finance.js`)
 

@@ -649,3 +649,19 @@ details.page-group > summary::-webkit-details-marker{display:none;}
   .page-wrap:last-child .page{page-break-after:auto;break-after:auto;}
 }
 
+
+/* ---------- 18. Proposal manager & equipment catalog (Phase 1) ---------- */
+.prop-manager{background:#FBFCFE;border:1px solid var(--line-cool);border-radius:10px;padding:12px 12px 6px;}
+.pm-actions{display:flex;gap:6px;margin-bottom:9px;}
+.pm-actions .link-btn{flex:1;padding:6px 4px;font-size:10px;}
+.eq-panel{margin:0 0 14px;}
+.eq-head{font-size:10px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px;}
+.eq-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;}
+.eq-row input{padding:6px 8px;font-size:11.5px;border:1px solid #D7DBE0;border-radius:6px;min-width:0;font-family:'Inter',sans-serif;color:var(--navy);}
+.eq-row input:focus{outline:none;border-color:var(--orange);}
+.eq-row .eq-grow{flex:1 1 160px;}
+.eq-row .eq-md{flex:1 1 110px;}
+.eq-row .eq-sm{flex:0 0 74px;width:74px;}
+.eq-del{border:1px solid #E3B7B7;background:#FDF3F3;color:var(--red);width:24px;height:26px;border-radius:6px;cursor:pointer;flex-shrink:0;font-size:14px;line-height:1;}
+.eq-del:hover{background:#F9E2E2;}
+.eq-add{margin:2px 0 6px;}

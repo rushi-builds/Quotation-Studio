@@ -22,6 +22,24 @@
 
     <form id="quoteForm" autocomplete="off">
 
+      <fieldset class="prop-manager">
+        <legend>Proposals</legend>
+        <div class="field">
+          <select id="proposalSelect" aria-label="Active proposal"></select>
+        </div>
+        <div class="pm-actions">
+          <button type="button" class="link-btn" id="pmNew">New</button>
+          <button type="button" class="link-btn" id="pmDup">Duplicate</button>
+          <button type="button" class="link-btn" id="pmVersion">New version</button>
+          <button type="button" class="link-btn danger" id="pmDelete">Delete</button>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Status</label><select id="pmStatus"></select></div>
+          <div class="field"><label>Updated</label><input type="text" id="pmUpdated" disabled></div>
+        </div>
+        <div class="hint" id="pmMeta"></div>
+      </fieldset>
+
       <fieldset>
         <legend>Company Branding</legend>
         <div class="field">
@@ -149,6 +167,12 @@
           </div>
         </div>
       </fieldset>
+
+      <details class="advanced eq-panel">
+        <summary>Equipment Catalog — modules, inverters, structures, cables</summary>
+        <div class="hint" style="margin:4px 14px 0;">Company-level master data used across all proposals. Electrical datasheet fields stay blank until you enter them — nothing is auto-invented.</div>
+        <div id="eqCatalog" style="padding:8px 14px 12px;"></div>
+      </details>
 
       <fieldset>
         <legend>Financial Assumptions</legend>
@@ -848,7 +872,9 @@
 <script src="assets/js/finance.js"></script>
 <script src="assets/js/icons.js"></script>
 <script src="assets/js/charts.js"></script>
+<script src="assets/js/model.js"></script>
 <script src="assets/js/state.js"></script>
+<script src="assets/js/equipment.js"></script>
 <script src="assets/js/render.js"></script>
 <script src="assets/js/editor.js"></script>
 <script src="assets/js/export.js"></script>

@@ -19,7 +19,11 @@
     const inp = document.createElement(multiline ? 'textarea' : 'input');
     if (!multiline) inp.type = 'text'; else inp.rows = 2;
     inp.value = value === undefined || value === null ? '' : value;
-    inp.addEventListener('input', () => { onChange(inp.value); root.Render.renderAll(); });
+    inp.addEventListener('input', () => {
+      onChange(inp.value);
+      root.Render.renderAll();
+      if (root.__qsScheduleSave) root.__qsScheduleSave();
+    });
     wrap.appendChild(inp);
     container.appendChild(wrap);
     return inp;
@@ -275,7 +279,7 @@
           const file = e.target.files[0];
           if (!file) return;
           const reader = new FileReader();
-          reader.onload = function (ev) { PROJECT_IMAGES[p.img] = ev.target.result; root.Render.renderAll(); };
+          reader.onload = function (ev) { PROJECT_IMAGES[p.img] = ev.target.result; root.Render.renderAll(); if (root.__qsScheduleSave) root.__qsScheduleSave(); };
           reader.readAsDataURL(file);
         });
         wrap.appendChild(fileInp);
