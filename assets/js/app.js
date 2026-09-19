@@ -9,6 +9,7 @@
 
 (function () {
   const $ = (id) => document.getElementById(id);
+  const F = window.Finance;
 
   /* Pristine HTML form values = the template defaults for "New proposal".
      Captured before any saved data is applied. */
@@ -71,8 +72,7 @@
     }
   }
 
-  function loadActiveIntoUI() {
-    const blob = window.Proposals.active();
+  function loadProposalIntoUI(blob) {
     if (!blob) return;
     window.StateStore.applyForm(Object.assign({}, window.StateStore.DEFAULTS, blob.form || {}));
     if (blob.form && !blob.form.propDate) $('propDate').value = new Date().toISOString().slice(0, 10);
@@ -95,12 +95,37 @@
     window.EquipmentStore.refreshSelects();
   }
 
+  function loadActiveIntoUI() {
+    loadProposalIntoUI(window.Proposals.active());
+  }
+
   function switchTo(id) {
     window.Proposals.saveActive(window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES);
     window.Proposals.setActive(id);
     loadActiveIntoUI();
     window.Render.renderAll();
     refreshManager();
+  }
+
+  /* ---------- sharing ---------- */
+  function waNumber(phone) {
+    let d = String(phone || '').replace(/\D/g, '');
+    if (d.length === 10) d = '91' + d; /* Indian mobile without country code */
+    return d;
+  }
+  function shareLink() {
+    const s = window.Render.readState();
+    const base = (s.shareLinkBase || '').trim();
+    if (base) return base + encodeURIComponent(s.propRef || '');
+    return location.origin + location.pathname + '?p=' + window.Proposals.activeId();
+  }
+  function shareMessage(s, f) {
+    const pb = isFinite(f.payback) ? f.payback.toFixed(1) : '—';
+    return 'Hello ' + (s.custName || 'there') + ',\n\n' +
+      'Your personalised rooftop solar proposal from ' + s.companyName + ' is ready:\n' +
+      s.capacity + ' kWp • approx ' + F.fmtINR(f.annualSaving / 12) + '/month savings • payback ~' + pb + ' years\n\n' +
+      'Explore it here: ' + shareLink() + '\n\n' +
+      'Happy to walk you through it anytime.\n— ' + (s.prepName || s.companyName);
   }
 
   function saveNow() {
@@ -176,14 +201,17 @@
   }
 
   /* ---------- preview page navigation ---------- */
+  let navIO = null;
   function buildNav() {
     const nav = $('pageNav');
     if (!nav) return;
+    const pages = window.Render.visiblePages();
     nav.innerHTML = '';
-    window.Render.PAGES.forEach((p, i) => {
+    pages.forEach((p, i) => {
       const chipEl = document.createElement('button');
       chipEl.className = 'nav-chip';
       chipEl.type = 'button';
+      chipEl.dataset.page = p.id;
       chipEl.innerHTML = '<b>' + (i + 1) + '</b> ' + p.nav;
       chipEl.title = p.title;
       chipEl.addEventListener('click', () => {
@@ -194,17 +222,27 @@
       });
       nav.appendChild(chipEl);
     });
+    if (navIO) navIO.disconnect();
     if ('IntersectionObserver' in window) {
-      const io = new IntersectionObserver((entries) => {
+      navIO = new IntersectionObserver((entries) => {
         entries.forEach((en) => {
           if (!en.isIntersecting) return;
-          const idx = window.Render.PAGES.findIndex((p) => p.id === en.target.id);
-          nav.querySelectorAll('.nav-chip').forEach((c, i) => c.classList.toggle('active', i === idx));
+          nav.querySelectorAll('.nav-chip').forEach((c) => {
+            c.classList.toggle('active', c.dataset.page === en.target.id);
+          });
         });
       }, { rootMargin: '-40% 0px -55% 0px' });
-      window.Render.PAGES.forEach((p) => { const el = $(p.id); if (el) io.observe(el); });
+      pages.forEach((p) => { const el = $(p.id); if (el) navIO.observe(el); });
     }
   }
+  /* rebuild the nav only when the set of visible pages changes */
+  function syncNav() {
+    const nav = $('pageNav');
+    if (!nav) return;
+    const want = window.Render.visiblePages().length;
+    if (nav.children.length !== want) buildNav();
+  }
+  document.addEventListener('qs:rendered', syncNav);
 
   /* ---------- form wiring ---------- */
   function wireForm() {
@@ -273,6 +311,47 @@
       const p = $('advancedPanel');
       if (p) p.open = !p.open;
     });
+
+    /* WhatsApp share */
+    $('waBtn').addEventListener('click', () => {
+      const s = window.Render.readState();
+      const f = window.Finance.compute(s);
+      const num = waNumber(s.companyPhone);
+      if (!num) { alert('Add a phone number in Company Branding first.'); return; }
+      window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(shareMessage(s, f)), '_blank', 'noopener');
+    });
+
+    /* Copy share link */
+    $('copyLinkBtn').addEventListener('click', () => {
+      const link = shareLink();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => {
+          const el = $('copyLinkBtn');
+          const old = el.textContent;
+          el.textContent = 'Copied ✓';
+          setTimeout(() => { el.textContent = old; }, 1500);
+        }).catch(() => { prompt('Copy this proposal link:', link); });
+      } else {
+        prompt('Copy this proposal link:', link);
+      }
+    });
+  }
+
+  /* ---------- customer share mode (?p=<id>) ---------- */
+  function wireCustomerBar(blob) {
+    const s = Object.assign({}, window.StateStore.DEFAULTS, blob.form || {});
+    const f = window.Finance.compute(s);
+    $('ctCompany').textContent = s.companyName;
+    $('ctFor').textContent = 'Prepared for ' + (s.custName || 'you') +
+      (s.capacity ? '  •  ' + s.capacity + ' kWp' : '');
+    $('ctCall').href = 'tel:' + String(s.companyPhone || '').replace(/\s/g, '');
+    $('ctWa').href = 'https://wa.me/' + waNumber(s.companyPhone) + '?text=' +
+      encodeURIComponent('Hello, I would like to discuss the solar proposal you shared.');
+    $('ctPdf').addEventListener('click', () => {
+      const st = $('ctStatus');
+      window.Exporter.exportPdf((m) => { if (st) st.textContent = m; });
+    });
+    document.title = 'Solar Proposal — ' + (s.custName || '') + ' (' + s.capacity + ' kWp)';
   }
 
   /* ---------- boot ---------- */
@@ -283,22 +362,34 @@
       pristine.propDate = $('propDate').value;
     }
     window.Proposals.init();                           /* migrate legacy, ensure active */
-    loadActiveIntoUI();                                /* apply saved proposal if any */
+    const shareId = new URLSearchParams(location.search).get('p');
+    const sharedBlob = shareId ? window.Proposals.get(shareId) : null;
+    if (sharedBlob) {
+      /* Customer share view: render the requested proposal read-only and
+         never touch the sales rep's active pointer or autosave. */
+      document.body.classList.add('customer-mode');
+      loadProposalIntoUI(sharedBlob);
+      wireCustomerBar(sharedBlob);
+    } else {
+      loadActiveIntoUI();                              /* apply saved proposal if any */
+    }
     window.EquipmentStore.wire();
     window.EquipmentStore.refreshSelects();
-    window.EquipmentStore.renderManager($('eqCatalog'), () => {
-      window.Render.renderAll();
-      scheduleSave();
-    });
-    wireForm();
-    wireManager();
-    refreshManager();
-    window.Editor.build();
+    if (!sharedBlob) {
+      window.EquipmentStore.renderManager($('eqCatalog'), () => {
+        window.Render.renderAll();
+        scheduleSave();
+      });
+      wireForm();
+      wireManager();
+      refreshManager();
+      window.Editor.build();
+    }
     window.Render.renderAll();
     window.Exporter.wire();
     buildNav();
     fitPages();
-    saveNow(); /* snapshot the working state immediately — no lost first edits */
+    if (!sharedBlob) saveNow(); /* snapshot immediately — no lost first edits */
     window.addEventListener('resize', fitPages);
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => window.Render.renderAll());

@@ -639,11 +639,87 @@
   }
 
   /* ================================================================== */
+  /* SYSTEM OPTIONS (Good / Better / Best)                               */
+  /* ================================================================== */
+  /** Compute the three optional systems with the SAME engine as the main
+      design — only capacity and cost/kWp are overridden per option. */
+  function computeOptions(s) {
+    const names = [s.opt1Name, s.opt2Name, s.opt3Name];
+    const kwps = [s.opt1Kwp, s.opt2Kwp, s.opt3Kwp];
+    const costs = [s.opt1Cost, s.opt2Cost, s.opt3Cost];
+    const rec = parseInt(s.optRec, 10) || 0;
+    return [0, 1, 2].map((i) => {
+      const kwpRaw = parseFloat(kwps[i]);
+      const kwp = (isFinite(kwpRaw) && kwpRaw > 0) ? kwpRaw : 0;
+      const cfg = Object.assign({}, s, {
+        capacity: kwp,
+        costPerKwp: (parseFloat(costs[i]) > 0) ? parseFloat(costs[i]) : s.costPerKwp
+      });
+      return {
+        i: i, name: names[i] || ('Option ' + (i + 1)), kwp: kwp,
+        rec: rec === i + 1, f: F.compute(cfg)
+      };
+    });
+  }
+
+  function renderOptions(s, f, v) {
+    const P = CONTENT.pageOptions;
+    set('v_opHeading', P.heading);
+    set('v_opSub', P.sub);
+    set('v_opIntro', P.intro);
+    set('v_opMetricsLabel', P.metricsLabel);
+    set('v_opChartTitle', P.chartTitle);
+    const list = computeOptions(s);
+    const row = (k, val) => '<div class="opt-r"><span class="k">' + esc(k) + '</span><span class="val">' + val + '</span></div>';
+    setHTML('v_opCards', list.map((o) => {
+      const m = o.f;
+      const cfgd = o.kwp > 0;
+      const isMain = cfgd && Math.abs(parseFloat(s.capacity) - o.kwp) < 0.001;
+      return '<div class="opt-card' + (o.rec ? ' opt-rec' : '') + '">' +
+        (o.rec && cfgd ? '<div class="opt-badge">' + esc(P.chips.recommended) + '</div>' : '') +
+        '<div class="opt-name">' + esc(o.name) + '</div>' +
+        (cfgd
+          ? '<div class="opt-kwp">' + o.kwp + ' kWp</div>' +
+            '<div class="opt-rows">' +
+            row(P.chips.invest, F.fmtINR(m.netInvestment)) +
+            row(P.chips.annual, F.fmtINR(m.annualSaving)) +
+            row(P.chips.monthly, F.fmtINR(m.annualSaving / 12)) +
+            row(P.chips.payback, isFinite(m.payback) ? m.payback.toFixed(1) + ' yrs' : '—') +
+            row(P.chips.lifetime, F.fmtINRshort(m.lifetimeSaving)) +
+            row(P.chips.gen, F.fmtNum(m.annualGen) + ' kWh') +
+            '</div>' +
+            (isMain ? '<div class="opt-match">' + esc(P.chips.match) + '</div>' : '')
+          : '<div class="opt-empty">' + esc(P.chips.notSet) + '</div>') +
+        '</div>';
+    }).join(''));
+    const metrics = [
+      [P.chips.invest, (m) => F.fmtINR(m.netInvestment)],
+      [P.chips.annual, (m) => F.fmtINR(m.annualSaving)],
+      [P.chips.payback, (m) => isFinite(m.payback) ? m.payback.toFixed(1) + ' yrs' : '—'],
+      [P.chips.lifetime, (m) => F.fmtINR(m.lifetimeSaving)],
+      [P.chips.gen, (m) => F.fmtNum(m.annualGen) + ' kWh'],
+      [P.chips.modules, (m) => (m.moduleCount ? m.moduleCount + ' × ' + m.moduleWattage + ' Wp' : '—')]
+    ];
+    setHTML('v_opTable',
+      '<thead><tr><th></th>' +
+      list.map((o) => '<th' + (o.rec ? ' class="opt-col-rec"' : '') + '>' + esc(o.name) + '</th>').join('') +
+      '</tr></thead><tbody>' +
+      metrics.map(([label, get]) =>
+        '<tr><td class="sv-y">' + esc(label) + '</td>' +
+        list.map((o) => '<td>' + (o.kwp > 0 ? get(o.f) : '—') + '</td>').join('') +
+        '</tr>').join('') +
+      '</tbody>');
+    set('v_opNote', tpl(P.note, v));
+  }
+
+  /* ================================================================== */
   /* PAGE REGISTRY                                                       */
   /* ================================================================== */
   const PAGES = [
     { id: 'pageCover', nav: 'Cover', title: 'Cover', render: renderCover, chrome: 'none' },
     { id: 'pageExec', nav: 'Summary', title: 'Executive Summary', render: renderExec },
+    { id: 'pageOptions', nav: 'Options', title: 'Choose Your System', render: renderOptions,
+      visible: (s) => !!s.optShow },
     { id: 'pageAbout', nav: 'About', title: 'About Us', render: renderAbout },
     { id: 'pageWhySolar', nav: 'Why Solar', title: 'Why Rooftop Solar', render: renderWhySolar },
     { id: 'pageSolution', nav: 'Solution', title: 'Proposed Solution', render: renderSolution },
@@ -659,19 +735,32 @@
     { id: 'pageClosing', nav: 'Contact', title: 'Acceptance & Contact', render: renderClosing }
   ];
 
+  /* The most recently rendered state — lets nav/PDF/chrome honour the same
+     page visibility (e.g. the optional System Options page). */
+  let CURRENT = null;
+  function visiblePages() {
+    if (!CURRENT) return PAGES;
+    return PAGES.filter((p) => !p.visible || p.visible(CURRENT.s));
+  }
   function pageNum(id) {
-    return PAGES.findIndex((p) => p.id === id) + 1;
+    return visiblePages().findIndex((p) => p.id === id) + 1;
   }
 
   /* Page labels, header meta and footer furniture on every page. */
   function renderChrome(s, f) {
-    const total = PAGES.length;
-    PAGES.forEach((p, i) => {
-      const label = document.querySelector('.page-wrap[data-page="' + p.id + '"] .page-label');
-      if (label) label.textContent = 'Page ' + (i + 1) + ' of ' + total + ' — ' + p.title;
+    const list = visiblePages();
+    const total = list.length;
+    PAGES.forEach((p) => {
+      const wrap = document.querySelector('.page-wrap[data-page="' + p.id + '"]');
+      if (wrap) wrap.style.display = (p.visible && !p.visible(s)) ? 'none' : '';
+      const idx = list.indexOf(p);
+      const label = wrap && wrap.querySelector('.page-label');
+      if (label) label.textContent = idx >= 0 ? 'Page ' + (idx + 1) + ' of ' + total + ' — ' + p.title : '';
       const foot = $('v_pgnum_' + p.id);
-      if (foot) foot.textContent = 'Page ' + (i + 1) + ' of ' + total;
+      if (foot) foot.textContent = idx >= 0 ? 'Page ' + (idx + 1) + ' of ' + total : '';
     });
+    const dl = $('downloadLabel');
+    if (dl) dl.textContent = 'Generate & Download PDF (' + total + ' Pages)';
     const meta = s.propRef + '  •  v' + s.propVersion + '  •  ' + (F.fmtDate(s.propDate) || '—');
     document.querySelectorAll('[data-head-ref]').forEach((el) => { el.textContent = meta; });
     const footLeft = s.companyName + '  •  ' + s.companyPhone + '  •  ' + s.companyWebsite;
@@ -691,6 +780,7 @@
     C.annual($('chartAnnual'), f);
     C.bridge($('chartBridge'), f);
     C.donut($('chartDonut'), f.bomItems, f.projectCost);
+    C.options($('chartOptions'), computeOptions(CURRENT ? CURRENT.s : readState()));
   }
 
   /* ================================================================== */
@@ -698,9 +788,11 @@
     const s = readState();
     const f = F.compute(s);
     const v = tplVars(s, f);
+    CURRENT = { s: s, f: f, v: v };
     renderChrome(s, f);
     PAGES.forEach((p) => { try { p.render(s, f, v); } catch (e) { console.error('render', p.id, e); } });
     drawCharts(f);
+    try { document.dispatchEvent(new Event('qs:rendered')); } catch (e) { /* noop */ }
     return { s, f };
   }
 
@@ -727,9 +819,15 @@
       payAdvance: g('payAdvance'), payDispatch: g('payDispatch'), payCompletion: g('payCompletion'),
       bomModules: g('bomModules'), bomInverter: g('bomInverter'), bomStructure: g('bomStructure'),
       bomBos: g('bomBos'), bomInstall: g('bomInstall'), bomLiaison: g('bomLiaison'),
-      durationText: g('durationText'), jurisdiction: g('jurisdiction'), surveyWindow: g('surveyWindow')
+      durationText: g('durationText'), jurisdiction: g('jurisdiction'), surveyWindow: g('surveyWindow'),
+      optShow: ($('optShow') || {}).checked === true,
+      opt1Name: g('opt1Name'), opt1Kwp: g('opt1Kwp'), opt1Cost: g('opt1Cost'),
+      opt2Name: g('opt2Name'), opt2Kwp: g('opt2Kwp'), opt2Cost: g('opt2Cost'),
+      opt3Name: g('opt3Name'), opt3Kwp: g('opt3Kwp'), opt3Cost: g('opt3Cost'),
+      optRec: (document.querySelector('input[name="optRec"]:checked') || {}).value || '0',
+      shareLinkBase: g('shareLinkBase')
     };
   }
 
-  root.Render = { renderAll, PAGES, drawCharts, readState, pageNum };
+  root.Render = { renderAll, PAGES, drawCharts, readState, pageNum, visiblePages, computeOptions };
 })(typeof self !== 'undefined' ? self : this);

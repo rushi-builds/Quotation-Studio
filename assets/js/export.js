@@ -17,7 +17,7 @@
     }
     const { jsPDF } = root.jspdf;
     const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true });
-    const pages = root.Render.PAGES;
+    const pages = root.Render.visiblePages ? root.Render.visiblePages() : root.Render.PAGES;
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     for (let i = 0; i < pages.length; i++) {

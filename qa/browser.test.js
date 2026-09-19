@@ -26,8 +26,8 @@ const OUT = __dirname + '/shots';
   const t = (name, ok, extra) => console.log((ok ? '  ✓ ' : '  ✗ FAIL: ') + name + (ok || extra === undefined ? '' : ' → ' + extra));
 
   /* ---- integrity ---- */
-  const pageCount = await page.$$eval('.page', (els) => els.length);
-  t('15 pages', pageCount === 15, pageCount);
+  const pageCount = await page.$$eval('.page-wrap', (ws) => ws.filter((w) => w.style.display !== 'none').length);
+  t('15 pages visible (options off)', pageCount === 15, pageCount);
   const kv = await page.evaluate(() => ({
     coverName: document.getElementById('v_coverCustName').textContent,
     heroNet: document.getElementById('v_exHeroNet').textContent,
@@ -88,8 +88,36 @@ const OUT = __dirname + '/shots';
   });
   t('donut painted', donutPixels > 100, donutPixels);
 
+  /* ---- system options (Good / Better / Best) ---- */
+  await page.click('#optShow');
+  await new Promise((r) => setTimeout(r, 400));
+  const vis16 = await page.$$eval('.page-wrap', (ws) => ws.filter((w) => w.style.display !== 'none').length);
+  t('options page adds 16th page', vis16 === 16, vis16);
+  await page.type('#opt1Kwp', '5');
+  await page.type('#opt2Kwp', '7');
+  await new Promise((r) => setTimeout(r, 500));
+  const cardTxt = await page.$eval('#v_opCards', (e) => e.textContent);
+  t('options math rendered (₹4,12,050)', cardTxt.includes('₹4,12,050'), cardTxt.slice(0, 150));
+  t('RECOMMENDED badge present', cardTxt.includes('RECOMMENDED'));
+  const optPix = await page.evaluate(() => {
+    const c = document.getElementById('chartOptions');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 100) if (d[i] !== 0) n++;
+    return n;
+  });
+  t('options chart painted', optPix > 50, optPix);
+  const optEl = await page.$('#pageOptions');
+  await optEl.screenshot({ path: `${OUT}/pageOptions.png` });
+  await page.click('#optShow');
+  await new Promise((r) => setTimeout(r, 400));
+  const vis15 = await page.$$eval('.page-wrap', (ws) => ws.filter((w) => w.style.display !== 'none').length);
+  t('options off → 15 again', vis15 === 15, vis15);
+
   /* ---- screenshots of every page (desktop) ---- */
-  const ids = await page.$$eval('.page', (els) => els.map((e) => e.id));
+  const ids = await page.$$eval('.page-wrap', (ws) => ws
+    .filter((w) => w.style.display !== 'none')
+    .map((w) => w.querySelector('.page').id));
   for (const id of ids) {
     const el = await page.$('#' + id);
     await el.screenshot({ path: `${OUT}/${id}.png` });
@@ -98,8 +126,9 @@ const OUT = __dirname + '/shots';
 
   /* ---- autosave indicator ---- */
   await new Promise((r) => setTimeout(r, 700));
-  const saved = await page.evaluate(() => !!localStorage.getItem('qstudio.proposal.v2'));
-  t('autosave persisted', saved);
+  const saved = await page.evaluate(() => !!localStorage.getItem('qstudio.activeId') &&
+    !!localStorage.getItem('qstudio.proposals.index'));
+  t('autosave persisted (proposal store)', saved);
 
   /* ---- mobile pass ---- */
   await page.setViewport({ width: 390, height: 844 });

@@ -66,7 +66,7 @@
     mkField(g, 'Warranty headline (used on Summary + Tech Spec)', CONTENT.shared.warrantyLine, (v) => { CONTENT.shared.warrantyLine = v; });
 
     /* ---------- cover ---------- */
-    g = mkGroup(rootEl, 'Page 1 — Cover');
+    g = mkGroup(rootEl, 'Cover');
     mkField(g, 'Eyebrow — Residential', CONTENT.cover.eyebrowByType.residential, (v) => { CONTENT.cover.eyebrowByType.residential = v; });
     mkField(g, 'Eyebrow — Commercial', CONTENT.cover.eyebrowByType.commercial, (v) => { CONTENT.cover.eyebrowByType.commercial = v; });
     mkField(g, 'Eyebrow — Industrial', CONTENT.cover.eyebrowByType.industrial, (v) => { CONTENT.cover.eyebrowByType.industrial = v; });
@@ -78,7 +78,7 @@
     });
 
     /* ---------- executive summary ---------- */
-    g = mkGroup(rootEl, 'Page 2 — Executive Summary');
+    g = mkGroup(rootEl, 'Executive Summary');
     mkField(g, 'Eyebrow', CONTENT.exec.eyebrow, (v) => { CONTENT.exec.eyebrow = v; });
     mkField(g, 'Heading', CONTENT.exec.heading, (v) => { CONTENT.exec.heading = v; });
     mkField(g, 'Subheading', CONTENT.exec.sub, (v) => { CONTENT.exec.sub = v; }, true);
@@ -96,8 +96,23 @@
     mkField(g, 'Included intro (uses {company})', CONTENT.exec.includedIntro, (v) => { CONTENT.exec.includedIntro = v; }, true);
     mkField(g, 'Effective-cost hint (uses {tariff})', CONTENT.exec.effectiveHint, (v) => { CONTENT.exec.effectiveHint = v; }, true);
 
+    /* ---------- system options (optional page) ---------- */
+    g = mkGroup(rootEl, 'System Options page (optional)');
+    mkField(g, 'Heading', CONTENT.pageOptions.heading, (v) => { CONTENT.pageOptions.heading = v; });
+    mkField(g, 'Subheading', CONTENT.pageOptions.sub, (v) => { CONTENT.pageOptions.sub = v; });
+    mkField(g, 'Intro', CONTENT.pageOptions.intro, (v) => { CONTENT.pageOptions.intro = v; }, true);
+    [['invest', 'Net Investment'], ['annual', 'Year-1 Saving'], ['monthly', 'Saving / Month'],
+     ['payback', 'Payback'], ['lifetime', '25-Yr Savings'], ['gen', 'Units / Year'],
+     ['modules', 'Modules'], ['recommended', 'RECOMMENDED badge'],
+     ['match', '"In this proposal" badge'], ['notSet', 'Not-configured text']].forEach(([k, l]) => {
+      mkField(g, l + ' caption', CONTENT.pageOptions.chips[k], (v) => { CONTENT.pageOptions.chips[k] = v; });
+    });
+    mkField(g, 'Comparison section label', CONTENT.pageOptions.metricsLabel, (v) => { CONTENT.pageOptions.metricsLabel = v; });
+    mkField(g, 'Chart title', CONTENT.pageOptions.chartTitle, (v) => { CONTENT.pageOptions.chartTitle = v; });
+    mkField(g, 'Footnote (uses {genFactor} {tariff})', CONTENT.pageOptions.note, (v) => { CONTENT.pageOptions.note = v; }, true);
+
     /* ---------- about ---------- */
-    g = mkGroup(rootEl, 'Page 3 — About');
+    g = mkGroup(rootEl, 'About');
     mkField(g, 'Eyebrow (uses {companyCaps})', CONTENT.pageAbout.eyebrow, (v) => { CONTENT.pageAbout.eyebrow = v; });
     mkField(g, 'Heading — line 1', CONTENT.pageAbout.heading1, (v) => { CONTENT.pageAbout.heading1 = v; });
     mkField(g, 'Heading — line 2', CONTENT.pageAbout.heading2, (v) => { CONTENT.pageAbout.heading2 = v; });
@@ -118,7 +133,7 @@
     });
 
     /* ---------- why solar ---------- */
-    g = mkGroup(rootEl, 'Page 4 — Why Rooftop Solar');
+    g = mkGroup(rootEl, 'Why Rooftop Solar');
     mkField(g, 'Heading', CONTENT.pageWhySolar.heading, (v) => { CONTENT.pageWhySolar.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageWhySolar.sub, (v) => { CONTENT.pageWhySolar.sub = v; });
     mkField(g, 'Paragraph', CONTENT.pageWhySolar.para, (v) => { CONTENT.pageWhySolar.para = v; }, true);
@@ -130,7 +145,7 @@
     mkField(g, 'Highlight quote (supports {capacity} {annualGen})', CONTENT.pageWhySolar.highlight, (v) => { CONTENT.pageWhySolar.highlight = v; }, true);
 
     /* ---------- solution ---------- */
-    g = mkGroup(rootEl, 'Page 5 — Proposed Solution');
+    g = mkGroup(rootEl, 'Proposed Solution');
     mkField(g, 'Heading', CONTENT.pageSolution.heading, (v) => { CONTENT.pageSolution.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageSolution.sub, (v) => { CONTENT.pageSolution.sub = v; });
     mkField(g, 'Paragraph', CONTENT.pageSolution.para, (v) => { CONTENT.pageSolution.para = v; }, true);
@@ -147,7 +162,7 @@
     });
 
     /* ---------- tech spec ---------- */
-    g = mkGroup(rootEl, 'Page 6 — Technical Specification');
+    g = mkGroup(rootEl, 'Technical Specification');
     mkField(g, 'Heading', CONTENT.pageTechSpec.heading, (v) => { CONTENT.pageTechSpec.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageTechSpec.sub, (v) => { CONTENT.pageTechSpec.sub = v; });
     mkField(g, 'Paragraph', CONTENT.pageTechSpec.para, (v) => { CONTENT.pageTechSpec.para = v; }, true);
@@ -160,7 +175,7 @@
     mkField(g, 'Note', CONTENT.pageTechSpec.note, (v) => { CONTENT.pageTechSpec.note = v; }, true);
 
     /* ---------- scope ---------- */
-    g = mkGroup(rootEl, 'Page 7 — EPC Scope');
+    g = mkGroup(rootEl, 'EPC Scope');
     mkField(g, 'Heading', CONTENT.pageScope.heading, (v) => { CONTENT.pageScope.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageScope.sub, (v) => { CONTENT.pageScope.sub = v; });
     mkField(g, 'Paragraph', CONTENT.pageScope.para, (v) => { CONTENT.pageScope.para = v; }, true);
@@ -183,7 +198,7 @@
     mkField(g, 'Closing note', CONTENT.pageScope.closing, (v) => { CONTENT.pageScope.closing = v; }, true);
 
     /* ---------- quality ---------- */
-    g = mkGroup(rootEl, 'Page 8 — Installation Quality');
+    g = mkGroup(rootEl, 'Installation Quality');
     mkField(g, 'Heading', CONTENT.pageQuality.heading, (v) => { CONTENT.pageQuality.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageQuality.sub, (v) => { CONTENT.pageQuality.sub = v; });
     mkField(g, 'Paragraph', CONTENT.pageQuality.para, (v) => { CONTENT.pageQuality.para = v; }, true);
@@ -202,7 +217,7 @@
     mkField(g, 'Workmanship promise', CONTENT.pageQuality.promise, (v) => { CONTENT.pageQuality.promise = v; }, true);
 
     /* ---------- savings ---------- */
-    g = mkGroup(rootEl, 'Page 9 — Generation & Savings');
+    g = mkGroup(rootEl, 'Generation & Savings');
     mkField(g, 'Heading', CONTENT.pageSavings.heading, (v) => { CONTENT.pageSavings.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageSavings.sub, (v) => { CONTENT.pageSavings.sub = v; });
     mkField(g, 'Paragraph', CONTENT.pageSavings.para, (v) => { CONTENT.pageSavings.para = v; }, true);
@@ -221,7 +236,7 @@
     mkField(g, 'Footnote', CONTENT.pageSavings.note, (v) => { CONTENT.pageSavings.note = v; }, true);
 
     /* ---------- investment ---------- */
-    g = mkGroup(rootEl, 'Page 10 — Investment');
+    g = mkGroup(rootEl, 'Investment');
     mkField(g, 'Heading', CONTENT.pageInvestment.heading, (v) => { CONTENT.pageInvestment.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageInvestment.sub, (v) => { CONTENT.pageInvestment.sub = v; });
     mkField(g, 'Intro (uses {capacity})', CONTENT.pageInvestment.desc, (v) => { CONTENT.pageInvestment.desc = v; }, true);
@@ -238,7 +253,7 @@
     mkField(g, 'Disclaimer', CONTENT.pageInvestment.disclaimer, (v) => { CONTENT.pageInvestment.disclaimer = v; }, true);
 
     /* ---------- why ktm ---------- */
-    g = mkGroup(rootEl, 'Page 11 — Why Choose KTM');
+    g = mkGroup(rootEl, 'Why Choose KTM');
     mkField(g, 'Heading', CONTENT.pageWhyKtm.heading, (v) => { CONTENT.pageWhyKtm.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageWhyKtm.sub, (v) => { CONTENT.pageWhyKtm.sub = v; });
     mkField(g, 'Paragraph', CONTENT.pageWhyKtm.para, (v) => { CONTENT.pageWhyKtm.para = v; }, true);
@@ -256,7 +271,7 @@
     });
 
     /* ---------- projects ---------- */
-    g = mkGroup(rootEl, 'Page 12 — Projects Portfolio');
+    g = mkGroup(rootEl, 'Projects Portfolio');
     mkField(g, 'Heading', CONTENT.pageProjects.heading, (v) => { CONTENT.pageProjects.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageProjects.sub, (v) => { CONTENT.pageProjects.sub = v; }, true);
     CONTENT.pageProjects.categories.forEach((cat, ci) => {
@@ -288,7 +303,7 @@
     });
 
     /* ---------- warranty ---------- */
-    g = mkGroup(rootEl, 'Page 13 — Warranty & Journey');
+    g = mkGroup(rootEl, 'Warranty & Journey');
     mkField(g, 'Heading', CONTENT.pageWarranty.heading, (v) => { CONTENT.pageWarranty.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageWarranty.sub, (v) => { CONTENT.pageWarranty.sub = v; });
     mkField(g, 'Warranty label', CONTENT.pageWarranty.warrLabel, (v) => { CONTENT.pageWarranty.warrLabel = v; });
@@ -309,7 +324,7 @@
     mkField(g, 'Closing note', CONTENT.pageWarranty.closing, (v) => { CONTENT.pageWarranty.closing = v; }, true);
 
     /* ---------- terms ---------- */
-    g = mkGroup(rootEl, 'Page 14 — Terms & Conditions');
+    g = mkGroup(rootEl, 'Terms & Conditions');
     mkField(g, 'Heading', CONTENT.pageTerms.heading, (v) => { CONTENT.pageTerms.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageTerms.sub, (v) => { CONTENT.pageTerms.sub = v; });
     mkField(g, 'Intro', CONTENT.pageTerms.intro, (v) => { CONTENT.pageTerms.intro = v; }, true);
@@ -323,7 +338,7 @@
     mkField(g, 'Note', CONTENT.pageTerms.note, (v) => { CONTENT.pageTerms.note = v; }, true);
 
     /* ---------- closing ---------- */
-    g = mkGroup(rootEl, 'Page 15 — Acceptance & Contact');
+    g = mkGroup(rootEl, 'Acceptance & Contact');
     mkField(g, 'Banner heading', CONTENT.pageClosing.bannerHeading, (v) => { CONTENT.pageClosing.bannerHeading = v; });
     mkField(g, 'Banner subheading', CONTENT.pageClosing.bannerSub, (v) => { CONTENT.pageClosing.bannerSub = v; });
     mkField(g, 'Next steps label', CONTENT.pageClosing.nextLabel, (v) => { CONTENT.pageClosing.nextLabel = v; });

@@ -68,7 +68,15 @@
     /* ---- Terms ---- */
     durationText: 'Typical completion within 6–8 weeks from advance payment, subject to DISCOM net-metering timelines.',
     jurisdiction: 'Pune, Maharashtra',
-    surveyWindow: 'A free detailed'
+    surveyWindow: 'A free detailed',
+    /* ---- System options (Good / Better / Best) ---- */
+    optShow: '',
+    opt1Name: 'Essential', opt1Kwp: '', opt1Cost: '',
+    opt2Name: 'Premium', opt2Kwp: '', opt2Cost: '',
+    opt3Name: 'Performance', opt3Kwp: '', opt3Cost: '',
+    optRec: '2',
+    /* ---- Sharing ---- */
+    shareLinkBase: ''
   };
 
   function collectForm() {

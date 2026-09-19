@@ -402,6 +402,30 @@ const CONTENT = {
     disclaimer: 'This proposal is confidential and intended solely for the recipient. All technical specifications, pricing and commercial terms are valid for the stated proposal validity period unless revised in writing by {company}.'
   },
 
+  /* ------------------------------------------------------------------ */
+  /* PAGE 3 — System Options (optional Good/Better/Best comparison)      */
+  /* ------------------------------------------------------------------ */
+  pageOptions: {
+    heading: 'Choose Your System',
+    sub: 'Three Ways to Go Solar. Same Engineering. Your Choice.',
+    intro: 'Based on your roof and energy goals, we have prepared three system options. All of them use the same Tier-1 equipment and the same installation standard \u2014 the difference is capacity and investment. The detailed engineering pages of this proposal reflect the design marked \u201cIN THIS PROPOSAL\u201d.',
+    chips: {
+      invest: 'Net Investment',
+      annual: 'Year-1 Saving',
+      monthly: 'Saving / Month',
+      payback: 'Payback',
+      lifetime: '25-Yr Savings',
+      gen: 'Units / Year',
+      modules: 'Modules',
+      recommended: 'RECOMMENDED',
+      match: 'IN THIS PROPOSAL',
+      notSet: 'Option not configured'
+    },
+    metricsLabel: 'SIDE-BY-SIDE COMPARISON',
+    chartTitle: 'INVESTMENT VS 25-YEAR SAVINGS',
+    note: 'All options use the same generation assumption ({genFactor} kWh/kWp/yr), tariff (\u20b9{tariff}/unit) and subsidy eligibility. Every amount is computed live from the assumptions stated for this proposal.'
+  },
+
   /* Cover footer stats (page 1) */
   cover: {
     eyebrowByType: {
