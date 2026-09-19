@@ -220,6 +220,11 @@ t('New preserved the previous proposal\u2019s edits',
 d.getElementById('pmStatus').value = 'sent';
 fire(w, d.getElementById('pmStatus'), 'change');
 t('status change persists (sentAt set)', w.Proposals.active().status === 'sent' && !!w.Proposals.active().sentAt);
+t('customer-view button opens share.html with active id', (() => {
+  w.open = (u) => { w.__cv = u; return {}; };
+  d.getElementById('custViewBtn').click();
+  return (w.__cv || '').indexOf('share.html?p=') === 0;
+})(), w.__cv);
 t('timeline: Created+Sent done, Accepted pending',
   d.getElementById('pmTimeline').querySelectorAll('.pm-tl-step.done').length === 2 &&
   d.getElementById('pmTimeline').querySelectorAll('.pm-tl-step.next').length === 1,

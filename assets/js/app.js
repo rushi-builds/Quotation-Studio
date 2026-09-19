@@ -137,6 +137,15 @@
       const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
       window.open(url, '_blank');
     });
+    /* read-only customer view for THIS proposal (same renderers as the PDF) */
+    const cv = $('custViewBtn');
+    if (cv) {
+      cv.addEventListener('click', () => {
+        if (window.__qsSaveNow) window.__qsSaveNow();
+        const id = window.Proposals.activeId();
+        if (id) window.open('share.html?p=' + encodeURIComponent(id), '_blank');
+      });
+    }
   }
 
   /* ---------- proposal manager UI ---------- */
