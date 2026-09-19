@@ -176,6 +176,27 @@
       if (blob.acceptedAt) bits.push('Accepted ' + new Date(blob.acceptedAt).toLocaleDateString('en-IN'));
       meta.textContent = bits.join('  •  ');
     }
+    /* Created → Sent → Accepted milestone strip (stamps live on the blob) */
+    const tl = $('pmTimeline');
+    if (tl) {
+      const fmt = (iso) => {
+        const d = new Date(iso || '');
+        return isNaN(d) ? '' :
+          d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+      };
+      const steps = [
+        { label: 'Created', at: blob.createdAt || blob.updatedAt },
+        { label: 'Sent', at: blob.sentAt },
+        { label: 'Accepted', at: blob.acceptedAt }
+      ];
+      const lastDone = steps.reduce((acc, st, i) => (st.at ? i : acc), -1);
+      tl.innerHTML = steps.map((st, i) => {
+        const state = st.at ? 'done' : (i === lastDone + 1 ? 'next' : '');
+        return '<div class="pm-tl-step ' + state + '"><div class="pm-tl-dot"></div>' +
+          '<div class="pm-tl-label">' + st.label + '</div>' +
+          '<div class="pm-tl-date">' + (fmt(st.at) || (state === 'next' ? 'pending' : '—')) + '</div></div>';
+      }).join('');
+    }
   }
 
   function loadActiveIntoUI() {

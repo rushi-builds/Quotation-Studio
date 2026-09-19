@@ -220,6 +220,18 @@ t('New preserved the previous proposal\u2019s edits',
 d.getElementById('pmStatus').value = 'sent';
 fire(w, d.getElementById('pmStatus'), 'change');
 t('status change persists (sentAt set)', w.Proposals.active().status === 'sent' && !!w.Proposals.active().sentAt);
+t('timeline: Created+Sent done, Accepted pending',
+  d.getElementById('pmTimeline').querySelectorAll('.pm-tl-step.done').length === 2 &&
+  d.getElementById('pmTimeline').querySelectorAll('.pm-tl-step.next').length === 1,
+  d.getElementById('pmTimeline').textContent);
+
+d.getElementById('pmStatus').value = 'accepted';
+fire(w, d.getElementById('pmStatus'), 'change');
+t('timeline: all three milestones stamped on accepted',
+  d.getElementById('pmTimeline').querySelectorAll('.pm-tl-step.done').length === 3,
+  d.getElementById('pmTimeline').textContent);
+d.getElementById('pmStatus').value = 'sent'; /* restore for the version flow below */
+fire(w, d.getElementById('pmStatus'), 'change');
 
 d.getElementById('capacity').value = '5';
 fire(w, d.getElementById('capacity'), 'input');
