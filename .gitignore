@@ -1,0 +1,9 @@
+# QA tooling & artifacts (not part of the app)
+qa/node_modules/
+qa/package-lock.json
+qa/shots/
+qa/.install-done
+
+# OS / editor
+.DS_Store
+Thumbs.db
