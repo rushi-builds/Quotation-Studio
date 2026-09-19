@@ -3,455 +3,855 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KTM Energy Experts — Quotation Generator</title>
-<meta name="description" content="Generate a professional 11-page rooftop solar quotation with live preview and PDF export.">
+<title>Quotation Studio — Solar EPC Proposal Builder</title>
+<meta name="description" content="Build a premium 15-page rooftop solar EPC proposal with live A4 preview, financial analytics and one-click PDF export.">
 <link rel="icon" href="assets/images/logo.png" type="image/png">
 <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body>
 <div class="app">
 
-  <!-- ============ FORM PANEL ============ -->
+  <!-- ================= FORM PANEL ================= -->
   <aside class="form-panel">
-    <div class="brand-row"><img id="formLogo" src="assets/images/logo.png" alt="Company logo"></div>
-    <div class="app-title">Quotation Generator</div>
-    <div class="app-sub">Fill in the form — the design on the right updates live across all 11 pages. Open "Advanced Edit" below to change any line of text. Click "Generate PDF" when it's ready.</div>
+    <div class="brand-row">
+      <img id="formLogo" src="assets/images/logo.png" alt="Company logo">
+      <span class="save-flag" id="saveIndicator"></span>
+    </div>
+    <div class="app-title">Quotation Studio</div>
+    <div class="app-sub">Fill in the project details — the 15-page proposal on the right updates live. Use <b>Advanced Edit</b> for any line of text, then generate the PDF.</div>
 
-    <fieldset>
-      <legend>Branding</legend>
-      <div class="field">
-        <label>Company logo (optional — leave blank to use the KTM logo)</label>
-        <label class="upload-btn" for="logoUpload">Upload logo image</label>
-        <input type="file" id="logoUpload" accept="image/*">
-      </div>
-      <div class="field"><label>Company name</label><input type="text" id="companyName" value="KTM Energy Experts"></div>
-      <div class="field"><label>Tagline (used on cover footer and contact page)</label><input type="text" id="companyTagline" value="Govt. Approved Solar EPC Contractor | Est. 2015"></div>
-      <div class="row2">
-        <div class="field"><label>Phone</label><input type="text" id="companyPhone" value="+91 93094 86769"></div>
-        <div class="field"><label>Email</label><input type="text" id="companyEmail" value="enquiry@ktmenergyexperts.com"></div>
-      </div>
-      <div class="field"><label>Office address</label><input type="text" id="companyAddress" value="Office No. 502, Vantage Towers C, Bramhacorp, Bavdhan, Pune - 411021, Maharashtra"></div>
-      <div class="field"><label>Website</label><input type="text" id="companyWebsite" value="www.ktmenergyexperts.com"></div>
-      <div class="row3">
-        <div class="field"><label>Years stat</label><input type="text" id="statYears" value="11+"></div>
-        <div class="field"><label>Projects stat</label><input type="text" id="statProjects" value="200+"></div>
-        <div class="field"><label>Capacity stat</label><input type="text" id="statCapacity" value="20+ MW"></div>
-      </div>
-    </fieldset>
+    <form id="quoteForm" autocomplete="off">
 
-    <fieldset>
-      <legend>Customer &amp; Proposal Details</legend>
-      <div class="field"><label>Customer name</label><input type="text" id="custName" value="Mr. Bhooshan Waghmare"></div>
-      <div class="field"><label>Customer address</label><input type="text" id="custAddress" value="Moshi, Pimpri-Chinchwad, Pune"></div>
-      <div class="row2">
-        <div class="field"><label>Proposal date</label><input type="date" id="propDate"></div>
-        <div class="field"><label>Proposal reference</label><input type="text" id="propRef" value="KTM/2026/Solar/013"></div>
-      </div>
-    </fieldset>
-
-    <fieldset>
-      <legend>System Specification</legend>
-      <div class="row2">
-        <div class="field"><label>Capacity (kWp)</label><input type="number" id="capacity" value="7" step="0.5" min="0"></div>
-        <div class="field"><label>Generation (kWh / kWp / year)</label><input type="number" id="genFactor" value="1460" step="10"></div>
-      </div>
-      <div class="field"><label>Solar modules</label>
-        <select id="moduleMake">
-          <option>Panasonic / Waaree / Adani or Equivalent</option>
-          <option>Premier Energies or Equivalent</option>
-          <option>Vikram Solar or Equivalent</option>
-        </select>
-      </div>
-      <div class="field"><label>Inverter</label>
-        <select id="inverterMake">
-          <option>Deye or Equivalent</option>
-          <option>Growatt or Equivalent</option>
-          <option>Luminous or Equivalent</option>
-        </select>
-      </div>
-      <div class="field"><label>Mounting structure</label>
-        <select id="mountMake">
-          <option>Hot-Dip GI / Aluminum-ARS Solartech make</option>
-          <option>Hot-Dip GI — In-house KTM manufactured</option>
-        </select>
-      </div>
-      <div class="field"><label>Cabling</label>
-        <select id="cableMake">
-          <option>Polycab / KEI or Equivalent</option>
-          <option>Havells or Equivalent</option>
-        </select>
-      </div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Financial Assumptions</legend>
-      <div class="row2">
-        <div class="field"><label>Cost per kWp (₹)</label><input type="number" id="costPerKwp" value="90000" step="500"></div>
-        <div class="field"><label>GST (%)</label><input type="number" id="gstPercent" value="8.9" step="0.1"></div>
-      </div>
-      <div class="row2">
-        <div class="field"><label>Blended tariff saved (₹/unit)</label><input type="number" id="tariff" value="15" step="0.5"></div>
-        <div class="field"><label>Annual tariff escalation (%)</label><input type="number" id="escalation" value="6" step="0.5"></div>
-      </div>
-      <div class="field"><label>Panel degradation (%/year)</label><input type="number" id="degradation" value="0.5" step="0.1">
-        <div class="hint">Government subsidy auto-calculates per PM Surya Ghar slabs (₹30,000/kW for the first 2kW, ₹18,000 for the 3rd kW, capped at ₹78,000 for 3kW and above). Override below if the scheme changes.</div>
-      </div>
-      <div class="field"><label>Government subsidy override (₹, leave blank for auto)</label><input type="number" id="subsidyOverride" placeholder="auto"></div>
-      <div class="field"><label>Payment terms — Advance / Before dispatch / On completion (%)</label>
-        <div class="row3">
-          <input type="number" id="payAdvance" value="50">
-          <input type="number" id="payDispatch" value="40">
-          <input type="number" id="payCompletion" value="10">
+      <fieldset>
+        <legend>Company Branding</legend>
+        <div class="field">
+          <label>Company logo (leave blank to use the bundled logo)</label>
+          <label class="upload-btn" for="logoUpload">Upload logo image</label>
+          <input type="file" id="logoUpload" accept="image/*">
         </div>
+        <div class="field"><label>Company name</label><input type="text" id="companyName" value="KTM Energy Experts"></div>
+        <div class="field"><label>Tagline (cover &amp; contact page)</label><input type="text" id="companyTagline" value="Govt. Approved Solar EPC Contractor | Est. 2015"></div>
+        <div class="row2">
+          <div class="field"><label>Phone</label><input type="text" id="companyPhone" value="+91 93094 86769"></div>
+          <div class="field"><label>Email</label><input type="text" id="companyEmail" value="enquiry@ktmenergyexperts.com"></div>
+        </div>
+        <div class="field"><label>Office address</label><input type="text" id="companyAddress" value="Office No. 502, Vantage Towers C, Bramhacorp, Bavdhan, Pune - 411021, Maharashtra"></div>
+        <div class="field"><label>Website</label><input type="text" id="companyWebsite" value="www.ktmenergyexperts.com"></div>
+        <div class="row3">
+          <div class="field"><label>Years stat</label><input type="text" id="statYears" value="11+"></div>
+          <div class="field"><label>Projects stat</label><input type="text" id="statProjects" value="200+"></div>
+          <div class="field"><label>Capacity stat</label><input type="text" id="statCapacity" value="20+ MW"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Customer &amp; Proposal</legend>
+        <div class="row2">
+          <div class="field">
+            <label>Customer type</label>
+            <select id="customerType">
+              <option value="residential">Residential</option>
+              <option value="commercial">Commercial</option>
+              <option value="industrial">Industrial</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Prepared by (optional)</label>
+            <input type="text" id="prepName" placeholder="Sales engineer name">
+          </div>
+        </div>
+        <div class="field"><label>Customer name</label><input type="text" id="custName" value="Mr. Bhooshan Waghmare"></div>
+        <div class="field"><label>Customer address</label><input type="text" id="custAddress" value="Moshi, Pimpri-Chinchwad, Pune"></div>
+        <div class="row3">
+          <div class="field"><label>Proposal date</label><input type="date" id="propDate"></div>
+          <div class="field"><label>Reference no.</label><input type="text" id="propRef" value="KTM/2026/Solar/013"></div>
+          <div class="field"><label>Version</label><input type="text" id="propVersion" value="1.0"></div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Valid for (days)</label>
+            <input type="number" id="validityDays" value="15" min="1" step="1">
+            <div class="hint">Shown as “Valid Until” on the cover and in the terms.</div>
+          </div>
+          <div class="field">
+            <label>Avg. monthly bill (₹, optional)</label>
+            <input type="number" id="monthlyBill" placeholder="e.g. 6000" min="0">
+            <div class="hint">Enables the “% of bill offset” figure on the summary.</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>System Design</legend>
+        <div class="row2">
+          <div class="field"><label>Capacity (kWp)</label><input type="number" id="capacity" value="7" step="0.5" min="0"></div>
+          <div class="field"><label>Generation (kWh/kWp/yr)</label><input type="number" id="genFactor" value="1460" step="10" min="0"></div>
+        </div>
+        <div class="field"><label>Module make</label>
+          <select id="moduleMake">
+            <option>Panasonic / Waaree / Adani or Equivalent</option>
+            <option>Premier Energies or Equivalent</option>
+            <option>Vikram Solar or Equivalent</option>
+          </select>
+        </div>
+        <div class="row3">
+          <div class="field"><label>Module rating (Wp)</label><input type="number" id="moduleWattage" value="545" step="5" min="0"></div>
+          <div class="field"><label>Module length (mm)</label><input type="number" id="moduleLengthMm" value="2278" step="1" min="0"></div>
+          <div class="field"><label>Module width (mm)</label><input type="number" id="moduleWidthMm" value="1134" step="1" min="0"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Module technology</label>
+            <select id="moduleTech">
+              <option>Mono PERC Half-Cut</option>
+              <option>TOPCon</option>
+              <option>Bifacial TOPCon</option>
+              <option>Polycrystalline</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Inverter rating (kW, blank = auto)</label>
+            <input type="number" id="inverterKw" placeholder="auto" step="0.5" min="0">
+            <div class="hint">Blank uses capacity as the rating. DC/AC ratio is computed on the Tech Spec page.</div>
+          </div>
+        </div>
+        <div class="field"><label>Inverter make</label>
+          <select id="inverterMake">
+            <option>Deye or Equivalent</option>
+            <option>Growatt or Equivalent</option>
+            <option>Luminous or Equivalent</option>
+          </select>
+        </div>
+        <div class="field"><label>Mounting structure</label>
+          <select id="mountMake">
+            <option>Hot-Dip GI / Aluminum-ARS Solartech make</option>
+            <option>Hot-Dip GI — In-house KTM manufactured</option>
+          </select>
+        </div>
+        <div class="field"><label>Cabling &amp; protection</label>
+          <select id="cableMake">
+            <option>Polycab / KEI or Equivalent</option>
+            <option>Havells or Equivalent</option>
+          </select>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Roof type</label>
+            <select id="roofType">
+              <option>RCC Terrace</option>
+              <option>Tin / Metal Sheet</option>
+              <option>Elevated / Carport</option>
+              <option>Sheet + RCC (mixed)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Available roof area (m², optional)</label>
+            <input type="number" id="availableArea" placeholder="e.g. 60" min="0">
+            <div class="hint">Enables the module-area fit check on the Tech Spec page.</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Financial Assumptions</legend>
+        <div class="row2">
+          <div class="field"><label>Cost per kWp (₹)</label><input type="number" id="costPerKwp" value="90000" step="500" min="0"></div>
+          <div class="field"><label>GST (%)</label><input type="number" id="gstPercent" value="8.9" step="0.1" min="0"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Blended tariff saved (₹/unit)</label><input type="number" id="tariff" value="15" step="0.5" min="0"></div>
+          <div class="field"><label>Tariff escalation (%/yr)</label><input type="number" id="escalation" value="6" step="0.5" min="0"></div>
+        </div>
+        <div class="field">
+          <label>Panel degradation (%/yr)</label>
+          <input type="number" id="degradation" value="0.5" step="0.1" min="0">
+          <div class="hint">Subsidy auto-calculates for <b>residential</b> projects per PM Surya Ghar slabs (₹30,000/kW × 2 + ₹18,000 × 1, capped at ₹78,000). Commercial/industrial projects show nil unless overridden below.</div>
+        </div>
+        <div class="field"><label>Subsidy override (₹, blank = auto)</label><input type="number" id="subsidyOverride" placeholder="auto" min="0"></div>
+        <div class="row2">
+          <div class="field"><label>Grid CO₂ factor (kg/kWh)</label><input type="number" id="co2Factor" value="0.79" step="0.01" min="0"></div>
+          <div class="field"><label>Tree absorption (kg CO₂/yr)</label><input type="number" id="treeFactor" value="58.4" step="0.1" min="0"></div>
+        </div>
+        <div class="field"><label>Payment terms — advance / before dispatch / on completion (%)</label>
+          <div class="row3">
+            <input type="number" id="payAdvance" value="50" min="0" max="100">
+            <input type="number" id="payDispatch" value="40" min="0" max="100">
+            <input type="number" id="payCompletion" value="10" min="0" max="100">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Cost Breakdown — BOM (optional)</legend>
+        <div class="hint" style="margin-bottom:8px;">Enter amounts (₹, before GST) to unlock the cost-composition donut on the Investment page. Leave blank to show only the cost build-up chart.</div>
+        <div class="row2">
+          <div class="field"><label>Solar modules</label><input type="number" id="bomModules" placeholder="₹" min="0"></div>
+          <div class="field"><label>Inverter(s)</label><input type="number" id="bomInverter" placeholder="₹" min="0"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Mounting structure</label><input type="number" id="bomStructure" placeholder="₹" min="0"></div>
+          <div class="field"><label>BOS — cables &amp; protection</label><input type="number" id="bomBos" placeholder="₹" min="0"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Installation &amp; commissioning</label><input type="number" id="bomInstall" placeholder="₹" min="0"></div>
+          <div class="field"><label>Net-metering &amp; liaison</label><input type="number" id="bomLiaison" placeholder="₹" min="0"></div>
+        </div>
+        <div class="bom-hint" id="bomFormTotal"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Terms</legend>
+        <div class="field"><label>Delivery &amp; commissioning clause</label><input type="text" id="durationText" value="Typical completion within 6–8 weeks from advance payment, subject to DISCOM net-metering timelines."></div>
+        <div class="row2">
+          <div class="field"><label>Jurisdiction</label><input type="text" id="jurisdiction" value="Pune, Maharashtra"></div>
+          <div class="field"><label>Survey-window phrase</label><input type="text" id="surveyWindow" value="A free detailed"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Photos (optional)</legend>
+        <div class="hint" style="margin-bottom:8px;">Professional photos are included. Upload your own — each applies to that page only.</div>
+        <div class="row2">
+          <div class="field"><label>Cover</label><label class="upload-btn" for="up_cover">Upload photo</label><input type="file" id="up_cover" data-photo="img_cover" accept="image/*"></div>
+          <div class="field"><label>Closing banner</label><label class="upload-btn" for="up_closing">Upload photo</label><input type="file" id="up_closing" data-photo="img_closing" accept="image/*"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>About</label><label class="upload-btn" for="up_about">Upload photo</label><input type="file" id="up_about" data-photo="img_about" accept="image/*"></div>
+          <div class="field"><label>Why Rooftop Solar</label><label class="upload-btn" for="up_whysolar">Upload photo</label><input type="file" id="up_whysolar" data-photo="img_whysolar" accept="image/*"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Proposed Solution</label><label class="upload-btn" for="up_solution">Upload photo</label><input type="file" id="up_solution" data-photo="img_solution" accept="image/*"></div>
+          <div class="field"><label>EPC Scope</label><label class="upload-btn" for="up_scope">Upload photo</label><input type="file" id="up_scope" data-photo="img_scope" accept="image/*"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Installation Quality</label><label class="upload-btn" for="up_quality">Upload photo</label><input type="file" id="up_quality" data-photo="img_quality" accept="image/*"></div>
+          <div class="field"><label>Why Choose KTM</label><label class="upload-btn" for="up_whyktm">Upload photo</label><input type="file" id="up_whyktm" data-photo="img_whyktm" accept="image/*"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Projects (header)</label><label class="upload-btn" for="up_projects">Upload photo</label><input type="file" id="up_projects" data-photo="img_projects" accept="image/*"></div>
+          <div class="field"><label>Warranty</label><label class="upload-btn" for="up_warranty">Upload photo</label><input type="file" id="up_warranty" data-photo="img_warranty" accept="image/*"></div>
+        </div>
+        <div class="hint">Tip: individual project thumbnails can be replaced in Advanced Edit → Projects Portfolio.</div>
+      </fieldset>
+
+      <details class="advanced" id="advancedPanel">
+        <summary id="advToggle">Advanced Edit — every text element (all 15 pages)</summary>
+        <div id="advContainer"></div>
+      </details>
+    </form>
+
+    <div class="form-actions">
+      <button id="downloadBtn" type="button"><span id="downloadLabel">Generate &amp; Download PDF</span></button>
+      <div class="form-links">
+        <button type="button" class="link-btn" id="exportBtn">Save proposal file</button>
+        <label class="link-btn" for="importFile">Open proposal file</label>
+        <input type="file" id="importFile" accept="application/json,.json">
+        <button type="button" class="link-btn danger" id="resetBtn">Reset</button>
       </div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Photos (optional)</legend>
-      <div class="hint" style="margin-bottom:8px;">Professional photos are included by default. Upload your own to replace any of them — each applies instantly to that page only.</div>
-      <div class="field"><label>Page 1 — About KTM</label><label class="upload-btn" for="up_p1">Upload photo</label><input type="file" id="up_p1" accept="image/*"></div>
-      <div class="field"><label>Page 2 — Cover</label><label class="upload-btn" for="up_p2">Upload photo</label><input type="file" id="up_p2" accept="image/*"></div>
-      <div class="field"><label>Page 3 — Why Rooftop Solar</label><label class="upload-btn" for="up_p3">Upload photo</label><input type="file" id="up_p3" accept="image/*"></div>
-      <div class="field"><label>Page 4 — Proposed Solution</label><label class="upload-btn" for="up_p4">Upload photo</label><input type="file" id="up_p4" accept="image/*"></div>
-      <div class="field"><label>Page 5 — EPC Scope</label><label class="upload-btn" for="up_p5">Upload photo</label><input type="file" id="up_p5" accept="image/*"></div>
-      <div class="field"><label>Page 6 — Installation Quality</label><label class="upload-btn" for="up_p6">Upload photo</label><input type="file" id="up_p6" accept="image/*"></div>
-      <div class="field"><label>Page 8 — Why Choose KTM</label><label class="upload-btn" for="up_p8">Upload photo</label><input type="file" id="up_p8" accept="image/*"></div>
-      <div class="field"><label>Page 9 — Warranty &amp; Installation</label><label class="upload-btn" for="up_p9">Upload photo</label><input type="file" id="up_p9" accept="image/*"></div>
-      <div class="field"><label>Page 10 — Projects (header photo)</label><label class="upload-btn" for="up_p10">Upload photo</label><input type="file" id="up_p10" accept="image/*"></div>
-      <div class="field"><label>Page 11 — Contact banner</label><label class="upload-btn" for="up_p11">Upload photo</label><input type="file" id="up_p11" accept="image/*"></div>
-      <div class="hint">Tip: individual project thumbnail photos (page 9) can be replaced inside Advanced Edit → Page 10 → each project block.</div>
-    </fieldset>
-
-    <details class="advanced" id="advancedPanel">
-      <summary>Advanced Edit — Edit Every Text Element (All 11 Pages)</summary>
-      <div id="advContainer" style="padding:2px 0 10px;"></div>
-    </details>
-
-    <button id="downloadBtn">Generate &amp; Download PDF (11 Pages)</button>
-    <div id="statusMsg"></div>
+      <div id="statusMsg"></div>
+    </div>
   </aside>
 
-  <!-- ============ PREVIEW / EXPORT ============ -->
+  <!-- ================= PREVIEW / EXPORT ================= -->
   <main class="preview-panel">
-
-    <!-- PAGE 1 — About KTM -->
-    <div class="page-label">Page 1 of 11 — About</div>
-    <div class="page" id="page1">
-      <div class="pg-logo"><img id="pv_logo_p1" src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p1" src="assets/images/page-about.jpg" alt="Rooftop solar installation"></div>
-      <div class="pg-body">
-        <div class="intro-col">
-          <div class="section-label" id="pv_p1_eyebrow">ABOUT KTM ENERGY EXPERTS</div>
-          <div class="heading-block"><h2 id="pv_p1_heading">Engineering Excellence.<br>Powering Homes. Building Trust.</h2></div>
-          <div class="rule-orange"></div>
-          <div class="body-para" id="pv_p1_para1"></div>
-          <div class="body-para" id="pv_p1_para2"></div>
-          <div class="body-para" id="pv_p1_para3"></div>
-        </div>
-        <div class="grid-4 clear-photo" id="pv_p1_stats"></div>
-        <div class="section-label mt-16" id="pv_p1_sectionLabel">WHY CUSTOMERS CHOOSE KTM</div>
-        <div class="grid-3" id="pv_p1_features"></div>
-      </div>
-      <div class="pg-footer-strip">
-        <div id="v_p1_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p1_footerContact">—</div>
-      </div>
+    <div class="preview-toolbar">
+      <div class="page-nav" id="pageNav"></div>
     </div>
 
-    <!-- PAGE 2 — Cover -->
-    <div class="page-label">Page 2 of 11 — Cover</div>
-    <div class="page" id="page2">
-      <div class="pg-logo"><img id="previewLogo" src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="cover-diag"><img id="img_p2" src="assets/images/page-cover.jpg" alt="Rooftop solar at sunset"></div>
-      <div class="cover-body">
-        <div class="eyebrow" id="v_eyebrow">RESIDENTIAL</div>
-        <div class="cover-title"><span id="v_titleLine1">Rooftop Solar</span><br><span class="accent" id="v_titleLine2">Power Proposal</span></div>
-      </div>
-      <div class="cover-grid">
-        <div class="info-box">
-          <div class="ib-icon">&#9737;</div>
-          <div class="ib-label" id="v_labelPreparedFor">Prepared For</div>
-          <div class="ib-value" id="v_custName">Mr. Bhooshan Waghmare</div>
-          <div class="ib-value ib-value-dim" id="v_custAddress">Moshi, Pimpri-Chinchwad, Pune</div>
-        </div>
-        <div class="info-box">
-          <div class="ib-icon">&#9889;</div>
-          <div class="ib-label" id="v_labelCapacityLabel">Project Capacity</div>
-          <div class="ib-value" id="v_capacity">7 kWp</div>
-        </div>
-        <div class="info-box">
-          <div class="ib-icon">&#128197;</div>
-          <div class="ib-label" id="v_labelDateLabel">Proposal Date</div>
-          <div class="ib-value" id="v_propDate">—</div>
-        </div>
-        <div class="info-box">
-          <div class="ib-icon">&#128203;</div>
-          <div class="ib-label" id="v_labelRefLabel">Proposal Reference</div>
-          <div class="ib-value" id="v_propRef">KTM/2026/Solar/013</div>
-        </div>
-      </div>
-      <div class="cover-footer">
-        <div class="cf-stat"><div class="n" id="v_statYears">11+</div><div class="l" id="v_statYearsLabel">Years Engineering Excellence</div></div>
-        <div class="cf-stat"><div class="n" id="v_statProjects">200+</div><div class="l" id="v_statProjectsLabel">Projects Executed</div></div>
-        <div class="cf-stat"><div class="n" id="v_statCapacity">20+ MW</div><div class="l" id="v_statCapacityLabel">Solar Capacity Installed</div></div>
-        <div class="cf-stat"><div class="n">&#9733;</div><div class="l" id="v_footerStat4Label">Pioneer in Net Metering — Maharashtra's First Net Metering Project</div></div>
-      </div>
-    </div>
+    <!-- ============ PAGE 1 — COVER ============ -->
+    <div class="page-wrap" data-page="pageCover">
+      <div class="page-label"></div>
+      <section class="page page--cover" id="pageCover">
+        <div class="cover-left">
+          <div class="cover-logo cover-logo-chip"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="cover-eyebrow" id="v_coverEyebrow">RESIDENTIAL SOLAR PROPOSAL</div>
+          <h1 class="cover-title"><span id="v_coverTitle1">Rooftop Solar</span><br><span class="accent" id="v_coverTitle2">Power Proposal</span></h1>
+          <div class="cover-rule"></div>
 
-    <!-- PAGE 3 — Why Rooftop Solar -->
-    <div class="page-label">Page 3 of 11 — Why Rooftop Solar</div>
-    <div class="page" id="page3">
-      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p3" src="assets/images/page-why-solar.jpg" alt="Solar panels under blue sky"></div>
-      <div class="pg-body">
-        <div class="intro-col">
-          <div class="heading-block"><h2 id="pv_p3_heading">Why Rooftop Solar?</h2><div class="sub" id="pv_p3_sub">One Smart Decision. 25+ Years of Savings.</div></div>
-          <div class="rule-orange"></div>
-          <div class="body-para" id="pv_p3_para"></div>
-        </div>
-        <div class="grid-3 clear-photo" id="pv_p3_benefits"></div>
-        <div class="highlight-bar" id="pv_p3_highlight"></div>
-        <div class="metric-row">
-          <div class="metric-chip">&#9889;<div><div class="mv" id="v_p3_annualGen">—</div><div class="ml">Annual Generation</div></div></div>
-          <div class="metric-chip">&#8377;<div><div class="mv" id="v_p3_annualSaving">—</div><div class="ml">Estimated Annual Savings</div></div></div>
-          <div class="metric-chip">&#128200;<div><div class="mv" id="v_p3_lifetimeSaving">—</div><div class="ml">Lifetime Savings</div></div></div>
-        </div>
-      </div>
-      <div class="pg-footer-strip">
-        <div id="v_p3_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p3_footerContact">—</div>
-      </div>
-    </div>
-
-    <!-- PAGE 4 — Proposed Solution -->
-    <div class="page-label">Page 4 of 11 — Proposed Solution</div>
-    <div class="page" id="page4">
-      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p4" src="assets/images/page-solution.jpg" alt="Modern villa with solar roof"></div>
-      <div class="pg-body">
-        <div class="intro-col">
-          <div class="heading-block"><h2 id="pv_p4_heading">Your Proposed Solar Power Solution</h2><div class="sub" id="pv_p4_sub">Designed Specifically for Your Home</div></div>
-          <div class="rule-orange"></div>
-          <div class="body-para" id="pv_p4_para"></div>
-        </div>
-        <div class="grid-4 clear-photo" id="pv_p4_specs"></div>
-        <div class="section-label mt-14" id="pv_p4_includedLabel">WHAT'S INCLUDED</div>
-        <div class="grid-3" id="pv_p4_included"></div>
-      </div>
-      <div class="pg-footer-strip">
-        <div id="v_p4_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p4_footerContact">—</div>
-      </div>
-    </div>
-
-    <!-- PAGE 5 — EPC Scope -->
-    <div class="page-label">Page 5 of 11 — EPC Scope</div>
-    <div class="page" id="page5">
-      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p5" src="assets/images/page-epc.jpg" alt="Engineers installing solar panels"></div>
-      <div class="pg-body">
-        <div class="intro-col">
-          <div class="heading-block"><h2 id="pv_p5_heading">What's Included in Your Solar Solution</h2><div class="sub" id="pv_p5_sub">Complete Turnkey EPC Scope</div></div>
-          <div class="rule-orange"></div>
-          <div class="body-para" id="pv_p5_para"></div>
-        </div>
-        <div class="section-label clear-photo" id="pv_p5_delivLabel">OUR TURNKEY EPC DELIVERABLES</div>
-        <div class="grid-3" id="pv_p5_deliverables"></div>
-        <div class="grid-2 scope-cols">
-          <div>
-            <div class="section-label" id="pv_p5_respLabel">CLIENT RESPONSIBILITIES</div>
-            <div id="pv_p5_resp"></div>
+          <div class="cover-info">
+            <div class="ci-label" id="v_coverPreparedLabel">Prepared For</div>
+            <div class="ci-value ci-value-lg" id="v_coverCustName">—</div>
+            <div class="ci-sub" id="v_coverCustAddress"></div>
           </div>
-          <div>
-            <div class="section-label" id="pv_p5_addlLabel">ADDITIONAL SCOPE (IF REQUIRED)</div>
-            <div class="grid-2" id="pv_p5_addl"></div>
+
+          <div class="cover-grid">
+            <div class="ci-block">
+              <div class="ci-label" id="v_coverCapacityLabel">Project Capacity</div>
+              <div class="ci-value" id="v_coverCapacity">—</div>
+            </div>
+            <div class="ci-block">
+              <div class="ci-label" id="v_coverDateLabel">Proposal Date</div>
+              <div class="ci-value" id="v_coverDate">—</div>
+            </div>
+            <div class="ci-block">
+              <div class="ci-label" id="v_coverValidLabel">Valid Until</div>
+              <div class="ci-value" id="v_coverValid">—</div>
+            </div>
+            <div class="ci-block">
+              <div class="ci-label" id="v_coverRefLabel">Proposal Reference</div>
+              <div class="ci-value"><span id="v_coverRef">—</span> <span class="ci-chip" id="v_coverVersion"></span></div>
+            </div>
+          </div>
+          <div class="ci-block" id="v_coverPrepRow" style="display:none;">
+            <div class="ci-label" id="v_coverPrepLabel">Prepared By</div>
+            <div class="ci-value" id="v_coverPrepBy"></div>
+          </div>
+
+          <div class="cover-stats">
+            <div class="cf-stat"><div class="n" id="v_coverStatYears">—</div><div class="l">Years Engineering Excellence</div></div>
+            <div class="cf-stat"><div class="n" id="v_coverStatProjects">—</div><div class="l">Projects Executed</div></div>
+            <div class="cf-stat"><div class="n" id="v_coverStatCapacity">—</div><div class="l">Solar Capacity Installed</div></div>
+          </div>
+          <div class="cover-stat4" id="v_coverStat4"></div>
+        </div>
+        <div class="cover-right">
+          <img id="img_cover" src="assets/images/page-cover.jpg" alt="Rooftop solar installation">
+          <div class="cover-badge">
+            <div class="cb-kwp" id="v_coverBadgeKwp">—</div>
+            <div class="cb-gen" id="v_coverBadgeGen">—</div>
           </div>
         </div>
-        <div class="footer-note footer-note-lifted" id="pv_p5_closing"></div>
-      </div>
-      <div class="pg-footer-strip">
-        <div id="v_p5_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p5_footerContact">—</div>
-      </div>
+      </section>
     </div>
 
-    <!-- PAGE 6 — Installation Quality -->
-    <div class="page-label">Page 6 of 11 — Installation Quality</div>
-    <div class="page" id="page6">
-      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p6" src="assets/images/page-install-quality.jpg" alt="Technician fastening a solar module mounting clamp"></div>
-      <div class="pg-body">
-        <div class="intro-col">
-          <div class="heading-block"><h2 id="pv_p6_heading">Installation Quality</h2><div class="sub" id="pv_p6_sub">Precision in Every Connection.</div></div>
+    <!-- ============ PAGE 2 — EXECUTIVE SUMMARY ============ -->
+    <div class="page-wrap" data-page="pageExec">
+      <div class="page-label"></div>
+      <section class="page" id="pageExec">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="pg-body">
+          <div class="sec-label" id="v_exEyebrow"></div>
+          <h2 class="pg-title" id="v_exHeading"></h2>
+          <div class="pg-sub" id="v_exSub"></div>
+          <div class="pg-sub" id="v_exCustomerLine"></div>
+
+          <div class="exec-hero">
+            <div class="hero-tile"><div class="ht-v" id="v_exHeroNet">—</div><div class="ht-l" id="v_exHeroNetLabel"></div></div>
+            <div class="hero-tile"><div class="ht-v" id="v_exHeroSave">—</div><div class="ht-l" id="v_exHeroSaveLabel"></div></div>
+            <div class="hero-tile"><div class="ht-v" id="v_exHeroPayback">—</div><div class="ht-l" id="v_exHeroPaybackLabel"></div></div>
+            <div class="hero-tile"><div class="ht-v" id="v_exHeroLifetime">—</div><div class="ht-l" id="v_exHeroLifetimeLabel"></div></div>
+          </div>
+
+          <div class="sec-label" id="v_exKpiLabel"></div>
+          <div class="kpi-grid" id="v_exKpis"></div>
+
+          <div class="sec-label" id="v_exJourneyLabel"></div>
+          <div class="jstrip" id="v_exJourney"></div>
+          <div class="fine-note" id="v_exJourneyNote"></div>
+
+          <div class="sec-label" id="v_exIncludedLabel"></div>
+          <div class="inc-intro" id="v_exIncludedIntro"></div>
+          <div class="inc-grid" id="v_exIncluded"></div>
+          <div class="fine-note" id="v_exEffectiveHint" style="display:none;"></div>
+          <div class="trace-note" id="v_exTraceNote"></div>
+        </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageExec"></div>
+        </footer>
+      </section>
+    </div>
+
+    <!-- ============ PAGE 3 — ABOUT ============ -->
+    <div class="page-wrap" data-page="pageAbout">
+      <div class="page-label"></div>
+      <section class="page" id="pageAbout">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="photo-top"><img id="img_about" src="assets/images/page-about.jpg" alt="Rooftop solar installation"></div>
+        <div class="pg-body">
+          <div class="intro-col">
+            <div class="sec-label" id="v_abEyebrow"></div>
+            <h2 class="pg-title" id="v_abHeading"></h2>
+            <div class="rule-orange"></div>
+            <p class="body-para" id="v_abPara1"></p>
+            <p class="body-para" id="v_abPara2"></p>
+            <p class="body-para" id="v_abPara3"></p>
+          </div>
+          <div class="spacer"></div>
+          <div class="grid-4" id="v_abStats"></div>
+          <div class="spacer"></div>
+          <div class="sec-label" id="v_abSectionLabel"></div>
+          <div class="grid-3" id="v_abFeatures"></div>
+        </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageAbout"></div>
+        </footer>
+      </section>
+    </div>
+
+    <!-- ============ PAGE 4 — WHY ROOFTOP SOLAR ============ -->
+    <div class="page-wrap" data-page="pageWhySolar">
+      <div class="page-label"></div>
+      <section class="page" id="pageWhySolar">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="photo-top"><img id="img_whysolar" src="assets/images/page-why-solar.jpg" alt="Solar panels under blue sky"></div>
+        <div class="pg-body">
+          <div class="intro-col">
+            <h2 class="pg-title" id="v_wsHeading"></h2>
+            <div class="pg-sub" id="v_wsSub"></div>
+            <div class="rule-orange"></div>
+            <p class="body-para" id="v_wsPara"></p>
+          </div>
+          <div class="spacer"></div>
+          <div class="grid-3" id="v_wsBenefits"></div>
+          <div class="spacer"></div>
+          <div class="highlight-bar" id="v_wsHighlight"></div>
+          <div class="metric-row">
+            <div class="metric-chip"><div class="mv" id="v_wsAnnualGen">—</div><div class="ml">Annual Generation</div></div>
+            <div class="metric-chip"><div class="mv" id="v_wsAnnualSaving">—</div><div class="ml">Estimated Annual Savings</div></div>
+            <div class="metric-chip"><div class="mv" id="v_wsLifetimeSaving">—</div><div class="ml">Lifetime Savings (25 yrs)</div></div>
+          </div>
+        </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageWhySolar"></div>
+        </footer>
+      </section>
+    </div>
+
+    <!-- ============ PAGE 5 — PROPOSED SOLUTION ============ -->
+    <div class="page-wrap" data-page="pageSolution">
+      <div class="page-label"></div>
+      <section class="page" id="pageSolution">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="photo-top"><img id="img_solution" src="assets/images/page-solution.jpg" alt="Modern building with solar roof"></div>
+        <div class="pg-body">
+          <div class="intro-col">
+            <h2 class="pg-title" id="v_soHeading"></h2>
+            <div class="pg-sub" id="v_soSub"></div>
+            <div class="rule-orange"></div>
+            <p class="body-para" id="v_soPara"></p>
+          </div>
+          <div class="spacer"></div>
+          <div class="grid-4" id="v_soSpecs"></div>
+          <div class="spacer"></div>
+          <div class="sec-label" id="v_soIncludedLabel"></div>
+          <div class="grid-3" id="v_soIncluded"></div>
+        </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageSolution"></div>
+        </footer>
+      </section>
+    </div>
+
+    <!-- ============ PAGE 6 — TECHNICAL SPECIFICATION ============ -->
+    <div class="page-wrap" data-page="pageTechSpec">
+      <div class="page-label"></div>
+      <section class="page" id="pageTechSpec">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="pg-body">
+          <h2 class="pg-title" id="v_tsHeading"></h2>
+          <div class="pg-sub" id="v_tsSub"></div>
           <div class="rule-orange"></div>
-          <div class="body-para" id="pv_p6_para"></div>
+          <p class="body-para body-para-wide" id="v_tsPara"></p>
+
+          <div class="diagram-box">
+            <div class="sec-label tight" id="v_tsDiagramTitle"></div>
+            <div class="diagram" id="v_tsDiagram"></div>
+            <div class="fine-note center" id="v_tsDiagramNote"></div>
+          </div>
+
+          <div class="sec-label mt-12" id="v_tsGroupsLabel"></div>
+          <table class="spec-table" id="v_tsTable"></table>
+          <div class="note-box mt-10"><b id="v_tsNoteLabel"></b> <span id="v_tsNote"></span></div>
         </div>
-        <div class="section-label clear-photo" id="pv_p6_standardsLabel">THE KTM INSTALLATION STANDARD</div>
-        <div class="grid-4" id="pv_p6_standards"></div>
-        <div class="section-label mt-14" id="pv_p6_checklistLabel">BEFORE WE HAND OVER</div>
-        <div class="grid-3 checklist-grid" id="pv_p6_checklist"></div>
-        <div class="footer-note footer-note-lifted" id="pv_p6_promise"></div>
-      </div>
-      <div class="pg-footer-strip">
-        <div id="v_p6_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p6_footerContact">—</div>
-      </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageTechSpec"></div>
+        </footer>
+      </section>
     </div>
 
-    <!-- PAGE 7 — Investment -->
-    <div class="page-label">Page 7 of 11 — Investment &amp; Specification</div>
-    <div class="page" id="page7">
-      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="pg-body">
-        <div class="heading-block"><h2 id="v_p7Heading">Your Solar Investment at a Glance</h2><div class="sub" id="v_p7Subheading">Transparent pricing. Outstanding long-term returns.</div></div>
-        <div class="body-para" id="v_desc"></div>
-
-        <div class="grid-2 invest-cards">
-          <div class="card-cream"><div class="card-desc fin-label" id="v_labelProjectCost">Project Cost</div><div class="card-value" id="v_projectCost">—</div><div class="card-desc" id="v_gstLine">—</div></div>
-          <div class="card-cream"><div class="card-desc fin-label" id="v_labelSubsidy">Government Subsidy</div><div class="card-value" id="v_subsidy">—</div><div class="card-desc" id="v_captionSubsidy">PM Surya Ghar</div></div>
-          <div class="card-cream"><div class="card-desc fin-label" id="v_labelTotalCost">Total Project Cost</div><div class="card-value" id="v_totalCost">—</div><div class="card-desc" id="v_captionTotalCost">Including GST</div></div>
-          <div class="card-cream"><div class="card-desc fin-label" id="v_labelNetInvestment">Net Investment</div><div class="card-value" id="v_netInvestment">—</div><div class="card-desc" id="v_captionNetInvestment">After subsidy</div></div>
+    <!-- ============ PAGE 7 — EPC SCOPE ============ -->
+    <div class="page-wrap" data-page="pageScope">
+      <div class="page-label"></div>
+      <section class="page" id="pageScope">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="photo-top"><img id="img_scope" src="assets/images/page-epc.jpg" alt="Engineers installing solar panels"></div>
+        <div class="pg-body">
+          <div class="intro-col">
+            <h2 class="pg-title" id="v_scHeading"></h2>
+            <div class="pg-sub" id="v_scSub"></div>
+            <div class="rule-orange"></div>
+            <p class="body-para" id="v_scPara"></p>
+          </div>
+          <div class="spacer"></div>
+          <div class="sec-label" id="v_scDelivLabel"></div>
+          <div class="grid-2" id="v_scDeliverables"></div>
+          <div class="grid-2 scope-cols">
+            <div>
+              <div class="sec-label" id="v_scRespLabel"></div>
+              <div id="v_scResp"></div>
+            </div>
+            <div>
+              <div class="sec-label" id="v_scAddlLabel"></div>
+              <div class="grid-1" id="v_scAddl"></div>
+            </div>
+          </div>
+          <div class="footer-note footer-note-lifted" id="v_scClosing"></div>
         </div>
-
-        <div class="section-label" id="v_sectionFinancial">Financial Snapshot</div>
-        <div class="fin-grid">
-          <div class="fin-box"><div class="fv" id="v_annualGen">—</div><div class="fl" id="v_labelFinAnnualGen">Annual Generation</div></div>
-          <div class="fin-box"><div class="fv" id="v_annualSaving">—</div><div class="fl" id="v_labelFinAnnualSaving">Est. Annual Saving</div></div>
-          <div class="fin-box"><div class="fv" id="v_payback">—</div><div class="fl" id="v_labelFinPayback">Est. Payback Period</div></div>
-          <div class="fin-box"><div class="fv" id="v_lifetimeSaving">—</div><div class="fl" id="v_labelFinLifetime">Lifetime Savings (25 yrs)</div></div>
-          <div class="fin-box"><div class="fv" id="v_irr">—</div><div class="fl" id="v_labelFinIRR">Estimated IRR</div></div>
-          <div class="fin-box"><div class="fv" id="v_co2trees">—</div><div class="fl" id="v_labelFinCO2Trees">CO₂ Avoided / Trees Equiv. (Lifetime)</div></div>
-        </div>
-
-        <div class="section-label" id="v_sectionPayment">Payment Terms</div>
-        <div class="pay-terms">
-          <div class="pay-chip"><div class="pv" id="v_payAdvanceVal">50%</div><div class="pl" id="v_labelPayAdvance">Advance Payment</div></div>
-          <div class="pay-chip"><div class="pv" id="v_payDispatchVal">40%</div><div class="pl" id="v_labelPayDispatch">Before Dispatch of Material</div></div>
-          <div class="pay-chip"><div class="pv" id="v_payCompletionVal">10%</div><div class="pl" id="v_labelPayCompletion">On Completion of Installation</div></div>
-        </div>
-
-        <div class="section-label mt-14" id="v_sectionSpecs">System Specification</div>
-        <div class="specs-grid">
-          <div class="k" id="v_labelSpecCapacity">System Capacity</div><div class="v" id="v_specCapacity">7 kWp</div>
-          <div class="k" id="v_labelSpecModule">Solar Modules</div><div class="v" id="v_specModule">—</div>
-          <div class="k" id="v_labelSpecInverter">Inverter</div><div class="v" id="v_specInverter">—</div>
-          <div class="k" id="v_labelSpecMount">Mounting Structure</div><div class="v" id="v_specMount">—</div>
-          <div class="k" id="v_labelSpecCable">Cabling</div><div class="v" id="v_specCable">—</div>
-          <div class="k" id="v_labelSpecWarranty">Warranty</div><div class="v" id="v_specWarrantyValue">25-Year Module Performance Warranty</div>
-        </div>
-        <div class="footer-note" id="v_disclaimer"></div>
-      </div>
-      <div class="pg-footer-strip">
-        <div id="v_footerAddress">—</div>
-        <div id="v_footerContact">—</div>
-      </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageScope"></div>
+        </footer>
+      </section>
     </div>
 
-    <!-- PAGE 8 — Why Choose KTM -->
-    <div class="page-label">Page 8 of 11 — Why Choose KTM</div>
-    <div class="page" id="page8">
-      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p8" src="assets/images/page-why-ktm.jpg" alt="Solar engineer on rooftop"></div>
-      <div class="pg-body">
-        <div class="intro-col">
-          <div class="heading-block"><h2 id="pv_p8_heading">Why Choose KTM Energy Experts?</h2><div class="sub" id="pv_p8_sub">Engineering Excellence You Can Trust.</div></div>
+    <!-- ============ PAGE 8 — INSTALLATION QUALITY ============ -->
+    <div class="page-wrap" data-page="pageQuality">
+      <div class="page-label"></div>
+      <section class="page" id="pageQuality">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="photo-top"><img id="img_quality" src="assets/images/page-install-quality.jpg" alt="Technician installing solar panel"></div>
+        <div class="pg-body">
+          <div class="intro-col">
+            <h2 class="pg-title" id="v_quHeading"></h2>
+            <div class="pg-sub" id="v_quSub"></div>
+            <div class="rule-orange"></div>
+            <p class="body-para" id="v_quPara"></p>
+          </div>
+          <div class="spacer"></div>
+          <div class="grid-4" id="v_quStandards"></div>
+          <div class="sec-label mt-14" id="v_quChecklistLabel"></div>
+          <div class="grid-3 checklist-grid" id="v_quChecklist"></div>
+          <div class="footer-note footer-note-lifted" id="v_quPromise"></div>
+        </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageQuality"></div>
+        </footer>
+      </section>
+    </div>
+
+    <!-- ============ PAGE 9 — GENERATION & SAVINGS ============ -->
+    <div class="page-wrap" data-page="pageSavings">
+      <div class="page-label"></div>
+      <section class="page" id="pageSavings">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="pg-body">
+          <h2 class="pg-title" id="v_svHeading"></h2>
+          <div class="pg-sub" id="v_svSub"></div>
           <div class="rule-orange"></div>
-          <div class="body-para" id="pv_p8_para"></div>
+          <p class="body-para body-para-wide" id="v_svPara"></p>
+
+          <div class="metric-row tight-row">
+            <div class="metric-chip"><div class="mv" id="v_svChipGen">—</div><div class="ml" id="v_svChipGenL"></div></div>
+            <div class="metric-chip"><div class="mv" id="v_svChipSave">—</div><div class="ml" id="v_svChipSaveL"></div></div>
+            <div class="metric-chip"><div class="mv" id="v_svChipY25">—</div><div class="ml" id="v_svChipY25L"></div></div>
+            <div class="metric-chip"><div class="mv" id="v_svChipEff">—</div><div class="ml" id="v_svChipEffL"></div></div>
+          </div>
+
+          <div class="chart-block">
+            <div class="chart-title" id="v_svChartCumTitle"></div>
+            <canvas id="chartCum" class="chart-canvas" width="718" height="248"></canvas>
+            <div class="fine-note" id="v_svChartCumNote"></div>
+          </div>
+
+          <div class="chart-block">
+            <div class="chart-title" id="v_svChartAnnualTitle"></div>
+            <canvas id="chartAnnual" class="chart-canvas" width="718" height="172"></canvas>
+            <div class="fine-note" id="v_svChartAnnualNote"></div>
+          </div>
+
+          <div class="sec-label mt-10" id="v_svTableTitle"></div>
+          <table class="sv-table" id="v_svTable"></table>
+
+          <div class="assumption-strip mt-12">
+            <div class="sec-label tight" id="v_svAssumptionsLabel"></div>
+            <div class="assumption-chips" id="v_svAssumptions"></div>
+          </div>
+          <div class="fine-note mt-8" id="v_svNote"></div>
         </div>
-        <div class="section-label clear-photo" id="pv_p8_diffLabel">OUR DIFFERENTIATORS</div>
-        <div class="grid-3" id="pv_p8_differentiators"></div>
-        <div class="section-label mt-12" id="pv_p8_commitLabel">Five Commitments. Every Project. No Exceptions.</div>
-        <div class="grid-3 commit-grid" id="pv_p8_commitments"></div>
-      </div>
-      <div class="pg-footer-strip">
-        <div id="v_p8_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p8_footerContact">—</div>
-      </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageSavings"></div>
+        </footer>
+      </section>
     </div>
 
-    <!-- PAGE 9 — Warranty & Installation Journey -->
-    <div class="page-label">Page 9 of 11 — Warranty &amp; Installation</div>
-    <div class="page" id="page9">
-      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p9" src="assets/images/page-warranty.jpg" alt="Technician servicing a solar panel"></div>
-      <div class="pg-body">
-        <div class="intro-col">
-          <div class="heading-block"><h2 id="pv_p9_heading">Warranty &amp; Installation Journey</h2><div class="sub" id="pv_p9_sub">Quality Assured. Professionally Delivered.</div></div>
+    <!-- ============ PAGE 10 — INVESTMENT & COST BREAKDOWN ============ -->
+    <div class="page-wrap" data-page="pageInvestment">
+      <div class="page-label"></div>
+      <section class="page" id="pageInvestment">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="pg-body">
+          <h2 class="pg-title" id="v_inHeading"></h2>
+          <div class="pg-sub" id="v_inSub"></div>
           <div class="rule-orange"></div>
+          <p class="body-para body-para-wide" id="v_inDesc"></p>
+
+          <div class="inv-cards">
+            <div class="inv-card">
+              <div class="inv-l" id="v_inCostBaseL"></div>
+              <div class="inv-v" id="v_inCostBase">—</div>
+            </div>
+            <div class="inv-card">
+              <div class="inv-l" id="v_inCostGstL"></div>
+              <div class="inv-v" id="v_inCostGst">—</div>
+            </div>
+            <div class="inv-card inv-card-sub">
+              <div class="inv-l" id="v_inCostSubL"></div>
+              <div class="inv-v" id="v_inCostSub">—</div>
+              <div class="inv-cap" id="v_inCostSubCap"></div>
+            </div>
+            <div class="inv-card inv-card-net">
+              <div class="inv-l" id="v_inCostNetL"></div>
+              <div class="inv-v" id="v_inCostNet">—</div>
+              <div class="inv-cap"><span id="v_inRateL"></span>: <b id="v_inRate"></b></div>
+            </div>
+          </div>
+
+          <div class="chart-block" id="v_inBridgeSolo">
+            <div class="chart-title" id="v_inBridgeTitle"></div>
+            <canvas id="chartBridge" class="chart-canvas" width="718" height="252"></canvas>
+          </div>
+
+          <div class="bom-section" id="v_inBomSection" style="display:none;">
+            <div class="sec-label mt-12" id="v_inBomTitle"></div>
+            <div class="bom-intro" id="v_inBomIntro"></div>
+            <div class="bom-flex">
+              <canvas id="chartDonut" class="chart-canvas" width="230" height="230"></canvas>
+              <div class="bom-legend" id="v_inBomLegend"></div>
+            </div>
+          </div>
+
+          <div class="sec-label mt-12" id="v_inIncludesLabel"></div>
+          <div class="includes-grid" id="v_inIncludes"></div>
+          <div class="spacer"></div>
+          <div class="sec-label" id="v_inPayLabel"></div>
+          <div class="pay-terms" id="v_inPayChips"></div>
+          <div class="warn-chip" id="v_inPayWarn" style="display:none;"></div>
+          <div class="fine-note" id="v_inPayNote"></div>
+          <div class="disclaimer-line mt-10" id="v_inDisclaimer"></div>
         </div>
-        <div class="section-label clear-photo" id="pv_p9_warrLabel">INDUSTRY-LEADING WARRANTY</div>
-        <div class="grid-4" id="pv_p9_warranties"></div>
-        <div class="section-label mt-14" id="pv_p9_journeyLabel">YOUR INSTALLATION JOURNEY</div>
-        <div class="grid-3" id="pv_p9_journey"></div>
-        <div class="footer-note footer-note-lifted" id="pv_p9_closing"></div>
-      </div>
-      <div class="pg-footer-strip">
-        <div id="v_p9_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p9_footerContact">—</div>
-      </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageInvestment"></div>
+        </footer>
+      </section>
     </div>
 
-    <!-- PAGE 10 — Projects Portfolio -->
-    <div class="page-label">Page 10 of 11 — Projects Portfolio</div>
-    <div class="page" id="page10">
-      <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
-      <div class="photo-corner"><img id="img_p10" src="assets/images/page-projects.jpg" alt="Industrial rooftops with solar panels"></div>
-      <div class="pg-body">
-        <div class="intro-col">
-          <div class="heading-block"><h2 id="pv_p10_heading">Projects That Speak for Themselves</h2><div class="sub" id="pv_p10_sub">Over 200 Successful Solar Installations Across Residential, Commercial &amp; Industrial Sectors</div></div>
+    <!-- ============ PAGE 11 — WHY CHOOSE KTM ============ -->
+    <div class="page-wrap" data-page="pageWhyKtm">
+      <div class="page-label"></div>
+      <section class="page" id="pageWhyKtm">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="photo-top"><img id="img_whyktm" src="assets/images/page-why-ktm.jpg" alt="Solar engineer on rooftop"></div>
+        <div class="pg-body">
+          <div class="intro-col">
+            <h2 class="pg-title" id="v_wkHeading"></h2>
+            <div class="pg-sub" id="v_wkSub"></div>
+            <div class="rule-orange"></div>
+            <p class="body-para" id="v_wkPara"></p>
+          </div>
+          <div class="spacer"></div>
+          <div class="sec-label" id="v_wkDiffLabel"></div>
+          <div class="grid-3" id="v_wkDiffs"></div>
+          <div class="sec-label mt-12" id="v_wkCommitLabel"></div>
+          <div class="commit-grid" id="v_wkCommits"></div>
+        </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageWhyKtm"></div>
+        </footer>
+      </section>
+    </div>
+
+    <!-- ============ PAGE 12 — PROJECTS PORTFOLIO ============ -->
+    <div class="page-wrap" data-page="pageProjects">
+      <div class="page-label"></div>
+      <section class="page" id="pageProjects">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="photo-top"><img id="img_projects" src="assets/images/page-projects.jpg" alt="Industrial rooftop solar"></div>
+        <div class="pg-body">
+          <div class="intro-col">
+            <h2 class="pg-title" id="v_prHeading"></h2>
+            <div class="pg-sub" id="v_prSub"></div>
+            <div class="rule-orange"></div>
+          </div>
+          <div class="proj-stats" id="v_prStats"></div>
+          <div class="spacer"></div>
+          <div id="v_prCats"></div>
+          <div class="spacer"></div>
+        </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageProjects"></div>
+        </footer>
+      </section>
+    </div>
+
+    <!-- ============ PAGE 13 — WARRANTY & JOURNEY ============ -->
+    <div class="page-wrap" data-page="pageWarranty">
+      <div class="page-label"></div>
+      <section class="page" id="pageWarranty">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="photo-top"><img id="img_warranty" src="assets/images/page-warranty.jpg" alt="Technician servicing solar panel"></div>
+        <div class="pg-body">
+          <div class="intro-col">
+            <h2 class="pg-title" id="v_wrHeading"></h2>
+            <div class="pg-sub" id="v_wrSub"></div>
+            <div class="rule-orange"></div>
+          </div>
+          <div class="spacer"></div>
+          <div class="sec-label" id="v_wrWarrLabel"></div>
+          <div class="grid-4" id="v_wrWarranties"></div>
+          <div class="sec-label mt-14" id="v_wrJourneyLabel"></div>
+          <div class="grid-3 journey-grid" id="v_wrJourney"></div>
+          <div class="footer-note footer-note-lifted" id="v_wrClosing"></div>
+        </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageWarranty"></div>
+        </footer>
+      </section>
+    </div>
+
+    <!-- ============ PAGE 14 — TERMS & CONDITIONS ============ -->
+    <div class="page-wrap" data-page="pageTerms">
+      <div class="page-label"></div>
+      <section class="page" id="pageTerms">
+        <header class="pg-head">
+          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-head-meta" data-head-ref></div>
+        </header>
+        <div class="pg-body">
+          <h2 class="pg-title" id="v_tmHeading"></h2>
+          <div class="pg-sub" id="v_tmSub"></div>
           <div class="rule-orange"></div>
+          <p class="body-para body-para-wide" id="v_tmIntro"></p>
+          <div class="sec-label mt-10" id="v_tmItemsLabel"></div>
+          <div class="terms-grid" id="v_tmItems"></div>
+          <div class="spacer"></div>
+          <div class="note-box"><b id="v_tmNoteLabel"></b> <span id="v_tmNote"></span></div>
         </div>
-        <div id="pv_p10_categories"></div>
-      </div>
-      <div class="pg-footer-strip">
-        <div id="v_p10_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p10_footerContact">—</div>
-      </div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageTerms"></div>
+        </footer>
+      </section>
     </div>
 
-    <!-- PAGE 11 — Contact / Closing -->
-    <div class="page-label">Page 11 of 11 — Contact</div>
-    <div class="page" id="page11">
-      <div class="contact-banner">
-        <img id="img_p11" src="assets/images/page-contact.jpg" alt="Solar farm at sunset">
-        <div class="contact-banner-overlay"></div>
-        <div class="contact-hero">
-          <h2 id="pv_p11_heading">Let's Build a Greener Future Together</h2>
-          <div class="sub" id="pv_p11_sub">Your Journey Towards Clean &amp; Affordable Energy Starts Here.</div>
+    <!-- ============ PAGE 15 — ACCEPTANCE & CONTACT ============ -->
+    <div class="page-wrap" data-page="pageClosing">
+      <div class="page-label"></div>
+      <section class="page" id="pageClosing">
+        <div class="closing-banner">
+          <img id="img_closing" src="assets/images/page-contact.jpg" alt="Solar installation at sunset">
+          <div class="closing-banner-overlay"></div>
+          <div class="closing-hero">
+            <h2 id="v_clHeading"></h2>
+            <div class="sub" id="v_clSub"></div>
+          </div>
         </div>
-      </div>
-      <div class="contact-card">
-        <div>
-          <div class="section-label" id="pv_p11_contactLabel">GET IN TOUCH</div>
-          <div class="contact-item"><div class="icon-circle">&#127970;</div><div><div class="rt" id="v_p11_companyName">KTM Energy Experts Pvt. Ltd.</div><div class="rd" id="v_p11_companyTagline">Govt. Approved Solar EPC Contractor | Est. 2015</div></div></div>
-          <div class="contact-item"><div class="icon-circle">&#128205;</div><div><div class="rt">Office Address</div><div class="rd" id="v_p11_companyAddress">—</div></div></div>
-          <div class="contact-item"><div class="icon-circle">&#128222;</div><div><div class="rt">Phone</div><div class="rd" id="v_p11_companyPhone">—</div></div></div>
-          <div class="contact-item"><div class="icon-circle">&#9993;</div><div><div class="rt">Email</div><div class="rd" id="v_p11_companyEmail">—</div></div></div>
-          <div class="contact-item"><div class="icon-circle">&#127760;</div><div><div class="rt">Website</div><div class="rd" id="v_p11_companyWebsite">—</div></div></div>
+        <div class="closing-card">
+          <div>
+            <div class="sec-label" id="v_clTouchLabel">GET IN TOUCH</div>
+            <div class="contact-item"><span class="icon-chip small" id="v_clIcoCompany"></span><div><div class="rt" id="v_clCompanyName"></div><div class="rd" id="v_clCompanyTagline"></div></div></div>
+            <div class="contact-item"><span class="icon-chip small" id="v_clIcoPin"></span><div><div class="rt">Office Address</div><div class="rd" id="v_clAddress"></div></div></div>
+            <div class="contact-item"><span class="icon-chip small" id="v_clIcoPhone"></span><div><div class="rt">Phone</div><div class="rd" id="v_clPhone"></div></div></div>
+            <div class="contact-item"><span class="icon-chip small" id="v_clIcoMail"></span><div><div class="rt">Email</div><div class="rd" id="v_clEmail"></div></div></div>
+            <div class="contact-item"><span class="icon-chip small" id="v_clIcoWeb"></span><div><div class="rt">Website</div><div class="rd" id="v_clWebsite"></div></div></div>
+          </div>
+          <div>
+            <div class="sec-label" id="v_clNextLabel"></div>
+            <div id="v_clNext"></div>
+          </div>
         </div>
-        <div>
-          <div class="section-label" id="pv_p11_readyLabel">READY TO GO SOLAR?</div>
-          <div id="pv_p11_ready"></div>
+        <div class="closing-highlight" id="v_clHighlightRow"><span id="v_clHighlight"></span></div>
+        <div class="closing-cta">
+          <div class="cta-text" id="v_clCta"></div>
+          <div class="cta-phone" id="v_clCtaPhone"></div>
         </div>
-      </div>
-      <div class="contact-para" id="pv_p11_para"></div>
-      <div class="contact-cta">
-        <div class="cta-text" id="pv_p11_cta">Call us today for a free site survey:</div>
-        <div class="cta-phone" id="v_p11_ctaPhone">+91 93094 86769</div>
-      </div>
-      <div class="disclaimer-box" id="pv_p11_disclaimer"></div>
-      <div class="pg-footer-strip">
-        <div id="v_p11_footerTagline">Engineering Excellence &nbsp;•&nbsp; Premium Quality &nbsp;•&nbsp; Trusted Performance</div>
-        <div id="v_p11_footerContact">—</div>
-      </div>
+        <div class="accept-block">
+          <div class="sec-label mt-10" id="v_clAcceptLabel"></div>
+          <p class="accept-intro" id="v_clAcceptIntro"></p>
+          <div class="sign-grid">
+            <div class="sign-box">
+              <div class="sign-line"></div>
+              <div class="sign-name" id="v_clSignCustomer"></div>
+              <div class="sign-sub" id="v_clSignCustomerSub"></div>
+            </div>
+            <div class="sign-box">
+              <div class="sign-line"></div>
+              <div class="sign-name" id="v_clSignCompany"></div>
+              <div class="sign-sub" id="v_clSignCompanySub"></div>
+            </div>
+          </div>
+        </div>
+        <div class="disclaimer-box" id="v_clDisclaimer"></div>
+        <footer class="pg-foot">
+          <div class="pf-left" data-foot-company></div>
+          <div class="pf-mid" data-foot-tagline></div>
+          <div class="pf-right" id="v_pgnum_pageClosing"></div>
+        </footer>
+      </section>
     </div>
 
   </main>
+
+  <button class="pdf-fab" id="pdfFab" type="button" aria-label="Generate PDF">PDF</button>
 </div>
 
 <script src="assets/vendor/html2canvas.min.js"></script>
 <script src="assets/vendor/jspdf.umd.min.js"></script>
 <script src="assets/js/content.js"></script>
+<script src="assets/js/finance.js"></script>
+<script src="assets/js/icons.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/state.js"></script>
+<script src="assets/js/render.js"></script>
+<script src="assets/js/editor.js"></script>
+<script src="assets/js/export.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
 </html>
