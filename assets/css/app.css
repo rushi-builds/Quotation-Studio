@@ -746,3 +746,22 @@ body.share-mode{background:#EEF1F5;}
   text-align:center;font-size:10px;color:var(--gray);border-top:1px solid var(--line);
   padding:16px 0 4px;margin-top:26px;
 }
+
+/* ---------- 20. Presentation mode ---------- */
+.present-toggle{
+  border:1px solid #DFE3E8;background:#fff;border-radius:999px;padding:6px 14px;
+  font-size:11px;font-weight:700;color:var(--navy);cursor:pointer;flex-shrink:0;
+  font-family:'Inter',sans-serif;
+}
+.present-toggle:hover{border-color:var(--orange);color:var(--orange-dark);}
+.preview-toolbar{display:flex;align-items:flex-start;gap:10px;}
+.preview-toolbar .page-nav{flex:1;}
+.exit-present{
+  display:none;position:fixed;bottom:18px;right:18px;z-index:90;
+  background:var(--navy);color:#fff;border:none;border-radius:999px;padding:9px 16px;
+  font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(18,32,54,.35);
+  font-family:'Inter',sans-serif;
+}
+body.presenting .form-panel{display:none !important;}
+body.presenting .present-toggle{display:none;}
+body.presenting .exit-present{display:block;}

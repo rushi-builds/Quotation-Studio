@@ -418,6 +418,23 @@
     fitPages();
     saveNow(); /* snapshot the working state immediately — no lost first edits */
     document.addEventListener('qs:rendered', buildNav);
+
+    /* presentation mode — hide the editor, refit pages to full width */
+    const enterPresent = () => {
+      document.body.classList.add('presenting');
+      fitPages();
+    };
+    const exitPresent = () => {
+      document.body.classList.remove('presenting');
+      fitPages();
+    };
+    const pb = $('presentBtn');
+    if (pb) pb.addEventListener('click', enterPresent);
+    const pe = $('exitPresentBtn');
+    if (pe) pe.addEventListener('click', exitPresent);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') exitPresent();
+    });
     window.addEventListener('resize', fitPages);
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => window.Render.renderAll());
