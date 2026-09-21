@@ -43,6 +43,8 @@ function bootApp(seedStorage) {
       window.Element.prototype.scrollIntoView = function () {};
       // jsdom has no image loader; browser suites exercise real image readiness.
       Object.defineProperty(window.HTMLImageElement.prototype, 'complete', {get: () => true});
+      Object.defineProperty(window.HTMLImageElement.prototype, 'naturalWidth', {get: () => 100});
+      Object.defineProperty(window.HTMLImageElement.prototype, 'naturalHeight', {get: () => 100});
       window.devicePixelRatio = 2;
       window.confirm = () => true;
       if (seedStorage) {

@@ -5,7 +5,7 @@
 - **Builder:** the PDF-format dropdown above the download button offers the existing
   detailed report (default) or a dedicated **two-page Power Proposal**.
 - **Customer View:** the same choice is available beside Download PDF. A tariff
-  explorer compares modelled 25-year cumulative savings and simple payback.
+  explorer compares modelled 25-year cumulative savings and payback.
 - **Closing page:** a high-resolution gallery QR sits over the existing photograph,
   clear of the heading. It is also a clickable link in either PDF format.
 - **Public gallery:** `gallery.html` shows the existing nine published project
@@ -79,7 +79,7 @@ Before capture, export freezes the selected pages and state. Chart/QR canvas pix
 are copied, and document-wide live chrome bindings are detached from the snapshot.
 Later edits cannot mix metadata and amounts across pages. Concurrent exports are
 blocked; temporary pages and the lock are cleaned up after success or failure.
-Images/fonts are awaited. Screen elevation shadows are removed from printed surfaces
+Images/fonts are awaited; already-failed images (complete but without natural dimensions) abort export rather than leaving blank artwork. Payback is labelled as an estimate based on the cumulative-savings model, not a simple first-year savings ratio. Screen elevation shadows are removed from printed surfaces
 (the canvas renderer otherwise paints grey artefacts). Public/report links remain
 clickable in the resulting PDF.
 
@@ -102,7 +102,7 @@ an ID-only customer proposal URL is **not** a hosted cross-device customer porta
 Multilingual narration, ambient drone video and animated monetary counters are not
 part of this change.
 
-Verified for this implementation: **332 unit/DOM/finance checks**, **45 new
+Verified for this implementation: **332 unit/DOM/finance checks**, **48 new
 experience checks**, all existing cover/branding/discovery/audit/technical/diagram
 browser suites, and actual **2-, 16- and 17-page PDFs**. The full-report browser test
 now checks the downloaded files' actual page counts, not only a status string or an

@@ -62,6 +62,17 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await customer.waitForFunction(()=>document.getElementById('savingsExplorer').getBoundingClientRect().right<=innerWidth+1);
  check('scenario results and controls fit a mobile screen',await customer.$eval('#savingsExplorer',e=>e.scrollWidth<=e.clientWidth));
  await customer.screenshot({path:path.join(shots,'experience-scenario-mobile.png')});
+ check('payback labels match the cumulative-savings method without claiming simple payback',await customer.$eval('#savingsExplorer',e=>e.textContent.includes('Estimated payback')&&!e.textContent.includes('simple payback')));
+ // Both formats must reject a failed image even though HTMLImageElement.complete
+ // is true. Use a deliberately malformed data URI, not a live network dependency.
+ const originalPhoto=await page.$eval('#img_solution',e=>{const src=e.src;e.src='data:image/png;base64,AAAA';return src;});
+ await page.waitForFunction(()=>document.getElementById('img_solution').complete && !document.getElementById('img_solution').naturalWidth);
+ for(const format of ['power','full']) {
+   check(format+': already-failed images abort export and clean up the snapshot',await page.evaluate(async format=>{
+     try {await Exporter.exportPdf(()=>{},{format});return false;} catch(e){return e.message.includes('image could not be loaded')&&!document.querySelector('.pdf-snapshot');}
+   },format));
+ }
+ await page.$eval('#img_solution',async(e,src)=>{e.src=src;await e.decode();},originalPhoto);
  // Real jsPDF/html2canvas export, with a copy retained for page-count/link checks.
  await page.evaluate(()=>{const Original=jspdf.jsPDF;jspdf.jsPDF=function(...args){const pdf=new Original(...args),save=pdf.save.bind(pdf);pdf.save=name=>{window.__pdf={name,data:pdf.output('datauristring').split(',')[1]};return save(name);};return pdf;};});
  await page.select('#pdfFormat','power');check('download label follows selected format',await page.$eval('#downloadLabel',e=>e.textContent.includes('2 Pages')));

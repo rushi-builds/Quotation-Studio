@@ -41,10 +41,22 @@
       const s=JSON.parse(JSON.stringify(root.Render.lastState || root.Render.readState()));
       snapshot=format==='power'?root.Experience.buildPowerPages(s):snapshotFull();
       const pages=[...snapshot.children];
-      await Promise.all([...snapshot.querySelectorAll('img')].map(img=>img.complete?Promise.resolve():new Promise((resolve,reject)=>{
-        const timer=setTimeout(()=>reject(new Error('An image did not load. Check the image source and try again.')),20000);
-        img.onload=()=>{clearTimeout(timer);resolve();};
-        img.onerror=()=>{clearTimeout(timer);reject(new Error('An image could not be loaded. Check the image source and try again.'));};
+      await Promise.all([...snapshot.querySelectorAll('img')].map(img=>new Promise((resolve,reject)=>{
+        // `complete` is also true for failed/empty images. Do not silently issue
+        // a professional PDF with missing artwork or a broken uploaded photo.
+        let timer;
+        const finish=()=>{
+          clearTimeout(timer);
+          img.onload=null; img.onerror=null;
+          if(img.naturalWidth>0 && img.naturalHeight>0) resolve();
+          else reject(new Error('An image could not be loaded. Check the image source and try again.'));
+        };
+        if(img.complete) {finish();return;}
+        img.onload=finish; img.onerror=finish;
+        timer=setTimeout(()=>{
+          img.onload=null; img.onerror=null;
+          reject(new Error('An image did not load. Check the image source and try again.'));
+        },20000);
       })));
       if(format==='power') pages.forEach(page=>{
         const footer=page.querySelector('footer'),last=footer.previousElementSibling;
