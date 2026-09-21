@@ -107,6 +107,55 @@
       Object.keys(blob.projectImages).forEach((k) => { PROJECT_IMAGES[k] = blob.projectImages[k]; });
     }
 
+    /* 3D Simulation & PVsyst action bar */
+    const simBar = $('shareSimBar');
+    const simActions = $('shareSimActions');
+    if (simBar && simActions) {
+      const links = [];
+      const phone = (f.companyPhone || '919876543210').replace(/[^0-9]/g, '');
+      if (f.arkaUrl && String(f.arkaUrl).trim()) {
+        links.push('<a href="' + f.arkaUrl + '" target="_blank" rel="noopener noreferrer" class="btn-sim-action">🎮 Open 3D Simulation (Arka-360)</a>');
+      }
+      if (f.pvsystUrl && String(f.pvsystUrl).trim()) {
+        links.push('<a href="' + f.pvsystUrl + '" target="_blank" rel="noopener noreferrer" class="btn-sim-action">📊 View PVsyst Report</a>');
+      }
+      if (!links.length) {
+        const reqMsg = encodeURIComponent('Hi ' + (f.companyName || 'KTM') + ', I am reviewing proposal #' + (f.propRef || '') + ' for ' + (f.custName || 'my site') + '. Please share the 3D Arka design and PVsyst report.');
+        links.push('<a href="https://wa.me/' + phone + '?text=' + reqMsg + '" target="_blank" rel="noopener noreferrer" class="btn-sim-action btn-sim-req">💬 Request 3D Simulation & PVsyst Report</a>');
+      }
+      simActions.innerHTML = links.join('');
+      simBar.style.display = 'flex';
+    }
+
+    /* Customer acceptance & e-sign wiring */
+    const sacForm = $('sacForm');
+    const sacSuccess = $('sacSuccess');
+    const sacAcceptBtn = $('sacAcceptBtn');
+    const phoneClean = (f.companyPhone || '919876543210').replace(/[^0-9]/g, '');
+    const setAcceptedUI = (at) => {
+      if (sacForm) sacForm.style.display = 'none';
+      if (sacSuccess) {
+        sacSuccess.style.display = 'block';
+        $('sacSuccessMsg').textContent = 'Proposal accepted on ' + (window.Finance.fmtDate(at) || 'today') + '. Reference #' + (f.propRef || '') + '. Our engineering team will contact you for the site handover.';
+        const waMsg = encodeURIComponent('Hi ' + (f.companyName || 'KTM') + ', I have accepted Proposal #' + (f.propRef || '') + ' for ' + (f.custName || '') + '! Please proceed with the engineering survey.');
+        $('sacWaNotify').href = 'https://wa.me/' + phoneClean + '?text=' + waMsg;
+      }
+    };
+    if (blob.status === 'accepted') {
+      setAcceptedUI(blob.acceptedAt);
+    } else if (sacAcceptBtn) {
+      sacAcceptBtn.addEventListener('click', () => {
+        blob.status = 'accepted';
+        blob.acceptedAt = new Date().toISOString();
+        const sName = $('sacSignerName') ? $('sacSignerName').value.trim() : '';
+        const sRole = $('sacSignerRole') ? $('sacSignerRole').value.trim() : '';
+        if (sName) blob.signerName = sName + (sRole ? ' (' + sRole + ')' : '');
+        window.Proposals.put(blob);
+        $('shareStatus').textContent = window.Proposals.statusLabel('accepted');
+        setAcceptedUI(blob.acceptedAt);
+      });
+    }
+
     injectPages()
       .then(() => {
         const state = Object.assign({}, window.StateStore.DEFAULTS, blob.form || {},

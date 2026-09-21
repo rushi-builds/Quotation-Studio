@@ -467,15 +467,22 @@ const CONTENT = {
       commercial: 'COMMERCIAL SOLAR PROPOSAL',
       industrial: 'INDUSTRIAL SOLAR PROPOSAL'
     },
-    titleLine1: 'Rooftop Solar',
-    titleLine2: 'Power Proposal',
+    titleLine1: 'YOUR ROOF',
+    titleLine2: 'YOUR POWER',
+    subtitle: 'SOLAR SOLUTIONS FOR A BRIGHTER TOMORROW',
+    benefits: [
+      { icon: 'leaf', text: 'CLEANER ENVIRONMENT' },
+      { icon: 'rupee', text: 'LOWER ELECTRICITY BILLS' },
+      { icon: 'shield', text: 'RELIABLE LONG-TERM INVESTMENT' },
+      { icon: 'team', text: 'EXPERT EXECUTION SUPPORT' }
+    ],
     footerStat4: 'Pioneer in Net Metering — Maharashtra\u2019s First Net Metering Project',
     labels: {
-      preparedFor: 'Prepared For',
-      capacity: 'Project Capacity',
-      date: 'Proposal Date',
+      preparedFor: 'A DEDICATED PROPOSAL FOR',
+      capacity: 'System Size',
+      date: 'Date',
       validTill: 'Valid Until',
-      reference: 'Proposal Reference',
+      reference: 'Proposal No.',
       preparedBy: 'Prepared By',
       version: 'Version'
     }

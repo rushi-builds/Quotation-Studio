@@ -457,6 +457,43 @@
     let savedMode = 'essentials';
     try { savedMode = localStorage.getItem(MODE_KEY) || 'essentials'; } catch (e) {}
     setMode(savedMode === 'all' ? 'all' : 'essentials');
+
+    /* 1-Click Quick Presets for Rapid Solar Quotations */
+    const PRESETS = {
+      '3kw': {
+        capacity: '3', customerType: 'residential', costPerKwp: '62000',
+        tariff: '8.5', moduleWattage: '545', moduleMake: 'Premier Energies',
+        moduleTech: 'Mono PERC DCR', inverterKw: '3', inverterMake: 'Growatt'
+      },
+      '5kw': {
+        capacity: '5', customerType: 'residential', costPerKwp: '58000',
+        tariff: '9.2', moduleWattage: '550', moduleMake: 'Waaree Energies',
+        moduleTech: 'Bifacial TopCon', inverterKw: '5', inverterMake: 'Deye'
+      },
+      '25kw': {
+        capacity: '25', customerType: 'commercial', costPerKwp: '48000',
+        tariff: '12.5', moduleWattage: '550', moduleMake: 'Adani Solar',
+        moduleTech: 'Bifacial Mono PERC', inverterKw: '25', inverterMake: 'Sungrow'
+      },
+      '100kw': {
+        capacity: '100', customerType: 'industrial', costPerKwp: '42000',
+        tariff: '14.0', moduleWattage: '550', moduleMake: 'Goldi Solar',
+        moduleTech: 'TopCon Bifacial', inverterKw: '100', inverterMake: 'Sungrow'
+      }
+    };
+    document.querySelectorAll('.qp-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const p = PRESETS[btn.dataset.preset];
+        if (!p) return;
+        Object.keys(p).forEach((k) => {
+          const el = $(k);
+          if (el) el.value = p[k];
+        });
+        window.Render.renderAll();
+        scheduleSave();
+      });
+    });
+
     refreshManager();
     window.Editor.build();
     window.Render.renderAll();

@@ -65,8 +65,8 @@ const d = w.document;
 t('no errors on boot', errors.length === 0, errors.join('|'));
 t('cover avatar row removed (clean professional)', !d.getElementById('coverPortraitRow'), 'should be null for clean look');
 t('cover portrait img removed', !d.getElementById('img_cover_portrait'), 'avatar deleted per final decision');
-t('cover uses v2 portrait villa image (final)', (d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover-v2-portrait'), d.getElementById('img_cover')?.getAttribute('src'));
-t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover.jpg') || (d.getElementById('img_cover')?.getAttribute('src') || '').includes('v2'), 'should use v2');
+t('cover uses exact reference artwork', (d.getElementById('img_cover')?.getAttribute('src') || '').includes('ktm-cover-page-1') || (d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover-v2-portrait'), d.getElementById('img_cover')?.getAttribute('src'));
+t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover.jpg'), 'should not use old landscape cover');
 t('cover stats still present', !!d.getElementById('v_coverStatYears'));
 
 t('OG tags present (quotation.html)', !!d.querySelector('meta[property="og:title"]'));

@@ -39,8 +39,48 @@
     <div class="sb-cap" id="shareCapacity"></div>
   </div>
 
+  <!-- 3D Design & Simulation Action Bar -->
+  <div class="share-sim-bar" id="shareSimBar" style="display:none;">
+    <div class="ssb-label">⚡ ENGINEERING &amp; 3D SIMULATION</div>
+    <div class="ssb-actions" id="shareSimActions"></div>
+  </div>
+
   <!-- proposal pages are injected here by share.js using the same renderers -->
   <div id="sharePages"></div>
+
+  <!-- Customer Acceptance & E-Sign Card -->
+  <div class="share-accept-card" id="shareAcceptWrap">
+    <div class="sac-head">
+      <div class="sac-badge">PROPOSAL ACCEPTANCE</div>
+      <h3 class="sac-title">Accept &amp; Approve Proposal</h3>
+      <p class="sac-sub">Approve this rooftop solar quotation to lock in current equipment pricing and schedule the site engineering survey.</p>
+    </div>
+    <div id="sacForm">
+      <div class="sac-row">
+        <div class="sac-field">
+          <label for="sacSignerName">Full Name</label>
+          <input type="text" id="sacSignerName" placeholder="Authorized Signatory Name">
+        </div>
+        <div class="sac-field">
+          <label for="sacSignerRole">Designation / Role</label>
+          <input type="text" id="sacSignerRole" placeholder="e.g. Property Owner / Director">
+        </div>
+      </div>
+      <div class="sac-actions">
+        <button type="button" class="btn-accept-submit" id="sacAcceptBtn">
+          ✓ Confirm &amp; Accept Proposal
+        </button>
+      </div>
+    </div>
+    <div class="sac-success" id="sacSuccess" style="display:none;">
+      <div class="sac-check">✓</div>
+      <h4>Proposal Accepted!</h4>
+      <p id="sacSuccessMsg">Thank you! Your acceptance has been recorded. Our engineering team will contact you shortly.</p>
+      <div class="sac-success-actions">
+        <a id="sacWaNotify" href="#" target="_blank" class="btn-wa-notify">💬 Notify KTM on WhatsApp</a>
+      </div>
+    </div>
+  </div>
 
   <div class="share-footer" id="shareFooter"></div>
 </main>
