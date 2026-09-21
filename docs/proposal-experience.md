@@ -20,7 +20,8 @@ same live illustration.
 
 ## QR destination and actual videos
 
-Under Customer & Proposal, **Public project / video gallery URL** controls the QR.
+Under **All settings → Customer experience — QR & audio**, select the destination
+type and enter its public URL. These controls determine what the QR opens.
 It persists with the proposal, its file export/import and Customer View.
 
 - Blank: keep the QR hidden. Deployment origins are never assumed to be public.
@@ -99,8 +100,8 @@ may also need `LD_LIBRARY_PATH`.
 
 Browser-local proposal sharing remains unchanged. The public gallery is portable;
 an ID-only customer proposal URL is **not** a hosted cross-device customer portal.
-Multilingual narration, ambient drone video and animated monetary counters are not
-part of this change.
+Ambient drone video and animated monetary counters are not included. Optional
+multilingual device-voice narration is described below.
 
 Verified for this implementation: **332 unit/DOM/finance checks**, **48 new
 experience checks**, all existing cover/branding/discovery/audit/technical/diagram
@@ -108,3 +109,41 @@ browser suites, and actual **2-, 16- and 17-page PDFs**. The full-report browser
 now checks the downloaded files' actual page counts, not only a status string or an
 older file's presence. The original cover and editable background hashes are
 unchanged. Preview deployment remains separate from production approval.
+
+
+## Optional English / Hindi / Marathi briefing
+
+A collapsed **Listen to your proposal** player is available above the first page
+in both the builder and Customer View. Play, pause/resume and stop are explicit;
+there is no autoplay. The Advanced/All-settings checkbox controls visibility and
+is persisted with the proposal. Player, transcript and controls are screen-only.
+
+Scripts are deterministic translations populated from the same `Finance.compute`
+results as the quotation, not a generative model inventing claims. They cover
+capacity, modules, first-year generation, gross/net investment, potential subsidy,
+25-year savings, payback and qualifications. Customer name/address are excluded.
+Changing the language, updating the proposal, disabling/closing the player or
+leaving the page stops playback and invalidates stale speech callbacks. The
+exploratory tariff does not change narration. An unavailable voice or a playback
+error leaves a readable transcript and clear feedback.
+
+**Voice limitation:** this version uses the Web Speech API and available device /
+browser voices. It is not a hosted AI-voice service or a prerecorded audio file.
+Hindi and Marathi require matching installed voices; the app never substitutes an
+English voice. Some device voices use an online provider, disclosed before playback.
+Voice quality and actual language availability must be checked on the target device.
+Self-hosted Poppins Devanagari fonts (OFL license in `assets/fonts/Poppins-OFL.txt`)
+keep the transcripts readable without a font CDN.
+
+QR destination choices are Project gallery, Video or playlist, and Company website.
+The type changes card/PDF copy but never invents or rewrites the URL. An empty URL
+keeps all customer QR cards hidden. Earlier proposals with no type retain the
+project-gallery default. The existing separately configured cover-proposal QR is
+unchanged.
+
+`qa/briefing.test.js` adds **32 browser checks** covering configuration, persistence,
+matching-language routing, financial script sync, stale-callback cancellation,
+pause/resume/stop, missing voices, errors, empty/unsafe text, scenario isolation,
+mobile layout and print exclusion. Speech routing tests use a mock engine; they do
+not claim to validate the sound or availability of an actual OS voice. No deployment
+or production merge is required for these changes.

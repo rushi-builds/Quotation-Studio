@@ -47,6 +47,8 @@
     roofType: 'RCC Terrace',
     availableArea: '',
     galleryUrl: '',
+    qrDestinationType: 'gallery',
+    briefingEnabled: true,
     pvsystUrl: '',
     arkaUrl: '',
     /* ---- Financial assumptions ---- */

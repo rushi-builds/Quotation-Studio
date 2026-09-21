@@ -251,7 +251,7 @@ short summaries rather than silently hiding content.
 
 Customer View now includes a **separate tariff/savings explorer**. It does not change
 the saved quotation or PDF figures. On the closing page, **Explore Our Projects**
-provides a scannable/clickable gallery QR. Set **Public project / video gallery URL**
+provides a scannable/clickable gallery QR. Set **Public destination URL** under **All settings → Customer experience — QR & audio**
 in the builder; the QR stays hidden until a destination is supplied. `gallery.html`
 is ready to publish, but preview deployments can require a Vercel login. Use a
 permanent public URL for issued proposals and test it on another phone.
@@ -261,3 +261,18 @@ approved video links can be added through `assets/js/gallery-media.js`, or the Q
 point to an existing public video playlist. No video, site-specific simulation or
 subsidy approval is fabricated. Private quotation edits are not public-gallery edits.
 See [the feature and verification guide](docs/proposal-experience.md).
+
+
+### Advanced QR settings and optional spoken briefing
+
+Open **All settings → Customer experience — QR & audio** to choose whether the QR
+opens a project gallery, video/playlist or company website. Add the public HTTPS
+URL whenever ready; no placeholder is printed in the meantime. The same choice
+and link are used on the closing page and two-page Power Proposal.
+
+The screen-only **Listen to your proposal** player offers English, Hindi and Marathi
+scripts derived from current quotation values, with play/pause/stop and a readable
+transcript. It uses available device/browser speech voices—not a hosted AI service.
+Missing language voices are clearly reported, never silently replaced. The scenario
+slider does not change narration. See `docs/proposal-experience.md` for privacy,
+voice availability, persistence and test coverage.

@@ -109,7 +109,7 @@ const form = d.getElementById('quoteForm');
 const advanced = [...form.querySelectorAll('[data-adv]')];
 t('defaults to Essentials', form.classList.contains('qs-mode-essentials'));
 t('Essentials button active by default', d.getElementById('modeEss').classList.contains('active') && !d.getElementById('modeAll').classList.contains('active'));
-t('nine advanced sections including tax assumptions', advanced.length === 9, advanced.length);
+t('ten advanced sections including tax and QR/audio settings', advanced.length === 10, advanced.length);
 t('all advanced sections hidden in Essentials', advanced.every((el) => w.getComputedStyle(el).display === 'none'));
 t('capacity remains visible in Customer & System beside customer type', (() => {
   const cap = d.getElementById('capacity');

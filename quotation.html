@@ -129,13 +129,7 @@
           <input type="url" id="shareUrl" placeholder="https://…">
           <div class="hint">Paste the hosted link where the customer can open this proposal. The QR is generated only from this link — never from invented data.</div>
         </div>
-        <div class="field">
-          <label for="galleryUrl">Public project / video gallery URL</label>
-          <input type="url" id="galleryUrl" maxlength="250" placeholder="https://your-website.com/gallery">
-          <div class="hint">Used by the closing-page QR and both PDFs. The QR stays hidden until a public URL is supplied. The gallery preview below may require a hosting login; it is not automatically used for customer QR codes. For issued proposals, use a permanent public URL and test it on another phone. Video playlists can be linked here; no video is invented.</div>
-          <a href="gallery.html" target="_blank" rel="noopener noreferrer">Preview the project gallery ↗</a>
-          <div class="hint" id="galleryStatus" role="status"></div>
-        </div>
+
       </fieldset>
 
       <fieldset data-adv>
@@ -323,6 +317,24 @@
         <div class="hint">Tip: individual project thumbnails can be replaced in Advanced Edit → Projects Portfolio.</div>
       </fieldset>
 
+      <fieldset data-adv id="customerExperienceSettings">
+        <legend>Customer experience — QR &amp; audio</legend>
+        <div class="qr-setup-note"><strong>QR setup is ready</strong><span>Choose what opens when scanned. You can add the link later.</span></div>
+        <div class="field">
+          <label for="qrDestinationType">What should the QR open?</label>
+          <select id="qrDestinationType"><option value="gallery">Project gallery</option><option value="video">Video or playlist</option><option value="website">Company website</option></select>
+        </div>
+        <div class="field">
+          <label for="galleryUrl">Public destination URL (add later)</label>
+          <input type="url" id="galleryUrl" maxlength="250" placeholder="https://your-website.com/gallery">
+          <div class="hint">The closing-page and PDF QR stays hidden until you add a valid public HTTPS link. Test it on a signed-out phone before issuing a proposal.</div>
+          <a href="gallery.html" target="_blank" rel="noopener noreferrer">Preview the project gallery ↗</a>
+          <div class="hint" id="galleryStatus" role="status"></div>
+        </div>
+        <label class="briefing-setting"><input type="checkbox" id="briefingEnabled" checked> Enable the optional proposal audio briefing</label>
+        <div class="hint">English, Hindi and Marathi scripts follow the saved proposal. Playback uses available device/browser voices, not a prerecorded file. No autoplay; audio controls never appear in the PDFs.</div>
+      </fieldset>
+
       <details class="advanced" id="advancedPanel">
         <summary id="advToggle">Advanced Edit — every text element (all 15 pages)</summary>
         <div id="advContainer"></div>
@@ -352,6 +364,21 @@
       <button class="present-toggle" id="presentBtn" type="button" title="Hide the editor and present full-page">&#9654; Present</button>
     </div>
     <button class="exit-present" id="exitPresentBtn" type="button">&#10005; Exit presentation (Esc)</button>
+
+    <details id="proposalBriefing" class="proposal-briefing screen-only" hidden>
+      <summary><span class="briefing-icon" aria-hidden="true">♫</span><span><strong>Listen to your proposal</strong><small>English · हिन्दी · मराठी · Current quotation values</small></span><span class="briefing-expand" aria-hidden="true">+</span></summary>
+      <div class="briefing-body">
+        <div class="briefing-languages" role="group" aria-label="Briefing language">
+          <button type="button" data-briefing-language="en" aria-pressed="true">English</button>
+          <button type="button" data-briefing-language="hi" aria-pressed="false" lang="hi">हिन्दी</button>
+          <button type="button" data-briefing-language="mr" aria-pressed="false" lang="mr">मराठी</button>
+        </div>
+        <div class="briefing-controls"><button type="button" id="briefingPlay">Play summary</button><button type="button" id="briefingPause" disabled>Pause</button><button type="button" id="briefingStop" disabled>Stop</button></div>
+        <p id="briefingStatus" class="briefing-status" role="status" aria-live="polite"></p>
+        <details class="briefing-transcript"><summary>Read the briefing</summary><p id="briefingText"></p></details>
+        <p class="briefing-privacy">Uses your selected device/browser voice. Some voices use an online speech provider. Customer name and address are not included. The briefing follows the quotation, not the savings slider.</p>
+      </div>
+    </details>
 
     <!-- ============ PAGE 1 — COVER — ORIGINAL ARTWORK WITH LIVE PROPOSAL VALUES ============ -->
     <div class="page-wrap" data-page="pageCover">
@@ -1040,6 +1067,7 @@
 <script src="assets/js/render.js"></script>
 <script src="assets/js/editor.js"></script>
 <script src="assets/js/experience.js"></script>
+<script src="assets/js/briefing.js"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
