@@ -333,78 +333,68 @@
     <div class="page-wrap" data-page="pageCover">
       <div class="page-label"></div>
       <section class="page page--cover" id="pageCover">
-        <div class="cover-left">
-          <div class="cover-logo cover-logo-chip"><img src="assets/images/logo.png" alt="Company logo"></div>
-          <div class="cover-eyebrow" id="v_coverEyebrow">RESIDENTIAL SOLAR PROPOSAL</div>
-          <h1 class="cover-title"><span id="v_coverTitle1">Rooftop Solar</span><br><span class="accent" id="v_coverTitle2">Power Proposal</span></h1>
-          <div class="cover-rule"></div>
+        <!-- Diagonal premium cover — exact like liked reference -->
+        <div class="cover-diagonal-wrap">
+          <div class="cover-right-diagonal">
+            <img id="img_cover" src="assets/images/page-cover-tall.jpg" alt="AI-generated tall architectural concept — villa with solar roof (placeholder, not a real site photo)">
+            <div class="cover-topline">
+              <div class="tl1">CLEAN ENERGY</div>
+              <div class="tl2">BRIGHTER TOMORROW</div>
+            </div>
+          </div>
+          <div class="cover-left-diagonal">
+            <div class="cover-logo-diagonal"><img src="assets/images/logo-white.png" alt="KTM Energy Experts"></div>
+            <div class="cover-gov">Govt. Approved EPC Contractor</div>
+            <!-- dynamic eyebrow/title kept for JS but visually hidden where duplicated -->
+            <div id="v_coverEyebrow" style="display:none;"></div>
+            <h1 class="cover-title-diagonal"><span class="t1" id="v_coverTitle1">YOUR ROOF</span><span class="t2">YOUR <span class="accent" id="v_coverTitle2">POWER</span></span></h1>
+            <div class="cover-sub">SOLAR SOLUTIONS FOR A BRIGHTER TOMORROW</div>
 
-          <div class="cover-info">
-            <div class="ci-label" id="v_coverPreparedLabel">Prepared For</div>
-            <div class="ci-value ci-value-lg" id="v_coverCustName">—</div>
-            <div class="ci-sub" id="v_coverCustAddress"></div>
-          </div>
+            <div class="cover-benefits">
+              <div class="benefit"><div class="benefit-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#F2811D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"></path><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path></svg></div><div><div class="benefit-t">CLEANER</div><div class="benefit-d">ENVIRONMENT</div></div></div>
+              <div class="benefit"><div class="benefit-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#F2811D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8c2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4 1.79-4 4-4z"></path><path d="M12 8V6M12 18v-2M8 12H6M18 12h-2"></path><path d="M15 9l-1 1"></path></svg></div><div><div class="benefit-t">LOWER</div><div class="benefit-d">ELECTRICITY BILLS</div></div></div>
+              <div class="benefit"><div class="benefit-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#F2811D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg></div><div><div class="benefit-t">RELIABLE</div><div class="benefit-d">LONG-TERM INVESTMENT</div></div></div>
+              <div class="benefit"><div class="benefit-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#F2811D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div><div><div class="benefit-t">EXPERT</div><div class="benefit-d">EXECUTION SUPPORT</div></div></div>
+            </div>
 
-          <div class="cover-grid">
-            <div class="ci-block">
-              <div class="ci-label" id="v_coverCapacityLabel">Project Capacity</div>
-              <div class="ci-value" id="v_coverCapacity">—</div>
-            </div>
-            <div class="ci-block">
-              <div class="ci-label" id="v_coverDateLabel">Proposal Date</div>
-              <div class="ci-value" id="v_coverDate">—</div>
-            </div>
-            <div class="ci-block">
-              <div class="ci-label" id="v_coverValidLabel">Valid Until</div>
-              <div class="ci-value" id="v_coverValid">—</div>
-            </div>
-            <div class="ci-block">
-              <div class="ci-label" id="v_coverRefLabel">Proposal Reference</div>
-              <div class="ci-value"><span id="v_coverRef">—</span> <span class="ci-chip" id="v_coverVersion"></span></div>
-            </div>
-          </div>
-          <div class="ci-block" id="v_coverPrepRow" style="display:none;">
-            <div class="ci-label" id="v_coverPrepLabel">Prepared By</div>
-            <div class="ci-value" id="v_coverPrepBy"></div>
-          </div>
+            <div class="cover-divider"></div>
 
-          <div class="cover-stats">
-            <div class="cf-stat"><div class="n" id="v_coverStatYears">—</div><div class="l">Years Engineering Excellence</div></div>
-            <div class="cf-stat"><div class="n" id="v_coverStatProjects">—</div><div class="l">Projects Executed</div></div>
-            <div class="cf-stat"><div class="n" id="v_coverStatCapacity">—</div><div class="l">Solar Capacity Installed</div></div>
-          </div>
-          <div class="cover-stat4" id="v_coverStat4"></div>
-          <div class="cover-index">
-            <div class="cover-index-title">Inside this proposal</div>
-            <div class="cover-index-grid">
-              <div class="cover-index-item"><span class="cover-index-num">01</span> Executive Summary</div>
-              <div class="cover-index-item"><span class="cover-index-num">02</span> Technical Specification</div>
-              <div class="cover-index-item"><span class="cover-index-num">03</span> Generation &amp; Savings</div>
-              <div class="cover-index-item"><span class="cover-index-num">04</span> Investment &amp; Costs</div>
-              <div class="cover-index-item"><span class="cover-index-num">05</span> Why KTM &amp; Warranty</div>
+            <div class="cover-dedicated">
+              <div class="cd-label" id="v_coverPreparedLabel">A DEDICATED PROPOSAL FOR</div>
+              <div class="cd-name" id="v_coverCustName">Mr. ABC Customer</div>
+              <div class="cd-row"><span class="cd-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#F2811D" stroke-width="1.7"><path d="M12 21c4-4.5 6-7.5 6-10a6 6 0 1 0-12 0c0 2.5 2 5.5 6 10z"></path><circle cx="12" cy="11" r="2.2"></circle></svg></span><span>Location</span><span style="margin:0 6px;">:</span><span id="v_coverCustAddress">Pune, Maharashtra</span></div>
+              <div class="cd-row"><span class="cd-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#F2811D" stroke-width="1.7"><rect x="3" y="4" width="18" height="14" rx="2"></rect><path d="M3 8h18"></path><path d="M8 14h2"></path><path d="M12 14h4"></path></svg></span><span>System Size</span><span style="margin:0 6px;">:</span><span id="v_coverCapacity">7 kWp</span></div>
+              <div class="cd-row"><span class="cd-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#F2811D" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span><span>Proposal No.</span><span style="margin:0 6px;">:</span><span id="v_coverRef">KTM-2026-013</span><span id="v_coverVersion" style="margin-left:6px;font-size:7px;background:rgba(255,255,255,.12);padding:1px 5px;border-radius:999px;"></span></div>
+              <div class="cd-row"><span class="cd-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#F2811D" stroke-width="1.7"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg></span><span>Date</span><span style="margin:0 6px;">:</span><span id="v_coverDate">20 September 2026</span><span id="v_coverValid" style="display:none;"></span></div>
             </div>
+            <!-- hidden IDs for JS compatibility -->
+            <div style="display:none;">
+              <span id="v_coverCapacityLabel"></span><span id="v_coverDateLabel"></span><span id="v_coverValidLabel"></span><span id="v_coverRefLabel"></span>
+              <span id="v_coverPrepRow"></span><span id="v_coverPrepLabel"></span><span id="v_coverPrepBy"></span>
+              <span id="v_coverStatYears">11+</span><span id="v_coverStatProjects">200+</span><span id="v_coverStatCapacity">20+ MW</span><span id="v_coverStat4">Pioneer in Net Metering — Maharashtra's First Net Metering Project</span>
+            </div>
+
           </div>
-          <div class="cover-trust"><span>✓ Govt. Approved EPC Contractor</span><span>✓ 1-Year Workmanship Warranty</span><span>✓ Maharashtra's First Net Metering Project</span></div>
-        </div>
-        <div class="cover-right">
-          <img id="img_cover" src="assets/images/page-cover-tall.jpg" alt="AI-generated tall architectural concept — villa with solar roof (placeholder, not a real site photo)">
-          <div class="cover-badge">
-            <div class="cb-item">
-              <div class="cb-icon-wrap" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F2811D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 8h10M7 12h10M7 16h10"></path></svg></div>
+          <div class="cover-slant-orange" aria-hidden="true"></div>
+          <div class="cover-bottom">
+            <div class="cb-bottom-item">
+              <div class="cb-bottom-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F2340" stroke-width="1.7"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2v1.5M12 20.5V22M4.9 4.9l1.1 1.1M17 17l1.1 1.1M2 12h1.5M20.5 12H22M6.3 17.7l-1.1 1.1M18.8 5.2l-1.1 1.1"></path><path d="M7 14.5H4a1 1 0 0 0-1 1V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-3"></path></svg></div>
               <div>
-                <div class="cb-label">Project Capacity</div>
-                <div class="cb-kwp" id="v_coverBadgeKwp">—</div>
+                <div class="cb-bottom-label">Project Capacity</div>
+                <div class="cb-bottom-val" id="v_coverBadgeKwp">7 kWp</div>
               </div>
             </div>
-            <div class="cb-item">
-              <div class="cb-icon-wrap" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F2811D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg></div>
+            <div class="cb-bottom-item">
+              <div class="cb-bottom-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F2340" stroke-width="1.7"><path d="M12 8a4 4 0 0 0-4 4c0 2.5 2.5 4 4 6 1.5-2 4-3.5 4-6a4 4 0 0 0-4-4z"></path><path d="M7 14c-1 1-2 2.5-2 4h8"></path></svg></div>
               <div>
-                <div class="cb-label">Projected 25-year savings</div>
-                <div class="cb-gen" id="v_coverBadgeGen">—</div>
+                <div class="cb-bottom-label">Projected 25-year savings</div>
+                <div class="cb-bottom-val accent" id="v_coverBadgeGen">₹78.09 L</div>
               </div>
             </div>
           </div>
-          <div class="cover-qr" id="coverQrWrap" style="display:none;">
+          <div class="cover-footer-tagline">KTM ENERGY EXPERTS &nbsp;|&nbsp; SOLAR TODAY. A BRIGHTER TOMORROW.</div>
+          <!-- QR stays -->
+          <div class="cover-qr" id="coverQrWrap" style="display:none;z-index:5;">
             <canvas id="qrCover" width="92" height="92"></canvas>
             <div class="cqr-l">Scan to view<br>your proposal</div>
           </div>
