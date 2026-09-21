@@ -34,6 +34,7 @@
           onclone: (doc) => doc.body.classList.add('qs-pdf-capture') });
       } finally {
         el.style.transform = wasTransform || '';
+        if (el.id === 'pageTechSpec') window.Render?.refreshDiagramScale?.();
       }
       const img = canvas.toDataURL('image/jpeg', 0.92);
       if (i > 0) pdf.addPage();

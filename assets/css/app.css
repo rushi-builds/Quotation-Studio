@@ -187,7 +187,9 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 /* ---------- 6. A4 page canvas & chrome ---------- */
 .page-wrap{
   width:calc(var(--page-w) * var(--page-scale));
-  display:flex;flex-direction:column;align-items:center;
+  /* Match the top-left scale origin; centering the unscaled A4 child
+     shifts half the page off-screen in narrow/mobile previews. */
+  display:flex;flex-direction:column;align-items:flex-start;
 }
 .page-label{font-size:10.5px;color:var(--gray-light);margin-bottom:-12px;align-self:flex-start;}
 .page{

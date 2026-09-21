@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node finance.test.js && node integration.test.js && node options.test.js && node sync.test.js && node audit-finance.test.js",
-    "test:browser": "node cover-sync.test.js && node brand-engineering.test.js && node visual-discovery.test.js && node audit-browser.test.js && node tech-spec.test.js && node browser.test.js"
+    "test:browser": "node cover-sync.test.js && node brand-engineering.test.js && node visual-discovery.test.js && node audit-browser.test.js && node tech-spec.test.js && node system-diagram.test.js && node browser.test.js"
   },
   "keywords": [],
   "author": "",

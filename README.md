@@ -225,3 +225,18 @@ Transparent logo generation, A4 photo/text/footer layout, popup/deep-link naviga
 mobile discovery, and print visibility are covered by `qa/visual-discovery.test.js`.
 All original cover artwork remains untouched. Browser-local sharing limitations
 still apply; these navigation changes are not a hosted customer portal.
+
+
+### Illustrated system overview
+
+Technical Specification now shows inline rooftop/component illustrations and
+colour-coded wiring: **PV → DCDB → inverter → ACDB → property load bus**, with
+local loads on the bus and a **bidirectional meter ↔ MSEDCL (MSEB)** service branch.
+It is a conceptual grid-tied overview, not an installation wiring/approval drawing.
+Module quantity/wattage and inverter rating follow the live inputs. Advanced Edit
+retains custom labels; bounded wrapping/ellipsis prevents overflow and SVG titles
+retain the full copy. No remote illustration assets are required.
+
+`qa/system-diagram.test.js` covers topology, values, editable/safe text, label bounds,
+print/PDF capture and desktop/mobile Customer View. The existing Tech Spec tests
+still check A4 fit with no, one or both engineering reference links.

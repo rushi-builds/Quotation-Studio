@@ -136,3 +136,33 @@ popup and jump behaviour, missing-proposal guard, and printed steps. All **332**
 unit/DOM/finance checks and the existing browser suites still pass, including real
 16- and 17-page PDF downloads. Screenshots were inspected for layout—not only test
 exit codes. Preview deployment remains separate from production approval.
+
+
+## Illustrated technical overview follow-up
+
+The old horizontal rectangles had mis-centred text and omitted the template-vars
+argument, so module count/wattage and inverter rating disappeared. The renderer now
+passes those values and uses self-contained SVG rooftop, DCDB, inverter, ACDB,
+house, two-way meter and utility illustrations in the same 718×172 footprint.
+Orange marks DC and blue marks AC; protection boxes are generic, not invented makes
+or ratings. Local loads branch before the meter, and both meter service connections
+show import/export. This is explicitly conceptual, not a construction SLD.
+
+Labels have measured width slots, wrapping and ellipsis with the full custom text
+retained in SVG titles. All text is escaped. Existing exact-default copy migrates;
+custom labels survive. DCDB, ACDB and import/export labels are exposed by the
+existing Advanced Edit generator. MSEDCL (MSEB) is the editable default utility.
+
+Mobile geometry checks also found that centering an unscaled A4 child inside its
+scaled-width flex wrapper clipped its left half. Aligning that child to its
+existing top-left transform origin fixes both builder and Customer View without
+changing original cover assets or print dimensions. Chromium also cached SVG text
+paint coordinates at the old scale despite reporting correct DOM bounds. The small
+SVG is refreshed after preview/PDF transform changes; pixel-parity tests verify
+resized text matches a freshly laid-out reference.
+
+Verification: **31 diagram checks**, **332 unit/DOM/finance checks**, all prior
+browser suites (including 21 Tech Spec reference-layout checks), and real 16/17-page
+PDF downloads pass. The standalone illustration, actual html2canvas capture and
+complete A4 Technical Specification page were visually reviewed. No financial
+calculation changed; the approved cover and engineering-request flow are retained.

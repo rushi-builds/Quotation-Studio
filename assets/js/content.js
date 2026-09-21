@@ -132,16 +132,19 @@ const CONTENT = {
     para: 'Every component in your system is specified below — selected for compatibility, certified performance and long-term reliability. This is the exact equipment basis on which your generation estimate and quotation are built.',
     diagramTitle: 'SYSTEM OVERVIEW',
     diagramLabels: {
-      array: 'Solar Array',
+      array: 'Rooftop Solar',
+      dcdb: 'DCDB',
+      acdb: 'ACDB',
+      exchange: 'Import / export',
       dc: 'DC',
       inverter: 'Inverter',
       ac: 'AC',
       meter: 'Bi-Directional Meter',
-      grid: 'DISCOM Grid',
+      grid: 'MSEDCL (MSEB)',
       home: 'Your Property',
       arrayValue: '{moduleCount} × {moduleWattage} Wp modules',
       inverterValue: '{inverterRating}',
-      note: 'Surplus generation is exported to the grid and credited via net metering.'
+      note: 'Conceptual grid-tied layout, not a wiring plan. Protection and import/export are subject to site design and DISCOM approval.'
     },
     groupsLabel: 'DETAILED SPECIFICATION',
     refsLabel: 'DESIGN & SIMULATION REFERENCES',
@@ -499,6 +502,9 @@ const PROJECT_IMAGES = {
    Both builder and customer view use this, so saved proposals get the same
    corrected engineering sequence without changing their financial inputs. */
 const CONTENT_COPY_UPDATES = Object.freeze({
+  "Solar Array": "Rooftop Solar",
+  "DISCOM Grid": "MSEDCL (MSEB)",
+  "Surplus generation is exported to the grid and credited via net metering.": "Conceptual grid-tied layout, not a wiring plan. Protection and import/export are subject to site design and DISCOM approval.",
   "Designed Specifically for Your Property": "Initial Equipment & Design Basis",
   "Every KTM solar installation begins with a precision site assessment and PVsyst energy simulation — ensuring your system is engineered for maximum yield, not just installed for minimum cost. The following specifications have been tailored to your roof geometry, orientation and local solar radiation data.": "This proposal is an initial estimate based on the inputs shown. Roof measurements, shading, structural suitability and electricity data still need engineering verification. Detailed design and yield assessment follow the site review; supplied report links are listed under Technical Specification.",
   "Every system is yield-optimised using PVsyst software before a single panel is installed.": "Yield assessment is prepared during the agreed engineering scope, using verified site and equipment inputs—not generated automatically by this quotation.",

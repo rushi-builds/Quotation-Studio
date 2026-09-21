@@ -376,7 +376,7 @@
 
     /* system overview diagram (inline SVG, explicit colours) */
     set('v_tsDiagramTitle', P.diagramTitle);
-    setHTML('v_tsDiagram', systemDiagram(s, f, P));
+    setHTML('v_tsDiagram', systemDiagram(s, f, P, v));
     set('v_tsDiagramNote', tpl(P.diagramLabels.note, v));
 
     set('v_tsGroupsLabel', P.groupsLabel);
@@ -436,55 +436,160 @@
     }
   }
 
-  /* Simple, clean single-line system diagram (sun → array → inverter →
-     meter → home/grid). Only entered values are printed on it. */
+  /* Customer-facing illustrated grid-tied overview, not a construction SLD.
+     The property/load bus is BEFORE the bidirectional meter. Both the meter
+     and utility connection carry import/export; the house is not a grid branch
+     downstream of the meter as in the old diagram. All artwork is inline SVG
+     so it stays sharp, offline-ready and present in customer/PDF exports. */
   function systemDiagram(s, f, P, v) {
     const L = P.diagramLabels;
-    const navy = '#1C2B3F', orange = '#F2811D', gray = '#5B6472';
-    const label = (x, y, txt, size, color, weight) =>
-      '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="' + size + '" font-weight="' + (weight || 600) + '" fill="' + color + '">' + txt + '</text>';
-    const box = (x, y, w, h, fill, stroke) =>
-      '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="9" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.4"/>';
-    const arrow = (x1, y, x2, txt) =>
-      '<line x1="' + x1 + '" y1="' + y + '" x2="' + (x2 - 8) + '" y2="' + y + '" stroke="' + gray + '" stroke-width="1.6"/>' +
-      '<path d="M' + (x2 - 8) + ' ' + (y - 4) + ' L' + x2 + ' ' + y + ' L' + (x2 - 8) + ' ' + (y + 4) + ' z" fill="' + gray + '"/>' +
-      (txt ? label((x1 + x2) / 2, y - 8, txt, 9.5, orange, 700) : '');
-    const icon = (name, size, color, x, y) =>
-      I.get(name, size, color).replace('<svg ', '<svg x="' + x + '" y="' + y + '" ');
-    const W = 718, H = 172, cy = 78;
-    let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">';
-    /* sun */
-    svg += icon('sun', 34, orange, 12, cy - 17);
-    /* array */
-    svg += box(72, cy - 27, 152, 54, '#FFF7EE', orange);
-    svg += icon('panel', 24, navy, 86, cy - 12);
-    svg += label(196, cy - 4, L.array, 10.5, navy, 700);
-    svg += label(196, cy + 12, tpl(L.arrayValue, v), 9, gray, 500);
-    svg += arrow(232, cy, 290, L.dc);
-    /* inverter */
-    svg += box(292, cy - 27, 130, 54, navy, navy);
-    svg += icon('inverter', 22, '#FFFFFF', 306, cy - 11);
-    svg += label(382, cy - 4, L.inverter, 10.5, '#FFFFFF', 700);
-    svg += label(382, cy + 12, tpl(L.inverterValue, v), 9, '#F7A45C', 500);
-    svg += arrow(430, cy, 488, L.ac);
-    /* meter */
-    svg += box(490, cy - 27, 118, 54, '#FFF7EE', orange);
-    svg += icon('meter', 22, navy, 504, cy - 11);
-    svg += label(570, cy - 3, L.meter, 8.8, navy, 700);
-    svg += label(570, cy + 12, 'NET METERING', 7.6, gray, 600);
-    /* split arrows to home + grid */
-    svg += arrow(614, cy - 14, 648, '');
-    svg += arrow(614, cy + 14, 648, '');
-    /* home (icon + label inside the box) */
-    svg += box(650, cy - 48, 62, 44, '#FFFFFF', '#C9D2DE');
-    svg += icon('home', 17, navy, 672, cy - 43);
-    svg += label(681, cy - 11, L.home, 7.4, gray, 600);
-    /* grid */
-    svg += box(650, cy + 4, 62, 44, '#FFFFFF', '#C9D2DE');
-    svg += icon('bolt', 17, orange, 672, cy + 9);
-    svg += label(681, cy + 41, L.grid, 7.4, gray, 600);
-    svg += '</svg>';
-    return svg;
+    const vars = Object.assign({
+      moduleCount: f.moduleCount || '—', moduleWattage: f.moduleWattage || '—',
+      inverterRating: f.inverterKw ? f.inverterKw + ' kW' : '—'
+    }, v || {});
+    const navy = '#17354A', muted = '#64788A', dc = '#EC841F', ac = '#347A9A';
+    const ctx = document.createElement('canvas').getContext('2d');
+    // A fixed, self-contained font works identically in SVG-as-image PDF capture.
+    const measure = (text, size, weight) => {
+      if (!ctx) return String(text).length * size * 0.6;
+      ctx.font = weight + ' ' + size + 'px Arial';
+      return ctx.measureText(String(text)).width;
+    };
+    function caption(key, x, y, text, width, size, color, weight, maxLines) {
+      const full = String(text == null ? '' : text).trim();
+      if (!full) return '';
+      const lines = []; let line = '';
+      full.split(/\s+/).forEach(word => {
+        const next = line ? line + ' ' + word : word;
+        if (line && measure(next, size, weight) > width) { lines.push(line); line = word; }
+        else line = next;
+      });
+      if (line) lines.push(line);
+      const visible = lines.slice(0, maxLines || 1);
+      visible.forEach((value, i) => {
+        const clipped = measure(value, size, weight) > width || (i === visible.length - 1 && lines.length > visible.length);
+        if (clipped) {
+          while (value && measure(value + '…', size, weight) > width) value = value.slice(0, -1);
+          visible[i] = value.trimEnd() + '…';
+        }
+      });
+      return '<g data-diagram-label="' + key + '" data-label-left="' + (x - width / 2) + '" data-label-width="' + width + '">' +
+        '<title>' + esc(full) + '</title>' + visible.map((value, i) =>
+          '<text x="' + x + '" y="' + (y + i * 13) + '" text-anchor="middle" font-family="Arial, sans-serif" font-size="' + size +
+          '" font-weight="' + weight + '" fill="' + color + '">' + esc(value) + '</text>').join('') + '</g>';
+    }
+    function wire(from, to, d, type, both) {
+      const marker = type === 'dc' ? 'qs-dc-arrow' : 'qs-ac-arrow';
+      return '<path data-flow-from="' + from + '" data-flow-to="' + to + '" data-flow-direction="' + (both ? 'both' : 'forward') +
+        '" d="' + d + '" fill="none" stroke="' + (type === 'dc' ? dc : ac) + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        (both ? ' marker-start="url(#' + marker + ')"' : '') + ' marker-end="url(#' + marker + ')"/>';
+    }
+    // Device details are intentionally generic: no invented brand, breaker rating,
+    // inverter model, exact array layout, phase count or certified protection claim.
+    const dcdb = `<g data-component="dcdb">
+      <ellipse cx="176" cy="112" rx="27" ry="5" fill="#17354A" opacity=".06"/>
+      <path d="M155 49 L161 44 H198 V103 L193 108" fill="#DDE5EB"/>
+      <rect x="153" y="49" width="40" height="59" rx="5" fill="url(#qs-metal)" stroke="#BCCAD5"/>
+      <rect x="157" y="52" width="32" height="4" rx="1" fill="${dc}"/>
+      <rect x="159" y="62" width="28" height="27" rx="3" fill="#E7EDF2" stroke="#CED9E1"/>
+      <rect x="164" y="67" width="7" height="15" rx="1" fill="#FFF" stroke="#9BAEBB"/>
+      <rect x="175" y="67" width="7" height="15" rx="1" fill="#FFF" stroke="#9BAEBB"/>
+      <path d="M165 71h5m6 0h5" stroke="${dc}" stroke-width="3"/>
+      <circle cx="173" cy="98" r="2" fill="#889DAD"/>
+    </g>`;
+    const inverter = `<g data-component="inverter">
+      <ellipse cx="277" cy="112" rx="35" ry="5" fill="#17354A" opacity=".06"/>
+      <path d="M250 34 L257 30 H308 V102 L302 109" fill="#D5E0E7"/>
+      <rect x="247" y="34" width="55" height="75" rx="9" fill="url(#qs-metal)" stroke="#AFBFCC"/>
+      <rect x="253" y="40" width="43" height="3" rx="1.5" fill="${dc}"/>
+      <rect x="257" y="49" width="35" height="21" rx="4" fill="${navy}"/>
+      <path d="M261 60q4-12 8 0t8 0t8 0" fill="none" stroke="#92D6DE" stroke-width="1.5"/>
+      <circle cx="285" cy="45" r="1.5" fill="#4D9C88"/>
+      <path d="M258 82h32m-32 5h32m-32 5h32" stroke="#B7C8D3" stroke-width="1.5"/>
+      <circle cx="275" cy="100" r="2" fill="#D7E2E8" stroke="#94AAB9"/>
+    </g>`;
+    const acdb = `<g data-component="acdb">
+      <ellipse cx="374" cy="112" rx="27" ry="5" fill="#17354A" opacity=".06"/>
+      <path d="M359 49 L365 44 H404 V103 L399 108" fill="#DDE5EB"/>
+      <rect x="359" y="49" width="40" height="59" rx="5" fill="url(#qs-metal)" stroke="#BCCAD5"/>
+      <rect x="363" y="52" width="32" height="4" rx="1" fill="${ac}"/>
+      <rect x="365" y="62" width="28" height="27" rx="3" fill="#E7EDF2" stroke="#CED9E1"/>
+      <path d="M369 67v16m9-16v16m9-16v16" stroke="#FFF" stroke-width="5"/>
+      <path d="M367 72h23" stroke="${navy}" stroke-width="3"/>
+      <circle cx="379" cy="98" r="2" fill="#889DAD"/>
+    </g>`;
+    const array = `<g data-component="array">
+      <circle cx="29" cy="29" r="17" fill="#FFF3D9"/>
+      <circle cx="29" cy="29" r="7" fill="#FFCB70"/>
+      <path d="M29 17v-4m0 32v-4M17 29h-4m32 0h-4M20 20l-3-3m24 24l-3-3M20 38l-3 3m24-24l-3 3" stroke="${dc}" stroke-width="1.3"/>
+      <ellipse cx="72" cy="112" rx="60" ry="6" fill="#17354A" opacity=".07"/>
+      <path d="M18 65 L76 91 V111 L18 86Z" fill="#E9E4DB"/>
+      <path d="M76 91 L125 65 V85 L76 111Z" fill="#CAD8DE"/>
+      <path d="M13 63 L61 36 L130 64 L78 94Z" fill="#8DA2AE"/>
+      <path d="M13 63 L78 90 L130 61 V65 L78 95 L13 67Z" fill="#607B8C"/>
+      <path d="M26 60 L62 40 L116 61 L78 83Z" fill="url(#qs-panels)" stroke="#D7ECF5" stroke-width="1.4"/>
+      <path d="M38 53l54 22M50 47l54 21M40 65l36-20M53 71l36-20M66 77l36-21" stroke="#9ABCCF" stroke-width=".8"/>
+      <path d="M30 78l14 6v10l-14-6Z" fill="#F8CE8D" stroke="#BCC5C8"/>
+      <path d="M91 89l15-8v11l-15 8Z" fill="#648DA1" stroke="#AFBFCA"/>
+    </g>`;
+    const home = `<g data-component="home">
+      <rect x="412" y="2" width="87" height="66" rx="11" fill="#F2F7FA"/>
+      <path d="M430 38 L455 21 L481 38 L476 40 L455 27 L434 41Z" fill="#66859B"/>
+      <path d="M435 39 L455 27 L475 40 V62 H435Z" fill="#FFF" stroke="#C3D4DF"/>
+      <rect x="452" y="48" width="9" height="14" rx="1" fill="#3B617B"/>
+      <rect x="439" y="44" width="8" height="8" rx="1" fill="#EDC185"/>
+      <rect x="465" y="44" width="6" height="8" rx="1" fill="#9CC8D4"/>
+    </g>`;
+    const meter = `<g data-component="meter">
+      <ellipse cx="543" cy="113" rx="32" ry="5" fill="#17354A" opacity=".06"/>
+      <path d="M517 43 L523 38 H571 V103 L565 110" fill="#D5E0E7"/>
+      <rect x="514" y="43" width="51" height="67" rx="8" fill="url(#qs-metal)" stroke="#AEBDCB"/>
+      <rect x="521" y="52" width="37" height="22" rx="3" fill="#E2F0E8" stroke="#BDCEC4"/>
+      <text x="540" y="66" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#526A61">kWh</text>
+      <path d="M525 84h29m-4-3l4 3-4 3" fill="none" stroke="${dc}" stroke-width="1.5"/>
+      <path d="M554 93h-29m4-3l-4 3 4 3" fill="none" stroke="${ac}" stroke-width="1.5"/>
+      <circle cx="540" cy="102" r="2" fill="#91A5B3"/>
+    </g>`;
+    const grid = `<g data-component="grid">
+      <circle cx="671" cy="66" r="45" fill="#EFF6F9"/>
+      <path d="M668 26h9l17 84h-44Z" fill="#E2ECF1" stroke="#55788F" stroke-width="2"/>
+      <path d="M662 48l20 17-26 20 34 18m-9-55l-20 17 26 20-33 18M640 46h66M646 65h55M656 85h37" fill="none" stroke="#55788F" stroke-width="1.6"/>
+      <path d="M644 47v9m13-9v9m31-9v9m13-9v9" stroke="#7F99AA" stroke-width="2.2"/>
+      <path d="M633 109h73" stroke="#C7D8E3" stroke-width="2"/>
+    </g>`;
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="718" height="172" viewBox="0 0 718 172" role="img" aria-labelledby="qs-system-title qs-system-desc">' +
+      '<title id="qs-system-title">Rooftop solar, protection and utility connection</title>' +
+      '<desc id="qs-system-desc">Conceptual grid-tied flow: rooftop panels to DCDB, inverter and ACDB, then the property load bus. Home loads connect to that bus. A bidirectional meter connects the bus to the utility grid for import and export. Not a construction wiring drawing.</desc>' +
+      '<defs><linearGradient id="qs-metal" x2="1" y2="1"><stop stop-color="#FFF"/><stop offset="1" stop-color="#EDF2F6"/></linearGradient>' +
+      '<linearGradient id="qs-panels" x2="1" y2="1"><stop stop-color="#386982"/><stop offset="1" stop-color="#17384F"/></linearGradient>' +
+      '<marker id="qs-dc-arrow" viewBox="0 0 6 6" markerWidth="5" markerHeight="5" refX="5" refY="3" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0L6 3L0 6Z" fill="' + dc + '"/></marker>' +
+      '<marker id="qs-ac-arrow" viewBox="0 0 6 6" markerWidth="5" markerHeight="5" refX="5" refY="3" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0L6 3L0 6Z" fill="' + ac + '"/></marker></defs>' +
+      array + dcdb + inverter + acdb + home + meter + grid +
+      wire('array', 'dcdb', 'M126 81H150', 'dc') +
+      wire('dcdb', 'inverter', 'M198 81H243', 'dc') +
+      wire('inverter', 'acdb', 'M307 81H355', 'ac') +
+      wire('acdb', 'property-bus', 'M404 81H455', 'ac') +
+      wire('property-bus', 'home', 'M455 81V64', 'ac') +
+      wire('property-bus', 'meter', 'M465 81H510', 'ac', true) +
+      wire('meter', 'grid', 'M577 81H650', 'ac', true) +
+      '<path d="M455 81H465M569 81H577" fill="none" stroke="' + ac + '" stroke-width="2"/><circle data-component="property-bus" cx="455" cy="81" r="3.2" fill="' + ac + '"/>' +
+      caption('array', 72, 130, L.array, 130, 11, navy, 700, 2) +
+      caption('array-value', 72, 159, tpl(L.arrayValue, vars), 132, 9, muted, 400, 1) +
+      caption('dcdb', 174, 130, L.dcdb || 'DCDB', 68, 11, navy, 700, 2) +
+      caption('dcdb-detail', 174, 159, 'DC protection', 74, 8.5, muted, 400, 1) +
+      caption('inverter', 276, 130, L.inverter, 112, 11, navy, 700, 2) +
+      caption('inverter-value', 276, 159, tpl(L.inverterValue, vars), 110, 9, muted, 400, 1) +
+      caption('acdb', 379, 130, L.acdb || 'ACDB', 68, 11, navy, 700, 2) +
+      caption('acdb-detail', 379, 159, 'AC protection', 74, 8.5, muted, 400, 1) +
+      caption('dc-wire', 222, 71, L.dc, 38, 8.5, dc, 700, 1) +
+      caption('ac-wire', 330, 71, L.ac, 37, 8.5, ac, 700, 1) +
+      caption('home', 455, 14, L.home, 78, 9, navy, 700, 1) +
+      caption('bus', 455, 103, 'Load bus', 62, 8, muted, 400, 1) +
+      caption('meter', 540, 130, L.meter, 111, 10.5, navy, 700, 2) +
+      caption('meter-detail', 540, 159, 'Net metering', 106, 8.5, muted, 400, 1) +
+      caption('grid', 672, 130, 'Utility grid', 88, 11, navy, 700, 2) +
+      caption('utility', 672, 159, L.grid, 88, 8.5, muted, 400, 1) +
+      caption('exchange', 609, 70, L.exchange || 'Import / export', 72, 8, ac, 600, 1) + '</svg>';
   }
 
   /* ================================================================== */
@@ -974,7 +1079,15 @@
     };
   }
 
-  root.Render = { safeHttpUrl, renderAll, PAGES, drawCharts, readState, pageNum, visiblePages,
+  // Chromium can retain SVG text paint coordinates from the previous ancestor
+  // scale even though getBBox/getBoundingClientRect report the new geometry.
+  // Rebuild this small, handler-free SVG after preview/PDF transform changes.
+  function refreshDiagramScale() {
+    const svg = $('v_tsDiagram')?.firstElementChild;
+    if (svg) svg.replaceWith(svg.cloneNode(true));
+  }
+
+  root.Render = { safeHttpUrl, renderAll, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
     get lastState() { return lastState; },
     get lastVisible() { return lastVisible; } };
 })(typeof self !== 'undefined' ? self : this);

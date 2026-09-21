@@ -321,6 +321,7 @@
     document.querySelectorAll('.page-wrap').forEach((wrap) => {
       wrap.style.height = (1123 * scale + 8) + 'px';
     });
+    window.Render?.refreshDiagramScale?.();
   }
 
   /* ---------- preview page navigation ---------- */
