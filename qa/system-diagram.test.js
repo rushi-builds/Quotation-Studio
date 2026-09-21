@@ -24,10 +24,16 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     async function geometry(p, mode) {
       const issues = await p.$eval('#v_tsDiagram svg', svg => {
         const errors = []; const boxes = [];
+        const root = svg.getBoundingClientRect();
+        const scale = svg.viewBox.baseVal.width / root.width;
+        const bounds = el => {
+          const b = el.getBoundingClientRect();
+          return {x:(b.x-root.x)*scale,y:(b.y-root.y)*scale,width:b.width*scale,height:b.height*scale};
+        };
         svg.querySelectorAll('[data-diagram-label]').forEach(g => {
-          const b = g.getBBox(), left = +g.dataset.labelLeft, width = +g.dataset.labelWidth;
-          if (b.x < left - 1 || b.x + b.width > left + width + 1 || b.y < 0 || b.y + b.height > 172) errors.push(g.dataset.diagramLabel + ': outside slot');
-          g.querySelectorAll('text').forEach(t => boxes.push({key:g.dataset.diagramLabel,b:t.getBBox()}));
+          const b = bounds(g), left = +g.dataset.labelLeft, width = +g.dataset.labelWidth;
+          if (b.x < left - 1 || b.x + b.width > left + width + 1 || b.y < -.5 || b.y + b.height > svg.viewBox.baseVal.height + .5) errors.push(g.dataset.diagramLabel + ': outside slot');
+          g.querySelectorAll('text').forEach(t => boxes.push({key:g.dataset.diagramLabel,b:bounds(t)}));
         });
         boxes.forEach((a,i) => boxes.slice(i+1).forEach(c => {
           if (a.b.x < c.b.x+c.b.width-.5 && a.b.x+a.b.width > c.b.x+.5 && a.b.y < c.b.y+c.b.height-.5 && a.b.y+a.b.height > c.b.y+.5) errors.push(a.key+' overlaps '+c.key);
@@ -38,6 +44,15 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
       check(mode + ': labels stay in their slots and never overlap', issues.length === 0);
     }
     check('all seven equipment illustrations and load junction exist', await page.$$eval('#v_tsDiagram [data-component]', els => els.length === 8));
+    const property = await page.$eval('#v_tsDiagram svg', svg => {
+      const root=svg.getBoundingClientRect(), scale=718/root.width;
+      const box=e=>{const r=e.getBoundingClientRect();return {x:(r.left-root.left)*scale,y:(r.top-root.top)*scale,w:r.width*scale,h:r.height*scale};};
+      return {bay:box(svg.querySelector('[data-property-space]')),art:box(svg.querySelector('[data-property-art]')),label:box(svg.querySelector('[data-diagram-label="home"]')),branch:box(svg.querySelector('[data-flow-to="home"]'))};
+    });
+    check('property has a dedicated 108 × 87 upper bay', Math.abs(property.bay.w-108)<.1 && Math.abs(property.bay.h-87)<.1);
+    check('house illustration is 40% larger in both dimensions', property.art.w>=71 && property.art.h>=57);
+    check('property label and illustration have separate breathing room', property.label.y+property.label.h+4 < property.art.y && property.art.x>property.bay.x+12 && property.art.x+property.art.w<property.bay.x+property.bay.w-12);
+    check('branch reaches the house without crossing its artwork', property.branch.y>=property.art.y+property.art.h && property.branch.h>=16);
     const edges = await page.$$eval('[data-flow-from]', els => els.map(e => [e.dataset.flowFrom,e.dataset.flowTo,e.dataset.flowDirection,e.hasAttribute('marker-start'),e.hasAttribute('marker-end')]));
     check('solar path contains DC protection, inverter and AC protection in order', ['array:dcdb','dcdb:inverter','inverter:acdb','acdb:property-bus'].every(pair => edges.some(e => e[0]+':'+e[1]===pair && e[2]==='forward' && e[4])));
     check('local loads branch BEFORE the net meter', edges.some(e => e[0]==='property-bus' && e[1]==='home') && !edges.some(e => e[0]==='meter' && e[1]==='home'));
@@ -85,7 +100,7 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     check('PDF capture rasterizes the complete diagram', raster.width > 1000 && raster.height > 300);
     fs.writeFileSync(path.join(shots,'system-overview-pdf.png'),Buffer.from(raster.png.split(',')[1],'base64'));
     const svgMarkup = await page.$eval('#v_tsDiagram svg', e=>new XMLSerializer().serializeToString(e));
-    const proof = await browser.newPage(); await proof.setViewport({width:742,height:196,deviceScaleFactor:2});
+    const proof = await browser.newPage(); await proof.setViewport({width:742,height:214,deviceScaleFactor:2});
     await proof.setContent('<style>body{margin:12px;background:#fbfcfe}</style>'+svgMarkup);
     check('standalone SVG is valid XML with no external image dependencies', await proof.evaluate(s=>!new DOMParser().parseFromString(s,'image/svg+xml').querySelector('parsererror') && !document.querySelector('svg image'),svgMarkup));
     await proof.screenshot({path:path.join(shots,'system-overview-detail.png')}); await proof.close();

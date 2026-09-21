@@ -894,6 +894,9 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 .metric-chip .ml{font-size:8.8px;color:var(--gray);margin-top:2px;line-height:1.3;}
 
 /* ---------- 10. Technical specification ---------- */
+/* Reallocate intro whitespace to the taller property bay, not table/font space. */
+#pageTechSpec .rule-orange{margin-bottom:7px;}
+#v_tsPara{margin-top:4px;margin-bottom:10px;}
 .diagram-box{
   border:1px solid var(--line-cool);border-radius:11px;padding:12px 14px 8px;
   background:#FBFCFE;margin-top:4px;

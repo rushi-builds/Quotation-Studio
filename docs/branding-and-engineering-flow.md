@@ -166,3 +166,15 @@ browser suites (including 21 Tech Spec reference-layout checks), and real 16/17-
 PDF downloads pass. The standalone illustration, actual html2canvas capture and
 complete A4 Technical Specification page were visually reviewed. No financial
 calculation changed; the approved cover and engineering-request flow are retained.
+
+
+### Property spacing adjustment
+
+The house now has its own 108×87 upper bay and a 40% larger illustration in both
+axes, with a larger label separated from the roof. The approved equipment row is
+unchanged in size and shifted down 18 SVG units, retaining the same local-load
+branch and bidirectional service topology. The overview is now 718×190; 18px of
+Technical Specification intro whitespace is reallocated rather than shrinking the
+specification table or its type. The no/one/both-reference layouts still fit A4.
+Diagram regression coverage is now **35 checks**, including property dimensions,
+label/art clearance and a branch that does not cross the house artwork.
