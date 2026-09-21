@@ -144,6 +144,10 @@ const CONTENT = {
       note: 'Surplus generation is exported to the grid and credited via net metering.'
     },
     groupsLabel: 'DETAILED SPECIFICATION',
+    refsLabel: 'DESIGN & SIMULATION REFERENCES',
+    refsPvsyst: 'PVsyst Performance Simulation',
+    refsArka: 'Arka 3D Shading & Layout Design',
+    refsNote: 'Externally prepared engineering documents for this site. The proposal presents their conclusions; the linked reports remain the authoritative source.',
     noteLabel: 'NOTE',
     note: 'Exact module and inverter models are confirmed at order confirmation. Substitutions, if any, are made only with equal or better certified products and communicated in writing.'
   },

@@ -441,6 +441,22 @@
     wireManager();
     wireOptions();
     wireShare();
+    const form = $('quoteForm');
+    const MODE_KEY = 'qstudio.formMode'; /* UI preference only, never data */
+    const setMode = (mode) => {
+      if (!form) return;
+      const all = mode === 'all';
+      form.classList.toggle('qs-mode-essentials', !all);
+      const bE = $('modeEss'), bA = $('modeAll');
+      if (bE) bE.classList.toggle('active', !all);
+      if (bA) bA.classList.toggle('active', all);
+      try { localStorage.setItem(MODE_KEY, all ? 'all' : 'essentials'); } catch (e) {}
+    };
+    $('modeEss') && $('modeEss').addEventListener('click', () => setMode('essentials'));
+    $('modeAll') && $('modeAll').addEventListener('click', () => setMode('all'));
+    let savedMode = 'essentials';
+    try { savedMode = localStorage.getItem(MODE_KEY) || 'essentials'; } catch (e) {}
+    setMode(savedMode === 'all' ? 'all' : 'essentials');
     refreshManager();
     window.Editor.build();
     window.Render.renderAll();
