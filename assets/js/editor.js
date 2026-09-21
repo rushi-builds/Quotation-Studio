@@ -286,32 +286,30 @@
     g = mkGroup(rootEl, 'Page 12 — Projects Portfolio');
     mkField(g, 'Heading', CONTENT.pageProjects.heading, (v) => { CONTENT.pageProjects.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageProjects.sub, (v) => { CONTENT.pageProjects.sub = v; }, true);
+    function projectFields(parent, project, title) {
+      const b = mkItemBlock(parent, title);
+      mkField(b, 'Name', project.name, (v) => { project.name = v; });
+      mkField(b, 'Location', project.location, (v) => { project.location = v; });
+      mkField(b, 'Capacity', project.capacity, (v) => { project.capacity = v; });
+      if ('installation' in project) mkField(b, 'Installation type', project.installation, (v) => { project.installation = v; });
+      const wrap = document.createElement('div'); wrap.className = 'field';
+      const lab = document.createElement('label'); lab.textContent = 'Photo (optional upload)'; wrap.appendChild(lab);
+      const fileInp = document.createElement('input'); fileInp.type = 'file'; fileInp.accept = 'image/*';
+      fileInp.addEventListener('change', function (e) {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (ev) { PROJECT_IMAGES[project.img] = ev.target.result; root.Render.renderAll(); if (root.__qsScheduleSave) root.__qsScheduleSave(); };
+        reader.readAsDataURL(file);
+      });
+      wrap.appendChild(fileInp); b.appendChild(wrap);
+    }
+    if (CONTENT.pageProjects.featured) {
+      projectFields(g, CONTENT.pageProjects.featured, 'Featured project — Ground-Mounted Solar Tracking');
+    }
     CONTENT.pageProjects.categories.forEach((cat, ci) => {
       const cg = mkGroup(g, 'Category ' + (ci + 1) + ': ' + cat.label);
       mkField(cg, 'Category label', cat.label, (v) => { cat.label = v; });
-      cat.projects.forEach((p, pi) => {
-        const b = mkItemBlock(cg, 'Project ' + (pi + 1));
-        mkField(b, 'Name', p.name, (v) => { p.name = v; });
-        mkField(b, 'Location', p.location, (v) => { p.location = v; });
-        mkField(b, 'Capacity', p.capacity, (v) => { p.capacity = v; });
-        const wrap = document.createElement('div');
-        wrap.className = 'field';
-        const lab = document.createElement('label');
-        lab.textContent = 'Photo (optional upload)';
-        wrap.appendChild(lab);
-        const fileInp = document.createElement('input');
-        fileInp.type = 'file';
-        fileInp.accept = 'image/*';
-        fileInp.addEventListener('change', function (e) {
-          const file = e.target.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = function (ev) { PROJECT_IMAGES[p.img] = ev.target.result; root.Render.renderAll(); if (root.__qsScheduleSave) root.__qsScheduleSave(); };
-          reader.readAsDataURL(file);
-        });
-        wrap.appendChild(fileInp);
-        b.appendChild(wrap);
-      });
+      cat.projects.forEach((project, pi) => projectFields(cg, project, 'Project ' + (pi + 1)));
     });
 
     /* ---------- warranty ---------- */

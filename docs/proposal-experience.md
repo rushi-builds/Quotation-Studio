@@ -8,8 +8,8 @@
   explorer compares modelled 25-year cumulative savings and payback.
 - **Closing page:** a high-resolution gallery QR sits over the existing photograph,
   clear of the heading. It is also a clickable link in either PDF format.
-- **Public gallery:** `gallery.html` shows the existing nine published project
-  photographs, category filters and keyboard-accessible enlarged photographs.
+- **Public gallery:** `gallery.html` shows the existing nine references plus the featured 500 kWp ground-mounted tracking
+  project, category filters and keyboard-accessible enlarged photographs.
   It does not read proposal storage or expose customer details. Hosting access
   protection still applies; publish it on an unauthenticated public host before
   using it as a customer QR destination.
@@ -147,3 +147,26 @@ pause/resume/stop, missing voices, errors, empty/unsafe text, scenario isolation
 mobile layout and print exclusion. Speech routing tests use a mock engine; they do
 not claim to validate the sound or availability of an actual OS voice. No deployment
 or production merge is required for these changes.
+
+
+## Agarwal project distinction
+
+The 1,700 kWp industrial rooftop reference is retained unchanged. The new featured
+reference is **Agarwal Technoplast Pvt. Ltd. — 500 kWp — Ground-Mounted Solar
+Tracking**. Its location is intentionally blank; no axis type, commissioning date,
+generation or performance gain is inferred. The supplied `Tracking.png` is kept
+byte-for-byte (Git blob `213b1702f20304fd8b43b3ca54af4e730a29a7af`).
+
+The detailed proposal retains the original nine 132px-high photographs and adds a
+full-frame 252×168 feature using the existing whitespace. The gallery has ten
+entries, with an image-led tracking feature, enlarged-image viewer and separate
+Solar tracking filter. The industrial rooftop filter still contains the original
+three rooftop projects, not the ground-mounted project.
+
+Legacy proposal content receives the new reference without overwriting custom
+rooftop values. Advanced Edit is rebound when switching proposals, and an old
+proposal missing the tracking-photo key cannot inherit another proposal's private
+upload. Private overrides remain local to that proposal, not the public gallery.
+`qa/tracking-project.test.js` covers exact image identity, distinct capacities,
+migration, live edits, proposal isolation, A4/PDF capture and desktop/mobile gallery.
+No financial calculation, cover artwork, audio behaviour or deployment is changed.

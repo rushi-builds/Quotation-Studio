@@ -235,12 +235,17 @@
         }
       });
     }
+    // Old saved proposals have no tracking-image key; do not inherit a private
+    // replacement photograph from the previously open proposal.
+    if (!Object.prototype.hasOwnProperty.call(blob.projectImages || {}, 'PROJ_TRACKING')) PROJECT_IMAGES.PROJ_TRACKING = TRACKING_PROJECT_IMAGE;
     if (blob.projectImages) {
       Object.keys(blob.projectImages).forEach((k) => { PROJECT_IMAGES[k] = blob.projectImages[k]; });
     }
     window.EquipmentStore.refreshSelects();
     if (!blob.form || !Object.keys(blob.form).length) window.Proposals.saveActive(window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES, window.__qsOptions);
     renderOptionsUI();
+    // Rebind editor closures to the newly loaded proposal's content objects.
+    if ($('advContainer')?.children.length) window.Editor.build();
   }
 
   function switchTo(id) {

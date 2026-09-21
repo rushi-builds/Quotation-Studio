@@ -1,7 +1,10 @@
 'use strict';
 (function(){
-  const projects=CONTENT.pageProjects.categories.flatMap((category,index)=>category.projects.map(p=>({...p,category:index})));
-  const names=['All projects','Industrial','Commercial','Residential & specialty'];
+  const projects=CONTENT.pageProjects.categories.flatMap((category,index)=>category.projects.map(p=>({...p,category:index,installation:p.installation || (index===0?'Rooftop Solar':'')})));
+  const featured=CONTENT.pageProjects.featured;
+  if(featured) projects.unshift({...featured,category:3,featured:true});
+  const names=['All projects','Industrial rooftop','Commercial','Residential & specialty'];
+  if(featured) names.push('Solar tracking');
   const grid=document.getElementById('galleryProjects'),filters=document.getElementById('galleryFilters'),dialog=document.getElementById('photoViewer');
   let opener;
   function render(category){
@@ -10,10 +13,24 @@
     document.getElementById('galleryCount').textContent=shown.length+' project photographs';
     shown.forEach(p=>{
       const card=document.createElement('article'),button=document.createElement('button'),img=document.createElement('img');
-      button.type='button';button.className='project-photo';button.setAttribute('aria-label','Enlarge photograph: '+p.name);
-      img.src=PROJECT_IMAGES[p.img];img.alt=p.name+' solar installation';img.loading='lazy';img.width=600;img.height=400;button.append(img);
-      button.addEventListener('click',()=>{opener=button;document.getElementById('largePhoto').src=img.src;document.getElementById('largePhoto').alt=img.alt;document.getElementById('photoCaption').textContent=p.name+' · '+p.location+' · '+p.capacity;dialog.showModal();});
-      const h=document.createElement('h3'),desc=document.createElement('p');h.textContent=p.name;desc.textContent=p.location+' · '+p.capacity;card.append(button,h,desc);grid.append(card);
+      card.dataset.project=p.img;
+      if(p.featured) card.className='featured-project';
+      const caption=[p.name,p.capacity,p.installation,p.location].filter(Boolean).join(' · ');
+      button.type='button';button.className='project-photo';button.setAttribute('aria-label','Enlarge photograph: '+caption);
+      img.src=PROJECT_IMAGES[p.img];img.alt=caption;img.loading='lazy';img.width=600;img.height=400;button.append(img);
+      button.addEventListener('click',()=>{opener=button;document.getElementById('largePhoto').src=img.src;document.getElementById('largePhoto').alt=img.alt;document.getElementById('photoCaption').textContent=caption;dialog.showModal();});
+      const body=document.createElement('div'),h=document.createElement('h3'),desc=document.createElement('p');
+      body.className='project-description';h.textContent=p.name;
+      if(p.featured) {
+        const eyebrow=document.createElement('span'),capacity=document.createElement('strong'),hint=document.createElement('small');
+        eyebrow.className='feature-eyebrow';eyebrow.textContent='FEATURED PROJECT';
+        capacity.className='feature-capacity';capacity.textContent=p.capacity;
+        desc.textContent=p.installation;
+        hint.textContent='Select the photograph to explore the full image ↗';
+        body.append(eyebrow,h,capacity,desc,hint);
+        if(p.location){const location=document.createElement('p');location.textContent=p.location;body.append(location);}
+      } else {desc.textContent=[p.capacity,p.installation,p.location].filter(Boolean).join(' · ');body.append(h,desc);}
+      card.append(button,body);grid.append(card);
     });
     [...filters.children].forEach((b,i)=>b.setAttribute('aria-pressed',String(i-1===category)));
   }

@@ -1,0 +1,86 @@
+/* Distinct Agarwal references, exact supplied image, live editor, A4 and gallery. */
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const {execFileSync}=require('node:child_process');
+const puppeteer=require('puppeteer-core');
+const {CONTENT,PROJECT_IMAGES,upgradeProposalContent}=require('../assets/js/content.js');
+let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓ '+name);};
+(async()=>{
+ check('supplied PNG is preserved byte-for-byte',execFileSync('git',['hash-object','assets/images/Tracking.png'],{cwd:path.join(__dirname,'..'),encoding:'utf8'}).trim()==='213b1702f20304fd8b43b3ca54af4e730a29a7af');
+ check('500 kWp tracking is separate from 1,700 kWp rooftop',CONTENT.pageProjects.featured.capacity==='500 kWp'&&CONTENT.pageProjects.featured.installation==='Ground-Mounted Solar Tracking'&&CONTENT.pageProjects.categories[0].projects[0].capacity==='1,700 kWp'&&PROJECT_IMAGES.PROJ_1_1==='assets/images/site-agarwal.jpg');
+ check('no unprovided location, axis or yield is added',CONTENT.pageProjects.featured.location===''&&!/single.axis|dual.axis|kWh|commissioned/i.test(JSON.stringify(CONTENT.pageProjects.featured)));
+ const legacy=JSON.parse(JSON.stringify(CONTENT));delete legacy.pageProjects.featured;legacy.pageProjects.categories[0].projects[0].capacity='Custom rooftop capacity';
+ const upgraded=upgradeProposalContent(legacy);
+ check('legacy proposals receive the feature without changing existing entries',upgraded.pageProjects.featured.capacity==='500 kWp'&&upgraded.pageProjects.categories[0].projects[0].capacity==='Custom rooftop capacity');
+ check('custom feature copy survives migration',upgradeProposalContent({pageProjects:{featured:{name:'Custom reference',capacity:'Edited capacity'}}}).pageProjects.featured.name==='Custom reference');
+ const {default:chromium}=await import('@sparticuz/chromium');
+ const browser=await puppeteer.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(a=>a!=='--single-process'),headless:true});
+ try {
+  const base=process.env.QA_BASE||'http://127.0.0.1:8080',page=await browser.newPage(),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));await page.setViewport({width:1440,height:1200});
+  await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
+  check('portfolio has ten references, including all nine original cards',await page.evaluate(()=>document.querySelectorAll('#pageProjects .proj-card').length===9&&document.querySelectorAll('#v_prFeatured article').length===1&&document.getElementById('v_prStats').textContent.includes('10 flagship projects')));
+  check('featured image uses the exact full-frame 3:2 asset',await page.$eval('.tracking-project img',e=>e.getAttribute('src')==='assets/images/Tracking.png'&&e.naturalWidth===1536&&e.naturalHeight===1024&&getComputedStyle(e).objectFit==='contain'&&e.width/e.height===1.5));
+  check('existing rooftop reference remains unchanged',await page.$eval('#pageProjects [data-project="PROJ_1_1"]',e=>e.textContent.includes('1,700 kWp')&&e.querySelector('img').getAttribute('src')==='assets/images/site-agarwal.jpg'));
+  check('added portfolio reference does not change the quotation capacity or investment',await page.evaluate(()=>Render.lastState.capacity==='7'&&Finance.compute(Render.lastState).netInvestment===608070));
+  const geometry=()=>page.$eval('#pageProjects',e=>{
+    const intro=e.querySelector('.intro-col').getBoundingClientRect(),stats=e.querySelector('.proj-stats').getBoundingClientRect(),rule=e.querySelector('.rule-orange').getBoundingClientRect(),feature=e.querySelector('.tracking-project').getBoundingClientRect(),cats=e.querySelector('#v_prCats').getBoundingClientRect(),foot=e.querySelector('.pg-foot').getBoundingClientRect();
+    return e.scrollHeight<=1124&&stats.top>=intro.bottom-.5&&stats.top>rule.bottom&&feature.top>=stats.bottom&&cats.top>=feature.bottom&&cats.bottom<foot.top&&[...e.querySelectorAll('.proj-card img')].every(i=>i.offsetHeight===132);
+  });
+  check('A4 intro, feature, original photographs and footer do not overlap',await geometry());
+  await page.emulateMediaType('print');check('tracking reference remains visible and fits in print',await geometry()&&await page.$eval('.tracking-project',e=>e.checkVisibility()));await page.emulateMediaType('screen');
+  const shots=path.join(__dirname,'shots');fs.mkdirSync(shots,{recursive:true});
+  const raster=await page.$eval('#pageProjects',async e=>{const c=await html2canvas(e,{scale:1,useCORS:true,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});return c.toDataURL();});
+  fs.writeFileSync(path.join(shots,'tracking-portfolio-pdf.png'),Buffer.from(raster.split(',')[1],'base64'));
+  const changeFeatured=async(label,value)=>page.evaluate(({label,value})=>{
+    const block=[...document.querySelectorAll('.item-block')].find(b=>b.querySelector('.item-title')?.textContent==='Featured project — Ground-Mounted Solar Tracking');
+    const input=[...block.querySelectorAll('.field')].find(f=>f.querySelector('label')?.textContent===label).querySelector('input');input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));
+  },{label,value});
+  await changeFeatured('Capacity','510 kWp');
+  check('Advanced Edit updates only the tracking reference',await page.evaluate(()=>document.querySelector('#v_prFeatured').textContent.includes('510 kWp')&&document.querySelector('#v_prCats [data-project="PROJ_1_1"]').textContent.includes('1,700 kWp')));
+  await changeFeatured('Name','<img src=x onerror=window.trackingInjected=1>');
+  check('edited feature text is escaped',await page.$eval('#v_prFeatured',e=>e.querySelectorAll('img').length===1&&!window.trackingInjected&&e.textContent.includes('<img')));
+  await changeFeatured('Name','Agarwal Technoplast Pvt. Ltd.');await changeFeatured('Capacity','500 kWp');
+  await page.waitForFunction(()=>Proposals.active().content.pageProjects.featured.capacity==='500 kWp');
+  const original=await page.evaluate(()=>Proposals.activeId());
+  const legacyId=await page.evaluate(()=>{
+    const content=JSON.parse(JSON.stringify(CONTENT));delete content.pageProjects.featured;
+    const images={...PROJECT_IMAGES};delete images.PROJ_TRACKING;
+    const old=Proposals.create({...Render.lastState,custName:'Legacy QA customer'},{content,projectImages:images});
+    const select=document.getElementById('proposalSelect');select.add(new Option('Legacy QA proposal',old.id));
+    PROJECT_IMAGES.PROJ_TRACKING='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aO2sAAAAASUVORK5CYII=';
+    select.value=old.id;select.dispatchEvent(new Event('change',{bubbles:true}));return old.id;
+  });
+  check('switching to a legacy proposal does not inherit a private tracking photo',await page.$eval('.tracking-project img',e=>e.getAttribute('src')==='assets/images/Tracking.png'));
+  await changeFeatured('Capacity','Legacy edit');
+  check('Advanced editor is rebound to the currently selected proposal',await page.$eval('#v_prFeatured',e=>e.textContent.includes('Legacy edit')));
+  await page.select('#proposalSelect',original);await changeFeatured('Capacity','500 kWp');
+  check('returning to the other proposal restores its own photo override',await page.evaluate(()=>PROJECT_IMAGES.PROJ_TRACKING.startsWith('data:image/png')));
+  await page.evaluate(()=>{PROJECT_IMAGES.PROJ_TRACKING=TRACKING_PROJECT_IMAGE;Render.renderAll();window.__qsScheduleSave();});
+  await page.waitForFunction(()=>Proposals.active().content.pageProjects.featured.capacity==='500 kWp'&&Proposals.active().projectImages.PROJ_TRACKING===TRACKING_PROJECT_IMAGE);
+  check('other proposal edits remain isolated',await page.evaluate(id=>Proposals.get(id).content.pageProjects.featured.capacity==='Legacy edit',legacyId));
+  const customer=await browser.newPage();customer.on('pageerror',e=>errors.push(e.message));await customer.setViewport({width:390,height:844});
+  await customer.goto(base+'/share.html?p='+encodeURIComponent(original),{waitUntil:'networkidle0'});
+  check('Customer View keeps the two project types and capacities distinct',await customer.$eval('#pageProjects',e=>e.querySelector('.tracking-project').textContent.includes('Ground-Mounted Solar Tracking')&&e.textContent.includes('500 kWp')&&e.textContent.includes('1,700 kWp')));
+  check('saved Customer View loads the actual tracking PNG',await customer.$eval('.tracking-project img',e=>e.naturalWidth===1536&&e.getAttribute('src')==='assets/images/Tracking.png'));
+  check('mobile proposal feature stays within the scaled page',await customer.$eval('.tracking-project',e=>e.getBoundingClientRect().left>=0&&e.getBoundingClientRect().right<=innerWidth+1));
+  const context=await browser.createBrowserContext(),gallery=await context.newPage();gallery.on('pageerror',e=>errors.push(e.message));await gallery.setViewport({width:1360,height:1100});
+  await gallery.goto(base+'/gallery.html',{waitUntil:'networkidle0'});
+  check('public gallery has ten distinct projects without proposal storage',await gallery.evaluate(()=>localStorage.length===0&&document.querySelectorAll('#galleryProjects article').length===10));
+  check('tracking feature is the first gallery entry and uses the supplied photograph',await gallery.$eval('#galleryProjects article',e=>e.dataset.project==='PROJ_TRACKING'&&e.textContent.includes('500 kWp')&&e.textContent.includes('Ground-Mounted Solar Tracking')&&e.querySelector('img').getAttribute('src')==='assets/images/Tracking.png'));
+  await (await gallery.$('.featured-project')).screenshot({path:path.join(shots,'tracking-gallery-feature.png')});
+  await gallery.$eval('#galleryFilters button:last-child',e=>e.click());
+  check('Solar tracking filter isolates the new project',await gallery.$$eval('#galleryProjects article',els=>els.length===1&&els[0].dataset.project==='PROJ_TRACKING'));
+  await gallery.click('.featured-project .project-photo');
+  check('enlarged image caption contains supplied facts but no invented location',await gallery.$eval('#photoViewer',e=>e.open&&e.querySelector('img').naturalWidth===1536&&e.textContent.includes('500 kWp')&&!e.textContent.includes('Pune')));
+  await gallery.keyboard.press('Escape');
+  await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());
+  check('industrial rooftop filter retains 1,700 kWp and excludes ground tracking',await gallery.$eval('#galleryProjects',e=>e.querySelectorAll('article').length===3&&e.textContent.includes('1,700 kWp')&&!e.querySelector('[data-project="PROJ_TRACKING"]')));
+  await gallery.$eval('#galleryFilters button:first-child',e=>e.click());await gallery.setViewport({width:390,height:844});
+  await gallery.$eval('.featured-project',e=>e.scrollIntoView({behavior:'instant'}));
+  check('featured gallery card is responsive without horizontal clipping',await gallery.$eval('.featured-project',e=>e.getBoundingClientRect().left>=0&&e.getBoundingClientRect().right<=innerWidth&&e.scrollWidth<=e.clientWidth));
+  await gallery.screenshot({path:path.join(shots,'tracking-gallery-mobile.png')});
+  check('no runtime errors',errors.length===0);
+  console.log(`\n${passed} passed, 0 failed`);
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

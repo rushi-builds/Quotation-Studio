@@ -110,7 +110,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await edit({customerType:'residential',tariff:'8.75',payCompletion:'10',loanAmt:'',loanRate:'',loanYears:''});
  // No shared local storage is needed to browse the published gallery.
  const context=await browser.createBrowserContext(),gallery=await context.newPage();await gallery.setViewport({width:390,height:844});await gallery.goto(base+'/gallery.html',{waitUntil:'networkidle0'});
- check('public gallery works in a fresh browser with no proposal storage',await gallery.evaluate(()=>localStorage.length===0&&document.querySelectorAll('#galleryProjects article').length===9));
+ check('public gallery works in a fresh browser with no proposal storage',await gallery.evaluate(()=>localStorage.length===0&&document.querySelectorAll('#galleryProjects article').length===10));
  check('unsupplied videos are not advertised',await gallery.$eval('#videos',e=>e.hidden));
  await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());check('project filters work',await gallery.$$eval('#galleryProjects article',els=>els.length===3));
  await gallery.click('.project-photo');check('photographs open in an accessible dialog',await gallery.$eval('#photoViewer',e=>e.open));await gallery.keyboard.press('Escape');check('Escape closes photo viewer',await gallery.$eval('#photoViewer',e=>!e.open));

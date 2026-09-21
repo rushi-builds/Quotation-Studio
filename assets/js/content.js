@@ -12,6 +12,17 @@
    ========================================================================== */
 'use strict';
 
+// Separate from Agarwal's existing 1,700 kWp rooftop reference. Only supplied
+// facts are published; location, tracking-axis type and yield are not inferred.
+const TRACKING_PROJECT_IMAGE = 'assets/images/Tracking.png';
+const TRACKING_PROJECT_DEFAULT = Object.freeze({
+  name: 'Agarwal Technoplast Pvt. Ltd.',
+  capacity: '500 kWp',
+  installation: 'Ground-Mounted Solar Tracking',
+  location: '',
+  img: 'PROJ_TRACKING'
+});
+
 const CONTENT = {
 
   /* Elements shared across pages (edited once, applied everywhere) */
@@ -316,6 +327,7 @@ const CONTENT = {
   /* PAGE 12 — Projects Portfolio                                        */
   /* ------------------------------------------------------------------ */
   pageProjects: {
+    featured: { ...TRACKING_PROJECT_DEFAULT },
     heading: 'Projects That Speak for Themselves',
     sub: 'Over 200 Successful Solar Installations Across Residential, Commercial & Industrial Sectors',
     categories: [
@@ -487,6 +499,7 @@ const CONTENT = {
    Advanced Edit → Projects → each project block.
    -------------------------------------------------------------------------- */
 const PROJECT_IMAGES = {
+  PROJ_TRACKING: TRACKING_PROJECT_IMAGE,
   PROJ_1_1: 'assets/images/site-agarwal.jpg',
   PROJ_1_2: 'assets/images/site-serum.jpg',
   PROJ_1_3: 'assets/images/site-grp.jpg',
@@ -527,6 +540,15 @@ function upgradeProposalContent(value) {
   const out = JSON.parse(JSON.stringify(value), (key, entry) =>
     typeof entry === 'string' && Object.prototype.hasOwnProperty.call(CONTENT_COPY_UPDATES, entry)
       ? CONTENT_COPY_UPDATES[entry] : entry);
+  if (out.pageProjects && typeof out.pageProjects === 'object' && !Array.isArray(out.pageProjects)) {
+    // Saved proposals from before this project get the new default. Never use
+    // another proposal's in-memory edited values as migration defaults.
+    if (!Object.prototype.hasOwnProperty.call(out.pageProjects, 'featured')) {
+      out.pageProjects.featured = { ...TRACKING_PROJECT_DEFAULT };
+    } else if (out.pageProjects.featured && typeof out.pageProjects.featured === 'object') {
+      out.pageProjects.featured = { ...TRACKING_PROJECT_DEFAULT, ...out.pageProjects.featured };
+    }
+  }
   const oldStats = {
     '11+ Years of Engineering Excellence': 'Over a decade of delivering certified, high-performance solar EPC projects across India.',
     '200+ Projects Successfully Executed': 'A proven track record across residential, commercial and industrial installations.',
