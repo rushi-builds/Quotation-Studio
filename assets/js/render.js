@@ -876,6 +876,18 @@
     C.emi($('chartFinEmi'), f);
   }
 
+  /* Live quote chip — shows capacity + customer + net investment live */
+  function updateLiveChip(s, f) {
+    const el = $('liveChipText');
+    if (!el) return;
+    const cap = (s.capacity || '—') + ' kWp';
+    const cust = (s.custName || '').trim().split(' ')[0] || 'Live';
+    const net = F.fmtINRshort(f.netInvestment);
+    el.textContent = 'Live • ' + cap + ' • ' + cust + ' • ' + net;
+    const chip = $('liveChip');
+    if (chip) chip.title = 'Live quote — ' + cap + ' for ' + (s.custName || 'customer') + ' — net ' + F.fmtINR(f.netInvestment);
+  }
+
   /* ================================================================== */
   let lastState = null;
   function renderAll(stateOverride) {
@@ -885,6 +897,7 @@
     const v = tplVars(s, f);
     renderChrome(s, f);
     PAGES.forEach((p) => { try { p.render(s, f, v); } catch (e) { console.error('render', p.id, e); } });
+    updateLiveChip(s, f);
     drawCharts(f);
     if (typeof document !== 'undefined' && document.dispatchEvent) {
       try { document.dispatchEvent(new CustomEvent('qs:rendered')); } catch (e) { /* noop */ }

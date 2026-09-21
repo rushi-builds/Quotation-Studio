@@ -784,3 +784,17 @@ body.presenting .exit-present{display:block;}
 .pm-tl-step.next .pm-tl-dot{border-color:var(--orange);}
 .pm-tl-label{font-weight:700;color:var(--navy);margin-top:4px;letter-spacing:.05em;text-transform:uppercase;font-size:8px;}
 .pm-tl-date{color:var(--gray-light);font-size:8px;margin-top:1px;}
+
+/* ---------- 21. Live quote chip + cover portrait (post-merge) ---------- */
+.live-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--navy);color:#fff;border-radius:999px;padding:5px 12px;
+  font-size:10.5px;font-weight:700;letter-spacing:.02em;white-space:nowrap;
+  box-shadow:0 2px 8px rgba(28,43,63,.18);flex-shrink:0;
+}
+.live-dot{
+  width:8px;height:8px;border-radius:50%;background:#2ECC71;
+  /* subtle, no continuous pulse — standing rule: no gimmicks */
+  box-shadow:0 0 0 2px rgba(46,204,113,.18);
+}
+/* cover portrait removed — final clean professional look, no avatar */
