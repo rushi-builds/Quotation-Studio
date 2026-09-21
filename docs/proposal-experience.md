@@ -10,7 +10,9 @@
   clear of the heading. It is also a clickable link in either PDF format.
 - **Public gallery:** `gallery.html` shows the existing nine published project
   photographs, category filters and keyboard-accessible enlarged photographs.
-  It does not read proposal storage or expose customer details.
+  It does not read proposal storage or expose customer details. Hosting access
+  protection still applies; publish it on an unauthenticated public host before
+  using it as a customer QR destination.
 
 The approved first-page cover and small-house system diagram are preserved. No
 second power-flow diagram is added to the full report; the short report reuses the
@@ -21,7 +23,7 @@ same live illustration.
 Under Customer & Proposal, **Public project / video gallery URL** controls the QR.
 It persists with the proposal, its file export/import and Customer View.
 
-- Blank: use this deployment's `gallery.html`, if its origin is public HTTPS.
+- Blank: keep the QR hidden. Deployment origins are never assumed to be public.
 - Supplied public HTTPS URL: open that exact gallery or video playlist directly.
 - Invalid / local / credentialled URL, or a browser-local `share.html` link: hide
   the QR, clear the previous destination and show a builder explanation.
@@ -30,8 +32,9 @@ QR generation has a quiet zone, error correction and a 320px source canvas. A
 revision guard prevents an older asynchronous draw from publishing a stale URL.
 Tests decode both the actual canvas and the JPEG-compressed PDF capture.
 
-**Use a permanent public URL before issuing proposals.** Preview / sandbox URLs
-may expire or be access restricted. Test the destination on another phone without
+**Use a permanent public URL before issuing proposals.** The current Vercel preview
+was externally checked and redirects to Vercel login. Deployment protection has
+not been changed. Preview / sandbox URLs may also expire. Test the destination on another phone without
 being signed in; syntax validation cannot prove public reachability.
 
 No real video URLs were supplied, so the bundled gallery currently shows photos,
@@ -99,7 +102,7 @@ an ID-only customer proposal URL is **not** a hosted cross-device customer porta
 Multilingual narration, ambient drone video and animated monetary counters are not
 part of this change.
 
-Verified for this implementation: **332 unit/DOM/finance checks**, **44 new
+Verified for this implementation: **332 unit/DOM/finance checks**, **45 new
 experience checks**, all existing cover/branding/discovery/audit/technical/diagram
 browser suites, and actual **2-, 16- and 17-page PDFs**. The full-report browser test
 now checks the downloaded files' actual page counts, not only a status string or an

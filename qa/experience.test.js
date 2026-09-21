@@ -11,6 +11,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setViewport({width:1440,height:1200});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
  async function edit(fields){await page.evaluate(fields=>{for(const [id,v] of Object.entries(fields)){const e=document.getElementById(id);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));}},fields);await page.evaluate(()=>Experience.whenReady());}
+ check('blank gallery destination never auto-encodes a protected preview URL',await page.evaluate(()=>Experience.galleryUrl({galleryUrl:''})===''&&document.getElementById('closingGallery').hidden));
  check('new PDF selector defaults to the full report',await page.$eval('#pdfFormat',e=>e.value==='full'));
  check('public destination validator rejects local, credentialled and browser-local proposal links',await page.evaluate(()=>['javascript:alert(1)','https://localhost/gallery','https://127.0.0.1/','https://user:pass@example.com/','https://example.com/share.html?p=abc','https://10.0.0.1/gallery'].every(u=>!Experience.publicUrl(u))));
  await edit({galleryUrl:'https://example.com/solar-projects?category=rooftop'});

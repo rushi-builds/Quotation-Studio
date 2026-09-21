@@ -19,8 +19,9 @@
     } catch (_) { return ''; }
   }
   function galleryUrl(s) {
-    // An explicit invalid URL must NOT silently turn into a different destination.
-    return String(s.galleryUrl || '').trim() ? publicUrl(String(s.galleryUrl).trim()) : publicUrl(new URL('gallery.html', location.href).href);
+    // Never assume a deployment URL is public: Vercel previews can require login.
+    // A customer-facing destination must be explicitly supplied and tested.
+    return publicUrl(String(s.galleryUrl || '').trim());
   }
   let qrReady = Promise.resolve(), qrRevision = 0;
   function renderGallery(s) {

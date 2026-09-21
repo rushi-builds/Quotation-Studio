@@ -252,8 +252,9 @@ short summaries rather than silently hiding content.
 Customer View now includes a **separate tariff/savings explorer**. It does not change
 the saved quotation or PDF figures. On the closing page, **Explore Our Projects**
 provides a scannable/clickable gallery QR. Set **Public project / video gallery URL**
-in the builder, or leave it blank to use this deployment's public `gallery.html`.
-Use a permanent public URL for issued proposals and test it on another phone.
+in the builder; the QR stays hidden until a destination is supplied. `gallery.html`
+is ready to publish, but preview deployments can require a Vercel login. Use a
+permanent public URL for issued proposals and test it on another phone.
 
 The bundled gallery currently contains published project **photographs**. Actual
 approved video links can be added through `assets/js/gallery-media.js`, or the QR can
