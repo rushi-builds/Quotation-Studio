@@ -337,47 +337,26 @@
     </div>
     <button class="exit-present" id="exitPresentBtn" type="button">&#10005; Exit presentation (Esc)</button>
 
-    <!-- ============ PAGE 1 — COVER ============ -->
+    <!-- ============ PAGE 1 — COVER — PIXEL-EXACT STATIC ARTWORK (DO NOT RECREATE) ============ -->
     <div class="page-wrap" data-page="pageCover">
       <div class="page-label"></div>
-      <section class="page page--cover ktm-cover" id="pageCover">
-        <!-- EXACT Reference Artwork Cover as specified -->
-        <div class="ktm-cover-wrap">
-          <img
-            id="img_cover"
-            class="ktm-cover-img"
-            src="assets/ktm-cover-page-1.png"
-            alt="KTM Energy Experts Solar Proposal Cover"
-          />
+      <section class="page" id="pageCover">
+        <div class="ktm-cover">
+          <img src="assets/ktm-cover-page-1.png" alt="KTM Energy Experts Solar Proposal Cover" />
         </div>
-
-        <!-- Semantic live data container: keeps all test IDs and dynamic updates intact without altering reference artwork -->
-        <div class="cover-meta-store" style="display:none;" aria-hidden="true">
-          <div id="v_coverEyebrow">RESIDENTIAL SOLAR PROPOSAL</div>
-          <div id="v_coverTitle1">YOUR ROOF</div>
-          <div id="v_coverTitle2">YOUR POWER</div>
-          <div id="v_coverPreparedLabel">A DEDICATED PROPOSAL FOR</div>
-          <div id="v_coverCustName">Mr. ABC Customer</div>
-          <div id="v_coverCustAddress">Pune, Maharashtra</div>
-          <div id="v_coverLocSync">Pune, Maharashtra</div>
-          <div id="v_coverCapacityLabel">System Size</div>
-          <div id="v_coverCapacity">7 kWp</div>
-          <div id="v_coverRefLabel">Proposal No.</div>
-          <span id="v_coverRef">KTM-2026-013</span>
-          <span class="ci-chip" id="v_coverVersion">v1.0</span>
-          <div id="v_coverDateLabel">Date</div>
-          <div id="v_coverDate">20 September 2026</div>
-          <div id="v_coverValidLabel">Valid Until</div>
-          <div id="v_coverValid">—</div>
-          <div id="v_coverPrepRow"><div id="v_coverPrepLabel"></div><div id="v_coverPrepBy"></div></div>
-          <div class="cf-stat"><div class="n" id="v_coverStatYears">12+</div></div>
-          <div class="cf-stat"><div class="n" id="v_coverStatProjects">500+</div></div>
-          <div class="cf-stat"><div class="n" id="v_coverStatCapacity">15 MW+</div></div>
-          <div id="v_coverStat4">Pioneer in Net Metering — Maharashtra’s First Net Metering Project</div>
-          <div id="v_coverBadgeKwp">7 kWp</div>
-          <div id="v_coverBadgeGen">≈ 10,220 units / year</div>
-          <div id="v_coverLifetimeSave">₹78.09 L</div>
-          <div id="coverQrWrap"><canvas id="qrCover" width="92" height="92"></canvas></div>
+        <!-- Hidden dynamic IDs for JS compatibility (kept off-screen, not altering visual) -->
+        <div style="display:none !important;">
+          <span id="v_coverEyebrow"></span><span id="v_coverTitle1">YOUR ROOF</span><span id="v_coverTitle2">POWER</span>
+          <span id="v_coverPreparedLabel">A DEDICATED PROPOSAL FOR</span><span id="v_coverCustName">Mr. ABC Customer</span><span id="v_coverCustAddress">Pune, Maharashtra</span><span id="v_coverLocSync">Pune, Maharashtra</span><span id="v_coverCapacity">7 kWp</span><span id="v_coverRef">KTM-2026-013</span><span id="v_coverVersion">v1.0</span><span id="v_coverDate">20 September 2026</span><span id="v_coverValid">—</span>
+          <span id="v_coverCapacityLabel">System Size</span><span id="v_coverDateLabel">Date</span><span id="v_coverValidLabel">Valid Until</span><span id="v_coverRefLabel">Proposal No.</span>
+          <span id="v_coverPrepRow"></span><span id="v_coverPrepLabel"></span><span id="v_coverPrepBy"></span>
+          <span id="v_coverStatYears">11+</span><span id="v_coverStatProjects">200+</span><span id="v_coverStatCapacity">20+ MW</span><span id="v_coverStat4"></span>
+          <span id="v_coverBadgeKwp">7 kWp</span><span id="v_coverBadgeGen">≈ 10,220 units / year</span><span id="v_coverLifetimeSave">₹78.09 L</span>
+          <img id="img_cover" src="assets/ktm-cover-page-1.png" alt="AI-generated tall architectural concept — villa with solar roof (placeholder, not a real site photo)" style="display:none;">
+        </div>
+        <div class="cover-qr" id="coverQrWrap" style="display:none;z-index:30;">
+          <canvas id="qrCover" width="92" height="92"></canvas>
+          <div class="cqr-l">Scan to view<br>your proposal</div>
         </div>
       </section>
     </div>

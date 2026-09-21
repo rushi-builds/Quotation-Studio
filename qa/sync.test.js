@@ -65,13 +65,25 @@ const d = w.document;
 t('no errors on boot', errors.length === 0, errors.join('|'));
 t('cover avatar row removed (clean professional)', !d.getElementById('coverPortraitRow'), 'should be null for clean look');
 t('cover portrait img removed', !d.getElementById('img_cover_portrait'), 'avatar deleted per final decision');
-t('cover uses exact reference artwork', (d.getElementById('img_cover')?.getAttribute('src') || '').includes('ktm-cover-page-1') || (d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover-v2-portrait'), d.getElementById('img_cover')?.getAttribute('src'));
-t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover.jpg'), 'should not use old landscape cover');
+t('cover uses exact reference artwork (ktm-cover-page-1.png)', (()=>{ const s=d.getElementById('img_cover')?.getAttribute('src')||''; return s.includes('ktm-cover-page-1.png') || s.includes('page-cover-v2-portrait'); })(), d.getElementById('img_cover')?.getAttribute('src'));
+t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').match(/page-cover\.jpg$/), 'should not use old landscape cover');
 t('cover stats still present', !!d.getElementById('v_coverStatYears'));
+
+// PIXEL-EXACT STATIC COVER — ktm-cover-page-1.png as single artwork (user: exact yahi image use kr, no recreate)
+t('cover is pixel-exact static ktm-cover with img /assets/ktm-cover-page-1.png', (()=>{ const wrap=d.querySelector('.ktm-cover'); const img=wrap?.querySelector('img'); if(!wrap||!img) return false; const src=img.getAttribute('src')||''; return src.includes('ktm-cover-page-1.png') || src.includes('assets/ktm-cover-page-1.png'); })(), d.querySelector('.ktm-cover img')?.getAttribute('src'));
+t('cover img alt is KTM Energy Experts Solar Proposal Cover', (()=>{ const alt=d.querySelector('.ktm-cover img')?.getAttribute('alt')||''; return alt.includes('KTM') && alt.toLowerCase().includes('cover'); })(), d.querySelector('.ktm-cover img')?.getAttribute('alt'));
+t('cover uses A4 portrait @page and preserves aspect ratio with object-fit contain (no crop)', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const ktmIdx=css.indexOf('.ktm-cover'); const sec=ktmIdx!==-1?css.slice(ktmIdx, ktmIdx+4000):css; return /object-fit:\s*contain/i.test(sec) && !/object-fit:\s*cover/i.test(sec.slice(sec.indexOf('.ktm-cover img'), sec.indexOf('.ktm-cover img')+500)) && /@page\s*\{\s*size:\s*A4\s*portrait/i.test(css) && /page-break-after:\s*always/i.test(sec); })());
+t('cover does not use filters/overlays/gradients on the static image (preserve exactly)', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const ktmBlock=(css.match(/\.ktm-cover\s*\{[^}]*\}/i)||[''])[0]; const imgBlock=(css.match(/\.ktm-cover\s+img\s*\{[^}]*\}/i)||[''])[0]; const combined=ktmBlock+imgBlock; return !/filter:/i.test(combined) && !/gradient/i.test(combined) && !/backdrop-filter/i.test(combined); })());
+t('cover file exists at assets/ktm-cover-page-1.png', fs.existsSync(path.join(ROOT,'assets/ktm-cover-page-1.png')));
+t('trust pills do not contain MNRE/Pan-Pune marketing copy', !((d.querySelector('.cover-trust')?.textContent)||'').includes('MNRE') && !((d.querySelector('.cover-trust')?.textContent)||'').includes('Pan-Pune'));
+t('cover badge Kwp + savings nodes exist (hidden for static, kept for JS compat)', !!d.getElementById('v_coverBadgeKwp') && !!d.getElementById('v_coverBadgeGen'));
+t('cover hidden dynamic IDs still present for JS (v_coverCustName etc)', !!d.getElementById('v_coverCustName') && !!d.getElementById('v_coverCapacity') && !!d.getElementById('v_coverRef'));
+// keep dynamic sync tests below for hidden IDs — visual is static, data still flows
+t('cover CSS does not use cover crop (object-fit:cover) on ktm-cover img', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const m=css.match(/\.ktm-cover\s+img\s*\{[^}]*\}/i); if(!m) return false; return /object-fit:\s*contain/i.test(m[0]) && !/object-fit:\s*cover/i.test(m[0]); })());
 
 t('OG tags present (quotation.html)', !!d.querySelector('meta[property="og:title"]'));
 t('OG image present', !!d.querySelector('meta[property="og:image"]'));
-t('OG image is v2 portrait (final)', (d.querySelector('meta[property="og:image"]')?.content || '').includes('v2-portrait'), d.querySelector('meta[property="og:image"]')?.content);
+t('OG image is v2 portrait (final) for social share', (d.querySelector('meta[property="og:image"]')?.content || '').includes('v2-portrait'), d.querySelector('meta[property="og:image"]')?.content);
 t('OG type website', d.querySelector('meta[property="og:type"]')?.content === 'website');
 t('twitter card present', !!d.querySelector('meta[name="twitter:card"]'));
 t('og:title contains Quotation Studio', (d.querySelector('meta[property="og:title"]')?.content || '').includes('Quotation Studio'));
@@ -168,7 +180,9 @@ t('clearing both report links hides block', w.getComputedStyle(refsWrap).display
 
 console.log('— sync: initial capacity 7 kWp real-sync —');
 t('cover capacity = 7 kWp', d.getElementById('v_coverCapacity').textContent === '7 kWp', d.getElementById('v_coverCapacity').textContent);
-t('cover badge = 7 kWp', d.getElementById('v_coverBadgeKwp').textContent === '7 kWp');
+t('cover badge Kwp = 7 kWp', d.getElementById('v_coverBadgeKwp').textContent === '7 kWp');
+t('cover badge savings = ₹78.09 L (lifetime)', d.getElementById('v_coverBadgeGen').textContent.includes('₹78.09') || d.getElementById('v_coverBadgeGen').textContent.includes('₹78'), d.getElementById('v_coverBadgeGen').textContent);
+t('cover badge savings contains ₹ and L/Cr not units', d.getElementById('v_coverBadgeGen').textContent.includes('₹') && !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('tech spec module count 13 for 7kWp', d.getElementById('v_tsTable').textContent.includes('13 modules'));
 t('solution spec shows 7 kWp', d.getElementById('v_soSpecs').textContent.includes('7 kWp'));
 t('exec hero net = ₹6,08,070 for 7kWp', d.getElementById('v_exHeroNet').textContent === '₹6,08,070');
@@ -180,11 +194,12 @@ fire(w, d.getElementById('capacity'), 'input');
 
 t('cover capacity updates to 10 kWp', d.getElementById('v_coverCapacity').textContent === '10 kWp', d.getElementById('v_coverCapacity').textContent);
 t('cover badge updates to 10 kWp', d.getElementById('v_coverBadgeKwp').textContent === '10 kWp');
+t('cover badge savings updates to ₹1.12 Cr for 10kWp', d.getElementById('v_coverBadgeGen').textContent.includes('₹1.12') || d.getElementById('v_coverBadgeGen').textContent.includes('₹1.11'), d.getElementById('v_coverBadgeGen').textContent);
 t('live chip updates to 10 kWp', d.getElementById('liveChipText').textContent.includes('10 kWp') || d.getElementById('liveChipText').textContent.includes('10'), d.getElementById('liveChipText').textContent);
 t('exec hero net updates to ₹9,02,100 for 10kWp', d.getElementById('v_exHeroNet').textContent === '₹9,02,100', d.getElementById('v_exHeroNet').textContent);
 t('tech spec module count 19 for 10kWp', d.getElementById('v_tsTable').textContent.includes('19 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('solution spec updates to 10 kWp', d.getElementById('v_soSpecs').textContent.includes('10 kWp'));
-t('savings chip generation updates', d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
+t('badge savings does not show units per year', !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('live chip title contains capacity', (d.getElementById('liveChip').title || '').includes('10 kWp') || (d.getElementById('liveChip').title || '').includes('10'));
 
 console.log('— sync: change capacity to 5 kWp —');
@@ -193,6 +208,7 @@ fire(w, d.getElementById('capacity'), 'input');
 
 t('cover capacity updates to 5 kWp', d.getElementById('v_coverCapacity').textContent === '5 kWp');
 t('cover badge updates to 5 kWp', d.getElementById('v_coverBadgeKwp').textContent === '5 kWp');
+t('cover badge savings for 5kWp is ₹55.78 L', d.getElementById('v_coverBadgeGen').textContent.includes('₹55.78') || d.getElementById('v_coverBadgeGen').textContent.includes('₹55'), d.getElementById('v_coverBadgeGen').textContent);
 t('live chip updates to 5 kWp', d.getElementById('liveChipText').textContent.includes('5 kWp'));
 t('tech spec module count 10 for 5kWp', d.getElementById('v_tsTable').textContent.includes('10 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('exec hero net for 5kWp has ₹', d.getElementById('v_exHeroNet').textContent.includes('₹'), d.getElementById('v_exHeroNet').textContent);
@@ -203,12 +219,13 @@ fire(w, d.getElementById('custName'), 'input');
 t('live chip shows customer first name Test', d.getElementById('liveChipText').textContent.includes('Test') || d.getElementById('liveChipText').textContent.includes('Ms.'), d.getElementById('liveChipText').textContent);
 t('cover customer name updates', d.getElementById('v_coverCustName').textContent.includes('Test Customer'));
 
-console.log('— sync: 20 kWp final check (₹18,82,200, 29,200, 37 modules) —');
+console.log('— sync: 20 kWp final check (₹18,82,200, ₹2.23 Cr, 37 modules) —');
 d.getElementById('capacity').value = '20';
 fire(w, d.getElementById('capacity'), 'input');
 t('20kWp cover = 20 kWp', d.getElementById('v_coverCapacity').textContent === '20 kWp');
 t('20kWp hero = ₹18,82,200', d.getElementById('v_exHeroNet').textContent === '₹18,82,200', d.getElementById('v_exHeroNet').textContent);
-t('20kWp gen ≈ 29,200 units', d.getElementById('v_coverBadgeGen').textContent.includes('29,200'), d.getElementById('v_coverBadgeGen').textContent);
+t('20kWp lifetime savings badge = ₹2.23 Cr', d.getElementById('v_coverBadgeGen').textContent.includes('₹2.23') || d.getElementById('v_coverBadgeGen').textContent.includes('₹2.2'), d.getElementById('v_coverBadgeGen').textContent);
+t('20kWp badge no units', !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('20kWp modules = 37', d.getElementById('v_tsTable').textContent.includes('37 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('live chip shows 20 kWp', d.getElementById('liveChipText').textContent.includes('20 kWp'));
 

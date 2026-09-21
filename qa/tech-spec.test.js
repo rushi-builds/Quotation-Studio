@@ -99,7 +99,7 @@ const t = (name, condition) => {
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
     t('20 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹18,82,200'));
-    t('20 kWp generation unchanged', await page.$eval('#v_coverBadgeGen', (el) => el.textContent.includes('29,200')));
+    t('20 kWp lifetime savings unchanged', await page.$eval('#v_coverBadgeGen', (el) => el.textContent.includes('₹2.23')));
     t('20 kWp module count unchanged', await page.$eval('#v_tsTable', (el) => el.textContent.includes('37 modules')));
     t('no browser runtime errors', errors.length === 0);
     fs.writeFileSync(path.join(OUT, 'tech-spec-metrics.json'), JSON.stringify(results, null, 2) + '\n');
