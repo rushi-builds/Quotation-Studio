@@ -55,12 +55,31 @@
       return;
     }
 
-    /* company branding */
+    /* company branding + OG tags dynamic */
     const f = blob.form || {};
     if (f.companyName) {
       $('shareTitle').textContent = f.companyName + ' — Solar Proposal';
       document.title = 'Solar Proposal — ' + (f.custName || 'Customer') + ' (' + f.capacity + ' kWp)';
     }
+    try {
+      const setMeta = (prop, content) => {
+        let el = document.querySelector('meta[property=\"' + prop + '\"]');
+        if (!el) {
+          el = document.createElement('meta');
+          el.setAttribute('property', prop);
+          document.head.appendChild(el);
+        }
+        el.setAttribute('content', content);
+      };
+      const ogTitle = (f.custName ? f.custName + ' — ' : '') + (f.capacity || '') + ' kWp Solar Proposal — ' + (f.companyName || 'KTM');
+      const ogDesc = 'Personalised ' + (f.capacity || '') + ' kWp rooftop solar proposal for ' + (f.custName || 'customer') + ' — generation, savings, investment and EMI analysis by ' + (f.companyName || 'KTM Energy Experts');
+      setMeta('og:title', ogTitle);
+      setMeta('og:description', ogDesc);
+      const twTitle = document.querySelector('meta[name=\"twitter:title\"]');
+      if (twTitle) twTitle.setAttribute('content', ogTitle);
+      const twDesc = document.querySelector('meta[name=\"twitter:description\"]');
+      if (twDesc) twDesc.setAttribute('content', ogDesc);
+    } catch (e) { /* noop */ }
     $('shareSub').textContent = 'Ref ' + (f.propRef || '') + ' · v' + (f.propVersion || '1.0') +
       ' · ' + (window.Finance.fmtDate(f.propDate) || '');
     $('shareStatus').textContent = window.Proposals.statusLabel(blob.status);

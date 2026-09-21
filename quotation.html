@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quotation Studio — Solar EPC Proposal Builder</title>
 <meta name="description" content="Build a premium 15-page rooftop solar EPC proposal with live A4 preview, financial analytics and one-click PDF export.">
+<meta property="og:title" content="Quotation Studio — Solar EPC Proposal Builder">
+<meta property="og:description" content="Build a premium 15-page rooftop solar EPC proposal with live A4 preview, financial analytics and one-click PDF export.">
+<meta property="og:image" content="assets/images/page-cover-v2-portrait.jpg">
+<meta property="og:type" content="website">
+<meta property="og:url" content="">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Quotation Studio — Solar EPC Proposal Builder">
+<meta name="twitter:description" content="Build a premium 15-page rooftop solar EPC proposal with live A4 preview, financial analytics and one-click PDF export.">
+<meta name="twitter:image" content="assets/images/page-cover-v2-portrait.jpg">
 <link rel="icon" href="assets/images/logo.png" type="image/png">
 <link rel="stylesheet" href="assets/css/app.css">
 </head>
@@ -302,6 +311,7 @@
   <main class="preview-panel">
     <div class="preview-toolbar">
       <div class="page-nav" id="pageNav"></div>
+      <div class="live-chip" id="liveChip" title="Live quote — updates as you type"><span class="live-dot"></span><span id="liveChipText">Live • 7 kWp</span></div>
       <button class="present-toggle" id="presentBtn" type="button" title="Hide the editor and present full-page">&#9654; Present</button>
     </div>
     <button class="exit-present" id="exitPresentBtn" type="button">&#10005; Exit presentation (Esc)</button>
@@ -353,7 +363,7 @@
           <div class="cover-stat4" id="v_coverStat4"></div>
         </div>
         <div class="cover-right">
-          <img id="img_cover" src="assets/images/page-cover.jpg" alt="Rooftop solar installation">
+          <img id="img_cover" src="assets/images/page-cover-v2-portrait.jpg" alt="Rooftop solar installation — clean portrait fit">
           <div class="cover-badge">
             <div class="cb-kwp" id="v_coverBadgeKwp">—</div>
             <div class="cb-gen" id="v_coverBadgeGen">—</div>
