@@ -785,6 +785,69 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 .cover-left,.cover-right,.cover-badge,.cover-index,.cover-stats,.cover-trust{display:none !important;}
 #v_coverStatYears,#v_coverStatProjects,#v_coverStatCapacity,#v_coverStat4{position:absolute;left:-9999px;}
 
+/* =========================================================
+   KTM COVER — PIXEL-EXACT STATIC ARTWORK (user: exact yahi image use kr)
+   Render the supplied PNG as single artwork, preserve exactly,
+   no crop, no filter, object-fit contain, A4 portrait
+   ========================================================= */
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ktm-cover {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.ktm-cover img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+@media print {
+  .ktm-cover {
+    width: 100%;
+    height: 100%;
+    page-break-after: always;
+  }
+
+  .ktm-cover img {
+    width: 100%;
+    height: auto;
+  }
+}
+/* Ensure .page containing ktm-cover fills A4 and centers artwork */
+.page .ktm-cover{
+  width:100%;
+  height:100%;
+  min-height: var(--page-h);
+}
+.page .ktm-cover img{
+  width:100%;
+  height:auto;
+  max-height: var(--page-h);
+  object-fit: contain;
+  object-position: top center;
+}
+
 /* ---------- 9. Executive summary ---------- */
 .exec-hero{
   display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
