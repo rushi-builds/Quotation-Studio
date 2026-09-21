@@ -798,3 +798,30 @@ body.presenting .exit-present{display:block;}
   box-shadow:0 0 0 2px rgba(46,204,113,.18);
 }
 /* cover portrait removed — final clean professional look, no avatar */
+
+/* Control-panel modes: view preference only; hidden fields remain live. */
+.form-mode{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin:0 0 10px;padding:8px;background:#fff;border:1px solid
+  var(--line-cool,#E3E8EE);border-radius:10px;position:sticky;
+  top:8px;z-index:5;box-shadow:0 2px 10px rgba(16,32,52,.08);}
+.form-mode .fm-btn{border:1px solid var(--line-cool,#E3E8EE);
+  background:#F7F9FB;color:#5B6B80;font-family:'Poppins',sans-serif;
+  font-size:11px;font-weight:700;border-radius:8px;padding:6px 14px;
+  cursor:pointer;}
+.form-mode .fm-btn.active{background:var(--navy,#1C2B3F);
+  border-color:var(--navy,#1C2B3F);color:#fff;}
+.form-mode .fm-hint{font-size:9.5px;color:#5B6B80;line-height:1.45;
+  flex:1;min-width:200px;}
+form.qs-mode-essentials [data-adv]{display:none !important;}
+
+/* Links to externally prepared design and simulation documents. */
+.ts-refs{display:flex;gap:10px;margin:10px 0 0;}
+.ts-ref{flex:1;display:flex;align-items:center;gap:9px;border:1px
+  solid var(--line-cool,#E3E8EE);border-radius:9px;padding:9px 11px;
+  background:#fff;}
+.ts-ref .tr-l{font-size:8.2px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:#5B6B80;}
+.ts-ref .tr-v{font-size:10.5px;font-weight:700;color:var(--navy,#1C2B3F);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ts-ref a{color:var(--orange-dark,#D96A0E);text-decoration:none;}
+.ts-ref-note{font-size:8.4px;color:#9AA2AC;line-height:1.5;margin-top:5px;}

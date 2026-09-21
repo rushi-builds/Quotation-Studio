@@ -46,6 +46,8 @@
     cableMake: 'Polycab / KEI or Equivalent',
     roofType: 'RCC Terrace',
     availableArea: '',
+    pvsystUrl: '',
+    arkaUrl: '',
     /* ---- Financial assumptions ---- */
     costPerKwp: '90000',
     gstPercent: '8.9',

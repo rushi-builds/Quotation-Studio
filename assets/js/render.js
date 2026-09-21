@@ -408,6 +408,21 @@
     setHTML('v_tsTable', rows.join(''));
     set('v_tsNoteLabel', P.noteLabel);
     set('v_tsNote', P.note);
+    const refs = [
+      [s.pvsystUrl, P.refsPvsyst, 'chart'],
+      [s.arkaUrl, P.refsArka, 'sun']
+    ].filter((r) => r[0] && String(r[0]).trim());
+    const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return String(u).replace(/^https?:\/\//, '').split('/')[0]; } };
+    show('v_tsRefsWrap', refs.length > 0);
+    if (refs.length) {
+      set('v_tsRefsLabel', P.refsLabel);
+      setHTML('v_tsRefs', refs.map(([u, label, icon]) =>
+        '<div class="ts-ref"><div class="tr-icon">' + I.get(icon, 14, '#D96A0E') + '</div>' +
+        '<div class="tr-body"><div class="tr-l">' + esc(label) + '</div>' +
+        '<div class="tr-v"><a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' +
+        esc(host(u)) + '</a></div></div></div>').join(''));
+      set('v_tsRefsNote', P.refsNote);
+    }
   }
 
   /* Simple, clean single-line system diagram (sun → array → inverter →
@@ -922,6 +937,7 @@
       inverterMake: g('inverterMake'), inverterKw: g('inverterKw'),
       mountMake: g('mountMake'), cableMake: g('cableMake'),
       roofType: g('roofType'), availableArea: g('availableArea'),
+      pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'),
       costPerKwp: g('costPerKwp'), gstPercent: g('gstPercent'),
       tariff: g('tariff'), escalation: g('escalation'), degradation: g('degradation'),
       subsidyOverride: g('subsidyOverride'), co2Factor: g('co2Factor'), treeFactor: g('treeFactor'),

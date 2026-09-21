@@ -1,4 +1,4 @@
-/* Capacity real-sync + live chip + clean cover + OG tags tests (final: no avatar)
+/* Capacity real-sync + control-panel modes + design references + clean cover + OG tags
    Run: node qa/sync.test.js */
 'use strict';
 const fs = require('fs');
@@ -32,7 +32,9 @@ function mockCtx() {
 
 function bootApp(seedStorage, url) {
   const html = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8')
-    .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
+    .replace(/<script[^>]*src=[^>]*><\/script>/g, '')
+    .replace('<link rel="stylesheet" href="assets/css/app.css">', () =>
+      '<style>' + fs.readFileSync(path.join(ROOT, 'assets/css/app.css'), 'utf8') + '</style>');
   const dom = new JSDOM(html, {
     url: url || 'http://localhost/quotation.html',
     runScripts: 'dangerously', pretendToBeVisual: true,
@@ -86,6 +88,83 @@ t('live chip dot has no animation (subtle per rule)', (() => {
   const style = w.getComputedStyle(dot);
   return !style.animationName || style.animationName === 'none' || style.animation === '' || !style.animation.includes('livePulse');
 })(), 'should be static per no-gimmicks rule');
+
+console.log('— sync: control-panel modes —');
+const form = d.getElementById('quoteForm');
+const advanced = [...form.querySelectorAll('[data-adv]')];
+t('defaults to Essentials', form.classList.contains('qs-mode-essentials'));
+t('Essentials button active by default', d.getElementById('modeEss').classList.contains('active') && !d.getElementById('modeAll').classList.contains('active'));
+t('exactly eight advanced sections tagged', advanced.length === 8, advanced.length);
+t('all advanced sections hidden in Essentials', advanced.every((el) => w.getComputedStyle(el).display === 'none'));
+t('capacity remains visible in Customer & System beside customer type', (() => {
+  const cap = d.getElementById('capacity');
+  return d.querySelectorAll('#capacity').length === 1 && !cap.closest('[data-adv]') &&
+    cap.closest('fieldset').querySelector('legend').textContent === 'Customer & System' &&
+    cap.closest('.row2') === d.getElementById('customerType').closest('.row2');
+})());
+t('all other form sections remain visible in Essentials', [...form.children].filter((el) => !el.hasAttribute('data-adv')).every((el) => w.getComputedStyle(el).display !== 'none'));
+const beforeMode = JSON.stringify(w.StateStore.collectForm());
+d.getElementById('modeAll').click();
+t('All settings removes Essentials class', !form.classList.contains('qs-mode-essentials'));
+t('All settings reveals advanced sections', advanced.every((el) => w.getComputedStyle(el).display !== 'none'));
+t('All settings button active', d.getElementById('modeAll').classList.contains('active') && !d.getElementById('modeEss').classList.contains('active'));
+t('All settings preference stored separately', w.localStorage.getItem('qstudio.formMode') === 'all');
+const allReboot = bootApp({ 'qstudio.formMode': 'all' });
+t('All settings preference restored on boot', !allReboot.document.getElementById('quoteForm').classList.contains('qs-mode-essentials'));
+allReboot.close();
+d.getElementById('modeEss').click();
+t('back to Essentials hides advanced sections', form.classList.contains('qs-mode-essentials') && advanced.every((el) => w.getComputedStyle(el).display === 'none'));
+t('switching modes leaves collected proposal data unchanged', JSON.stringify(w.StateStore.collectForm()) === beforeMode);
+t('hidden inputs remain collected', w.StateStore.collectForm().moduleWattage === '545');
+t('Essentials preference stored separately', w.localStorage.getItem('qstudio.formMode') === 'essentials');
+const invalidMode = bootApp({ 'qstudio.formMode': 'unknown' });
+t('unknown preference falls back to Essentials', invalidMode.document.getElementById('quoteForm').classList.contains('qs-mode-essentials'));
+invalidMode.close();
+
+console.log('— sync: design and simulation references —');
+const refsWrap = d.getElementById('v_tsRefsWrap');
+const pvsystUrl = 'https://www.example.com/reports/site-pvsyst.pdf';
+const arkaUrl = 'https://design.example.org/site/arka';
+const updateLink = (id, value) => {
+  d.getElementById(id).value = value;
+  fire(w, d.getElementById(id), 'input');
+};
+t('report defaults empty', w.StateStore.DEFAULTS.pvsystUrl === '' && w.StateStore.DEFAULTS.arkaUrl === '');
+t('references hidden by default', w.getComputedStyle(refsWrap).display === 'none');
+updateLink('pvsystUrl', pvsystUrl);
+t('PVsyst input shows references even in Essentials', w.getComputedStyle(refsWrap).display !== 'none');
+t('PVsyst label rendered', d.querySelector('#v_tsRefs .tr-l').textContent === 'PVsyst Performance Simulation');
+t('reference hostname omits www and path', d.querySelector('#v_tsRefs a').textContent === 'example.com');
+t('reference preserves full URL with safe new-tab attributes', (() => {
+  const a = d.querySelector('#v_tsRefs a');
+  return a.getAttribute('href') === pvsystUrl && a.target === '_blank' && a.rel === 'noopener noreferrer';
+})());
+t('reference section label and note rendered', d.getElementById('v_tsRefsLabel').textContent === 'DESIGN & SIMULATION REFERENCES' && d.getElementById('v_tsRefsNote').textContent.includes('authoritative source'));
+t('references between spec table and note', refsWrap.previousElementSibling.id === 'v_tsTable' && refsWrap.nextElementSibling.classList.contains('note-box'));
+updateLink('pvsystUrl', '');
+t('clearing only link hides references again', w.getComputedStyle(refsWrap).display === 'none');
+updateLink('arkaUrl', arkaUrl);
+t('Arka alone shows its own label and hostname', d.querySelectorAll('#v_tsRefs .ts-ref').length === 1 && d.querySelector('#v_tsRefs .tr-l').textContent === 'Arka 3D Shading & Layout Design' && d.querySelector('#v_tsRefs a').textContent === 'design.example.org');
+updateLink('pvsystUrl', pvsystUrl);
+t('both report links render together', d.querySelectorAll('#v_tsRefs .ts-ref').length === 2);
+const saved = w.__qsSaveNow();
+t('both links saved on proposal blob', saved.form.pvsystUrl === pvsystUrl && saved.form.arkaUrl === arkaUrl);
+t('mode preference not stored as proposal data', !JSON.stringify(saved).includes('qstudio.formMode') && !Object.values(saved.form).includes('essentials'));
+const snapshot = {};
+for (let i = 0; i < w.localStorage.length; i++) {
+  const key = w.localStorage.key(i);
+  snapshot[key] = w.localStorage.getItem(key);
+}
+const reboot = bootApp(snapshot);
+t('both report inputs restored after reboot', reboot.document.getElementById('pvsystUrl').value === pvsystUrl && reboot.document.getElementById('arkaUrl').value === arkaUrl);
+t('saved proposal blob retains both links after reboot', reboot.Proposals.active().form.pvsystUrl === pvsystUrl && reboot.Proposals.active().form.arkaUrl === arkaUrl);
+t('both references render after reboot', reboot.document.querySelectorAll('#v_tsRefs .ts-ref').length === 2 && reboot.getComputedStyle(reboot.document.getElementById('v_tsRefsWrap')).display !== 'none');
+reboot.close();
+const editorLabels = ['References section label', 'PVsyst reference label', 'Arka reference label', 'References note'];
+t('all four reference text fields available in Advanced Edit', editorLabels.every((label) => [...d.querySelectorAll('#advContainer label')].some((el) => el.textContent === label)));
+updateLink('pvsystUrl', '');
+updateLink('arkaUrl', '');
+t('clearing both report links hides block', w.getComputedStyle(refsWrap).display === 'none');
 
 console.log('— sync: initial capacity 7 kWp real-sync —');
 t('cover capacity = 7 kWp', d.getElementById('v_coverCapacity').textContent === '7 kWp', d.getElementById('v_coverCapacity').textContent);

@@ -173,6 +173,10 @@
       mkField(g, 'Diagram — ' + k, CONTENT.pageTechSpec.diagramLabels[k], (v) => { CONTENT.pageTechSpec.diagramLabels[k] = v; });
     });
     mkField(g, 'Table section label', CONTENT.pageTechSpec.groupsLabel, (v) => { CONTENT.pageTechSpec.groupsLabel = v; });
+    mkField(g, 'References section label', CONTENT.pageTechSpec.refsLabel, (v) => { CONTENT.pageTechSpec.refsLabel = v; });
+    mkField(g, 'PVsyst reference label', CONTENT.pageTechSpec.refsPvsyst, (v) => { CONTENT.pageTechSpec.refsPvsyst = v; });
+    mkField(g, 'Arka reference label', CONTENT.pageTechSpec.refsArka, (v) => { CONTENT.pageTechSpec.refsArka = v; });
+    mkField(g, 'References note', CONTENT.pageTechSpec.refsNote, (v) => { CONTENT.pageTechSpec.refsNote = v; }, true);
     mkField(g, 'Note label', CONTENT.pageTechSpec.noteLabel, (v) => { CONTENT.pageTechSpec.noteLabel = v; });
     mkField(g, 'Note', CONTENT.pageTechSpec.note, (v) => { CONTENT.pageTechSpec.note = v; }, true);
 
