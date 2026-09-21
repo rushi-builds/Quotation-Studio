@@ -65,13 +65,27 @@ const d = w.document;
 t('no errors on boot', errors.length === 0, errors.join('|'));
 t('cover avatar row removed (clean professional)', !d.getElementById('coverPortraitRow'), 'should be null for clean look');
 t('cover portrait img removed', !d.getElementById('img_cover_portrait'), 'avatar deleted per final decision');
-t('cover uses v2 portrait villa image (final)', (d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover-v2-portrait'), d.getElementById('img_cover')?.getAttribute('src'));
-t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover.jpg') || (d.getElementById('img_cover')?.getAttribute('src') || '').includes('v2'), 'should use v2');
+t('cover uses tall premium hero (exact reference: page-cover-exact-hero.jpg or page-cover-tall.jpg)', (()=>{ const s=d.getElementById('img_cover')?.getAttribute('src')||''; return s.includes('page-cover-exact-hero.jpg') || s.includes('page-cover-tall.jpg'); })(), d.getElementById('img_cover')?.getAttribute('src'));
+t('cover img alt is AI placeholder policy (not a real site photo)', (()=>{ const alt=(d.getElementById('img_cover')?.getAttribute('alt')||'').toLowerCase(); return alt.includes('ai-generated') && alt.includes('placeholder'); })(), d.getElementById('img_cover')?.getAttribute('alt'));
+t('old v2 portrait not used for #img_cover', !(d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover-v2-portrait'), d.getElementById('img_cover')?.getAttribute('src'));
+t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').match(/page-cover\.jpg$/), 'should use tall/exact-hero');
 t('cover stats still present', !!d.getElementById('v_coverStatYears'));
+
+// EXACT KTM PREMIUM COVER — user-provided proposal-cover CSS (210mm, diagonal 72%→100%→72%)
+t('cover is exact proposal-cover (210mm A4) with inverted logo-white', (()=>{ const sec=d.querySelector('.proposal-cover'); const img=d.querySelector('.proposal-cover__logo'); return !!sec && img && (img.getAttribute('src')||'').includes('assets/images/logo-white.png'); })(), d.querySelector('.proposal-cover__logo')?.getAttribute('src'));
+t('cover gov line Govt. Approved EPC Contractor with orange underline', (()=>{ const g=d.querySelector('.proposal-cover__approved'); return g && g.textContent.includes('Govt. Approved EPC Contractor'); })(), d.querySelector('.proposal-cover__approved')?.textContent);
+t('cover benefits are exactly 4 with 28px orange circular icons', (()=>{ const wrap=d.querySelector('.proposal-cover__benefits'); if(!wrap) return false; const items=wrap.querySelectorAll('.proposal-cover__benefit'); if(items.length!==4) return false; const titles=[...items].map(b=>b.querySelector('strong')?.textContent.trim()); return titles.includes('CLEANER') && titles.includes('LOWER') && titles.includes('RELIABLE') && titles.includes('EXPERT') && [...wrap.querySelectorAll('.proposal-cover__benefit-icon')].length===4; })(), d.querySelector('.proposal-cover__benefits')?.textContent);
+t('trust pills do not contain MNRE/Pan-Pune marketing copy', !((d.querySelector('.cover-trust')?.textContent)||'').includes('MNRE') && !((d.querySelector('.cover-trust')?.textContent)||'').includes('Pan-Pune'));
+t('cover dedicated proposal exists with customer + 4 rows (Location/System/Proposal No/Date)', (()=>{ const ded=d.querySelector('.proposal-cover__customer'); if(!ded) return false; const label=(ded.querySelector('.proposal-cover__customer-label')?.textContent||'').trim(); if(!label) return false; const name=(ded.querySelector('#v_coverCustName')?.textContent||'').trim(); if(!name || name==='—') return false; const rows=[...ded.querySelectorAll('.proposal-cover__detail')].map(r=>r.textContent); return rows.length>=4 && rows.some(r=>r.includes('Location')) && rows.some(r=>r.includes('System Size')) && rows.some(r=>r.includes('Proposal No')) && rows.some(r=>r.includes('Date')); })(), d.querySelector('.proposal-cover__customer')?.innerHTML?.slice(0,500));
+t('cover bottom KPIs is 18% navy bar with 2 white 48px circle icons + explicit width/height', (()=>{ const bar=d.querySelector('.proposal-cover__kpis'); if(!bar) return false; const kpis=bar.querySelectorAll('.proposal-cover__kpi'); if(kpis.length!==2) return false; const labels=[...bar.querySelectorAll('.proposal-cover__kpi-label')].map(l=>l.textContent.trim()); if(!(labels.includes('Project Capacity') && labels.includes('Projected 25-year savings'))) return false; const icons=bar.querySelectorAll('.proposal-cover__kpi-icon'); if(icons.length!==2) return false; const svgs=[...bar.querySelectorAll('svg')]; if(svgs.length<2) return false; return svgs.every(svg=> svg.getAttribute('width') && svg.getAttribute('height') ); })(), d.querySelector('.proposal-cover__kpis')?.innerHTML?.slice(0,500));
+t('cover badge Kwp + savings nodes exist', !!d.getElementById('v_coverBadgeKwp') && !!d.getElementById('v_coverBadgeGen'));
+t('cover CSS exact uses proposal-cover clip-path 72%→100%→72% + hero 32% + KPI 18% + tagline', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const s=css.indexOf('.proposal-cover'); const e=css.indexOf('/* ---------- 9.', s); const sec=s!==-1&&e!==-1?css.slice(s,e):css.slice(s,s+14000); return /proposal-cover__panel/i.test(sec) && /72%\s*0/i.test(sec) && /100%\s*50%/i.test(sec) && /72%\s*100%/i.test(sec) && /proposal-cover__hero/i.test(sec) && /inset:\s*0\s*0\s*0\s*32%/i.test(sec) && /proposal-cover__kpis/i.test(sec) && /height:\s*18%/i.test(sec) && /border-top:\s*3px\s*solid/i.test(sec) && /proposal-cover__tagline/i.test(sec); })());
+t('cover CSS accent is solid #f7941d / orange (no gradient text)', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const s=css.indexOf('.proposal-cover'); const e=css.indexOf('/* ---------- 9.', s); const sec=s!==-1&&e!==-1?css.slice(s,e):css; return /--ktm-orange:\s*#f7941d/i.test(sec) && /color:\s*var\(--ktm-orange\)/i.test(sec) && !/background-clip\s*:\s*text/i.test(sec); })());
+t('cover CSS tagline is top 5% right 5% with 48px orange underline', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const s=css.indexOf('.proposal-cover'); const e=css.indexOf('/* ---------- 9.', s); const sec=s!==-1&&e!==-1?css.slice(s,e):css; return /proposal-cover__tagline/i.test(sec) && /top:\s*5%/i.test(sec) && /right:\s*5%/i.test(sec) && /width:\s*48px/i.test(sec) && /height:\s*2px/i.test(sec); })());
 
 t('OG tags present (quotation.html)', !!d.querySelector('meta[property="og:title"]'));
 t('OG image present', !!d.querySelector('meta[property="og:image"]'));
-t('OG image is v2 portrait (final)', (d.querySelector('meta[property="og:image"]')?.content || '').includes('v2-portrait'), d.querySelector('meta[property="og:image"]')?.content);
+t('OG image is v2 portrait (final) for social share', (d.querySelector('meta[property="og:image"]')?.content || '').includes('v2-portrait'), d.querySelector('meta[property="og:image"]')?.content);
 t('OG type website', d.querySelector('meta[property="og:type"]')?.content === 'website');
 t('twitter card present', !!d.querySelector('meta[name="twitter:card"]'));
 t('og:title contains Quotation Studio', (d.querySelector('meta[property="og:title"]')?.content || '').includes('Quotation Studio'));
@@ -168,7 +182,9 @@ t('clearing both report links hides block', w.getComputedStyle(refsWrap).display
 
 console.log('— sync: initial capacity 7 kWp real-sync —');
 t('cover capacity = 7 kWp', d.getElementById('v_coverCapacity').textContent === '7 kWp', d.getElementById('v_coverCapacity').textContent);
-t('cover badge = 7 kWp', d.getElementById('v_coverBadgeKwp').textContent === '7 kWp');
+t('cover badge Kwp = 7 kWp', d.getElementById('v_coverBadgeKwp').textContent === '7 kWp');
+t('cover badge savings = ₹78.09 L (lifetime)', d.getElementById('v_coverBadgeGen').textContent.includes('₹78.09') || d.getElementById('v_coverBadgeGen').textContent.includes('₹78'), d.getElementById('v_coverBadgeGen').textContent);
+t('cover badge savings contains ₹ and L/Cr not units', d.getElementById('v_coverBadgeGen').textContent.includes('₹') && !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('tech spec module count 13 for 7kWp', d.getElementById('v_tsTable').textContent.includes('13 modules'));
 t('solution spec shows 7 kWp', d.getElementById('v_soSpecs').textContent.includes('7 kWp'));
 t('exec hero net = ₹6,08,070 for 7kWp', d.getElementById('v_exHeroNet').textContent === '₹6,08,070');
@@ -180,11 +196,12 @@ fire(w, d.getElementById('capacity'), 'input');
 
 t('cover capacity updates to 10 kWp', d.getElementById('v_coverCapacity').textContent === '10 kWp', d.getElementById('v_coverCapacity').textContent);
 t('cover badge updates to 10 kWp', d.getElementById('v_coverBadgeKwp').textContent === '10 kWp');
+t('cover badge savings updates to ₹1.12 Cr for 10kWp', d.getElementById('v_coverBadgeGen').textContent.includes('₹1.12') || d.getElementById('v_coverBadgeGen').textContent.includes('₹1.11'), d.getElementById('v_coverBadgeGen').textContent);
 t('live chip updates to 10 kWp', d.getElementById('liveChipText').textContent.includes('10 kWp') || d.getElementById('liveChipText').textContent.includes('10'), d.getElementById('liveChipText').textContent);
 t('exec hero net updates to ₹9,02,100 for 10kWp', d.getElementById('v_exHeroNet').textContent === '₹9,02,100', d.getElementById('v_exHeroNet').textContent);
 t('tech spec module count 19 for 10kWp', d.getElementById('v_tsTable').textContent.includes('19 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('solution spec updates to 10 kWp', d.getElementById('v_soSpecs').textContent.includes('10 kWp'));
-t('savings chip generation updates', d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
+t('badge savings does not show units per year', !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('live chip title contains capacity', (d.getElementById('liveChip').title || '').includes('10 kWp') || (d.getElementById('liveChip').title || '').includes('10'));
 
 console.log('— sync: change capacity to 5 kWp —');
@@ -193,6 +210,7 @@ fire(w, d.getElementById('capacity'), 'input');
 
 t('cover capacity updates to 5 kWp', d.getElementById('v_coverCapacity').textContent === '5 kWp');
 t('cover badge updates to 5 kWp', d.getElementById('v_coverBadgeKwp').textContent === '5 kWp');
+t('cover badge savings for 5kWp is ₹55.78 L', d.getElementById('v_coverBadgeGen').textContent.includes('₹55.78') || d.getElementById('v_coverBadgeGen').textContent.includes('₹55'), d.getElementById('v_coverBadgeGen').textContent);
 t('live chip updates to 5 kWp', d.getElementById('liveChipText').textContent.includes('5 kWp'));
 t('tech spec module count 10 for 5kWp', d.getElementById('v_tsTable').textContent.includes('10 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('exec hero net for 5kWp has ₹', d.getElementById('v_exHeroNet').textContent.includes('₹'), d.getElementById('v_exHeroNet').textContent);
@@ -203,12 +221,13 @@ fire(w, d.getElementById('custName'), 'input');
 t('live chip shows customer first name Test', d.getElementById('liveChipText').textContent.includes('Test') || d.getElementById('liveChipText').textContent.includes('Ms.'), d.getElementById('liveChipText').textContent);
 t('cover customer name updates', d.getElementById('v_coverCustName').textContent.includes('Test Customer'));
 
-console.log('— sync: 20 kWp final check (₹18,82,200, 29,200, 37 modules) —');
+console.log('— sync: 20 kWp final check (₹18,82,200, ₹2.23 Cr, 37 modules) —');
 d.getElementById('capacity').value = '20';
 fire(w, d.getElementById('capacity'), 'input');
 t('20kWp cover = 20 kWp', d.getElementById('v_coverCapacity').textContent === '20 kWp');
 t('20kWp hero = ₹18,82,200', d.getElementById('v_exHeroNet').textContent === '₹18,82,200', d.getElementById('v_exHeroNet').textContent);
-t('20kWp gen ≈ 29,200 units', d.getElementById('v_coverBadgeGen').textContent.includes('29,200'), d.getElementById('v_coverBadgeGen').textContent);
+t('20kWp lifetime savings badge = ₹2.23 Cr', d.getElementById('v_coverBadgeGen').textContent.includes('₹2.23') || d.getElementById('v_coverBadgeGen').textContent.includes('₹2.2'), d.getElementById('v_coverBadgeGen').textContent);
+t('20kWp badge no units', !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('20kWp modules = 37', d.getElementById('v_tsTable').textContent.includes('37 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('live chip shows 20 kWp', d.getElementById('liveChipText').textContent.includes('20 kWp'));
 

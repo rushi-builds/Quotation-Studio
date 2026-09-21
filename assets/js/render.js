@@ -78,7 +78,7 @@
     set('v_coverPrepLabel', CONTENT.cover.labels.preparedBy);
     set('v_coverPrepBy', s.prepName);
     set('v_coverBadgeKwp', s.capacity + ' kWp');
-    set('v_coverBadgeGen', '≈ ' + F.fmtNum(f.annualGen) + ' units / year');
+    set('v_coverBadgeGen', F.fmtINRshort(f.lifetimeSaving));
     set('v_coverStatYears', s.statYears);
     set('v_coverStatProjects', s.statProjects);
     set('v_coverStatCapacity', s.statCapacity);

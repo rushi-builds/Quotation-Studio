@@ -79,7 +79,7 @@ t('rendered all 17 page shells (options + financing hidden by default)', d.query
 t('page labels generated', /Page 1 of 15/.test(d.querySelector('[data-page="pageCover"] .page-label').textContent),
   d.querySelector('[data-page="pageCover"] .page-label').textContent);
 t('cover shows customer', d.getElementById('v_coverCustName').textContent.includes('Bhooshan'));
-t('cover badge generation', /10,220/.test(d.getElementById('v_coverBadgeGen').textContent),
+t('cover badge generation', /₹78/.test(d.getElementById('v_coverBadgeGen').textContent),
   d.getElementById('v_coverBadgeGen').textContent);
 t('exec hero net = ₹6,08,070', d.getElementById('v_exHeroNet').textContent === '₹6,08,070',
   d.getElementById('v_exHeroNet').textContent);
