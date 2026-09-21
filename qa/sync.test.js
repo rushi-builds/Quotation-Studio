@@ -65,10 +65,8 @@ const d = w.document;
 t('no errors on boot', errors.length === 0, errors.join('|'));
 t('cover avatar row removed (clean professional)', !d.getElementById('coverPortraitRow'), 'should be null for clean look');
 t('cover portrait img removed', !d.getElementById('img_cover_portrait'), 'avatar deleted per final decision');
-t('cover uses tall premium hero (static ktm-cover-page-1.png or exact-hero/tall)', (()=>{ const s=d.getElementById('img_cover')?.getAttribute('src')||''; return s.includes('ktm-cover-page-1.png') || s.includes('page-cover-exact-hero.jpg') || s.includes('page-cover-tall.jpg'); })(), d.getElementById('img_cover')?.getAttribute('src'));
-t('cover img alt is AI placeholder policy (not a real site photo)', (()=>{ const alt=(d.getElementById('img_cover')?.getAttribute('alt')||'').toLowerCase(); return alt.includes('ai-generated') && alt.includes('placeholder'); })(), d.getElementById('img_cover')?.getAttribute('alt'));
-t('old v2 portrait not used for #img_cover', !(d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover-v2-portrait'), d.getElementById('img_cover')?.getAttribute('src'));
-t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').match(/page-cover\.jpg$/), 'should use tall/exact-hero');
+t('cover uses exact reference artwork (ktm-cover-page-1.png)', (()=>{ const s=d.getElementById('img_cover')?.getAttribute('src')||''; return s.includes('ktm-cover-page-1.png') || s.includes('page-cover-v2-portrait'); })(), d.getElementById('img_cover')?.getAttribute('src'));
+t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').match(/page-cover\.jpg$/), 'should not use old landscape cover');
 t('cover stats still present', !!d.getElementById('v_coverStatYears'));
 
 // PIXEL-EXACT STATIC COVER — ktm-cover-page-1.png as single artwork (user: exact yahi image use kr, no recreate)

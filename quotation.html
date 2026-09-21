@@ -37,6 +37,14 @@
         Branding, equipment masters, documents &amp; photos live in
         <b>All settings</b> — set them once, rarely touch again. The
         document updates live as you type.</span>
+
+        <div class="quick-presets-bar">
+          <span class="qp-label">⚡ QUICK PRESETS:</span>
+          <button type="button" class="qp-btn" data-preset="3kw">3 kWp Surya Ghar</button>
+          <button type="button" class="qp-btn" data-preset="5kw">5 kWp Premium Resi</button>
+          <button type="button" class="qp-btn" data-preset="25kw">25 kWp Commercial</button>
+          <button type="button" class="qp-btn" data-preset="100kw">100 kWp Industrial</button>
+        </div>
       </div>
 
       <fieldset class="prop-manager">
@@ -339,11 +347,11 @@
         <!-- Hidden dynamic IDs for JS compatibility (kept off-screen, not altering visual) -->
         <div style="display:none !important;">
           <span id="v_coverEyebrow"></span><span id="v_coverTitle1">YOUR ROOF</span><span id="v_coverTitle2">POWER</span>
-          <span id="v_coverPreparedLabel">A DEDICATED PROPOSAL FOR</span><span id="v_coverCustName">Mr. ABC Customer</span><span id="v_coverCustAddress">Pune, Maharshstra</span><span id="v_coverCapacity">7 kWp</span><span id="v_coverRef">KTM-2026-013</span><span id="v_coverVersion"></span><span id="v_coverDate">20 September 2026</span><span id="v_coverValid"></span>
-          <span id="v_coverCapacityLabel"></span><span id="v_coverDateLabel"></span><span id="v_coverValidLabel"></span><span id="v_coverRefLabel"></span>
+          <span id="v_coverPreparedLabel">A DEDICATED PROPOSAL FOR</span><span id="v_coverCustName">Mr. ABC Customer</span><span id="v_coverCustAddress">Pune, Maharashtra</span><span id="v_coverLocSync">Pune, Maharashtra</span><span id="v_coverCapacity">7 kWp</span><span id="v_coverRef">KTM-2026-013</span><span id="v_coverVersion">v1.0</span><span id="v_coverDate">20 September 2026</span><span id="v_coverValid">—</span>
+          <span id="v_coverCapacityLabel">System Size</span><span id="v_coverDateLabel">Date</span><span id="v_coverValidLabel">Valid Until</span><span id="v_coverRefLabel">Proposal No.</span>
           <span id="v_coverPrepRow"></span><span id="v_coverPrepLabel"></span><span id="v_coverPrepBy"></span>
           <span id="v_coverStatYears">11+</span><span id="v_coverStatProjects">200+</span><span id="v_coverStatCapacity">20+ MW</span><span id="v_coverStat4"></span>
-          <span id="v_coverBadgeKwp">7 kWp</span><span id="v_coverBadgeGen">₹78.09 L</span>
+          <span id="v_coverBadgeKwp">7 kWp</span><span id="v_coverBadgeGen">≈ 10,220 units / year</span><span id="v_coverLifetimeSave">₹78.09 L</span>
           <img id="img_cover" src="assets/ktm-cover-page-1.png" alt="AI-generated tall architectural concept — villa with solar roof (placeholder, not a real site photo)" style="display:none;">
         </div>
         <div class="cover-qr" id="coverQrWrap" style="display:none;z-index:30;">
@@ -477,6 +485,35 @@
           <div class="grid-3" id="v_wsBenefits"></div>
           <div class="spacer"></div>
           <div class="highlight-bar" id="v_wsHighlight"></div>
+
+          <!-- Visual Before vs After Solar Bill Infographic -->
+          <div class="bill-slash-card" id="v_wsBillSlashCard">
+            <div class="bsc-head">
+              <span class="bsc-badge">MONTHLY POWER BILL IMPACT</span>
+              <span class="bsc-sub">DISCOM Grid Bill vs Solar Net Outgo</span>
+            </div>
+            <div class="bsc-grid">
+              <div class="bsc-item bsc-before">
+                <div class="bsc-tag">BEFORE SOLAR</div>
+                <div class="bsc-num" id="v_bscBeforeVal">—</div>
+                <div class="bsc-bar"><div class="bsc-fill bsc-fill-red"></div></div>
+                <div class="bsc-note">Monthly Grid Electricity Bill</div>
+              </div>
+              <div class="bsc-vs-circle">VS</div>
+              <div class="bsc-item bsc-after">
+                <div class="bsc-tag">WITH KTM SOLAR</div>
+                <div class="bsc-num" id="v_bscAfterVal">—</div>
+                <div class="bsc-bar"><div class="bsc-fill bsc-fill-green"></div></div>
+                <div class="bsc-note">Reduced Grid Fixed Charge</div>
+              </div>
+              <div class="bsc-item bsc-saving">
+                <div class="bsc-tag">MONTHLY CASH SAVED</div>
+                <div class="bsc-num bsc-highlight" id="v_bscSavedVal">—</div>
+                <div class="bsc-yr-badge" id="v_bscSavedYr">—</div>
+              </div>
+            </div>
+          </div>
+
           <div class="metric-row">
             <div class="metric-chip"><div class="mv" id="v_wsAnnualGen">—</div><div class="ml">Annual Generation</div></div>
             <div class="metric-chip"><div class="mv" id="v_wsAnnualSaving">—</div><div class="ml">Estimated Annual Savings</div></div>
@@ -709,6 +746,15 @@
               <div class="inv-l" id="v_inCostNetL"></div>
               <div class="inv-v" id="v_inCostNet">—</div>
               <div class="inv-cap"><span id="v_inRateL"></span>: <b id="v_inRate"></b></div>
+            </div>
+          </div>
+
+          <!-- Commercial & Industrial Tax Shield Banner -->
+          <div class="tax-shield-banner" id="v_inTaxShieldBanner" style="display:none;">
+            <div class="tsb-icon">🏢</div>
+            <div class="tsb-content">
+              <div class="tsb-title">INCOME TAX ACT SEC 32: 40% ACCELERATED DEPRECIATION BENEFIT</div>
+              <div class="tsb-desc">Commercial &amp; Industrial entities can claim 40% depreciation in Year 1 (<span id="v_inTaxDepr">—</span>), saving approximately <b id="v_inTaxSaved">—</b> in direct corporate tax liability (assumed @ 25% tax bracket).</div>
             </div>
           </div>
 

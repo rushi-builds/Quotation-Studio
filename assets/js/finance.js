@@ -151,6 +151,12 @@
     const netInvestment = grossTotal - subsidy;
     const costPerWp = capacity > 0 ? projectCost / (capacity * 1000) : 0;
 
+    /* ----- commercial / industrial 40% accelerated depreciation (IT Act Sec 32) ----- */
+    const isCommercialOrInd = (customerType === 'commercial' || customerType === 'industrial');
+    const corpTaxRatePct = num(s.corpTaxRate, 25) || 25; // standard Indian corporate tax bracket 25%
+    const taxDepreciationYear1 = isCommercialOrInd ? Math.round(projectCost * 0.40) : 0;
+    const taxShield = isCommercialOrInd ? Math.round(taxDepreciationYear1 * (corpTaxRatePct / 100)) : 0;
+
     /* ----- generation & savings projection ----- */
     const annualGen = capacity * genFactor;                    // year-1 kWh
     let gen = annualGen, t = tariff;
@@ -257,6 +263,7 @@
       // costs
       projectCost, gstAmount, grossTotal, subsidy, subsidyAuto, netInvestment,
       costPerWp, bomItems, bomSum, bomDelta, gstPercent,
+      taxDepreciationYear1, taxShield, corpTaxRatePct, isCommercialOrInd,
       // performance
       annualGen, annualSaving, series, lifetimeSaving, lifetimeGen,
       payback, irr, effectivePerUnit,

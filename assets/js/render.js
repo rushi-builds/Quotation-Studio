@@ -64,6 +64,7 @@
     set('v_coverPreparedLabel', CONTENT.cover.labels.preparedFor);
     set('v_coverCustName', s.custName);
     set('v_coverCustAddress', s.custAddress);
+    set('v_coverLocSync', s.custAddress || 'Pune, Maharashtra');
     set('v_coverCapacityLabel', CONTENT.cover.labels.capacity);
     set('v_coverCapacity', s.capacity + ' kWp');
     set('v_coverDateLabel', CONTENT.cover.labels.date);
@@ -79,6 +80,7 @@
     set('v_coverPrepBy', s.prepName);
     set('v_coverBadgeKwp', s.capacity + ' kWp');
     set('v_coverBadgeGen', F.fmtINRshort(f.lifetimeSaving));
+    set('v_coverLifetimeSave', F.fmtINRshort(f.lifetimeSaving));
     set('v_coverStatYears', s.statYears);
     set('v_coverStatProjects', s.statProjects);
     set('v_coverStatCapacity', s.statCapacity);
@@ -328,6 +330,18 @@
     set('v_wsAnnualGen', F.fmtNum(f.annualGen) + ' kWh');
     set('v_wsAnnualSaving', F.fmtINR(f.annualSaving));
     set('v_wsLifetimeSaving', F.fmtINR(f.lifetimeSaving));
+
+    /* before vs after bill comparison infographic */
+    const tariff = Number(s.tariff) || 9.5;
+    const estMonthlySaving = Math.round((f.annualSaving || (f.annualGen * tariff)) / 12);
+    const monthlyPre = (s.monthlyBill && Number(s.monthlyBill) > 0)
+      ? Number(s.monthlyBill) : Math.max(estMonthlySaving + 950, 4500);
+    const monthlyPost = Math.max(650, Math.round(monthlyPre - estMonthlySaving));
+    const monthlySaved = Math.max(0, monthlyPre - monthlyPost);
+    set('v_bscBeforeVal', F.fmtINR(monthlyPre) + ' / mo');
+    set('v_bscAfterVal', F.fmtINR(monthlyPost) + ' / mo');
+    set('v_bscSavedVal', F.fmtINR(monthlySaved) + ' / mo');
+    set('v_bscSavedYr', '≈ ' + F.fmtINR(monthlySaved * 12) + ' saved / yr');
   }
 
   /* ================================================================== */
@@ -593,6 +607,18 @@
     set('v_inCostSubCap', subCap);
     set('v_inRate', '₹' + (Math.round(f.costPerWp * 10) / 10) + ' / Wp');
     set('v_inRateL', P.rateChip);
+
+    /* commercial / industrial tax shield benefit (IT Act Sec 32) */
+    const taxBanner = $('v_inTaxShieldBanner');
+    if (taxBanner) {
+      if (f.isCommercialOrInd && f.taxShield > 0) {
+        taxBanner.style.display = 'flex';
+        set('v_inTaxDepr', F.fmtINR(f.taxDepreciationYear1));
+        set('v_inTaxSaved', F.fmtINR(f.taxShield));
+      } else {
+        taxBanner.style.display = 'none';
+      }
+    }
 
     /* cost build-up bridge always; BOM donut section only when entered */
     set('v_inBridgeTitle', P.bridgeTitle);
