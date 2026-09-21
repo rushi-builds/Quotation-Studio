@@ -1459,3 +1459,42 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   .btn-sim-action { overflow-wrap:anywhere; }
 }
 @media print { .share-sim-bar, .share-accept-card { display:none !important; } }
+
+/* Approved cover identity, unmodified pixel crop on its original navy tile. */
+.brand-row img, .st-left img, .pg-logo img { height:46px; width:auto; object-fit:contain; border-radius:4px; flex-shrink:0; }
+.closing-brand { position:absolute; left:var(--page-pad); top:16px; z-index:2; }
+.closing-brand img { width:auto; height:46px; object-fit:contain; border-radius:4px; }
+/* The online review has one action hub, after the proposal. */
+.share-accept-card { width:100%; max-width:794px; }
+.engineering-section { padding:0 0 18px; margin:0 0 18px; border-bottom:1px solid var(--line-cool); }
+.engineering-section h4, .request-preview h4 { margin:0 0 8px; color:var(--navy); font-size:14px; }
+.engineering-section .btn-sim-action { border:1px solid var(--line-cool); box-shadow:none; background:var(--cream); }
+.engineering-section .hint { margin:0 0 10px; }
+.sac-field select { width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; font:inherit; font-size:12px; }
+.request-services { border:1px solid var(--line-cool); padding:12px 14px; border-radius:8px; margin:18px 0; }
+.request-services legend { font-size:12px; font-weight:700; padding:0 6px; }
+.request-services label { display:flex; align-items:flex-start; gap:8px; margin:8px 0; font-size:12px; }
+.request-services [hidden] { display:none; }
+.request-checklist { font-size:12px; line-height:1.65; color:var(--gray); margin:14px 0; }
+.request-preview { margin-top:20px; padding:16px; border:1px solid #bcd4c7; border-radius:10px; background:#f6fbf8; }
+.request-preview textarea { box-sizing:border-box; width:100%; min-height:180px; resize:vertical; padding:12px; border:1px solid #cbd5e1; border-radius:6px; font:12px/1.65 'Inter',sans-serif; }
+.request-send-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+.local-acknowledgement { margin-top:22px; border-top:1px solid var(--line-cool); padding-top:16px; }
+.local-acknowledgement summary { cursor:pointer; font-size:12px; color:var(--gray); font-weight:600; }
+.local-acknowledgement .hint { margin:12px 0; }
+@media screen {
+  /* The hub owns online actions/links. Paper signatures and report references
+     remain in the print/PDF pages, not duplicated above the online hub. */
+  .share-mode:not(.qs-pdf-capture) #pageClosing .accept-block,
+  .share-mode:not(.qs-pdf-capture) #pageClosing .closing-cta,
+  .share-mode:not(.qs-pdf-capture) #v_tsRefsWrap { display:none !important; }
+}
+@media (max-width:600px) {
+  .share-topbar { flex-wrap:wrap; position:relative; }
+  .st-left { min-width:0; }
+  .st-title, .st-sub { overflow-wrap:anywhere; }
+  .request-send-actions > * { flex:1; text-align:center; }
+}
+
+#requestWhatsApp[hidden], #sacWaNotify[hidden] { display:none !important; }
+#shareAcceptWrap { scroll-margin-top:100px; }

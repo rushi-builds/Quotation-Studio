@@ -30,7 +30,8 @@
       el.style.transform = 'none';
       let canvas;
       try {
-        canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
+        canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false,
+          onclone: (doc) => doc.body.classList.add('qs-pdf-capture') });
       } finally {
         el.style.transform = wasTransform || '';
       }

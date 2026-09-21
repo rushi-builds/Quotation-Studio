@@ -101,8 +101,8 @@ const CONTENT = {
   /* ------------------------------------------------------------------ */
   pageSolution: {
     heading: 'Your Proposed Solar Power Solution',
-    sub: 'Designed Specifically for Your Property',
-    para: 'Every KTM solar installation begins with a precision site assessment and PVsyst energy simulation — ensuring your system is engineered for maximum yield, not just installed for minimum cost. The following specifications have been tailored to your roof geometry, orientation and local solar radiation data.',
+    sub: 'Initial Equipment & Design Basis',
+    para: 'This proposal is an initial estimate based on the inputs shown. Roof measurements, shading, structural suitability and electricity data still need engineering verification. Detailed design and yield assessment follow the site review; supplied report links are listed under Technical Specification.',
     /* First spec cards (capacity, generation, modules) are generated automatically */
     specs: [
       { title: 'Inverter', desc: 'High-efficiency hybrid/string inverter with real-time Wi-Fi monitoring' },
@@ -292,12 +292,9 @@ const CONTENT = {
     para: 'With over a decade of hands-on solar EPC experience, KTM Energy Experts brings a rare combination of in-house engineering capability, Tier-1 components and a customer-first philosophy to every project.',
     diffLabel: 'OUR DIFFERENTIATORS',
     differentiators: [
-      { icon: 'badge',  title: '11+ Years of Engineering Excellence', desc: 'Over a decade of delivering certified, high-performance solar EPC projects across India.' },
-      { icon: 'check',  title: '200+ Projects Successfully Executed', desc: 'A proven track record across residential, commercial and industrial installations.' },
-      { icon: 'bolt',   title: '20+ MW Installed Capacity', desc: 'One of the most experienced rooftop solar EPC teams in the region.' },
       { icon: 'gear',   title: 'In-House Structure Manufacturing', desc: 'Precision-engineered HDGI mounting structures, designed and manufactured in-house.' },
       { icon: 'drone',  title: 'Drone Site Survey', desc: 'Precision aerial mapping for accurate shadow analysis, roof measurement and layout planning.' },
-      { icon: 'chart',  title: 'PVsyst Energy Simulation', desc: 'Every system is yield-optimised using PVsyst software before a single panel is installed.' },
+      { icon: 'chart',  title: 'PVsyst Energy Simulation', desc: 'Yield assessment is prepared during the agreed engineering scope, using verified site and equipment inputs—not generated automatically by this quotation.' },
       { icon: 'shield', title: 'Quality & Safety First', desc: 'IS/IEC-compliant installations with rigorous internal quality audits at every stage.' },
       { icon: 'wrench', title: 'End-to-End EPC & After-Sales Support', desc: 'From design to commissioning to long-term AMC — we are with you for the life of the system.' },
       { icon: 'star',   title: '4.8-Star Rated on Google', desc: '400+ verified customer reviews across Maharashtra.' }
@@ -406,9 +403,9 @@ const CONTENT = {
     bannerSub: 'Your Journey Towards Clean & Affordable Energy Starts Here.',
     nextLabel: 'YOUR NEXT STEPS',
     next: [
-      { icon: 'doc',    title: '1. Accept This Proposal', desc: 'Sign below, or reply to us by email or WhatsApp — we take it from there.' },
-      { icon: 'drone',  title: '2. Detailed Survey & Engineering', desc: '{surveyWindow} drone survey, shadow analysis and final engineering after acceptance.' },
-      { icon: 'sun',    title: '3. Installation to Handover', desc: 'Material delivery, professional installation, DISCOM net metering and full handover — as per the Installation Journey.' }
+      { icon: 'doc', title: '1. Review the proposal', desc: 'Check the system, pricing and terms. Raise any questions before committing to an order.' },
+      { icon: 'drone', title: '2. Confirm interest', desc: 'Discuss site readiness with the team. The online next-step panel prepares one request for the selected engineering services.' },
+      { icon: 'sun', title: '3. Agree the final scope', desc: 'The team confirms feasibility, engineering scope, any fees and timelines before you approve the final order.' }
     ],
     readyLabel: 'WHY ACT NOW',
     ready: [
@@ -416,7 +413,7 @@ const CONTENT = {
       { icon: 'doc',    title: 'Subsidy & Net-Metering Support', desc: 'We handle the complete PM Surya Ghar and DISCOM paperwork for you.' },
       { icon: 'calendar', title: 'Limited Installation Slots', desc: 'Crews are scheduled in order of confirmation — early sign-up secures your slot.' }
     ],
-    cta: 'Call us today for a free site survey:',
+    cta: 'An engineering request is not an installation order. Scope, fees and schedule require written confirmation.',
     acceptLabel: 'ACCEPTANCE & AUTHORISATION',
     acceptIntro: 'Signing below indicates acceptance of this proposal and authorises {company} to proceed with the survey, engineering and installation on the terms stated herein.',
     signCustomer: 'Accepted by (Customer)',
@@ -498,5 +495,35 @@ const PROJECT_IMAGES = {
   PROJ_3_3: 'assets/images/site-nerolac.jpg'
 };
 
+/* Migrate only exact legacy default copy; preserve customer-written edits.
+   Both builder and customer view use this, so saved proposals get the same
+   corrected engineering sequence without changing their financial inputs. */
+const CONTENT_COPY_UPDATES = Object.freeze({
+  "Designed Specifically for Your Property": "Initial Equipment & Design Basis",
+  "Every KTM solar installation begins with a precision site assessment and PVsyst energy simulation — ensuring your system is engineered for maximum yield, not just installed for minimum cost. The following specifications have been tailored to your roof geometry, orientation and local solar radiation data.": "This proposal is an initial estimate based on the inputs shown. Roof measurements, shading, structural suitability and electricity data still need engineering verification. Detailed design and yield assessment follow the site review; supplied report links are listed under Technical Specification.",
+  "Every system is yield-optimised using PVsyst software before a single panel is installed.": "Yield assessment is prepared during the agreed engineering scope, using verified site and equipment inputs—not generated automatically by this quotation.",
+  "1. Accept This Proposal": "1. Review the proposal",
+  "Sign below, or reply to us by email or WhatsApp — we take it from there.": "Check the system, pricing and terms. Raise any questions before committing to an order.",
+  "2. Detailed Survey & Engineering": "2. Confirm interest",
+  "{surveyWindow} drone survey, shadow analysis and final engineering after acceptance.": "Discuss site readiness with the team. The online next-step panel prepares one request for the selected engineering services.",
+  "3. Installation to Handover": "3. Agree the final scope",
+  "Material delivery, professional installation, DISCOM net metering and full handover — as per the Installation Journey.": "The team confirms feasibility, engineering scope, any fees and timelines before you approve the final order.",
+  "Call us today for a free site survey:": "An engineering request is not an installation order. Scope, fees and schedule require written confirmation."
+});
+function upgradeProposalContent(value) {
+  const out = JSON.parse(JSON.stringify(value), (key, entry) =>
+    typeof entry === 'string' && Object.prototype.hasOwnProperty.call(CONTENT_COPY_UPDATES, entry)
+      ? CONTENT_COPY_UPDATES[entry] : entry);
+  const oldStats = {
+    '11+ Years of Engineering Excellence': 'Over a decade of delivering certified, high-performance solar EPC projects across India.',
+    '200+ Projects Successfully Executed': 'A proven track record across residential, commercial and industrial installations.',
+    '20+ MW Installed Capacity': 'One of the most experienced rooftop solar EPC teams in the region.'
+  };
+  if (out.pageWhyKtm && Array.isArray(out.pageWhyKtm.differentiators)) {
+    out.pageWhyKtm.differentiators = out.pageWhyKtm.differentiators.filter(item => !item || !Object.prototype.hasOwnProperty.call(oldStats, item.title) || oldStats[item.title] !== item.desc);
+  }
+  return out;
+}
+
 /* Export for Node-based tests (ignored in the browser) */
-if (typeof module !== 'undefined' && module.exports) { module.exports = { CONTENT, PROJECT_IMAGES }; }
+if (typeof module !== 'undefined' && module.exports) { module.exports = { CONTENT, PROJECT_IMAGES, upgradeProposalContent }; }

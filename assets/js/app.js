@@ -216,8 +216,9 @@
     window.__qsOptions = Array.isArray(blob.options) ? blob.options : [];
     if (blob.content) {
       /* deep-merge page objects so partial overrides don't blank siblings */
-      Object.keys(blob.content).forEach((k) => {
-        const inc = blob.content[k];
+      const incoming = upgradeProposalContent(blob.content);
+      Object.keys(incoming).forEach((k) => {
+        const inc = incoming[k];
         const base = CONTENT[k];
         if (inc && base && typeof inc === 'object' && typeof base === 'object' &&
             !Array.isArray(inc) && !Array.isArray(base)) {
@@ -364,19 +365,6 @@
       if (e.target && e.target.type === 'file') return;
       window.Render.renderAll();
       scheduleSave();
-    });
-
-    $('logoUpload').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (ev) {
-        document.querySelectorAll('#formLogo, .pg-logo img, .cover-logo img').forEach((img) => {
-          img.src = ev.target.result;
-        });
-        scheduleSave();
-      };
-      reader.readAsDataURL(file);
     });
 
     document.querySelectorAll('input[data-photo]').forEach((input) => {

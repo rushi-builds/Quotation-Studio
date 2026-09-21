@@ -104,7 +104,7 @@ clearly-marked placeholder — nothing is invented.
 - **Autosave** to localStorage + **proposal files** (.json export/import)
 - **Versioning**: live reference number on the cover; reference/version metadata on the inner pages
 - **Advanced Edit**: every headline/paragraph/card across all 15 pages
-- **Per-page photo uploads** and logo replacement
+- **Per-page photo uploads**; the approved cover logo is locked consistently across all pages
 - **PDF export**: html2canvas (2×) → jsPDF, metadata set, smart filename
   `Proposal_<Customer>_<kWp>_<Ref>.pdf`; native browser print also produces
   exactly 15 A4 sheets (`@media print`, headers/footers/page numbers included)
@@ -163,8 +163,7 @@ standard Chromium shared libraries. Screenshots are written to ignored `qa/shots
 - Commercial/industrial tax figures are explicitly illustrative, with editable
   depreciation/tax rates under **All settings**. Eligibility and asset basis need
   tax-adviser confirmation; they do not reduce investment or change payback.
-- The customer action bar opens supplied HTTP(S) Arka/PVsyst links or prepares a
-  WhatsApp request for the missing reports. It does not create a 3D design or run
+- One end-of-proposal customer panel opens supplied HTTP(S) Arka/PVsyst links. After confirming interest, the customer can prepare a WhatsApp request for selected engineering services. It does not create a 3D design or run
   PVsyst, and it never invents a contact number.
 - Customer acceptance is a **local typed acknowledgement**, requiring name and
   consent. It is not a verified digital signature or server-side workflow. The
@@ -178,3 +177,31 @@ QA: `npm --prefix qa install --legacy-peer-deps` then `npm --prefix qa test`.
 For browser tests, start a server and set `QA_BASE` for `npm --prefix qa run test:browser`.
 Chromium needs its shared libraries (`LD_LIBRARY_PATH` may be needed for Lambda bundles).
 See `docs/audit-2026-09-21.md` for the reviewed commits, findings and verification.
+
+
+### Consistent branding and qualified engineering requests
+
+The exact approved cover-logo pixel crop is `assets/images/ktm-cover-logo.png`.
+Every inner page, closing page, editor header, customer header and PDF uses it.
+No separate logo-upload override can leave the cover and the remaining pages with
+different identities. To regenerate the crop: `python qa/build-cover-logo.py`
+(requires ImageMagick). The source cover and its live fields are unchanged.
+
+The customer action hub appears **once, after the proposal**:
+
+1. Review the proposal, then select an interested/ready decision stage.
+2. Select site feasibility/survey, missing Arka layout, and/or missing PVsyst report.
+3. Confirm site locality and optionally a preferred discussion/visit window.
+4. Review the prepared message; open WhatsApp and **send it yourself**, or copy it.
+
+Existing report links are not offered as duplicate requests. The team must confirm
+required data, feasibility, engineering scope, any fees and schedule. Preparing a
+message does not book a survey, generate a simulation, accept an order or mark a
+request delivered. Site documents are attached manually in WhatsApp, not uploaded
+by this app. The local acknowledgement remains separate, optional and collapsed.
+The browser-local sharing limitation documented above still applies.
+
+Duplicate financial strips, repeated company-stat cards and duplicate inclusion
+blocks were removed. Customer-screen report actions and paper signatures have one
+visible home; print/PDF still includes its technical references and paper signature.
+See `docs/branding-and-engineering-flow.md` for ownership and verification.

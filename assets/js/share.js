@@ -15,13 +15,6 @@
 
   function param(name) { return new URLSearchParams(location.search).get(name); }
 
-  function safeReportUrl(value) {
-    try {
-      const url = new URL(String(value || '').trim());
-      return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? url.href : '';
-    } catch (e) { return ''; }
-  }
-
   function whatsappPhone(value) {
     const raw = String(value || '').trim();
     if (!/^\+?[\d\s()-]+$/.test(raw)) return '';
@@ -105,8 +98,9 @@
 
     /* apply proposal-specific content + photos */
     if (blob.content) {
-      Object.keys(blob.content).forEach((k) => {
-        const inc = blob.content[k];
+      const incoming = upgradeProposalContent(blob.content);
+      Object.keys(incoming).forEach((k) => {
+        const inc = incoming[k];
         const base = typeof CONTENT !== 'undefined' ? CONTENT[k] : undefined;
         if (inc && base && typeof inc === 'object' && typeof base === 'object' &&
             !Array.isArray(inc) && !Array.isArray(base)) {
@@ -120,44 +114,118 @@
       Object.keys(blob.projectImages).forEach((k) => { PROJECT_IMAGES[k] = blob.projectImages[k]; });
     }
 
-    /* Never interpolate proposal URLs into HTML. Imported proposal files are
-       untrusted input; only absolute HTTP(S) links can become actions. */
+    /* One engineering hub after review. URL presence means a link was supplied,
+       not that a report has been verified. Requests never change order status. */
     const simBar = $('shareSimBar');
     const simActions = $('shareSimActions');
     const phone = whatsappPhone(f.companyPhone);
     const whatsapp = (text) => phone ? 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text) : '';
-    const request = (what) => whatsapp('Hi ' + (f.companyName || 'KTM') + ', I am reviewing proposal #' +
-      (f.propRef || '') + ' for ' + (f.custName || 'my site') + '. Please share ' + what + '.');
-    if (simBar && simActions) {
-      simActions.replaceChildren();
-      const missing = [];
-      const addLink = (href, label, requestLink) => {
+    const reports = [
+      { key: 'arka', field: 'arkaUrl', label: 'Arka 3D layout', choice: 'requestArka', wrapper: 'requestArkaLabel' },
+      { key: 'pvsyst', field: 'pvsystUrl', label: 'PVsyst simulation report', choice: 'requestPvsyst', wrapper: 'requestPvsystLabel' }
+    ];
+    simActions.replaceChildren();
+    reports.forEach(report => {
+      const href = window.Render.safeHttpUrl(f[report.field]);
+      report.available = !!href;
+      $(report.wrapper).hidden = !!href;
+      $(report.choice).disabled = !!href;
+      if (href) {
         const link = document.createElement('a');
         link.href = href;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
-        link.className = 'btn-sim-action' + (requestLink ? ' btn-sim-req' : '');
-        link.textContent = label;
+        link.className = 'btn-sim-action';
+        link.textContent = 'Open ' + report.label;
         simActions.appendChild(link);
-      };
-      [['arkaUrl', 'Arka-360 3D layout', 'Open Arka-360 3D layout'],
-        ['pvsystUrl', 'PVsyst report', 'View PVsyst report']].forEach(([key, label, action]) => {
-        const href = safeReportUrl(f[key]);
-        if (href) addLink(href, action, false);
-        else missing.push(label);
-      });
-      if (missing.length) {
-        const label = missing.join(' & ');
-        const href = request(label);
-        if (href) addLink(href, 'Request ' + label + ' on WhatsApp', true);
-        else {
-          const note = document.createElement('span');
-          note.textContent = 'To request ' + label + ', ask the proposal sender to add a valid WhatsApp contact number.';
-          simActions.appendChild(note);
-        }
       }
-      simBar.style.display = 'flex';
-    }
+    });
+    const available = reports.filter(report => report.available).length;
+    $('engineeringAvailability').textContent = available
+      ? available + ' report link' + (available === 1 ? '' : 's') + ' provided. Any missing deliverable can be requested below.'
+      : 'No site-specific report links have been provided yet. Detailed layouts and simulations follow verified site inputs and an agreed engineering scope.';
+    simBar.style.display = 'block';
+
+    const requestForm = $('engineeringRequestForm');
+    const stage = $('requestStage');
+    const locationInput = $('requestLocation');
+    const timingInput = $('requestWindow');
+    const prepare = $('prepareRequest');
+    const requestError = $('requestError');
+    const preview = $('requestPreview');
+    const deliveryNote = $('requestDeliveryNote');
+    locationInput.value = String(f.custAddress || '').slice(0, 240);
+    if (blob.status === 'accepted') stage.value = 'ready';
+    const interested = () => ['interested', 'ready'].includes(stage.value);
+    const invalidateRequest = () => {
+      preview.hidden = true;
+      $('requestMessage').value = '';
+      $('requestWhatsApp').removeAttribute('href');
+      requestError.textContent = '';
+      prepare.disabled = !interested();
+      $('requestGate').textContent = interested()
+        ? 'Preparing a request is free of commitment. Engineering scope, any fees and dates are agreed with the team first.'
+        : 'Select an interested/ready stage when you have reviewed the proposal and want to discuss next steps.';
+    };
+    requestForm.addEventListener('input', invalidateRequest);
+    requestForm.addEventListener('change', invalidateRequest);
+    invalidateRequest();
+    requestForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      invalidateRequest();
+      if (!interested()) { requestError.textContent = 'Review the proposal and confirm your interest first.'; return; }
+      const location = locationInput.value.trim();
+      const timing = timingInput.value.trim();
+      if (!location || location.length > 240 || timing.length > 120) {
+        requestError.textContent = 'Enter a site address/locality (up to 240 characters) and a short preferred window.';
+        return;
+      }
+      const services = [];
+      if ($('requestSurvey').checked) services.push('Site survey / feasibility discussion');
+      reports.forEach(report => { if (!report.available && $(report.choice).checked) services.push(report.label); });
+      if (!services.length) { requestError.textContent = 'Select at least one engineering service.'; return; }
+      const latest = window.Proposals.get(blob.id);
+      if (!latest || latest.updatedAt !== blob.updatedAt) {
+        requestError.textContent = 'This proposal changed. Reload and review it before preparing a request.';
+        return;
+      }
+      const message = [
+        'ENGINEERING REVIEW REQUEST — not an installation order',
+        'Hello ' + (f.companyName || 'KTM Energy Experts') + ',',
+        'I have reviewed proposal ' + (f.propRef || '—') + ' v' + (f.propVersion || '1.0') +
+          ' prepared for ' + (f.custName || 'the customer') + ' (' + (f.capacity || '—') + ' kWp).',
+        'Interest: ' + (stage.value === 'ready' ? 'Ready to discuss the final scope' : 'Interested — please discuss the site'),
+        'Requested: ' + services.join('; '),
+        'Site: ' + location,
+        timing ? 'Preferred timing (not confirmed): ' + timing : 'Timing: please coordinate with me',
+        expired() ? 'Please refresh the expired/archived quotation before proceeding with engineering.' : '',
+        'I can provide the electricity bill, roof photos/dimensions and site access details.',
+        'Please confirm site feasibility, required inputs, engineering scope, any fees and the delivery timeline before proceeding.'
+      ].filter(Boolean).join('\n');
+      $('requestMessage').value = message;
+      const wa = whatsapp(message);
+      const link = $('requestWhatsApp');
+      link.hidden = !wa;
+      if (wa) link.href = wa;
+      deliveryNote.textContent = wa
+        ? 'Prepared only—not sent or booked. Open WhatsApp, attach the site documents and send the message. The team confirms the next steps.'
+        : 'No valid WhatsApp number is configured. Copy this message and contact the proposal sender directly. Nothing has been sent.';
+      preview.hidden = false;
+      preview.scrollIntoView({behavior:'smooth', block:'nearest'});
+    });
+    $('copyRequest').addEventListener('click', async () => {
+      const message = $('requestMessage').value;
+      if (!message) return;
+      try {
+        if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('Clipboard unavailable');
+        await navigator.clipboard.writeText(message);
+        deliveryNote.textContent = 'Message copied—not sent. Paste it into your conversation with the team.';
+      } catch (e) {
+        $('requestMessage').focus();
+        $('requestMessage').select();
+        deliveryNote.textContent = 'Automatic copy is unavailable. The message is selected; use Copy on your device. Nothing has been sent.';
+      }
+    });
 
     /* Local typed acknowledgement, NOT a server-verified e-signature.
        Sending the WhatsApp message remains an explicit customer action. */
@@ -218,6 +286,7 @@
           return;
         }
         $('shareStatus').textContent = window.Proposals.statusLabel('accepted');
+        Object.assign(blob, saved);
         setAcceptedUI(saved);
       });
     }

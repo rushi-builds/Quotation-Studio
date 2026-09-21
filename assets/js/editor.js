@@ -85,11 +85,16 @@
     Object.keys(CONTENT.exec.kpis).forEach((k) => {
       mkField(g, 'KPI caption — ' + k, CONTENT.exec.kpis[k], (v) => { CONTENT.exec.kpis[k] = v; });
     });
-    mkField(g, 'Journey section label', CONTENT.exec.journeySectionLabel, (v) => { CONTENT.exec.journeySectionLabel = v; });
-    mkField(g, 'Journey note (uses {payback})', CONTENT.exec.journeyNote, (v) => { CONTENT.exec.journeyNote = v; }, true);
     mkField(g, '"What you are getting" label', CONTENT.exec.includedSectionLabel, (v) => { CONTENT.exec.includedSectionLabel = v; });
     mkField(g, 'Included intro (uses {company})', CONTENT.exec.includedIntro, (v) => { CONTENT.exec.includedIntro = v; }, true);
     mkField(g, 'Effective-cost hint (uses {tariff})', CONTENT.exec.effectiveHint, (v) => { CONTENT.exec.effectiveHint = v; }, true);
+
+    CONTENT.pageSolution.included.forEach((it, i) => {
+      const b = mkItemBlock(g, 'Included item ' + (i + 1) + (it.mode ? ' (description follows the ' + it.mode + ' dropdown)' : ''));
+      mkField(b, 'Title', it.title, (v) => { it.title = v; });
+      if (!it.mode) mkField(b, 'Description', it.desc, (v) => { it.desc = v; });
+    });
+
 
     /* ---------- options comparison ---------- */
     g = mkGroup(rootEl, 'Options Comparison page (visible with 2+ options)');
@@ -139,7 +144,6 @@
       mkField(b, 'Title', it.title, (v) => { it.title = v; });
       mkField(b, 'Description (supports {capacity} {co2Annual} {treesAnnual})', it.desc, (v) => { it.desc = v; }, true);
     });
-    mkField(g, 'Highlight quote (supports {capacity} {annualGen})', CONTENT.pageWhySolar.highlight, (v) => { CONTENT.pageWhySolar.highlight = v; }, true);
 
     /* ---------- solution ---------- */
     g = mkGroup(rootEl, 'Page 5 — Proposed Solution');
@@ -151,13 +155,6 @@
       mkField(b, 'Title', it.title, (v) => { it.title = v; });
       mkField(b, 'Description', it.desc, (v) => { it.desc = v; });
     });
-    mkField(g, '"What\'s Included" label', CONTENT.pageSolution.includedLabel, (v) => { CONTENT.pageSolution.includedLabel = v; });
-    CONTENT.pageSolution.included.forEach((it, i) => {
-      const b = mkItemBlock(g, 'Included item ' + (i + 1) + (it.mode ? ' (description follows the ' + it.mode + ' dropdown)' : ''));
-      mkField(b, 'Title', it.title, (v) => { it.title = v; });
-      if (!it.mode) mkField(b, 'Description', it.desc, (v) => { it.desc = v; });
-    });
-
     /* ---------- tech spec ---------- */
     g = mkGroup(rootEl, 'Page 6 — Technical Specification');
     mkField(g, 'Heading', CONTENT.pageTechSpec.heading, (v) => { CONTENT.pageTechSpec.heading = v; });

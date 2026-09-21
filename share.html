@@ -14,7 +14,7 @@
 <meta name="twitter:title" content="Your Solar Proposal — KTM Energy Experts">
 <meta name="twitter:description" content="Your personalised rooftop solar proposal — explore the system design, generation, savings and investment details.">
 <meta name="twitter:image" content="assets/images/page-cover-v2-portrait.jpg">
-<link rel="icon" href="assets/images/logo.png" type="image/png">
+<link rel="icon" href="assets/images/ktm-cover-logo.png" type="image/png">
 <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body class="share-mode">
@@ -22,7 +22,7 @@
 <main class="preview-panel share-panel">
   <div class="share-topbar">
     <div class="st-left">
-      <img src="assets/images/logo.png" alt="Company logo" id="shareLogo">
+      <img src="assets/images/ktm-cover-logo.png" alt="Company logo" id="shareLogo">
       <div>
         <div class="st-title" id="shareTitle">Your Solar Proposal</div>
         <div class="st-sub" id="shareSub"></div>
@@ -39,22 +39,57 @@
     <div class="sb-cap" id="shareCapacity"></div>
   </div>
 
-  <!-- 3D Design & Simulation Action Bar -->
-  <div class="share-sim-bar" id="shareSimBar" style="display:none;">
-    <div class="ssb-label">⚡ ENGINEERING &amp; 3D SIMULATION</div>
-    <div class="ssb-actions" id="shareSimActions"></div>
-  </div>
-
   <!-- proposal pages are injected here by share.js using the same renderers -->
   <div id="sharePages"></div>
 
   <!-- Local typed proposal acknowledgement (not a verified digital signature) -->
   <div class="share-accept-card" id="shareAcceptWrap" style="display:none;">
     <div class="sac-head">
-      <div class="sac-badge">PROPOSAL ACCEPTANCE</div>
-      <h3 class="sac-title">Acknowledge this Proposal</h3>
-      <p class="sac-sub">Review the proposal and acknowledge it below. This is a typed acknowledgement saved only in this browser—not a verified digital signature. Send the WhatsApp message afterwards to notify the team. Pricing and scheduling require team confirmation.</p>
+      <div class="sac-badge">AFTER YOUR PROPOSAL REVIEW</div>
+      <h3 class="sac-title">Plan your next step</h3>
+      <p class="sac-sub">If the proposal suits your needs, confirm your interest and request an engineering review. The team checks your site, electricity bill, roof measurements and shading before preparing the agreed deliverables. This does not book a survey, place an order or generate a simulation.</p>
     </div>
+    <section id="shareSimBar" class="engineering-section" aria-labelledby="engineeringHeading" style="display:none;">
+      <h4 id="engineeringHeading">Engineering documents</h4>
+      <p id="engineeringAvailability" class="hint"></p>
+      <div id="shareSimActions" class="ssb-actions"></div>
+    </section>
+    <form id="engineeringRequestForm" class="engineering-request">
+      <div class="sac-field">
+        <label for="requestStage">Where are you in your decision?</label>
+        <select id="requestStage">
+          <option value="reviewing">Still reviewing / comparing</option>
+          <option value="interested">The proposal interests me — discuss the site</option>
+          <option value="ready">Ready to discuss the final scope</option>
+        </select>
+      </div>
+      <fieldset class="request-services">
+        <legend>What would you like the team to arrange?</legend>
+        <label><input type="checkbox" id="requestSurvey" checked> Site survey / feasibility discussion</label>
+        <label id="requestArkaLabel"><input type="checkbox" id="requestArka"> Arka 3D layout &amp; shading review</label>
+        <label id="requestPvsystLabel"><input type="checkbox" id="requestPvsyst"> PVsyst generation simulation report</label>
+      </fieldset>
+      <div class="sac-row">
+        <div class="sac-field"><label for="requestLocation">Site address / locality</label><input id="requestLocation" type="text" maxlength="240" required autocomplete="street-address"></div>
+        <div class="sac-field"><label for="requestWindow">Preferred call / survey window (optional)</label><input id="requestWindow" type="text" maxlength="120" placeholder="e.g. Saturday morning"></div>
+      </div>
+      <p class="request-checklist"><strong>Keep ready for the team:</strong> latest electricity bill, roof photos or dimensions, and site access details. Attach these in WhatsApp after opening the message; nothing is uploaded here.</p>
+      <p id="requestGate" class="hint">You can review the proposal without committing. Select an interested/ready stage to prepare a request.</p>
+      <button id="prepareRequest" type="submit" class="btn-accept-submit" disabled>Prepare engineering request</button>
+      <p id="requestError" class="sac-error" role="alert"></p>
+    </form>
+    <section id="requestPreview" class="request-preview" hidden aria-labelledby="requestPreviewTitle">
+      <h4 id="requestPreviewTitle">Review your message, then send it</h4>
+      <textarea id="requestMessage" readonly rows="9" aria-label="Prepared engineering request"></textarea>
+      <div class="request-send-actions">
+        <a id="requestWhatsApp" class="btn-wa-notify" target="_blank" rel="noopener noreferrer">Open WhatsApp</a>
+        <button id="copyRequest" type="button" class="link-btn">Copy message</button>
+      </div>
+      <p id="requestDeliveryNote" class="hint" role="status">Prepared only—not sent or booked. Send the message in WhatsApp; the team will confirm feasibility, scope, fees (if any) and schedule.</p>
+    </section>
+    <details id="localAcknowledgement" class="local-acknowledgement">
+      <summary>Optional: record a local proposal acknowledgement</summary>
+      <p class="hint">Not needed to request engineering. This is saved in this browser only, is not a verified digital signature, and does not notify the team automatically.</p>
     <div id="sacForm">
       <div class="sac-row">
         <div class="sac-field">
@@ -82,6 +117,7 @@
         <a id="sacWaNotify" href="#" target="_blank" rel="noopener noreferrer" class="btn-wa-notify">💬 Notify KTM on WhatsApp</a>
       </div>
     </div>
+    </details>
   </div>
 
   <div class="share-footer" id="shareFooter"></div>

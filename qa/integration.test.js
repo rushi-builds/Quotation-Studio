@@ -86,7 +86,8 @@ t('exec hero net = ₹6,08,070', d.getElementById('v_exHeroNet').textContent ===
 t('exec payback ≈ 3.7 yrs', /^3\.\d/.test(d.getElementById('v_exHeroPayback').textContent),
   d.getElementById('v_exHeroPayback').textContent);
 t('exec 8 KPI tiles', d.querySelectorAll('#v_exKpis .kpi-tile').length === 8);
-t('exec journey 5 steps', d.querySelectorAll('#v_exJourney .jstep').length === 5);
+t('summary does not repeat its financial tiles in a journey strip', !d.getElementById('v_exJourney'));
+t('solution does not repeat the summary inclusion block', !d.getElementById('v_soIncluded'));
 t('what-you-get has 8 items', d.querySelectorAll('#v_exIncluded .inc-item').length === 8);
 t('about stats rendered', d.querySelectorAll('#v_abStats .stat-card').length === 4);
 t('why-solar benefits 6', d.querySelectorAll('#v_wsBenefits .benefit-card').length === 6);
@@ -105,7 +106,7 @@ t('BOM section hidden when empty', d.getElementById('v_inBomSection').style.disp
 t('pay chips rendered', d.querySelectorAll('#v_inPayChips .pay-chip').length === 3);
 t('advance chip amount = ₹3,43,035', d.getElementById('v_inPayChips').textContent.includes('₹3,43,035'),
   d.getElementById('v_inPayChips').textContent);
-t('why-ktm 9 differentiators', d.querySelectorAll('#v_wkDiffs .diff-card').length === 9);
+t('why-ktm has six differentiators without repeated company stats', d.querySelectorAll('#v_wkDiffs .diff-card').length === 6);
 t('projects 9 cards with images', d.querySelectorAll('#v_prCats .proj-card img').length === 9);
 t('projects stats strip filled', d.getElementById('v_prStats').textContent.includes('flagship projects'));
 t('warranty 4 cards', d.querySelectorAll('#v_wrWarranties .warr-card').length === 4);

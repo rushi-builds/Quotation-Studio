@@ -32,6 +32,13 @@
   function setHTML(id, v) { const el = $(id); if (el) el.innerHTML = (v === undefined || v === null) ? '' : v; }
   function show(id, on) { const el = $(id); if (el) el.style.display = on ? '' : 'none'; }
 
+  function safeHttpUrl(value) {
+    try {
+      const url = new URL(String(value || '').trim());
+      return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '';
+    } catch (e) { return ''; }
+  }
+
   const TYPE_LABEL = { residential: 'Residential', commercial: 'Commercial', industrial: 'Industrial' };
 
   /* Merge state + finance into the template variable pool. */
@@ -152,29 +159,14 @@
     if (f.monthlyBill > 0 && f.annualSaving > 0) {
       tiles.push({ l: k.billOffset, val: Math.min(100, Math.round(f.billOffset)) + '% of your bill', icon: 'bolt' });
     } else {
-      tiles.push({ l: 'Performance Warranty', val: CONTENT.shared.warrantyLine.replace('25-Year ', ''), icon: 'shield' });
+      tiles.push({ l: 'Inverter Rating', val: f.inverterKw + ' kW', icon: 'bolt' });
     }
     setHTML('v_exKpis', tiles.map((t) =>
       '<div class="kpi-tile">' + I.chip(t.icon, 30) +
       '<div class="kpi-l">' + esc(t.l) + '</div>' +
       '<div class="kpi-v">' + esc(t.val) + '</div></div>').join(''));
 
-    /* investment journey strip */
-    set('v_exJourneyLabel', E.journeySectionLabel);
     set('v_exKpiLabel', E.kpiSectionLabel);
-    const steps = [
-      { t: 'You invest', d: F.fmtINRshort(f.netInvestment) },
-      { t: 'It generates', d: F.fmtNum(f.annualGen) + ' units/yr' },
-      { t: 'You save', d: F.fmtINRshort(f.annualSaving) + '/yr' },
-      { t: 'Payback', d: isFinite(f.payback) ? 'Year ' + f.payback.toFixed(1) : '—' },
-      { t: '25-yr earnings', d: F.fmtINRshort(f.lifetimeSaving) }
-    ];
-    setHTML('v_exJourney', steps.map((st, i) =>
-      '<div class="jstep"><div class="jstep-t">' + esc(st.t) + '</div>' +
-      '<div class="jstep-d">' + esc(st.d) + '</div></div>' +
-      (i < steps.length - 1 ? '<div class="jstep-arrow">' + I.get('trend', 14, '#F2811D') + '</div>' : '')
-    ).join(''));
-    set('v_exJourneyNote', tpl(E.journeyNote, v));
 
     /* what you are getting */
     set('v_exIncludedLabel', E.includedSectionLabel);
@@ -340,10 +332,6 @@
         '<div class="card-title">' + esc(b.title) + '</div>' +
         '<div class="card-desc">' + esc(desc) + '</div></div>';
     }).join(''));
-    set('v_wsHighlight', tpl(P.highlight, v));
-    set('v_wsAnnualGen', F.fmtNum(f.annualGen) + ' kWh');
-    set('v_wsAnnualSaving', F.fmtINR(f.annualSaving));
-    set('v_wsLifetimeSaving', F.fmtINR(f.lifetimeSaving));
 
     /* No invented bill or fixed-charge floor. This is an energy-offset
        illustration, not a DISCOM bill/settlement or guaranteed cash saving. */
@@ -374,11 +362,7 @@
       '<div class="card spec-card">' + I.chip(it.icon, 28) +
       '<div class="spec-t">' + esc(it.title) + '</div>' +
       '<div class="card-desc">' + esc(it.desc) + '</div></div>').join(''));
-    set('v_soIncludedLabel', P.includedLabel);
-    setHTML('v_soIncluded', P.included.map((it) =>
-      '<div class="card incl-card">' + I.chip(it.icon, 30) +
-      '<div class="incl-t">' + esc(it.title) + '</div>' +
-      '<div class="card-desc">' + esc(it.mode ? modeDesc(it.mode, s) : it.desc) + '</div></div>').join(''));
+
   }
 
   /* ================================================================== */
@@ -438,7 +422,7 @@
     const refs = [
       [s.pvsystUrl, P.refsPvsyst, 'chart'],
       [s.arkaUrl, P.refsArka, 'sun']
-    ].filter((r) => r[0] && String(r[0]).trim());
+    ].map(([url, label, icon]) => [safeHttpUrl(url), label, icon]).filter(r => r[0]);
     const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return String(u).replace(/^https?:\/\//, '').split('/')[0]; } };
     show('v_tsRefsWrap', refs.length > 0);
     if (refs.length) {
@@ -831,12 +815,7 @@
       '<div class="next-item">' + I.chip(it.icon, 30) +
       '<div><div class="next-t">' + esc(tpl(it.title, v)) + '</div>' +
       '<div class="next-d">' + esc(tpl(it.desc, v)) + '</div></div></div>').join(''));
-    set('v_clHighlight', f.annualSaving > 0
-      ? 'Projected saving of ' + F.fmtINR(f.annualSaving / 12) + '/month — every month of delay has a real cost.'
-      : '');
-    show('v_clHighlightRow', f.annualSaving > 0);
     set('v_clCta', P.cta);
-    set('v_clCtaPhone', s.companyPhone);
     const icoMap = { v_clIcoCompany: 'building', v_clIcoPin: 'pin', v_clIcoPhone: 'phone', v_clIcoMail: 'mail', v_clIcoWeb: 'globe' };
     Object.keys(icoMap).forEach((id) => setHTML(id, I.chip(icoMap[id], 26)));
     set('v_clCompanyName', s.companyName + (s.companyName.match(/Pvt\.?\s*Ltd\.?/i) ? '' : ' Pvt. Ltd.'));
@@ -916,9 +895,11 @@
     document.querySelectorAll('[data-foot-company]').forEach((el) => { el.textContent = footLeft; });
     const tagline = String(CONTENT.shared.footerTagline || '').replace(/&nbsp;/g, ' ').replace(/<[^>]*>/g, '');
     document.querySelectorAll('[data-foot-tagline]').forEach((el) => { el.textContent = tagline; });
-    /* logo on every page + form brand */
-    const logoSrc = ($('formLogo') || {}).src;
-    if (logoSrc) document.querySelectorAll('.pg-logo img, .cover-logo img').forEach((img) => { img.src = logoSrc; });
+    /* A single approved identity: crop of the cover, including share/PDF. */
+    document.querySelectorAll('#formLogo, #shareLogo, .pg-logo img, .closing-brand img').forEach((img) => {
+      const src = 'assets/images/ktm-cover-logo.png';
+      if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+    });
   }
 
   /* ================================================================== */
@@ -993,7 +974,7 @@
     };
   }
 
-  root.Render = { renderAll, PAGES, drawCharts, readState, pageNum, visiblePages,
+  root.Render = { safeHttpUrl, renderAll, PAGES, drawCharts, readState, pageNum, visiblePages,
     get lastState() { return lastState; },
     get lastVisible() { return lastVisible; } };
 })(typeof self !== 'undefined' ? self : this);
