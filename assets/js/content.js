@@ -560,5 +560,19 @@ function upgradeProposalContent(value) {
   return out;
 }
 
+// Keep the saved `featured` key compatible with earlier proposals, but display
+// tracking as an ordinary industrial project in every project-list surface.
+function portfolioCategories(page = CONTENT.pageProjects) {
+  return page.categories.map((cat, index) => {
+    if (index !== 0 || !page.featured) return cat;
+    return {
+      ...cat,
+      label: cat.label === 'INDUSTRIAL ROOFTOP PROJECTS' ? 'INDUSTRIAL SOLAR PROJECTS' : cat.label,
+      projects: cat.projects.some(p => p.img === page.featured.img)
+        ? cat.projects : [...cat.projects, page.featured]
+    };
+  });
+}
+
 /* Export for Node-based tests (ignored in the browser) */
-if (typeof module !== 'undefined' && module.exports) { module.exports = { CONTENT, PROJECT_IMAGES, upgradeProposalContent }; }
+if (typeof module !== 'undefined' && module.exports) { module.exports = { CONTENT, PROJECT_IMAGES, upgradeProposalContent, portfolioCategories }; }

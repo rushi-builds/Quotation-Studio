@@ -849,16 +849,8 @@
     set('v_prHeading', P.heading);
     set('v_prSub', P.sub);
     /* traceable counts: projects listed on this page + overall track record stat */
-    const featured = P.featured;
-    const listed = P.categories.reduce((t, c) => t + c.projects.length, featured ? 1 : 0);
-    setHTML('v_prFeatured', featured ?
-      '<article class="tracking-project" data-project="' + esc(featured.img) + '">' +
-      '<img src="' + esc(PROJECT_IMAGES[featured.img] || '') + '" alt="' + esc(featured.name + ' — ' + featured.capacity + ' — ' + featured.installation) + '">' +
-      '<div class="tracking-copy"><span class="tracking-eyebrow">FEATURED PROJECT</span>' +
-      '<h3>' + esc(featured.name) + '</h3><strong class="tracking-capacity">' + esc(featured.capacity) + '</strong>' +
-      '<div class="tracking-type">' + esc(featured.installation) + '</div>' +
-      (featured.location ? '<div class="tracking-location">' + esc(featured.location) + '</div>' : '') +
-      '</div></article>' : '');
+    const categories = portfolioCategories(P);
+    const listed = categories.reduce((t, c) => t + c.projects.length, 0);
     setHTML('v_prStats',
       '<span class="ps-big">' + listed + ' flagship projects</span>' +
       '<span class="ps-sep"></span>' +
@@ -866,14 +858,15 @@
       '<span class="ps-sep"></span>' +
       '<span>' + esc(s.statProjects) + ' delivered to date</span>');
     const catIcons = ['factory', 'building', 'home'];
-    setHTML('v_prCats', P.categories.map((cat, ci) => {
+    setHTML('v_prCats', categories.map((cat, ci) => {
       return '<div class="proj-cat-label">' + I.chip(catIcons[ci % catIcons.length], 26) +
         '<div class="txt">' + esc(cat.label) + '</div></div>' +
-        '<div class="proj-grid">' + cat.projects.map((p) => {
+        '<div class="proj-grid" style="grid-template-columns:repeat(' + Math.min(cat.projects.length, 4) + ',1fr)">' + cat.projects.map((p) => {
           const src = PROJECT_IMAGES[p.img] || '';
-          return '<div class="proj-card" data-project="' + esc(p.img) + '"><img src="' + esc(src) + '" alt="' + esc(p.name) + '">' +
+          return '<div class="proj-card" data-project="' + esc(p.img) + '"><div class="pc-photo"><img src="' + esc(src) + '" alt="' + esc(p.name) + '"></div>' +
             '<div class="pc-body"><div class="pc-name">' + esc(p.name) + '</div>' +
-            '<div class="pc-loc">' + esc(p.location) + '</div>' +
+            (p.installation || p.img === 'PROJ_1_1' ? '<div class="pc-loc">' + esc(p.installation || 'Rooftop Solar') + '</div>' : '') +
+            (p.location ? '<div class="pc-loc">' + esc(p.location) + '</div>' : '') +
             '<div class="pc-cap">' + esc(p.capacity) + '</div></div></div>';
         }).join('') + '</div>';
     }).join(''));

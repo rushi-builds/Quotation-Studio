@@ -278,17 +278,17 @@ slider does not change narration. See `docs/proposal-experience.md` for privacy,
 voice availability, persistence and test coverage.
 
 
-### Featured ground-mounted tracking project
+### Ground-mounted tracking project
 
 The portfolio now distinguishes two Agarwal Technoplast Pvt. Ltd. references:
 **1,700 kWp rooftop solar** (existing) and **500 kWp ground-mounted solar tracking**
-(new). The new feature uses the exact supplied `assets/images/Tracking.png` image,
-with no location, tracking-axis or generation claims added. It appears above the
-nine original portfolio cards in the detailed proposal and as the first, image-led
-public gallery entry with a dedicated **Solar tracking** filter.
+(new). The new entry uses the exact supplied `assets/images/Tracking.png` image,
+with no location, tracking-axis or generation claims added. It appears alongside the
+other industrial projects as a standard card in both the detailed proposal and
+public gallery. There is no separate featured section or tracking-only filter.
 
 Edit the proposal-specific reference under **Advanced Edit → Page 12 — Projects
-Portfolio → Featured project — Ground-Mounted Solar Tracking**. Name, capacity,
+Portfolio → Category 1: INDUSTRIAL SOLAR PROJECTS → Project 4**. Name, capacity,
 installation type, optional location and photograph synchronize with the proposal,
 Customer View and detailed PDF; private overrides do not publish to the gallery.
 The two-page financial brief, approved cover and system diagram remain unchanged.

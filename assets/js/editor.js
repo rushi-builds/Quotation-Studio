@@ -303,12 +303,9 @@
       });
       wrap.appendChild(fileInp); b.appendChild(wrap);
     }
-    if (CONTENT.pageProjects.featured) {
-      projectFields(g, CONTENT.pageProjects.featured, 'Featured project — Ground-Mounted Solar Tracking');
-    }
-    CONTENT.pageProjects.categories.forEach((cat, ci) => {
+    portfolioCategories().forEach((cat, ci) => {
       const cg = mkGroup(g, 'Category ' + (ci + 1) + ': ' + cat.label);
-      mkField(cg, 'Category label', cat.label, (v) => { cat.label = v; });
+      mkField(cg, 'Category label', cat.label, (v) => { CONTENT.pageProjects.categories[ci].label = v; });
       cat.projects.forEach((project, pi) => projectFields(cg, project, 'Project ' + (pi + 1)));
     });
 

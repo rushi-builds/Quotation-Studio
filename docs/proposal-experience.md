@@ -8,7 +8,7 @@
   explorer compares modelled 25-year cumulative savings and payback.
 - **Closing page:** a high-resolution gallery QR sits over the existing photograph,
   clear of the heading. It is also a clickable link in either PDF format.
-- **Public gallery:** `gallery.html` shows the existing nine references plus the featured 500 kWp ground-mounted tracking
+- **Public gallery:** `gallery.html` shows the existing nine references plus the 500 kWp ground-mounted tracking
   project, category filters and keyboard-accessible enlarged photographs.
   It does not read proposal storage or expose customer details. Hosting access
   protection still applies; publish it on an unauthenticated public host before
@@ -151,17 +151,22 @@ or production merge is required for these changes.
 
 ## Agarwal project distinction
 
-The 1,700 kWp industrial rooftop reference is retained unchanged. The new featured
+The 1,700 kWp industrial rooftop reference is retained unchanged. The new
 reference is **Agarwal Technoplast Pvt. Ltd. — 500 kWp — Ground-Mounted Solar
 Tracking**. Its location is intentionally blank; no axis type, commissioning date,
 generation or performance gain is inferred. The supplied `Tracking.png` is kept
 byte-for-byte (Git blob `213b1702f20304fd8b43b3ca54af4e730a29a7af`).
 
-The detailed proposal retains the original nine 132px-high photographs and adds a
-full-frame 252×168 feature using the existing whitespace. The gallery has ten
-entries, with an image-led tracking feature, enlarged-image viewer and separate
-Solar tracking filter. The industrial rooftop filter still contains the original
-three rooftop projects, not the ground-mounted project.
+The detailed proposal uses ten regular project cards, all with 132px-high thumbnail
+frames. The industrial row has four columns; the other two rows keep their three
+original references. The gallery uses the same standard card treatment for all ten
+entries. Both Agarwal projects appear in the Industrial filter, without a special
+tracking filter or banner. The tracking thumbnail preserves the complete supplied
+image; the enlarged-image viewer is still available.
+
+For compatibility with previously saved proposals, the tracking data retains its
+internal `featured` key. `portfolioCategories()` folds it into the industrial group
+for rendering, gallery and Advanced Edit without changing stored custom values.
 
 Legacy proposal content receives the new reference without overwriting custom
 rooftop values. Advanced Edit is rebound when switching proposals, and an old

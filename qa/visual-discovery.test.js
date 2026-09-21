@@ -58,7 +58,7 @@ const check = (name, ok) => {assert(ok, name);passed++;console.log('  ✓ '+name
     await page.evaluate(()=>{for(const [id,value] of Object.entries({customerType:'commercial',monthlyBill:'50000',arkaUrl:'https://example.com/layout',pvsystUrl:'https://example.com/report'})){const e=document.getElementById(id);e.value=value;e.dispatchEvent(new Event('input',{bubbles:true}));}});
     await layout('Commercial with reports and bill');
     check('selected story photos enlarged only where space allows',await page.evaluate(()=>document.querySelector('#pageAbout .photo-top').offsetHeight===292 && document.querySelector('#pageSolution .photo-top').offsetHeight===230 && document.querySelector('#pageScope .photo-top').offsetHeight===180));
-    check('portfolio shows nine larger actual site photos, no duplicate stock header',await page.$$eval('#pageProjects .proj-card img',els=>els.length===9 && els.every(e=>e.offsetHeight===132)) && !await page.$('#pageProjects .photo-top'));
+    check('portfolio shows ten consistent actual site photos, no duplicate stock header',await page.$$eval('#pageProjects .pc-photo',els=>els.length===10 && els.every(e=>e.offsetHeight===132)) && !await page.$('#pageProjects .photo-top'));
     // Isolated A4 proofs avoid screenshots being obscured by sticky editor chrome.
     const proof=await browser.newPage();await proof.setViewport({width:794,height:1124});
     for(const id of ['pageExec','pageAbout','pageWhySolar','pageSolution','pageScope','pageQuality','pageWhyKtm','pageProjects','pageWarranty','pageClosing']){
