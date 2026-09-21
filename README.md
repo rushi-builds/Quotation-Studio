@@ -102,7 +102,7 @@ clearly-marked placeholder — nothing is invented.
 
 - **Live A4 preview** with page navigator (auto scroll-spy) and mobile scaling
 - **Autosave** to localStorage + **proposal files** (.json export/import)
-- **Versioning**: reference no. + version chip on cover, header meta on every page
+- **Versioning**: live reference number on the cover; reference/version metadata on the inner pages
 - **Advanced Edit**: every headline/paragraph/card across all 15 pages
 - **Per-page photo uploads** and logo replacement
 - **PDF export**: html2canvas (2×) → jsPDF, metadata set, smart filename
@@ -129,3 +129,24 @@ Use the per-page upload buttons in the form, or drop files into
 The `PAGES[]` registry, pure finance module and single CONTENT object make it
 straightforward to add: multiple system options/packages, proposal comparison,
 revision history, reusable templates and other customer types without a rebuild.
+
+
+### Live cover values
+
+Page 1 keeps the supplied artwork, with visible HTML fields for customer name,
+location, system size, proposal reference/date, project capacity, and calculated
+25-year savings. These use the existing form state and Finance calculation, so
+control-panel edits, saved proposals, print and PDF all share the same values.
+Long values wrap/shrink inside their allotted areas. The artwork's logo, headings
+and fixed labels are not text-editable; the advanced editor explains this rather
+than presenting ineffective cover-copy controls.
+
+The original upload is archived unchanged at `assets/ktm-cover-page-1.png`.
+`assets/images/cover-editable-background.png` clears only the seven variable-value
+areas. To regenerate it, run `python qa/build-cover-template.py` (requires
+ImageMagick). If the original artwork dimensions/layout change, recalibrate the
+rectangles and matching CSS positions before regenerating.
+
+Cover regression: `node qa/cover-sync.test.js` against the dev server on port 8080
+(or set `QA_BASE`). Uses the QA Puppeteer/Chromium dependencies and requires the
+standard Chromium shared libraries. Screenshots are written to ignored `qa/shots/`.

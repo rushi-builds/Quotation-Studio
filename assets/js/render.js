@@ -84,6 +84,22 @@
     set('v_coverStatCapacity', s.statCapacity);
     set('v_coverStat4', CONTENT.cover.footerStat4);
 
+    // Visible text overlays use the same IDs/state as the rest of the proposal.
+    // Fit in artwork coordinates (not transformed preview coordinates). Reset on
+    // every render so shorter edits grow back; fonts.ready triggers another render.
+    const artwork = document.querySelector('.ktm-cover__artwork');
+    if (artwork && artwork.clientWidth) {
+      artwork.querySelectorAll('[data-cover-font]').forEach((el) => {
+        let size = Number(el.dataset.coverFont) * artwork.clientWidth / 1060;
+        el.style.fontSize = size + 'px';
+        el.title = el.textContent;
+        while (size > 4 && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1)) {
+          size = Math.max(4, size - 0.5);
+          el.style.fontSize = size + 'px';
+        }
+      });
+    }
+
     /* cover QR — generated only from a real link provided by the user */
     const qrWrap = $('coverQrWrap');
     if (qrWrap) {

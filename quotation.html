@@ -68,7 +68,7 @@
           <input type="file" id="logoUpload" accept="image/*">
         </div>
         <div class="field"><label>Company name</label><input type="text" id="companyName" value="KTM Energy Experts"></div>
-        <div class="field"><label>Tagline (cover &amp; contact page)</label><input type="text" id="companyTagline" value="Govt. Approved Solar EPC Contractor | Est. 2015"></div>
+        <div class="field"><label>Tagline (contact page)</label><input type="text" id="companyTagline" value="Govt. Approved Solar EPC Contractor | Est. 2015"></div>
         <div class="row2">
           <div class="field"><label>Phone</label><input type="text" id="companyPhone" value="+91 93094 86769"></div>
           <div class="field"><label>Email</label><input type="text" id="companyEmail" value="enquiry@ktmenergyexperts.com"></div>
@@ -84,6 +84,7 @@
 
       <fieldset>
         <legend>Customer &amp; System</legend>
+        <div class="hint">Cover updates live: customer name, address, capacity, proposal date and reference. Savings follow your financial inputs; the supplied artwork stays fixed.</div>
         <div class="row2">
           <div class="field">
             <label>Customer type</label>
@@ -110,7 +111,7 @@
           <div class="field">
             <label>Valid for (days)</label>
             <input type="number" id="validityDays" value="15" min="1" step="1">
-            <div class="hint">Shown as “Valid Until” on the cover and in the terms.</div>
+            <div class="hint">Shown as “Valid Until” in the terms.</div>
           </div>
           <div class="field">
             <label>Avg. monthly bill (₹, optional)</label>
@@ -329,22 +330,30 @@
     </div>
     <button class="exit-present" id="exitPresentBtn" type="button">&#10005; Exit presentation (Esc)</button>
 
-    <!-- ============ PAGE 1 — COVER — PIXEL-EXACT STATIC ARTWORK (DO NOT RECREATE) ============ -->
+    <!-- ============ PAGE 1 — COVER — ORIGINAL ARTWORK WITH LIVE PROPOSAL VALUES ============ -->
     <div class="page-wrap" data-page="pageCover">
       <div class="page-label"></div>
       <section class="page" id="pageCover">
         <div class="ktm-cover">
-          <img src="assets/ktm-cover-page-1.png" alt="KTM Energy Experts Solar Proposal Cover" />
+          <div class="ktm-cover__artwork">
+            <img src="assets/images/cover-editable-background.png" width="1060" height="1484" alt="KTM Energy Experts solar proposal cover artwork" />
+            <span class="ktm-cover__value ktm-cover__name" id="v_coverCustName" data-cover-font="31" aria-label="Customer name"></span>
+            <span class="ktm-cover__value ktm-cover__address" id="v_coverCustAddress" data-cover-font="16" aria-label="Customer location"></span>
+            <span class="ktm-cover__value ktm-cover__capacity" id="v_coverCapacity" data-cover-font="16" aria-label="System size"></span>
+            <span class="ktm-cover__value ktm-cover__reference" id="v_coverRef" data-cover-font="16" aria-label="Proposal number"></span>
+            <span class="ktm-cover__value ktm-cover__date" id="v_coverDate" data-cover-font="16" aria-label="Proposal date"></span>
+            <span class="ktm-cover__value ktm-cover__capacity-kpi" id="v_coverBadgeKwp" data-cover-font="49" aria-label="Project capacity"></span>
+            <span class="ktm-cover__value ktm-cover__savings-kpi" id="v_coverBadgeGen" data-cover-font="49" aria-label="Projected 25-year savings"></span>
+          </div>
         </div>
-        <!-- Hidden dynamic IDs for JS compatibility (kept off-screen, not altering visual) -->
+        <!-- Non-artwork metadata retained for renderer compatibility; live values are above -->
         <div style="display:none !important;">
           <span id="v_coverEyebrow"></span><span id="v_coverTitle1">YOUR ROOF</span><span id="v_coverTitle2">POWER</span>
-          <span id="v_coverPreparedLabel">A DEDICATED PROPOSAL FOR</span><span id="v_coverCustName">Mr. ABC Customer</span><span id="v_coverCustAddress">Pune, Maharshstra</span><span id="v_coverCapacity">7 kWp</span><span id="v_coverRef">KTM-2026-013</span><span id="v_coverVersion"></span><span id="v_coverDate">20 September 2026</span><span id="v_coverValid"></span>
+          <span id="v_coverPreparedLabel">A DEDICATED PROPOSAL FOR</span><span id="v_coverVersion"></span><span id="v_coverValid"></span>
           <span id="v_coverCapacityLabel"></span><span id="v_coverDateLabel"></span><span id="v_coverValidLabel"></span><span id="v_coverRefLabel"></span>
           <span id="v_coverPrepRow"></span><span id="v_coverPrepLabel"></span><span id="v_coverPrepBy"></span>
           <span id="v_coverStatYears">11+</span><span id="v_coverStatProjects">200+</span><span id="v_coverStatCapacity">20+ MW</span><span id="v_coverStat4"></span>
-          <span id="v_coverBadgeKwp">7 kWp</span><span id="v_coverBadgeGen">₹78.09 L</span>
-          <img id="img_cover" src="assets/ktm-cover-page-1.png" alt="AI-generated tall architectural concept — villa with solar roof (placeholder, not a real site photo)" style="display:none;">
+          <img id="img_cover" src="assets/ktm-cover-page-1.png?v=0d8e226e919f" alt="AI-generated tall architectural concept — villa with solar roof (placeholder, not a real site photo)" style="display:none;">
         </div>
         <div class="cover-qr" id="coverQrWrap" style="display:none;z-index:30;">
           <canvas id="qrCover" width="92" height="92"></canvas>

@@ -67,15 +67,10 @@
 
     /* ---------- cover ---------- */
     g = mkGroup(rootEl, 'Page 1 — Cover');
-    mkField(g, 'Eyebrow — Residential', CONTENT.cover.eyebrowByType.residential, (v) => { CONTENT.cover.eyebrowByType.residential = v; });
-    mkField(g, 'Eyebrow — Commercial', CONTENT.cover.eyebrowByType.commercial, (v) => { CONTENT.cover.eyebrowByType.commercial = v; });
-    mkField(g, 'Eyebrow — Industrial', CONTENT.cover.eyebrowByType.industrial, (v) => { CONTENT.cover.eyebrowByType.industrial = v; });
-    mkField(g, 'Title — line 1', CONTENT.cover.titleLine1, (v) => { CONTENT.cover.titleLine1 = v; });
-    mkField(g, 'Title — line 2 (accent colour)', CONTENT.cover.titleLine2, (v) => { CONTENT.cover.titleLine2 = v; });
-    mkField(g, 'Footer stat 4 caption', CONTENT.cover.footerStat4, (v) => { CONTENT.cover.footerStat4 = v; }, true);
-    ['preparedFor', 'capacity', 'date', 'validTill', 'reference', 'preparedBy', 'version'].forEach((k) => {
-      mkField(g, 'Label — ' + k, CONTENT.cover.labels[k], (v) => { CONTENT.cover.labels[k] = v; });
-    });
+    const coverNote = document.createElement('p');
+    coverNote.className = 'hint';
+    coverNote.textContent = 'The supplied cover artwork (logo, headings and labels) is fixed. Customer name, location, capacity, proposal number and date update live from Customer & System. Projected savings update from the financial inputs. Edit those controls to update the cover and PDF together.';
+    g.appendChild(coverNote);
 
     /* ---------- executive summary ---------- */
     g = mkGroup(rootEl, 'Page 2 — Executive Summary');

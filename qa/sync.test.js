@@ -71,16 +71,17 @@ t('old v2 portrait not used for #img_cover', !(d.getElementById('img_cover')?.ge
 t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').match(/page-cover\.jpg$/), 'should use tall/exact-hero');
 t('cover stats still present', !!d.getElementById('v_coverStatYears'));
 
-// PIXEL-EXACT STATIC COVER — ktm-cover-page-1.png as single artwork (user: exact yahi image use kr, no recreate)
-t('cover is pixel-exact static ktm-cover with img /assets/ktm-cover-page-1.png', (()=>{ const wrap=d.querySelector('.ktm-cover'); const img=wrap?.querySelector('img'); if(!wrap||!img) return false; const src=img.getAttribute('src')||''; return src.includes('ktm-cover-page-1.png') || src.includes('assets/ktm-cover-page-1.png'); })(), d.querySelector('.ktm-cover img')?.getAttribute('src'));
+// Original artwork with visible, editable proposal values.
+t('cover uses cleared original artwork for live text', d.querySelector('.ktm-cover img')?.getAttribute('src') === 'assets/images/cover-editable-background.png');
 t('cover img alt is KTM Energy Experts Solar Proposal Cover', (()=>{ const alt=d.querySelector('.ktm-cover img')?.getAttribute('alt')||''; return alt.includes('KTM') && alt.toLowerCase().includes('cover'); })(), d.querySelector('.ktm-cover img')?.getAttribute('alt'));
 t('cover uses A4 portrait @page and preserves aspect ratio with object-fit contain (no crop)', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const ktmIdx=css.indexOf('.ktm-cover'); const sec=ktmIdx!==-1?css.slice(ktmIdx, ktmIdx+4000):css; return /object-fit:\s*contain/i.test(sec) && !/object-fit:\s*cover/i.test(sec.slice(sec.indexOf('.ktm-cover img'), sec.indexOf('.ktm-cover img')+500)) && /@page\s*\{\s*size:\s*A4\s*portrait/i.test(css) && /page-break-after:\s*always/i.test(sec); })());
 t('cover does not use filters/overlays/gradients on the static image (preserve exactly)', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const ktmBlock=(css.match(/\.ktm-cover\s*\{[^}]*\}/i)||[''])[0]; const imgBlock=(css.match(/\.ktm-cover\s+img\s*\{[^}]*\}/i)||[''])[0]; const combined=ktmBlock+imgBlock; return !/filter:/i.test(combined) && !/gradient/i.test(combined) && !/backdrop-filter/i.test(combined); })());
 t('cover file exists at assets/ktm-cover-page-1.png', fs.existsSync(path.join(ROOT,'assets/ktm-cover-page-1.png')));
 t('trust pills do not contain MNRE/Pan-Pune marketing copy', !((d.querySelector('.cover-trust')?.textContent)||'').includes('MNRE') && !((d.querySelector('.cover-trust')?.textContent)||'').includes('Pan-Pune'));
-t('cover badge Kwp + savings nodes exist (hidden for static, kept for JS compat)', !!d.getElementById('v_coverBadgeKwp') && !!d.getElementById('v_coverBadgeGen'));
-t('cover hidden dynamic IDs still present for JS (v_coverCustName etc)', !!d.getElementById('v_coverCustName') && !!d.getElementById('v_coverCapacity') && !!d.getElementById('v_coverRef'));
-// keep dynamic sync tests below for hidden IDs — visual is static, data still flows
+t('cover capacity and savings nodes exist', !!d.getElementById('v_coverBadgeKwp') && !!d.getElementById('v_coverBadgeGen'));
+t('cover live field IDs still present for JS (v_coverCustName etc)', !!d.getElementById('v_coverCustName') && !!d.getElementById('v_coverCapacity') && !!d.getElementById('v_coverRef'));
+// Dynamic IDs now live inside the visible artwork; browser QA verifies visibility.
+t('live cover fields are outside hidden metadata', [...d.querySelectorAll('[data-cover-font]')].length === 7 && [...d.querySelectorAll('[data-cover-font]')].every(el => el.closest('.ktm-cover__artwork') && !el.closest('[style*="display:none"]')));
 t('cover CSS does not use cover crop (object-fit:cover) on ktm-cover img', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const m=css.match(/\.ktm-cover\s+img\s*\{[^}]*\}/i); if(!m) return false; return /object-fit:\s*contain/i.test(m[0]) && !/object-fit:\s*cover/i.test(m[0]); })());
 
 t('OG tags present (quotation.html)', !!d.querySelector('meta[property="og:title"]'));
