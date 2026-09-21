@@ -814,14 +814,18 @@ body.presenting .exit-present{display:block;}
   flex:1;min-width:200px;}
 form.qs-mode-essentials [data-adv]{display:none !important;}
 
-/* Links to externally prepared design and simulation documents. */
-.ts-refs{display:flex;gap:10px;margin:10px 0 0;}
-.ts-ref{flex:1;display:flex;align-items:center;gap:9px;border:1px
-  solid var(--line-cool,#E3E8EE);border-radius:9px;padding:9px 11px;
-  background:#fff;}
-.ts-ref .tr-l{font-size:8.2px;font-weight:700;letter-spacing:.08em;
-  text-transform:uppercase;color:#5B6B80;}
-.ts-ref .tr-v{font-size:10.5px;font-weight:700;color:var(--navy,#1C2B3F);
+/* Compact report references fit above the existing note and footer.
+   Only reference elements change: the no-links page keeps its original layout. */
+#v_tsRefsLabel{margin:6px 0 4px;}
+.ts-refs{display:flex;gap:8px;margin:0;}
+.ts-ref{flex:1;min-width:0;display:flex;align-items:center;gap:6px;
+  border:1px solid var(--line-cool,#E3E8EE);border-radius:999px;
+  padding:5px 8px;background:#fff;}
+.ts-ref .tr-icon{display:flex;flex-shrink:0;}
+.ts-ref .tr-body{display:flex;align-items:center;gap:6px;min-width:0;}
+.ts-ref .tr-l{flex-shrink:0;font-size:8.2px;font-weight:700;
+  white-space:nowrap;color:#5B6B80;}
+.ts-ref .tr-v{min-width:0;font-size:8.5px;font-weight:700;color:var(--navy,#1C2B3F);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ts-ref a{color:var(--orange-dark,#D96A0E);text-decoration:none;}
-.ts-ref-note{font-size:8.4px;color:#9AA2AC;line-height:1.5;margin-top:5px;}
+.ts-ref-note{font-size:8px;color:#9AA2AC;line-height:1.5;margin-top:3px;}
