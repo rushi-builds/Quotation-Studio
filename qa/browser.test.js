@@ -201,6 +201,7 @@ const OUT = __dirname + '/shots';
   await new Promise((r) => setTimeout(r, 400));
   const client = await page.createCDPSession();
   await client.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: OUT });
+  fs.readdirSync(OUT).forEach(f=>{if(f.startsWith('Proposal_') && f.endsWith('.pdf')) fs.unlinkSync(OUT+'/'+f);});
   await page.click('#downloadBtn');
   const pdfPath = OUT + '/export-test.pdf';
   let pdfOk = false, lastStatus = '';
@@ -210,7 +211,7 @@ const OUT = __dirname + '/shots';
     if (st && st !== lastStatus) { console.log('   …', st); lastStatus = st; }
     const any = fs.existsSync(pdfPath) ||
       fs.readdirSync(OUT).some((f) => f.endsWith('.pdf') && fs.statSync(OUT + '/' + f).size > 50000);
-    if (st.includes('Downloaded') || any) { pdfOk = true; break; }
+    if (st.includes('Downloaded') && any) { pdfOk = true; break; }
   }
   t('PDF exported', pdfOk);
   if (pdfOk) {
@@ -219,7 +220,10 @@ const OUT = __dirname + '/shots';
       const f = fs.readdirSync(OUT).find((f) => f.endsWith('.pdf') && fs.statSync(OUT + '/' + f).size > 50000);
       if (f) pdfFile = OUT + '/' + f; else await new Promise((r) => setTimeout(r, 100));
     }
-    if (pdfFile) console.log('   PDF:', require('path').basename(pdfFile), (fs.statSync(pdfFile).size / 1048576).toFixed(2) + ' MB');
+    if (pdfFile) {
+      console.log('   PDF:', require('path').basename(pdfFile), (fs.statSync(pdfFile).size / 1048576).toFixed(2) + ' MB');
+      t('downloaded detailed PDF contains 16 actual pages', (fs.readFileSync(pdfFile,'latin1').match(/\/Type \/Page\b/g)||[]).length===16);
+    }
   }
   const status = await page.$eval('#statusMsg', (e) => e.textContent);
   t('status confirms 16 pages', status.includes('16'), status);
@@ -281,7 +285,10 @@ const OUT = __dirname + '/shots';
   t('PDF with financing exported', pdfOk2);
   if (pdfOk2) {
     const f2 = fs.readdirSync(OUT).find((f) => f.endsWith('.pdf') && fs.statSync(OUT + '/' + f).size > 50000);
-    if (f2) console.log('   PDF:', f2, (fs.statSync(OUT + '/' + f2).size / 1048576).toFixed(2) + ' MB');
+    if (f2) {
+      console.log('   PDF:', f2, (fs.statSync(OUT + '/' + f2).size / 1048576).toFixed(2) + ' MB');
+      t('downloaded financing PDF contains 17 actual pages', (fs.readFileSync(OUT+'/'+f2,'latin1').match(/\/Type \/Page\b/g)||[]).length===17);
+    }
   }
   t('status confirms 17 pages with financing', status2.includes('17'), status2);
   await page.evaluate(() => {

@@ -336,7 +336,7 @@
             btn.disabled = true;
             const old = btn.textContent;
             try {
-              await window.Exporter.exportPdf((m) => { btn.textContent = m; });
+              await window.Exporter.exportPdf((m) => { btn.textContent = m; }, { format: document.getElementById("pdfFormat").value });
             } catch (e) {
               console.error(e);
               btn.textContent = 'Export failed';

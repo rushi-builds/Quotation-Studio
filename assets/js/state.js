@@ -46,6 +46,7 @@
     cableMake: 'Polycab / KEI or Equivalent',
     roofType: 'RCC Terrace',
     availableArea: '',
+    galleryUrl: '',
     pvsystUrl: '',
     arkaUrl: '',
     /* ---- Financial assumptions ---- */

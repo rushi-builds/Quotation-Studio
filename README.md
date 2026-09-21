@@ -240,3 +240,23 @@ retain the full copy. No remote illustration assets are required.
 `qa/system-diagram.test.js` covers topology, values, editable/safe text, label bounds,
 print/PDF capture and desktop/mobile Customer View. The existing Tech Spec tests
 still check A4 fit with no, one or both engineering reference links.
+
+### Visual customer tools and PDF formats
+
+Choose **Power Proposal — 2-page summary** or the existing **Detailed proposal**
+from the PDF dropdown in the builder or Customer View. The short report uses the
+same live equipment, financial model and system diagram; the detailed report keeps
+all applicable pages. Export captures a consistent snapshot and refuses clipped
+short summaries rather than silently hiding content.
+
+Customer View now includes a **separate tariff/savings explorer**. It does not change
+the saved quotation or PDF figures. On the closing page, **Explore Our Projects**
+provides a scannable/clickable gallery QR. Set **Public project / video gallery URL**
+in the builder, or leave it blank to use this deployment's public `gallery.html`.
+Use a permanent public URL for issued proposals and test it on another phone.
+
+The bundled gallery currently contains published project **photographs**. Actual
+approved video links can be added through `assets/js/gallery-media.js`, or the QR can
+point to an existing public video playlist. No video, site-specific simulation or
+subsidy approval is fabricated. Private quotation edits are not public-gallery edits.
+See [the feature and verification guide](docs/proposal-experience.md).

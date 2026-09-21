@@ -16,6 +16,7 @@
 <meta name="twitter:image" content="assets/images/page-cover-v2-portrait.jpg">
 <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png">
 <link rel="stylesheet" href="assets/css/app.css">
+<link rel="stylesheet" href="assets/css/experience.css">
 </head>
 <body>
 <div class="app">
@@ -127,6 +128,13 @@
           <label>Proposal link (optional — enables the cover QR &amp; WhatsApp share)</label>
           <input type="url" id="shareUrl" placeholder="https://…">
           <div class="hint">Paste the hosted link where the customer can open this proposal. The QR is generated only from this link — never from invented data.</div>
+        </div>
+        <div class="field">
+          <label for="galleryUrl">Public project / video gallery URL</label>
+          <input type="url" id="galleryUrl" maxlength="250" placeholder="https://your-website.com/gallery">
+          <div class="hint">Used by the closing-page QR and both PDFs. Leave blank to use this deployment’s published photo gallery (not private proposal uploads). For issued proposals, use a permanent public URL and test it on another phone. Video playlists can be linked here; no video is invented.</div>
+          <a href="gallery.html" target="_blank" rel="noopener noreferrer">Preview the public project gallery ↗</a>
+          <div class="hint" id="galleryStatus" role="status"></div>
         </div>
       </fieldset>
 
@@ -322,6 +330,8 @@
     </form>
 
     <div class="form-actions">
+      <label class="pdf-format-label" for="pdfFormat">PDF format</label>
+      <select id="pdfFormat" class="pdf-format"><option value="full">Detailed proposal — all applicable pages</option><option value="power">Power Proposal — 2-page summary</option></select>
       <button id="downloadBtn" type="button"><span id="downloadLabel">Generate &amp; Download PDF</span></button>
       <div class="form-links">
         <button type="button" class="link-btn" id="exportBtn">Save proposal file</button>
@@ -951,6 +961,9 @@
           <img id="img_closing" src="assets/images/page-contact.jpg" alt="Solar installation at sunset">
           <div class="closing-banner-overlay"></div>
           <div class="closing-brand"><img src="assets/images/ktm-logo-dark.png" alt="KTM Energy Experts"></div>
+          <a class="gallery-card" id="closingGallery" hidden target="_blank" rel="noopener noreferrer" aria-label="Open the public project gallery">
+            <span>EXPLORE OUR PROJECTS</span><canvas width="320" height="320" aria-label="Project gallery QR code"></canvas><strong>Scan or tap to explore ↗</strong><small>Project photographs &amp; available media</small>
+          </a>
           <div class="closing-hero">
             <h2 id="v_clHeading"></h2>
             <div class="sub" id="v_clSub"></div>
@@ -1026,6 +1039,7 @@
 <script src="assets/js/equipment.js"></script>
 <script src="assets/js/render.js"></script>
 <script src="assets/js/editor.js"></script>
+<script src="assets/js/experience.js"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/app.js"></script>
 </body>

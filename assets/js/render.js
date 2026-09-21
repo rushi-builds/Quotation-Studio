@@ -1076,7 +1076,7 @@
       bomBos: g('bomBos'), bomInstall: g('bomInstall'), bomLiaison: g('bomLiaison'),
       loanAmt: g('loanAmt'), loanRate: g('loanRate'), loanYears: g('loanYears'),
       durationText: g('durationText'), jurisdiction: g('jurisdiction'), surveyWindow: g('surveyWindow'),
-      shareUrl: g('shareUrl'),
+      shareUrl: g('shareUrl'), galleryUrl: g('galleryUrl'),
       options: (root.__qsOptions || [])
     };
   }

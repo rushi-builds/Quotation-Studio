@@ -16,6 +16,7 @@
 <meta name="twitter:image" content="assets/images/page-cover-v2-portrait.jpg">
 <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png">
 <link rel="stylesheet" href="assets/css/app.css">
+<link rel="stylesheet" href="assets/css/experience.css">
 </head>
 <body class="share-mode">
 
@@ -31,6 +32,7 @@
     <div class="st-actions">
       <span class="st-status" id="shareStatus"></span>
       <button type="button" id="requestJump" class="request-jump" disabled>Request survey / 3D / PVsyst</button>
+      <label class="pdf-format-label" for="pdfFormat">PDF format<select id="pdfFormat" class="pdf-format"><option value="full">Detailed proposal</option><option value="power">Power Proposal · 2 pages</option></select></label>
       <button type="button" id="sharePrint" disabled>Download PDF</button>
     </div>
   </div>
@@ -39,6 +41,8 @@
     <div class="sb-name" id="shareCustomer">—</div>
     <div class="sb-cap" id="shareCapacity"></div>
   </div>
+
+  <section id="savingsExplorer" class="savings-explorer screen-only" hidden aria-labelledby="scenarioTitle"></section>
 
   <!-- proposal pages are injected here by share.js using the same renderers -->
   <div id="sharePages"></div>
@@ -139,6 +143,7 @@ window.QS_SHARE = true;
 <script src="assets/js/state.js"></script>
 <script src="assets/js/equipment.js"></script>
 <script src="assets/js/render.js"></script>
+<script src="assets/js/experience.js"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/share.js"></script>
 </body>

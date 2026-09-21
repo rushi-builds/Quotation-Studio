@@ -1,0 +1,90 @@
+/* Screen tools are separate from the fixed A4 proposal canvases. */
+.pdf-format-label{display:block;font-size:10px;font-weight:700;color:#5B6B80;margin-bottom:5px;}
+.pdf-format{width:100%;border:1px solid #D9E2EA;border-radius:8px;background:#fff;color:#17354A;font:600 11px Arial,sans-serif;padding:9px 10px;margin:3px 0 9px;}
+.st-actions{flex-wrap:wrap;justify-content:flex-end;}
+.st-actions .pdf-format-label{margin:0;max-width:180px;}
+.st-actions .pdf-format{margin-bottom:0;max-width:180px;}
+.gallery-card{position:absolute;z-index:3;right:38px;top:24px;width:144px;padding:12px;background:#fff;border-radius:12px;color:#17354A;text-decoration:none;display:flex;align-items:center;flex-direction:column;gap:5px;box-shadow:0 8px 24px #071a2e24;}
+.gallery-card[hidden]{display:none;}
+.gallery-card>span{font:700 8px Arial,sans-serif;letter-spacing:.07em;}
+.gallery-card canvas{display:block;width:112px;height:112px;}
+.gallery-card strong{font-size:9px;}
+.gallery-card small{font-size:8px;text-align:center;line-height:1.4;color:#5B6B80;}
+.has-gallery .closing-hero{padding:0 210px 0 38px;text-align:left;align-items:flex-start;}
+.has-gallery .closing-hero h2{font-size:25px;}
+.savings-explorer{width:100%;padding:25px;border:1px solid #D9E2EA;border-radius:16px;background:#fff;margin:0 0 22px;color:#17354A;}
+.savings-explorer[hidden]{display:none;}
+.experience-eyebrow{font-size:9px;letter-spacing:.12em;font-weight:800;color:#AD590E;}
+.savings-explorer h2{font:700 21px 'Poppins',Arial,sans-serif;margin:8px 0;}
+.savings-explorer p{font-size:12px;line-height:1.6;color:#5B6B80;margin:8px 0;}
+.savings-explorer small{display:block;color:#5B6B80;font-size:10px;line-height:1.6;}
+.scenario-controls{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:18px;font-size:12px;}
+.scenario-controls strong{display:block;font-size:19px;margin-top:4px;}
+.scenario-controls button{background:#F5F7F9;border:1px solid #D9E2EA;padding:9px;border-radius:8px;color:#17354A;cursor:pointer;font-size:11px;}
+#scenarioTariff{width:100%;accent-color:#F7941D;margin:20px 0;cursor:pointer;}
+.scenario-results{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.scenario-results>div{background:#F4F7FA;padding:15px;border-radius:10px;}
+.scenario-results span{font-size:10px;color:#5B6B80;display:block;}
+.scenario-results strong{font:700 24px 'Poppins',Arial,sans-serif;display:block;margin-top:4px;}
+#scenarioChart{width:100%;height:auto;display:block;margin-top:10px;}
+.scenario-legend{display:flex;gap:18px;justify-content:center;font-size:11px;color:#64788A;}
+.scenario-legend span:first-child{color:#AD590E;}
+.pdf-snapshot{position:absolute;left:-12000px;top:0;width:794px;pointer-events:none;}
+.pdf-snapshot .page{transform:none!important;margin:0;}
+.power-page{padding:30px 38px 52px;color:#17354A;font-family:Arial,sans-serif;}
+.power-head{display:flex;align-items:center;justify-content:space-between;gap:24px;border-bottom:1px solid #D9E2EA;padding-bottom:12px;margin-bottom:20px;font-size:10px;line-height:1.6;text-align:right;}
+.power-head img{width:94px;height:56px;object-fit:contain;}
+.power-head span{font-size:9px;color:#64788A;overflow-wrap:anywhere;}
+.power-kicker{font-size:9px;font-weight:700;letter-spacing:.12em;color:#AD590E;margin:6px 0;}
+.power-page h1{font-size:29px;line-height:1.2;margin:8px 0 16px;}
+.power-page h2{font-size:13px;margin:15px 0 10px;}
+.power-customer{display:flex;flex-direction:column;gap:5px;margin:0 0 17px;overflow-wrap:anywhere;}
+.power-customer strong{font-size:16px;}.power-customer span{font-size:11px;color:#64788A;}
+.power-hero{height:208px;display:grid;grid-template-columns:42% 58%;background:#071A2E;border-radius:12px;overflow:hidden;}
+.power-hero>div{padding:27px;color:#fff;}
+.power-hero span{font-size:9px;letter-spacing:.12em;color:#E9C398;}
+.power-hero strong{display:block;font-size:44px;margin:8px 0;}
+.power-hero strong small{font-size:19px;color:#F7941D;}
+.power-hero p{font-size:12px;line-height:1.7;}
+.power-hero img{width:100%;height:208px;object-fit:cover;}
+.power-caption{font-size:8px;color:#64788A;margin:6px 0 14px;}
+.power-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.power-metric{background:#F3F6F8;padding:13px 15px;border-radius:10px;border-left:3px solid #F7941D;min-width:0;}
+.power-metric>span{display:block;font-size:10px;color:#5B6B80;}
+.power-metric>strong{font-size:24px;display:block;margin:5px 0;overflow-wrap:anywhere;}
+.power-metric>small{display:block;font-size:9px;color:#64788A;line-height:1.4;}
+.power-diagram{border:1px solid #E0E6EA;border-radius:10px;padding:10px;background:#FBFCFE;}
+.power-diagram svg{width:100%;height:auto;display:block;}
+.power-row{display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid #E7ECF0;font-size:10px;line-height:1.5;}
+.power-row>span{color:#5B6B80;flex:0 0 40%;}.power-row>strong{text-align:right;overflow-wrap:anywhere;}
+.power-assumptions{margin-top:9px;}
+.power-note{font-size:9px;color:#5B6B80;line-height:1.55;margin:12px 0 0;}
+.power-foot{position:absolute;bottom:20px;left:38px;right:38px;border-top:2px solid #F7941D;padding-top:10px;display:flex;justify-content:space-between;gap:20px;font-size:9px;}
+.power-columns{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.power-cost{background:#F6F8FA;border-radius:10px;padding:0 14px 12px;}
+.power-cost small{font-size:9px;color:#5B6B80;line-height:1.5;display:block;}
+.power-total{font-size:10px;margin:10px 0;}.power-total strong{display:block;font-size:26px;margin-top:4px;}
+.power-pay{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.power-pay .power-metric>strong{font-size:22px;}
+.power-scope ul{padding-left:15px;font-size:10px;line-height:1.55;color:#5B6B80;}
+.power-scope li{margin:2px 0;}
+.power-terms{margin-top:10px;}.power-refs{font-size:10px;margin-top:8px;}
+.power-page a{color:#AD590E;}
+.power-next{display:flex;justify-content:space-between;gap:20px;background:#F9F5EE;border-radius:10px;padding:12px 16px;margin-top:14px;}
+.power-next h2{margin:0 0 8px;}.power-next p{font-size:10px;color:#5B6B80;line-height:1.5;margin:5px 0;}.power-next strong{font-size:14px;}
+.power-gallery{flex:0 0 103px;display:flex;flex-direction:column;align-items:center;font-size:8px;text-decoration:none;gap:3px;}
+.power-gallery canvas{width:94px;height:94px;background:white;}
+.power-compact .power-row{padding:4px 0;}.power-compact h2{margin:10px 0 7px;}.power-compact .power-head{margin-bottom:13px;}.power-compact .power-scope li{margin:2px 0;}
+@media(max-width:600px){.st-actions{justify-content:flex-start;}.savings-explorer{padding:17px;}.savings-explorer h2{font-size:18px;}.scenario-results strong{font-size:18px;}.scenario-controls{align-items:flex-start;}}
+@media print{.savings-explorer,.pdf-format,.pdf-format-label,.pdf-snapshot{display:none!important;}}
+.qs-pdf-capture .savings-explorer{display:none!important;}
+/* Screen elevation is not part of a printed sheet. html2canvas can paint outer
+   shadows inside large white surfaces; remove only those decorative shadows. */
+.pdf-snapshot .page,.qs-pdf-capture .page,.qs-pdf-capture .closing-card,.qs-pdf-capture .gallery-card{box-shadow:none!important;}
+.power-compact .power-scope ul{line-height:1.4;}
+.power-compact .power-next{padding:10px 14px;}
+.power-compact .power-note{margin-top:8px;}
+.power-compact .power-head{margin-bottom:10px;}
+.power-warning{color:#8D430D;background:#FFF6EB;padding:5px 8px;border-radius:5px;}
+.power-compact{padding-bottom:44px;}
+.power-compact .power-caption{margin-bottom:10px;}

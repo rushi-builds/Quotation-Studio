@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node finance.test.js && node integration.test.js && node options.test.js && node sync.test.js && node audit-finance.test.js",
-    "test:browser": "node cover-sync.test.js && node brand-engineering.test.js && node visual-discovery.test.js && node audit-browser.test.js && node tech-spec.test.js && node system-diagram.test.js && node browser.test.js"
+    "test:browser": "node cover-sync.test.js && node brand-engineering.test.js && node visual-discovery.test.js && node audit-browser.test.js && node tech-spec.test.js && node system-diagram.test.js && node experience.test.js && node browser.test.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +14,7 @@
     "@sparticuz/chromium": "^153.0.0",
     "chrome-aws-lambda": "^10.1.0",
     "jsdom": "^24.1.3",
+    "jsqr": "^1.4.0",
     "playwright": "^1.49.1",
     "puppeteer-core": "^23.11.1"
   }

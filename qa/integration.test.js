@@ -41,6 +41,8 @@ function bootApp(seedStorage) {
     beforeParse(window) {
       window.HTMLCanvasElement.prototype.getContext = function () { return mockCtx(); };
       window.Element.prototype.scrollIntoView = function () {};
+      // jsdom has no image loader; browser suites exercise real image readiness.
+      Object.defineProperty(window.HTMLImageElement.prototype, 'complete', {get: () => true});
       window.devicePixelRatio = 2;
       window.confirm = () => true;
       if (seedStorage) {
@@ -52,7 +54,7 @@ function bootApp(seedStorage) {
   const { window } = dom;
   /* browser <script> tags share top-level scope; a single concatenated eval mimics that */
   const src = ['content.js', 'finance.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
+    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
   window.document.dispatchEvent(new window.Event('DOMContentLoaded', { bubbles: true }));
