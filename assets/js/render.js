@@ -532,9 +532,9 @@
       <path d="M30 78l14 6v10l-14-6Z" fill="#F8CE8D" stroke="#BCC5C8"/>
       <path d="M91 89l15-8v11l-15 8Z" fill="#648DA1" stroke="#AFBFCA"/>
     </g>`;
-    const home = `<g data-component="home">
-      <rect data-property-space x="401" y="1" width="108" height="87" rx="12" fill="#F2F7FA"/>
-      <g data-property-art transform="translate(455 52) scale(1.4) translate(-455 -42)">
+    const home = `<g data-component="home" transform="translate(0 -8)">
+      <rect data-property-space x="412" y="2" width="87" height="66" rx="11" fill="#F2F7FA"/>
+      <g data-property-art>
       <path d="M430 38 L455 21 L481 38 L476 40 L455 27 L434 41Z" fill="#66859B"/>
       <path d="M435 39 L455 27 L475 40 V62 H435Z" fill="#FFF" stroke="#C3D4DF"/>
       <rect x="452" y="48" width="9" height="14" rx="1" fill="#3B617B"/>
@@ -559,23 +559,19 @@
       <path d="M644 47v9m13-9v9m31-9v9m13-9v9" stroke="#7F99AA" stroke-width="2.2"/>
       <path d="M633 109h73" stroke="#C7D8E3" stroke-width="2"/>
     </g>`;
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="718" height="190" viewBox="0 0 718 190" role="img" aria-labelledby="qs-system-title qs-system-desc">' +
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="718" height="180" viewBox="0 -8 718 180" role="img" aria-labelledby="qs-system-title qs-system-desc">' +
       '<title id="qs-system-title">Rooftop solar, protection and utility connection</title>' +
       '<desc id="qs-system-desc">Conceptual grid-tied flow: rooftop panels to DCDB, inverter and ACDB, then the property load bus. Home loads connect to that bus. A bidirectional meter connects the bus to the utility grid for import and export. Not a construction wiring drawing.</desc>' +
       '<defs><linearGradient id="qs-metal" x2="1" y2="1"><stop stop-color="#FFF"/><stop offset="1" stop-color="#EDF2F6"/></linearGradient>' +
       '<linearGradient id="qs-panels" x2="1" y2="1"><stop stop-color="#386982"/><stop offset="1" stop-color="#17384F"/></linearGradient>' +
       '<marker id="qs-dc-arrow" viewBox="0 0 6 6" markerWidth="5" markerHeight="5" refX="5" refY="3" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0L6 3L0 6Z" fill="' + dc + '"/></marker>' +
       '<marker id="qs-ac-arrow" viewBox="0 0 6 6" markerWidth="5" markerHeight="5" refX="5" refY="3" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0L6 3L0 6Z" fill="' + ac + '"/></marker></defs>' +
-      home +
-      // A separate upper property bay gives the house room without shrinking
-      // the approved equipment illustrations or putting loads after the meter.
-      '<g data-equipment-lane transform="translate(0 18)">' +
-      array + dcdb + inverter + acdb + meter + grid +
+      array + dcdb + inverter + acdb + home + meter + grid +
       wire('array', 'dcdb', 'M126 81H150', 'dc') +
       wire('dcdb', 'inverter', 'M198 81H243', 'dc') +
       wire('inverter', 'acdb', 'M307 81H355', 'ac') +
       wire('acdb', 'property-bus', 'M404 81H455', 'ac') +
-      wire('property-bus', 'home', 'M455 81V64', 'ac') +
+      wire('property-bus', 'home', 'M455 81V56', 'ac') +
       wire('property-bus', 'meter', 'M465 81H510', 'ac', true) +
       wire('meter', 'grid', 'M577 81H650', 'ac', true) +
       '<path d="M455 81H465M569 81H577" fill="none" stroke="' + ac + '" stroke-width="2"/><circle data-component="property-bus" cx="455" cy="81" r="3.2" fill="' + ac + '"/>' +
@@ -589,13 +585,13 @@
       caption('acdb-detail', 379, 159, 'AC protection', 74, 8.5, muted, 400, 1) +
       caption('dc-wire', 222, 71, L.dc, 38, 8.5, dc, 700, 1) +
       caption('ac-wire', 330, 71, L.ac, 37, 8.5, ac, 700, 1) +
+      caption('home', 455, 6, L.home, 78, 9, navy, 700, 1) +
       caption('bus', 455, 103, 'Load bus', 62, 8, muted, 400, 1) +
       caption('meter', 540, 130, L.meter, 111, 10.5, navy, 700, 2) +
       caption('meter-detail', 540, 159, 'Net metering', 106, 8.5, muted, 400, 1) +
       caption('grid', 672, 130, 'Utility grid', 88, 11, navy, 700, 2) +
       caption('utility', 672, 159, L.grid, 88, 8.5, muted, 400, 1) +
-      caption('exchange', 609, 70, L.exchange || 'Import / export', 72, 8, ac, 600, 1) + '</g>' +
-      caption('home', 455, 15, L.home, 94, 10.5, navy, 700, 1) + '</svg>';
+      caption('exchange', 609, 70, L.exchange || 'Import / export', 72, 8, ac, 600, 1) + '</svg>';
   }
 
   /* ================================================================== */

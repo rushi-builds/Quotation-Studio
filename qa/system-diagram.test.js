@@ -49,10 +49,13 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
       const box=e=>{const r=e.getBoundingClientRect();return {x:(r.left-root.left)*scale,y:(r.top-root.top)*scale,w:r.width*scale,h:r.height*scale};};
       return {bay:box(svg.querySelector('[data-property-space]')),art:box(svg.querySelector('[data-property-art]')),label:box(svg.querySelector('[data-diagram-label="home"]')),branch:box(svg.querySelector('[data-flow-to="home"]'))};
     });
-    check('property has a dedicated 108 × 87 upper bay', Math.abs(property.bay.w-108)<.1 && Math.abs(property.bay.h-87)<.1);
-    check('house illustration is 40% larger in both dimensions', property.art.w>=71 && property.art.h>=57);
-    check('property label and illustration have separate breathing room', property.label.y+property.label.h+4 < property.art.y && property.art.x>property.bay.x+12 && property.art.x+property.art.w<property.bay.x+property.bay.w-12);
-    check('branch reaches the house without crossing its artwork', property.branch.y>=property.art.y+property.art.h && property.branch.h>=16);
+    check('property retains its original 87 × 66 card', Math.abs(property.bay.w-87)<.1 && Math.abs(property.bay.h-66)<.1);
+    check('house retains its original 51 × 41 artwork, without scaling', Math.abs(property.art.w-51)<.1 && Math.abs(property.art.h-41)<.1);
+    check('property label and illustration have separate breathing room', property.label.y+property.label.h+3 < property.art.y && property.art.x>property.bay.x+12 && property.art.x+property.art.w<property.bay.x+property.bay.w-12);
+    check('branch reaches the house without crossing its artwork', property.branch.y>=property.art.y+property.art.h && Math.abs(property.branch.h-25)<.1);
+    check('only the house is raised 8 units; equipment row is not translated', await page.$eval('#v_tsDiagram svg', svg =>
+      svg.querySelector('[data-component="home"]').getAttribute('transform')==='translate(0 -8)' && !svg.querySelector('[data-equipment-lane]') &&
+      svg.querySelector('[data-diagram-label="home"] text').getAttribute('y')==='6' && svg.viewBox.baseVal.y===-8));
     const edges = await page.$$eval('[data-flow-from]', els => els.map(e => [e.dataset.flowFrom,e.dataset.flowTo,e.dataset.flowDirection,e.hasAttribute('marker-start'),e.hasAttribute('marker-end')]));
     check('solar path contains DC protection, inverter and AC protection in order', ['array:dcdb','dcdb:inverter','inverter:acdb','acdb:property-bus'].every(pair => edges.some(e => e[0]+':'+e[1]===pair && e[2]==='forward' && e[4])));
     check('local loads branch BEFORE the net meter', edges.some(e => e[0]==='property-bus' && e[1]==='home') && !edges.some(e => e[0]==='meter' && e[1]==='home'));
@@ -100,7 +103,7 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     check('PDF capture rasterizes the complete diagram', raster.width > 1000 && raster.height > 300);
     fs.writeFileSync(path.join(shots,'system-overview-pdf.png'),Buffer.from(raster.png.split(',')[1],'base64'));
     const svgMarkup = await page.$eval('#v_tsDiagram svg', e=>new XMLSerializer().serializeToString(e));
-    const proof = await browser.newPage(); await proof.setViewport({width:742,height:214,deviceScaleFactor:2});
+    const proof = await browser.newPage(); await proof.setViewport({width:742,height:204,deviceScaleFactor:2});
     await proof.setContent('<style>body{margin:12px;background:#fbfcfe}</style>'+svgMarkup);
     check('standalone SVG is valid XML with no external image dependencies', await proof.evaluate(s=>!new DOMParser().parseFromString(s,'image/svg+xml').querySelector('parsererror') && !document.querySelector('svg image'),svgMarkup));
     await proof.screenshot({path:path.join(shots,'system-overview-detail.png')}); await proof.close();

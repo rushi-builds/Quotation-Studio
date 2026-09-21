@@ -168,13 +168,11 @@ complete A4 Technical Specification page were visually reviewed. No financial
 calculation changed; the approved cover and engineering-request flow are retained.
 
 
-### Property spacing adjustment
+### Property position correction
 
-The house now has its own 108×87 upper bay and a 40% larger illustration in both
-axes, with a larger label separated from the roof. The approved equipment row is
-unchanged in size and shifted down 18 SVG units, retaining the same local-load
-branch and bidirectional service topology. The overview is now 718×190; 18px of
-Technical Specification intro whitespace is reallocated rather than shrinking the
-specification table or its type. The no/one/both-reference layouts still fit A4.
-Diagram regression coverage is now **35 checks**, including property dimensions,
-label/art clearance and a branch that does not cross the house artwork.
+The larger house was not wanted. The original 87×66 property card, 51×41 house
+artwork, 9px label, equipment positions and Technical Specification intro spacing
+are restored. Only the property/card/label move up 8 SVG units; the branch extends
+to meet it. An 8-unit SVG top inset with an equal proportional negative margin uses
+the existing title gap, retaining the original page footprint and preventing PDF
+clipping. Geometry tests check original dimensions and the exact upward translation.
