@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node finance.test.js && node integration.test.js && node options.test.js && node sync.test.js && node audit-finance.test.js",
+    "test:browser": "node cover-sync.test.js && node audit-browser.test.js && node tech-spec.test.js && node browser.test.js"
   },
   "keywords": [],
   "author": "",

@@ -344,6 +344,17 @@
     set('v_wsAnnualGen', F.fmtNum(f.annualGen) + ' kWh');
     set('v_wsAnnualSaving', F.fmtINR(f.annualSaving));
     set('v_wsLifetimeSaving', F.fmtINR(f.lifetimeSaving));
+
+    /* No invented bill or fixed-charge floor. This is an energy-offset
+       illustration, not a DISCOM bill/settlement or guaranteed cash saving. */
+    show('v_wsBillSlashCard', f.monthlyBill > 0);
+    set('v_bscBeforeVal', F.fmtINR(f.monthlyBill) + ' / mo');
+    set('v_bscAfterVal', F.fmtINR(f.monthlyBillAfter) + ' / mo');
+    set('v_bscSavedVal', F.fmtINR(f.monthlyBillSaving) + ' / mo');
+    set('v_bscSavedYr', '≈ ' + F.fmtINR(f.monthlyBillSaving * 12) + ' offset / yr');
+    const billBar = $('v_bscAfterBar');
+    if (billBar) billBar.style.width = (f.monthlyBill > 0 ? f.monthlyBillAfter / f.monthlyBill * 100 : 0) + '%';
+
   }
 
   /* ================================================================== */
@@ -609,6 +620,20 @@
     set('v_inCostSubCap', subCap);
     set('v_inRate', '₹' + (Math.round(f.costPerWp * 10) / 10) + ' / Wp');
     set('v_inRateL', P.rateChip);
+
+    /* commercial / industrial tax shield benefit (IT Act Sec 32) */
+    const taxBanner = $('v_inTaxShieldBanner');
+    if (taxBanner) {
+      if (f.isCommercialOrInd && f.taxShield > 0) {
+        taxBanner.style.display = 'flex';
+        set('v_inTaxDepr', F.fmtINR(f.taxDepreciationYear1));
+        set('v_inTaxSaved', F.fmtINR(f.taxShield));
+        set('v_inTaxRate', f.corpTaxRatePct + '%');
+        set('v_inDeprRate', f.depreciationRatePct + '%');
+      } else {
+        taxBanner.style.display = 'none';
+      }
+    }
 
     /* cost build-up bridge always; BOM donut section only when entered */
     set('v_inBridgeTitle', P.bridgeTitle);
@@ -955,6 +980,7 @@
       roofType: g('roofType'), availableArea: g('availableArea'),
       pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'),
       costPerKwp: g('costPerKwp'), gstPercent: g('gstPercent'),
+      corpTaxRate: g('corpTaxRate'), depreciationRate: g('depreciationRate'),
       tariff: g('tariff'), escalation: g('escalation'), degradation: g('degradation'),
       subsidyOverride: g('subsidyOverride'), co2Factor: g('co2Factor'), treeFactor: g('treeFactor'),
       payAdvance: g('payAdvance'), payDispatch: g('payDispatch'), payCompletion: g('payCompletion'),

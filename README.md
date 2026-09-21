@@ -150,3 +150,31 @@ rectangles and matching CSS positions before regenerating.
 Cover regression: `node qa/cover-sync.test.js` against the dev server on port 8080
 (or set `QA_BASE`). Uses the QA Puppeteer/Chromium dependencies and requires the
 standard Chromium shared libraries. Screenshots are written to ignored `qa/shots/`.
+
+
+### Reviewed PR #7 features
+
+- Quick presets are indicative starting points, not verified offers. Applying one
+  asks for confirmation, preserves customer data, and clears stale report links,
+  BOM, financing, subsidy overrides and unspecified module dimensions. Equipment
+  values not in the local catalog are preserved through save/reload.
+- Before/After is an **energy-value offset illustration**, shown only with an
+  entered monthly bill. It is not a DISCOM fixed-charge or export-settlement model.
+- Commercial/industrial tax figures are explicitly illustrative, with editable
+  depreciation/tax rates under **All settings**. Eligibility and asset basis need
+  tax-adviser confirmation; they do not reduce investment or change payback.
+- The customer action bar opens supplied HTTP(S) Arka/PVsyst links or prepares a
+  WhatsApp request for the missing reports. It does not create a 3D design or run
+  PVsyst, and it never invents a contact number.
+- Customer acceptance is a **local typed acknowledgement**, requiring name and
+  consent. It is not a verified digital signature or server-side workflow. The
+  customer must send the WhatsApp message to notify the team. Stale/expired
+  proposals and failed browser-storage writes cannot report success.
+- `share.html?p=...` still reads **this browser's localStorage**. A URL alone does
+  not deliver proposal data to another device; use the PDF/file-import workflow
+  until authenticated shared storage and a real acceptance backend are implemented.
+
+QA: `npm --prefix qa install --legacy-peer-deps` then `npm --prefix qa test`.
+For browser tests, start a server and set `QA_BASE` for `npm --prefix qa run test:browser`.
+Chromium needs its shared libraries (`LD_LIBRARY_PATH` may be needed for Lambda bundles).
+See `docs/audit-2026-09-21.md` for the reviewed commits, findings and verification.

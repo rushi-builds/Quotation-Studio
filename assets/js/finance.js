@@ -151,6 +151,16 @@
     const netInvestment = grossTotal - subsidy;
     const costPerWp = capacity > 0 ? projectCost / (capacity * 1000) : 0;
 
+    /* Optional illustration only: eligibility, asset basis and first-year
+       allowance must be confirmed by the customer's tax adviser. Never net
+       this assumed shield off investment, payback or projected savings. */
+    const isCommercialOrInd = (customerType === 'commercial' || customerType === 'industrial');
+    const percent = (v, fallback) => Math.min(100, Math.max(0, num(v, fallback)));
+    const corpTaxRatePct = percent(s.corpTaxRate, 25);
+    const depreciationRatePct = percent(s.depreciationRate, 40);
+    const taxDepreciationYear1 = isCommercialOrInd ? Math.round(Math.max(0, projectCost) * depreciationRatePct / 100) : 0;
+    const taxShield = Math.round(taxDepreciationYear1 * corpTaxRatePct / 100);
+
     /* ----- generation & savings projection ----- */
     const annualGen = capacity * genFactor;                    // year-1 kWh
     let gen = annualGen, t = tariff;
@@ -195,7 +205,9 @@
     const irr = calcIRR(cashflows);
 
     /* bill offset (only when the customer's average bill is entered) */
-    const monthlyBill = num(s.monthlyBill);
+    const monthlyBill = Math.max(0, num(s.monthlyBill));
+    const monthlyBillSaving = Math.min(monthlyBill, Math.max(0, annualSaving / 12));
+    const monthlyBillAfter = monthlyBill - monthlyBillSaving;
     const billOffset = (monthlyBill > 0 && annualSaving > 0)
       ? (annualSaving / (monthlyBill * 12)) * 100 : 0;
     const billOffsetCapped = Math.min(billOffset, 100);
@@ -257,6 +269,8 @@
       // costs
       projectCost, gstAmount, grossTotal, subsidy, subsidyAuto, netInvestment,
       costPerWp, bomItems, bomSum, bomDelta, gstPercent,
+      taxDepreciationYear1, taxShield, corpTaxRatePct, depreciationRatePct, isCommercialOrInd,
+      monthlyBillSaving, monthlyBillAfter,
       // performance
       annualGen, annualSaving, series, lifetimeSaving, lifetimeGen,
       payback, irr, effectivePerUnit,

@@ -30,7 +30,7 @@
     </div>
     <div class="st-actions">
       <span class="st-status" id="shareStatus"></span>
-      <button type="button" id="sharePrint">Download PDF</button>
+      <button type="button" id="sharePrint" disabled>Download PDF</button>
     </div>
   </div>
   <div class="share-banner">
@@ -39,8 +39,50 @@
     <div class="sb-cap" id="shareCapacity"></div>
   </div>
 
+  <!-- 3D Design & Simulation Action Bar -->
+  <div class="share-sim-bar" id="shareSimBar" style="display:none;">
+    <div class="ssb-label">⚡ ENGINEERING &amp; 3D SIMULATION</div>
+    <div class="ssb-actions" id="shareSimActions"></div>
+  </div>
+
   <!-- proposal pages are injected here by share.js using the same renderers -->
   <div id="sharePages"></div>
+
+  <!-- Local typed proposal acknowledgement (not a verified digital signature) -->
+  <div class="share-accept-card" id="shareAcceptWrap" style="display:none;">
+    <div class="sac-head">
+      <div class="sac-badge">PROPOSAL ACCEPTANCE</div>
+      <h3 class="sac-title">Acknowledge this Proposal</h3>
+      <p class="sac-sub">Review the proposal and acknowledge it below. This is a typed acknowledgement saved only in this browser—not a verified digital signature. Send the WhatsApp message afterwards to notify the team. Pricing and scheduling require team confirmation.</p>
+    </div>
+    <div id="sacForm">
+      <div class="sac-row">
+        <div class="sac-field">
+          <label for="sacSignerName">Full Name</label>
+          <input type="text" id="sacSignerName" placeholder="Authorized Signatory Name" maxlength="120" required>
+        </div>
+        <div class="sac-field">
+          <label for="sacSignerRole">Designation / Role</label>
+          <input type="text" id="sacSignerRole" placeholder="e.g. Property Owner / Director" maxlength="120">
+        </div>
+      </div>
+      <label class="sac-consent"><input type="checkbox" id="sacConsent"> I have reviewed this proposal and am authorized to acknowledge it.</label>
+      <p id="sacError" class="sac-error" role="alert"></p>
+      <div class="sac-actions">
+        <button type="button" class="btn-accept-submit" id="sacAcceptBtn">
+          ✓ Save acknowledgement on this device
+        </button>
+      </div>
+    </div>
+    <div class="sac-success" id="sacSuccess" style="display:none;">
+      <div class="sac-check">✓</div>
+      <h4>Acknowledgement saved locally</h4>
+      <p id="sacSuccessMsg">Send the WhatsApp message to notify the team.</p>
+      <div class="sac-success-actions">
+        <a id="sacWaNotify" href="#" target="_blank" rel="noopener noreferrer" class="btn-wa-notify">💬 Notify KTM on WhatsApp</a>
+      </div>
+    </div>
+  </div>
 
   <div class="share-footer" id="shareFooter"></div>
 </main>

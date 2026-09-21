@@ -37,6 +37,14 @@
         Branding, equipment masters, documents &amp; photos live in
         <b>All settings</b> — set them once, rarely touch again. The
         document updates live as you type.</span>
+
+        <div class="quick-presets-bar">
+          <span class="qp-label">⚡ QUICK PRESETS (INDICATIVE):</span>
+          <button type="button" class="qp-btn" data-preset="3kw">3 kWp Residential</button>
+          <button type="button" class="qp-btn" data-preset="5kw">5 kWp Premium Resi</button>
+          <button type="button" class="qp-btn" data-preset="25kw">25 kWp Commercial</button>
+          <button type="button" class="qp-btn" data-preset="100kw">100 kWp Industrial</button>
+        </div>
       </div>
 
       <fieldset class="prop-manager">
@@ -116,7 +124,7 @@
           <div class="field">
             <label>Avg. monthly bill (₹, optional)</label>
             <input type="number" id="monthlyBill" placeholder="e.g. 6000" min="0">
-            <div class="hint">Enables the “% of bill offset” figure on the summary.</div>
+            <div class="hint">Enables the summary offset and Before/After energy-offset estimate. Fixed charges and settlement are excluded.</div>
           </div>
         </div>
         <div class="field">
@@ -241,6 +249,15 @@
           <div class="field"><label>Interest (%/yr)</label><input type="number" id="loanRate" placeholder="e.g. 9" step="0.05" min="0"></div>
           <div class="field"><label>Tenure (years)</label><input type="number" id="loanYears" placeholder="e.g. 10" step="1" min="1" max="30"></div>
         </div>
+      </fieldset>
+
+      <fieldset data-adv>
+        <legend>Commercial Tax Illustration (optional assumptions)</legend>
+        <div class="row2">
+          <div class="field"><label for="depreciationRate">Assumed depreciation (%)</label><input type="number" id="depreciationRate" value="40" min="0" max="100" step="0.5"></div>
+          <div class="field"><label for="corpTaxRate">Assumed tax rate (%)</label><input type="number" id="corpTaxRate" value="25" min="0" max="100" step="0.5"></div>
+        </div>
+        <div class="hint">Commercial/industrial only. Illustrative, not tax advice or a guaranteed deduction. Confirm eligibility and rates with a tax adviser. Set either rate to 0 to omit the illustration.</div>
       </fieldset>
 
       <fieldset data-adv>
@@ -486,6 +503,35 @@
           <div class="grid-3" id="v_wsBenefits"></div>
           <div class="spacer"></div>
           <div class="highlight-bar" id="v_wsHighlight"></div>
+
+          <!-- Visual Before vs After Solar Bill Infographic -->
+          <div class="bill-slash-card" id="v_wsBillSlashCard">
+            <div class="bsc-head">
+              <span class="bsc-badge">ILLUSTRATIVE MONTHLY BILL OFFSET</span>
+              <span class="bsc-sub">Illustrative energy-value offset</span>
+            </div>
+            <div class="bsc-grid">
+              <div class="bsc-item bsc-before">
+                <div class="bsc-tag">BEFORE SOLAR</div>
+                <div class="bsc-num" id="v_bscBeforeVal">—</div>
+                <div class="bsc-bar"><div class="bsc-fill bsc-fill-red"></div></div>
+                <div class="bsc-note">Entered monthly electricity bill</div>
+              </div>
+              <div class="bsc-vs-circle">VS</div>
+              <div class="bsc-item bsc-after">
+                <div class="bsc-tag">AFTER ENERGY OFFSET</div>
+                <div class="bsc-num" id="v_bscAfterVal">—</div>
+                <div class="bsc-bar"><div class="bsc-fill bsc-fill-green" id="v_bscAfterBar"></div></div>
+                <div class="bsc-note">Before fixed charges, duties &amp; settlement</div>
+              </div>
+              <div class="bsc-item bsc-saving">
+                <div class="bsc-tag">ESTIMATED ENERGY OFFSET</div>
+                <div class="bsc-num bsc-highlight" id="v_bscSavedVal">—</div>
+                <div class="bsc-yr-badge" id="v_bscSavedYr">—</div>
+              </div>
+            </div>
+          </div>
+
           <div class="metric-row">
             <div class="metric-chip"><div class="mv" id="v_wsAnnualGen">—</div><div class="ml">Annual Generation</div></div>
             <div class="metric-chip"><div class="mv" id="v_wsAnnualSaving">—</div><div class="ml">Estimated Annual Savings</div></div>
@@ -659,13 +705,13 @@
 
           <div class="chart-block">
             <div class="chart-title" id="v_svChartCumTitle"></div>
-            <canvas id="chartCum" class="chart-canvas" width="718" height="248"></canvas>
+            <canvas id="chartCum" class="chart-canvas" width="718" height="224"></canvas>
             <div class="fine-note" id="v_svChartCumNote"></div>
           </div>
 
           <div class="chart-block">
             <div class="chart-title" id="v_svChartAnnualTitle"></div>
-            <canvas id="chartAnnual" class="chart-canvas" width="718" height="172"></canvas>
+            <canvas id="chartAnnual" class="chart-canvas" width="718" height="160"></canvas>
             <div class="fine-note" id="v_svChartAnnualNote"></div>
           </div>
 
@@ -718,6 +764,15 @@
               <div class="inv-l" id="v_inCostNetL"></div>
               <div class="inv-v" id="v_inCostNet">—</div>
               <div class="inv-cap"><span id="v_inRateL"></span>: <b id="v_inRate"></b></div>
+            </div>
+          </div>
+
+          <!-- Commercial & Industrial Tax Shield Banner -->
+          <div class="tax-shield-banner" id="v_inTaxShieldBanner" style="display:none;">
+            <div class="tsb-icon">🏢</div>
+            <div class="tsb-content">
+              <div class="tsb-title">ILLUSTRATIVE DEPRECIATION TAX EFFECT — NOT GUARANTEED</div>
+              <div class="tsb-desc">Assuming <span id="v_inDeprRate">—</span> depreciation on the ex-GST project cost (<span id="v_inTaxDepr">—</span>) and <span id="v_inTaxRate">—</span> tax rate: potential tax effect <b id="v_inTaxSaved">—</b>. Eligibility, asset basis, commissioning date and tax regime require your tax adviser’s confirmation. Not deducted from investment or payback.</div>
             </div>
           </div>
 

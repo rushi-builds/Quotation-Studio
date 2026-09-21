@@ -50,6 +50,8 @@
     arkaUrl: '',
     /* ---- Financial assumptions ---- */
     costPerKwp: '90000',
+    corpTaxRate: '25',
+    depreciationRate: '40',
     gstPercent: '8.9',
     tariff: '15',
     escalation: '6',
@@ -97,7 +99,15 @@
       const el = document.getElementById(id);
       if (!el) return;
       if (el.type === 'checkbox') el.checked = !!vals[id];
-      else el.value = vals[id];
+      else {
+        // Presets/imports can contain makes outside this browser's catalog.
+        // Preserve them rather than silently saving an empty select value.
+        if (['moduleMake', 'moduleTech', 'inverterMake', 'mountMake', 'cableMake'].includes(id) &&
+            el.tagName === 'SELECT' && vals[id] && !Array.from(el.options).some(o => o.value === String(vals[id]))) {
+          el.add(new Option(String(vals[id]), String(vals[id])));
+        }
+        el.value = vals[id];
+      }
     });
   }
 

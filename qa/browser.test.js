@@ -10,7 +10,7 @@ const OUT = __dirname + '/shots';
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const browser = await puppeteer.launch({
-    executablePath: '/tmp/chromium-bin/chromium',
+    executablePath: process.env.CHROMIUM_PATH || await (await import('@sparticuz/chromium')).default.executablePath(),
     args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--hide-scrollbars', '--font-render-hinting=none'],
     defaultViewport: { width: 1440, height: 950 }
   });
@@ -23,7 +23,8 @@ const OUT = __dirname + '/shots';
   await page.evaluate(() => document.fonts.ready);
   await new Promise((r) => setTimeout(r, 900));
 
-  const t = (name, ok, extra) => console.log((ok ? '  ✓ ' : '  ✗ FAIL: ') + name + (ok || extra === undefined ? '' : ' → ' + extra));
+  let failed = 0;
+  const t = (name, ok, extra) => { if (!ok) failed++; console.log((ok ? '  ✓ ' : '  ✗ FAIL: ') + name + (ok || extra === undefined ? '' : ' → ' + extra)); };
 
   /* ---- integrity ---- */
   const pageCount = await page.$$eval('.page', (els) => els.length);
@@ -65,6 +66,7 @@ const OUT = __dirname + '/shots';
   t('no vertical overflow on any page', overflow.length === 0, JSON.stringify(overflow));
 
   /* ---- interactions ---- */
+  await page.click('#modeAll'); // Advanced BOM/options fields are intentionally hidden in Essentials.
   await page.select('#customerType', 'commercial');
   await new Promise((r) => setTimeout(r, 300));
   const subCap = await page.$eval('#v_inCostSubCap', (e) => e.textContent);
@@ -328,5 +330,5 @@ const OUT = __dirname + '/shots';
   console.log('---');
   if (errors.length) { console.error('ERRORS:\n' + errors.join('\n')); process.exit(1); }
   await browser.close();
-  process.exit(errors.length ? 2 : 0);
+  process.exit(errors.length || failed ? 2 : 0);
 })().catch((e) => { console.error('QA crashed:', e.message); process.exit(1); });
