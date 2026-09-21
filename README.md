@@ -181,8 +181,10 @@ See `docs/audit-2026-09-21.md` for the reviewed commits, findings and verificati
 
 ### Consistent branding and qualified engineering requests
 
-The exact approved cover-logo pixel crop is `assets/images/ktm-cover-logo.png`.
-Every inner page, closing page, editor header, customer header and PDF uses it.
+The approved cover mark has transparent surface-aware variants:
+`assets/images/ktm-logo-light.png` uses navy/orange ink on white headers;
+`assets/images/ktm-logo-dark.png` uses white/orange ink on the closing photograph.
+The original navy-backed crop is retained only as an archive, not a displayed logo.
 No separate logo-upload override can leave the cover and the remaining pages with
 different identities. To regenerate the crop: `python qa/build-cover-logo.py`
 (requires ImageMagick). The source cover and its live fields are unchanged.
@@ -205,3 +207,21 @@ Duplicate financial strips, repeated company-stat cards and duplicate inclusion
 blocks were removed. Customer-screen report actions and paper signatures have one
 visible home; print/PDF still includes its technical references and paper signature.
 See `docs/branding-and-engineering-flow.md` for ownership and verification.
+
+
+### Finding customer requests / latest visual refinement
+
+- In the builder, the prominent **Customer requests: survey / 3D / PVsyst** button
+  above the page preview saves the current proposal and opens Customer View at the
+  actual request form (`#shareAcceptWrap`).
+- In Customer View, **Request survey / 3D / PVsyst** in the header jumps instantly
+  to that same form. The closing page also has an **Open request form** shortcut.
+- The closing page shows the four-step process in the ordinary proposal and PDF;
+  interactive buttons stay out of the exported PDF. The form itself is not duplicated.
+- Selected story-page photos are larger; the portfolio prioritizes nine larger site
+  photos instead of an extra stock hero. Dense engineering pages remain uncluttered.
+
+Transparent logo generation, A4 photo/text/footer layout, popup/deep-link navigation,
+mobile discovery, and print visibility are covered by `qa/visual-discovery.test.js`.
+All original cover artwork remains untouched. Browser-local sharing limitations
+still apply; these navigation changes are not a hosted customer portal.

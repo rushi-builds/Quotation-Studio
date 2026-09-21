@@ -29,12 +29,12 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
     await page.setViewport({width:1440,height:1100});
     await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});
     await page.evaluate(()=>document.fonts.ready);
-    check('all inner-page and closing logos use the approved asset',await page.$$eval('.page:not(#pageCover)',els=>els.every(e=>e.querySelector('.pg-logo img,.closing-brand img')?.getAttribute('src')==='assets/images/ktm-cover-logo.png')));
+    check('all inner-page and closing logos use the approved asset',await page.$$eval('.page:not(#pageCover)',els=>els.every(e=>e.querySelector('.pg-logo img,.closing-brand img')?.getAttribute('src')===(e.id==='pageClosing'?'assets/images/ktm-logo-dark.png':'assets/images/ktm-logo-light.png'))));
     check('logos fit within their header',await page.$$eval('.pg-head',els=>els.every(e=>e.querySelector('img').getBoundingClientRect().height<=e.getBoundingClientRect().height)));
     check('old logo override control cannot split the brand',await page.$('#logoUpload')===null);
     await page.$eval('#formLogo',e=>e.src='assets/images/logo.png');
     await page.evaluate(()=>Render.renderAll());
-    check('render restores one canonical identity',await page.$eval('#formLogo',e=>e.getAttribute('src')==='assets/images/ktm-cover-logo.png'));
+    check('render restores one canonical identity',await page.$eval('#formLogo',e=>e.getAttribute('src')==='assets/images/ktm-logo-light.png'));
     check('repeated savings and phone CTA blocks removed',await page.evaluate(()=>['v_wsHighlight','v_wsAnnualGen','v_wsAnnualSaving','v_wsLifetimeSaving','v_clHighlight','v_clCtaPhone'].every(id=>!document.getElementById(id))));
     check('builder keeps one paper acceptance block',await page.$$eval('.accept-block',els=>els.length===1));
     // Capture a page header to visually verify the extracted mark at print size.
@@ -51,7 +51,7 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
     const view=await browser.newPage();view.on('pageerror',e=>errors.push(e.message));
     await view.setViewport({width:1200,height:1100});
     await view.goto(base+'/share.html?p='+id,{waitUntil:'networkidle0'});
-    check('customer header uses same identity',await view.$eval('#shareLogo',e=>e.getAttribute('src')==='assets/images/ktm-cover-logo.png'));
+    check('customer header uses same identity',await view.$eval('#shareLogo',e=>e.getAttribute('src')==='assets/images/ktm-logo-light.png'));
     check('one action hub placed after the full proposal',await view.evaluate(()=>document.querySelectorAll('#shareAcceptWrap').length===1 && !!(document.getElementById('sharePages').compareDocumentPosition(document.getElementById('shareAcceptWrap')) & Node.DOCUMENT_POSITION_FOLLOWING)));
     check('engineering controls owned by the single hub',await view.$eval('#shareSimBar',e=>!!e.closest('#shareAcceptWrap')));
     check('online paper signature is not duplicated',!await view.$eval('#pageClosing .accept-block',e=>e.checkVisibility()));
@@ -110,7 +110,7 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
       }});result.size=[canvas.width,canvas.height];return result;
     });
     check('PDF clone restores signatures and report references',cloneResult.signature && cloneResult.references);
-    check('PDF uses approved closing logo',cloneResult.logo==='assets/images/ktm-cover-logo.png' && cloneResult.size[1]>1000);
+    check('PDF uses approved closing logo',cloneResult.logo==='assets/images/ktm-logo-dark.png' && cloneResult.size[1]>1000);
     // Small screens, invalid contacts and unavailable report URLs.
     await view.evaluate(id=>{const b=Proposals.get(id);b.form.companyPhone='unavailable';b.form.arkaUrl='javascript:alert(1)';Proposals.put(b);},id);
     await view.reload({waitUntil:'networkidle0'});

@@ -14,7 +14,7 @@
 <meta name="twitter:title" content="Quotation Studio — Solar EPC Proposal Builder">
 <meta name="twitter:description" content="Build a premium 15-page rooftop solar EPC proposal with live A4 preview, financial analytics and one-click PDF export.">
 <meta name="twitter:image" content="assets/images/page-cover-v2-portrait.jpg">
-<link rel="icon" href="assets/images/ktm-cover-logo.png" type="image/png">
+<link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png">
 <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body>
@@ -23,7 +23,7 @@
   <!-- ================= FORM PANEL ================= -->
   <aside class="form-panel">
     <div class="brand-row">
-      <img id="formLogo" src="assets/images/ktm-cover-logo.png" alt="Company logo">
+      <img id="formLogo" src="assets/images/ktm-logo-light.png" alt="Company logo">
       <span class="save-flag" id="saveIndicator"></span>
     </div>
     <div class="app-title">Quotation Studio</div>
@@ -70,7 +70,7 @@
 
       <fieldset data-adv>
         <legend>Company Branding</legend>
-        <div class="hint">The KTM logo is taken from your approved cover artwork and used consistently on every page, including the customer view and PDF.</div>
+        <div class="hint">The approved cover mark uses transparent navy/orange ink on light pages and white/orange on dark photos. Its shape is consistent in the customer view and PDF.</div>
         <div class="field"><label>Company name</label><input type="text" id="companyName" value="KTM Energy Experts"></div>
         <div class="field"><label>Tagline (contact page)</label><input type="text" id="companyTagline" value="Govt. Approved Solar EPC Contractor | Est. 2015"></div>
         <div class="row2">
@@ -310,7 +310,6 @@
           <div class="field"><label>Why Choose KTM</label><label class="upload-btn" for="up_whyktm">Upload photo</label><input type="file" id="up_whyktm" data-photo="img_whyktm" accept="image/*"></div>
         </div>
         <div class="row2">
-          <div class="field"><label>Projects (header)</label><label class="upload-btn" for="up_projects">Upload photo</label><input type="file" id="up_projects" data-photo="img_projects" accept="image/*"></div>
           <div class="field"><label>Warranty</label><label class="upload-btn" for="up_warranty">Upload photo</label><input type="file" id="up_warranty" data-photo="img_warranty" accept="image/*"></div>
         </div>
         <div class="hint">Tip: individual project thumbnails can be replaced in Advanced Edit → Projects Portfolio.</div>
@@ -339,6 +338,7 @@
     <div class="preview-toolbar">
       <div class="page-nav" id="pageNav"></div>
       <div class="live-chip" id="liveChip" title="Live quote — updates as you type"><span class="live-dot"></span><span id="liveChipText">Live • 7 kWp</span></div>
+      <button type="button" id="engineeringViewBtn" class="engineering-open" data-engineering-open data-builder-only>Customer requests: survey / 3D / PVsyst ↗</button>
       <button class="present-toggle" id="presentBtn" type="button" title="Hide the editor and present full-page">&#9654; Present</button>
     </div>
     <button class="exit-present" id="exitPresentBtn" type="button">&#10005; Exit presentation (Esc)</button>
@@ -380,7 +380,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageExec">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -418,7 +418,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageOptions">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -448,7 +448,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageAbout">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_about" src="assets/images/page-about.jpg" alt="Rooftop solar installation"></div>
@@ -480,7 +480,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageWhySolar">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_whysolar" src="assets/images/page-why-solar.jpg" alt="Solar panels under blue sky"></div>
@@ -537,7 +537,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageSolution">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_solution" src="assets/images/page-solution.jpg" alt="Modern building with solar roof"></div>
@@ -566,7 +566,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageTechSpec">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -603,7 +603,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageScope">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_scope" src="assets/images/page-epc.jpg" alt="Engineers installing solar panels"></div>
@@ -642,7 +642,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageQuality">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_quality" src="assets/images/page-install-quality.jpg" alt="Technician installing solar panel"></div>
@@ -672,7 +672,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageSavings">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -722,7 +722,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageInvestment">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -798,7 +798,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageFinance">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -835,7 +835,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageWhyKtm">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_whyktm" src="assets/images/page-why-ktm.jpg" alt="Solar engineer on rooftop"></div>
@@ -865,10 +865,9 @@
       <div class="page-label"></div>
       <section class="page" id="pageProjects">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
-        <div class="photo-top"><img id="img_projects" src="assets/images/page-projects.jpg" alt="Industrial rooftop solar"></div>
         <div class="pg-body">
           <div class="intro-col">
             <h2 class="pg-title" id="v_prHeading"></h2>
@@ -893,7 +892,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageWarranty">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_warranty" src="assets/images/page-warranty.jpg" alt="Technician servicing solar panel"></div>
@@ -923,7 +922,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageTerms">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/ktm-cover-logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -951,7 +950,7 @@
         <div class="closing-banner">
           <img id="img_closing" src="assets/images/page-contact.jpg" alt="Solar installation at sunset">
           <div class="closing-banner-overlay"></div>
-          <div class="closing-brand"><img src="assets/images/ktm-cover-logo.png" alt="KTM Energy Experts"></div>
+          <div class="closing-brand"><img src="assets/images/ktm-logo-dark.png" alt="KTM Energy Experts"></div>
           <div class="closing-hero">
             <h2 id="v_clHeading"></h2>
             <div class="sub" id="v_clSub"></div>
@@ -971,9 +970,20 @@
             <div id="v_clNext"></div>
           </div>
         </div>
-        <div class="closing-cta">
-          <div class="cta-text" id="v_clCta"></div>
-        </div>
+        <section class="engineering-overview" aria-labelledby="engineeringOverviewTitle">
+          <div class="engineering-overview-head">
+            <div><div class="eyebrow">AFTER REVIEWING THIS PROPOSAL</div><h3 id="engineeringOverviewTitle">Request your engineering review</h3></div>
+            <button type="button" class="engineering-open screen-only" data-engineering-open>Open request form ↗</button>
+          </div>
+          <ol class="engineering-steps">
+            <li><b>1</b><div><strong>Confirm interest</strong><span>Interested, or ready to discuss the final scope.</span></div></li>
+            <li><b>2</b><div><strong>Select the service</strong><span>Site survey, Arka 3D layout or PVsyst report.</span></div></li>
+            <li><b>3</b><div><strong>Share site details</strong><span>Locality and preferred discussion/visit window.</span></div></li>
+            <li><b>4</b><div><strong>Review &amp; send</strong><span>Check the prepared message, then send on WhatsApp.</span></div></li>
+          </ol>
+          <p class="engineering-paper-help">In Customer View, use “Request survey / 3D / PVsyst”. Reading a PDF? Contact the team using the details above.</p>
+          <p class="engineering-disclaimer" id="v_clCta"></p>
+        </section>
         <div class="accept-block">
           <div class="sec-label mt-10" id="v_clAcceptLabel"></div>
           <p class="accept-intro" id="v_clAcceptIntro"></p>

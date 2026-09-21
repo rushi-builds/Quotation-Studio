@@ -1460,10 +1460,13 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 }
 @media print { .share-sim-bar, .share-accept-card { display:none !important; } }
 
-/* Approved cover identity, unmodified pixel crop on its original navy tile. */
-.brand-row img, .st-left img, .pg-logo img { height:46px; width:auto; object-fit:contain; border-radius:4px; flex-shrink:0; }
+/* Transparent cover-derived identity: no boxed background on white pages. */
+.brand-row img, .st-left img, .pg-logo img { height:56px; width:auto; object-fit:contain; border-radius:0; flex-shrink:0; }
+.pg-head { height:64px; }
+.pg-logo img { height:56px; }
+.pg-head-meta { max-width:570px; text-align:right; }
 .closing-brand { position:absolute; left:var(--page-pad); top:16px; z-index:2; }
-.closing-brand img { width:auto; height:46px; object-fit:contain; border-radius:4px; }
+.closing-brand img { width:auto; height:58px; object-fit:contain; border-radius:0; }
 /* The online review has one action hub, after the proposal. */
 .share-accept-card { width:100%; max-width:794px; }
 .engineering-section { padding:0 0 18px; margin:0 0 18px; border-bottom:1px solid var(--line-cool); }
@@ -1486,7 +1489,6 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   /* The hub owns online actions/links. Paper signatures and report references
      remain in the print/PDF pages, not duplicated above the online hub. */
   .share-mode:not(.qs-pdf-capture) #pageClosing .accept-block,
-  .share-mode:not(.qs-pdf-capture) #pageClosing .closing-cta,
   .share-mode:not(.qs-pdf-capture) #v_tsRefsWrap { display:none !important; }
 }
 @media (max-width:600px) {
@@ -1498,3 +1500,39 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 #requestWhatsApp[hidden], #sacWaNotify[hidden] { display:none !important; }
 #shareAcceptWrap { scroll-margin-top:100px; }
+
+/* Give photography more presence where the content budget permits it.
+   Dense scope/quality/warranty pages retain their compact, uncropped-height slots. */
+#pageAbout .photo-top { height:292px; }
+#pageWhySolar .photo-top, #pageSolution .photo-top, #pageWhyKtm .photo-top { width:324px; height:230px; }
+#pageWhySolar .intro-col, #pageSolution .intro-col, #pageWhyKtm .intro-col { max-width:374px; min-height:244px; }
+#pageProjects .intro-col { max-width:none; min-height:0; }
+#pageProjects .proj-card img { height:132px; }
+.photo-top { top:76px; }
+.photo-top img { object-position:50% 50%; }
+/* Obvious entry points; only the final page contains the four-step explanation. */
+.engineering-open { border:1px solid #dc7a1d; border-radius:7px; background:#fff6eb; color:#8d430d; padding:8px 10px; font:600 11px 'Inter',sans-serif; cursor:pointer; }
+#engineeringViewBtn { margin-top:8px; }
+.engineering-open:hover { background:#ffead0; }
+.engineering-overview { margin:14px var(--page-pad) 0; border:1px solid #dedfe2; border-radius:12px; padding:15px 17px; background:#fcfaf6; }
+.engineering-overview-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.engineering-overview .eyebrow { font-size:8px; font-weight:700; letter-spacing:.09em; color:var(--orange-dark); }
+.engineering-overview h3 { margin:3px 0 0; font:700 15px 'Poppins',sans-serif; color:var(--navy); }
+.engineering-steps { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; list-style:none; margin:14px 0 10px; padding:0; }
+.engineering-steps li { display:flex; align-items:flex-start; gap:6px; }
+.engineering-steps li>b { width:19px; height:19px; flex:none; display:grid; place-items:center; background:#f7e3c7; color:#914712; border-radius:50%; font-size:10px; }
+.engineering-steps strong { display:block; font-size:9px; line-height:1.4; }
+.engineering-steps span { display:block; color:var(--gray); font-size:8.5px; line-height:1.5; margin-top:3px; }
+.engineering-paper-help { font-size:8.5px; line-height:1.5; color:var(--navy); margin:0 0 6px; }
+.engineering-disclaimer { margin:0; font-size:8px; line-height:1.5; color:var(--gray); }
+.st-actions { flex-wrap:wrap; justify-content:flex-end; }
+.st-actions .request-jump { background:#fff6eb; border:1px solid #e9c293; color:#8d430d; }
+.qs-pdf-capture .screen-only { display:none !important; }
+@media print { .screen-only, .request-jump { display:none !important; } }
+@media (max-width:600px) { .st-actions { width:100%; justify-content:flex-start; } .st-actions button { font-size:11px; padding:8px 10px; } #engineeringViewBtn { width:100%; } }
+/* Keep the navigator readable instead of squeezing it beside the new action. */
+.preview-toolbar { flex-wrap:wrap; align-items:center; }
+.preview-toolbar .page-nav { flex:1 1 100%; min-width:0; order:0; }
+.preview-toolbar .live-chip { order:1; max-width:100%; }
+.preview-toolbar #engineeringViewBtn { order:2; flex:1 1 245px; margin:0; }
+.preview-toolbar .present-toggle { order:3; margin-left:auto; }

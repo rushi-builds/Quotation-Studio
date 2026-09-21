@@ -32,7 +32,11 @@
         if (!main) throw new Error('preview markup not found');
         /* drop the builder-only toolbar; keep the page navigator for jumping */
         const toolbar = main.querySelector('.preview-toolbar');
-        if (toolbar) toolbar.removeAttribute('class'); /* keep element, plain styling */
+        if (toolbar) {
+          toolbar.querySelectorAll(':scope > :not(.page-nav)').forEach(el => el.remove());
+          toolbar.removeAttribute('class'); // retain only the proposal navigator
+        }
+        main.querySelectorAll('[data-builder-only], .exit-present').forEach(el => el.remove());
         $('sharePages').innerHTML = main.innerHTML;
       });
   }
@@ -299,7 +303,29 @@
         fitPages();
         $('shareAcceptWrap').style.display = '';
         $('sharePrint').disabled = false;
-        window.addEventListener('resize', fitPages);
+        const jumpToRequest = () => {
+          const topbar = document.querySelector('.share-topbar');
+          const inset = getComputedStyle(topbar).position === 'sticky' ? topbar.getBoundingClientRect().height + 20 : 20;
+          $('shareAcceptWrap').style.scrollMarginTop = inset + 'px';
+          $('shareAcceptWrap').scrollIntoView({ block: 'start', behavior: 'instant' });
+          $('requestStage').focus({ preventScroll: true });
+        };
+        $('requestJump').disabled = false;
+        $('requestJump').addEventListener('click', jumpToRequest);
+        document.querySelectorAll('[data-engineering-open]').forEach(el => el.addEventListener('click', jumpToRequest));
+        const openFromHash = () => { if (location.hash === '#shareAcceptWrap') jumpToRequest(); };
+        window.addEventListener('hashchange', openFromHash);
+        Promise.resolve(document.fonts && document.fonts.ready).then(() => requestAnimationFrame(openFromHash));
+        window.addEventListener('resize', () => {
+          const active = document.activeElement;
+          fitPages();
+          // Scaling the preceding A4 pages changes the form's document offset.
+          // Keep an active request field in view across rotation/window resize.
+          if ($('shareAcceptWrap').contains(active)) requestAnimationFrame(() => {
+            if (active === $('requestStage')) jumpToRequest();
+            else active.scrollIntoView({ block: 'center' });
+          });
+        });
         if (document.fonts && document.fonts.ready) {
           document.fonts.ready.then(() => window.Render.renderAll(state));
         }

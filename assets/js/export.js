@@ -74,7 +74,8 @@
     }
     /* page-count aware button label */
     const lbl = $('downloadLabel');
-    if (lbl) lbl.textContent = 'Generate & Download PDF (' + root.Render.PAGES.length + ' Pages)';
+    const count = root.Render.lastVisible && root.Render.lastVisible.length ? root.Render.lastVisible.length : root.Render.PAGES.length;
+    if (lbl) lbl.textContent = 'Generate & Download PDF (' + count + ' Pages)';
   }
 
   root.Exporter = { exportPdf, wire };

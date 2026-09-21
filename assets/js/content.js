@@ -401,11 +401,11 @@ const CONTENT = {
   pageClosing: {
     bannerHeading: "Let's Build a Greener Future Together",
     bannerSub: 'Your Journey Towards Clean & Affordable Energy Starts Here.',
-    nextLabel: 'YOUR NEXT STEPS',
+    nextLabel: 'ENGINEERING INPUTS',
     next: [
-      { icon: 'doc', title: '1. Review the proposal', desc: 'Check the system, pricing and terms. Raise any questions before committing to an order.' },
-      { icon: 'drone', title: '2. Confirm interest', desc: 'Discuss site readiness with the team. The online next-step panel prepares one request for the selected engineering services.' },
-      { icon: 'sun', title: '3. Agree the final scope', desc: 'The team confirms feasibility, engineering scope, any fees and timelines before you approve the final order.' }
+      { icon: 'doc', title: 'Electricity information', desc: 'The latest bill, tariff category and sanctioned load help establish the design basis.' },
+      { icon: 'drone', title: 'Roof & site information', desc: 'Roof dimensions, photos, shading and access constraints support the feasibility review.' },
+      { icon: 'sun', title: 'Scope confirmation', desc: 'Design assumptions, deliverables, any fees and dates are agreed before engineering proceeds.' }
     ],
     readyLabel: 'WHY ACT NOW',
     ready: [
@@ -502,13 +502,20 @@ const CONTENT_COPY_UPDATES = Object.freeze({
   "Designed Specifically for Your Property": "Initial Equipment & Design Basis",
   "Every KTM solar installation begins with a precision site assessment and PVsyst energy simulation — ensuring your system is engineered for maximum yield, not just installed for minimum cost. The following specifications have been tailored to your roof geometry, orientation and local solar radiation data.": "This proposal is an initial estimate based on the inputs shown. Roof measurements, shading, structural suitability and electricity data still need engineering verification. Detailed design and yield assessment follow the site review; supplied report links are listed under Technical Specification.",
   "Every system is yield-optimised using PVsyst software before a single panel is installed.": "Yield assessment is prepared during the agreed engineering scope, using verified site and equipment inputs—not generated automatically by this quotation.",
-  "1. Accept This Proposal": "1. Review the proposal",
-  "Sign below, or reply to us by email or WhatsApp — we take it from there.": "Check the system, pricing and terms. Raise any questions before committing to an order.",
-  "2. Detailed Survey & Engineering": "2. Confirm interest",
-  "{surveyWindow} drone survey, shadow analysis and final engineering after acceptance.": "Discuss site readiness with the team. The online next-step panel prepares one request for the selected engineering services.",
-  "3. Installation to Handover": "3. Agree the final scope",
-  "Material delivery, professional installation, DISCOM net metering and full handover — as per the Installation Journey.": "The team confirms feasibility, engineering scope, any fees and timelines before you approve the final order.",
-  "Call us today for a free site survey:": "An engineering request is not an installation order. Scope, fees and schedule require written confirmation."
+  "1. Accept This Proposal": "Electricity information",
+  "Sign below, or reply to us by email or WhatsApp — we take it from there.": "The latest bill, tariff category and sanctioned load help establish the design basis.",
+  "2. Detailed Survey & Engineering": "Roof & site information",
+  "{surveyWindow} drone survey, shadow analysis and final engineering after acceptance.": "Roof dimensions, photos, shading and access constraints support the feasibility review.",
+  "3. Installation to Handover": "Scope confirmation",
+  "Material delivery, professional installation, DISCOM net metering and full handover — as per the Installation Journey.": "Design assumptions, deliverables, any fees and dates are agreed before engineering proceeds.",
+  "Call us today for a free site survey:": "An engineering request is not an installation order. Scope, fees and schedule require written confirmation.",
+  "YOUR NEXT STEPS": "ENGINEERING INPUTS",
+  "1. Review the proposal": "Electricity information",
+  "Check the system, pricing and terms. Raise any questions before committing to an order.": "The latest bill, tariff category and sanctioned load help establish the design basis.",
+  "2. Confirm interest": "Roof & site information",
+  "Discuss site readiness with the team. The online next-step panel prepares one request for the selected engineering services.": "Roof dimensions, photos, shading and access constraints support the feasibility review.",
+  "3. Agree the final scope": "Scope confirmation",
+  "The team confirms feasibility, engineering scope, any fees and timelines before you approve the final order.": "Design assumptions, deliverables, any fees and dates are agreed before engineering proceeds."
 });
 function upgradeProposalContent(value) {
   const out = JSON.parse(JSON.stringify(value), (key, entry) =>

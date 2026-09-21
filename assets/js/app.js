@@ -146,6 +146,13 @@
         if (id) window.open('share.html?p=' + encodeURIComponent(id), '_blank');
       });
     }
+    document.querySelectorAll('[data-engineering-open]').forEach(button => {
+      button.addEventListener('click', () => {
+        if (window.__qsSaveNow) window.__qsSaveNow();
+        const id = window.Proposals.activeId();
+        if (id) window.open('share.html?p=' + encodeURIComponent(id) + '#shareAcceptWrap', '_blank');
+      });
+    });
   }
 
   /* ---------- proposal manager UI ---------- */
@@ -232,6 +239,7 @@
       Object.keys(blob.projectImages).forEach((k) => { PROJECT_IMAGES[k] = blob.projectImages[k]; });
     }
     window.EquipmentStore.refreshSelects();
+    if (!blob.form || !Object.keys(blob.form).length) window.Proposals.saveActive(window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES, window.__qsOptions);
     renderOptionsUI();
   }
 

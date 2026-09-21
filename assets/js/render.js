@@ -302,7 +302,7 @@
   function renderAbout(s, f, v) {
     const P = CONTENT.pageAbout;
     set('v_abEyebrow', tpl(P.eyebrow, v));
-    set('v_abHeading', esc(P.heading1) + '<br>' + esc(P.heading2));
+    setHTML('v_abHeading', esc(P.heading1) + '<br>' + esc(P.heading2));
     set('v_abPara1', P.para1);
     set('v_abPara2', P.para2);
     set('v_abPara3', P.para3);
@@ -895,9 +895,9 @@
     document.querySelectorAll('[data-foot-company]').forEach((el) => { el.textContent = footLeft; });
     const tagline = String(CONTENT.shared.footerTagline || '').replace(/&nbsp;/g, ' ').replace(/<[^>]*>/g, '');
     document.querySelectorAll('[data-foot-tagline]').forEach((el) => { el.textContent = tagline; });
-    /* A single approved identity: crop of the cover, including share/PDF. */
+    /* Same cover-derived mark, with transparent ink suited to its surface. */
     document.querySelectorAll('#formLogo, #shareLogo, .pg-logo img, .closing-brand img').forEach((img) => {
-      const src = 'assets/images/ktm-cover-logo.png';
+      const src = img.closest('.closing-brand') ? 'assets/images/ktm-logo-dark.png' : 'assets/images/ktm-logo-light.png';
       if (img.getAttribute('src') !== src) img.setAttribute('src', src);
     });
   }
