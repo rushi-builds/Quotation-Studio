@@ -13,13 +13,13 @@
 'use strict';
 
 // Separate from Agarwal's existing 1,700 kWp rooftop reference. Only supplied
-// facts are published; location, tracking-axis type and yield are not inferred.
+// facts are published; tracking-axis type and yield are not inferred.
 const TRACKING_PROJECT_IMAGE = 'assets/images/Tracking.png';
 const TRACKING_PROJECT_DEFAULT = Object.freeze({
   name: 'Agarwal Technoplast Pvt. Ltd.',
   capacity: '500 kWp',
   installation: 'Ground-Mounted Solar Tracking',
-  location: '',
+  location: 'Pune, Maharashtra',
   img: 'PROJ_TRACKING'
 });
 
@@ -547,6 +547,12 @@ function upgradeProposalContent(value) {
       out.pageProjects.featured = { ...TRACKING_PROJECT_DEFAULT };
     } else if (out.pageProjects.featured && typeof out.pageProjects.featured === 'object') {
       out.pageProjects.featured = { ...TRACKING_PROJECT_DEFAULT, ...out.pageProjects.featured };
+      // Apply the newly confirmed location to the original blank reference,
+      // without overwriting a proposal's custom project name or location.
+      const project = out.pageProjects.featured;
+      if (project.img === 'PROJ_TRACKING' && project.name === TRACKING_PROJECT_DEFAULT.name && project.location === '') {
+        project.location = TRACKING_PROJECT_DEFAULT.location;
+      }
     }
   }
   const oldStats = {

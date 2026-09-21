@@ -2,4 +2,3 @@
 
 /* Standard card and thumbnail size, with the supplied photo kept uncropped. */
 [data-project="PROJ_TRACKING"] .project-photo img{object-fit:contain;}
-[data-project="PROJ_TRACKING"] .project-photo:hover img{transform:none;}

@@ -283,7 +283,7 @@ voice availability, persistence and test coverage.
 The portfolio now distinguishes two Agarwal Technoplast Pvt. Ltd. references:
 **1,700 kWp rooftop solar** (existing) and **500 kWp ground-mounted solar tracking**
 (new). The new entry uses the exact supplied `assets/images/Tracking.png` image,
-with no location, tracking-axis or generation claims added. It appears alongside the
+with the confirmed location **Pune, Maharashtra** and no tracking-axis or generation claims added. It appears alongside the
 other industrial projects as a standard card in both the detailed proposal and
 public gallery. There is no separate featured section or tracking-only filter.
 

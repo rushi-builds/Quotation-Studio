@@ -8,12 +8,18 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
 (async()=>{
  check('supplied PNG is preserved byte-for-byte',execFileSync('git',['hash-object','assets/images/Tracking.png'],{cwd:path.join(__dirname,'..'),encoding:'utf8'}).trim()==='213b1702f20304fd8b43b3ca54af4e730a29a7af');
  check('500 kWp tracking is separate from 1,700 kWp rooftop',CONTENT.pageProjects.featured.capacity==='500 kWp'&&CONTENT.pageProjects.featured.installation==='Ground-Mounted Solar Tracking'&&CONTENT.pageProjects.categories[0].projects[0].capacity==='1,700 kWp'&&PROJECT_IMAGES.PROJ_1_1==='assets/images/site-agarwal.jpg');
- check('no unprovided location, axis or yield is added',CONTENT.pageProjects.featured.location===''&&!/single.axis|dual.axis|kWh|commissioned/i.test(JSON.stringify(CONTENT.pageProjects.featured)));
+ check('confirmed Pune location is included without unprovided axis or yield claims',CONTENT.pageProjects.featured.location==='Pune, Maharashtra'&&!/single.axis|dual.axis|kWh|commissioned/i.test(JSON.stringify(CONTENT.pageProjects.featured)));
  const legacy=JSON.parse(JSON.stringify(CONTENT));delete legacy.pageProjects.featured;legacy.pageProjects.categories[0].projects[0].capacity='Custom rooftop capacity';
  const upgraded=upgradeProposalContent(legacy);
  check('legacy proposals receive the feature without changing existing entries',upgraded.pageProjects.featured.capacity==='500 kWp'&&upgraded.pageProjects.categories[0].projects[0].capacity==='Custom rooftop capacity');
  check('saved tracking data joins the industrial group without duplication',portfolioCategories(upgraded.pageProjects)[0].projects.length===4&&portfolioCategories().flatMap(c=>c.projects).length===10);
  check('custom feature copy survives migration',upgradeProposalContent({pageProjects:{featured:{name:'Custom reference',capacity:'Edited capacity'}}}).pageProjects.featured.name==='Custom reference');
+ const prior = {pageProjects:{featured:{...CONTENT.pageProjects.featured,location:''}}};
+ check('saved blank tracking location receives the confirmed location',upgradeProposalContent(prior).pageProjects.featured.location==='Pune, Maharashtra');
+ prior.pageProjects.featured.location='Custom location';
+ check('custom tracking locations are preserved',upgradeProposalContent(prior).pageProjects.featured.location==='Custom location');
+ prior.pageProjects.featured.name='Another project';prior.pageProjects.featured.location='';
+ check('custom project names do not acquire the Agarwal location',upgradeProposalContent(prior).pageProjects.featured.location==='');
  const {default:chromium}=await import('@sparticuz/chromium');
  const browser=await puppeteer.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(a=>a!=='--single-process'),headless:true});
  try {
@@ -22,6 +28,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
   check('portfolio has ten regular cards without a separate featured section',await page.evaluate(()=>document.querySelectorAll('#pageProjects .proj-card').length===10&&!document.querySelector('.tracking-project')&&document.getElementById('v_prStats').textContent.includes('10 flagship projects')));
   check('standard card uses the exact uncropped supplied asset',await page.$eval('[data-project="PROJ_TRACKING"] img',e=>e.getAttribute('src')==='assets/images/Tracking.png'&&e.naturalWidth===1536&&e.naturalHeight===1024&&getComputedStyle(e).objectFit==='contain'&&Math.abs(e.getBoundingClientRect().width/e.getBoundingClientRect().height-1.5)<0.02));
+  check('proposal card shows the confirmed location',await page.$eval('[data-project="PROJ_TRACKING"]',e=>e.textContent.includes('Pune, Maharashtra')));
   check('existing rooftop reference remains unchanged',await page.$eval('#pageProjects [data-project="PROJ_1_1"]',e=>e.textContent.includes('1,700 kWp')&&e.querySelector('img').getAttribute('src')==='assets/images/site-agarwal.jpg'));
   check('added portfolio reference does not change the quotation capacity or investment',await page.evaluate(()=>Render.lastState.capacity==='7'&&Finance.compute(Render.lastState).netInvestment===608070));
   const geometry=()=>page.$eval('#pageProjects',e=>{
@@ -62,7 +69,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('other proposal edits remain isolated',await page.evaluate(id=>Proposals.get(id).content.pageProjects.featured.capacity==='Legacy edit',legacyId));
   const customer=await browser.newPage();customer.on('pageerror',e=>errors.push(e.message));await customer.setViewport({width:390,height:844});
   await customer.goto(base+'/share.html?p='+encodeURIComponent(original),{waitUntil:'networkidle0'});
-  check('Customer View keeps the two project types and capacities distinct',await customer.$eval('#pageProjects',e=>e.querySelector('[data-project="PROJ_TRACKING"]').textContent.includes('Ground-Mounted Solar Tracking')&&e.textContent.includes('500 kWp')&&e.textContent.includes('1,700 kWp')));
+  check('Customer View keeps the two project types and capacities distinct',await customer.$eval('#pageProjects',e=>e.querySelector('[data-project="PROJ_TRACKING"]').textContent.includes('Ground-Mounted Solar Tracking')&&e.textContent.includes('500 kWp')&&e.textContent.includes('1,700 kWp')&&e.querySelector('[data-project="PROJ_TRACKING"]').textContent.includes('Pune, Maharashtra')));
   check('saved Customer View loads the actual tracking PNG',await customer.$eval('[data-project="PROJ_TRACKING"] img',e=>e.naturalWidth===1536&&e.getAttribute('src')==='assets/images/Tracking.png'));
   check('mobile proposal card stays within the scaled page',await customer.$eval('[data-project="PROJ_TRACKING"]',e=>e.getBoundingClientRect().left>=0&&e.getBoundingClientRect().right<=innerWidth+1));
   const context=await browser.createBrowserContext(),gallery=await context.newPage();gallery.on('pageerror',e=>errors.push(e.message));await gallery.setViewport({width:1360,height:1100});
@@ -72,8 +79,19 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('all gallery cards share the same width, thumbnail height and styling',await gallery.$$eval('#galleryProjects article',els=>els.every(e=>e.className===''&&Math.abs(e.offsetWidth-els[0].offsetWidth)<=1&&e.querySelector('img').offsetHeight===els[0].querySelector('img').offsetHeight)));
   check('no featured banner or separate tracking filter remains',await gallery.evaluate(()=>!document.querySelector('.featured-project')&&!document.getElementById('galleryFilters').textContent.includes('Solar tracking')));
   await (await gallery.$('#galleryProjects')).screenshot({path:path.join(shots,'tracking-gallery-grid.png')});
-  await gallery.click('[data-project="PROJ_TRACKING"] .project-photo');
-  check('enlarged image caption contains supplied facts but no invented location',await gallery.$eval('#photoViewer',e=>e.open&&e.querySelector('img').naturalWidth===1536&&e.textContent.includes('500 kWp')&&!e.textContent.includes('Pune')));
+  const photo='[data-project="PROJ_TRACKING"] .project-photo';
+  await gallery.hover('[data-project="PROJ_1_1"] .project-photo');
+  await gallery.waitForFunction(()=>new DOMMatrix(getComputedStyle(document.querySelector('[data-project="PROJ_1_1"] .project-photo img')).transform).a>1.029);
+  const normalZoom=await gallery.$eval('[data-project="PROJ_1_1"] .project-photo img',e=>({transform:getComputedStyle(e).transform,transition:getComputedStyle(e).transition}));
+  await gallery.hover(photo);
+  await gallery.waitForFunction(()=>new DOMMatrix(getComputedStyle(document.querySelector('[data-project="PROJ_TRACKING"] .project-photo img')).transform).a>1.029);
+  check('tracking photo uses the same hover zoom and transition as the other images',await gallery.$eval(photo+' img',(e,normal)=>getComputedStyle(e).transform===normal.transform&&getComputedStyle(e).transition===normal.transition,normalZoom));
+  await gallery.mouse.move(0,0);
+  await gallery.waitForFunction(()=>getComputedStyle(document.querySelector('[data-project="PROJ_TRACKING"] .project-photo img')).transform==='none');
+  check('tracking photo returns to its original size when the pointer leaves',await gallery.$eval(photo+' img',e=>getComputedStyle(e).transform==='none'));
+  check('gallery card shows the confirmed location',await gallery.$eval('[data-project="PROJ_TRACKING"]',e=>e.textContent.includes('Pune, Maharashtra')));
+  await gallery.click(photo);
+  check('enlarged image caption includes the confirmed Pune location',await gallery.$eval('#photoViewer',e=>e.open&&e.querySelector('img').naturalWidth===1536&&e.textContent.includes('500 kWp')&&e.textContent.includes('Pune, Maharashtra')));
   await gallery.keyboard.press('Escape');
   await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());
   check('industrial filter includes both Agarwal projects as regular entries',await gallery.$eval('#galleryProjects',e=>e.querySelectorAll('article').length===4&&e.textContent.includes('1,700 kWp')&&e.querySelector('[data-project="PROJ_TRACKING"]').textContent.includes('500 kWp')));

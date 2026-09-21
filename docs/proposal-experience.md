@@ -153,7 +153,7 @@ or production merge is required for these changes.
 
 The 1,700 kWp industrial rooftop reference is retained unchanged. The new
 reference is **Agarwal Technoplast Pvt. Ltd. — 500 kWp — Ground-Mounted Solar
-Tracking**. Its location is intentionally blank; no axis type, commissioning date,
+Tracking**, located in **Pune, Maharashtra** as confirmed by the owner. No axis type, commissioning date,
 generation or performance gain is inferred. The supplied `Tracking.png` is kept
 byte-for-byte (Git blob `213b1702f20304fd8b43b3ca54af4e730a29a7af`).
 
@@ -162,14 +162,16 @@ frames. The industrial row has four columns; the other two rows keep their three
 original references. The gallery uses the same standard card treatment for all ten
 entries. Both Agarwal projects appear in the Industrial filter, without a special
 tracking filter or banner. The tracking thumbnail preserves the complete supplied
-image; the enlarged-image viewer is still available.
+image; the enlarged-image viewer is still available. Its hover zoom uses the same
+1.03 scale and 0.25-second transition as the other gallery photographs.
 
 For compatibility with previously saved proposals, the tracking data retains its
 internal `featured` key. `portfolioCategories()` folds it into the industrial group
 for rendering, gallery and Advanced Edit without changing stored custom values.
 
 Legacy proposal content receives the new reference without overwriting custom
-rooftop values. Advanced Edit is rebound when switching proposals, and an old
+rooftop values. The original blank tracking location is upgraded to Pune, Maharashtra;
+custom names and non-empty locations are preserved. Advanced Edit is rebound when switching proposals, and an old
 proposal missing the tracking-photo key cannot inherit another proposal's private
 upload. Private overrides remain local to that proposal, not the public gallery.
 `qa/tracking-project.test.js` covers exact image identity, distinct capacities,
