@@ -65,10 +65,10 @@ const d = w.document;
 t('no errors on boot', errors.length === 0, errors.join('|'));
 t('cover avatar row removed (clean professional)', !d.getElementById('coverPortraitRow'), 'should be null for clean look');
 t('cover portrait img removed', !d.getElementById('img_cover_portrait'), 'avatar deleted per final decision');
-t('cover uses tall 1:3 image (FIX2)', (d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover-tall.jpg'), d.getElementById('img_cover')?.getAttribute('src'));
+t('cover uses tall premium hero (exact reference: page-cover-exact-hero.jpg or page-cover-tall.jpg)', (()=>{ const s=d.getElementById('img_cover')?.getAttribute('src')||''; return s.includes('page-cover-exact-hero.jpg') || s.includes('page-cover-tall.jpg'); })(), d.getElementById('img_cover')?.getAttribute('src'));
 t('cover img alt is AI placeholder policy (not a real site photo)', (()=>{ const alt=(d.getElementById('img_cover')?.getAttribute('alt')||'').toLowerCase(); return alt.includes('ai-generated') && alt.includes('placeholder'); })(), d.getElementById('img_cover')?.getAttribute('alt'));
 t('old v2 portrait not used for #img_cover', !(d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover-v2-portrait'), d.getElementById('img_cover')?.getAttribute('src'));
-t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').match(/page-cover\.jpg$/), 'should use tall');
+t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').match(/page-cover\.jpg$/), 'should use tall/exact-hero');
 t('cover stats still present', !!d.getElementById('v_coverStatYears'));
 
 // EXACT KTM PREMIUM COVER — user-provided proposal-cover CSS (210mm, diagonal 72%→100%→72%)
