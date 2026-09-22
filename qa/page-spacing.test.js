@@ -35,6 +35,11 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    }));check(label+' fits A4 with no card/photo/footer collisions: '+issues.join(', '),issues.length===0);
   }
   await geometry('Default 7 kWp');
+  check('summary ends with a loaded original solar illustration, not another text block',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork'),img=e.querySelector('img');return img.complete&&img.naturalWidth===718&&e.offsetHeight>120&&e.textContent.includes('not a site layout');}));
+  await page.evaluate(()=>{StateStore.applyForm({custName:'Customer with a moderately long organisation name',custAddress:'Industrial Area, Pune, Maharashtra — project site under review'});Render.renderAll();});
+  await geometry('Summary with customer and site details');
+  check('summary artwork yields space to customer content and stays above the footer',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork');return e.offsetHeight>60&&e.getBoundingClientRect().bottom<pageExec.querySelector('footer').getBoundingClientRect().top;}));
+  await page.evaluate(f=>{StateStore.applyForm(f);Render.renderAll();},originals.form);
   check('benefits and solution use wider two-column cards',await page.evaluate(()=>['v_wsBenefits','v_soSpecs','v_quStandards','v_quChecklist'].every(id=>getComputedStyle(document.getElementById(id)).gridTemplateColumns.split(' ').length===2)));
   check('body and card text enlarged moderately, not globally',await page.evaluate(()=>getComputedStyle(document.getElementById('v_wsPara')).fontSize==='12.2px'&&getComputedStyle(document.querySelector('#pageWhySolar .card-desc')).fontSize==='11.5px'&&getComputedStyle(document.getElementById('v_tsPara')).fontSize==='11.4px'));
   check('large unused areas reduced on summary, benefits, solution and quality',await page.evaluate(()=>[
@@ -61,18 +66,24 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
     const body=el.querySelector('.pg-body'),foot=el.querySelector('.pg-foot');
     if(body&&foot&&[...body.children].some(c=>c.checkVisibility()&&c.getBoundingClientRect().bottom>foot.getBoundingClientRect().top+1))throw new Error('PDF footer collision: '+el.id);
     const canvas=await native(el,options);window.__layoutCaptureCount++;
+    if(el.id==='pageExec'){
+     const p=el.getBoundingClientRect(),r=el.querySelector('.exec-artwork img').getBoundingClientRect(),scale=canvas.width/p.width;
+     const d=canvas.getContext('2d').getImageData(Math.round((r.left-p.left)*scale),Math.round((r.top-p.top)*scale),Math.round(r.width*scale),Math.round(r.height*scale)).data;
+     window.__summaryArtInk=0;for(let i=0;i<d.length;i+=4)if(d[i]<120&&d[i+1]>60&&d[i+1]<160&&d[i+2]>70&&d[i+2]<170)window.__summaryArtInk++;
+    }
     if(el.id==='pageWhySolar'){
      const page=el.getBoundingClientRect(),chip=el.querySelector('.icon-chip').getBoundingClientRect(),scale=canvas.width/page.width;
      const pixels=canvas.getContext('2d').getImageData(Math.round((chip.left-page.left+9)*scale),Math.round((chip.top-page.top+9)*scale),Math.round(12*scale),Math.round(12*scale)).data;
      window.__layoutIconInk=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]>240&&pixels[i+1]>240&&pixels[i+2]>240)window.__layoutIconInk++;
      if(window.__layoutIconInk<5)throw new Error('White icon is missing from full-page PDF capture');
     }
-    if(['pageWhySolar','pageQuality','pageTechSpec','pageInvestment','pageProjects'].includes(el.id))window.__layoutProofs[el.id]=canvas.toDataURL('image/png');
+    if(['pageExec','pageWhySolar','pageQuality','pageTechSpec','pageInvestment','pageProjects'].includes(el.id))window.__layoutProofs[el.id]=canvas.toDataURL('image/png');
     return canvas;
    };
   });
   try{await page.click('#downloadBtn');await page.waitForFunction(()=>statusMsg.textContent.includes('Downloaded'),{timeout:120000});await done;}finally{clearTimeout(timer);await page.evaluate(()=>__restoreCapture());}
   check('actual PDF capture fits all 17 pages including optional details',await page.evaluate(()=>__layoutCaptureCount===17));
+  check('solar landscape is visibly rendered in the actual PDF raster',await page.evaluate(()=>__summaryArtInk>1000));
   const pdf=fs.readdirSync(output).find(name=>name.endsWith('.pdf'));
   check('actual PDF keeps white pictograms visible above orange icon backgrounds',await page.evaluate(()=>__layoutIconInk>=5));
   check('17-page stress-case PDF downloaded',!!pdf&&(fs.readFileSync(path.join(output,pdf),'latin1').match(/\/Type \/Page\b/g)||[]).length===17);
@@ -87,6 +98,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const id=await page.evaluate(()=>Proposals.activeId()),customer=await browser.newPage();
   customer.on('pageerror',e=>errors.push(e.message));await customer.goto(base+'/share.html?p='+encodeURIComponent(id),{waitUntil:'networkidle0'});
   check('Customer View uses the same card layout and enlarged photography',await customer.evaluate(()=>document.querySelector('#pageSolution .photo-top').offsetHeight===260&&getComputedStyle(document.getElementById('v_soSpecs')).gridTemplateColumns.split(' ').length===2));
+  check('Customer View carries the same loaded summary artwork',await customer.$eval('#pageExec .exec-artwork img',e=>e.complete&&e.naturalWidth===718));
   check('no runtime errors',errors.length===0);console.log(`\n${passed} passed, 0 failed`);
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,4 +1,5 @@
 /* Screen tools are separate from the fixed A4 proposal canvases. */
+#downloadLabel{overflow-wrap:anywhere;}
 .pdf-format-label{display:block;font-size:10px;font-weight:700;color:#5B6B80;margin-bottom:5px;}
 .pdf-format{width:100%;border:1px solid #D9E2EA;border-radius:8px;background:#fff;color:#17354A;font:600 11px Arial,sans-serif;padding:9px 10px;margin:3px 0 9px;}
 .st-actions{flex-wrap:wrap;justify-content:flex-end;}

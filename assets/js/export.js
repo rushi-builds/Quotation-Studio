@@ -5,11 +5,35 @@
   const $=id=>document.getElementById(id);
   let busy=false;
   const formats={bess:{title:'BESS Report',ids:['pageBessOverview','pageBessAssessment']},system:{title:'Additional System Report',ids:['pageSystemOverview','pageSystemDetail']},'system-power':{title:'System Power Proposal',ids:['pageSystemOverview']}};
+  function formatsFor(s) {
+    const name=String(s.systemName||root.AdditionalSystems.templates[s.systemTemplate]?.name||'Additional System').trim()||'Additional System';
+    return {...formats,system:{...formats.system,title:name+' Report'},'system-power':{...formats['system-power'],title:name+' Power Proposal'}};
+  }
   function updateLabel() {
-    const s=root.Render.lastState||{},select=$('pdfFormat');
-    if(select){for(const option of select.options){option.disabled=option.value==='bess'?!root.Bess.enabled(s):option.value.startsWith('system')?!root.AdditionalSystems.enabled(s):false;}if(select.selectedOptions[0]?.disabled)select.value='full';}
+    const s=root.Render.lastState||{},select=$('pdfFormat'),reports=formatsFor(s);
+    // Remove unavailable entries, rather than merely disabling them: native
+    // select popups (especially on mobile) can still display disabled options.
+    const available=[['full','Detailed Proposal — all applicable pages'],['power','Power Proposal — 2-page summary']];
+    for(const [value,report] of Object.entries(reports)) {
+      if(value==='bess'?root.Bess.enabled(s):root.AdditionalSystems.enabled(s))
+        available.push([value,report.title+' · '+report.ids.length+(report.ids.length===1?' page':' pages')]);
+    }
+    if(select) {
+      const selected=select.value;
+      for(const option of [...select.options])if(!available.some(([value])=>value===option.value))option.remove();
+      available.forEach(([value,text],index)=>{
+        const option=[...select.options].find(o=>o.value===value)||document.createElement('option');
+        option.value=value;option.textContent=text;option.disabled=false;
+        if(select.options[index]!==option)select.insertBefore(option,select.options[index]||null);
+      });
+      select.value=available.some(([value])=>value===selected)?selected:'full';
+    }
+    document.querySelectorAll('[data-export-format^="system"]').forEach(button=>{
+      const report=reports[button.dataset.exportFormat];
+      if(report)button.textContent=report.title+' · '+report.ids.length+(report.ids.length===1?' page':' pages');
+    });
     const format=select?.value||'full',count=root.Render.lastVisible?.length||15,label=$('downloadLabel');
-    if(label)label.textContent=format==='power'?'Download Power Proposal (2 Pages)':formats[format]?'Download '+formats[format].title+' ('+formats[format].ids.length+' Pages)':'Generate & Download PDF ('+count+' Pages)';
+    if(label)label.textContent=format==='power'?'Download Power Proposal (2 Pages)':reports[format]?'Download '+reports[format].title+' ('+reports[format].ids.length+' Pages)':'Generate & Download PDF ('+count+' Pages)';
   }
   function snapshotFull(selected,standaloneTitle) {
     const host=document.createElement('div'); host.className='pdf-snapshot'; host.setAttribute('aria-hidden','true');
@@ -43,9 +67,10 @@
         do { pending=root.Experience.whenReady(); await pending; } while(pending!==root.Experience.whenReady());
       }
       const s=JSON.parse(JSON.stringify(root.Render.lastState || root.Render.readState()));
+      const reports=formatsFor(s);
       if(format==='bess'&&!root.Bess.enabled(s))throw new Error('Enable BESS to download its report.');
       if(format.startsWith('system')&&!root.AdditionalSystems.enabled(s))throw new Error('Enable an additional system to download its report.');
-      snapshot=format==='power'?root.Experience.buildPowerPages(s):formats[format]?snapshotFull(root.Render.PAGES.filter(p=>formats[format].ids.includes(p.id)),formats[format].title):snapshotFull();
+      snapshot=format==='power'?root.Experience.buildPowerPages(s):reports[format]?snapshotFull(root.Render.PAGES.filter(p=>reports[format].ids.includes(p.id)),reports[format].title):snapshotFull();
       const pages=[...snapshot.children];
       await Promise.all([...snapshot.querySelectorAll('img')].map(img=>new Promise((resolve,reject)=>{
         // `complete` is also true for failed/empty images. Do not silently issue
@@ -91,8 +116,8 @@
         });
       }
       const cust=(s.custName||'Customer').replace(/[^a-z0-9]+/gi,'_'),ref=(s.propRef||'').replace(/[^a-z0-9]+/gi,'-');
-      pdf.setProperties({title:(formats[format]?.title||(format==='power'?'Power Proposal':'Solar Proposal'))+' — '+s.custName+' ('+s.capacity+' kWp)',subject:'Rooftop solar EPC proposal '+ref+' v'+s.propVersion,author:s.companyName,creator:s.companyName+' — Quotation Studio'});
-      pdf.save((formats[format]?formats[format].title.replace(/ /g,'_')+'_':format==='power'?'Power_Proposal_':'Proposal_')+cust+'_'+s.capacity+'kWp_'+ref+'.pdf');
+      pdf.setProperties({title:(reports[format]?.title||(format==='power'?'Power Proposal':'Solar Proposal'))+' — '+s.custName+' ('+s.capacity+' kWp)',subject:'Rooftop solar EPC proposal '+ref+' v'+s.propVersion,author:s.companyName,creator:s.companyName+' — Quotation Studio'});
+      pdf.save((reports[format]?reports[format].title.replace(/[^a-z0-9_-]+/gi,'_')+'_':format==='power'?'Power_Proposal_':'Proposal_')+cust+'_'+s.capacity+'kWp_'+ref+'.pdf');
       set('Downloaded ✓ ('+pages.length+' pages)');
     } finally {snapshot?.remove();busy=false;}
   }
@@ -108,7 +133,7 @@
       const old=button.textContent;button.disabled=true;
       try{await exportPdf(m=>{if(status)status.textContent=m;},{format:button.dataset.exportFormat});}
       catch(e){if(status)status.textContent=e.message;}
-      finally{button.disabled=false;button.textContent=old;root.Bess.syncControls(root.Render.lastState);root.AdditionalSystems.sync(root.Render.lastState);}
+      finally{button.disabled=false;button.textContent=old;root.Bess.syncControls(root.Render.lastState);root.AdditionalSystems.sync(root.Render.lastState);updateLabel();}
     }));
     $('pdfFormat')?.addEventListener('change',updateLabel);updateLabel();
   }

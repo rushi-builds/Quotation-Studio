@@ -19,7 +19,7 @@
 .system-controls [hidden],.bess-controls [hidden]{display:none!important;}
 .bess-controls input[readonly]{background:#eef3f5;color:#526779;border-style:dashed;}
 .supplement-downloads{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0;}
-.supplement-downloads button{border:1px solid #b7c6cd;background:#f5f9fa;color:#214052;border-radius:7px;padding:9px 11px;cursor:pointer;font:600 10px 'Inter',sans-serif;}
+.supplement-downloads button{max-width:100%;overflow-wrap:anywhere;border:1px solid #b7c6cd;background:#f5f9fa;color:#214052;border-radius:7px;padding:9px 11px;cursor:pointer;font:600 10px 'Inter',sans-serif;}
 .supplement-downloads button:disabled{opacity:.45;cursor:not-allowed;}
 .bess-controls .sp-auto-status{background:#eef4f5;color:#254c5b;border-left:3px solid #d69543;padding:11px;font-size:10px;line-height:1.7;margin:10px 0;}
 .bess-controls .sp-auto-status:empty{display:none;}

@@ -40,7 +40,7 @@ preview, the exported PDF and the customer share view.
 | # | Page | Purpose |
 |---|------|---------|
 | 1 | Cover | Personalised, capacity badge, validity date, version chip |
-| 2 | Executive Summary | Hero numbers (net investment → 25-yr earnings), KPI dashboard, investment journey, "what you are getting" |
+| 2 | Executive Summary | Hero numbers (net investment → 25-yr earnings), KPI dashboard, "what you are getting", solar-landscape visual finish |
 | 3 | About Us | Company story, stats, differentiators |
 | 4 | Why Rooftop Solar | Benefits + live savings metrics |
 | 5 | Proposed Solution | System highlights incl. auto module count & generation |
@@ -80,8 +80,8 @@ assets/
   images/  fonts/  vendor/   Bundled photos, Inter/Poppins, html2canvas + jsPDF
 docs/ROADMAP.md         Master product vision & phased plan
 qa/
-  finance.test.js       47 unit tests for the calculation engine (node qa/finance.test.js)
-  integration.test.js   95 end-to-end tests in jsdom (node qa/integration.test.js)
+  finance.test.js       58 unit tests for the calculation engine (node qa/finance.test.js)
+  integration.test.js   110 end-to-end tests in jsdom (node qa/integration.test.js)
   browser.test.js       Real-browser QA (charts, overflow, PDF, mobile) — needs Chromium
 ```
 
@@ -128,7 +128,7 @@ clearly-marked placeholder — nothing is invented.
 - **Per-page photo uploads**; the approved cover logo is locked consistently across all pages
 - **PDF export**: html2canvas (2×) → jsPDF, metadata set, smart filename
   `Proposal_<Customer>_<kWp>_<Ref>.pdf`; native browser print also produces
-  exactly 15 A4 sheets (`@media print`, headers/footers/page numbers included)
+  the applicable A4 sheets (`@media print`, headers/footers/page numbers included)
 - **Validation without nagging**: payment-total and BOM-coverage warnings,
   area fit-check, N/A states for subsidy by connection type
 
@@ -265,7 +265,12 @@ still check A4 fit with no, one or both engineering reference links.
 ### Visual customer tools and PDF formats
 
 Choose **Power Proposal — 2-page summary** or the existing **Detailed proposal**
-from the PDF dropdown in the builder or Customer View. The short report uses the
+from the PDF dropdown in the builder or Customer View. These are the only two
+options when no optional system is enabled. Turning on BESS adds its report;
+turning on an additional system adds its named detailed and Power downloads.
+Turning a system off removes its entries rather than leaving disabled choices.
+Standalone reports remain available when excluded from the main proposal.
+The short report uses the
 same live equipment, financial model and system diagram; the detailed report keeps
 all applicable pages. Export captures a consistent snapshot and refuses clipped
 short summaries rather than silently hiding content.
@@ -352,4 +357,5 @@ cleanup, pending imports, storage-full creation, undefined IRR, explicit environ
 factors and local-calendar dates. The supplied cover, diagram and tracking image
 remain unchanged. Reliable Marathi audio on every device would require a separate
 hosted speech integration; this release provides honest device-voice recovery and
-translated written briefings. Production merge still requires owner approval.
+translated written briefings. The owner authorized merging PR #8 after the final download-menu and summary
+refinements on 22 September 2026; see [the final release notes](docs/download-menu-summary-2026-09-22.md).
