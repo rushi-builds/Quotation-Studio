@@ -16,19 +16,18 @@
 
   /* ---------- autosave ---------- */
   let saveTimer = null;
+  function showSaveState(state) {
+    const el = $('saveIndicator');
+    if (!el) return;
+    el.dataset.state = state;
+    el.textContent = {saving: 'Saving…', saved: 'Saved locally', error: 'Not saved'}[state];
+    el.title = state === 'error' ? 'Browser storage could not save your changes. Export a backup before closing this tab.' : 'Saved in this browser only. Export a backup to keep a portable copy.';
+    el.classList.add('on');
+  }
   function scheduleSave() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      const blob = window.Proposals.saveActive(
-        window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES, window.__qsOptions || []);
-      const el = $('saveIndicator');
-      if (el) {
-        el.textContent = blob ? 'Saved ✓' : 'Save failed';
-        el.classList.add('on');
-        setTimeout(() => el.classList.remove('on'), 1600);
-      }
-      refreshManager(false);
-    }, 400);
+    showSaveState('saving');
+    saveTimer = setTimeout(() => { saveNow(); refreshManager(false); }, 400);
   }
   window.__qsScheduleSave = scheduleSave; /* used by the Advanced Edit panel */
   window.__qsSaveNow = saveNow;           /* used by harnesses / before navigation */
@@ -141,14 +140,14 @@
     const cv = $('custViewBtn');
     if (cv) {
       cv.addEventListener('click', () => {
-        if (window.__qsSaveNow) window.__qsSaveNow();
+        if (window.__qsSaveNow && !window.__qsSaveNow()) return;
         const id = window.Proposals.activeId();
         if (id) window.open('share.html?p=' + encodeURIComponent(id), '_blank');
       });
     }
     document.querySelectorAll('[data-engineering-open]').forEach(button => {
       button.addEventListener('click', () => {
-        if (window.__qsSaveNow) window.__qsSaveNow();
+        if (window.__qsSaveNow && !window.__qsSaveNow()) return;
         const id = window.Proposals.activeId();
         if (id) window.open('share.html?p=' + encodeURIComponent(id) + '#shareAcceptWrap', '_blank');
       });
@@ -249,7 +248,7 @@
   }
 
   function switchTo(id) {
-    window.Proposals.saveActive(window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES);
+    if (!saveNow()) { $('proposalSelect').value = window.Proposals.activeId(); return; }
     window.Proposals.setActive(id);
     loadActiveIntoUI();
     window.Render.renderAll();
@@ -257,8 +256,16 @@
   }
 
   function saveNow() {
-    return window.Proposals.saveActive(
-      window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES);
+    clearTimeout(saveTimer);
+    try {
+      const blob = window.Proposals.saveActive(window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES, window.__qsOptions || []);
+      // The store tolerates quota errors; verify the actual saved blob before
+      // claiming success in the workspace, including private image uploads.
+      const saved = blob && window.Proposals.get(blob.id);
+      const ok = !!saved && JSON.stringify(saved) === JSON.stringify(blob);
+      showSaveState(ok ? 'saved' : 'error');
+      return ok ? blob : null;
+    } catch (error) { showSaveState('error'); return null; }
   }
 
   function wireManager() {
@@ -267,7 +274,7 @@
     sel.addEventListener('change', () => { if (sel.value) switchTo(sel.value); });
 
     $('pmNew').addEventListener('click', () => {
-      saveNow(); /* persist the proposal we are leaving — never lose edits */
+      if (!saveNow()) return; /* keep unsaved edits if browser storage is full */
       const form = Object.assign({}, pristine);
       form.propDate = new Date().toISOString().slice(0, 10);
       form.propVersion = '1.0';
@@ -279,13 +286,13 @@
     });
 
     $('pmDup').addEventListener('click', () => {
-      saveNow(); /* duplicate exactly what is on screen */
+      if (!saveNow()) return; /* duplicate exactly what is on screen */
       const b = window.Proposals.duplicate(window.Proposals.activeId());
       if (b) switchTo(b.id);
     });
 
     $('pmVersion').addEventListener('click', () => {
-      saveNow();
+      if (!saveNow()) return;
       const b = window.Proposals.saveAsVersion(window.Proposals.activeId());
       if (b) switchTo(b.id);
     });
@@ -402,7 +409,7 @@
         scheduleSave();
       }
     });
-    $('exportBtn').addEventListener('click', () => window.StateStore.exportFile());
+    $('exportBtn').addEventListener('click', () => { saveNow(); window.StateStore.exportFile(); });
     $('importFile').addEventListener('change', async function () {
       const f = this.files[0];
       if (!f) return;
@@ -415,10 +422,6 @@
       } catch (err) {
         alert('Could not read that proposal file. Please check it is a Quotation Studio .json export.');
       }
-    });
-    $('advToggle').addEventListener('click', () => {
-      const p = $('advancedPanel');
-      if (p) p.open = !p.open;
     });
   }
 
@@ -450,8 +453,9 @@
       const all = mode === 'all';
       form.classList.toggle('qs-mode-essentials', !all);
       const bE = $('modeEss'), bA = $('modeAll');
-      if (bE) bE.classList.toggle('active', !all);
-      if (bA) bA.classList.toggle('active', all);
+      if (bE) { bE.classList.toggle('active', !all); bE.setAttribute('aria-pressed', String(!all)); }
+      if (bA) { bA.classList.toggle('active', all); bA.setAttribute('aria-pressed', String(all)); }
+      document.dispatchEvent(new CustomEvent('qs:mode', {detail: {all}}));
       try { localStorage.setItem(MODE_KEY, all ? 'all' : 'essentials'); } catch (e) {}
     };
     $('modeEss') && $('modeEss').addEventListener('click', () => setMode('essentials'));

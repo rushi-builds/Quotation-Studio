@@ -292,3 +292,31 @@ Portfolio → Category 1: INDUSTRIAL SOLAR PROJECTS → Project 4**. Name, capac
 installation type, optional location and photograph synchronize with the proposal,
 Customer View and detailed PDF; private overrides do not publish to the gallery.
 The two-page financial brief, approved cover and system diagram remain unchanged.
+
+
+### Connected control-panel workspace
+
+The builder now has a dedicated, responsive control-panel design. The approved
+proposal pages and financial engine are unchanged.
+
+- **Live quotation summary:** capacity, Finance-derived net investment, year-one
+  energy and the current applicable page count.
+- **Collapsible controls:** customer, equipment, pricing and payment are available
+  in Essentials; All settings adds branding, options, BOM, reports, tax, photos
+  and QR/audio configuration. Existing presets still require confirmation.
+- **Find a setting:** searches field labels and section names, including nested
+  page-content editors. Selecting a result opens its section, enables All settings
+  when necessary and focuses the original control—there are no copied input values.
+- **Connected editing:** section summaries and the selected proposal label update
+  with edits. Related-page buttons navigate explicitly, without jumping the preview
+  while typing. Advanced content uses native keyboard-accessible disclosures.
+- **Save awareness:** Saving / Saved locally / Not saved states describe actual
+  browser persistence. Saved data is verified rather than assuming storage worked.
+  Export backup captures current inputs, content and photos even if storage is full.
+- **Input guidance:** advisory warnings for missing customer/capacity/price, payment
+  totals and incomplete financing. These do not alter financial calculations or
+  certify the proposal. Customer View, PDF formats and backup/reset remain available.
+
+All workspace controls are builder-only and excluded from print/PDF and Customer
+View. `qa/control-panel.test.js` checks navigation, live edits, proposal switching,
+content isolation, storage failure, recoverable backup and responsive layouts.

@@ -116,8 +116,9 @@
 
   /* ---------- proposal file export / import (through Proposals) ---------- */
   function exportFile() {
-    const blob = root.Proposals.active();
-    if (!blob) return;
+    const active = root.Proposals.active();
+    if (!active) return;
+    const blob = Object.assign({}, active, {form: collectForm(), content: CONTENT, projectImages: PROJECT_IMAGES, options: root.__qsOptions || []});
     const payload = JSON.stringify({
       kind: 'ktm-proposal',
       v: 3,

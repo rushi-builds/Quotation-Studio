@@ -30,6 +30,7 @@ async function installSpeech(page) {
   const edit=async fields=>{await page.evaluate(fields=>{for(const [id,value] of Object.entries(fields)){const e=document.getElementById(id);if(e.type==='checkbox')e.checked=value;else e.value=value;e.dispatchEvent(new Event('input',{bubbles:true}));}},fields);await page.evaluate(()=>Experience.whenReady());};
   check('audio is collapsed and never autoplays on load',await page.evaluate(()=>!document.getElementById('proposalBriefing').open&&__speech.spoken.length===0));
   await page.click('#modeAll');
+  await page.click('[data-section="galleryUrl"] > summary');
   check('QR destination and audio toggle are available in Advanced / All settings',await page.$eval('#customerExperienceSettings',e=>e.checkVisibility()&&!!e.querySelector('#galleryUrl')&&!!e.querySelector('#briefingEnabled')));
   check('blank destination shows setup guidance but no customer QR',await page.evaluate(()=>document.getElementById('closingGallery').hidden&&document.getElementById('galleryStatus').textContent.includes('Add a public HTTPS')));
   await edit({qrDestinationType:'video',galleryUrl:'https://example.com/project-videos'});

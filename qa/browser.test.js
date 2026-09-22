@@ -66,7 +66,8 @@ const OUT = __dirname + '/shots';
   t('no vertical overflow on any page', overflow.length === 0, JSON.stringify(overflow));
 
   /* ---- interactions ---- */
-  await page.click('#modeAll'); // Advanced BOM/options fields are intentionally hidden in Essentials.
+  await page.click('#modeAll');
+  await page.evaluate(() => document.querySelectorAll('.studio-section,.studio-management').forEach(e => e.open = true)); // Advanced BOM/options fields are intentionally hidden in Essentials.
   await page.select('#customerType', 'commercial');
   await new Promise((r) => setTimeout(r, 300));
   const subCap = await page.$eval('#v_inCostSubCap', (e) => e.textContent);

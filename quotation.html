@@ -17,32 +17,32 @@
 <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png">
 <link rel="stylesheet" href="assets/css/app.css">
 <link rel="stylesheet" href="assets/css/experience.css">
+<link rel="stylesheet" href="assets/css/control-panel.css">
 </head>
 <body>
 <div class="app">
 
   <!-- ================= FORM PANEL ================= -->
-  <aside class="form-panel">
+  <aside class="form-panel" aria-label="Proposal controls">
+    <div class="studio-heading">
     <div class="brand-row">
       <img id="formLogo" src="assets/images/ktm-logo-light.png" alt="Company logo">
-      <span class="save-flag" id="saveIndicator"></span>
+      <span class="save-flag" id="saveIndicator" role="status" aria-live="polite"></span>
     </div>
-    <div class="app-title">Quotation Studio</div>
-    <div class="app-sub">Fill in the project details — the 15-page proposal on the right updates live. Use <b>Advanced Edit</b> for editable proposal text, then generate the PDF.</div>
+    <div class="app-title">Quotation Studio<span class="studio-edition">WORKSPACE</span></div>
+    <div class="app-sub">Build with confidence. Every detail, connected.</div>
+    </div>
 
     <form id="quoteForm" autocomplete="off">
       <div class="form-mode" id="formMode">
         <button type="button" class="fm-btn active" id="modeEss">Essentials</button>
         <button type="button" class="fm-btn" id="modeAll">All settings</button>
-        <span class="fm-hint">Essentials covers every per-quote field.
-        Branding, equipment masters, documents &amp; photos live in
-        <b>All settings</b> — set them once, rarely touch again. The
-        document updates live as you type.</span>
+        <span class="fm-hint">Everyday quotation fields, without the extra setup.</span>
 
         <div class="quick-presets-bar">
-          <span class="qp-label">⚡ QUICK PRESETS (INDICATIVE):</span>
+          <span class="qp-label">Indicative starting points</span>
           <button type="button" class="qp-btn" data-preset="3kw">3 kWp Residential</button>
-          <button type="button" class="qp-btn" data-preset="5kw">5 kWp Premium Resi</button>
+          <button type="button" class="qp-btn" data-preset="5kw">5 kWp Residential</button>
           <button type="button" class="qp-btn" data-preset="25kw">25 kWp Commercial</button>
           <button type="button" class="qp-btn" data-preset="100kw">100 kWp Industrial</button>
         </div>
@@ -336,7 +336,7 @@
       </fieldset>
 
       <details class="advanced" id="advancedPanel">
-        <summary id="advToggle">Advanced Edit — every text element (all 15 pages)</summary>
+        <summary id="advToggle">Advanced Edit — content &amp; photographs</summary>
         <div id="advContainer"></div>
       </details>
     </form>
@@ -1070,5 +1070,6 @@
 <script src="assets/js/briefing.js"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/control-panel.js"></script>
 </body>
 </html>

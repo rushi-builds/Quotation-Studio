@@ -41,6 +41,7 @@ function check(name, condition) { assert(condition, name); passed++; console.log
     check('bill + commercial tax pages fit A4 without footer overlap: '+JSON.stringify(overflow),overflow.length===0);
     for(const preset of ['3kw','5kw','25kw','100kw']) {
       await edit({bomModules:'1000',loanAmt:'500000',loanRate:'9',loanYears:'5',subsidyOverride:'123',arkaUrl:'https://example.com/old-arka',pvsystUrl:'https://example.com/old-pv'});
+      await page.$eval('.studio-presets',e=>e.open=true);
       await page.click('[data-preset="'+preset+'"]');
       const values=await page.evaluate(()=>({s:StateStore.collectForm(),cover:document.getElementById('v_coverCapacity').textContent}));
       check(preset+' keeps valid equipment selections',!!values.s.moduleMake && !!values.s.moduleTech && !!values.s.inverterMake);
