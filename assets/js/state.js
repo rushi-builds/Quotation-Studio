@@ -25,8 +25,8 @@
     prepName: '',
     /* ---- Customer & proposal ---- */
     customerType: 'residential',
-    custName: 'Mr. Bhooshan Waghmare',
-    custAddress: 'Moshi, Pimpri-Chinchwad, Pune',
+    custName: '',
+    custAddress: '',
     propDate: '',
     propRef: 'KTM/2026/Solar/013',
     propVersion: '1.0',

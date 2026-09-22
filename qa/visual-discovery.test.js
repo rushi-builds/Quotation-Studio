@@ -36,7 +36,7 @@ const check = (name, ok) => {assert(ok, name);passed++;console.log('  ✓ '+name
     await page.screenshot({path:path.join(shots,'request-entry-desktop.png')});
     check('About heading renders an actual line break, not literal HTML',await page.$eval('#v_abHeading',e=>!!e.querySelector('br') && !e.textContent.includes('<br>')));
     check('initial PDF label matches visible page count',await page.$eval('#downloadLabel',e=>e.textContent.includes('15 Pages')));
-    check('initial proposal manager metadata matches the displayed customer',await page.$eval('#proposalSelect',e=>e.selectedOptions[0].textContent.includes('Bhooshan')));
+    check('initial proposal manager metadata matches the displayed customer',await page.$eval('#proposalSelect',e=>e.selectedOptions[0].textContent.includes('Untitled customer')));
     check('request shortcut is visible above the fold',await page.$eval('#engineeringViewBtn',e=>e.checkVisibility() && e.getBoundingClientRect().bottom<innerHeight));
     check('all white page headers use transparent light lockup',await page.$$eval('.pg-logo img',els=>els.every(e=>e.getAttribute('src')==='assets/images/ktm-logo-light.png' && getComputedStyle(e).backgroundColor==='rgba(0, 0, 0, 0)')));
     check('dark closing photograph uses transparent white lockup',await page.$eval('.closing-brand img',e=>e.getAttribute('src')==='assets/images/ktm-logo-dark.png'));

@@ -37,7 +37,7 @@ const puppeteer = require('puppeteer-core');
       }, fields);
     }
     let values = await checkVisible();
-    assert.equal(values.v_coverCustName, 'Mr. Bhooshan Waghmare');
+    assert.equal(values.v_coverCustName, 'Customer Name');
     const oldSavings = values.v_coverBadgeGen;
     await edit({ custName: 'Mr. Rahul Sharma', custAddress: 'Baner, Pune', capacity: '12.5', propRef: 'KTM-2026-099', propDate: '2026-10-15' });
     values = await checkVisible();

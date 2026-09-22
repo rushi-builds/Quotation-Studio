@@ -6,6 +6,15 @@ This is a builder-side redesign, not a proposal redesign. `control-panel.css` is
 loaded only by `quotation.html`. The cover, system diagram, portfolio, customer
 pages, both PDF formats and Finance engine keep their approved content and layout.
 
+## New-proposal defaults
+
+Customer name, site address and Prepared by start empty, with muted input hints:
+“Enter customer name”, “Enter site address” and “Enter preparer name”. Prepared by
+remains optional and accessible in the control panel. The cover shows neutral
+“Customer Name” / “Site Address” labels until details are supplied; these are not
+stored as real customer data. No person's name is prefilled. New and Reset use
+these blank defaults; existing saved proposals retain their entered details.
+
 ## Daily workflow
 
 1. Choose the current proposal. Expand **Manage proposals & versions** for New,

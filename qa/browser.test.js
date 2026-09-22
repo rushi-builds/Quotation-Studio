@@ -26,6 +26,10 @@ const OUT = __dirname + '/shots';
   let failed = 0;
   const t = (name, ok, extra) => { if (!ok) failed++; console.log((ok ? '  ✓ ' : '  ✗ FAIL: ') + name + (ok || extra === undefined ? '' : ' → ' + extra)); };
 
+  t('new proposal starts without a personal name', await page.$eval('#custName', e => e.value === '' && e.placeholder === 'Enter customer name'));
+  // Personalization is explicit test data, never an application default.
+  await page.$eval('#custName', e => { e.value = 'QA Customer'; e.dispatchEvent(new Event('input', {bubbles: true})); });
+
   /* ---- integrity ---- */
   const pageCount = await page.$$eval('.page', (els) => els.length);
   const visibleCount = await page.$$eval('.page', (els) => els.filter((e) => e.getClientRects().length > 0).length);
@@ -39,7 +43,7 @@ const OUT = __dirname + '/shots';
     donutHidden: document.getElementById('v_inBomSection').style.display === 'none',
     kpis: document.querySelectorAll('#v_exKpis .kpi-tile').length
   }));
-  t('cover personalised', kv.coverName.includes('Bhooshan'), kv.coverName);
+  t('cover personalised', kv.coverName.includes('QA Customer'), kv.coverName);
   t('hero net ₹6,08,070', kv.heroNet === '₹6,08,070', kv.heroNet);
   t('payback ~3.7', /^3\.\d/.test(kv.payback), kv.payback);
   t('page numbering', kv.pgnum === 'Page 14 of 15', kv.pgnum);
@@ -161,7 +165,7 @@ const OUT = __dirname + '/shots';
   await page.click('#waShare');
   const wa = await page.evaluate(() => window.__opened || '');
   t('wa.me share opens', wa.startsWith('https://wa.me/?text='), wa.slice(0, 60));
-  t('wa.me message carries link + customer', decodeURIComponent(wa).includes('Bhooshan') && decodeURIComponent(wa).includes('KTME-2026-013'));
+  t('wa.me message carries link + customer', decodeURIComponent(wa).includes('QA Customer') && decodeURIComponent(wa).includes('KTME-2026-013'));
 
   /* ---- screenshots of every VISIBLE page (desktop) ----
      viewport 1260 + hidden sticky toolbar: element.screenshot clips
@@ -323,7 +327,7 @@ const OUT = __dirname + '/shots';
     const b = JSON.parse(localStorage.getItem('qstudio.proposal.' + localStorage.getItem('qstudio.activeId')));
     return (b.options || []).length >= 2 ? 16 : 15;
   });
-  t('share: customer banner', sv.cust.includes('Bhooshan'), sv.cust);
+  t('share: customer banner', sv.cust.includes('QA Customer'), sv.cust);
   t('share: ' + expPages + ' pages visible (options-aware)', sv.visible === expPages, sv.visible);
   t('share: finance rendered', /₹/.test(sv.hero), sv.hero);
   t('share: read-only (no builder form)', sv.noForm, sv.noForm);

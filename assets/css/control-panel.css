@@ -107,3 +107,6 @@
 @media(max-width:560px){.form-panel.studio-ready{padding:18px 16px 0;}.studio-ready .form-actions{margin-left:-16px;margin-right:-16px;padding:13px 16px;}.studio-heading .app-title{font-size:22px;}.studio-edition{font-size:7px;letter-spacing:1px;}.studio-metrics strong{font-size:15px;}.studio-metrics div+div{padding-left:10px;}.studio-ready .row2{grid-template-columns:1fr 1fr;}.studio-ready .row3{grid-template-columns:1fr;}.studio-ready .row3:has(#payAdvance){grid-template-columns:repeat(3,1fr);}.studio-ready .field input,.studio-ready .field select,.studio-ready .field textarea{font-size:12px;min-height:40px;}.studio-section>summary{padding:14px 12px;}}
 @media(prefers-reduced-motion:reduce){.studio-ready *{scroll-behavior:auto!important;transition:none!important;}}
 @media print{.form-panel.studio-ready{display:none!important;}}
+
+/* Hints are intentionally muted and never stored as proposal values. */
+.studio-ready .field input::placeholder{color:#98a3b3;opacity:1;}

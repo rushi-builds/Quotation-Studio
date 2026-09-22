@@ -121,12 +121,13 @@ t('delete removes option', w.__qsOptions.length === 1);
 t('page still visible with 1 option? (needs 2) → hidden', d.querySelector('[data-page="pageOptions"]').style.display === 'none');
 
 console.log('— whatsapp share —');
+d.getElementById('custName').value = 'QA Customer'; fire(w, d.getElementById('custName'), 'input');
 d.getElementById('shareUrl').value = 'https://example.com/p/KTME-2026-013';
 fire(w, d.getElementById('shareUrl'), 'input');
 d.getElementById('waShare').click();
 const openUrl = decodeURIComponent(w.__lastOpen || '');
 t('wa.me link opened', (w.__lastOpen || '').startsWith('https://wa.me/?text='));
-t('message contains customer name', openUrl.includes('Mr. Bhooshan Waghmare'));
+t('message contains customer name', openUrl.includes('QA Customer'));
 t('message contains proposal link', openUrl.includes('https://example.com/p/KTME-2026-013'));
 
 console.log('— persistence with options —');
@@ -199,7 +200,7 @@ setTimeout(async () => {
     const d3 = w3.document;
     const expectedNet = w3.Finance.fmtINR(w3.Finance.compute(Object.assign(
       {}, w3.StateStore.DEFAULTS, w3.Proposals.get(shareId).form)).netInvestment);
-    t('share: customer banner', d3.getElementById('shareCustomer').textContent.includes('Bhooshan'),
+    t('share: customer banner', d3.getElementById('shareCustomer').textContent.includes('QA Customer'),
       d3.getElementById('shareCustomer').textContent);
     t('share: capacity line', d3.getElementById('shareCapacity').textContent.includes('kWp'));
     t('share: status chip', d3.getElementById('shareStatus').textContent.length > 0);

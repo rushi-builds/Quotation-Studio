@@ -69,8 +69,8 @@
     set('v_coverTitle1', CONTENT.cover.titleLine1);
     set('v_coverTitle2', CONTENT.cover.titleLine2);
     set('v_coverPreparedLabel', CONTENT.cover.labels.preparedFor);
-    set('v_coverCustName', s.custName);
-    set('v_coverCustAddress', s.custAddress);
+    set('v_coverCustName', (s.custName || '').trim() || 'Customer Name');
+    set('v_coverCustAddress', (s.custAddress || '').trim() || 'Site Address');
     set('v_coverCapacityLabel', CONTENT.cover.labels.capacity);
     set('v_coverCapacity', s.capacity + ' kWp');
     set('v_coverDateLabel', CONTENT.cover.labels.date);

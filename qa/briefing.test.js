@@ -29,6 +29,7 @@ async function installSpeech(page) {
   await page.evaluate(()=>document.fonts.ready);
   const edit=async fields=>{await page.evaluate(fields=>{for(const [id,value] of Object.entries(fields)){const e=document.getElementById(id);if(e.type==='checkbox')e.checked=value;else e.value=value;e.dispatchEvent(new Event('input',{bubbles:true}));}},fields);await page.evaluate(()=>Experience.whenReady());};
   check('audio is collapsed and never autoplays on load',await page.evaluate(()=>!document.getElementById('proposalBriefing').open&&__speech.spoken.length===0));
+  await edit({custName:'QA Customer',custAddress:'QA Site'}); // Explicit privacy-test fixture, not an application default.
   await page.click('#modeAll');
   await page.click('[data-section="galleryUrl"] > summary');
   check('QR destination and audio toggle are available in Advanced / All settings',await page.$eval('#customerExperienceSettings',e=>e.checkVisibility()&&!!e.querySelector('#galleryUrl')&&!!e.querySelector('#briefingEnabled')));

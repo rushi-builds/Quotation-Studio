@@ -52,7 +52,7 @@ function check(name, condition) { assert(condition, name); passed++; console.log
       check(preset+' equipment survives save/reload',await page.$eval('#moduleMake', (e,make)=>e.value===make, values.s.moduleMake));
     }
     // Fixture remains local to this test browser, never touching a user's proposal.
-    const fixture=await page.evaluate(()=>({form:{...StateStore.DEFAULTS,propDate:'2099-01-01',custName:'Customer <img src=x onerror=alert(1)>',companyPhone:'9309486769',companyName:'KTM <svg onload=alert(1)>',capacity:'12.5',propRef:'AUDIT/7'}}));
+    const fixture=await page.evaluate(()=>({form:{...StateStore.DEFAULTS,propDate:'2099-01-01',custName:'Customer <img src=x onerror=alert(1)>',custAddress:'QA Site, Pune',companyPhone:'9309486769',companyName:'KTM <svg onload=alert(1)>',capacity:'12.5',propRef:'AUDIT/7'}}));
     async function share(overrides={},extras={}) {
       const id=await page.evaluate(({fixture,overrides,extras})=>Proposals.create({...fixture.form,...overrides},extras).id,{fixture,overrides,extras});
       const view=await browser.newPage();view.on('pageerror',e=>errors.push(e.message));

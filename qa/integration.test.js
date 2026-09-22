@@ -82,7 +82,7 @@ t('no uncaught errors on boot', errors.length === 0, errors.join(' | '));
 t('rendered all 17 page shells (options + financing hidden by default)', d.querySelectorAll('.page').length === 17, d.querySelectorAll('.page').length);
 t('page labels generated', /Page 1 of 15/.test(d.querySelector('[data-page="pageCover"] .page-label').textContent),
   d.querySelector('[data-page="pageCover"] .page-label').textContent);
-t('cover shows customer', d.getElementById('v_coverCustName').textContent.includes('Bhooshan'));
+t('cover shows a neutral customer placeholder', d.getElementById('v_coverCustName').textContent === 'Customer Name');
 t('cover badge generation', /₹78/.test(d.getElementById('v_coverBadgeGen').textContent),
   d.getElementById('v_coverBadgeGen').textContent);
 t('exec hero net = ₹6,08,070', d.getElementById('v_exHeroNet').textContent === '₹6,08,070',
@@ -215,7 +215,7 @@ if (advInput) {
 console.log('— manager workflow —');
 d.getElementById('pmNew').click();
 t('New creates 2nd proposal', w.Proposals.list().length === 2, w.Proposals.list().length);
-t('New switches active', w.Proposals.get(w.Proposals.activeId()).form.custName === 'Mr. Bhooshan Waghmare');
+t('New switches active', w.Proposals.get(w.Proposals.activeId()).form.custName === '');
 t('New resets BOM (pristine template)', d.getElementById('bomModules').value === '');
 t('manager dropdown now 2 options', d.getElementById('proposalSelect').options.length === 2);
 t('New preserved the previous proposal\u2019s edits',
@@ -254,6 +254,7 @@ t('original still v1.0 + sent', w.Proposals.get(verBlob.prevId).form.propVersion
   w.Proposals.get(verBlob.prevId).status === 'sent');
 t('version shown on cover meta', d.querySelector('[data-head-ref]').textContent.includes('v1.1'));
 
+d.getElementById('custName').value = 'QA Customer'; fire(w, d.getElementById('custName'), 'input');
 d.getElementById('pmDup').click();
 t('duplicate creates copy', w.Proposals.list().length === 4, w.Proposals.list().length);
 t('duplicate marked (copy)', w.Proposals.active().form.custName.includes('(copy)'));
@@ -376,6 +377,7 @@ setTimeout(() => {
 
   /* ---------- pdf export smoke ---------- */
   console.log('— pdf export —');
+  d.getElementById('custName').value = 'QA Customer'; fire(w, d.getElementById('custName'), 'input');
   let savedName = '';
   w.html2canvas = async () => ({ toDataURL: () => 'data:image/jpeg;base64,AAAA' });
   w.jspdf = {
@@ -389,7 +391,7 @@ setTimeout(() => {
   };
   w.document.getElementById('downloadBtn').click();
   setTimeout(() => {
-    t('pdf saved with customer+capacity+ref', /Proposal_Mr_Bhooshan_Waghmare_7kWp_KTM-2026-Solar-013\.pdf/.test(savedName), savedName);
+    t('pdf saved with customer+capacity+ref', /Proposal_QA_Customer_7kWp_KTM-2026-Solar-013\.pdf/.test(savedName), savedName);
     t('status message shown', w.document.getElementById('statusMsg').textContent.includes('Downloaded'),
       w.document.getElementById('statusMsg').textContent);
 
