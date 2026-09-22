@@ -1547,3 +1547,100 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageProjects .intro-col{flex-shrink:0;}
 .pc-photo{height:132px;display:flex;align-items:center;justify-content:center;background:var(--cream);}
 #pageProjects .proj-card[data-project="PROJ_TRACKING"] img{width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;}
+
+/* Measured A4 whitespace refinement (September 2026).
+   Keep the cover, engineering diagram, finance tables and ten-card portfolio
+   untouched. Use the existing content more legibly, not decorative filler. */
+#pageExec .exec-hero{padding:20px 18px;}
+#pageExec .ht-v{font-size:20px;}
+#pageExec .ht-l{font-size:9px;}
+#pageExec .kpi-tile{padding:14px 12px;}
+#pageExec .kpi-l{font-size:9px;}
+#pageExec .kpi-v{font-size:14px;}
+#pageExec .inc-grid{gap:12px 18px;}
+#pageExec .inc-item{padding:7px 0;}
+#pageExec .inc-t{font-size:11.6px;}
+#pageExec .inc-d{font-size:10.4px;line-height:1.6;}
+
+:is(#pageAbout,#pageWhySolar,#pageSolution,#pageScope,#pageQuality,#pageWhyKtm,#pageWarranty,#pageTerms) .body-para{font-size:12.2px;line-height:1.78;}
+#pageAbout .photo-top{height:340px;}
+#pageAbout .spacer{max-height:64px;}
+#pageAbout .stat-card{padding:21px 10px;}
+#pageAbout .stat-card .card-title{font-size:11.2px;}
+#pageAbout .stat-card .card-desc{font-size:10px;}
+#pageAbout .feat-d{font-size:10.5px;line-height:1.55;}
+
+:is(#pageWhySolar,#pageSolution,#pageWhyKtm) .photo-top{height:260px;}
+:is(#pageWhySolar,#pageSolution,#pageWhyKtm) .intro-col{min-height:274px;}
+#pageWhySolar .spacer{max-height:40px;}
+#v_wsBenefits{grid-template-columns:repeat(2,minmax(0,1fr));}
+#pageWhySolar .benefit-card{padding:20px;min-height:170px;}
+#pageWhySolar .benefit-card .card-title{font-size:12.4px;}
+#pageWhySolar .benefit-card .card-desc{font-size:11.5px;line-height:1.7;}
+
+#pageSolution .spacer{max-height:32px;}
+#v_soSpecs{grid-template-columns:repeat(2,minmax(0,1fr));}
+#pageSolution .spec-card{padding:17px 18px;min-height:124px;}
+#pageSolution .spec-t{font-size:12px;}
+#pageSolution .spec-card .card-desc{font-size:11px;line-height:1.65;}
+
+#pageScope .photo-top{height:210px;}
+#pageScope .intro-col{min-height:224px;}
+#pageScope .spacer{max-height:56px;}
+#pageScope .deliv-t{font-size:11.4px;}
+#pageScope .resp-item .rd{font-size:10.4px;line-height:1.6;}
+#pageScope .addl-t{font-size:11px;}
+
+:is(#pageQuality,#pageWarranty) .photo-top{height:230px;}
+:is(#pageQuality,#pageWarranty) .intro-col{min-height:244px;}
+#pageQuality .spacer{max-height:40px;}
+#v_quStandards,#v_quChecklist{grid-template-columns:repeat(2,minmax(0,1fr));}
+#pageQuality .std-card{padding:18px;}
+#pageQuality .std-card .card-title{font-size:12px;}
+#pageQuality .std-card .card-desc{font-size:10.8px;line-height:1.65;}
+#pageQuality .check-t{font-size:11.5px;}
+#pageQuality .check-card .card-desc{font-size:10.5px;line-height:1.6;}
+#pageQuality .check-card{padding:16px;}
+
+#pageWhyKtm .spacer{max-height:64px;}
+#pageWhyKtm .diff-card{padding:18px;}
+#pageWhyKtm .diff-t{font-size:11.8px;}
+#pageWhyKtm .diff-card .card-desc{font-size:10.8px;line-height:1.65;}
+#pageWhyKtm .commit-card{padding:15px 9px;}
+#pageWhyKtm .commit-t{font-size:10.2px;}
+#pageWhyKtm .commit-d{font-size:9.2px;line-height:1.55;}
+
+#pageWarranty .spacer{max-height:64px;}
+#pageWarranty .warr-t,#pageWarranty .journey-t{font-size:11.6px;}
+#pageWarranty .warr-card ul,#pageWarranty .journey-card ul{font-size:10.4px;line-height:1.65;}
+#pageWarranty .journey-card{padding:18px;}
+
+#pageTerms .term-t{font-size:11.6px;}
+#pageTerms .term-d{font-size:10.6px;line-height:1.7;}
+#pageTerms .terms-grid{gap:18px 24px;}
+#pageTerms .spacer{max-height:48px;}
+#pageScope .deliv-box{padding:16px 15px;}
+#pageScope .resp-item{margin-bottom:14px;}
+#pageScope .resp-item .rt{font-size:11.4px;}
+#pageScope .addl-box{padding:12px 11px;}
+
+/* Compact only the optional dense cases. No text, disclaimers or numbers are
+   removed, and chart canvases redraw at these sizes rather than being squashed. */
+#pageTechSpec.has-site-area:has(#v_tsRefsWrap:not([style*="display: none"])) .spec-table td{padding-top:3.5px;padding-bottom:3.5px;}
+#chartBridge{width:718px!important;height:252px!important;}
+#chartDonut{width:230px!important;height:230px!important;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #chartBridge{height:180px!important;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #chartDonut{width:150px!important;height:150px!important;flex-shrink:0;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .spacer{max-height:16px;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .bom-row{padding:3.5px 0;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .bom-intro{margin-bottom:6px;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .sec-label{margin-bottom:8px;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .rule-orange{margin:9px 0;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #v_inDesc{margin:8px 0;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .tax-shield-banner{margin:4px 0;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #v_inIncludesLabel{margin-top:8px;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #v_inDisclaimer{margin-top:6px;}
+/* html2canvas can otherwise paint an inline chip background over its SVG.
+   Explicit paint order preserves the white pictograms in full-page PDFs. */
+.icon-chip{position:relative;}
+.icon-chip svg{position:relative;z-index:1;}

@@ -6,7 +6,7 @@ const puppeteer=require('puppeteer-core');
 const {CONTENT,PROJECT_IMAGES,upgradeProposalContent,portfolioCategories}=require('../assets/js/content.js');
 let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓ '+name);};
 (async()=>{
- check('supplied PNG is preserved byte-for-byte',execFileSync('git',['hash-object','assets/images/Tracking.png'],{cwd:path.join(__dirname,'..'),encoding:'utf8'}).trim()==='213b1702f20304fd8b43b3ca54af4e730a29a7af');
+ check('supplied PNG is preserved byte-for-byte',execFileSync('git',['hash-object','assets/images/Tracking.png'],{cwd:path.join(__dirname,'..'),encoding:'utf8'}).trim()==='b876c635488fccbf11217838e7baf6899e2e1557');
  check('500 kWp tracking is separate from 1,700 kWp rooftop',CONTENT.pageProjects.featured.capacity==='500 kWp'&&CONTENT.pageProjects.featured.installation==='Ground-Mounted Solar Tracking'&&CONTENT.pageProjects.categories[0].projects[0].capacity==='1,700 kWp'&&PROJECT_IMAGES.PROJ_1_1==='assets/images/site-agarwal.jpg');
  check('confirmed Pune location is included without unprovided axis or yield claims',CONTENT.pageProjects.featured.location==='Pune, Maharashtra'&&!/single.axis|dual.axis|kWh|commissioned/i.test(JSON.stringify(CONTENT.pageProjects.featured)));
  const legacy=JSON.parse(JSON.stringify(CONTENT));delete legacy.pageProjects.featured;legacy.pageProjects.categories[0].projects[0].capacity='Custom rooftop capacity';

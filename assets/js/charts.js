@@ -258,7 +258,7 @@
     }
     const steps = [
       { label: 'Project Cost', v: f.projectCost, color: NAVY, sub: 'excl. GST' },
-      { label: '+ GST', v: f.gstAmount, color: NAVY_SOFT, sub: f._gstPercent + '%', start: f.projectCost },
+      { label: '+ GST', v: f.gstAmount, color: NAVY_SOFT, sub: f.gstPercent + '%', start: f.projectCost },
       { label: '− Subsidy', v: -f.subsidy, color: GREEN, sub: f.subsidy > 0 ? 'PM Surya Ghar' : '—', start: f.grossTotal },
       { label: 'Net Payable', v: f.netInvestment, color: ORANGE, sub: 'your investment', total: true }
     ];

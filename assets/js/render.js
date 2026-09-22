@@ -420,6 +420,7 @@
         ['Required Module Area', need + ' m² ' + (ok ? '— fits ✓' : '— exceeds available area')]
       ]);
     }
+    $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
     setHTML('v_tsTable', rows.join(''));
     set('v_tsNoteLabel', P.noteLabel);
     set('v_tsNote', P.note);
@@ -717,6 +718,7 @@
     set('v_inRateL', P.rateChip);
 
     /* commercial / industrial tax shield benefit (IT Act Sec 32) */
+    setHTML('v_inTaxIcon', I.get('building', 22, '#166534'));
     const taxBanner = $('v_inTaxShieldBanner');
     if (taxBanner) {
       if (f.isCommercialOrInd && f.taxShield > 0) {
