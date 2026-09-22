@@ -100,6 +100,7 @@ const t = (name, condition) => {
     });
     t('20 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹18,82,200'));
     t('20 kWp lifetime savings unchanged', await page.$eval('#v_coverBadgeGen', (el) => el.textContent.includes('₹2.23')));
+    t('20 kWp installed array displays a finite 20.165 kWp', await page.$eval('#v_tsTable', el => [...el.querySelectorAll('tr')].some(row => row.querySelector('.spec-k')?.textContent === 'Installed Array Size' && row.querySelector('.spec-v')?.textContent === '20.165 kWp')));
     t('20 kWp module count unchanged', await page.$eval('#v_tsTable', (el) => el.textContent.includes('37 modules')));
     t('no browser runtime errors', errors.length === 0);
     fs.writeFileSync(path.join(OUT, 'tech-spec-metrics.json'), JSON.stringify(results, null, 2) + '\n');

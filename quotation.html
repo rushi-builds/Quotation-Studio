@@ -14,34 +14,36 @@
 <meta name="twitter:title" content="Quotation Studio — Solar EPC Proposal Builder">
 <meta name="twitter:description" content="Build a premium 15-page rooftop solar EPC proposal with live A4 preview, financial analytics and one-click PDF export.">
 <meta name="twitter:image" content="assets/images/page-cover-v2-portrait.jpg">
-<link rel="icon" href="assets/images/logo.png" type="image/png">
+<link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png">
 <link rel="stylesheet" href="assets/css/app.css">
+<link rel="stylesheet" href="assets/css/bess.css">
+<link rel="stylesheet" href="assets/css/experience.css">
+<link rel="stylesheet" href="assets/css/control-panel.css">
 </head>
 <body>
 <div class="app">
 
   <!-- ================= FORM PANEL ================= -->
-  <aside class="form-panel">
+  <aside class="form-panel" aria-label="Proposal controls">
+    <div class="studio-heading">
     <div class="brand-row">
-      <img id="formLogo" src="assets/images/logo.png" alt="Company logo">
-      <span class="save-flag" id="saveIndicator"></span>
+      <img id="formLogo" src="assets/images/ktm-logo-light.png" alt="Company logo">
+      <span class="save-flag" id="saveIndicator" role="status" aria-live="polite"></span>
     </div>
-    <div class="app-title">Quotation Studio</div>
-    <div class="app-sub">Fill in the project details — the 15-page proposal on the right updates live. Use <b>Advanced Edit</b> for any line of text, then generate the PDF.</div>
+    <div class="app-title">Quotation Studio<span class="studio-edition">WORKSPACE</span></div>
+    <div class="app-sub">Build with confidence. Every detail, connected.</div>
+    </div>
 
     <form id="quoteForm" autocomplete="off">
       <div class="form-mode" id="formMode">
         <button type="button" class="fm-btn active" id="modeEss">Essentials</button>
         <button type="button" class="fm-btn" id="modeAll">All settings</button>
-        <span class="fm-hint">Essentials covers every per-quote field.
-        Branding, equipment masters, documents &amp; photos live in
-        <b>All settings</b> — set them once, rarely touch again. The
-        document updates live as you type.</span>
+        <span class="fm-hint">Everyday quotation fields, without the extra setup.</span>
 
         <div class="quick-presets-bar">
-          <span class="qp-label">⚡ QUICK PRESETS:</span>
-          <button type="button" class="qp-btn" data-preset="3kw">3 kWp Surya Ghar</button>
-          <button type="button" class="qp-btn" data-preset="5kw">5 kWp Premium Resi</button>
+          <span class="qp-label">Indicative starting points</span>
+          <button type="button" class="qp-btn" data-preset="3kw">3 kWp Residential</button>
+          <button type="button" class="qp-btn" data-preset="5kw">5 kWp Residential</button>
           <button type="button" class="qp-btn" data-preset="25kw">25 kWp Commercial</button>
           <button type="button" class="qp-btn" data-preset="100kw">100 kWp Industrial</button>
         </div>
@@ -70,13 +72,9 @@
 
       <fieldset data-adv>
         <legend>Company Branding</legend>
-        <div class="field">
-          <label>Company logo (leave blank to use the bundled logo)</label>
-          <label class="upload-btn" for="logoUpload">Upload logo image</label>
-          <input type="file" id="logoUpload" accept="image/*">
-        </div>
+        <div class="hint">The approved cover mark uses transparent navy/orange ink on light pages and white/orange on dark photos. Its shape is consistent in the customer view and PDF.</div>
         <div class="field"><label>Company name</label><input type="text" id="companyName" value="KTM Energy Experts"></div>
-        <div class="field"><label>Tagline (cover &amp; contact page)</label><input type="text" id="companyTagline" value="Govt. Approved Solar EPC Contractor | Est. 2015"></div>
+        <div class="field"><label>Tagline (contact page)</label><input type="text" id="companyTagline" value="Govt. Approved Solar EPC Contractor | Est. 2015"></div>
         <div class="row2">
           <div class="field"><label>Phone</label><input type="text" id="companyPhone" value="+91 93094 86769"></div>
           <div class="field"><label>Email</label><input type="text" id="companyEmail" value="enquiry@ktmenergyexperts.com"></div>
@@ -92,6 +90,7 @@
 
       <fieldset>
         <legend>Customer &amp; System</legend>
+        <div class="hint">Cover updates live: customer name, address, capacity, proposal date and reference. Savings follow your financial inputs; the supplied artwork stays fixed.</div>
         <div class="row2">
           <div class="field">
             <label>Customer type</label>
@@ -105,10 +104,10 @@
         </div>
         <div class="field">
           <label>Prepared by (optional)</label>
-          <input type="text" id="prepName" placeholder="Sales engineer name">
+          <input type="text" id="prepName" placeholder="Enter preparer name">
         </div>
-        <div class="field"><label>Customer name</label><input type="text" id="custName" value="Mr. Bhooshan Waghmare"></div>
-        <div class="field"><label>Customer address</label><input type="text" id="custAddress" value="Moshi, Pimpri-Chinchwad, Pune"></div>
+        <div class="field"><label>Customer name</label><input type="text" id="custName" value="" placeholder="Enter customer name"></div>
+        <div class="field"><label>Customer address</label><input type="text" id="custAddress" value="" placeholder="Enter site address"></div>
         <div class="row3">
           <div class="field"><label>Proposal date</label><input type="date" id="propDate"></div>
           <div class="field"><label>Reference no.</label><input type="text" id="propRef" value="KTM/2026/Solar/013"></div>
@@ -118,12 +117,12 @@
           <div class="field">
             <label>Valid for (days)</label>
             <input type="number" id="validityDays" value="15" min="1" step="1">
-            <div class="hint">Shown as “Valid Until” on the cover and in the terms.</div>
+            <div class="hint">Shown as “Valid Until” in the terms.</div>
           </div>
           <div class="field">
             <label>Avg. monthly bill (₹, optional)</label>
             <input type="number" id="monthlyBill" placeholder="e.g. 6000" min="0">
-            <div class="hint">Enables the “% of bill offset” figure on the summary.</div>
+            <div class="hint">Enables the summary offset and Before/After energy-offset estimate. Fixed charges and settlement are excluded.</div>
           </div>
         </div>
         <div class="field">
@@ -131,17 +130,24 @@
           <input type="url" id="shareUrl" placeholder="https://…">
           <div class="hint">Paste the hosted link where the customer can open this proposal. The QR is generated only from this link — never from invented data.</div>
         </div>
+
       </fieldset>
 
       <fieldset data-adv>
         <legend>System Design &amp; Equipment</legend>
+        <p class="hint" id="equipmentEntryHint">Choose from the list, or select Custom… at the bottom to type your own below. Check ratings for custom makes. Reusable makes can be added in All settings → Equipment library.</p>
         <div class="field"><label>Generation (kWh/kWp/yr)</label><input type="number" id="genFactor" value="1460" step="10" min="0"></div>
-        <div class="field"><label>Module make</label>
-          <select id="moduleMake">
+        <div class="field"><label for="moduleMake">Module make</label>
+          <select id="moduleMake" aria-describedby="equipmentEntryHint" aria-controls="moduleMakeCustomWrap">
             <option>Panasonic / Waaree / Adani or Equivalent</option>
             <option>Premier Energies or Equivalent</option>
             <option>Vikram Solar or Equivalent</option>
+            <option value="" data-custom>Custom…</option>
           </select>
+          <div id="moduleMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+            <label for="moduleMakeCustom">Custom module make</label>
+            <input type="text" id="moduleMakeCustom" data-equipment-custom placeholder="Enter your own module make…" autocomplete="off" spellcheck="false" disabled>
+          </div>
         </div>
         <div class="row3">
           <div class="field"><label>Module rating (Wp)</label><input type="number" id="moduleWattage" value="545" step="5" min="0"></div>
@@ -149,13 +155,18 @@
           <div class="field"><label>Module width (mm)</label><input type="number" id="moduleWidthMm" value="1134" step="1" min="0"></div>
         </div>
         <div class="row2">
-          <div class="field"><label>Module technology</label>
-            <select id="moduleTech">
+          <div class="field"><label for="moduleTech">Module technology</label>
+            <select id="moduleTech" aria-describedby="equipmentEntryHint" aria-controls="moduleTechCustomWrap">
               <option>Mono PERC Half-Cut</option>
               <option>TOPCon</option>
               <option>Bifacial TOPCon</option>
               <option>Polycrystalline</option>
+              <option value="" data-custom>Custom…</option>
             </select>
+            <div id="moduleTechCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+              <label for="moduleTechCustom">Custom module technology</label>
+              <input type="text" id="moduleTechCustom" data-equipment-custom placeholder="Enter your own module technology…" autocomplete="off" spellcheck="false" disabled>
+            </div>
           </div>
           <div class="field">
             <label>Inverter rating (kW, blank = auto)</label>
@@ -163,33 +174,54 @@
             <div class="hint">Blank uses capacity as the rating. DC/AC ratio is computed on the Tech Spec page.</div>
           </div>
         </div>
-        <div class="field"><label>Inverter make</label>
-          <select id="inverterMake">
-            <option>Deye or Equivalent</option>
+        <div class="field"><label for="inverterMake">Inverter make</label>
+          <select id="inverterMake" aria-describedby="equipmentEntryHint" aria-controls="inverterMakeCustomWrap">
+            <option>Sungrow / Fronius or Equivalent</option>
+            <option selected>Deye or Equivalent</option>
             <option>Growatt or Equivalent</option>
             <option>Luminous or Equivalent</option>
+            <option value="" data-custom>Custom…</option>
           </select>
+          <div id="inverterMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+            <label for="inverterMakeCustom">Custom inverter make</label>
+            <input type="text" id="inverterMakeCustom" data-equipment-custom placeholder="Enter your own inverter make…" autocomplete="off" spellcheck="false" disabled>
+          </div>
         </div>
-        <div class="field"><label>Mounting structure</label>
-          <select id="mountMake">
+        <div class="field"><label for="mountMake">Mounting structure</label>
+          <select id="mountMake" aria-describedby="equipmentEntryHint" aria-controls="mountMakeCustomWrap">
             <option>Hot-Dip GI / Aluminum-ARS Solartech make</option>
             <option>Hot-Dip GI — In-house KTM manufactured</option>
+            <option value="" data-custom>Custom…</option>
           </select>
+          <div id="mountMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+            <label for="mountMakeCustom">Custom mounting structure</label>
+            <input type="text" id="mountMakeCustom" data-equipment-custom placeholder="Enter your own mounting structure…" autocomplete="off" spellcheck="false" disabled>
+          </div>
         </div>
-        <div class="field"><label>Cabling &amp; protection</label>
-          <select id="cableMake">
+        <div class="field"><label for="cableMake">Cabling &amp; protection</label>
+          <select id="cableMake" aria-describedby="equipmentEntryHint" aria-controls="cableMakeCustomWrap">
             <option>Polycab / KEI or Equivalent</option>
             <option>Havells or Equivalent</option>
+            <option value="" data-custom>Custom…</option>
           </select>
+          <div id="cableMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+            <label for="cableMakeCustom">Custom cabling &amp; protection</label>
+            <input type="text" id="cableMakeCustom" data-equipment-custom placeholder="Enter your own cabling &amp; protection…" autocomplete="off" spellcheck="false" disabled>
+          </div>
         </div>
         <div class="row2">
-          <div class="field"><label>Roof type</label>
-            <select id="roofType">
+          <div class="field"><label for="roofType">Roof type</label>
+            <select id="roofType" aria-describedby="equipmentEntryHint" aria-controls="roofTypeCustomWrap">
               <option>RCC Terrace</option>
               <option>Tin / Metal Sheet</option>
               <option>Elevated / Carport</option>
               <option>Sheet + RCC (mixed)</option>
+              <option value="" data-custom>Custom…</option>
             </select>
+            <div id="roofTypeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+              <label for="roofTypeCustom">Custom roof type</label>
+              <input type="text" id="roofTypeCustom" data-equipment-custom placeholder="Enter your own roof type…" autocomplete="off" spellcheck="false" disabled>
+            </div>
           </div>
           <div class="field">
             <label>Available roof area (m², optional)</label>
@@ -199,6 +231,63 @@
         </div>
       </fieldset>
 
+<fieldset class="bess-controls"><legend>Battery storage (BESS)</legend>
+<label for="bessEnabled" class="studio-sr-only">Include battery storage supplement</label><input type="checkbox" id="bessEnabled" hidden>
+<div class="bess-choice" role="group" aria-label="Battery storage"><button type="button" data-bess-choice="no" aria-pressed="true">No<span>Solar only</span></button><button type="button" data-bess-choice="yes" aria-pressed="false">Yes<span>Prepare a storage option</span></button></div>
+<p id="bessInputStatus" class="hint" role="status"></p>
+<div id="bessFields" hidden>
+<div class="field"><label for="bessReason">Why is storage being proposed?</label><select id="bessReason"><option value="recommended">Recommended by us</option><option value="requested">Requested by the customer</option><option value="alternative">Optional alternative</option></select></div>
+<div class="field"><label><input type="checkbox" id="bessInclude" checked> Include both BESS pages in the main proposal</label></div>
+<div class="supplement-downloads"><button type="button" data-export-format="bess">Download BESS report · 2 pages</button></div><div class="field"><label for="bessModel">Battery model</label><select id="bessModel"><option value="">Choose a model…</option><option value="custom">Custom…</option></select></div>
+<div id="bessCustomIdentity"><div class="field"><label for="bessMake">Battery make / model</label><input id="bessMake" type="text" placeholder="Enter manufacturer and model" maxlength="120"></div>
+</div><div id="bessAutoSetup" hidden><div class="field"><label for="bessSpecMode">Specification mode</label><select id="bessSpecMode"><option value="manual">Manual — keep my specifications</option><option value="auto">Automatic — follow selected model and quotation</option></select></div>
+<div class="field"><label for="bessSizing">Size the battery for</label><select id="bessSizing"><option value="solar">Solar-linked storage scenario</option><option value="backup">Essential load × backup hours</option></select></div>
+<div id="bessSolarSizing"><div class="field"><label for="bessShiftShare">Share of daily solar energy to store (%)</label><input id="bessShiftShare" type="number" value="30" placeholder="" min="0" step="any"></div>
+<p class="hint">A starting scenario, not measured surplus or customer demand. Output follows the quotation’s annual generation. Self-consumption / time-of-use sizing also accounts for the entered operating reserve.</p></div><div class="field"><label for="bessUnitsOverride">Battery modules — optional quantity override</label><input id="bessUnitsOverride" type="number" value="" placeholder="Leave blank for the calculated quantity" min="0" step="any"></div>
+<div class="field"><label for="bessPcsKw">Proposed converter / inverter limit (kW)</label><input id="bessPcsKw" type="number" value="" placeholder="Blank uses the solar inverter size as a design candidate" min="0" step="any"></div>
+<input id="bessUnits" type="hidden"><div id="bessSizingStatus" class="sp-auto-status" role="status"></div><p class="hint" id="bessCatalogueSource"></p></div><div class="row2"><div class="field"><label for="bessLoad">Selected backup load (kW)</label><input id="bessLoad" type="number" placeholder="Constant essential-load estimate" min="0" step="any"></div>
+<div class="field"><label for="bessTargetHours">Required backup duration (hours)</label><input id="bessTargetHours" type="number" value="" placeholder="Enter the customer’s backup target" min="0" step="any"></div>
+</div><div class="field"><label for="bessCost">Storage installed price, incl. tax (₹)</label><input id="bessCost" type="number" placeholder="All-in upgrade, separate from solar" min="0" step="any"></div>
+<p class="hint">Price is a separate all-inclusive upgrade. Changing the bank, model, converter or electrical specifications clears its old price and backup confirmation for review. Changing models also clears warranty terms.</p><details class="bess-model"><summary>Specifications, efficiencies &amp; manual overrides</summary><div class="field"><label for="bessChemistry">Battery chemistry</label><select id="bessChemistry"><option value="Unspecified">To be confirmed</option><option value="LFP">Lithium iron phosphate (LFP)</option><option value="NMC">Lithium nickel manganese cobalt (NMC)</option><option value="Other / OEM-specific">Other / OEM-specific</option></select></div>
+<div class="field"><label for="bessCoupling">Storage architecture</label><select id="bessCoupling"><option value="pending">To be confirmed</option><option value="ac">AC coupled — separate battery inverter</option><option value="dc">DC coupled — compatible hybrid inverter</option></select></div>
+<div class="field"><label for="bessInverter">Compatible hybrid / battery inverter</label><input id="bessInverter" type="text" placeholder="Enter the storage interface model" maxlength="120"></div>
+<div class="row2"><div class="field"><label for="bessCapacity">Rated capacity (kWh)</label><input id="bessCapacity" type="number" placeholder="e.g. 10" min="0" step="any" max="1000000"></div>
+<div class="field"><label for="bessDod">Usable capacity fraction / DoD (%)</label><input id="bessDod" type="number" placeholder="From manufacturer datasheet" min="0" step="any" max="100"></div>
+<div class="field"><label for="bessDischargeEff">DC-to-AC conversion assumption (%)</label><input id="bessDischargeEff" type="number" placeholder="Enter verified assumption" min="0" step="any" max="100"></div>
+<div class="field"><label for="bessPower">Continuous AC output (kW)</label><input id="bessPower" type="number" placeholder="System limit, including inverter" min="0" step="any" max="1000000"></div>
+<div class="field"><label for="bessPowerDerate">Power design derating (%)</label><input id="bessPowerDerate" type="number" value="15" placeholder="" min="0" step="any"></div>
+</div><p class="hint">Automatic mode uses catalogue rated / usable energy and current. Default 96% DC-to-AC conversion and 15% power derating are editable design assumptions, NOT manufacturer efficiency claims. Select Manual to override derived capacity and AC output.</p><div class="field"><label for="bessBackupReady">Backup design status</label><select id="bessBackupReady"><option value="pending">Pending engineering confirmation</option><option value="yes">Confirmed inverter, isolation and backup circuits</option><option value="no">No outage backup in this scope</option></select></div>
+<div class="field"><label for="bessWarranty">OEM warranty / cycle terms</label><input id="bessWarranty" type="text" placeholder="Enter verified warranty terms" maxlength="120"></div>
+</details><p id="bessValidation" class="hint" role="status"></p><details class="bess-model"><summary>Operating assumptions &amp; savings</summary><p class="hint">Backup is not automatically a bill saving. Complete every assumption below for an optional first-year storage-only illustration.</p><div class="field"><label for="bessUseCase">Storage assessment</label><select id="bessUseCase"><option value="backup">Backup-first — no bill-savings claim</option><option value="self">Solar self-consumption — value surplus instead of export</option><option value="tou">Time-of-use — off-peak to peak shifting</option></select></div>
+<div id="bessEconomics" hidden><button type="button" class="link-btn" id="bessUseQuote">Use quotation-linked starting assumptions</button><div class="field"><label><input type="checkbox" id="bessAutoEconomics"> Keep charge energy, demand scenario and import tariff linked to quotation (uncheck to edit)</label></div>
+<p class="hint">This action uses 88% AC round-trip efficiency, 20% reserve, one cycle/day, 365 days, two 4-hour windows and 10-year service life as editable modelling assumptions—not OEM specifications. Enter the source/export tariff and O&amp;M; no savings is inferred from missing values.</p><div class="row2">
+<div class="field"><label for="bessReserve">Backup reserve (% of usable energy)</label><input id="bessReserve" type="number" placeholder="e.g. 20" min="0" step="any" max="100"></div>
+<div class="field"><label for="bessRte">Round-trip efficiency (%)</label><input id="bessRte" type="number" placeholder="Verified AC energy-in to energy-out" min="0" step="any" max="100"></div>
+<div class="field"><label for="bessCycles">Cycles per operating day</label><input id="bessCycles" type="number" placeholder="e.g. 1" min="0" step="any" max="4"></div>
+<div class="field"><label for="bessDays">Operating days per year</label><input id="bessDays" type="number" placeholder="e.g. 300" min="1" step="any" max="366"></div>
+<div class="field"><label for="bessSourceEnergy">Available charging energy (kWh/day)</label><input id="bessSourceEnergy" type="number" placeholder="Eligible solar surplus or off-peak energy" min="0" step="any"></div>
+<div class="field"><label for="bessDemand">Battery-served demand (kWh/day)</label><input id="bessDemand" type="number" placeholder="Within the selected discharge window" min="0" step="any"></div>
+<div class="field"><label for="bessChargePower">Charging input power (kW)</label><input id="bessChargePower" type="number" placeholder="Compatible charging power limit" min="0" step="any"></div>
+<div class="field"><label for="bessChargeHours">Daily charging window (hours)</label><input id="bessChargeHours" type="number" placeholder="Total non-overlapping charge hours" min="0" step="any" max="24"></div>
+<div class="field"><label for="bessDischargeHours">Daily discharge window (hours)</label><input id="bessDischargeHours" type="number" placeholder="Total non-overlapping discharge hours" min="0" step="any" max="24"></div>
+<div class="field"><label for="bessImportRate">Avoided import tariff (₹/kWh)</label><input id="bessImportRate" type="number" placeholder="Applicable consumption tariff" min="0" step="any"></div>
+<div class="field"><label for="bessSourceRate">Charging / export value (₹/kWh)</label><input id="bessSourceRate" type="number" placeholder="Enter 0 explicitly if there is no credit" min="0" step="any"></div>
+<div class="field"><label for="bessOm">Annual storage maintenance (₹)</label><input id="bessOm" type="number" placeholder="Enter 0 explicitly if none" min="0" step="any"></div>
+<div class="field"><label for="bessLife">Assumed service life (years)</label><input id="bessLife" type="number" placeholder="Verify OEM warranty and replacement plan" min="1" step="any" max="30"></div></div><p class="hint">Energy is capped by storage capacity, reserve, power, charging source and selected demand. Daily charge plus discharge windows must not exceed 24 hours. Degradation and replacement costs are not modelled; this is not a lifetime ROI forecast.</p></div></details></div></fieldset>
+<fieldset class="system-controls"><legend>Additional system</legend><label class="studio-sr-only" for="systemEnabled">Additional system supplement</label><input type="checkbox" id="systemEnabled" hidden>
+<div class="bess-choice" role="group" aria-label="Additional system"><button type="button" data-system-choice="no" aria-pressed="true">No<span>No additional system</span></button><button type="button" data-system-choice="yes" aria-pressed="false">Yes<span>Prepare a system option</span></button></div><p class="hint" id="systemStatus" role="status"></p><div id="systemFields" hidden><div class="field"><label for="systemTemplate">System template</label><select id="systemTemplate"><option value="zero">Zero Export Control</option><option value="monitoring">Energy Monitoring</option><option value="ev">EV Charging Integration</option><option value="pfc">Power-Factor Correction</option><option value="dg">DG–Solar Coordination</option><option value="custom" selected>Custom…</option></select></div>
+<div id="systemCustomName"><div class="field"><label for="systemName">Custom system name</label><input id="systemName" type="text" value="" placeholder="Enter system name" maxlength="80"></div>
+</div><p class="hint">Custom keeps the current narrative as an editable starting point; enter your own system name above.</p><div class="field"><label for="systemReason">Why is this being proposed?</label><select id="systemReason"><option value="requested">Requested by the customer</option><option value="recommended">Recommended by us</option><option value="alternative">Optional alternative</option></select></div>
+<div class="field"><label><input type="checkbox" id="systemInclude" checked> Include both additional-system pages in main proposal</label></div>
+<div class="supplement-downloads"><button type="button" data-export-format="system">System report · 2 pages</button><button type="button" data-export-format="system-power">System Power Proposal · 1 page</button></div><p class="hint">Choose a template to fill editable starting copy. Changing templates replaces purpose, equipment, scope, exclusions and notes; price, delivery and warranty are cleared for review. One additional system per proposal. No system-specific savings or performance is invented.</p><div class="field"><label for="systemPurpose">Customer requirement / purpose</label><textarea id="systemPurpose" maxlength="350" rows="3"></textarea></div>
+<div class="field"><label for="systemEquipment">Equipment and interfaces — one item per line</label><textarea id="systemEquipment" maxlength="600" rows="3"></textarea></div>
+<div class="field"><label for="systemScope">Proposed scope — one item per line</label><textarea id="systemScope" maxlength="800" rows="3"></textarea></div>
+<div class="field"><label for="systemExclusions">Exclusions — one item per line</label><textarea id="systemExclusions" maxlength="600" rows="3"></textarea></div>
+<div class="field"><label for="systemNotes">Project-specific engineering notes</label><textarea id="systemNotes" maxlength="850" rows="3"></textarea></div>
+<div class="field"><label for="systemPrice">Additional installed price, including tax (₹)</label><input id="systemPrice" type="number" value="" placeholder="Enter the separately agreed price" min="0" step="any"></div>
+<div class="field"><label for="systemDelivery">Delivery / commissioning basis</label><input id="systemDelivery" type="text" value="" placeholder="Confirm after site assessment" maxlength="120"></div>
+<div class="field"><label for="systemWarranty">Warranty basis</label><input id="systemWarranty" type="text" value="" placeholder="Enter verified OEM / contractor terms" maxlength="120"></div>
+</div></fieldset>
       <details class="advanced eq-panel" data-adv>
         <summary>Equipment Catalog — modules, inverters, structures, cables</summary>
         <div class="hint" style="margin:4px 14px 0;">Company-level master data used across all proposals. Electrical datasheet fields stay blank until you enter them — nothing is auto-invented.</div>
@@ -251,6 +340,15 @@
       </fieldset>
 
       <fieldset data-adv>
+        <legend>Commercial Tax Illustration (optional assumptions)</legend>
+        <div class="row2">
+          <div class="field"><label for="depreciationRate">Assumed depreciation (%)</label><input type="number" id="depreciationRate" value="40" min="0" max="100" step="0.5"></div>
+          <div class="field"><label for="corpTaxRate">Assumed tax rate (%)</label><input type="number" id="corpTaxRate" value="25" min="0" max="100" step="0.5"></div>
+        </div>
+        <div class="hint">Commercial/industrial only. Illustrative, not tax advice or a guaranteed deduction. Confirm eligibility and rates with a tax adviser. Set either rate to 0 to omit the illustration.</div>
+      </fieldset>
+
+      <fieldset data-adv>
         <legend>Cost Breakdown — BOM (optional)</legend>
         <div class="hint" style="margin-bottom:8px;">Enter amounts (₹, before GST) to unlock the cost-composition donut on the Investment page. Leave blank to show only the cost build-up chart.</div>
         <div class="row2">
@@ -258,7 +356,7 @@
           <div class="field"><label>Inverter(s)</label><input type="number" id="bomInverter" placeholder="₹" min="0"></div>
         </div>
         <div class="row2">
-          <div class="field"><label>Mounting structure</label><input type="number" id="bomStructure" placeholder="₹" min="0"></div>
+          <div class="field"><label for="mountMake">Mounting structure</label><input type="number" id="bomStructure" placeholder="₹" min="0"></div>
           <div class="field"><label>BOS — cables &amp; protection</label><input type="number" id="bomBos" placeholder="₹" min="0"></div>
         </div>
         <div class="row2">
@@ -304,19 +402,39 @@
           <div class="field"><label>Why Choose KTM</label><label class="upload-btn" for="up_whyktm">Upload photo</label><input type="file" id="up_whyktm" data-photo="img_whyktm" accept="image/*"></div>
         </div>
         <div class="row2">
-          <div class="field"><label>Projects (header)</label><label class="upload-btn" for="up_projects">Upload photo</label><input type="file" id="up_projects" data-photo="img_projects" accept="image/*"></div>
           <div class="field"><label>Warranty</label><label class="upload-btn" for="up_warranty">Upload photo</label><input type="file" id="up_warranty" data-photo="img_warranty" accept="image/*"></div>
         </div>
         <div class="hint">Tip: individual project thumbnails can be replaced in Advanced Edit → Projects Portfolio.</div>
       </fieldset>
 
+      <fieldset data-adv id="customerExperienceSettings">
+        <legend>Customer experience — QR &amp; audio</legend>
+        <div class="qr-setup-note"><strong>QR setup is ready</strong><span>Choose what opens when scanned. You can add the link later.</span></div>
+        <div class="field">
+          <label for="qrDestinationType">What should the QR open?</label>
+          <select id="qrDestinationType"><option value="gallery">Project gallery</option><option value="video">Video or playlist</option><option value="website">Company website</option></select>
+        </div>
+        <div class="field">
+          <label for="galleryUrl">Public destination URL (add later)</label>
+          <input type="url" id="galleryUrl" maxlength="250" placeholder="https://your-website.com/gallery">
+          <div class="hint">The closing-page and PDF QR stays hidden until you add a valid public HTTPS link. Test it on a signed-out phone before issuing a proposal.</div>
+          <a href="gallery.html" target="_blank" rel="noopener noreferrer">Preview the project gallery ↗</a>
+          <div class="hint" id="galleryStatus" role="status"></div>
+        </div>
+        <label class="briefing-setting"><input type="checkbox" id="briefingEnabled" checked> Enable the optional proposal audio briefing</label>
+        <div class="hint">English, Hindi and Marathi scripts follow the saved proposal. Playback uses available device/browser voices, not a prerecorded file. No autoplay; audio controls never appear in the PDFs.</div>
+      </fieldset>
+
       <details class="advanced" id="advancedPanel">
-        <summary id="advToggle">Advanced Edit — every text element (all 15 pages)</summary>
+        <summary id="advToggle">Advanced Edit — content &amp; photographs</summary>
         <div id="advContainer"></div>
       </details>
     </form>
 
+
     <div class="form-actions">
+      <label class="pdf-format-label" for="pdfFormat">PDF format</label>
+      <select id="pdfFormat" class="pdf-format"><option value="full">Detailed Proposal — all applicable pages</option><option value="power">Power Proposal — 2-page summary</option></select>
       <button id="downloadBtn" type="button"><span id="downloadLabel">Generate &amp; Download PDF</span></button>
       <div class="form-links">
         <button type="button" class="link-btn" id="exportBtn">Save proposal file</button>
@@ -333,26 +451,54 @@
     <div class="preview-toolbar">
       <div class="page-nav" id="pageNav"></div>
       <div class="live-chip" id="liveChip" title="Live quote — updates as you type"><span class="live-dot"></span><span id="liveChipText">Live • 7 kWp</span></div>
+      <button type="button" id="engineeringViewBtn" class="engineering-open" data-engineering-open data-builder-only>Customer requests: survey / 3D / PVsyst ↗</button>
       <button class="present-toggle" id="presentBtn" type="button" title="Hide the editor and present full-page">&#9654; Present</button>
     </div>
     <button class="exit-present" id="exitPresentBtn" type="button">&#10005; Exit presentation (Esc)</button>
 
-    <!-- ============ PAGE 1 — COVER — PIXEL-EXACT STATIC ARTWORK (DO NOT RECREATE) ============ -->
+    <details id="proposalBriefing" class="proposal-briefing screen-only" hidden>
+      <summary><span class="briefing-icon" aria-hidden="true">♫</span><span><strong>Listen to your proposal</strong><small>English · हिन्दी · मराठी · Current quotation values</small></span><span class="briefing-expand" aria-hidden="true">+</span></summary>
+      <div class="briefing-body">
+        <div class="briefing-languages" role="group" aria-label="Briefing language">
+          <button type="button" data-briefing-language="en" aria-pressed="true">English</button>
+          <button type="button" data-briefing-language="hi" aria-pressed="false" lang="hi">हिन्दी</button>
+          <button type="button" data-briefing-language="mr" aria-pressed="false" lang="mr">मराठी</button>
+        </div>
+        <div class="briefing-controls"><button type="button" id="briefingPlay">Play summary</button><button type="button" id="briefingPause" disabled>Pause</button><button type="button" id="briefingStop" disabled>Stop</button></div>
+        <p id="briefingStatus" class="briefing-status" role="status" aria-live="polite"></p>
+        <div id="briefingVoiceHelp" class="briefing-voice-help" hidden>
+          <p>Audio uses voices supplied by your browser and operating system, not a hosted recording. A language pack alone may not provide a speech voice. You can always read the translated briefing below.</p>
+          <div class="briefing-controls"><button type="button" id="briefingRefresh">Check voices again</button><button type="button" id="briefingUseEnglish" hidden>Use English audio</button></div>
+        </div>
+        <details class="briefing-transcript"><summary>Read the briefing</summary><p id="briefingText"></p></details>
+        <p class="briefing-privacy">Uses your selected device/browser voice. Some voices use an online speech provider. Customer name and address are not included. The briefing follows the quotation, not the savings slider.</p>
+      </div>
+    </details>
+
+    <!-- ============ PAGE 1 — COVER — ORIGINAL ARTWORK WITH LIVE PROPOSAL VALUES ============ -->
     <div class="page-wrap" data-page="pageCover">
       <div class="page-label"></div>
       <section class="page" id="pageCover">
         <div class="ktm-cover">
-          <img src="assets/ktm-cover-page-1.png" alt="KTM Energy Experts Solar Proposal Cover" />
+          <div class="ktm-cover__artwork">
+            <img src="assets/images/cover-editable-background.png" width="1060" height="1484" alt="KTM Energy Experts solar proposal cover artwork" />
+            <span class="ktm-cover__value ktm-cover__name" id="v_coverCustName" data-cover-font="31" aria-label="Customer name"></span>
+            <span class="ktm-cover__value ktm-cover__address" id="v_coverCustAddress" data-cover-font="16" aria-label="Customer location"></span>
+            <span class="ktm-cover__value ktm-cover__capacity" id="v_coverCapacity" data-cover-font="16" aria-label="System size"></span>
+            <span class="ktm-cover__value ktm-cover__reference" id="v_coverRef" data-cover-font="16" aria-label="Proposal number"></span>
+            <span class="ktm-cover__value ktm-cover__date" id="v_coverDate" data-cover-font="16" aria-label="Proposal date"></span>
+            <span class="ktm-cover__value ktm-cover__capacity-kpi" id="v_coverBadgeKwp" data-cover-font="49" aria-label="Project capacity"></span>
+            <span class="ktm-cover__value ktm-cover__savings-kpi" id="v_coverBadgeGen" data-cover-font="49" aria-label="Projected 25-year savings"></span>
+          </div>
         </div>
-        <!-- Hidden dynamic IDs for JS compatibility (kept off-screen, not altering visual) -->
+        <!-- Non-artwork metadata retained for renderer compatibility; live values are above -->
         <div style="display:none !important;">
           <span id="v_coverEyebrow"></span><span id="v_coverTitle1">YOUR ROOF</span><span id="v_coverTitle2">POWER</span>
-          <span id="v_coverPreparedLabel">A DEDICATED PROPOSAL FOR</span><span id="v_coverCustName">Mr. ABC Customer</span><span id="v_coverCustAddress">Pune, Maharashtra</span><span id="v_coverLocSync">Pune, Maharashtra</span><span id="v_coverCapacity">7 kWp</span><span id="v_coverRef">KTM-2026-013</span><span id="v_coverVersion">v1.0</span><span id="v_coverDate">20 September 2026</span><span id="v_coverValid">—</span>
-          <span id="v_coverCapacityLabel">System Size</span><span id="v_coverDateLabel">Date</span><span id="v_coverValidLabel">Valid Until</span><span id="v_coverRefLabel">Proposal No.</span>
+          <span id="v_coverPreparedLabel">A DEDICATED PROPOSAL FOR</span><span id="v_coverVersion"></span><span id="v_coverValid"></span>
+          <span id="v_coverCapacityLabel"></span><span id="v_coverDateLabel"></span><span id="v_coverValidLabel"></span><span id="v_coverRefLabel"></span>
           <span id="v_coverPrepRow"></span><span id="v_coverPrepLabel"></span><span id="v_coverPrepBy"></span>
           <span id="v_coverStatYears">11+</span><span id="v_coverStatProjects">200+</span><span id="v_coverStatCapacity">20+ MW</span><span id="v_coverStat4"></span>
-          <span id="v_coverBadgeKwp">7 kWp</span><span id="v_coverBadgeGen">≈ 10,220 units / year</span><span id="v_coverLifetimeSave">₹78.09 L</span>
-          <img id="img_cover" src="assets/ktm-cover-page-1.png" alt="AI-generated tall architectural concept — villa with solar roof (placeholder, not a real site photo)" style="display:none;">
+          <img id="img_cover" src="assets/ktm-cover-page-1.png?v=0d8e226e919f" alt="AI-generated tall architectural concept — villa with solar roof (placeholder, not a real site photo)" style="display:none;">
         </div>
         <div class="cover-qr" id="coverQrWrap" style="display:none;z-index:30;">
           <canvas id="qrCover" width="92" height="92"></canvas>
@@ -366,7 +512,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageExec">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -385,15 +531,15 @@
           <div class="sec-label" id="v_exKpiLabel"></div>
           <div class="kpi-grid" id="v_exKpis"></div>
 
-          <div class="sec-label" id="v_exJourneyLabel"></div>
-          <div class="jstrip" id="v_exJourney"></div>
-          <div class="fine-note" id="v_exJourneyNote"></div>
-
           <div class="sec-label" id="v_exIncludedLabel"></div>
           <div class="inc-intro" id="v_exIncludedIntro"></div>
           <div class="inc-grid" id="v_exIncluded"></div>
           <div class="fine-note" id="v_exEffectiveHint" style="display:none;"></div>
           <div class="trace-note" id="v_exTraceNote"></div>
+          <figure class="exec-artwork">
+            <img src="assets/images/summary-solar-landscape.svg" alt="Architectural illustration of solar rooftops in a green landscape" width="718" height="132">
+            <figcaption><span>Solar, beautifully integrated.</span><span>Concept illustration · not a site layout</span></figcaption>
+          </figure>
         </div>
         <footer class="pg-foot">
           <div class="pf-left" data-foot-company></div>
@@ -408,7 +554,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageOptions">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -438,7 +584,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageAbout">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_about" src="assets/images/page-about.jpg" alt="Rooftop solar installation"></div>
@@ -470,7 +616,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageWhySolar">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_whysolar" src="assets/images/page-why-solar.jpg" alt="Solar panels under blue sky"></div>
@@ -484,41 +630,35 @@
           <div class="spacer"></div>
           <div class="grid-3" id="v_wsBenefits"></div>
           <div class="spacer"></div>
-          <div class="highlight-bar" id="v_wsHighlight"></div>
 
           <!-- Visual Before vs After Solar Bill Infographic -->
           <div class="bill-slash-card" id="v_wsBillSlashCard">
             <div class="bsc-head">
-              <span class="bsc-badge">MONTHLY POWER BILL IMPACT</span>
-              <span class="bsc-sub">DISCOM Grid Bill vs Solar Net Outgo</span>
+              <span class="bsc-badge">ILLUSTRATIVE MONTHLY BILL OFFSET</span>
+              <span class="bsc-sub">Illustrative energy-value offset</span>
             </div>
             <div class="bsc-grid">
               <div class="bsc-item bsc-before">
                 <div class="bsc-tag">BEFORE SOLAR</div>
                 <div class="bsc-num" id="v_bscBeforeVal">—</div>
                 <div class="bsc-bar"><div class="bsc-fill bsc-fill-red"></div></div>
-                <div class="bsc-note">Monthly Grid Electricity Bill</div>
+                <div class="bsc-note">Entered monthly electricity bill</div>
               </div>
               <div class="bsc-vs-circle">VS</div>
               <div class="bsc-item bsc-after">
-                <div class="bsc-tag">WITH KTM SOLAR</div>
+                <div class="bsc-tag">AFTER ENERGY OFFSET</div>
                 <div class="bsc-num" id="v_bscAfterVal">—</div>
-                <div class="bsc-bar"><div class="bsc-fill bsc-fill-green"></div></div>
-                <div class="bsc-note">Reduced Grid Fixed Charge</div>
+                <div class="bsc-bar"><div class="bsc-fill bsc-fill-green" id="v_bscAfterBar"></div></div>
+                <div class="bsc-note">Before fixed charges, duties &amp; settlement</div>
               </div>
               <div class="bsc-item bsc-saving">
-                <div class="bsc-tag">MONTHLY CASH SAVED</div>
+                <div class="bsc-tag">ESTIMATED ENERGY OFFSET</div>
                 <div class="bsc-num bsc-highlight" id="v_bscSavedVal">—</div>
                 <div class="bsc-yr-badge" id="v_bscSavedYr">—</div>
               </div>
             </div>
           </div>
 
-          <div class="metric-row">
-            <div class="metric-chip"><div class="mv" id="v_wsAnnualGen">—</div><div class="ml">Annual Generation</div></div>
-            <div class="metric-chip"><div class="mv" id="v_wsAnnualSaving">—</div><div class="ml">Estimated Annual Savings</div></div>
-            <div class="metric-chip"><div class="mv" id="v_wsLifetimeSaving">—</div><div class="ml">Lifetime Savings (25 yrs)</div></div>
-          </div>
         </div>
         <footer class="pg-foot">
           <div class="pf-left" data-foot-company></div>
@@ -533,7 +673,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageSolution">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_solution" src="assets/images/page-solution.jpg" alt="Modern building with solar roof"></div>
@@ -547,8 +687,7 @@
           <div class="spacer"></div>
           <div class="grid-4" id="v_soSpecs"></div>
           <div class="spacer"></div>
-          <div class="sec-label" id="v_soIncludedLabel"></div>
-          <div class="grid-3" id="v_soIncluded"></div>
+          <div class="highlight-bar">The exact equipment ratings are listed in Technical Specification. Detailed inclusions and exclusions are listed in EPC Scope; review those sections before ordering.</div>
         </div>
         <footer class="pg-foot">
           <div class="pf-left" data-foot-company></div>
@@ -563,7 +702,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageTechSpec">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -595,12 +734,17 @@
       </section>
     </div>
 
+<div class="page-wrap" data-page="pageBessOverview" style="display:none"><div class="page-label"></div><section class="page bess-page" id="pageBessOverview"><header class="pg-head"><div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div><div class="pg-head-meta" data-head-ref></div></header><div class="pg-body" id="bessOverviewBody"></div><footer class="pg-foot"><div class="pf-left" data-foot-company></div><div class="pf-mid" data-foot-tagline></div><div class="pf-right" id="v_pgnum_pageBessOverview"></div></footer></section></div>
+<div class="page-wrap" data-page="pageBessAssessment" style="display:none"><div class="page-label"></div><section class="page bess-page" id="pageBessAssessment"><header class="pg-head"><div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div><div class="pg-head-meta" data-head-ref></div></header><div class="pg-body" id="bessAssessmentBody"></div><footer class="pg-foot"><div class="pf-left" data-foot-company></div><div class="pf-mid" data-foot-tagline></div><div class="pf-right" id="v_pgnum_pageBessAssessment"></div></footer></section></div>
+
+<div class="page-wrap" data-page="pageSystemOverview" style="display:none"><div class="page-label"></div><section class="page system-page" id="pageSystemOverview"><header class="pg-head"><div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div><div class="pg-head-meta" data-head-ref></div></header><div class="pg-body" id="systemOverviewBody"></div><footer class="pg-foot"><div class="pf-left" data-foot-company></div><div class="pf-mid" data-foot-tagline></div><div class="pf-right" id="v_pgnum_pageSystemOverview"></div></footer></section></div>
+<div class="page-wrap" data-page="pageSystemDetail" style="display:none"><div class="page-label"></div><section class="page system-page" id="pageSystemDetail"><header class="pg-head"><div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div><div class="pg-head-meta" data-head-ref></div></header><div class="pg-body" id="systemDetailBody"></div><footer class="pg-foot"><div class="pf-left" data-foot-company></div><div class="pf-mid" data-foot-tagline></div><div class="pf-right" id="v_pgnum_pageSystemDetail"></div></footer></section></div>
     <!-- ============ PAGE 7 — EPC SCOPE ============ -->
     <div class="page-wrap" data-page="pageScope">
       <div class="page-label"></div>
       <section class="page" id="pageScope">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_scope" src="assets/images/page-epc.jpg" alt="Engineers installing solar panels"></div>
@@ -639,7 +783,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageQuality">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_quality" src="assets/images/page-install-quality.jpg" alt="Technician installing solar panel"></div>
@@ -669,7 +813,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageSavings">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -687,13 +831,13 @@
 
           <div class="chart-block">
             <div class="chart-title" id="v_svChartCumTitle"></div>
-            <canvas id="chartCum" class="chart-canvas" width="718" height="248"></canvas>
+            <canvas id="chartCum" class="chart-canvas" width="718" height="224"></canvas>
             <div class="fine-note" id="v_svChartCumNote"></div>
           </div>
 
           <div class="chart-block">
             <div class="chart-title" id="v_svChartAnnualTitle"></div>
-            <canvas id="chartAnnual" class="chart-canvas" width="718" height="172"></canvas>
+            <canvas id="chartAnnual" class="chart-canvas" width="718" height="160"></canvas>
             <div class="fine-note" id="v_svChartAnnualNote"></div>
           </div>
 
@@ -719,7 +863,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageInvestment">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -751,10 +895,10 @@
 
           <!-- Commercial & Industrial Tax Shield Banner -->
           <div class="tax-shield-banner" id="v_inTaxShieldBanner" style="display:none;">
-            <div class="tsb-icon">🏢</div>
+            <div class="tsb-icon" id="v_inTaxIcon" aria-hidden="true"></div>
             <div class="tsb-content">
-              <div class="tsb-title">INCOME TAX ACT SEC 32: 40% ACCELERATED DEPRECIATION BENEFIT</div>
-              <div class="tsb-desc">Commercial &amp; Industrial entities can claim 40% depreciation in Year 1 (<span id="v_inTaxDepr">—</span>), saving approximately <b id="v_inTaxSaved">—</b> in direct corporate tax liability (assumed @ 25% tax bracket).</div>
+              <div class="tsb-title">ILLUSTRATIVE DEPRECIATION TAX EFFECT — NOT GUARANTEED</div>
+              <div class="tsb-desc">Assuming <span id="v_inDeprRate">—</span> depreciation on the ex-GST project cost (<span id="v_inTaxDepr">—</span>) and <span id="v_inTaxRate">—</span> tax rate: potential tax effect <b id="v_inTaxSaved">—</b>. Eligibility, asset basis, commissioning date and tax regime require your tax adviser’s confirmation. Not deducted from investment or payback.</div>
             </div>
           </div>
 
@@ -795,7 +939,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageFinance">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -832,7 +976,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageWhyKtm">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_whyktm" src="assets/images/page-why-ktm.jpg" alt="Solar engineer on rooftop"></div>
@@ -862,10 +1006,9 @@
       <div class="page-label"></div>
       <section class="page" id="pageProjects">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
-        <div class="photo-top"><img id="img_projects" src="assets/images/page-projects.jpg" alt="Industrial rooftop solar"></div>
         <div class="pg-body">
           <div class="intro-col">
             <h2 class="pg-title" id="v_prHeading"></h2>
@@ -890,7 +1033,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageWarranty">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="photo-top"><img id="img_warranty" src="assets/images/page-warranty.jpg" alt="Technician servicing solar panel"></div>
@@ -920,7 +1063,7 @@
       <div class="page-label"></div>
       <section class="page" id="pageTerms">
         <header class="pg-head">
-          <div class="pg-logo"><img src="assets/images/logo.png" alt="Company logo"></div>
+          <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
@@ -948,6 +1091,10 @@
         <div class="closing-banner">
           <img id="img_closing" src="assets/images/page-contact.jpg" alt="Solar installation at sunset">
           <div class="closing-banner-overlay"></div>
+          <div class="closing-brand"><img src="assets/images/ktm-logo-dark.png" alt="KTM Energy Experts"></div>
+          <a class="gallery-card" id="closingGallery" hidden target="_blank" rel="noopener noreferrer" aria-label="Open the public project gallery">
+            <span>EXPLORE OUR PROJECTS</span><canvas width="320" height="320" aria-label="Project gallery QR code"></canvas><strong>Scan or tap to explore ↗</strong><small>Project photographs &amp; available media</small>
+          </a>
           <div class="closing-hero">
             <h2 id="v_clHeading"></h2>
             <div class="sub" id="v_clSub"></div>
@@ -967,11 +1114,20 @@
             <div id="v_clNext"></div>
           </div>
         </div>
-        <div class="closing-highlight" id="v_clHighlightRow"><span id="v_clHighlight"></span></div>
-        <div class="closing-cta">
-          <div class="cta-text" id="v_clCta"></div>
-          <div class="cta-phone" id="v_clCtaPhone"></div>
-        </div>
+        <section class="engineering-overview" aria-labelledby="engineeringOverviewTitle">
+          <div class="engineering-overview-head">
+            <div><div class="eyebrow">AFTER REVIEWING THIS PROPOSAL</div><h3 id="engineeringOverviewTitle">Request your engineering review</h3></div>
+            <button type="button" class="engineering-open screen-only" data-engineering-open>Open request form ↗</button>
+          </div>
+          <ol class="engineering-steps">
+            <li><b>1</b><div><strong>Confirm interest</strong><span>Interested, or ready to discuss the final scope.</span></div></li>
+            <li><b>2</b><div><strong>Select the service</strong><span>Site survey, Arka 3D layout or PVsyst report.</span></div></li>
+            <li><b>3</b><div><strong>Share site details</strong><span>Locality and preferred discussion/visit window.</span></div></li>
+            <li><b>4</b><div><strong>Review &amp; send</strong><span>Check the prepared message, then send on WhatsApp.</span></div></li>
+          </ol>
+          <p class="engineering-paper-help">In Customer View, use “Request survey / 3D / PVsyst”. Reading a PDF? Contact the team using the details above.</p>
+          <p class="engineering-disclaimer" id="v_clCta"></p>
+        </section>
         <div class="accept-block">
           <div class="sec-label mt-10" id="v_clAcceptLabel"></div>
           <p class="accept-intro" id="v_clAcceptIntro"></p>
@@ -1007,6 +1163,10 @@
 <script src="assets/vendor/qrcode.min.js"></script>
 <script src="assets/js/content.js"></script>
 <script src="assets/js/finance.js"></script>
+<script src="assets/js/storage-catalog.js"></script>
+<script src="assets/js/bess.js"></script>
+<script src="assets/js/additional-systems.js"></script>
+<script src="assets/js/supplement-design.js"></script>
 <script src="assets/js/icons.js"></script>
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/model.js"></script>
@@ -1014,7 +1174,10 @@
 <script src="assets/js/equipment.js"></script>
 <script src="assets/js/render.js"></script>
 <script src="assets/js/editor.js"></script>
+<script src="assets/js/experience.js"></script>
+<script src="assets/js/briefing.js"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/control-panel.js"></script>
 </body>
 </html>

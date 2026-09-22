@@ -9,21 +9,38 @@ Open `quotation.html` in a browser, or serve the folder with any static server.
 
 ## The 15-page proposal journey
 
-The journey is now **15–17 pages**: two conditional pages appear only when
-their data exists and all later pages renumber automatically — in the
+The journey is **15–21 pages**: optional comparison, financing, battery storage and
+additional-system pages appear only when selected / completed. All later pages renumber automatically — in the
 preview, the exported PDF and the customer share view.
 
 - **System Options** (page 3): appears when a proposal carries two or more
   saved system options (Good / Better / Best).
-- **Financing & EMI** (page 11): appears when loan amount, interest rate and
+- **Financing & EMI** (after Investment): appears when loan amount, interest rate and
   tenure are entered — reducing-balance EMI, total interest, monthly savings
   vs EMI over the tenure with the crossover month, net monthly outgo. Leave
   the loan fields blank for a cash-purchase proposal.
+- **Battery storage (BESS)**: a separate **Yes / No** section, two redesigned
+  visual report pages and an independent **two-page BESS Report** download.
+  Choose customer-requested, seller-recommended or optional alternative. Five
+  documented battery models populate specifications and calculate a bank from
+  an explicit solar-shifting scenario or essential load × backup duration.
+  **Custom** is last in the dropdown, with manual entry beneath; manual ratings,
+  module quantity and converter kW remain controllable. Prices, compatibility,
+  warranty and actual backup requirements are not invented.
+- **Additional System**: Zero Export, Energy Monitoring, EV Charging,
+  Power-Factor Correction, DG–Solar Coordination and Custom. Edit purpose, equipment, scope, price,
+  exclusions, delivery, warranty and notes. Includes a **two-page System Report**
+  and a separate **one-page System Power Proposal**. No template invents savings.
+- Both features default **off** and can remain enabled for standalone downloads
+  while excluded from the main proposal. Their prices and benefits stay separate
+  from solar Finance and payment milestones. The solar Power Proposal remains
+  two pages. See [workflow and methodology](docs/bess-2026-09-22.md) and the
+  [versioned battery sources and limits](docs/storage-catalogue.md).
 
 | # | Page | Purpose |
 |---|------|---------|
 | 1 | Cover | Personalised, capacity badge, validity date, version chip |
-| 2 | Executive Summary | Hero numbers (net investment → 25-yr earnings), KPI dashboard, investment journey, "what you are getting" |
+| 2 | Executive Summary | Hero numbers (net investment → 25-yr earnings), KPI dashboard, "what you are getting", solar-landscape visual finish |
 | 3 | About Us | Company story, stats, differentiators |
 | 4 | Why Rooftop Solar | Benefits + live savings metrics |
 | 5 | Proposed Solution | System highlights incl. auto module count & generation |
@@ -32,21 +49,25 @@ preview, the exported PDF and the customer share view.
 | 8 | Installation Quality | Standards + six-point handover checklist |
 | 9 | Generation & Savings Analysis | Cumulative-savings-vs-investment chart, annual savings bars, milestone table, assumptions strip |
 | 10 | Investment & Cost Breakdown | Cost cards with ₹/Wp, cost build-up chart, optional BOM donut, payment schedule with ₹ amounts, "what the price includes" |
-| 11 | Financing & EMI *(optional)* | Loan recap, EMI/interest/savings cards, savings-vs-EMI chart, crossover callout |
-| 12 | Why Choose Us | Differentiators + five commitments |
-| 13 | Projects Portfolio | 9 reference projects across 3 sectors |
-| 14 | Warranty & Installation Journey | Warranty cards + 6-step journey |
-| 15 | Terms & Conditions | 12 plain-language terms, auto-filled validity/duration/jurisdiction |
-| 16 | Acceptance & Contact | Next steps, urgency highlight, CTA band, signature blocks |
+| 11 | Why Choose Us | Differentiators + five commitments |
+| 12 | Projects Portfolio | 10 reference projects across 3 sectors |
+| 13 | Warranty & Installation Journey | Warranty cards + 6-step journey |
+| 14 | Terms & Conditions | 12 plain-language terms, auto-filled validity/duration/jurisdiction |
+| 15 | Acceptance & Contact | Next steps, urgency highlight, CTA band, signature blocks |
 
 ## Architecture
 
 ```
-quotation.html          Slim shell: form panel + 15 A4 page skeletons (no inline CSS/JS)
+quotation.html          Form panel + 21 A4 page shells (15 visible by default)
 assets/
   css/app.css           Tokens, form, A4 pages, components, responsive, print
-  js/content.js         ALL brochure text (CONTENT) + portfolio data — data only
-  js/finance.js         Calculation engine (pure, UMD) — no DOM access
+  css/bess.css          Optional storage controls, diagrams and A4 layouts
+  js/content.js         Solar brochure text (CONTENT) + portfolio data — data only
+  js/finance.js         Solar calculation engine (pure, UMD) — no DOM access
+  js/bess.js            Separate storage sizing / economics engine and form bridge
+  js/storage-catalog.js Five versioned, sourced battery candidates
+  js/additional-systems.js Five editable templates + Custom and separate pricing
+  js/supplement-design.js Four photo-led report page renderers
   js/icons.js           Inline-SVG icon set (emoji-free: safe for html2canvas PDF)
   js/charts.js          Dependency-free canvas charts (payback, bars, bridge, donut)
   js/model.js           Proposal store: object model, statuses, immutable versions
@@ -59,8 +80,8 @@ assets/
   images/  fonts/  vendor/   Bundled photos, Inter/Poppins, html2canvas + jsPDF
 docs/ROADMAP.md         Master product vision & phased plan
 qa/
-  finance.test.js       47 unit tests for the calculation engine (node qa/finance.test.js)
-  integration.test.js   95 end-to-end tests in jsdom (node qa/integration.test.js)
+  finance.test.js       58 unit tests for the calculation engine (node qa/finance.test.js)
+  integration.test.js   110 end-to-end tests in jsdom (node qa/integration.test.js)
   browser.test.js       Real-browser QA (charts, overflow, PDF, mobile) — needs Chromium
 ```
 
@@ -102,12 +123,12 @@ clearly-marked placeholder — nothing is invented.
 
 - **Live A4 preview** with page navigator (auto scroll-spy) and mobile scaling
 - **Autosave** to localStorage + **proposal files** (.json export/import)
-- **Versioning**: reference no. + version chip on cover, header meta on every page
+- **Versioning**: live reference number on the cover; reference/version metadata on the inner pages
 - **Advanced Edit**: every headline/paragraph/card across all 15 pages
-- **Per-page photo uploads** and logo replacement
+- **Per-page photo uploads**; the approved cover logo is locked consistently across all pages
 - **PDF export**: html2canvas (2×) → jsPDF, metadata set, smart filename
   `Proposal_<Customer>_<kWp>_<Ref>.pdf`; native browser print also produces
-  exactly 15 A4 sheets (`@media print`, headers/footers/page numbers included)
+  the applicable A4 sheets (`@media print`, headers/footers/page numbers included)
 - **Validation without nagging**: payment-total and BOM-coverage warnings,
   area fit-check, N/A states for subsidy by connection type
 
@@ -129,3 +150,212 @@ Use the per-page upload buttons in the form, or drop files into
 The `PAGES[]` registry, pure finance module and single CONTENT object make it
 straightforward to add: multiple system options/packages, proposal comparison,
 revision history, reusable templates and other customer types without a rebuild.
+
+
+### Live cover values
+
+Page 1 keeps the supplied artwork, with visible HTML fields for customer name,
+location, system size, proposal reference/date, project capacity, and calculated
+25-year savings. These use the existing form state and Finance calculation, so
+control-panel edits, saved proposals, print and PDF all share the same values.
+Long values wrap/shrink inside their allotted areas. The artwork's logo, headings
+and fixed labels are not text-editable; the advanced editor explains this rather
+than presenting ineffective cover-copy controls.
+
+The original upload is archived unchanged at `assets/ktm-cover-page-1.png`.
+`assets/images/cover-editable-background.png` clears only the seven variable-value
+areas. To regenerate it, run `python qa/build-cover-template.py` (requires
+ImageMagick). If the original artwork dimensions/layout change, recalibrate the
+rectangles and matching CSS positions before regenerating.
+
+Cover regression: `node qa/cover-sync.test.js` against the dev server on port 8080
+(or set `QA_BASE`). Uses the QA Puppeteer/Chromium dependencies and requires the
+standard Chromium shared libraries. Screenshots are written to ignored `qa/shots/`.
+
+
+### Reviewed PR #7 features
+
+- Quick presets are indicative starting points, not verified offers. Applying one
+  asks for confirmation, preserves customer data, and clears stale report links,
+  BOM, financing, subsidy overrides and unspecified module dimensions. Equipment
+  values not in the local catalog are preserved through save/reload.
+- Before/After is an **energy-value offset illustration**, shown only with an
+  entered monthly bill. It is not a DISCOM fixed-charge or export-settlement model.
+- Commercial/industrial tax figures are explicitly illustrative, with editable
+  depreciation/tax rates under **All settings**. Eligibility and asset basis need
+  tax-adviser confirmation; they do not reduce investment or change payback.
+- One end-of-proposal customer panel opens supplied HTTP(S) Arka/PVsyst links. After confirming interest, the customer can prepare a WhatsApp request for selected engineering services. It does not create a 3D design or run
+  PVsyst, and it never invents a contact number.
+- Customer acceptance is a **local typed acknowledgement**, requiring name and
+  consent. It is not a verified digital signature or server-side workflow. The
+  customer must send the WhatsApp message to notify the team. Stale/expired
+  proposals and failed browser-storage writes cannot report success.
+- `share.html?p=...` still reads **this browser's localStorage**. A URL alone does
+  not deliver proposal data to another device; use the PDF/file-import workflow
+  until authenticated shared storage and a real acceptance backend are implemented.
+
+QA: `npm --prefix qa install --legacy-peer-deps` then `npm --prefix qa test`.
+For browser tests, start a server and set `QA_BASE` for `npm --prefix qa run test:browser`.
+Chromium needs its shared libraries (`LD_LIBRARY_PATH` may be needed for Lambda bundles).
+See `docs/audit-2026-09-21.md` for the reviewed commits, findings and verification.
+
+
+### Consistent branding and qualified engineering requests
+
+The approved cover mark has transparent surface-aware variants:
+`assets/images/ktm-logo-light.png` uses navy/orange ink on white headers;
+`assets/images/ktm-logo-dark.png` uses white/orange ink on the closing photograph.
+The original navy-backed crop is retained only as an archive, not a displayed logo.
+No separate logo-upload override can leave the cover and the remaining pages with
+different identities. To regenerate the crop: `python qa/build-cover-logo.py`
+(requires ImageMagick). The source cover and its live fields are unchanged.
+
+The customer action hub appears **once, after the proposal**:
+
+1. Review the proposal, then select an interested/ready decision stage.
+2. Select site feasibility/survey, missing Arka layout, and/or missing PVsyst report.
+3. Confirm site locality and optionally a preferred discussion/visit window.
+4. Review the prepared message; open WhatsApp and **send it yourself**, or copy it.
+
+Existing report links are not offered as duplicate requests. The team must confirm
+required data, feasibility, engineering scope, any fees and schedule. Preparing a
+message does not book a survey, generate a simulation, accept an order or mark a
+request delivered. Site documents are attached manually in WhatsApp, not uploaded
+by this app. The local acknowledgement remains separate, optional and collapsed.
+The browser-local sharing limitation documented above still applies.
+
+Duplicate financial strips, repeated company-stat cards and duplicate inclusion
+blocks were removed. Customer-screen report actions and paper signatures have one
+visible home; print/PDF still includes its technical references and paper signature.
+See `docs/branding-and-engineering-flow.md` for ownership and verification.
+
+
+### Finding customer requests / latest visual refinement
+
+- In the builder, the prominent **Customer requests: survey / 3D / PVsyst** button
+  above the page preview saves the current proposal and opens Customer View at the
+  actual request form (`#shareAcceptWrap`).
+- In Customer View, **Request survey / 3D / PVsyst** in the header jumps instantly
+  to that same form. The closing page also has an **Open request form** shortcut.
+- The closing page shows the four-step process in the ordinary proposal and PDF;
+  interactive buttons stay out of the exported PDF. The form itself is not duplicated.
+- Selected story-page photos are larger; the portfolio prioritizes nine larger site
+  photos instead of an extra stock hero. Dense engineering pages remain uncluttered.
+
+Transparent logo generation, A4 photo/text/footer layout, popup/deep-link navigation,
+mobile discovery, and print visibility are covered by `qa/visual-discovery.test.js`.
+All original cover artwork remains untouched. Browser-local sharing limitations
+still apply; these navigation changes are not a hosted customer portal.
+
+
+### Illustrated system overview
+
+Technical Specification now shows inline rooftop/component illustrations and
+colour-coded wiring: **PV → DCDB → inverter → ACDB → property load bus**, with
+local loads on the bus and a **bidirectional meter ↔ MSEDCL (MSEB)** service branch.
+It is a conceptual grid-tied overview, not an installation wiring/approval drawing.
+Module quantity/wattage and inverter rating follow the live inputs. Advanced Edit
+retains custom labels; bounded wrapping/ellipsis prevents overflow and SVG titles
+retain the full copy. No remote illustration assets are required.
+
+`qa/system-diagram.test.js` covers topology, values, editable/safe text, label bounds,
+print/PDF capture and desktop/mobile Customer View. The existing Tech Spec tests
+still check A4 fit with no, one or both engineering reference links.
+
+### Visual customer tools and PDF formats
+
+Choose **Power Proposal — 2-page summary** or the existing **Detailed proposal**
+from the PDF dropdown in the builder or Customer View. These are the only two
+options when no optional system is enabled. Turning on BESS adds its report;
+turning on an additional system adds its named detailed and Power downloads.
+Turning a system off removes its entries rather than leaving disabled choices.
+Standalone reports remain available when excluded from the main proposal.
+The short report uses the
+same live equipment, financial model and system diagram; the detailed report keeps
+all applicable pages. Export captures a consistent snapshot and refuses clipped
+short summaries rather than silently hiding content.
+
+Customer View now includes a **separate tariff/savings explorer**. It does not change
+the saved quotation or PDF figures. On the closing page, **Explore Our Projects**
+provides a scannable/clickable gallery QR. Set **Public destination URL** under **All settings → Customer experience — QR & audio**
+in the builder; the QR stays hidden until a destination is supplied. `gallery.html`
+is ready to publish, but preview deployments can require a Vercel login. Use a
+permanent public URL for issued proposals and test it on another phone.
+
+The bundled gallery currently contains published project **photographs**. Actual
+approved video links can be added through `assets/js/gallery-media.js`, or the QR can
+point to an existing public video playlist. No video, site-specific simulation or
+subsidy approval is fabricated. Private quotation edits are not public-gallery edits.
+See [the feature and verification guide](docs/proposal-experience.md).
+
+
+### Advanced QR settings and optional spoken briefing
+
+Open **All settings → Customer experience — QR & audio** to choose whether the QR
+opens a project gallery, video/playlist or company website. Add the public HTTPS
+URL whenever ready; no placeholder is printed in the meantime. The same choice
+and link are used on the closing page and two-page Power Proposal.
+
+The screen-only **Listen to your proposal** player offers English, Hindi and Marathi
+scripts derived from current quotation values, with play/pause/stop and a readable
+transcript. It uses available device/browser speech voices—not a hosted AI service.
+Missing language voices are clearly reported, never silently replaced. The scenario
+slider does not change narration. See `docs/proposal-experience.md` for privacy,
+voice availability, persistence and test coverage.
+
+
+### Ground-mounted tracking project
+
+The portfolio now distinguishes two Agarwal Technoplast Pvt. Ltd. references:
+**1,700 kWp rooftop solar** (existing) and **500 kWp ground-mounted solar tracking**
+(new). The new entry uses the exact supplied `assets/images/Tracking.png` image,
+with the confirmed location **Pune, Maharashtra** and no tracking-axis or generation claims added. It appears alongside the
+other industrial projects as a standard card in both the detailed proposal and
+public gallery. There is no separate featured section or tracking-only filter.
+
+Edit the proposal-specific reference under **Advanced Edit → Page 12 — Projects
+Portfolio → Category 1: INDUSTRIAL SOLAR PROJECTS → Project 4**. Name, capacity,
+installation type, optional location and photograph synchronize with the proposal,
+Customer View and detailed PDF; private overrides do not publish to the gallery.
+The two-page financial brief, approved cover and system diagram remain unchanged.
+
+
+### Connected control-panel workspace
+
+The builder now has a dedicated, responsive control-panel design. The approved
+proposal pages and financial engine are unchanged.
+
+- **Live quotation summary:** capacity, Finance-derived net investment, year-one
+  energy and the current applicable page count.
+- **Collapsible controls:** customer, equipment, pricing and payment are available
+  in Essentials; All settings adds branding, options, BOM, reports, tax, photos
+  and QR/audio configuration. Existing presets still require confirmation.
+- **Find a setting:** searches field labels and section names, including nested
+  page-content editors. Selecting a result opens its section, enables All settings
+  when necessary and focuses the original control—there are no copied input values.
+- **Connected editing:** section summaries and the selected proposal label update
+  with edits. Related-page buttons navigate explicitly, without jumping the preview
+  while typing. Advanced content uses native keyboard-accessible disclosures.
+- **Save awareness:** Saving / Saved locally / Not saved states describe actual
+  browser persistence. Saved data is verified rather than assuming storage worked.
+  Export backup captures current inputs, content and photos even if storage is full.
+- **Input guidance:** advisory warnings for missing customer/capacity/price, payment
+  totals and incomplete financing. These do not alter financial calculations or
+  certify the proposal. Customer View, PDF formats and backup/reset remain available.
+
+All workspace controls are builder-only and excluded from print/PDF and Customer
+View. `qa/control-panel.test.js` checks navigation, live edits, proposal switching,
+content isolation, storage failure, recoverable backup and responsive layouts.
+
+
+### Pre-merge audit — 22 September 2026
+
+See [the release audit](docs/release-audit-2026-09-22.md) for findings, regression
+results and remaining browser-local sharing / device-voice limitations. Fixes
+cover proposal isolation, page-photo persistence and backups, draft acknowledgement
+cleanup, pending imports, storage-full creation, undefined IRR, explicit environmental
+factors and local-calendar dates. The supplied cover, diagram and tracking image
+remain unchanged. Reliable Marathi audio on every device would require a separate
+hosted speech integration; this release provides honest device-voice recovery and
+translated written briefings. The owner authorized merging PR #8 after the final download-menu and summary
+refinements on 22 September 2026; see [the final release notes](docs/download-menu-summary-2026-09-22.md).

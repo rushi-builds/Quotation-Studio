@@ -12,6 +12,8 @@
 
 (function (root) {
   const DEFAULTS = {
+    ...root.Bess.DEFAULTS,
+    ...root.AdditionalSystems.DEFAULTS,
     /* ---- Branding ---- */
     companyName: 'KTM Energy Experts',
     companyTagline: 'Govt. Approved Solar EPC Contractor | Est. 2015',
@@ -25,8 +27,8 @@
     prepName: '',
     /* ---- Customer & proposal ---- */
     customerType: 'residential',
-    custName: 'Mr. Bhooshan Waghmare',
-    custAddress: 'Moshi, Pimpri-Chinchwad, Pune',
+    custName: '',
+    custAddress: '',
     propDate: '',
     propRef: 'KTM/2026/Solar/013',
     propVersion: '1.0',
@@ -46,10 +48,15 @@
     cableMake: 'Polycab / KEI or Equivalent',
     roofType: 'RCC Terrace',
     availableArea: '',
+    galleryUrl: '',
+    qrDestinationType: 'gallery',
+    briefingEnabled: true,
     pvsystUrl: '',
     arkaUrl: '',
     /* ---- Financial assumptions ---- */
     costPerKwp: '90000',
+    corpTaxRate: '25',
+    depreciationRate: '40',
     gstPercent: '8.9',
     tariff: '15',
     escalation: '6',
@@ -81,12 +88,12 @@
     const out = {};
     document.querySelectorAll('#quoteForm [id]').forEach((el) => {
       if (el.type === 'file' || el.id === 'logoUpload') return;
-      if (el.disabled) return;
+      if (el.disabled || el.hasAttribute('data-equipment-custom')) return;
       /* proposal-manager controls are workflow state, not proposal fields */
       if (el.closest('.prop-manager')) return;
       /* system-options controls store their data on the proposal blob instead */
       if (el.closest('.opt-manager')) return;
-      if (!el.id) return;
+      if (!el.id || !['INPUT','SELECT','TEXTAREA'].includes(el.tagName)) return;
       out[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     return out;
@@ -95,16 +102,26 @@
   function applyForm(vals) {
     Object.keys(vals || {}).forEach((id) => {
       const el = document.getElementById(id);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = !!vals[id];
-      else el.value = vals[id];
+      if (!el || el.hasAttribute('data-equipment-custom')) return;
+      if (typeof root.EquipmentStore?.setValue === 'function' && root.EquipmentStore.setValue(id, vals[id])) return;
+      if (el.type === 'checkbox') el.checked = id==='bessEnabled' ? root.Bess.enabled({bessEnabled:vals[id]}) : ['bessInclude','bessAutoEconomics','systemEnabled','systemInclude'].includes(id) ? vals[id]===true : !!vals[id];
+      else {
+        // Presets/imports can contain makes outside this browser's catalog.
+        // Preserve them rather than silently saving an empty select value.
+        if (['moduleMake', 'moduleTech', 'inverterMake', 'mountMake', 'cableMake'].includes(id) &&
+            el.tagName === 'SELECT' && vals[id] && !Array.from(el.options).some(o => o.value === String(vals[id]))) {
+          el.add(new Option(String(vals[id]), String(vals[id])));
+        }
+        el.value = vals[id];
+      }
     });
   }
 
   /* ---------- proposal file export / import (through Proposals) ---------- */
   function exportFile() {
-    const blob = root.Proposals.active();
-    if (!blob) return;
+    const active = root.Proposals.active();
+    if (!active) return;
+    const blob = Object.assign({}, active, {form: collectForm(), content: CONTENT, projectImages: PROJECT_IMAGES, pageImages: root.__qsPageImages || {}, options: root.__qsOptions || []});
     const payload = JSON.stringify({
       kind: 'ktm-proposal',
       v: 3,
@@ -133,11 +150,12 @@
           const created = root.Proposals.create(form, {
             content: p.content || data.content || null,
             projectImages: p.projectImages || data.projectImages || null,
+            pageImages: p.pageImages || data.pageImages || null,
             options: Array.isArray(p.options) ? p.options :
               (Array.isArray(data.options) ? data.options : []),
             status: 'draft'
           });
-          if (p.ref || (data.form && data.form.propRef)) { /* keep ref from file */ }
+          if (!root.Proposals.get(created.id) || !root.Proposals.list().some(item => item.id === created.id)) throw new Error('Not enough browser storage to import this proposal. Your current proposal is unchanged.');
           root.Proposals.setActive(created.id);
           resolve(created);
         } catch (e) { reject(e); }

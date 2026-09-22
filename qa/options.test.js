@@ -46,7 +46,7 @@ function bootBuilder(seedStorage, url) {
     }
   });
   const { window } = dom;
-  const src = ['content.js', 'finance.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
     'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
@@ -121,12 +121,13 @@ t('delete removes option', w.__qsOptions.length === 1);
 t('page still visible with 1 option? (needs 2) → hidden', d.querySelector('[data-page="pageOptions"]').style.display === 'none');
 
 console.log('— whatsapp share —');
+d.getElementById('custName').value = 'QA Customer'; fire(w, d.getElementById('custName'), 'input');
 d.getElementById('shareUrl').value = 'https://example.com/p/KTME-2026-013';
 fire(w, d.getElementById('shareUrl'), 'input');
 d.getElementById('waShare').click();
 const openUrl = decodeURIComponent(w.__lastOpen || '');
 t('wa.me link opened', (w.__lastOpen || '').startsWith('https://wa.me/?text='));
-t('message contains customer name', openUrl.includes('Mr. Bhooshan Waghmare'));
+t('message contains customer name', openUrl.includes('QA Customer'));
 t('message contains proposal link', openUrl.includes('https://example.com/p/KTME-2026-013'));
 
 console.log('— persistence with options —');
@@ -190,7 +191,7 @@ setTimeout(async () => {
       addPage() {} addImage() {} setProperties() {} save() {}
     }
   };
-  const src3 = ['content.js', 'finance.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+  const src3 = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
     'equipment.js', 'render.js', 'export.js', 'share.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   w3.eval(src3);
@@ -199,11 +200,11 @@ setTimeout(async () => {
     const d3 = w3.document;
     const expectedNet = w3.Finance.fmtINR(w3.Finance.compute(Object.assign(
       {}, w3.StateStore.DEFAULTS, w3.Proposals.get(shareId).form)).netInvestment);
-    t('share: customer banner', d3.getElementById('shareCustomer').textContent.includes('Bhooshan'),
+    t('share: customer banner', d3.getElementById('shareCustomer').textContent.includes('QA Customer'),
       d3.getElementById('shareCustomer').textContent);
     t('share: capacity line', d3.getElementById('shareCapacity').textContent.includes('kWp'));
     t('share: status chip', d3.getElementById('shareStatus').textContent.length > 0);
-    t('share: pages injected', d3.querySelectorAll('.page-wrap').length === 17, d3.querySelectorAll('.page-wrap').length);
+    t('share: pages injected', d3.querySelectorAll('.page-wrap').length === 21, d3.querySelectorAll('.page-wrap').length);
     t('share: pages visible', [...d3.querySelectorAll('.page-wrap')].filter((x) => x.style.display !== 'none').length === 15);
     t('share: hero matches proposal finance', d3.getElementById('v_exHeroNet').textContent === expectedNet,
       d3.getElementById('v_exHeroNet').textContent + ' vs ' + expectedNet);

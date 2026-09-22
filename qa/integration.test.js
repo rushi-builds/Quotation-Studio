@@ -41,6 +41,10 @@ function bootApp(seedStorage) {
     beforeParse(window) {
       window.HTMLCanvasElement.prototype.getContext = function () { return mockCtx(); };
       window.Element.prototype.scrollIntoView = function () {};
+      // jsdom has no image loader; browser suites exercise real image readiness.
+      Object.defineProperty(window.HTMLImageElement.prototype, 'complete', {get: () => true});
+      Object.defineProperty(window.HTMLImageElement.prototype, 'naturalWidth', {get: () => 100});
+      Object.defineProperty(window.HTMLImageElement.prototype, 'naturalHeight', {get: () => 100});
       window.devicePixelRatio = 2;
       window.confirm = () => true;
       if (seedStorage) {
@@ -51,8 +55,8 @@ function bootApp(seedStorage) {
   });
   const { window } = dom;
   /* browser <script> tags share top-level scope; a single concatenated eval mimics that */
-  const src = ['content.js', 'finance.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
+  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
   window.document.dispatchEvent(new window.Event('DOMContentLoaded', { bubbles: true }));
@@ -75,10 +79,10 @@ const w = bootApp();
 const d = w.document;
 
 t('no uncaught errors on boot', errors.length === 0, errors.join(' | '));
-t('rendered all 17 page shells (options + financing hidden by default)', d.querySelectorAll('.page').length === 17, d.querySelectorAll('.page').length);
+t('rendered all 21 page shells (options, financing and BESS hidden by default)', d.querySelectorAll('.page').length === 21, d.querySelectorAll('.page').length);
 t('page labels generated', /Page 1 of 15/.test(d.querySelector('[data-page="pageCover"] .page-label').textContent),
   d.querySelector('[data-page="pageCover"] .page-label').textContent);
-t('cover shows customer', d.getElementById('v_coverCustName').textContent.includes('Bhooshan'));
+t('cover shows a neutral customer placeholder', d.getElementById('v_coverCustName').textContent === 'Customer Name');
 t('cover badge generation', /₹78/.test(d.getElementById('v_coverBadgeGen').textContent),
   d.getElementById('v_coverBadgeGen').textContent);
 t('exec hero net = ₹6,08,070', d.getElementById('v_exHeroNet').textContent === '₹6,08,070',
@@ -86,7 +90,8 @@ t('exec hero net = ₹6,08,070', d.getElementById('v_exHeroNet').textContent ===
 t('exec payback ≈ 3.7 yrs', /^3\.\d/.test(d.getElementById('v_exHeroPayback').textContent),
   d.getElementById('v_exHeroPayback').textContent);
 t('exec 8 KPI tiles', d.querySelectorAll('#v_exKpis .kpi-tile').length === 8);
-t('exec journey 5 steps', d.querySelectorAll('#v_exJourney .jstep').length === 5);
+t('summary does not repeat its financial tiles in a journey strip', !d.getElementById('v_exJourney'));
+t('solution does not repeat the summary inclusion block', !d.getElementById('v_soIncluded'));
 t('what-you-get has 8 items', d.querySelectorAll('#v_exIncluded .inc-item').length === 8);
 t('about stats rendered', d.querySelectorAll('#v_abStats .stat-card').length === 4);
 t('why-solar benefits 6', d.querySelectorAll('#v_wsBenefits .benefit-card').length === 6);
@@ -105,8 +110,8 @@ t('BOM section hidden when empty', d.getElementById('v_inBomSection').style.disp
 t('pay chips rendered', d.querySelectorAll('#v_inPayChips .pay-chip').length === 3);
 t('advance chip amount = ₹3,43,035', d.getElementById('v_inPayChips').textContent.includes('₹3,43,035'),
   d.getElementById('v_inPayChips').textContent);
-t('why-ktm 9 differentiators', d.querySelectorAll('#v_wkDiffs .diff-card').length === 9);
-t('projects 9 cards with images', d.querySelectorAll('#v_prCats .proj-card img').length === 9);
+t('why-ktm has six differentiators without repeated company stats', d.querySelectorAll('#v_wkDiffs .diff-card').length === 6);
+t('projects 10 cards with images', d.querySelectorAll('#v_prCats .proj-card img').length === 10);
 t('projects stats strip filled', d.getElementById('v_prStats').textContent.includes('flagship projects'));
 t('warranty 4 cards', d.querySelectorAll('#v_wrWarranties .warr-card').length === 4);
 t('journey 6 steps', d.querySelectorAll('#v_wrJourney .journey-card').length === 6);
@@ -132,16 +137,16 @@ t('blob contains live form', w.Proposals.active().form.capacity === '7');
 /* ---------- Phase 1: equipment catalog ---------- */
 console.log('— equipment catalog (Phase 1) —');
 t('3 seed modules in catalog', w.EquipmentStore.cat().modules.length === 3);
-t('module select built from catalog', d.getElementById('moduleMake').options.length === 3);
-t('inverter select built from catalog', d.getElementById('inverterMake').options.length === 3);
-t('structure select built from catalog', d.getElementById('mountMake').options.length === 2);
+t('module dropdown includes catalog and Custom', d.getElementById('moduleMake').options.length === 4);
+t('inverter dropdown includes catalog and Custom', d.getElementById('inverterMake').options.length === 5);
+t('structure dropdown includes catalog and Custom', d.getElementById('mountMake').options.length === 3);
 t('catalog manager rendered rows', d.querySelectorAll('#eqCatalog .eq-row').length >= 8,
   d.querySelectorAll('#eqCatalog .eq-row').length);
 /* adding a catalog entry propagates to the form select and component fields */
 w.EquipmentStore.cat().modules.push({ id: 'mx', make: 'TestModule 550', model: '', wp: 550, tech: 'TOPCon', lengthMm: '2333', widthMm: '1134', efficiency: '', voc: '', isc: '', vmp: '', imp: '' });
 w.EquipmentStore.save();
 w.EquipmentStore.refreshSelects();
-t('catalog add appears in select', d.getElementById('moduleMake').options.length === 4);
+t('catalog add appears above Custom', d.getElementById('moduleMake').options.length === 5);
 d.getElementById('moduleMake').value = 'TestModule 550';
 fire(w, d.getElementById('moduleMake'), 'change');
 t('selecting module syncs wattage', d.getElementById('moduleWattage').value === '550', d.getElementById('moduleWattage').value);
@@ -210,7 +215,7 @@ if (advInput) {
 console.log('— manager workflow —');
 d.getElementById('pmNew').click();
 t('New creates 2nd proposal', w.Proposals.list().length === 2, w.Proposals.list().length);
-t('New switches active', w.Proposals.get(w.Proposals.activeId()).form.custName === 'Mr. Bhooshan Waghmare');
+t('New switches active', w.Proposals.get(w.Proposals.activeId()).form.custName === '');
 t('New resets BOM (pristine template)', d.getElementById('bomModules').value === '');
 t('manager dropdown now 2 options', d.getElementById('proposalSelect').options.length === 2);
 t('New preserved the previous proposal\u2019s edits',
@@ -249,6 +254,7 @@ t('original still v1.0 + sent', w.Proposals.get(verBlob.prevId).form.propVersion
   w.Proposals.get(verBlob.prevId).status === 'sent');
 t('version shown on cover meta', d.querySelector('[data-head-ref]').textContent.includes('v1.1'));
 
+d.getElementById('custName').value = 'QA Customer'; fire(w, d.getElementById('custName'), 'input');
 d.getElementById('pmDup').click();
 t('duplicate creates copy', w.Proposals.list().length === 4, w.Proposals.list().length);
 t('duplicate marked (copy)', w.Proposals.active().form.custName.includes('(copy)'));
@@ -371,6 +377,7 @@ setTimeout(() => {
 
   /* ---------- pdf export smoke ---------- */
   console.log('— pdf export —');
+  d.getElementById('custName').value = 'QA Customer'; fire(w, d.getElementById('custName'), 'input');
   let savedName = '';
   w.html2canvas = async () => ({ toDataURL: () => 'data:image/jpeg;base64,AAAA' });
   w.jspdf = {
@@ -384,7 +391,7 @@ setTimeout(() => {
   };
   w.document.getElementById('downloadBtn').click();
   setTimeout(() => {
-    t('pdf saved with customer+capacity+ref', /Proposal_Mr_Bhooshan_Waghmare_7kWp_KTM-2026-Solar-013\.pdf/.test(savedName), savedName);
+    t('pdf saved with customer+capacity+ref', /Proposal_QA_Customer_7kWp_KTM-2026-Solar-013\.pdf/.test(savedName), savedName);
     t('status message shown', w.document.getElementById('statusMsg').textContent.includes('Downloaded'),
       w.document.getElementById('statusMsg').textContent);
 

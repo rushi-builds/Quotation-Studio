@@ -187,7 +187,9 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 /* ---------- 6. A4 page canvas & chrome ---------- */
 .page-wrap{
   width:calc(var(--page-w) * var(--page-scale));
-  display:flex;flex-direction:column;align-items:center;
+  /* Match the top-left scale origin; centering the unscaled A4 child
+     shifts half the page off-screen in narrow/mobile previews. */
+  display:flex;flex-direction:column;align-items:flex-start;
 }
 .page-label{font-size:10.5px;color:var(--gray-light);margin-bottom:-12px;align-self:flex-start;}
 .page{
@@ -785,35 +787,21 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 .cover-left,.cover-right,.cover-badge,.cover-index,.cover-stats,.cover-trust{display:none !important;}
 #v_coverStatYears,#v_coverStatProjects,#v_coverStatCapacity,#v_coverStat4{position:absolute;left:-9999px;}
 
-/* =========================================================
-   KTM COVER — PIXEL-EXACT STATIC ARTWORK (user: exact yahi image use kr)
-   Render the supplied PNG as single artwork, preserve exactly,
-   no crop, no filter, object-fit contain, A4 portrait
-   ========================================================= */
-
-@page {
-  size: A4 portrait;
-  margin: 0;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-}
-
+/* Original cover artwork with live proposal fields. The archival supplied PNG
+   stays untouched; only baked-in variable text is cleared in the background.
+   Positions use the original 1060 × 1484 coordinate system, so preview scaling,
+   browser print and html2canvas/PDF all share the same layout. */
+@page { size: A4 portrait; margin: 0; }
 .ktm-cover {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  background: #ffffff;
   overflow: hidden;
+  background: #081a28;
 }
-
+.ktm-cover__artwork { position: relative; width: 100%; flex: none; }
 .ktm-cover img {
   display: block;
   width: 100%;
@@ -821,32 +809,28 @@ body {
   max-width: 100%;
   object-fit: contain;
 }
-
-@media print {
-  .ktm-cover {
-    width: 100%;
-    height: 100%;
-    page-break-after: always;
-  }
-
-  .ktm-cover img {
-    width: 100%;
-    height: auto;
-  }
+.ktm-cover__value {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  color: #f9fafb;
+  font-family: 'Inter', Arial, sans-serif;
+  font-weight: 400;
+  line-height: 1.15;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
 }
-/* Ensure .page containing ktm-cover fills A4 and centers artwork */
-.page .ktm-cover{
-  width:100%;
-  height:100%;
-  min-height: var(--page-h);
-}
-.page .ktm-cover img{
-  width:100%;
-  height:auto;
-  max-height: var(--page-h);
-  object-fit: contain;
-  object-position: top center;
-}
+.ktm-cover__name { left: 6.604%; top: 65.499%; width: 30%; height: 3.1%; font-weight: 700; }
+.ktm-cover__address { left: 22.925%; top: 69.475%; width: 15.7%; height: 2.15%; }
+.ktm-cover__capacity { left: 22.925%; top: 72.17%; width: 18%; height: 1.55%; }
+.ktm-cover__reference { left: 22.925%; top: 74.596%; width: 20%; height: 1.75%; }
+.ktm-cover__date { left: 22.925%; top: 77.089%; width: 23%; height: 1.7%; }
+.ktm-cover__capacity-kpi { left: 23.3%; top: 86.927%; width: 21%; height: 3.64%; font-weight: 700; white-space: nowrap; }
+.ktm-cover__savings-kpi { left: 67.925%; top: 86.927%; width: 28%; height: 3.64%; font-weight: 700; white-space: nowrap; color: #ff890b; }
+@media print { .ktm-cover { page-break-after: always; } }
 
 /* ---------- 9. Executive summary ---------- */
 .exec-hero{
@@ -877,6 +861,14 @@ body {
   font-size:8.8px;color:var(--gray-light);font-style:italic;
   border-top:1px dashed var(--line);padding-top:7px;margin-top:12px;
 }
+
+/* A compact visual finish uses remaining space, never pushes figures/footer
+   down. Dense customer text takes priority over this decorative landscape. */
+#pageExec .pg-body > :not(.exec-artwork){flex-shrink:0;}
+.exec-artwork{margin:12px 0 0;flex:1 1 156px;min-height:0;max-height:156px;display:flex;flex-direction:column;overflow:hidden;border-radius:12px;background:#F3F5EF;}
+.exec-artwork img{display:block;width:100%;height:0;min-height:0;flex:1 1 auto;object-fit:cover;object-position:center;}
+.exec-artwork figcaption{display:flex;justify-content:space-between;gap:12px;padding:6px 14px;flex:none;font-size:7.4px;line-height:1.2;color:#6C7E78;}
+.exec-artwork figcaption span:first-child{color:#365B54;font-weight:700;letter-spacing:.12em;text-transform:uppercase;}
 
 /* about / benefit / spec cards reuse */
 .stat-card{text-align:center;padding:17px 10px;}
@@ -915,6 +907,9 @@ body {
   background:#FBFCFE;margin-top:4px;
 }
 .diagram{width:100%;}
+/* Keep the original page layout: the SVG's 8-unit top inset uses the existing
+   title gap, so only the small house moves up and PDF capture cannot clip it. */
+#v_tsDiagram{margin-top:calc(-100% * 8 / 718);}
 .diagram svg{width:100%;height:auto;display:block;}
 .spec-table{width:100%;border-collapse:collapse;font-size:10.6px;}
 .spec-table td{padding:5.5px 10px;border-bottom:1px solid #F1EFE9;vertical-align:top;}
@@ -1466,3 +1461,194 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   display:inline-block;background:#25D366;color:#fff;text-decoration:none;
   padding:9px 18px;border-radius:8px;font-size:12px;font-weight:700;
 }
+
+/* Customer actions are UI only: never include them in the printed proposal. */
+.sac-consent { display:flex; gap:8px; align-items:flex-start; font-size:12px; line-height:1.5; }
+.sac-error { color:#a32424; font-size:12px; }
+.btn-accept-submit:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+@media (max-width: 600px) {
+  .share-accept-card { padding:18px; width:100%; box-sizing:border-box; }
+  .sac-row { grid-template-columns:1fr; }
+  .btn-sim-action { overflow-wrap:anywhere; }
+}
+@media print { .share-sim-bar, .share-accept-card { display:none !important; } }
+
+/* Transparent cover-derived identity: no boxed background on white pages. */
+.brand-row img, .st-left img, .pg-logo img { height:56px; width:auto; object-fit:contain; border-radius:0; flex-shrink:0; }
+.pg-head { height:64px; }
+.pg-logo img { height:56px; }
+.pg-head-meta { max-width:570px; text-align:right; }
+.closing-brand { position:absolute; left:var(--page-pad); top:16px; z-index:2; }
+.closing-brand img { width:auto; height:58px; object-fit:contain; border-radius:0; }
+/* The online review has one action hub, after the proposal. */
+.share-accept-card { width:100%; max-width:794px; }
+.engineering-section { padding:0 0 18px; margin:0 0 18px; border-bottom:1px solid var(--line-cool); }
+.engineering-section h4, .request-preview h4 { margin:0 0 8px; color:var(--navy); font-size:14px; }
+.engineering-section .btn-sim-action { border:1px solid var(--line-cool); box-shadow:none; background:var(--cream); }
+.engineering-section .hint { margin:0 0 10px; }
+.sac-field select { width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; font:inherit; font-size:12px; }
+.request-services { border:1px solid var(--line-cool); padding:12px 14px; border-radius:8px; margin:18px 0; }
+.request-services legend { font-size:12px; font-weight:700; padding:0 6px; }
+.request-services label { display:flex; align-items:flex-start; gap:8px; margin:8px 0; font-size:12px; }
+.request-services [hidden] { display:none; }
+.request-checklist { font-size:12px; line-height:1.65; color:var(--gray); margin:14px 0; }
+.request-preview { margin-top:20px; padding:16px; border:1px solid #bcd4c7; border-radius:10px; background:#f6fbf8; }
+.request-preview textarea { box-sizing:border-box; width:100%; min-height:180px; resize:vertical; padding:12px; border:1px solid #cbd5e1; border-radius:6px; font:12px/1.65 'Inter',sans-serif; }
+.request-send-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+.local-acknowledgement { margin-top:22px; border-top:1px solid var(--line-cool); padding-top:16px; }
+.local-acknowledgement summary { cursor:pointer; font-size:12px; color:var(--gray); font-weight:600; }
+.local-acknowledgement .hint { margin:12px 0; }
+@media screen {
+  /* The hub owns online actions/links. Paper signatures and report references
+     remain in the print/PDF pages, not duplicated above the online hub. */
+  .share-mode:not(.qs-pdf-capture) #pageClosing .accept-block,
+  .share-mode:not(.qs-pdf-capture) #v_tsRefsWrap { display:none !important; }
+}
+@media (max-width:600px) {
+  .share-topbar { flex-wrap:wrap; position:relative; }
+  .st-left { min-width:0; }
+  .st-title, .st-sub { overflow-wrap:anywhere; }
+  .request-send-actions > * { flex:1; text-align:center; }
+}
+
+#requestWhatsApp[hidden], #sacWaNotify[hidden] { display:none !important; }
+#shareAcceptWrap { scroll-margin-top:100px; }
+
+/* Give photography more presence where the content budget permits it.
+   Dense scope/quality/warranty pages retain their compact, uncropped-height slots. */
+#pageAbout .photo-top { height:292px; }
+#pageWhySolar .photo-top, #pageSolution .photo-top, #pageWhyKtm .photo-top { width:324px; height:230px; }
+#pageWhySolar .intro-col, #pageSolution .intro-col, #pageWhyKtm .intro-col { max-width:374px; min-height:244px; }
+#pageProjects .intro-col { max-width:none; min-height:0; }
+#pageProjects .proj-card img { height:132px; }
+.photo-top { top:76px; }
+.photo-top img { object-position:50% 50%; }
+/* Obvious entry points; only the final page contains the four-step explanation. */
+.engineering-open { border:1px solid #dc7a1d; border-radius:7px; background:#fff6eb; color:#8d430d; padding:8px 10px; font:600 11px 'Inter',sans-serif; cursor:pointer; }
+#engineeringViewBtn { margin-top:8px; }
+.engineering-open:hover { background:#ffead0; }
+.engineering-overview { margin:14px var(--page-pad) 0; border:1px solid #dedfe2; border-radius:12px; padding:15px 17px; background:#fcfaf6; }
+.engineering-overview-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.engineering-overview .eyebrow { font-size:8px; font-weight:700; letter-spacing:.09em; color:var(--orange-dark); }
+.engineering-overview h3 { margin:3px 0 0; font:700 15px 'Poppins',sans-serif; color:var(--navy); }
+.engineering-steps { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; list-style:none; margin:14px 0 10px; padding:0; }
+.engineering-steps li { display:flex; align-items:flex-start; gap:6px; }
+.engineering-steps li>b { width:19px; height:19px; flex:none; display:grid; place-items:center; background:#f7e3c7; color:#914712; border-radius:50%; font-size:10px; }
+.engineering-steps strong { display:block; font-size:9px; line-height:1.4; }
+.engineering-steps span { display:block; color:var(--gray); font-size:8.5px; line-height:1.5; margin-top:3px; }
+.engineering-paper-help { font-size:8.5px; line-height:1.5; color:var(--navy); margin:0 0 6px; }
+.engineering-disclaimer { margin:0; font-size:8px; line-height:1.5; color:var(--gray); }
+.st-actions { flex-wrap:wrap; justify-content:flex-end; }
+.st-actions .request-jump { background:#fff6eb; border:1px solid #e9c293; color:#8d430d; }
+.qs-pdf-capture .screen-only { display:none !important; }
+@media print { .screen-only, .request-jump { display:none !important; } }
+@media (max-width:600px) { .st-actions { width:100%; justify-content:flex-start; } .st-actions button { font-size:11px; padding:8px 10px; } #engineeringViewBtn { width:100%; } }
+/* Keep the navigator readable instead of squeezing it beside the new action. */
+.preview-toolbar { flex-wrap:wrap; align-items:center; }
+.preview-toolbar .page-nav { flex:1 1 100%; min-width:0; order:0; }
+.preview-toolbar .live-chip { order:1; max-width:100%; }
+.preview-toolbar #engineeringViewBtn { order:2; flex:1 1 245px; margin:0; }
+.preview-toolbar .present-toggle { order:3; margin-left:auto; }
+
+/* All references use the same project-card treatment. Preserve the full
+   supplied tracking photograph inside the standard thumbnail frame. */
+#pageProjects .intro-col{flex-shrink:0;}
+.pc-photo{height:132px;display:flex;align-items:center;justify-content:center;background:var(--cream);}
+#pageProjects .proj-card[data-project="PROJ_TRACKING"] img{width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;}
+
+/* Measured A4 whitespace refinement (September 2026).
+   Keep the cover, engineering diagram, finance tables and ten-card portfolio
+   untouched. Use the existing content more legibly, not decorative filler. */
+#pageExec .exec-hero{padding:20px 18px;}
+#pageExec .ht-v{font-size:20px;}
+#pageExec .ht-l{font-size:9px;}
+#pageExec .kpi-tile{padding:14px 12px;}
+#pageExec .kpi-l{font-size:9px;}
+#pageExec .kpi-v{font-size:14px;}
+#pageExec .inc-grid{gap:12px 18px;}
+#pageExec .inc-item{padding:7px 0;}
+#pageExec .inc-t{font-size:11.6px;}
+#pageExec .inc-d{font-size:10.4px;line-height:1.6;}
+
+:is(#pageAbout,#pageWhySolar,#pageSolution,#pageScope,#pageQuality,#pageWhyKtm,#pageWarranty,#pageTerms) .body-para{font-size:12.2px;line-height:1.78;}
+#pageAbout .photo-top{height:340px;}
+#pageAbout .spacer{max-height:64px;}
+#pageAbout .stat-card{padding:21px 10px;}
+#pageAbout .stat-card .card-title{font-size:11.2px;}
+#pageAbout .stat-card .card-desc{font-size:10px;}
+#pageAbout .feat-d{font-size:10.5px;line-height:1.55;}
+
+:is(#pageWhySolar,#pageSolution,#pageWhyKtm) .photo-top{height:260px;}
+:is(#pageWhySolar,#pageSolution,#pageWhyKtm) .intro-col{min-height:274px;}
+#pageWhySolar .spacer{max-height:40px;}
+#v_wsBenefits{grid-template-columns:repeat(2,minmax(0,1fr));}
+#pageWhySolar .benefit-card{padding:20px;min-height:170px;}
+#pageWhySolar .benefit-card .card-title{font-size:12.4px;}
+#pageWhySolar .benefit-card .card-desc{font-size:11.5px;line-height:1.7;}
+
+#pageSolution .spacer{max-height:32px;}
+#v_soSpecs{grid-template-columns:repeat(2,minmax(0,1fr));}
+#pageSolution .spec-card{padding:17px 18px;min-height:124px;}
+#pageSolution .spec-t{font-size:12px;}
+#pageSolution .spec-card .card-desc{font-size:11px;line-height:1.65;}
+
+#pageScope .photo-top{height:210px;}
+#pageScope .intro-col{min-height:224px;}
+#pageScope .spacer{max-height:56px;}
+#pageScope .deliv-t{font-size:11.4px;}
+#pageScope .resp-item .rd{font-size:10.4px;line-height:1.6;}
+#pageScope .addl-t{font-size:11px;}
+
+:is(#pageQuality,#pageWarranty) .photo-top{height:230px;}
+:is(#pageQuality,#pageWarranty) .intro-col{min-height:244px;}
+#pageQuality .spacer{max-height:40px;}
+#v_quStandards,#v_quChecklist{grid-template-columns:repeat(2,minmax(0,1fr));}
+#pageQuality .std-card{padding:18px;}
+#pageQuality .std-card .card-title{font-size:12px;}
+#pageQuality .std-card .card-desc{font-size:10.8px;line-height:1.65;}
+#pageQuality .check-t{font-size:11.5px;}
+#pageQuality .check-card .card-desc{font-size:10.5px;line-height:1.6;}
+#pageQuality .check-card{padding:16px;}
+
+#pageWhyKtm .spacer{max-height:64px;}
+#pageWhyKtm .diff-card{padding:18px;}
+#pageWhyKtm .diff-t{font-size:11.8px;}
+#pageWhyKtm .diff-card .card-desc{font-size:10.8px;line-height:1.65;}
+#pageWhyKtm .commit-card{padding:15px 9px;}
+#pageWhyKtm .commit-t{font-size:10.2px;}
+#pageWhyKtm .commit-d{font-size:9.2px;line-height:1.55;}
+
+#pageWarranty .spacer{max-height:64px;}
+#pageWarranty .warr-t,#pageWarranty .journey-t{font-size:11.6px;}
+#pageWarranty .warr-card ul,#pageWarranty .journey-card ul{font-size:10.4px;line-height:1.65;}
+#pageWarranty .journey-card{padding:18px;}
+
+#pageTerms .term-t{font-size:11.6px;}
+#pageTerms .term-d{font-size:10.6px;line-height:1.7;}
+#pageTerms .terms-grid{gap:18px 24px;}
+#pageTerms .spacer{max-height:48px;}
+#pageScope .deliv-box{padding:16px 15px;}
+#pageScope .resp-item{margin-bottom:14px;}
+#pageScope .resp-item .rt{font-size:11.4px;}
+#pageScope .addl-box{padding:12px 11px;}
+
+/* Compact only the optional dense cases. No text, disclaimers or numbers are
+   removed, and chart canvases redraw at these sizes rather than being squashed. */
+#pageTechSpec.has-site-area:has(#v_tsRefsWrap:not([style*="display: none"])) .spec-table td{padding-top:3.5px;padding-bottom:3.5px;}
+#chartBridge{width:718px!important;height:252px!important;}
+#chartDonut{width:230px!important;height:230px!important;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #chartBridge{height:180px!important;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #chartDonut{width:150px!important;height:150px!important;flex-shrink:0;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .spacer{max-height:16px;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .bom-row{padding:3.5px 0;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .bom-intro{margin-bottom:6px;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .sec-label{margin-bottom:8px;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .rule-orange{margin:9px 0;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #v_inDesc{margin:8px 0;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .tax-shield-banner{margin:4px 0;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #v_inIncludesLabel{margin-top:8px;}
+#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #v_inDisclaimer{margin-top:6px;}
+/* html2canvas can otherwise paint an inline chip background over its SVG.
+   Explicit paint order preserves the white pictograms in full-page PDFs. */
+.icon-chip{position:relative;}
+.icon-chip svg{position:relative;z-index:1;}

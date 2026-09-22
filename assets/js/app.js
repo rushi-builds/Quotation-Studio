@@ -9,26 +9,36 @@
 
 (function () {
   const $ = (id) => document.getElementById(id);
+  function today() {
+    const date = new Date();
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  }
 
   /* Pristine HTML form values = the template defaults for "New proposal".
      Captured before any saved data is applied. */
   let pristine = null;
+  const templateContent = JSON.stringify(CONTENT);
+  const templateProjectImages = JSON.stringify(PROJECT_IMAGES);
+  let templatePageImages = {};
+  function restoreObject(target, snapshot) {
+    Object.keys(target).forEach(key => delete target[key]);
+    Object.assign(target, JSON.parse(snapshot));
+  }
 
   /* ---------- autosave ---------- */
   let saveTimer = null;
+  function showSaveState(state) {
+    const el = $('saveIndicator');
+    if (!el) return;
+    el.dataset.state = state;
+    el.textContent = {saving: 'Saving…', saved: 'Saved locally', error: 'Not saved'}[state];
+    el.title = state === 'error' ? 'Browser storage could not save your changes. Export a backup before closing this tab.' : 'Saved in this browser only. Export a backup to keep a portable copy.';
+    el.classList.add('on');
+  }
   function scheduleSave() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      const blob = window.Proposals.saveActive(
-        window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES, window.__qsOptions || []);
-      const el = $('saveIndicator');
-      if (el) {
-        el.textContent = blob ? 'Saved ✓' : 'Save failed';
-        el.classList.add('on');
-        setTimeout(() => el.classList.remove('on'), 1600);
-      }
-      refreshManager(false);
-    }, 400);
+    showSaveState('saving');
+    saveTimer = setTimeout(() => { saveNow(); refreshManager(false); }, 400);
   }
   window.__qsScheduleSave = scheduleSave; /* used by the Advanced Edit panel */
   window.__qsSaveNow = saveNow;           /* used by harnesses / before navigation */
@@ -141,11 +151,18 @@
     const cv = $('custViewBtn');
     if (cv) {
       cv.addEventListener('click', () => {
-        if (window.__qsSaveNow) window.__qsSaveNow();
+        if (window.__qsSaveNow && !window.__qsSaveNow()) return;
         const id = window.Proposals.activeId();
         if (id) window.open('share.html?p=' + encodeURIComponent(id), '_blank');
       });
     }
+    document.querySelectorAll('[data-engineering-open]').forEach(button => {
+      button.addEventListener('click', () => {
+        if (window.__qsSaveNow && !window.__qsSaveNow()) return;
+        const id = window.Proposals.activeId();
+        if (id) window.open('share.html?p=' + encodeURIComponent(id) + '#shareAcceptWrap', '_blank');
+      });
+    });
   }
 
   /* ---------- proposal manager UI ---------- */
@@ -212,12 +229,23 @@
     const blob = window.Proposals.active();
     if (!blob) return;
     window.StateStore.applyForm(Object.assign({}, window.StateStore.DEFAULTS, blob.form || {}));
-    if (blob.form && !blob.form.propDate) $('propDate').value = new Date().toISOString().slice(0, 10);
+    if (blob.form && !blob.form.propDate) $('propDate').value = today();
     window.__qsOptions = Array.isArray(blob.options) ? blob.options : [];
+    // Every proposal starts from canonical defaults, never the previous user's
+    // in-memory edits. Partial/legacy proposals get only their own overrides.
+    restoreObject(CONTENT, templateContent);
+    restoreObject(PROJECT_IMAGES, templateProjectImages);
+    window.__qsPageImages = {};
+    Object.entries(templatePageImages).forEach(([id, src]) => {
+      const override = blob.pageImages && blob.pageImages[id];
+      if (typeof override === 'string' && override) window.__qsPageImages[id] = override;
+      if ($(id)) $(id).src = window.__qsPageImages[id] || src;
+    });
     if (blob.content) {
-      /* deep-merge page objects so partial overrides don't blank siblings */
-      Object.keys(blob.content).forEach((k) => {
-        const inc = blob.content[k];
+      /* Merge page-level overrides onto clean template defaults. */
+      const incoming = upgradeProposalContent(blob.content);
+      Object.keys(incoming).forEach((k) => {
+        const inc = incoming[k];
         const base = CONTENT[k];
         if (inc && base && typeof inc === 'object' && typeof base === 'object' &&
             !Array.isArray(inc) && !Array.isArray(base)) {
@@ -231,11 +259,14 @@
       Object.keys(blob.projectImages).forEach((k) => { PROJECT_IMAGES[k] = blob.projectImages[k]; });
     }
     window.EquipmentStore.refreshSelects();
+    if (!blob.form || !Object.keys(blob.form).length) window.Proposals.saveActive(window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES, window.__qsOptions, window.__qsPageImages || {});
     renderOptionsUI();
+    // Rebind editor closures to the newly loaded proposal's content objects.
+    if ($('advContainer')?.children.length) window.Editor.build();
   }
 
   function switchTo(id) {
-    window.Proposals.saveActive(window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES);
+    if (!saveNow()) { $('proposalSelect').value = window.Proposals.activeId(); return; }
     window.Proposals.setActive(id);
     loadActiveIntoUI();
     window.Render.renderAll();
@@ -243,8 +274,23 @@
   }
 
   function saveNow() {
-    return window.Proposals.saveActive(
-      window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES);
+    clearTimeout(saveTimer);
+    try {
+      const blob = window.Proposals.saveActive(window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES, window.__qsOptions || [], window.__qsPageImages || {});
+      // The store tolerates quota errors; verify the actual saved blob before
+      // claiming success in the workspace, including private image uploads.
+      const saved = blob && window.Proposals.get(blob.id);
+      const ok = !!saved && JSON.stringify(saved) === JSON.stringify(blob);
+      showSaveState(ok ? 'saved' : 'error');
+      return ok ? blob : null;
+    } catch (error) { showSaveState('error'); return null; }
+  }
+
+  function creationSaved(blob) {
+    if (blob && window.Proposals.get(blob.id) && window.Proposals.list().some(p => p.id === blob.id)) return true;
+    showSaveState('error');
+    $('statusMsg').textContent = 'Could not create the proposal in browser storage. Your current proposal is still open; export a backup before freeing storage.';
+    return false;
   }
 
   function wireManager() {
@@ -253,11 +299,12 @@
     sel.addEventListener('change', () => { if (sel.value) switchTo(sel.value); });
 
     $('pmNew').addEventListener('click', () => {
-      saveNow(); /* persist the proposal we are leaving — never lose edits */
+      if (!saveNow()) return; /* keep unsaved edits if browser storage is full */
       const form = Object.assign({}, pristine);
-      form.propDate = new Date().toISOString().slice(0, 10);
+      form.propDate = today();
       form.propVersion = '1.0';
       const b = window.Proposals.create(form);
+      if (!creationSaved(b)) return;
       window.Proposals.setActive(b.id);
       loadActiveIntoUI();
       window.Render.renderAll();
@@ -265,15 +312,15 @@
     });
 
     $('pmDup').addEventListener('click', () => {
-      saveNow(); /* duplicate exactly what is on screen */
+      if (!saveNow()) return; /* duplicate exactly what is on screen */
       const b = window.Proposals.duplicate(window.Proposals.activeId());
-      if (b) switchTo(b.id);
+      if (creationSaved(b)) switchTo(b.id);
     });
 
     $('pmVersion').addEventListener('click', () => {
-      saveNow();
+      if (!saveNow()) return;
       const b = window.Proposals.saveAsVersion(window.Proposals.activeId());
-      if (b) switchTo(b.id);
+      if (creationSaved(b)) switchTo(b.id);
     });
 
     $('pmDelete').addEventListener('click', () => {
@@ -286,7 +333,7 @@
       window.Proposals.remove(blob.id);
       if (!window.Proposals.activeId()) {
         const b = window.Proposals.create(Object.assign({}, pristine,
-          { propDate: new Date().toISOString().slice(0, 10) }));
+          { propDate: today() }));
         window.Proposals.setActive(b.id);
       }
       loadActiveIntoUI();
@@ -295,7 +342,7 @@
     });
 
     $('pmStatus').addEventListener('change', function () {
-      saveNow(); /* status change snapshots current edits too */
+      if (!saveNow()) { this.value = window.Proposals.active()?.status || 'draft'; return; }
       window.Proposals.setStatus(window.Proposals.activeId(), this.value);
       refreshManager();
       scheduleSave();
@@ -312,6 +359,7 @@
     document.querySelectorAll('.page-wrap').forEach((wrap) => {
       wrap.style.height = (1123 * scale + 8) + 'px';
     });
+    window.Render?.refreshDiagramScale?.();
   }
 
   /* ---------- preview page navigation ---------- */
@@ -366,27 +414,20 @@
       scheduleSave();
     });
 
-    $('logoUpload').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (ev) {
-        document.querySelectorAll('#formLogo, .pg-logo img, .cover-logo img').forEach((img) => {
-          img.src = ev.target.result;
-        });
-        scheduleSave();
-      };
-      reader.readAsDataURL(file);
-    });
-
     document.querySelectorAll('input[data-photo]').forEach((input) => {
       input.addEventListener('change', function (e) {
         const file = e.target.files[0];
         if (!file) return;
+        const owner = window.Proposals.activeId();
         const reader = new FileReader();
         reader.onload = function (ev) {
+          if (window.Proposals.activeId() !== owner) return;
           const img = $(input.dataset.photo);
-          if (img) { img.src = ev.target.result; scheduleSave(); }
+          if (img) {
+            img.src = ev.target.result;
+            window.__qsPageImages[input.dataset.photo] = ev.target.result;
+            window.Render.renderAll(); scheduleSave();
+          }
         };
         reader.readAsDataURL(file);
       });
@@ -395,15 +436,16 @@
     $('resetBtn').addEventListener('click', () => {
       if (confirm('Reset this proposal\u2019s inputs to the template defaults? Text edits and other proposals are kept.')) {
         window.StateStore.applyForm(Object.assign({}, pristine,
-          { propDate: new Date().toISOString().slice(0, 10) }));
+          { propDate: today() }));
         window.Render.renderAll();
         scheduleSave();
       }
     });
-    $('exportBtn').addEventListener('click', () => window.StateStore.exportFile());
+    $('exportBtn').addEventListener('click', () => { saveNow(); window.StateStore.exportFile(); });
     $('importFile').addEventListener('change', async function () {
       const f = this.files[0];
       if (!f) return;
+      if (!saveNow()) { this.value = ''; return; }
       try {
         const created = await window.StateStore.importFile(f);
         loadActiveIntoUI();
@@ -414,19 +456,19 @@
         alert('Could not read that proposal file. Please check it is a Quotation Studio .json export.');
       }
     });
-    $('advToggle').addEventListener('click', () => {
-      const p = $('advancedPanel');
-      if (p) p.open = !p.open;
-    });
   }
 
   /* ---------- boot ---------- */
   function boot() {
     if (window.__qsBooted) return; /* idempotent — harnesses may fire DOMContentLoaded twice */
     window.__qsBooted = true;
+    templatePageImages = Object.fromEntries([...document.querySelectorAll('input[data-photo]')]
+      .map(input => [input.dataset.photo, $(input.dataset.photo)?.getAttribute('src') || '']));
+    window.Bess.wire();
+    window.AdditionalSystems.wire();
     pristine = window.StateStore.collectForm();       /* HTML defaults */
     if (!pristine.propDate) {
-      $('propDate').value = new Date().toISOString().slice(0, 10);
+      $('propDate').value = today();
       pristine.propDate = $('propDate').value;
     }
     window.Proposals.init();                           /* migrate legacy, ensure active */
@@ -438,6 +480,7 @@
       scheduleSave();
     });
     wireForm();
+
     wireManager();
     wireOptions();
     wireShare();
@@ -448,8 +491,9 @@
       const all = mode === 'all';
       form.classList.toggle('qs-mode-essentials', !all);
       const bE = $('modeEss'), bA = $('modeAll');
-      if (bE) bE.classList.toggle('active', !all);
-      if (bA) bA.classList.toggle('active', all);
+      if (bE) { bE.classList.toggle('active', !all); bE.setAttribute('aria-pressed', String(!all)); }
+      if (bA) { bA.classList.toggle('active', all); bA.setAttribute('aria-pressed', String(all)); }
+      document.dispatchEvent(new CustomEvent('qs:mode', {detail: {all}}));
       try { localStorage.setItem(MODE_KEY, all ? 'all' : 'essentials'); } catch (e) {}
     };
     $('modeEss') && $('modeEss').addEventListener('click', () => setMode('essentials'));
@@ -485,10 +529,14 @@
       btn.addEventListener('click', () => {
         const p = PRESETS[btn.dataset.preset];
         if (!p) return;
-        Object.keys(p).forEach((k) => {
-          const el = $(k);
-          if (el) el.value = p[k];
-        });
+        if (!confirm('Apply this indicative preset? It replaces system/pricing assumptions and clears previous BOM, financing, subsidy override and design report links. Customer details and saved options are kept. Verify equipment and prices before sending.')) return;
+        const resetDesign = {
+          genFactor: '1460', gstPercent: '8.9', escalation: '6', degradation: '0.5',
+          subsidyOverride: '', arkaUrl: '', pvsystUrl: '',
+          bomModules: '', bomInverter: '', bomStructure: '', bomBos: '', bomInstall: '', bomLiaison: '',
+          loanAmt: '', loanRate: '', loanYears: '', moduleLengthMm: '', moduleWidthMm: ''
+        };
+        window.StateStore.applyForm(Object.assign({}, resetDesign, p));
         window.Render.renderAll();
         scheduleSave();
       });

@@ -9,7 +9,8 @@
        prevId?                       — version chain (never overwrite history)
        form          — all proposal inputs (customer, site, system, financial…)
        content       — brochure text overrides (proposal-specific wording)
-       projectImages — photo overrides (dataURLs where quota allows)
+       projectImages — project thumbnail overrides (dataURLs where quota allows)
+       pageImages    — page photograph overrides, keyed by image element ID
      }
 
    Storage (localStorage in Phase 1; the API is backend-ready):
@@ -62,11 +63,11 @@
 
   /* ---------- index ---------- */
   function list() { return readJSON(INDEX_KEY) || []; }
-  function saveIndex(ix) { writeJSON(INDEX_KEY, ix); }
+  function saveIndex(ix) { return writeJSON(INDEX_KEY, ix); }
   function upsertIndex(entry) {
     const ix = list().filter((p) => p.id !== entry.id);
     ix.unshift(entry);
-    saveIndex(ix);
+    return saveIndex(ix);
   }
   function metaFor(blob) {
     const f = blob.form || {};
@@ -94,6 +95,7 @@
       form: form || {},
       content: null,
       projectImages: null,
+      pageImages: null,
       options: []
     }, extras || {});
     put(blob);
@@ -103,9 +105,15 @@
   function get(id) { return readJSON(blobKey(id)); }
 
   function put(blob) {
+    const key = blobKey(blob.id), previous = get(blob.id);
     blob.updatedAt = nowISO();
-    writeJSON(blobKey(blob.id), blob);
-    upsertIndex(metaFor(blob));
+    if (!writeJSON(key, blob)) return false;
+    if (upsertIndex(metaFor(blob))) return true;
+    // Do not leave ghost/orphan proposals when storage fills between the
+    // document write and its index entry. Existing content remains recoverable.
+    if (previous) writeJSON(key, previous);
+    else { try { root.localStorage.removeItem(key); } catch (_) {} }
+    return false;
   }
 
   function remove(id) {
@@ -117,6 +125,10 @@
     }
   }
 
+  function clearAcknowledgement(blob) {
+    ['sentAt', 'acceptedAt', 'viewedAt', 'rejectedAt', 'signerName', 'consentConfirmed', 'acceptanceMethod'].forEach(key => delete blob[key]);
+  }
+
   function duplicate(id) {
     const b = get(id);
     if (!b) return null;
@@ -124,6 +136,7 @@
     copy.id = uid();
     copy.createdAt = nowISO();
     copy.status = 'draft';
+    clearAcknowledgement(copy);
     copy.prevId = null; /* a copy is a new history, not a version */
     copy.form = JSON.parse(JSON.stringify(b.form || {}));
     if (b.form && b.form.custName) copy.form.custName = b.form.custName + ' (copy)';
@@ -140,6 +153,7 @@
     nb.id = uid();
     nb.createdAt = nowISO();
     nb.status = 'draft';
+    clearAcknowledgement(nb);
     nb.prevId = id;
     const v = String((b.form && b.form.propVersion) || '1.0');
     const parts = v.split('.').map((n) => parseInt(n, 10) || 0);
@@ -166,7 +180,7 @@
   function active() { return get(activeId()); }
 
   /** Save working state into the active proposal blob. */
-  function saveActive(form, content, projectImages, options) {
+  function saveActive(form, content, projectImages, options, pageImages) {
     const id = activeId();
     let b = id ? get(id) : null;
     if (!b) { b = create(form || {}); setActive(b.id); }
@@ -174,6 +188,7 @@
     if (content) b.content = content;
     if (projectImages) b.projectImages = projectImages;
     if (options) b.options = options;
+    if (pageImages) b.pageImages = pageImages;
     put(b);
     return b;
   }

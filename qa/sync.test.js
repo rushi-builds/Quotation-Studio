@@ -48,7 +48,7 @@ function bootApp(seedStorage, url) {
     }
   });
   const { window } = dom;
-  const src = ['content.js', 'finance.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
     'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
@@ -65,20 +65,23 @@ const d = w.document;
 t('no errors on boot', errors.length === 0, errors.join('|'));
 t('cover avatar row removed (clean professional)', !d.getElementById('coverPortraitRow'), 'should be null for clean look');
 t('cover portrait img removed', !d.getElementById('img_cover_portrait'), 'avatar deleted per final decision');
-t('cover uses exact reference artwork (ktm-cover-page-1.png)', (()=>{ const s=d.getElementById('img_cover')?.getAttribute('src')||''; return s.includes('ktm-cover-page-1.png') || s.includes('page-cover-v2-portrait'); })(), d.getElementById('img_cover')?.getAttribute('src'));
-t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').match(/page-cover\.jpg$/), 'should not use old landscape cover');
+t('cover uses tall premium hero (static ktm-cover-page-1.png or exact-hero/tall)', (()=>{ const s=d.getElementById('img_cover')?.getAttribute('src')||''; return s.includes('ktm-cover-page-1.png') || s.includes('page-cover-exact-hero.jpg') || s.includes('page-cover-tall.jpg'); })(), d.getElementById('img_cover')?.getAttribute('src'));
+t('cover img alt is AI placeholder policy (not a real site photo)', (()=>{ const alt=(d.getElementById('img_cover')?.getAttribute('alt')||'').toLowerCase(); return alt.includes('ai-generated') && alt.includes('placeholder'); })(), d.getElementById('img_cover')?.getAttribute('alt'));
+t('old v2 portrait not used for #img_cover', !(d.getElementById('img_cover')?.getAttribute('src') || '').includes('page-cover-v2-portrait'), d.getElementById('img_cover')?.getAttribute('src'));
+t('old landscape cover not used', !(d.getElementById('img_cover')?.getAttribute('src') || '').match(/page-cover\.jpg$/), 'should use tall/exact-hero');
 t('cover stats still present', !!d.getElementById('v_coverStatYears'));
 
-// PIXEL-EXACT STATIC COVER — ktm-cover-page-1.png as single artwork (user: exact yahi image use kr, no recreate)
-t('cover is pixel-exact static ktm-cover with img /assets/ktm-cover-page-1.png', (()=>{ const wrap=d.querySelector('.ktm-cover'); const img=wrap?.querySelector('img'); if(!wrap||!img) return false; const src=img.getAttribute('src')||''; return src.includes('ktm-cover-page-1.png') || src.includes('assets/ktm-cover-page-1.png'); })(), d.querySelector('.ktm-cover img')?.getAttribute('src'));
+// Original artwork with visible, editable proposal values.
+t('cover uses cleared original artwork for live text', d.querySelector('.ktm-cover img')?.getAttribute('src') === 'assets/images/cover-editable-background.png');
 t('cover img alt is KTM Energy Experts Solar Proposal Cover', (()=>{ const alt=d.querySelector('.ktm-cover img')?.getAttribute('alt')||''; return alt.includes('KTM') && alt.toLowerCase().includes('cover'); })(), d.querySelector('.ktm-cover img')?.getAttribute('alt'));
 t('cover uses A4 portrait @page and preserves aspect ratio with object-fit contain (no crop)', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const ktmIdx=css.indexOf('.ktm-cover'); const sec=ktmIdx!==-1?css.slice(ktmIdx, ktmIdx+4000):css; return /object-fit:\s*contain/i.test(sec) && !/object-fit:\s*cover/i.test(sec.slice(sec.indexOf('.ktm-cover img'), sec.indexOf('.ktm-cover img')+500)) && /@page\s*\{\s*size:\s*A4\s*portrait/i.test(css) && /page-break-after:\s*always/i.test(sec); })());
 t('cover does not use filters/overlays/gradients on the static image (preserve exactly)', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const ktmBlock=(css.match(/\.ktm-cover\s*\{[^}]*\}/i)||[''])[0]; const imgBlock=(css.match(/\.ktm-cover\s+img\s*\{[^}]*\}/i)||[''])[0]; const combined=ktmBlock+imgBlock; return !/filter:/i.test(combined) && !/gradient/i.test(combined) && !/backdrop-filter/i.test(combined); })());
 t('cover file exists at assets/ktm-cover-page-1.png', fs.existsSync(path.join(ROOT,'assets/ktm-cover-page-1.png')));
 t('trust pills do not contain MNRE/Pan-Pune marketing copy', !((d.querySelector('.cover-trust')?.textContent)||'').includes('MNRE') && !((d.querySelector('.cover-trust')?.textContent)||'').includes('Pan-Pune'));
-t('cover badge Kwp + savings nodes exist (hidden for static, kept for JS compat)', !!d.getElementById('v_coverBadgeKwp') && !!d.getElementById('v_coverBadgeGen'));
-t('cover hidden dynamic IDs still present for JS (v_coverCustName etc)', !!d.getElementById('v_coverCustName') && !!d.getElementById('v_coverCapacity') && !!d.getElementById('v_coverRef'));
-// keep dynamic sync tests below for hidden IDs — visual is static, data still flows
+t('cover capacity and savings nodes exist', !!d.getElementById('v_coverBadgeKwp') && !!d.getElementById('v_coverBadgeGen'));
+t('cover live field IDs still present for JS (v_coverCustName etc)', !!d.getElementById('v_coverCustName') && !!d.getElementById('v_coverCapacity') && !!d.getElementById('v_coverRef'));
+// Dynamic IDs now live inside the visible artwork; browser QA verifies visibility.
+t('live cover fields are outside hidden metadata', [...d.querySelectorAll('[data-cover-font]')].length === 7 && [...d.querySelectorAll('[data-cover-font]')].every(el => el.closest('.ktm-cover__artwork') && !el.closest('[style*="display:none"]')));
 t('cover CSS does not use cover crop (object-fit:cover) on ktm-cover img', (()=>{ const css=fs.readFileSync(path.join(ROOT,'assets/css/app.css'),'utf8'); const m=css.match(/\.ktm-cover\s+img\s*\{[^}]*\}/i); if(!m) return false; return /object-fit:\s*contain/i.test(m[0]) && !/object-fit:\s*cover/i.test(m[0]); })());
 
 t('OG tags present (quotation.html)', !!d.querySelector('meta[property="og:title"]'));
@@ -106,7 +109,7 @@ const form = d.getElementById('quoteForm');
 const advanced = [...form.querySelectorAll('[data-adv]')];
 t('defaults to Essentials', form.classList.contains('qs-mode-essentials'));
 t('Essentials button active by default', d.getElementById('modeEss').classList.contains('active') && !d.getElementById('modeAll').classList.contains('active'));
-t('exactly eight advanced sections tagged', advanced.length === 8, advanced.length);
+t('ten advanced sections including tax and QR/audio settings', advanced.length === 10, advanced.length);
 t('all advanced sections hidden in Essentials', advanced.every((el) => w.getComputedStyle(el).display === 'none'));
 t('capacity remains visible in Customer & System beside customer type', (() => {
   const cap = d.getElementById('capacity');

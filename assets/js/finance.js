@@ -75,18 +75,32 @@
 
   /** Internal rate of return via bisection (percent per annum). */
   function calcIRR(cashflows) {
-    if (!cashflows || cashflows.length < 2) return NaN;
+    // Without an investment/outflow and a return/inflow, IRR is not defined.
+    // More than one sign change can have multiple roots, not a unique IRR.
+    if (!cashflows || cashflows.length < 2 || !cashflows.every(Number.isFinite)) return NaN;
+    const signs = cashflows.filter(v => v !== 0).map(Math.sign);
+    if (signs.filter((v, i) => i > 0 && v !== signs[i - 1]).length !== 1) return NaN;
     const npv = (rate) => {
       let v = 0;
       for (let i = 0; i < cashflows.length; i++) v += cashflows[i] / Math.pow(1 + rate, i);
       return v;
     };
+    if (npv(0) === 0) return 0;
     let low = -0.95, high = 10, mid = 0;
+    let lowValue = npv(low), highValue = npv(high);
+    // Expand the bounds rather than returning an arbitrary boundary as IRR.
+    if (Math.sign(lowValue) === Math.sign(highValue)) { low = -0.9999; lowValue = npv(low); }
+    for (let i = 0; i < 20 && Math.sign(lowValue) === Math.sign(highValue); i++) {
+      high *= 2; highValue = npv(high);
+    }
+    if (lowValue === 0) return low * 100;
+    if (highValue === 0) return high * 100;
+    if (!Number.isFinite(lowValue) || !Number.isFinite(highValue) || Math.sign(lowValue) === Math.sign(highValue)) return NaN;
     for (let i = 0; i < 200; i++) {
       mid = (low + high) / 2;
       const val = npv(mid);
       if (Math.abs(val) < 1) break;
-      if (val > 0) low = mid; else high = mid;
+      if (Math.sign(val) === Math.sign(lowValue)) { low = mid; lowValue = val; } else high = mid;
     }
     return mid * 100;
   }
@@ -106,14 +120,18 @@
 
     /* ----- system engineering (derived, traceable) ----- */
     const moduleWattage = num(s.moduleWattage) || 0;
-    const moduleCount = (moduleWattage > 0 && capacity > 0)
-      ? Math.ceil((capacity * 1000) / moduleWattage) : 0;
+    const requiredModules = (moduleWattage > 0 && capacity > 0)
+      ? (capacity * 1000) / moduleWattage : 0;
+    // Suppress only floating-point round-off at whole-module boundaries:
+    // 8.175 kWp / 545 Wp can evaluate as 15.000000000000002 modules.
+    // A real shortfall must still round UP to the next whole module.
+    const moduleCount = Math.ceil(requiredModules - 2 * Number.EPSILON * requiredModules);
     const installedKwp = (moduleCount && moduleWattage)
       ? (moduleCount * moduleWattage) / 1000 : capacity;
     const moduleAreaEach = (num(s.moduleLengthMm) / 1000) * (num(s.moduleWidthMm) / 1000);
     const arrayArea = (moduleCount > 0 && moduleAreaEach > 0) ? moduleCount * moduleAreaEach : 0;
     const inverterKw = num(s.inverterKw) || (capacity > 0 ? capacity : 0);
-    const dcAcRatio = (capacity > 0 && inverterKw > 0) ? capacity / inverterKw : 0;
+    const dcAcRatio = (installedKwp > 0 && inverterKw > 0) ? installedKwp / inverterKw : 0;
 
     /* ----- costs ----- */
     const projectCost = capacity * costPerKwp;               // ex-GST
@@ -151,11 +169,15 @@
     const netInvestment = grossTotal - subsidy;
     const costPerWp = capacity > 0 ? projectCost / (capacity * 1000) : 0;
 
-    /* ----- commercial / industrial 40% accelerated depreciation (IT Act Sec 32) ----- */
+    /* Optional illustration only: eligibility, asset basis and first-year
+       allowance must be confirmed by the customer's tax adviser. Never net
+       this assumed shield off investment, payback or projected savings. */
     const isCommercialOrInd = (customerType === 'commercial' || customerType === 'industrial');
-    const corpTaxRatePct = num(s.corpTaxRate, 25) || 25; // standard Indian corporate tax bracket 25%
-    const taxDepreciationYear1 = isCommercialOrInd ? Math.round(projectCost * 0.40) : 0;
-    const taxShield = isCommercialOrInd ? Math.round(taxDepreciationYear1 * (corpTaxRatePct / 100)) : 0;
+    const percent = (v, fallback) => Math.min(100, Math.max(0, num(v, fallback)));
+    const corpTaxRatePct = percent(s.corpTaxRate, 25);
+    const depreciationRatePct = percent(s.depreciationRate, 40);
+    const taxDepreciationYear1 = isCommercialOrInd ? Math.round(Math.max(0, projectCost) * depreciationRatePct / 100) : 0;
+    const taxShield = Math.round(taxDepreciationYear1 * corpTaxRatePct / 100);
 
     /* ----- generation & savings projection ----- */
     const annualGen = capacity * genFactor;                    // year-1 kWh
@@ -201,7 +223,9 @@
     const irr = calcIRR(cashflows);
 
     /* bill offset (only when the customer's average bill is entered) */
-    const monthlyBill = num(s.monthlyBill);
+    const monthlyBill = Math.max(0, num(s.monthlyBill));
+    const monthlyBillSaving = Math.min(monthlyBill, Math.max(0, annualSaving / 12));
+    const monthlyBillAfter = monthlyBill - monthlyBillSaving;
     const billOffset = (monthlyBill > 0 && annualSaving > 0)
       ? (annualSaving / (monthlyBill * 12)) * 100 : 0;
     const billOffsetCapped = Math.min(billOffset, 100);
@@ -210,12 +234,12 @@
     const effectivePerUnit = lifetimeGen > 0 ? netInvestment / lifetimeGen : 0;
 
     /* ----- environmental equivalents (editable factors, stated on page) ----- */
-    const co2Factor = num(s.co2Factor, 0.79) || 0.79;          // kg CO₂ / kWh (grid)
-    const treeFactor = num(s.treeFactor, 58.4) || 58.4;        // kg CO₂ absorbed / tree / yr
+    const co2Factor = Math.max(0, num(s.co2Factor, 0.79));          // kg CO₂ / kWh (grid)
+    const treeFactor = Math.max(0, num(s.treeFactor, 58.4));        // kg CO₂ absorbed / tree / yr
     const co2Annual = (annualGen * co2Factor) / 1000;          // tonnes
     const co2Lifetime = (lifetimeGen * co2Factor) / 1000;
-    const treesAnnual = (co2Annual * 1000) / treeFactor;
-    const treesLifetime = (co2Lifetime * 1000) / treeFactor;
+    const treesAnnual = treeFactor > 0 ? (co2Annual * 1000) / treeFactor : NaN;
+    const treesLifetime = treeFactor > 0 ? (co2Lifetime * 1000) / treeFactor : NaN;
 
     /* ----- payment schedule (₹ against gross total incl. GST) ----- */
     const pay = {
@@ -263,7 +287,8 @@
       // costs
       projectCost, gstAmount, grossTotal, subsidy, subsidyAuto, netInvestment,
       costPerWp, bomItems, bomSum, bomDelta, gstPercent,
-      taxDepreciationYear1, taxShield, corpTaxRatePct, isCommercialOrInd,
+      taxDepreciationYear1, taxShield, corpTaxRatePct, depreciationRatePct, isCommercialOrInd,
+      monthlyBillSaving, monthlyBillAfter,
       // performance
       annualGen, annualSaving, series, lifetimeSaving, lifetimeGen,
       payback, irr, effectivePerUnit,

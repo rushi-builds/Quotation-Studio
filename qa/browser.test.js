@@ -10,7 +10,7 @@ const OUT = __dirname + '/shots';
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const browser = await puppeteer.launch({
-    executablePath: '/tmp/chromium-bin/chromium',
+    executablePath: process.env.CHROMIUM_PATH || await (await import('@sparticuz/chromium')).default.executablePath(),
     args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--hide-scrollbars', '--font-render-hinting=none'],
     defaultViewport: { width: 1440, height: 950 }
   });
@@ -23,12 +23,17 @@ const OUT = __dirname + '/shots';
   await page.evaluate(() => document.fonts.ready);
   await new Promise((r) => setTimeout(r, 900));
 
-  const t = (name, ok, extra) => console.log((ok ? '  ✓ ' : '  ✗ FAIL: ') + name + (ok || extra === undefined ? '' : ' → ' + extra));
+  let failed = 0;
+  const t = (name, ok, extra) => { if (!ok) failed++; console.log((ok ? '  ✓ ' : '  ✗ FAIL: ') + name + (ok || extra === undefined ? '' : ' → ' + extra)); };
+
+  t('new proposal starts without a personal name', await page.$eval('#custName', e => e.value === '' && e.placeholder === 'Enter customer name'));
+  // Personalization is explicit test data, never an application default.
+  await page.$eval('#custName', e => { e.value = 'QA Customer'; e.dispatchEvent(new Event('input', {bubbles: true})); });
 
   /* ---- integrity ---- */
   const pageCount = await page.$$eval('.page', (els) => els.length);
   const visibleCount = await page.$$eval('.page', (els) => els.filter((e) => e.getClientRects().length > 0).length);
-  t('17 page shells (options + financing hidden by default)', pageCount === 17, pageCount);
+  t('21 page shells (options, financing and BESS hidden by default)', pageCount === 21, pageCount);
   t('15 visible (options hidden by default)', visibleCount === 15, visibleCount);
   const kv = await page.evaluate(() => ({
     coverName: document.getElementById('v_coverCustName').textContent,
@@ -38,7 +43,7 @@ const OUT = __dirname + '/shots';
     donutHidden: document.getElementById('v_inBomSection').style.display === 'none',
     kpis: document.querySelectorAll('#v_exKpis .kpi-tile').length
   }));
-  t('cover personalised', kv.coverName.includes('Bhooshan'), kv.coverName);
+  t('cover personalised', kv.coverName.includes('QA Customer'), kv.coverName);
   t('hero net ₹6,08,070', kv.heroNet === '₹6,08,070', kv.heroNet);
   t('payback ~3.7', /^3\.\d/.test(kv.payback), kv.payback);
   t('page numbering', kv.pgnum === 'Page 14 of 15', kv.pgnum);
@@ -65,6 +70,8 @@ const OUT = __dirname + '/shots';
   t('no vertical overflow on any page', overflow.length === 0, JSON.stringify(overflow));
 
   /* ---- interactions ---- */
+  await page.click('#modeAll');
+  await page.evaluate(() => document.querySelectorAll('.studio-section,.studio-management').forEach(e => e.open = true)); // Advanced BOM/options fields are intentionally hidden in Essentials.
   await page.select('#customerType', 'commercial');
   await new Promise((r) => setTimeout(r, 300));
   const subCap = await page.$eval('#v_inCostSubCap', (e) => e.textContent);
@@ -158,7 +165,7 @@ const OUT = __dirname + '/shots';
   await page.click('#waShare');
   const wa = await page.evaluate(() => window.__opened || '');
   t('wa.me share opens', wa.startsWith('https://wa.me/?text='), wa.slice(0, 60));
-  t('wa.me message carries link + customer', decodeURIComponent(wa).includes('Bhooshan') && decodeURIComponent(wa).includes('KTME-2026-013'));
+  t('wa.me message carries link + customer', decodeURIComponent(wa).includes('QA Customer') && decodeURIComponent(wa).includes('KTME-2026-013'));
 
   /* ---- screenshots of every VISIBLE page (desktop) ----
      viewport 1260 + hidden sticky toolbar: element.screenshot clips
@@ -199,6 +206,7 @@ const OUT = __dirname + '/shots';
   await new Promise((r) => setTimeout(r, 400));
   const client = await page.createCDPSession();
   await client.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: OUT });
+  fs.readdirSync(OUT).forEach(f=>{if(f.startsWith('Proposal_') && f.endsWith('.pdf')) fs.unlinkSync(OUT+'/'+f);});
   await page.click('#downloadBtn');
   const pdfPath = OUT + '/export-test.pdf';
   let pdfOk = false, lastStatus = '';
@@ -208,7 +216,7 @@ const OUT = __dirname + '/shots';
     if (st && st !== lastStatus) { console.log('   …', st); lastStatus = st; }
     const any = fs.existsSync(pdfPath) ||
       fs.readdirSync(OUT).some((f) => f.endsWith('.pdf') && fs.statSync(OUT + '/' + f).size > 50000);
-    if (st.includes('Downloaded') || any) { pdfOk = true; break; }
+    if (st.includes('Downloaded') && any) { pdfOk = true; break; }
   }
   t('PDF exported', pdfOk);
   if (pdfOk) {
@@ -217,7 +225,10 @@ const OUT = __dirname + '/shots';
       const f = fs.readdirSync(OUT).find((f) => f.endsWith('.pdf') && fs.statSync(OUT + '/' + f).size > 50000);
       if (f) pdfFile = OUT + '/' + f; else await new Promise((r) => setTimeout(r, 100));
     }
-    if (pdfFile) console.log('   PDF:', require('path').basename(pdfFile), (fs.statSync(pdfFile).size / 1048576).toFixed(2) + ' MB');
+    if (pdfFile) {
+      console.log('   PDF:', require('path').basename(pdfFile), (fs.statSync(pdfFile).size / 1048576).toFixed(2) + ' MB');
+      t('downloaded detailed PDF contains 16 actual pages', (fs.readFileSync(pdfFile,'latin1').match(/\/Type \/Page\b/g)||[]).length===16);
+    }
   }
   const status = await page.$eval('#statusMsg', (e) => e.textContent);
   t('status confirms 16 pages', status.includes('16'), status);
@@ -279,7 +290,10 @@ const OUT = __dirname + '/shots';
   t('PDF with financing exported', pdfOk2);
   if (pdfOk2) {
     const f2 = fs.readdirSync(OUT).find((f) => f.endsWith('.pdf') && fs.statSync(OUT + '/' + f).size > 50000);
-    if (f2) console.log('   PDF:', f2, (fs.statSync(OUT + '/' + f2).size / 1048576).toFixed(2) + ' MB');
+    if (f2) {
+      console.log('   PDF:', f2, (fs.statSync(OUT + '/' + f2).size / 1048576).toFixed(2) + ' MB');
+      t('downloaded financing PDF contains 17 actual pages', (fs.readFileSync(OUT+'/'+f2,'latin1').match(/\/Type \/Page\b/g)||[]).length===17);
+    }
   }
   t('status confirms 17 pages with financing', status2.includes('17'), status2);
   await page.evaluate(() => {
@@ -313,7 +327,7 @@ const OUT = __dirname + '/shots';
     const b = JSON.parse(localStorage.getItem('qstudio.proposal.' + localStorage.getItem('qstudio.activeId')));
     return (b.options || []).length >= 2 ? 16 : 15;
   });
-  t('share: customer banner', sv.cust.includes('Bhooshan'), sv.cust);
+  t('share: customer banner', sv.cust.includes('QA Customer'), sv.cust);
   t('share: ' + expPages + ' pages visible (options-aware)', sv.visible === expPages, sv.visible);
   t('share: finance rendered', /₹/.test(sv.hero), sv.hero);
   t('share: read-only (no builder form)', sv.noForm, sv.noForm);
@@ -328,5 +342,5 @@ const OUT = __dirname + '/shots';
   console.log('---');
   if (errors.length) { console.error('ERRORS:\n' + errors.join('\n')); process.exit(1); }
   await browser.close();
-  process.exit(errors.length ? 2 : 0);
+  process.exit(errors.length || failed ? 2 : 0);
 })().catch((e) => { console.error('QA crashed:', e.message); process.exit(1); });

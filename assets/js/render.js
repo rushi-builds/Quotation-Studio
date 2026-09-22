@@ -32,6 +32,13 @@
   function setHTML(id, v) { const el = $(id); if (el) el.innerHTML = (v === undefined || v === null) ? '' : v; }
   function show(id, on) { const el = $(id); if (el) el.style.display = on ? '' : 'none'; }
 
+  function safeHttpUrl(value) {
+    try {
+      const url = new URL(String(value || '').trim());
+      return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '';
+    } catch (e) { return ''; }
+  }
+
   const TYPE_LABEL = { residential: 'Residential', commercial: 'Commercial', industrial: 'Industrial' };
 
   /* Merge state + finance into the template variable pool. */
@@ -62,9 +69,8 @@
     set('v_coverTitle1', CONTENT.cover.titleLine1);
     set('v_coverTitle2', CONTENT.cover.titleLine2);
     set('v_coverPreparedLabel', CONTENT.cover.labels.preparedFor);
-    set('v_coverCustName', s.custName);
-    set('v_coverCustAddress', s.custAddress);
-    set('v_coverLocSync', s.custAddress || 'Pune, Maharashtra');
+    set('v_coverCustName', (s.custName || '').trim() || 'Customer Name');
+    set('v_coverCustAddress', (s.custAddress || '').trim() || 'Site Address');
     set('v_coverCapacityLabel', CONTENT.cover.labels.capacity);
     set('v_coverCapacity', s.capacity + ' kWp');
     set('v_coverDateLabel', CONTENT.cover.labels.date);
@@ -80,11 +86,26 @@
     set('v_coverPrepBy', s.prepName);
     set('v_coverBadgeKwp', s.capacity + ' kWp');
     set('v_coverBadgeGen', F.fmtINRshort(f.lifetimeSaving));
-    set('v_coverLifetimeSave', F.fmtINRshort(f.lifetimeSaving));
     set('v_coverStatYears', s.statYears);
     set('v_coverStatProjects', s.statProjects);
     set('v_coverStatCapacity', s.statCapacity);
     set('v_coverStat4', CONTENT.cover.footerStat4);
+
+    // Visible text overlays use the same IDs/state as the rest of the proposal.
+    // Fit in artwork coordinates (not transformed preview coordinates). Reset on
+    // every render so shorter edits grow back; fonts.ready triggers another render.
+    const artwork = document.querySelector('.ktm-cover__artwork');
+    if (artwork && artwork.clientWidth) {
+      artwork.querySelectorAll('[data-cover-font]').forEach((el) => {
+        let size = Number(el.dataset.coverFont) * artwork.clientWidth / 1060;
+        el.style.fontSize = size + 'px';
+        el.title = el.textContent;
+        while (size > 4 && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1)) {
+          size = Math.max(4, size - 0.5);
+          el.style.fontSize = size + 'px';
+        }
+      });
+    }
 
     /* cover QR — generated only from a real link provided by the user */
     const qrWrap = $('coverQrWrap');
@@ -110,12 +131,12 @@
     const E = CONTENT.exec;
     set('v_exEyebrow', tpl(E.eyebrow, v));
     set('v_exHeading', tpl(E.heading, v));
-    set('v_exSub', tpl(E.sub, v) + (s.custName ? '' : ''));
+    set('v_exSub', root.Bess.included(s) ? 'Solar-only figures below • separately priced battery supplement on pages '+pageNum('pageBessOverview')+'–'+pageNum('pageBessAssessment') : tpl(E.sub, v));
     set('v_exCustomerLine', s.custName ? ('Prepared exclusively for ' + s.custName +
       (s.custAddress ? ' • ' + s.custAddress : '')) : '');
 
     set('v_exHeroNet', F.fmtINR(f.netInvestment));
-    set('v_exHeroNetLabel', E.heroLabels.netInvestment);
+    set('v_exHeroNetLabel', root.Bess.included(s) ? 'Solar-only net investment' : E.heroLabels.netInvestment);
     set('v_exHeroSave', F.fmtINR(f.annualSaving));
     set('v_exHeroSaveLabel', E.heroLabels.year1Saving);
     set('v_exHeroPayback', isFinite(f.payback) ? f.payback.toFixed(1) + ' yrs' : '—');
@@ -132,35 +153,20 @@
       { l: k.modules, val: f.moduleCount ? f.moduleCount + ' × ' + f.moduleWattage + ' Wp' : '—', icon: 'grid2' },
       { l: k.arrayArea, val: f.arrayArea ? Math.round(f.arrayArea) + ' m²' : '—', icon: 'target' },
       { l: k.irr, val: isFinite(f.irr) ? f.irr.toFixed(1) + '%' : '—', icon: 'trend' },
-      { l: k.effective, val: f.effectivePerUnit > 0 ? '₹' + f.effectivePerUnit.toFixed(2) + ' / unit' : '—', icon: 'rupee' },
+      { l: k.effective, val: f.lifetimeGen > 0 && Number.isFinite(f.effectivePerUnit) && f.effectivePerUnit >= 0 ? '₹' + f.effectivePerUnit.toFixed(2) + ' / unit' : '—', icon: 'rupee' },
       { l: k.co2, val: f.co2Annual.toFixed(1) + ' tonnes', icon: 'leaf' }
     ];
     if (f.monthlyBill > 0 && f.annualSaving > 0) {
       tiles.push({ l: k.billOffset, val: Math.min(100, Math.round(f.billOffset)) + '% of your bill', icon: 'bolt' });
     } else {
-      tiles.push({ l: 'Performance Warranty', val: CONTENT.shared.warrantyLine.replace('25-Year ', ''), icon: 'shield' });
+      tiles.push({ l: 'Inverter Rating', val: f.inverterKw + ' kW', icon: 'bolt' });
     }
     setHTML('v_exKpis', tiles.map((t) =>
       '<div class="kpi-tile">' + I.chip(t.icon, 30) +
       '<div class="kpi-l">' + esc(t.l) + '</div>' +
       '<div class="kpi-v">' + esc(t.val) + '</div></div>').join(''));
 
-    /* investment journey strip */
-    set('v_exJourneyLabel', E.journeySectionLabel);
     set('v_exKpiLabel', E.kpiSectionLabel);
-    const steps = [
-      { t: 'You invest', d: F.fmtINRshort(f.netInvestment) },
-      { t: 'It generates', d: F.fmtNum(f.annualGen) + ' units/yr' },
-      { t: 'You save', d: F.fmtINRshort(f.annualSaving) + '/yr' },
-      { t: 'Payback', d: isFinite(f.payback) ? 'Year ' + f.payback.toFixed(1) : '—' },
-      { t: '25-yr earnings', d: F.fmtINRshort(f.lifetimeSaving) }
-    ];
-    setHTML('v_exJourney', steps.map((st, i) =>
-      '<div class="jstep"><div class="jstep-t">' + esc(st.t) + '</div>' +
-      '<div class="jstep-d">' + esc(st.d) + '</div></div>' +
-      (i < steps.length - 1 ? '<div class="jstep-arrow">' + I.get('trend', 14, '#F2811D') + '</div>' : '')
-    ).join(''));
-    set('v_exJourneyNote', tpl(E.journeyNote, v));
 
     /* what you are getting */
     set('v_exIncludedLabel', E.includedSectionLabel);
@@ -213,7 +219,7 @@
     const opts = (s.options || []).slice(0, 4);
     set('v_opEyebrow', P.eyebrow);
     set('v_opHeading', P.heading);
-    set('v_opSub', P.sub);
+    set('v_opSub', root.Bess.included(s) ? 'Solar-only options • the battery supplement is proposal-level and priced separately.' : P.sub);
     set('v_opPara', P.para);
     set('v_opTableLabel', P.tableLabel);
     set('v_opBoldNote', opts.length ? P.boldNote : '');
@@ -296,7 +302,7 @@
   function renderAbout(s, f, v) {
     const P = CONTENT.pageAbout;
     set('v_abEyebrow', tpl(P.eyebrow, v));
-    set('v_abHeading', esc(P.heading1) + '<br>' + esc(P.heading2));
+    setHTML('v_abHeading', esc(P.heading1) + '<br>' + esc(P.heading2));
     set('v_abPara1', P.para1);
     set('v_abPara2', P.para2);
     set('v_abPara3', P.para3);
@@ -326,22 +332,17 @@
         '<div class="card-title">' + esc(b.title) + '</div>' +
         '<div class="card-desc">' + esc(desc) + '</div></div>';
     }).join(''));
-    set('v_wsHighlight', tpl(P.highlight, v));
-    set('v_wsAnnualGen', F.fmtNum(f.annualGen) + ' kWh');
-    set('v_wsAnnualSaving', F.fmtINR(f.annualSaving));
-    set('v_wsLifetimeSaving', F.fmtINR(f.lifetimeSaving));
 
-    /* before vs after bill comparison infographic */
-    const tariff = Number(s.tariff) || 9.5;
-    const estMonthlySaving = Math.round((f.annualSaving || (f.annualGen * tariff)) / 12);
-    const monthlyPre = (s.monthlyBill && Number(s.monthlyBill) > 0)
-      ? Number(s.monthlyBill) : Math.max(estMonthlySaving + 950, 4500);
-    const monthlyPost = Math.max(650, Math.round(monthlyPre - estMonthlySaving));
-    const monthlySaved = Math.max(0, monthlyPre - monthlyPost);
-    set('v_bscBeforeVal', F.fmtINR(monthlyPre) + ' / mo');
-    set('v_bscAfterVal', F.fmtINR(monthlyPost) + ' / mo');
-    set('v_bscSavedVal', F.fmtINR(monthlySaved) + ' / mo');
-    set('v_bscSavedYr', '≈ ' + F.fmtINR(monthlySaved * 12) + ' saved / yr');
+    /* No invented bill or fixed-charge floor. This is an energy-offset
+       illustration, not a DISCOM bill/settlement or guaranteed cash saving. */
+    show('v_wsBillSlashCard', f.monthlyBill > 0);
+    set('v_bscBeforeVal', F.fmtINR(f.monthlyBill) + ' / mo');
+    set('v_bscAfterVal', F.fmtINR(f.monthlyBillAfter) + ' / mo');
+    set('v_bscSavedVal', F.fmtINR(f.monthlyBillSaving) + ' / mo');
+    set('v_bscSavedYr', '≈ ' + F.fmtINR(f.monthlyBillSaving * 12) + ' offset / yr');
+    const billBar = $('v_bscAfterBar');
+    if (billBar) billBar.style.width = (f.monthlyBill > 0 ? f.monthlyBillAfter / f.monthlyBill * 100 : 0) + '%';
+
   }
 
   /* ================================================================== */
@@ -361,11 +362,7 @@
       '<div class="card spec-card">' + I.chip(it.icon, 28) +
       '<div class="spec-t">' + esc(it.title) + '</div>' +
       '<div class="card-desc">' + esc(it.desc) + '</div></div>').join(''));
-    set('v_soIncludedLabel', P.includedLabel);
-    setHTML('v_soIncluded', P.included.map((it) =>
-      '<div class="card incl-card">' + I.chip(it.icon, 30) +
-      '<div class="incl-t">' + esc(it.title) + '</div>' +
-      '<div class="card-desc">' + esc(it.mode ? modeDesc(it.mode, s) : it.desc) + '</div></div>').join(''));
+
   }
 
   /* ================================================================== */
@@ -379,7 +376,7 @@
 
     /* system overview diagram (inline SVG, explicit colours) */
     set('v_tsDiagramTitle', P.diagramTitle);
-    setHTML('v_tsDiagram', systemDiagram(s, f, P));
+    setHTML('v_tsDiagram', systemDiagram(s, f, P, v));
     set('v_tsDiagramNote', tpl(P.diagramLabels.note, v));
 
     set('v_tsGroupsLabel', P.groupsLabel);
@@ -395,14 +392,18 @@
       ['Technology', s.moduleTech || '—'],
       ['Rated Power', f.moduleWattage + ' Wp per module'],
       ['Quantity', f.moduleCount + ' modules'],
-      ['Installed Array Size', F.fmtNum(f.installedKwp * 100) / 100 + ' kWp'],
+      // Keep engineering values numeric until final formatting. fmtNum returns
+      // grouped text (e.g. "1,036"), which cannot be used in arithmetic.
+      ['Installed Array Size', Number.isFinite(f.installedKwp)
+        ? f.installedKwp.toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp' : '—'],
       ['Total Module Area', f.arrayArea ? Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)' : '—'],
       ['Performance Warranty', CONTENT.shared.warrantyLine]
     ]);
     addRows('INVERTER', [
       ['Make', s.inverterMake],
       ['Rated Output', f.inverterKw + ' kW' + (s.inverterKw ? '' : ' (auto — equal to capacity)')],
-      ['DC/AC Ratio', f.dcAcRatio ? f.dcAcRatio.toFixed(2) + ' : 1' : '—'],
+      ['DC/AC Ratio', Number.isFinite(f.dcAcRatio) && f.dcAcRatio > 0
+        ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '—'],
       ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
     ]);
     addRows('MOUNTING & CABLing'.replace('CABLing', 'CABLING'), [
@@ -419,13 +420,14 @@
         ['Required Module Area', need + ' m² ' + (ok ? '— fits ✓' : '— exceeds available area')]
       ]);
     }
+    $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
     setHTML('v_tsTable', rows.join(''));
     set('v_tsNoteLabel', P.noteLabel);
     set('v_tsNote', P.note);
     const refs = [
       [s.pvsystUrl, P.refsPvsyst, 'chart'],
       [s.arkaUrl, P.refsArka, 'sun']
-    ].filter((r) => r[0] && String(r[0]).trim());
+    ].map(([url, label, icon]) => [safeHttpUrl(url), label, icon]).filter(r => r[0]);
     const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return String(u).replace(/^https?:\/\//, '').split('/')[0]; } };
     show('v_tsRefsWrap', refs.length > 0);
     if (refs.length) {
@@ -439,55 +441,162 @@
     }
   }
 
-  /* Simple, clean single-line system diagram (sun → array → inverter →
-     meter → home/grid). Only entered values are printed on it. */
+  /* Customer-facing illustrated grid-tied overview, not a construction SLD.
+     The property/load bus is BEFORE the bidirectional meter. Both the meter
+     and utility connection carry import/export; the house is not a grid branch
+     downstream of the meter as in the old diagram. All artwork is inline SVG
+     so it stays sharp, offline-ready and present in customer/PDF exports. */
   function systemDiagram(s, f, P, v) {
     const L = P.diagramLabels;
-    const navy = '#1C2B3F', orange = '#F2811D', gray = '#5B6472';
-    const label = (x, y, txt, size, color, weight) =>
-      '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="' + size + '" font-weight="' + (weight || 600) + '" fill="' + color + '">' + txt + '</text>';
-    const box = (x, y, w, h, fill, stroke) =>
-      '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="9" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.4"/>';
-    const arrow = (x1, y, x2, txt) =>
-      '<line x1="' + x1 + '" y1="' + y + '" x2="' + (x2 - 8) + '" y2="' + y + '" stroke="' + gray + '" stroke-width="1.6"/>' +
-      '<path d="M' + (x2 - 8) + ' ' + (y - 4) + ' L' + x2 + ' ' + y + ' L' + (x2 - 8) + ' ' + (y + 4) + ' z" fill="' + gray + '"/>' +
-      (txt ? label((x1 + x2) / 2, y - 8, txt, 9.5, orange, 700) : '');
-    const icon = (name, size, color, x, y) =>
-      I.get(name, size, color).replace('<svg ', '<svg x="' + x + '" y="' + y + '" ');
-    const W = 718, H = 172, cy = 78;
-    let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">';
-    /* sun */
-    svg += icon('sun', 34, orange, 12, cy - 17);
-    /* array */
-    svg += box(72, cy - 27, 152, 54, '#FFF7EE', orange);
-    svg += icon('panel', 24, navy, 86, cy - 12);
-    svg += label(196, cy - 4, L.array, 10.5, navy, 700);
-    svg += label(196, cy + 12, tpl(L.arrayValue, v), 9, gray, 500);
-    svg += arrow(232, cy, 290, L.dc);
-    /* inverter */
-    svg += box(292, cy - 27, 130, 54, navy, navy);
-    svg += icon('inverter', 22, '#FFFFFF', 306, cy - 11);
-    svg += label(382, cy - 4, L.inverter, 10.5, '#FFFFFF', 700);
-    svg += label(382, cy + 12, tpl(L.inverterValue, v), 9, '#F7A45C', 500);
-    svg += arrow(430, cy, 488, L.ac);
-    /* meter */
-    svg += box(490, cy - 27, 118, 54, '#FFF7EE', orange);
-    svg += icon('meter', 22, navy, 504, cy - 11);
-    svg += label(570, cy - 3, L.meter, 8.8, navy, 700);
-    svg += label(570, cy + 12, 'NET METERING', 7.6, gray, 600);
-    /* split arrows to home + grid */
-    svg += arrow(614, cy - 14, 648, '');
-    svg += arrow(614, cy + 14, 648, '');
-    /* home (icon + label inside the box) */
-    svg += box(650, cy - 48, 62, 44, '#FFFFFF', '#C9D2DE');
-    svg += icon('home', 17, navy, 672, cy - 43);
-    svg += label(681, cy - 11, L.home, 7.4, gray, 600);
-    /* grid */
-    svg += box(650, cy + 4, 62, 44, '#FFFFFF', '#C9D2DE');
-    svg += icon('bolt', 17, orange, 672, cy + 9);
-    svg += label(681, cy + 41, L.grid, 7.4, gray, 600);
-    svg += '</svg>';
-    return svg;
+    const vars = Object.assign({
+      moduleCount: f.moduleCount || '—', moduleWattage: f.moduleWattage || '—',
+      inverterRating: f.inverterKw ? f.inverterKw + ' kW' : '—'
+    }, v || {});
+    const navy = '#17354A', muted = '#64788A', dc = '#EC841F', ac = '#347A9A';
+    const ctx = document.createElement('canvas').getContext('2d');
+    // A fixed, self-contained font works identically in SVG-as-image PDF capture.
+    const measure = (text, size, weight) => {
+      if (!ctx) return String(text).length * size * 0.6;
+      ctx.font = weight + ' ' + size + 'px Arial';
+      return ctx.measureText(String(text)).width;
+    };
+    function caption(key, x, y, text, width, size, color, weight, maxLines) {
+      const full = String(text == null ? '' : text).trim();
+      if (!full) return '';
+      const lines = []; let line = '';
+      full.split(/\s+/).forEach(word => {
+        const next = line ? line + ' ' + word : word;
+        if (line && measure(next, size, weight) > width) { lines.push(line); line = word; }
+        else line = next;
+      });
+      if (line) lines.push(line);
+      const visible = lines.slice(0, maxLines || 1);
+      visible.forEach((value, i) => {
+        const clipped = measure(value, size, weight) > width || (i === visible.length - 1 && lines.length > visible.length);
+        if (clipped) {
+          while (value && measure(value + '…', size, weight) > width) value = value.slice(0, -1);
+          visible[i] = value.trimEnd() + '…';
+        }
+      });
+      return '<g data-diagram-label="' + key + '" data-label-left="' + (x - width / 2) + '" data-label-width="' + width + '">' +
+        '<title>' + esc(full) + '</title>' + visible.map((value, i) =>
+          '<text x="' + x + '" y="' + (y + i * 13) + '" text-anchor="middle" font-family="Arial, sans-serif" font-size="' + size +
+          '" font-weight="' + weight + '" fill="' + color + '">' + esc(value) + '</text>').join('') + '</g>';
+    }
+    function wire(from, to, d, type, both) {
+      const marker = type === 'dc' ? 'qs-dc-arrow' : 'qs-ac-arrow';
+      return '<path data-flow-from="' + from + '" data-flow-to="' + to + '" data-flow-direction="' + (both ? 'both' : 'forward') +
+        '" d="' + d + '" fill="none" stroke="' + (type === 'dc' ? dc : ac) + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        (both ? ' marker-start="url(#' + marker + ')"' : '') + ' marker-end="url(#' + marker + ')"/>';
+    }
+    // Device details are intentionally generic: no invented brand, breaker rating,
+    // inverter model, exact array layout, phase count or certified protection claim.
+    const dcdb = `<g data-component="dcdb">
+      <ellipse cx="176" cy="112" rx="27" ry="5" fill="#17354A" opacity=".06"/>
+      <path d="M155 49 L161 44 H198 V103 L193 108" fill="#DDE5EB"/>
+      <rect x="153" y="49" width="40" height="59" rx="5" fill="url(#qs-metal)" stroke="#BCCAD5"/>
+      <rect x="157" y="52" width="32" height="4" rx="1" fill="${dc}"/>
+      <rect x="159" y="62" width="28" height="27" rx="3" fill="#E7EDF2" stroke="#CED9E1"/>
+      <rect x="164" y="67" width="7" height="15" rx="1" fill="#FFF" stroke="#9BAEBB"/>
+      <rect x="175" y="67" width="7" height="15" rx="1" fill="#FFF" stroke="#9BAEBB"/>
+      <path d="M165 71h5m6 0h5" stroke="${dc}" stroke-width="3"/>
+      <circle cx="173" cy="98" r="2" fill="#889DAD"/>
+    </g>`;
+    const inverter = `<g data-component="inverter">
+      <ellipse cx="277" cy="112" rx="35" ry="5" fill="#17354A" opacity=".06"/>
+      <path d="M250 34 L257 30 H308 V102 L302 109" fill="#D5E0E7"/>
+      <rect x="247" y="34" width="55" height="75" rx="9" fill="url(#qs-metal)" stroke="#AFBFCC"/>
+      <rect x="253" y="40" width="43" height="3" rx="1.5" fill="${dc}"/>
+      <rect x="257" y="49" width="35" height="21" rx="4" fill="${navy}"/>
+      <path d="M261 60q4-12 8 0t8 0t8 0" fill="none" stroke="#92D6DE" stroke-width="1.5"/>
+      <circle cx="285" cy="45" r="1.5" fill="#4D9C88"/>
+      <path d="M258 82h32m-32 5h32m-32 5h32" stroke="#B7C8D3" stroke-width="1.5"/>
+      <circle cx="275" cy="100" r="2" fill="#D7E2E8" stroke="#94AAB9"/>
+    </g>`;
+    const acdb = `<g data-component="acdb">
+      <ellipse cx="374" cy="112" rx="27" ry="5" fill="#17354A" opacity=".06"/>
+      <path d="M359 49 L365 44 H404 V103 L399 108" fill="#DDE5EB"/>
+      <rect x="359" y="49" width="40" height="59" rx="5" fill="url(#qs-metal)" stroke="#BCCAD5"/>
+      <rect x="363" y="52" width="32" height="4" rx="1" fill="${ac}"/>
+      <rect x="365" y="62" width="28" height="27" rx="3" fill="#E7EDF2" stroke="#CED9E1"/>
+      <path d="M369 67v16m9-16v16m9-16v16" stroke="#FFF" stroke-width="5"/>
+      <path d="M367 72h23" stroke="${navy}" stroke-width="3"/>
+      <circle cx="379" cy="98" r="2" fill="#889DAD"/>
+    </g>`;
+    const array = `<g data-component="array">
+      <circle cx="29" cy="29" r="17" fill="#FFF3D9"/>
+      <circle cx="29" cy="29" r="7" fill="#FFCB70"/>
+      <path d="M29 17v-4m0 32v-4M17 29h-4m32 0h-4M20 20l-3-3m24 24l-3-3M20 38l-3 3m24-24l-3 3" stroke="${dc}" stroke-width="1.3"/>
+      <ellipse cx="72" cy="112" rx="60" ry="6" fill="#17354A" opacity=".07"/>
+      <path d="M18 65 L76 91 V111 L18 86Z" fill="#E9E4DB"/>
+      <path d="M76 91 L125 65 V85 L76 111Z" fill="#CAD8DE"/>
+      <path d="M13 63 L61 36 L130 64 L78 94Z" fill="#8DA2AE"/>
+      <path d="M13 63 L78 90 L130 61 V65 L78 95 L13 67Z" fill="#607B8C"/>
+      <path d="M26 60 L62 40 L116 61 L78 83Z" fill="url(#qs-panels)" stroke="#D7ECF5" stroke-width="1.4"/>
+      <path d="M38 53l54 22M50 47l54 21M40 65l36-20M53 71l36-20M66 77l36-21" stroke="#9ABCCF" stroke-width=".8"/>
+      <path d="M30 78l14 6v10l-14-6Z" fill="#F8CE8D" stroke="#BCC5C8"/>
+      <path d="M91 89l15-8v11l-15 8Z" fill="#648DA1" stroke="#AFBFCA"/>
+    </g>`;
+    const home = `<g data-component="home" transform="translate(0 -8)">
+      <rect data-property-space x="412" y="2" width="87" height="66" rx="11" fill="#F2F7FA"/>
+      <g data-property-art>
+      <path d="M430 38 L455 21 L481 38 L476 40 L455 27 L434 41Z" fill="#66859B"/>
+      <path d="M435 39 L455 27 L475 40 V62 H435Z" fill="#FFF" stroke="#C3D4DF"/>
+      <rect x="452" y="48" width="9" height="14" rx="1" fill="#3B617B"/>
+      <rect x="439" y="44" width="8" height="8" rx="1" fill="#EDC185"/>
+      <rect x="465" y="44" width="6" height="8" rx="1" fill="#9CC8D4"/>
+      </g>
+    </g>`;
+    const meter = `<g data-component="meter">
+      <ellipse cx="543" cy="113" rx="32" ry="5" fill="#17354A" opacity=".06"/>
+      <path d="M517 43 L523 38 H571 V103 L565 110" fill="#D5E0E7"/>
+      <rect x="514" y="43" width="51" height="67" rx="8" fill="url(#qs-metal)" stroke="#AEBDCB"/>
+      <rect x="521" y="52" width="37" height="22" rx="3" fill="#E2F0E8" stroke="#BDCEC4"/>
+      <text x="540" y="66" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#526A61">kWh</text>
+      <path d="M525 84h29m-4-3l4 3-4 3" fill="none" stroke="${dc}" stroke-width="1.5"/>
+      <path d="M554 93h-29m4-3l-4 3 4 3" fill="none" stroke="${ac}" stroke-width="1.5"/>
+      <circle cx="540" cy="102" r="2" fill="#91A5B3"/>
+    </g>`;
+    const grid = `<g data-component="grid">
+      <circle cx="671" cy="66" r="45" fill="#EFF6F9"/>
+      <path d="M668 26h9l17 84h-44Z" fill="#E2ECF1" stroke="#55788F" stroke-width="2"/>
+      <path d="M662 48l20 17-26 20 34 18m-9-55l-20 17 26 20-33 18M640 46h66M646 65h55M656 85h37" fill="none" stroke="#55788F" stroke-width="1.6"/>
+      <path d="M644 47v9m13-9v9m31-9v9m13-9v9" stroke="#7F99AA" stroke-width="2.2"/>
+      <path d="M633 109h73" stroke="#C7D8E3" stroke-width="2"/>
+    </g>`;
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="718" height="180" viewBox="0 -8 718 180" role="img" aria-labelledby="qs-system-title qs-system-desc">' +
+      '<title id="qs-system-title">Rooftop solar, protection and utility connection</title>' +
+      '<desc id="qs-system-desc">Conceptual grid-tied flow: rooftop panels to DCDB, inverter and ACDB, then the property load bus. Home loads connect to that bus. A bidirectional meter connects the bus to the utility grid for import and export. Not a construction wiring drawing.</desc>' +
+      '<defs><linearGradient id="qs-metal" x2="1" y2="1"><stop stop-color="#FFF"/><stop offset="1" stop-color="#EDF2F6"/></linearGradient>' +
+      '<linearGradient id="qs-panels" x2="1" y2="1"><stop stop-color="#386982"/><stop offset="1" stop-color="#17384F"/></linearGradient>' +
+      '<marker id="qs-dc-arrow" viewBox="0 0 6 6" markerWidth="5" markerHeight="5" refX="5" refY="3" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0L6 3L0 6Z" fill="' + dc + '"/></marker>' +
+      '<marker id="qs-ac-arrow" viewBox="0 0 6 6" markerWidth="5" markerHeight="5" refX="5" refY="3" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0L6 3L0 6Z" fill="' + ac + '"/></marker></defs>' +
+      array + dcdb + inverter + acdb + home + meter + grid +
+      wire('array', 'dcdb', 'M126 81H150', 'dc') +
+      wire('dcdb', 'inverter', 'M198 81H243', 'dc') +
+      wire('inverter', 'acdb', 'M307 81H355', 'ac') +
+      wire('acdb', 'property-bus', 'M404 81H455', 'ac') +
+      wire('property-bus', 'home', 'M455 81V56', 'ac') +
+      wire('property-bus', 'meter', 'M465 81H510', 'ac', true) +
+      wire('meter', 'grid', 'M577 81H650', 'ac', true) +
+      '<path d="M455 81H465M569 81H577" fill="none" stroke="' + ac + '" stroke-width="2"/><circle data-component="property-bus" cx="455" cy="81" r="3.2" fill="' + ac + '"/>' +
+      caption('array', 72, 130, L.array, 130, 11, navy, 700, 2) +
+      caption('array-value', 72, 159, tpl(L.arrayValue, vars), 132, 9, muted, 400, 1) +
+      caption('dcdb', 174, 130, L.dcdb || 'DCDB', 68, 11, navy, 700, 2) +
+      caption('dcdb-detail', 174, 159, 'DC protection', 74, 8.5, muted, 400, 1) +
+      caption('inverter', 276, 130, L.inverter, 112, 11, navy, 700, 2) +
+      caption('inverter-value', 276, 159, tpl(L.inverterValue, vars), 110, 9, muted, 400, 1) +
+      caption('acdb', 379, 130, L.acdb || 'ACDB', 68, 11, navy, 700, 2) +
+      caption('acdb-detail', 379, 159, 'AC protection', 74, 8.5, muted, 400, 1) +
+      caption('dc-wire', 222, 71, L.dc, 38, 8.5, dc, 700, 1) +
+      caption('ac-wire', 330, 71, L.ac, 37, 8.5, ac, 700, 1) +
+      caption('home', 455, 6, L.home, 78, 9, navy, 700, 1) +
+      caption('bus', 455, 103, 'Load bus', 62, 8, muted, 400, 1) +
+      caption('meter', 540, 130, L.meter, 111, 10.5, navy, 700, 2) +
+      caption('meter-detail', 540, 159, 'Net metering', 106, 8.5, muted, 400, 1) +
+      caption('grid', 672, 130, 'Utility grid', 88, 11, navy, 700, 2) +
+      caption('utility', 672, 159, L.grid, 88, 8.5, muted, 400, 1) +
+      caption('exchange', 609, 70, L.exchange || 'Import / export', 72, 8, ac, 600, 1) + '</svg>';
   }
 
   /* ================================================================== */
@@ -541,7 +650,7 @@
   function renderSavings(s, f, v) {
     const P = CONTENT.pageSavings;
     set('v_svHeading', P.heading);
-    set('v_svSub', P.sub);
+    set('v_svSub', root.Bess.included(s) ? 'Solar-only energy value • storage investment and operating benefits are assessed separately.' : P.sub);
     set('v_svPara', P.para);
     set('v_svChipGen', F.fmtNum(f.annualGen) + ' kWh');
     set('v_svChipGenL', P.chips.annualGen);
@@ -549,7 +658,7 @@
     set('v_svChipSaveL', P.chips.annualSaving);
     set('v_svChipY25', F.fmtINR(f.series.saving[24]));
     set('v_svChipY25L', P.chips.year25Saving);
-    set('v_svChipEff', f.effectivePerUnit > 0 ? '₹' + f.effectivePerUnit.toFixed(2) + '/unit' : '—');
+    set('v_svChipEff', f.lifetimeGen > 0 && Number.isFinite(f.effectivePerUnit) && f.effectivePerUnit >= 0 ? '₹' + f.effectivePerUnit.toFixed(2) + '/unit' : '—');
     set('v_svChipEffL', P.chips.effective);
 
     set('v_svChartCumTitle', P.chartCumTitle);
@@ -567,11 +676,11 @@
       rows.map((y) => {
         const cum = f.series.cumSaving[y - 1];
         const net = cum - f.netInvestment;
-        const roi = f.netInvestment > 0 ? (net / f.netInvestment) * 100 : 0;
+        const roi = f.netInvestment > 0 ? (net / f.netInvestment) * 100 : NaN;
         return '<tr><td class="sv-y">' + y + ' yrs</td>' +
           '<td>' + F.fmtINR(cum) + '</td>' +
           '<td class="' + (net >= 0 ? 'pos' : 'neg') + '">' + (net >= 0 ? '+' : '−') + ' ' + F.fmtINR(Math.abs(net)) + '</td>' +
-          '<td class="' + (net >= 0 ? 'pos' : 'neg') + '">' + (roi >= 0 ? '+' : '−') + Math.abs(roi).toFixed(0) + '%</td></tr>';
+          '<td class="' + (net >= 0 ? 'pos' : 'neg') + '">' + (Number.isFinite(roi) ? (roi >= 0 ? '+' : '−') + Math.abs(roi).toFixed(0) + '%' : '—') + '</td></tr>';
       }).join('') + '</tbody>');
 
     set('v_svAssumptionsLabel', P.assumptionsLabel);
@@ -590,7 +699,7 @@
   function renderInvestment(s, f, v) {
     const P = CONTENT.pageInvestment;
     set('v_inHeading', P.heading);
-    set('v_inSub', P.sub);
+    set('v_inSub', root.Bess.included(s) ? 'Solar-only pricing • see Storage Assessment for the separate battery upgrade.' : P.sub);
     set('v_inDesc', tpl(P.desc, v));
 
     set('v_inCostBase', F.fmtINR(f.projectCost));
@@ -600,7 +709,7 @@
     set('v_inCostSub', '− ' + F.fmtINR(f.subsidy));
     set('v_inCostSubL', P.cards.subsidy);
     set('v_inCostNet', F.fmtINR(f.netInvestment));
-    set('v_inCostNetL', P.cards.netInvestment);
+    set('v_inCostNetL', root.Bess.included(s) ? 'Solar-only net investment' : P.cards.netInvestment);
     /* subsidy caption reflects exactly how the number was derived */
     const subCap = f.subsidyAuto ? P.cards.subsidyCaptionAuto
       : (s.subsidyOverride !== '' ? P.cards.subsidyCaptionOverride : P.cards.subsidyCaptionNA);
@@ -609,12 +718,15 @@
     set('v_inRateL', P.rateChip);
 
     /* commercial / industrial tax shield benefit (IT Act Sec 32) */
+    setHTML('v_inTaxIcon', I.get('building', 22, '#166534'));
     const taxBanner = $('v_inTaxShieldBanner');
     if (taxBanner) {
       if (f.isCommercialOrInd && f.taxShield > 0) {
         taxBanner.style.display = 'flex';
         set('v_inTaxDepr', F.fmtINR(f.taxDepreciationYear1));
         set('v_inTaxSaved', F.fmtINR(f.taxShield));
+        set('v_inTaxRate', f.corpTaxRatePct + '%');
+        set('v_inDeprRate', f.depreciationRatePct + '%');
       } else {
         taxBanner.style.display = 'none';
       }
@@ -647,7 +759,7 @@
       '<div class="inc-item">' + I.get(it.icon || 'check', 16, '#D96A0E') +
       '<div class="inc-t">' + esc(it.title) + '</div></div>').join(''));
     set('v_inPayLabel', P.paymentLabel);
-    set('v_inPayNote', P.paymentNote);
+    set('v_inPayNote', (root.Bess.included(s) ? 'Solar-only milestones. ' : '') + P.paymentNote);
     const pay = [
       ['v_inPayA', f.pay.advance, 'Advance — on signing'],
       ['v_inPayD', f.pay.dispatch, 'Before material dispatch'],
@@ -688,7 +800,7 @@
     if (!fin) return; /* page hidden; nothing to fill */
     set('v_finEyebrow', P.eyebrow);
     set('v_finHeading', P.heading);
-    set('v_finSub', P.sub);
+    set('v_finSub', root.Bess.included(s) ? 'Solar-only cash-flow illustration • battery cost and operating benefits are not included.' : P.sub);
     set('v_finPara', P.para);
     set('v_finRecap', P.recapLabel + ':  ₹' + F.fmtINR(fin.loan).replace('₹', '') +
       '  @ ' + s.loanRate + '% p.a.  ×  ' + s.loanYears + ' years  →  EMI ' +
@@ -743,7 +855,8 @@
     set('v_prHeading', P.heading);
     set('v_prSub', P.sub);
     /* traceable counts: projects listed on this page + overall track record stat */
-    const listed = P.categories.reduce((t, c) => t + c.projects.length, 0);
+    const categories = portfolioCategories(P);
+    const listed = categories.reduce((t, c) => t + c.projects.length, 0);
     setHTML('v_prStats',
       '<span class="ps-big">' + listed + ' flagship projects</span>' +
       '<span class="ps-sep"></span>' +
@@ -751,14 +864,15 @@
       '<span class="ps-sep"></span>' +
       '<span>' + esc(s.statProjects) + ' delivered to date</span>');
     const catIcons = ['factory', 'building', 'home'];
-    setHTML('v_prCats', P.categories.map((cat, ci) => {
+    setHTML('v_prCats', categories.map((cat, ci) => {
       return '<div class="proj-cat-label">' + I.chip(catIcons[ci % catIcons.length], 26) +
         '<div class="txt">' + esc(cat.label) + '</div></div>' +
-        '<div class="proj-grid">' + cat.projects.map((p) => {
+        '<div class="proj-grid" style="grid-template-columns:repeat(' + Math.min(cat.projects.length, 4) + ',1fr)">' + cat.projects.map((p) => {
           const src = PROJECT_IMAGES[p.img] || '';
-          return '<div class="proj-card"><img src="' + esc(src) + '" alt="' + esc(p.name) + '">' +
+          return '<div class="proj-card" data-project="' + esc(p.img) + '"><div class="pc-photo"><img src="' + esc(src) + '" alt="' + esc(p.name) + '"></div>' +
             '<div class="pc-body"><div class="pc-name">' + esc(p.name) + '</div>' +
-            '<div class="pc-loc">' + esc(p.location) + '</div>' +
+            (p.installation || p.img === 'PROJ_1_1' ? '<div class="pc-loc">' + esc(p.installation || 'Rooftop Solar') + '</div>' : '') +
+            (p.location ? '<div class="pc-loc">' + esc(p.location) + '</div>' : '') +
             '<div class="pc-cap">' + esc(p.capacity) + '</div></div></div>';
         }).join('') + '</div>';
     }).join(''));
@@ -793,7 +907,7 @@
   function renderTerms(s, f, v) {
     const P = CONTENT.pageTerms;
     set('v_tmHeading', P.heading);
-    set('v_tmSub', P.sub);
+    set('v_tmSub', root.Bess.included(s) ? 'Solar EPC terms below • battery scope, warranties and payment terms require a separate written agreement.' : P.sub);
     set('v_tmIntro', P.intro);
     set('v_tmItemsLabel', P.itemsLabel);
     setHTML('v_tmItems', P.items.map((it, i) =>
@@ -816,12 +930,7 @@
       '<div class="next-item">' + I.chip(it.icon, 30) +
       '<div><div class="next-t">' + esc(tpl(it.title, v)) + '</div>' +
       '<div class="next-d">' + esc(tpl(it.desc, v)) + '</div></div></div>').join(''));
-    set('v_clHighlight', f.annualSaving > 0
-      ? 'Projected saving of ' + F.fmtINR(f.annualSaving / 12) + '/month — every month of delay has a real cost.'
-      : '');
-    show('v_clHighlightRow', f.annualSaving > 0);
     set('v_clCta', P.cta);
-    set('v_clCtaPhone', s.companyPhone);
     const icoMap = { v_clIcoCompany: 'building', v_clIcoPin: 'pin', v_clIcoPhone: 'phone', v_clIcoMail: 'mail', v_clIcoWeb: 'globe' };
     Object.keys(icoMap).forEach((id) => setHTML(id, I.chip(icoMap[id], 26)));
     set('v_clCompanyName', s.companyName + (s.companyName.match(/Pvt\.?\s*Ltd\.?/i) ? '' : ' Pvt. Ltd.'));
@@ -831,7 +940,7 @@
     set('v_clEmail', s.companyEmail);
     set('v_clWebsite', s.companyWebsite);
     set('v_clAcceptLabel', P.acceptLabel);
-    set('v_clAcceptIntro', tpl(P.acceptIntro, v));
+    set('v_clAcceptIntro', root.Bess.included(s)||root.AdditionalSystems.included(s) ? 'Signing confirms only the scope separately agreed in writing. Inclusion of a recommended or alternative battery / additional system does not authorise its supply or installation.' : tpl(P.acceptIntro, v));
     set('v_clSignCustomer', P.signCustomer);
     set('v_clSignCompany', tpl(P.signCompany, v));
     set('v_clSignCustomerSub', P.signCustomerSub);
@@ -851,6 +960,10 @@
     { id: 'pageWhySolar', nav: 'Why Solar', title: 'Why Rooftop Solar', render: renderWhySolar },
     { id: 'pageSolution', nav: 'Solution', title: 'Proposed Solution', render: renderSolution },
     { id: 'pageTechSpec', nav: 'Tech Specs', title: 'Technical Specification', render: renderTechSpec },
+    { id: 'pageBessOverview', nav: 'Battery Storage', title: 'Battery Storage', render: (s,f)=>root.Bess.overview(s,f), visible: s=>root.Bess.included(s) },
+    { id: 'pageBessAssessment', nav: 'Storage Value', title: 'Storage Assessment', render: (s,f)=>root.Bess.assessment(s,f), visible: s=>root.Bess.included(s) },
+    { id: 'pageSystemOverview', nav: 'Additional System', title: 'Additional System', render: (s,f)=>root.SupplementDesign.systemOverview(s,f), visible:s=>root.AdditionalSystems.included(s) },
+    { id: 'pageSystemDetail', nav: 'System Scope', title: 'Additional System Scope', render: (s,f)=>root.SupplementDesign.systemDetail(s,f), visible:s=>root.AdditionalSystems.included(s) },
     { id: 'pageScope', nav: 'EPC Scope', title: 'EPC Scope', render: renderScope },
     { id: 'pageQuality', nav: 'Quality', title: 'Installation Quality', render: renderQuality },
     { id: 'pageSavings', nav: 'Savings', title: 'Generation & Savings', render: renderSavings },
@@ -901,9 +1014,11 @@
     document.querySelectorAll('[data-foot-company]').forEach((el) => { el.textContent = footLeft; });
     const tagline = String(CONTENT.shared.footerTagline || '').replace(/&nbsp;/g, ' ').replace(/<[^>]*>/g, '');
     document.querySelectorAll('[data-foot-tagline]').forEach((el) => { el.textContent = tagline; });
-    /* logo on every page + form brand */
-    const logoSrc = ($('formLogo') || {}).src;
-    if (logoSrc) document.querySelectorAll('.pg-logo img, .cover-logo img').forEach((img) => { img.src = logoSrc; });
+    /* Same cover-derived mark, with transparent ink suited to its surface. */
+    document.querySelectorAll('#formLogo, #shareLogo, .pg-logo img, .closing-brand img').forEach((img) => {
+      const src = img.closest('.closing-brand') ? 'assets/images/ktm-logo-dark.png' : 'assets/images/ktm-logo-light.png';
+      if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+    });
   }
 
   /* ================================================================== */
@@ -926,18 +1041,33 @@
     const net = F.fmtINRshort(f.netInvestment);
     el.textContent = 'Live • ' + cap + ' • ' + cust + ' • ' + net;
     const chip = $('liveChip');
-    if (chip) chip.title = 'Live quote — ' + cap + ' for ' + (s.custName || 'customer') + ' — net ' + F.fmtINR(f.netInvestment);
+    if (chip) chip.title = 'Live quote — ' + cap + ' for ' + (s.custName || 'customer') + (root.Bess.included(s)||root.AdditionalSystems.included(s) ? ' — solar-only net ' : ' — net ') + F.fmtINR(f.netInvestment);
   }
 
   /* ================================================================== */
   let lastState = null;
   function renderAll(stateOverride) {
-    const s = stateOverride || readState();
+    const raw = stateOverride || readState();
+    const s = root.Bess.resolve(raw,F.compute(raw));
+    if(!stateOverride) root.Bess.applyDerived(s);
     lastState = s;
     const f = F.compute(s);
     const v = tplVars(s, f);
     renderChrome(s, f);
     PAGES.forEach((p) => { try { p.render(s, f, v); } catch (e) { console.error('render', p.id, e); } });
+    root.Bess.syncControls(s);
+    root.AdditionalSystems.sync(s);
+    if(root.AdditionalSystems.included(s)){
+      set('v_exSub','Solar-only figures • separately priced system supplement included; final net savings require site modelling.');
+      set('v_svSub','Solar-only potential energy value • additional controls / loads are not modelled.');
+      set('v_inSub','Solar-only pricing • battery and additional-system upgrades are priced separately.');
+      set('v_inCostNetL','Solar-only net investment');
+      set('v_inPayNote','Solar-only milestones. '+CONTENT.pageInvestment.paymentNote);
+      set('v_finSub','Solar-only cash-flow illustration • optional-system prices and operating effects are not included.');
+      set('v_opSub','Solar-only options • optional systems are proposal-level and priced separately.');
+      set('v_exHeroNetLabel','Solar-only net investment');
+      set('v_tmSub','Solar EPC terms • additional system scope, price and payment terms require separate agreement.');
+    }
     updateLiveChip(s, f);
     drawCharts(f);
     if (typeof document !== 'undefined' && document.dispatchEvent) {
@@ -949,6 +1079,8 @@
   function readState() {
     const g = (id) => { const el = $(id); return el ? el.value : ''; };
     return {
+      ...root.Bess.readForm(),
+      ...root.AdditionalSystems.readForm(),
       companyName: g('companyName'), companyTagline: g('companyTagline'),
       companyPhone: g('companyPhone'), companyEmail: g('companyEmail'),
       companyAddress: g('companyAddress'), companyWebsite: g('companyWebsite'),
@@ -965,6 +1097,7 @@
       roofType: g('roofType'), availableArea: g('availableArea'),
       pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'),
       costPerKwp: g('costPerKwp'), gstPercent: g('gstPercent'),
+      corpTaxRate: g('corpTaxRate'), depreciationRate: g('depreciationRate'),
       tariff: g('tariff'), escalation: g('escalation'), degradation: g('degradation'),
       subsidyOverride: g('subsidyOverride'), co2Factor: g('co2Factor'), treeFactor: g('treeFactor'),
       payAdvance: g('payAdvance'), payDispatch: g('payDispatch'), payCompletion: g('payCompletion'),
@@ -972,12 +1105,21 @@
       bomBos: g('bomBos'), bomInstall: g('bomInstall'), bomLiaison: g('bomLiaison'),
       loanAmt: g('loanAmt'), loanRate: g('loanRate'), loanYears: g('loanYears'),
       durationText: g('durationText'), jurisdiction: g('jurisdiction'), surveyWindow: g('surveyWindow'),
-      shareUrl: g('shareUrl'),
+      shareUrl: g('shareUrl'), galleryUrl: g('galleryUrl'), qrDestinationType: g('qrDestinationType'),
+      briefingEnabled: $('briefingEnabled') ? $('briefingEnabled').checked : true,
       options: (root.__qsOptions || [])
     };
   }
 
-  root.Render = { renderAll, PAGES, drawCharts, readState, pageNum, visiblePages,
+  // Chromium can retain SVG text paint coordinates from the previous ancestor
+  // scale even though getBBox/getBoundingClientRect report the new geometry.
+  // Rebuild this small, handler-free SVG after preview/PDF transform changes.
+  function refreshDiagramScale() {
+    const svg = $('v_tsDiagram')?.firstElementChild;
+    if (svg) svg.replaceWith(svg.cloneNode(true));
+  }
+
+  root.Render = { safeHttpUrl, renderAll, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
     get lastState() { return lastState; },
     get lastVisible() { return lastVisible; } };
 })(typeof self !== 'undefined' ? self : this);
