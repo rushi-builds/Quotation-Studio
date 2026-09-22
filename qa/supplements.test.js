@@ -37,7 +37,7 @@ check('missing charging cost still withholds auto financial benefit',B.compute({
 check('standalone battery enabled does not imply inclusion in the solar report',B.enabled({...base,bessInclude:false})&&!B.included({...base,bessInclude:false}));
 check('malformed inclusion flags never become truthy in Customer View',!B.included({...base,bessInclude:'false'})&&!A.included({systemEnabled:true,systemInclude:'false'}));
 check('battery off emits no stored calculations',!calc({bessEnabled:false}).enabled&&calc({bessEnabled:false}).capacity===null);
-check('four additional-system templates plus independent Custom state',Object.keys(A.templates).length===4&&A.DEFAULTS.systemTemplate==='custom');
+check('five additional-system templates plus independent Custom state',Object.keys(A.templates).length===5&&A.DEFAULTS.systemTemplate==='custom');
 check('all presets include purpose, equipment, scope, notes and exclusions',Object.values(A.templates).every(t=>['name','purpose','equipment','scope','notes','exclusions'].every(k=>t[k])));
 check('Zero Export explicitly acknowledges curtailment and transient export',A.templates.zero.notes.includes('transient')&&A.templates.zero.notes.includes('reduce'));
 check('no automatic additional-system price or savings',A.DEFAULTS.systemPrice===''&&A.price({systemPrice:''})===null&&A.price({systemPrice:' '})===null);
@@ -50,4 +50,27 @@ check('empty override fields still use automatic defaults', size({bessUnitsOverr
 check('invalidated automatic configuration clears price and engineering status', B.resolve({...confirmed,bessCost:'300000',bessPcsKw:'invalid'},solar).bessCost===''&&B.resolve({...confirmed,bessPcsKw:'invalid'},solar).bessBackupReady==='pending');
 check('additional prices reject nondecimal syntax and booleans', ['0x20','0b10',false,true,{}].every(v=>A.price({systemPrice:v})===null));
 check('legacy battery data does not invent a requested backup target or recommendation', B.DEFAULTS.bessTargetHours===''&&B.reason(B.DEFAULTS)==='Optional alternative');
+check('daily-shift sizing increases the bank to retain the entered backup reserve',size({bessUseCase:'self',bessReserve:'20'}).units===3&&close(size({bessUseCase:'self',bessReserve:'20'}).shiftPerUnit,4.3776*.8));
+check('backup duration sizing uses the full usable charge, not the daily-shift reserve',size({bessUseCase:'self',bessReserve:'20',bessSizing:'backup',bessLoad:'1',bessTargetHours:'4'}).units===1);
+check('unknown or full reserve cannot claim a daily-shift target was sized',size({bessUseCase:'self',bessReserve:''}).units===null&&size({bessUseCase:'self',bessReserve:'100'}).units===null);
+check('an explicit undersized quantity is flagged after reserve deduction',size({bessUseCase:'self',bessReserve:'20',bessUnitsOverride:'2'}).issue.includes('after operating reserve'));
+const invalidLinked=B.resolve({...base,bessSpecMode:'manual',bessAutoEconomics:true,bessShiftShare:'101',bessSourceEnergy:'8.4',bessDemand:'8.4'},solar);
+check('invalid linked sizing clears stale charge and demand instead of preserving previous savings assumptions',invalidLinked.bessSourceEnergy===''&&invalidLinked.bessDemand==='');
+check('PFC template never invents a capacitor rating or a guaranteed saving',A.templates.pfc.notes.includes('cannot be inferred from solar kWp')&&A.templates.pfc.notes.includes('no savings or kvar sizing'));
+check('catalogue usable-energy changes invalidate old confirmation even at unchanged kWh and kW',B.resolve({...confirmed,bessDod:'90',bessCost:'300000'},solar).bessBackupReady==='pending'&&B.resolve({...confirmed,bessDod:'90',bessCost:'300000'},solar).bessCost==='');
+check('changing the selected identity cannot retain a prior same-rated price',B.resolve({...confirmed,bessMake:'Different same-rated model',bessCost:'300000'},solar).bessCost==='');
+let scenarios=0;
+for(const model of C.models)for(const capacity of [1,3,7,10,25,50,100])for(const share of [10,30,50,100])for(const eff of [85,90,96,100])for(const reserve of [0,20,50,99]){
+ const input={...base,capacity:String(capacity),bessModel:model.id,bessUseCase:'self',bessShiftShare:String(share),bessDischargeEff:String(eff),bessReserve:String(reserve)};
+ const a=B.sizing(input,F.compute(input));scenarios++;
+ if(a.units!==null){assert(Number.isInteger(a.units)&&a.units<=model.maxUnits);assert(a.units*a.shiftPerUnit+1e-8>=a.target);assert(a.units===1||(a.units-1)*a.shiftPerUnit<a.target+1e-8);assert(a.power<=a.pcsLimit+1e-8);}
+ else assert(a.recommended>model.maxUnits);
+}
+for(const model of C.models)for(const load of [.5,2,5,10,50])for(const hours of [.5,1,4,12,24,168])for(const eff of [90,96]){
+ const input={...base,bessModel:model.id,bessSizing:'backup',bessLoad:String(load),bessTargetHours:String(hours),bessDischargeEff:String(eff)};
+ const a=B.sizing(input,solar);scenarios++;
+ if(a.units!==null){assert(a.units*a.perUnit+1e-8>=load*hours);assert(a.units*a.unitPower+1e-8>=load);if(load>a.pcsLimit)assert(a.issue.includes('below'));}
+ else assert(a.recommended>model.maxUnits);
+}
+check(scenarios+' model/solar/reserve/backup scenarios preserve energy, power and configuration bounds',scenarios===2540);
 console.log(`\n${passed} passed, 0 failed`);

@@ -13,31 +13,38 @@
   const model=Catalog.get(s.bessModel),eff=numeric(s,'bessDischargeEff'),load=numeric(s,'bessLoad'),hours=numeric(s,'bessTargetHours'),share=numeric(s,'bessShiftShare'),derate=numeric(s,'bessPowerDerate');
   const daily=Number.isFinite(solar.annualGen)?Math.max(0,solar.annualGen)/365:null;
   const target=s.bessSizing==='backup'?(load>0&&hours>0&&hours<=168?load*hours:null):(daily!==null&&share>0&&share<=100?daily*share/100:null);
+  const useReserve=s.bessSizing!=='backup'&&['self','tou'].includes(s.bessUseCase);
+  const reserve=useReserve?numeric(s,'bessReserve'):0;
+  const reserveValid=reserve!==null&&reserve>=0&&reserve<100;
   const good=!!model&&eff>0&&eff<=100&&derate!==null&&derate>=0&&derate<100;
   const perUnit=good?model.usable*eff/100:null,unitPower=good?model.voltage*model.current/1000*(1-derate/100)*eff/100:null;
-  const recommended=good&&target>0?Math.max(1,Math.ceil(target/perUnit-1e-10),s.bessSizing==='backup'&&load>0?Math.ceil(load/unitPower-1e-10):1):null;
+  const shiftPerUnit=good&&reserveValid?perUnit*(1-reserve/100):null;
+  const recommended=good&&reserveValid&&target>0?Math.max(1,Math.ceil(target/shiftPerUnit-1e-10),s.bessSizing==='backup'&&load>0?Math.ceil(load/unitPower-1e-10):1):null;
   const override=numeric(s,'bessUnitsOverride'),units=supplied(s.bessUnitsOverride)?(Number.isInteger(override)&&override>=1&&override<=model?.maxUnits?override:null):(recommended!==null&&recommended<=model.maxUnits?recommended:null);
   const pcs=numeric(s,'bessPcsKw'),pcsLimit=supplied(s.bessPcsKw)?pcs:(Number.isFinite(solar.inverterKw)?solar.inverterKw:null);
   const power=units&&pcsLimit>0?Math.min(units*unitPower,pcsLimit):null;
-  const issue=!model?'Select a battery model or enter Custom specifications.':!good?'Enter valid conversion efficiency and power derating assumptions.':pcsLimit===null||pcsLimit<=0?'Enter a positive converter limit or a valid solar inverter size.':target===null||target<=0?'Enter the essential load and backup hours, or choose a solar-linked sizing scenario.':recommended>model.maxUnits&&!supplied(s.bessUnitsOverride)?'Required module count exceeds this catalogue configuration. An engineered larger system is required.':units===null?'Enter a whole module quantity within the catalogue limit.':s.bessSizing==='backup'&&load>power?'The proposed converter output is below the selected backup load.':units*perUnit+1e-8<target?'Selected quantity is below the energy target.':'';
-  return {model,daily,target,perUnit,unitPower,recommended,units,pcsLimit,power,issue};
+  const issue=!model?'Select a battery model or enter Custom specifications.':!good?'Enter valid conversion efficiency and power derating assumptions.':!reserveValid?'Daily-shift sizing requires an operating reserve from 0% to less than 100%.':pcsLimit===null||pcsLimit<=0?'Enter a positive converter limit or a valid solar inverter size.':target===null||target<=0?'Enter the essential load and backup hours, or choose a solar-linked sizing scenario.':recommended>model.maxUnits&&!supplied(s.bessUnitsOverride)?'Required module count exceeds this catalogue configuration. An engineered larger system is required.':units===null?'Enter a whole module quantity within the catalogue limit.':s.bessSizing==='backup'&&load>power?'The proposed converter output is below the selected backup load.':units*shiftPerUnit+1e-8<target?'Selected quantity is below the energy target after operating reserve.':'';
+  return {model,daily,target,perUnit,shiftPerUnit,reserve,useReserve,unitPower,recommended,units,pcsLimit,power,issue};
  }
  function resolve(input,solar={}){
   const s={...input};if(!enabled(s))return s;
   const a=sizing(s,solar);
   if(s.bessSpecMode==='auto'&&a.model){
-   const priorCapacity=numeric(s,'bessCapacity'),priorPower=numeric(s,'bessPower');
-   const changed=(priorCapacity!==null&&(a.units===null||Math.abs(priorCapacity-a.model.rated*a.units)>1e-5))||(priorPower!==null&&(a.power===null||Math.abs(priorPower-a.power)>1e-5));
+   const priorCapacity=numeric(s,'bessCapacity'),priorPower=numeric(s,'bessPower'),priorDod=numeric(s,'bessDod');
+   const changed=(priorCapacity!==null&&(a.units===null||Math.abs(priorCapacity-a.model.rated*a.units)>1e-5))||(priorPower!==null&&(a.power===null||Math.abs(priorPower-a.power)>1e-5))||(priorDod!==null&&Math.abs(priorDod-a.model.usable/a.model.rated*100)>1e-5)||(!!s.bessMake&&s.bessMake!==a.model.name);
    if(changed){s.bessBackupReady='pending';s.bessCost='';}
    s.bessMake=a.model.name;s.bessChemistry=a.model.chemistry;s.bessUnits=a.units===null?'':String(a.units);
    s.bessCapacity=a.units===null?'':String(Number((a.model.rated*a.units).toFixed(6)));
    s.bessDod=String(a.model.usable/a.model.rated*100);
    s.bessPower=a.power===null?'':String(Number(a.power.toFixed(6)));
   }
-  if(s.bessAutoEconomics===true&&a.target!==null){
-   s.bessSourceEnergy=String(Number((a.daily*(numeric(s,'bessShiftShare')||0)/100).toFixed(4)));
-   s.bessDemand=String(Number(a.target.toFixed(4)));
-   s.bessImportRate=String(solar.tariff??input.tariff??'');
+  if(s.bessAutoEconomics===true){
+   const share=numeric(s,'bessShiftShare');
+   const charge=a.daily!==null&&share>0&&share<=100?a.daily*share/100:null;
+   s.bessSourceEnergy=charge!==null&&Number.isFinite(charge)?String(Number(charge.toFixed(4))):'';
+   s.bessDemand=a.target!==null&&Number.isFinite(a.target)?String(Number(a.target.toFixed(4))):'';
+   const tariff=Number.isFinite(solar.tariff)?solar.tariff:numeric(input,'tariff');
+   s.bessImportRate=tariff!==null&&tariff>=0?String(tariff):'';
   }
   return s;
  }
@@ -98,6 +105,7 @@
   const auto=s.bessSpecMode==='auto'&&!!Catalog.get(s.bessModel);
   document.querySelector('label[for="bessPower"]').textContent=auto?'Calculated design AC output (kW)':'Continuous AC output (kW)';
   for(const id of ['bessCapacity','bessDod','bessPower'])document.getElementById(id).readOnly=auto;
+  for(const id of ['bessSourceEnergy','bessDemand','bessImportRate'])document.getElementById(id).readOnly=s.bessAutoEconomics===true;
   document.getElementById('bessCustomIdentity').hidden=!!Catalog.get(s.bessModel);
   document.getElementById('bessAutoSetup').hidden=!Catalog.get(s.bessModel);
   document.getElementById('bessSolarSizing').hidden=s.bessSizing==='backup';
@@ -123,7 +131,8 @@
    }
   });
   document.querySelectorAll('[data-bess-choice]').forEach(el=>el.addEventListener('click',()=>{const input=document.getElementById('bessEnabled');input.checked=el.dataset.bessChoice==='yes';input.dispatchEvent(new Event('input',{bubbles:true}));}));
-  for(const id of ['bessInverter','bessCoupling'])document.getElementById(id).addEventListener('input',()=>{document.getElementById('bessBackupReady').value='pending';});
+  for(const id of ['bessInverter','bessCoupling','bessMake','bessCapacity','bessDod','bessDischargeEff','bessPower','bessPowerDerate','bessPcsKw'])document.getElementById(id).addEventListener('input',()=>{document.getElementById('bessBackupReady').value='pending';document.getElementById('bessCost').value='';});
+  document.getElementById('bessLoad').addEventListener('input',()=>{document.getElementById('bessBackupReady').value='pending';});
   document.getElementById('bessUseQuote').addEventListener('click',()=>{
    for(const [k,v] of Object.entries({bessAutoEconomics:true,bessRte:'88',bessReserve:'20',bessCycles:'1',bessDays:'365',bessChargeHours:'4',bessDischargeHours:'4',bessLife:'10'})){const e=document.getElementById(k);if(e.type==='checkbox')e.checked=v;else e.value=v;}
    const s=root.Render.lastState,b=compute(s,root.Finance.compute(s));document.getElementById('bessChargePower').value=b.power??'';

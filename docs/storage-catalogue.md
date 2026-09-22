@@ -81,6 +81,8 @@ voltage/SOC, environment and operating point.
 
 The solar-linked starting scenario shifts **30% of average daily generation**;
 this is neither measured surplus nor a claim that every day has that energy.
+For solar-linked self-consumption/TOU sizing, the entered operating reserve is
+deducted from each module’s usable energy before rounding the quantity upward.
 Essential-load sizing requires the preparer to enter both kW and backup hours;
 backup duration starts blank. Solar capacity alone cannot establish outage needs.
 

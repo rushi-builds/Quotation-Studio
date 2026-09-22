@@ -38,7 +38,8 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await geometry('Completed battery pages');
   await page.$eval('#bessCapacity',e=>e.closest('details').open=true);
   await page.focus('#bessCapacity');await page.keyboard.down('Control');await page.keyboard.press('A');await page.keyboard.up('Control');await page.keyboard.type('20');await page.waitForFunction(()=>Render.lastState.bessCapacity==='20'&&bessOverviewBody.textContent.includes('20 kWh'));
-  check('typing a battery rating updates the form, preview and saved proposal',await page.evaluate(()=>{__qsSaveNow();return Proposals.active().form.bessCapacity==='20'&&bessOverviewBody.textContent.includes('8.55 hours');}));
+  check('typing a battery rating updates saved capacity and requires renewed backup/price review',await page.evaluate(()=>{__qsSaveNow();return Proposals.active().form.bessCapacity==='20'&&Proposals.active().form.bessBackupReady==='pending'&&bessCost.value===''&&bessOverviewBody.textContent.includes('Design pending');}));
+  await apply({bessBackupReady:'yes',bessCost:'300000'});check('explicit reconfirmation publishes runtime for the new capacity',await page.$eval('#bessOverviewBody',e=>e.textContent.includes('8.55 hours')));
   await apply({...fixture,bessSourceRate:''});check('a missing charging tariff removes the savings figure',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('Inputs pending')&&!e.textContent.includes('21,940')));
   await apply({...fixture,bessMake:'QA <img src=x onerror=alert(1)> model'});check('battery identity is literal text, not executable HTML',await page.$eval('.bess-specname',e=>!e.querySelector('img')&&e.textContent.includes('<img')));await apply(fixture);
 

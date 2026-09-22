@@ -30,6 +30,7 @@ let passed=0;const check=(n,c)=>{assert(c,n);passed++;console.log('  ✓ '+n);};
   check('automatic bank changes clear stale installed price in form and live state',await page.evaluate(()=>bessCost.value===''&&Render.lastState.bessCost===''));
 check('changing the automatic bank invalidates prior engineering confirmation',await page.evaluate(()=>bessBackupReady.value==='pending'&&Render.lastState.bessBackupReady==='pending'));
   await page.select('#bessSpecMode','manual');await apply({bessCapacity:'18',bessPower:'4'});check('manual override does not silently snap back to catalogue ratings',await page.evaluate(()=>bessCapacity.value==='18'&&!bessCapacity.readOnly&&Render.lastState.bessCapacity==='18'));
+  await apply({bessBackupReady:'yes',bessCost:'300000'});await page.$eval('#bessPower',e=>{e.value='3.5';e.dispatchEvent(new Event('input',{bubbles:true}));});check('manual electrical-rating edits also invalidate prior backup confirmation and price',await page.evaluate(()=>bessBackupReady.value==='pending'&&bessCost.value===''));
   await apply({bessCost:'123000',bessWarranty:'Previous model warranty',bessBackupReady:'yes'});
   await page.select('#bessModel','custom');
   check('switching to Custom clears the old model price, warranty and confirmation',await page.evaluate(()=>bessCost.value===''&&bessWarranty.value===''&&bessBackupReady.value==='pending'));
@@ -43,13 +44,21 @@ await apply({bessMake:'Customer specified storage <not markup>'});check('Custom 
   check('missing opportunity cost and O&M still withhold financial benefit',await page.evaluate(()=>Bess.compute(Render.lastState,Finance.compute(Render.lastState)).annualBenefit===null));
   await apply({bessSourceRate:'3',bessOm:'2000'});check('complete economic assumptions calculate a finite separate benefit',await page.evaluate(()=>Number.isFinite(Bess.compute(Render.lastState,Finance.compute(Render.lastState)).annualBenefit)));
   await geometry('Automatic battery with financial illustration');
+  check('linked economic fields are visibly read-only until unlinked',await page.evaluate(()=>bessSourceEnergy.readOnly&&bessDemand.readOnly&&bessImportRate.readOnly));
+  await apply({bessAutoEconomics:false});check('manual economics can override the quotation link',await page.evaluate(()=>!bessSourceEnergy.readOnly&&!bessDemand.readOnly&&!bessImportRate.readOnly));
+  await apply({bessAutoEconomics:true,bessSizing:'solar',bessReserve:'20'});
+  check('solar energy shifting accounts for reserve in automatic module count and report',await page.evaluate(()=>bessUnits.value==='3'&&bessOverviewBody.textContent.includes('20% operating reserve included')));
+  await geometry('Automatic reserve-aware financial report');
+  await apply({bessUnitsOverride:'2'});check('manual quantity below reserve-adjusted target is flagged',await page.evaluate(()=>bessSizingStatus.textContent.includes('after operating reserve')));
+  await apply({bessUnitsOverride:'',bessSizing:'backup'});await apply({bessCost:'300000'});
+
   await page.evaluate(()=>{document.querySelector('[data-section=systemEnabled]').open=true;document.querySelector('[data-system-choice=yes]').click();});
-  check('four system templates and Custom last',await page.evaluate(()=>systemTemplate.options.length===5&&systemTemplate.options[4].value==='custom'));
-  for(const kind of ['zero','monitoring','ev','dg']){await page.select('#systemTemplate',kind);check(kind+' fills connected editable information without a price',await page.evaluate(()=>systemName.value&&systemPurpose.value&&systemScope.value&&systemNotes.value&&systemPrice.value===''&&systemOverviewBody.textContent.includes(systemName.value)));await geometry(kind+' template');}
+  check('five system templates and Custom last',await page.evaluate(()=>systemTemplate.options.length===6&&systemTemplate.options[5].value==='custom'));
+  for(const kind of ['zero','monitoring','ev','pfc','dg']){await page.select('#systemTemplate',kind);check(kind+' fills connected editable information without a price',await page.evaluate(()=>systemName.value&&systemPurpose.value&&systemScope.value&&systemNotes.value&&systemPrice.value===''&&systemOverviewBody.textContent.includes(systemName.value)));await geometry(kind+' template');}
   await page.select('#systemTemplate','custom');await apply({systemName:'Load prioritisation study',systemPurpose:'Assess essential circuits for the selected project.',systemEquipment:'Site metering\nReview of existing control panel',systemScope:'Review the customer load schedule\nPrepare an agreed commissioning plan',systemNotes:'Custom scope, not an automatic savings calculation.',systemExclusions:'Equipment supply unless separately priced',systemPrice:'25000'});
   check('Custom system edits appear literally on both pages',await page.evaluate(()=>!systemCustomName.hidden&&systemOverviewBody.textContent.includes('Load prioritisation study')&&systemDetailBody.textContent.includes('Custom scope, not an automatic savings calculation.')));
   check('additional-system price is separate and solar Finance remains unchanged',await page.evaluate(v=>systemOverviewBody.textContent.includes('25,000')&&JSON.stringify(Finance.compute(Render.lastState))===v,original.finance));
-  await page.select('#systemTemplate','zero');check('template change keeps commercial price but refreshes technical notes',await page.evaluate(()=>systemPrice.value==='25000'&&systemNotes.value.includes('transient export')));
+  await apply({systemWarranty:'Prior system warranty',systemDelivery:'Prior system delivery'});await page.select('#systemTemplate','zero');check('template change clears stale price, warranty and delivery while refreshing technical notes',await page.evaluate(()=>systemPrice.value===''&&systemWarranty.value===''&&systemDelivery.value===''&&systemNotes.value.includes('transient export')));await apply({systemPrice:'25000'});
   check('main proposal and multilingual briefing disclose additional scope',await page.evaluate(()=>v_exSub.textContent.includes('system supplement')&&v_svSub.textContent.includes('not modelled')&&v_inPayNote.textContent.includes('Solar-only')&&v_finSub.textContent.includes('Solar-only')&&v_opSub.textContent.includes('Solar-only')&&Briefing.scriptFor(Render.lastState,'en').join(' ').includes('additional system')));
   check('optional recommendations are not authorised by inclusion alone',await page.evaluate(()=>v_clAcceptIntro.textContent.includes('does not authorise')));
   await apply({systemInclude:'false',bessInclude:'false',bessAutoEconomics:'false'});

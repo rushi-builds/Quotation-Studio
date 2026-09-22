@@ -28,7 +28,7 @@ preview, the exported PDF and the customer share view.
   module quantity and converter kW remain controllable. Prices, compatibility,
   warranty and actual backup requirements are not invented.
 - **Additional System**: Zero Export, Energy Monitoring, EV Charging,
-  DG–Solar Coordination and Custom. Edit purpose, equipment, scope, price,
+  Power-Factor Correction, DG–Solar Coordination and Custom. Edit purpose, equipment, scope, price,
   exclusions, delivery, warranty and notes. Includes a **two-page System Report**
   and a separate **one-page System Power Proposal**. No template invents savings.
 - Both features default **off** and can remain enabled for standalone downloads
@@ -66,7 +66,7 @@ assets/
   js/finance.js         Solar calculation engine (pure, UMD) — no DOM access
   js/bess.js            Separate storage sizing / economics engine and form bridge
   js/storage-catalog.js Five versioned, sourced battery candidates
-  js/additional-systems.js Four editable templates + Custom and separate pricing
+  js/additional-systems.js Five editable templates + Custom and separate pricing
   js/supplement-design.js Four photo-led report page renderers
   js/icons.js           Inline-SVG icon set (emoji-free: safe for html2canvas PDF)
   js/charts.js          Dependency-free canvas charts (payback, bars, bridge, donut)
