@@ -320,3 +320,15 @@ proposal pages and financial engine are unchanged.
 All workspace controls are builder-only and excluded from print/PDF and Customer
 View. `qa/control-panel.test.js` checks navigation, live edits, proposal switching,
 content isolation, storage failure, recoverable backup and responsive layouts.
+
+
+### Pre-merge audit — 22 September 2026
+
+See [the release audit](docs/release-audit-2026-09-22.md) for findings, regression
+results and remaining browser-local sharing / device-voice limitations. Fixes
+cover proposal isolation, page-photo persistence and backups, draft acknowledgement
+cleanup, pending imports, storage-full creation, undefined IRR, explicit environmental
+factors and local-calendar dates. The supplied cover, diagram and tracking image
+remain unchanged. Reliable Marathi audio on every device would require a separate
+hosted speech integration; this release provides honest device-voice recovery and
+translated written briefings. Production merge still requires owner approval.

@@ -118,7 +118,7 @@
   function exportFile() {
     const active = root.Proposals.active();
     if (!active) return;
-    const blob = Object.assign({}, active, {form: collectForm(), content: CONTENT, projectImages: PROJECT_IMAGES, options: root.__qsOptions || []});
+    const blob = Object.assign({}, active, {form: collectForm(), content: CONTENT, projectImages: PROJECT_IMAGES, pageImages: root.__qsPageImages || {}, options: root.__qsOptions || []});
     const payload = JSON.stringify({
       kind: 'ktm-proposal',
       v: 3,
@@ -147,11 +147,12 @@
           const created = root.Proposals.create(form, {
             content: p.content || data.content || null,
             projectImages: p.projectImages || data.projectImages || null,
+            pageImages: p.pageImages || data.pageImages || null,
             options: Array.isArray(p.options) ? p.options :
               (Array.isArray(data.options) ? data.options : []),
             status: 'draft'
           });
-          if (p.ref || (data.form && data.form.propRef)) { /* keep ref from file */ }
+          if (!root.Proposals.get(created.id) || !root.Proposals.list().some(item => item.id === created.id)) throw new Error('Not enough browser storage to import this proposal. Your current proposal is unchanged.');
           root.Proposals.setActive(created.id);
           resolve(created);
         } catch (e) { reject(e); }

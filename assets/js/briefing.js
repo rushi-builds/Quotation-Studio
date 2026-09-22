@@ -56,7 +56,7 @@
   function availability() {
     if(!supported()) return 'Audio playback is not supported in this browser. You can read the briefing below.';
     const voice=voiceFor(language);
-    return voice?'Ready in '+names[language]+' · '+voice.name+'. Press Play to begin.':names[language]+' voice unavailable on this device. Install a matching speech voice in device settings, or read the briefing below.';
+    return voice?'Ready in '+names[language]+' · '+voice.name+'. Press Play to begin.':names[language]+' voice unavailable in this browser on this device. Read the '+names[language]+' briefing below, or choose an available audio language.';
   }
   function controls(message) {
     if(!host) return;
@@ -64,6 +64,14 @@
     $('briefingPause').disabled=!['playing','paused'].includes(mode);
     $('briefingPause').textContent=mode==='paused'?'Resume':'Pause';
     $('briefingStop').disabled=mode==='idle';
+    const missing = !voiceFor(language);
+    if ($('briefingVoiceHelp')) $('briefingVoiceHelp').hidden = !missing;
+    if ($('briefingRefresh')) $('briefingRefresh').disabled = !supported();
+    if ($('briefingUseEnglish')) $('briefingUseEnglish').hidden = !missing || language === 'en' || !voiceFor('en');
+    host.querySelectorAll('[data-briefing-language]').forEach(button => {
+      const available = !!voiceFor(button.dataset.briefingLanguage);
+      button.title = names[button.dataset.briefingLanguage] + (available ? ': audio and written briefing available' : ': written briefing available; no matching browser voice');
+    });
     if(message && $('briefingStatus').textContent!==message) $('briefingStatus').textContent=message;
   }
   function stop(message) {
@@ -108,9 +116,13 @@
   function attach(el) {
     host=el;
     host.querySelectorAll('[data-briefing-language]').forEach(button=>button.addEventListener('click',()=>{
-      stop(); language=button.dataset.briefingLanguage; updateTranscript();
+      stop(); language=button.dataset.briefingLanguage; updateTranscript(); revealFallback();
     }));
     $('briefingPlay').addEventListener('click',play);
+    $('briefingRefresh')?.addEventListener('click',()=>{ controls(availability()); revealFallback(); });
+    $('briefingUseEnglish')?.addEventListener('click',()=>{
+      stop(); language='en'; updateTranscript(); // Language choice never autoplays.
+    });
     $('briefingStop').addEventListener('click',()=>stop('Stopped. Press Play to restart from the beginning.'));
     $('briefingPause').addEventListener('click',()=>{
       if(mode==='playing') {synthesis().pause();mode='paused';controls('Paused. Resume or stop the briefing.');}
@@ -120,7 +132,13 @@
       }
     });
     // Closing the player must not leave hidden narration running.
-    host.addEventListener('toggle',()=>{if(!host.open && mode!=='idle')stop();});
+    host.addEventListener('toggle',()=>{
+      if(!host.open && mode!=='idle')stop();
+      else if(host.open && mode==='idle') {controls(availability());revealFallback();}
+    });
+  }
+  function revealFallback() {
+    if (host?.open && !voiceFor(language)) host.querySelector('.briefing-transcript').open = true;
   }
   function sync() {
     const el=$('proposalBriefing'), next=root.Render?.lastState; if(!el || !next)return;
@@ -133,8 +151,9 @@
   }
   if(supported()) synthesis().addEventListener?.('voiceschanged',()=>{
     if(mode!=='idle' && !voiceFor(language))stop('The selected voice is no longer available. Read the briefing or select another language.');
-    else if(mode==='idle')controls(availability());
+    else if(mode==='idle'){controls(availability());revealFallback();}
   });
+  root.addEventListener('focus',()=>{if(mode==='idle')controls(availability());});
   root.addEventListener('pagehide',()=>stop());
   root.addEventListener('beforeprint',()=>stop());
   document.addEventListener('visibilitychange',()=>{if(document.hidden && mode!=='idle')stop('Stopped while this page was in the background. Press Play to restart.');});

@@ -298,6 +298,10 @@
 
     injectPages()
       .then(() => {
+        Object.entries(blob.pageImages || {}).forEach(([id, src]) => {
+          const img = $(id);
+          if (id.startsWith('img_') && img?.matches('.page img') && typeof src === 'string' && src) img.src = src;
+        });
         const state = Object.assign({}, window.StateStore.DEFAULTS, blob.form || {},
           { options: Array.isArray(blob.options) ? blob.options : [] });
         window.Render.renderAll(state);

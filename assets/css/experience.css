@@ -122,3 +122,9 @@
 @font-face{font-family:'Poppins Devanagari';font-weight:600;font-style:normal;font-display:swap;src:url('../fonts/poppins-devanagari-600-normal.woff2') format('woff2');}
 .proposal-briefing{font-family:'Inter','Poppins Devanagari',sans-serif;}
 .proposal-briefing [lang=hi],.proposal-briefing [lang=mr]{font-family:'Poppins Devanagari','Nirmala UI',sans-serif;}
+
+/* Voice availability varies by browser/OS; expose recovery without promising TTS. */
+.briefing-voice-help{background:#f5f8fb;border:1px solid #dce5ed;border-radius:8px;padding:12px;margin:0 0 12px;}
+.briefing-voice-help[hidden],.briefing-controls button[hidden]{display:none!important;}
+.briefing-voice-help p{font-size:11px;line-height:1.7;color:#5b6b80;margin:0 0 10px;}
+.briefing-voice-help .briefing-controls{margin-bottom:0;}

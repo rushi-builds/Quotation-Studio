@@ -129,8 +129,11 @@ error leaves a readable transcript and clear feedback.
 
 **Voice limitation:** this version uses the Web Speech API and available device /
 browser voices. It is not a hosted AI-voice service or a prerecorded audio file.
-Hindi and Marathi require matching installed voices; the app never substitutes an
-English voice. Some device voices use an online provider, disclosed before playback.
+Hindi and Marathi require matching voices exposed by the browser; the app never
+automatically substitutes an English voice. Missing voices now reveal the written
+briefing, a manual **Check voices again** action and an explicit English-language
+switch when an English voice is available. Installing a language pack alone does
+not guarantee a usable speech voice. Some device voices use an online provider, disclosed before playback.
 Voice quality and actual language availability must be checked on the target device.
 Self-hosted Poppins Devanagari fonts (OFL license in `assets/fonts/Poppins-OFL.txt`)
 keep the transcripts readable without a font CDN.
@@ -141,7 +144,7 @@ keeps all customer QR cards hidden. Earlier proposals with no type retain the
 project-gallery default. The existing separately configured cover-proposal QR is
 unchanged.
 
-`qa/briefing.test.js` adds **32 browser checks** covering configuration, persistence,
+`qa/briefing.test.js` adds **35 browser checks** covering configuration, persistence,
 matching-language routing, financial script sync, stale-callback cancellation,
 pause/resume/stop, missing voices, errors, empty/unsafe text, scenario isolation,
 mobile layout and print exclusion. Speech routing tests use a mock engine; they do

@@ -375,6 +375,10 @@
         </div>
         <div class="briefing-controls"><button type="button" id="briefingPlay">Play summary</button><button type="button" id="briefingPause" disabled>Pause</button><button type="button" id="briefingStop" disabled>Stop</button></div>
         <p id="briefingStatus" class="briefing-status" role="status" aria-live="polite"></p>
+        <div id="briefingVoiceHelp" class="briefing-voice-help" hidden>
+          <p>Audio uses voices supplied by your browser and operating system, not a hosted recording. A language pack alone may not provide a speech voice. You can always read the translated briefing below.</p>
+          <div class="briefing-controls"><button type="button" id="briefingRefresh">Check voices again</button><button type="button" id="briefingUseEnglish" hidden>Use English audio</button></div>
+        </div>
         <details class="briefing-transcript"><summary>Read the briefing</summary><p id="briefingText"></p></details>
         <p class="briefing-privacy">Uses your selected device/browser voice. Some voices use an online speech provider. Customer name and address are not included. The briefing follows the quotation, not the savings slider.</p>
       </div>

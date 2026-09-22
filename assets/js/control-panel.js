@@ -168,6 +168,16 @@
       const invalidLoan = hasLoan && (!loan.every(id => $(id).value !== '') || !($('loanAmt').value > 0) || !(Number($('loanRate').value) > 0) || !($('loanYears').value >= 1 && $('loanYears').value <= 30));
       loan.forEach(id => $(id).setAttribute('aria-invalid', String(invalidLoan)));
       if (invalidLoan) messages.push({id: 'loanAmt', message: 'Enter a positive loan amount and interest rate, with a tenure of 1–30 years.'});
+      const handled = new Set(['capacity','costPerKwp',...pay,...loan]);
+      form.querySelectorAll('input[type="number"]').forEach(input => {
+        if (handled.has(input.id)) return;
+        let invalid = input.validity.badInput || input.validity.rangeUnderflow || input.validity.rangeOverflow;
+        if (['moduleWattage','treeFactor'].includes(input.id)) invalid ||= !(Number(input.value) > 0);
+        if (input.id === 'degradation') invalid ||= Number(input.value) >= 100;
+        if (input.id === 'subsidyOverride' && input.value !== '') invalid ||= Number(input.value) > window.Finance.compute(window.Render.lastState).grossTotal;
+        input.setAttribute('aria-invalid', String(invalid));
+        if (invalid) messages.push({id:input.id,message:'Check ' + (input.labels?.[0]?.textContent || input.id) + ': the value is outside the expected range.'});
+      });
       feedback.replaceChildren(); feedback.hidden = !messages.length;
       if (messages.length) feedback.append(element('strong', '', 'Review your inputs'));
       messages.forEach(({id, message}) => {

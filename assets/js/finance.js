@@ -75,18 +75,32 @@
 
   /** Internal rate of return via bisection (percent per annum). */
   function calcIRR(cashflows) {
-    if (!cashflows || cashflows.length < 2) return NaN;
+    // Without an investment/outflow and a return/inflow, IRR is not defined.
+    // More than one sign change can have multiple roots, not a unique IRR.
+    if (!cashflows || cashflows.length < 2 || !cashflows.every(Number.isFinite)) return NaN;
+    const signs = cashflows.filter(v => v !== 0).map(Math.sign);
+    if (signs.filter((v, i) => i > 0 && v !== signs[i - 1]).length !== 1) return NaN;
     const npv = (rate) => {
       let v = 0;
       for (let i = 0; i < cashflows.length; i++) v += cashflows[i] / Math.pow(1 + rate, i);
       return v;
     };
+    if (npv(0) === 0) return 0;
     let low = -0.95, high = 10, mid = 0;
+    let lowValue = npv(low), highValue = npv(high);
+    // Expand the bounds rather than returning an arbitrary boundary as IRR.
+    if (Math.sign(lowValue) === Math.sign(highValue)) { low = -0.9999; lowValue = npv(low); }
+    for (let i = 0; i < 20 && Math.sign(lowValue) === Math.sign(highValue); i++) {
+      high *= 2; highValue = npv(high);
+    }
+    if (lowValue === 0) return low * 100;
+    if (highValue === 0) return high * 100;
+    if (!Number.isFinite(lowValue) || !Number.isFinite(highValue) || Math.sign(lowValue) === Math.sign(highValue)) return NaN;
     for (let i = 0; i < 200; i++) {
       mid = (low + high) / 2;
       const val = npv(mid);
       if (Math.abs(val) < 1) break;
-      if (val > 0) low = mid; else high = mid;
+      if (Math.sign(val) === Math.sign(lowValue)) { low = mid; lowValue = val; } else high = mid;
     }
     return mid * 100;
   }
@@ -216,12 +230,12 @@
     const effectivePerUnit = lifetimeGen > 0 ? netInvestment / lifetimeGen : 0;
 
     /* ----- environmental equivalents (editable factors, stated on page) ----- */
-    const co2Factor = num(s.co2Factor, 0.79) || 0.79;          // kg CO₂ / kWh (grid)
-    const treeFactor = num(s.treeFactor, 58.4) || 58.4;        // kg CO₂ absorbed / tree / yr
+    const co2Factor = Math.max(0, num(s.co2Factor, 0.79));          // kg CO₂ / kWh (grid)
+    const treeFactor = Math.max(0, num(s.treeFactor, 58.4));        // kg CO₂ absorbed / tree / yr
     const co2Annual = (annualGen * co2Factor) / 1000;          // tonnes
     const co2Lifetime = (lifetimeGen * co2Factor) / 1000;
-    const treesAnnual = (co2Annual * 1000) / treeFactor;
-    const treesLifetime = (co2Lifetime * 1000) / treeFactor;
+    const treesAnnual = treeFactor > 0 ? (co2Annual * 1000) / treeFactor : NaN;
+    const treesLifetime = treeFactor > 0 ? (co2Lifetime * 1000) / treeFactor : NaN;
 
     /* ----- payment schedule (₹ against gross total incl. GST) ----- */
     const pay = {

@@ -63,6 +63,14 @@ async function installSpeech(page) {
   }
   await page.evaluate(()=>{__speech.voices=__speech.voices.filter(v=>v.lang==='en-IN');__speech.dispatchEvent(new Event('voiceschanged'));});
   check('missing Marathi voice disables playback but keeps its transcript',await page.evaluate(()=>document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStatus').textContent.includes('Marathi voice unavailable')&&document.getElementById('briefingText').textContent.includes('अंदाजित')));
+  check('missing voice offers visible transcript and honest recovery controls',await page.evaluate(()=>!document.getElementById('briefingVoiceHelp').hidden&&document.querySelector('.briefing-transcript').open&&!document.getElementById('briefingRefresh').disabled&&!document.getElementById('briefingUseEnglish').hidden));
+  await page.click('#briefingUseEnglish');
+  check('English fallback requires an explicit choice and does not autoplay',await page.evaluate(()=>document.querySelector('[data-briefing-language="en"]').getAttribute('aria-pressed')==='true'&&!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled&&document.getElementById('briefingText').lang==='en'));
+  await page.click('[data-briefing-language="mr"]');
+  await page.evaluate(()=>__speech.voices.push({name:'Marathi discovered on refresh',lang:'mr_IN',localService:true}));
+  await page.click('#briefingRefresh');
+  check('manual refresh discovers delayed voices even without a voiceschanged event',await page.evaluate(()=>!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingVoiceHelp').hidden&&document.getElementById('briefingStop').disabled));
+  await page.evaluate(()=>{__speech.voices=__speech.voices.filter(v=>v.lang==='en-IN');__speech.dispatchEvent(new Event('voiceschanged'));});
   await page.evaluate(()=>{__speech.voices.push({name:'Marathi added later',lang:'mr-IN',localService:true});__speech.dispatchEvent(new Event('voiceschanged'));});
   check('asynchronously added voices enable Play without autoplay',await page.evaluate(()=>!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
   await page.click('#briefingPlay');await page.evaluate(()=>__speech.spoken.at(-1).onerror({error:'network'}));

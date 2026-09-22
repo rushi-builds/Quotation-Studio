@@ -297,8 +297,9 @@
       const fileInp = document.createElement('input'); fileInp.type = 'file'; fileInp.accept = 'image/*';
       fileInp.addEventListener('change', function (e) {
         const file = e.target.files[0]; if (!file) return;
+        const owner = root.Proposals.activeId();
         const reader = new FileReader();
-        reader.onload = function (ev) { PROJECT_IMAGES[project.img] = ev.target.result; root.Render.renderAll(); if (root.__qsScheduleSave) root.__qsScheduleSave(); };
+        reader.onload = function (ev) { if (root.Proposals.activeId() !== owner) return; PROJECT_IMAGES[project.img] = ev.target.result; root.Render.renderAll(); if (root.__qsScheduleSave) root.__qsScheduleSave(); };
         reader.readAsDataURL(file);
       });
       wrap.appendChild(fileInp); b.appendChild(wrap);
