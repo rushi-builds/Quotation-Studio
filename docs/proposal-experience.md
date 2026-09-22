@@ -180,3 +180,29 @@ upload. Private overrides remain local to that proposal, not the public gallery.
 `qa/tracking-project.test.js` covers exact image identity, distinct capacities,
 migration, live edits, proposal isolation, A4/PDF capture and desktop/mobile gallery.
 No financial calculation, cover artwork, audio behaviour or deployment is changed.
+
+
+## Custom equipment entries
+
+In **Equipment & design**, module make, inverter make, mounting structure,
+cabling/protection, module technology and roof type are editable text fields with
+suggestions. Choose an existing value or replace it by typing your own; no separate
+custom-entry dialog is needed. Existing control IDs and saved string values are
+unchanged, including values from older backups and presets.
+
+Custom entries belong to the proposal and flow through live preview, save/reload,
+proposal duplication/switching, JSON backup/import, Customer View and detailed PDF.
+To make a brand reusable across proposals, add it in **All settings → Equipment
+library**. Simply typing a name does not modify the shared library. Selecting a
+known catalog entry retains its existing rating/dimension defaults; unknown names
+do not invent specifications, so check their technical ratings manually.
+
+Regression coverage: `qa/equipment-entry.test.js` exercises actual keyboard typing
+for all six fields, literal punctuation/markup-like text, catalog defaults,
+persistence, new/reset isolation, saved options, backup/import, Customer View,
+mobile inputs and a real 15-page PDF capture/download.
+
+Verification for this change: **341 unit checks**, **487 numbered browser checks**
+(including **31 custom-equipment checks**), the live-cover regression and the
+actual PDF export suite passed. The custom-equipment technical-page PDF capture
+was also visually inspected. Cover artwork and financial formulas are unchanged.

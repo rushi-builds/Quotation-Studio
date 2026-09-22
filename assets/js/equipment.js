@@ -2,8 +2,8 @@
    Quotation Studio — Equipment Catalog  (Phase 1 foundation)
    --------------------------------------------------------------------------
    Company-level master data for modules, inverters, structures and cables.
-   The System Design dropdowns in the form are populated from this catalog,
-   replacing the previous hard-coded <option> lists.
+   The editable System Design suggestions are populated from this catalog,
+   while also accepting proposal-specific free text.
 
    Data integrity rule (per product blueprint):
      - the catalog ships with the entries the company already quotes with
@@ -70,11 +70,14 @@
   /* ------------------------------------------------------------------ */
   function fillSelect(sel, entries, current) {
     if (!sel) return;
-    const labels = entries.map((e) => e.make || e.label);
-    if (current && !labels.includes(current)) labels.push(current); /* keep unknown historical values */
-    sel.innerHTML = labels.map((l) => '<option value="' + String(l).replace(/"/g, '&quot;') + '">' +
-      String(l).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>').join('');
-    if (current) sel.value = current;
+    const choices = sel.tagName === 'SELECT' ? sel : sel.list;
+    if (!choices) return;
+    const labels = [...new Set(entries.map((e) => e.make || e.label).filter(Boolean))];
+    if (current && !labels.includes(current)) labels.push(current); /* keep historical/custom values */
+    // DOM properties preserve literal ampersands, quotes and markup safely.
+    choices.replaceChildren(...labels.map(label => new Option(String(label), String(label))));
+    if (sel.tagName === 'SELECT' && current) sel.value = current;
+    // Never rewrite a text input during a catalog refresh: keep its value/caret.
   }
 
   function refreshSelects() {
@@ -125,7 +128,7 @@
 
     const head = (txt) => '<div class="eq-head">' + txt + '</div>';
     const inp = (val, attrs, cls) =>
-      '<input type="text" value="' + String(val === undefined || val === null ? '' : val).replace(/"/g, '&quot;') + '" ' + (attrs || '') + ' class="' + (cls || '') + '">';
+      '<input type="text" value="' + String(val === undefined || val === null ? '' : val).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '" ' + (attrs || '') + ' class="' + (cls || '') + '">';
 
     let html = '';
     /* modules */

@@ -134,13 +134,10 @@
 
       <fieldset data-adv>
         <legend>System Design &amp; Equipment</legend>
+        <p class="hint" id="equipmentEntryHint">Choose a suggestion or type your own. Check ratings for custom makes. Entries are saved with this proposal; reusable makes can be added in All settings → Equipment library.</p>
         <div class="field"><label>Generation (kWh/kWp/yr)</label><input type="number" id="genFactor" value="1460" step="10" min="0"></div>
         <div class="field"><label>Module make</label>
-          <select id="moduleMake">
-            <option>Panasonic / Waaree / Adani or Equivalent</option>
-            <option>Premier Energies or Equivalent</option>
-            <option>Vikram Solar or Equivalent</option>
-          </select>
+          <input type="text" id="moduleMake" list="moduleMakeChoices" value="Panasonic / Waaree / Adani or Equivalent" placeholder="Choose or type a make…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
         </div>
         <div class="row3">
           <div class="field"><label>Module rating (Wp)</label><input type="number" id="moduleWattage" value="545" step="5" min="0"></div>
@@ -149,12 +146,7 @@
         </div>
         <div class="row2">
           <div class="field"><label>Module technology</label>
-            <select id="moduleTech">
-              <option>Mono PERC Half-Cut</option>
-              <option>TOPCon</option>
-              <option>Bifacial TOPCon</option>
-              <option>Polycrystalline</option>
-            </select>
+            <input type="text" id="moduleTech" list="moduleTechChoices" value="Mono PERC Half-Cut" placeholder="Choose or type your own…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
           </div>
           <div class="field">
             <label>Inverter rating (kW, blank = auto)</label>
@@ -163,32 +155,17 @@
           </div>
         </div>
         <div class="field"><label>Inverter make</label>
-          <select id="inverterMake">
-            <option>Deye or Equivalent</option>
-            <option>Growatt or Equivalent</option>
-            <option>Luminous or Equivalent</option>
-          </select>
+          <input type="text" id="inverterMake" list="inverterMakeChoices" value="Deye or Equivalent" placeholder="Choose or type a make…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
         </div>
         <div class="field"><label>Mounting structure</label>
-          <select id="mountMake">
-            <option>Hot-Dip GI / Aluminum-ARS Solartech make</option>
-            <option>Hot-Dip GI — In-house KTM manufactured</option>
-          </select>
+          <input type="text" id="mountMake" list="mountMakeChoices" value="Hot-Dip GI / Aluminum-ARS Solartech make" placeholder="Choose or type a make…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
         </div>
         <div class="field"><label>Cabling &amp; protection</label>
-          <select id="cableMake">
-            <option>Polycab / KEI or Equivalent</option>
-            <option>Havells or Equivalent</option>
-          </select>
+          <input type="text" id="cableMake" list="cableMakeChoices" value="Polycab / KEI or Equivalent" placeholder="Choose or type a make…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
         </div>
         <div class="row2">
           <div class="field"><label>Roof type</label>
-            <select id="roofType">
-              <option>RCC Terrace</option>
-              <option>Tin / Metal Sheet</option>
-              <option>Elevated / Carport</option>
-              <option>Sheet + RCC (mixed)</option>
-            </select>
+            <input type="text" id="roofType" list="roofTypeChoices" value="RCC Terrace" placeholder="Choose or type your own…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
           </div>
           <div class="field">
             <label>Available roof area (m², optional)</label>
@@ -340,6 +317,38 @@
         <div id="advContainer"></div>
       </details>
     </form>
+
+    <!-- Suggestions only: outside the form so they are not proposal fields. -->
+    <datalist id="moduleMakeChoices">
+      <option>Panasonic / Waaree / Adani or Equivalent</option>
+      <option>Premier Energies or Equivalent</option>
+      <option>Vikram Solar or Equivalent</option>
+    </datalist>
+    <datalist id="moduleTechChoices">
+      <option>Mono PERC Half-Cut</option>
+      <option>TOPCon</option>
+      <option>Bifacial TOPCon</option>
+      <option>Polycrystalline</option>
+    </datalist>
+    <datalist id="inverterMakeChoices">
+      <option>Deye or Equivalent</option>
+      <option>Growatt or Equivalent</option>
+      <option>Luminous or Equivalent</option>
+    </datalist>
+    <datalist id="mountMakeChoices">
+      <option>Hot-Dip GI / Aluminum-ARS Solartech make</option>
+      <option>Hot-Dip GI — In-house KTM manufactured</option>
+    </datalist>
+    <datalist id="cableMakeChoices">
+      <option>Polycab / KEI or Equivalent</option>
+      <option>Havells or Equivalent</option>
+    </datalist>
+    <datalist id="roofTypeChoices">
+      <option>RCC Terrace</option>
+      <option>Tin / Metal Sheet</option>
+      <option>Elevated / Carport</option>
+      <option>Sheet + RCC (mixed)</option>
+    </datalist>
 
     <div class="form-actions">
       <label class="pdf-format-label" for="pdfFormat">PDF format</label>
