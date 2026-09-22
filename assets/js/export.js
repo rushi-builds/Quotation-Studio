@@ -1,20 +1,23 @@
 /* PDF export: snapshot the selected document before any asynchronous capture.
-   Both formats use the saved quotation, never the customer scenario slider. */
+   All formats use the saved quotation, never the customer scenario slider. */
 'use strict';
 (function(root) {
   const $=id=>document.getElementById(id);
   let busy=false;
+  const formats={bess:{title:'BESS Report',ids:['pageBessOverview','pageBessAssessment']},system:{title:'Additional System Report',ids:['pageSystemOverview','pageSystemDetail']},'system-power':{title:'System Power Proposal',ids:['pageSystemOverview']}};
   function updateLabel() {
-    const count=root.Render.lastVisible?.length || root.Render.PAGES.length;
-    const label=$('downloadLabel');
-    if(label) label.textContent=$('pdfFormat')?.value==='power' ? 'Download Power Proposal (2 Pages)' : 'Generate & Download PDF ('+count+' Pages)';
+    const s=root.Render.lastState||{},select=$('pdfFormat');
+    if(select){for(const option of select.options){option.disabled=option.value==='bess'?!root.Bess.enabled(s):option.value.startsWith('system')?!root.AdditionalSystems.enabled(s):false;}if(select.selectedOptions[0]?.disabled)select.value='full';}
+    const format=select?.value||'full',count=root.Render.lastVisible?.length||15,label=$('downloadLabel');
+    if(label)label.textContent=format==='power'?'Download Power Proposal (2 Pages)':formats[format]?'Download '+formats[format].title+' ('+formats[format].ids.length+' Pages)':'Generate & Download PDF ('+count+' Pages)';
   }
-  function snapshotFull() {
+  function snapshotFull(selected,standaloneTitle) {
     const host=document.createElement('div'); host.className='pdf-snapshot'; host.setAttribute('aria-hidden','true');
-    const pages=root.Render.lastVisible?.length ? root.Render.lastVisible : root.Render.PAGES;
-    pages.forEach(p=>{
+    const pages=selected|| (root.Render.lastVisible?.length ? root.Render.lastVisible : root.Render.PAGES);
+    pages.forEach((p,index)=>{
       const source=$(p.id), copy=source.cloneNode(true);
       copy.style.transform='none';
+      if(standaloneTitle){copy.querySelector('.pf-right').textContent='Page '+(index+1)+' of '+pages.length;copy.querySelector('.pg-head-meta').textContent=standaloneTitle+' · '+(root.Render.lastState.propRef||'');}
       // Live chrome updates use document-wide data bindings; detach those from
       // the snapshot so later form edits cannot rewrite captured metadata.
       copy.querySelectorAll('[data-head-ref],[data-foot-company],[data-foot-tagline]').forEach(el=>{
@@ -32,14 +35,17 @@
     busy=true; let snapshot;
     const set=m=>{if(statusCb) statusCb(m);};
     try {
-      const format=options.format==='power'?'power':'full';
+      const format=options.format||'full';
+      if(!['full','power',...Object.keys(formats)].includes(format))throw new Error('Unknown PDF format.');
       if(document.fonts?.ready) await document.fonts.ready;
       if(root.Experience) {
         let pending;
         do { pending=root.Experience.whenReady(); await pending; } while(pending!==root.Experience.whenReady());
       }
       const s=JSON.parse(JSON.stringify(root.Render.lastState || root.Render.readState()));
-      snapshot=format==='power'?root.Experience.buildPowerPages(s):snapshotFull();
+      if(format==='bess'&&!root.Bess.enabled(s))throw new Error('Enable BESS to download its report.');
+      if(format.startsWith('system')&&!root.AdditionalSystems.enabled(s))throw new Error('Enable an additional system to download its report.');
+      snapshot=format==='power'?root.Experience.buildPowerPages(s):formats[format]?snapshotFull(root.Render.PAGES.filter(p=>formats[format].ids.includes(p.id)),formats[format].title):snapshotFull();
       const pages=[...snapshot.children];
       await Promise.all([...snapshot.querySelectorAll('img')].map(img=>new Promise((resolve,reject)=>{
         // `complete` is also true for failed/empty images. Do not silently issue
@@ -63,6 +69,11 @@
         if(last.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-4 || page.scrollHeight>1124)
           throw new Error('This proposal has too much text for the two-page summary. Please use the detailed PDF or shorten the equipment / delivery text.');
       });
+      // Supplements accept user-authored text. Never silently clip a long scope or model name.
+      pages.filter(p=>p.classList.contains('bess-page')||p.classList.contains('system-page')).forEach(page=>{
+        const foot=page.querySelector('.pg-foot'),body=page.querySelector('.pg-body');
+        if(page.scrollHeight>1124||[...body.children].some(el=>el.getBoundingClientRect().bottom>foot.getBoundingClientRect().top-3))throw new Error('Supplement content exceeds the page. Shorten the name, equipment, scope or notes before downloading.');
+      });
       const {jsPDF}=root.jspdf, pdf=new jsPDF({unit:'pt',format:'a4',compress:true});
       const pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight();
       for(let i=0;i<pages.length;i++) {
@@ -80,8 +91,8 @@
         });
       }
       const cust=(s.custName||'Customer').replace(/[^a-z0-9]+/gi,'_'),ref=(s.propRef||'').replace(/[^a-z0-9]+/gi,'-');
-      pdf.setProperties({title:(format==='power'?'Power Proposal':'Solar Proposal')+' — '+s.custName+' ('+s.capacity+' kWp)',subject:'Rooftop solar EPC proposal '+ref+' v'+s.propVersion,author:s.companyName,creator:s.companyName+' — Quotation Studio'});
-      pdf.save((format==='power'?'Power_Proposal_':'Proposal_')+cust+'_'+s.capacity+'kWp_'+ref+'.pdf');
+      pdf.setProperties({title:(formats[format]?.title||(format==='power'?'Power Proposal':'Solar Proposal'))+' — '+s.custName+' ('+s.capacity+' kWp)',subject:'Rooftop solar EPC proposal '+ref+' v'+s.propVersion,author:s.companyName,creator:s.companyName+' — Quotation Studio'});
+      pdf.save((formats[format]?formats[format].title.replace(/ /g,'_')+'_':format==='power'?'Power_Proposal_':'Proposal_')+cust+'_'+s.capacity+'kWp_'+ref+'.pdf');
       set('Downloaded ✓ ('+pages.length+' pages)');
     } finally {snapshot?.remove();busy=false;}
   }
@@ -93,6 +104,12 @@
       catch(err){console.error(err);status.textContent=err.message || 'PDF generation failed. Please try again.';}
       finally {btn.disabled=false;btn.classList.remove('busy');setTimeout(()=>{status.textContent='';},8000);}
     });
+    document.querySelectorAll('[data-export-format]').forEach(button=>button.addEventListener('click',async()=>{
+      const old=button.textContent;button.disabled=true;
+      try{await exportPdf(m=>{if(status)status.textContent=m;},{format:button.dataset.exportFormat});}
+      catch(e){if(status)status.textContent=e.message;}
+      finally{button.disabled=false;button.textContent=old;root.Bess.syncControls(root.Render.lastState);root.AdditionalSystems.sync(root.Render.lastState);}
+    }));
     $('pdfFormat')?.addEventListener('change',updateLabel);updateLabel();
   }
   root.Exporter={exportPdf,wire,updateLabel};

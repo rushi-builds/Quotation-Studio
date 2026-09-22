@@ -15,7 +15,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('search reveals the BESS choice without enabling it',await page.evaluate(()=>document.querySelector('[data-section=bessEnabled]').open&&!bessEnabled.checked&&document.activeElement.dataset.bessChoice==='yes'));
   await page.$eval('[data-section=bessEnabled]',e=>e.open=true);await page.click('[data-bess-choice=yes]');await page.waitForFunction(()=>Render.lastVisible.length===17);
   check('Yes reveals battery inputs and two navigable pages',await page.evaluate(()=>!bessFields.hidden&&document.querySelectorAll('#pageNav .nav-chip').length===17&&document.querySelector('[data-bess-choice=yes]').getAttribute('aria-pressed')==='true'));
-  check('blank battery does not invent runtime or savings',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('Not established')&&e.textContent.includes('Not modelled')));
+  check('blank battery does not invent runtime or savings',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('Not established')&&e.textContent.includes('Resilience first')));
   async function apply(values){await page.evaluate(v=>{StateStore.applyForm(v);Render.renderAll();},values);}
   async function geometry(label,target=page){
    const bad=await target.evaluate(()=>[...document.querySelectorAll('.page')].filter(p=>p.checkVisibility()).flatMap(p=>{
@@ -36,12 +36,13 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('printed assumptions include efficiencies, charging limit and reserve',await page.$eval('#bessAssessmentBody',e=>['90% / 95%','3 kW','20% reserve','300','12 years'].every(x=>e.textContent.includes(x))));
   check('all three audio briefings disclose separately priced storage',await page.evaluate(()=>Briefing.scriptFor(Render.lastState,'en').join(' ').includes('solar-only')&&Briefing.scriptFor(Render.lastState,'hi').join(' ').includes('बैटरी स्टोरेज')&&Briefing.scriptFor(Render.lastState,'mr').join(' ').includes('बॅटरी स्टोरेज')));
   await geometry('Completed battery pages');
+  await page.$eval('#bessCapacity',e=>e.closest('details').open=true);
   await page.focus('#bessCapacity');await page.keyboard.down('Control');await page.keyboard.press('A');await page.keyboard.up('Control');await page.keyboard.type('20');await page.waitForFunction(()=>Render.lastState.bessCapacity==='20'&&bessOverviewBody.textContent.includes('20 kWh'));
   check('typing a battery rating updates the form, preview and saved proposal',await page.evaluate(()=>{__qsSaveNow();return Proposals.active().form.bessCapacity==='20'&&bessOverviewBody.textContent.includes('8.55 hours');}));
   await apply({...fixture,bessSourceRate:''});check('a missing charging tariff removes the savings figure',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('Inputs pending')&&!e.textContent.includes('21,940')));
   await apply({...fixture,bessMake:'QA <img src=x onerror=alert(1)> model'});check('battery identity is literal text, not executable HTML',await page.$eval('.bess-specname',e=>!e.querySelector('img')&&e.textContent.includes('<img')));await apply(fixture);
 
-  await apply({bessLoad:'6'});check('overloaded backup does not claim hours',await page.evaluate(()=>Bess.compute(Render.lastState,Finance.compute(Render.lastState)).backupHours===null&&bessInputStatus.textContent.includes('exceeds')));
+  await apply({bessLoad:'6'});check('overloaded backup does not claim hours',await page.evaluate(()=>Bess.compute(Render.lastState,Finance.compute(Render.lastState)).backupHours===null&&bessValidation.textContent.includes('exceeds')));
   await apply({...fixture,bessBackupReady:'pending'});check('unconfirmed backup stays pending despite complete capacity',await page.$eval('#bessOverviewBody',e=>e.textContent.includes('Design pending')));
   await apply({...fixture,bessCoupling:'ac'});check('AC architecture updates the concept diagram',await page.$eval('.bess-flow',e=>e.textContent.includes('AC-coupled concept')));
   await apply({...fixture,bessSourceRate:'15'});check('unfavourable export credit yields no positive payback',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('No positive payback')));

@@ -55,7 +55,7 @@ function bootApp(seedStorage) {
   });
   const { window } = dom;
   /* browser <script> tags share top-level scope; a single concatenated eval mimics that */
-  const src = ['content.js', 'finance.js', 'bess.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
     'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
@@ -79,7 +79,7 @@ const w = bootApp();
 const d = w.document;
 
 t('no uncaught errors on boot', errors.length === 0, errors.join(' | '));
-t('rendered all 19 page shells (options, financing and BESS hidden by default)', d.querySelectorAll('.page').length === 19, d.querySelectorAll('.page').length);
+t('rendered all 21 page shells (options, financing and BESS hidden by default)', d.querySelectorAll('.page').length === 21, d.querySelectorAll('.page').length);
 t('page labels generated', /Page 1 of 15/.test(d.querySelector('[data-page="pageCover"] .page-label').textContent),
   d.querySelector('[data-page="pageCover"] .page-label').textContent);
 t('cover shows a neutral customer placeholder', d.getElementById('v_coverCustName').textContent === 'Customer Name');

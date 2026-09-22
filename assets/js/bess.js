@@ -2,10 +2,50 @@
    No missing rating, tariff, efficiency or cost is replaced by an invented value. */
 'use strict';
 (function(root,factory){const api=factory(root);if(typeof module==='object'&&module.exports)module.exports=api;else root.Bess=api;})(typeof self!=='undefined'?self:this,function(root){
- const DEFAULTS={bessEnabled:false,bessMake:'',bessChemistry:'Unspecified',bessCoupling:'pending',bessInverter:'',bessCapacity:'',bessDod:'',bessDischargeEff:'',bessPower:'',bessLoad:'',bessBackupReady:'pending',bessCost:'',bessUseCase:'backup',bessReserve:'',bessRte:'',bessCycles:'',bessDays:'',bessSourceEnergy:'',bessDemand:'',bessChargePower:'',bessChargeHours:'',bessDischargeHours:'',bessImportRate:'',bessSourceRate:'',bessOm:'',bessLife:'',bessWarranty:''};
+ const Catalog=root.StorageCatalog||(typeof require==='function'?require('./storage-catalog.js'):null);
+ const DEFAULTS={bessInclude:true,bessReason:'alternative',bessModel:'',bessSpecMode:'manual',bessSizing:'solar',bessTargetHours:'',bessShiftShare:'30',bessUnitsOverride:'',bessUnits:'',bessPcsKw:'',bessPowerDerate:'15',bessAutoEconomics:false,bessEnabled:false,bessMake:'',bessChemistry:'Unspecified',bessCoupling:'pending',bessInverter:'',bessCapacity:'',bessDod:'',bessDischargeEff:'',bessPower:'',bessLoad:'',bessBackupReady:'pending',bessCost:'',bessUseCase:'backup',bessReserve:'',bessRte:'',bessCycles:'',bessDays:'',bessSourceEnergy:'',bessDemand:'',bessChargePower:'',bessChargeHours:'',bessDischargeHours:'',bessImportRate:'',bessSourceRate:'',bessOm:'',bessLife:'',bessWarranty:''};
  const enabled=s=>s?.bessEnabled===true||s?.bessEnabled==='yes';
  const numeric=(s,k)=>{const v=s[k];if(!['number','string'].includes(typeof v)||!/^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?$/i.test(String(v).trim()))return null;return Number.isFinite(Number(v))?Number(v):null;};
+ const supplied=v=>v!==null&&v!==undefined&&!(typeof v==='string'&&v.trim()==='');
+ const included=s=>enabled(s)&&(s.bessInclude===undefined||s.bessInclude===true);
+ const reason=s=>({requested:'Customer requested',recommended:'Recommended upgrade',alternative:'Optional alternative'}[s.bessReason]||'Optional alternative');
+ function sizing(s,solar={}){
+  const model=Catalog.get(s.bessModel),eff=numeric(s,'bessDischargeEff'),load=numeric(s,'bessLoad'),hours=numeric(s,'bessTargetHours'),share=numeric(s,'bessShiftShare'),derate=numeric(s,'bessPowerDerate');
+  const daily=Number.isFinite(solar.annualGen)?Math.max(0,solar.annualGen)/365:null;
+  const target=s.bessSizing==='backup'?(load>0&&hours>0&&hours<=168?load*hours:null):(daily!==null&&share>0&&share<=100?daily*share/100:null);
+  const good=!!model&&eff>0&&eff<=100&&derate!==null&&derate>=0&&derate<100;
+  const perUnit=good?model.usable*eff/100:null,unitPower=good?model.voltage*model.current/1000*(1-derate/100)*eff/100:null;
+  const recommended=good&&target>0?Math.max(1,Math.ceil(target/perUnit-1e-10),s.bessSizing==='backup'&&load>0?Math.ceil(load/unitPower-1e-10):1):null;
+  const override=numeric(s,'bessUnitsOverride'),units=supplied(s.bessUnitsOverride)?(Number.isInteger(override)&&override>=1&&override<=model?.maxUnits?override:null):(recommended!==null&&recommended<=model.maxUnits?recommended:null);
+  const pcs=numeric(s,'bessPcsKw'),pcsLimit=supplied(s.bessPcsKw)?pcs:(Number.isFinite(solar.inverterKw)?solar.inverterKw:null);
+  const power=units&&pcsLimit>0?Math.min(units*unitPower,pcsLimit):null;
+  const issue=!model?'Select a battery model or enter Custom specifications.':!good?'Enter valid conversion efficiency and power derating assumptions.':pcsLimit===null||pcsLimit<=0?'Enter a positive converter limit or a valid solar inverter size.':target===null||target<=0?'Enter the essential load and backup hours, or choose a solar-linked sizing scenario.':recommended>model.maxUnits&&!supplied(s.bessUnitsOverride)?'Required module count exceeds this catalogue configuration. An engineered larger system is required.':units===null?'Enter a whole module quantity within the catalogue limit.':s.bessSizing==='backup'&&load>power?'The proposed converter output is below the selected backup load.':units*perUnit+1e-8<target?'Selected quantity is below the energy target.':'';
+  return {model,daily,target,perUnit,unitPower,recommended,units,pcsLimit,power,issue};
+ }
+ function resolve(input,solar={}){
+  const s={...input};if(!enabled(s))return s;
+  const a=sizing(s,solar);
+  if(s.bessSpecMode==='auto'&&a.model){
+   const priorCapacity=numeric(s,'bessCapacity'),priorPower=numeric(s,'bessPower');
+   const changed=(priorCapacity!==null&&(a.units===null||Math.abs(priorCapacity-a.model.rated*a.units)>1e-5))||(priorPower!==null&&(a.power===null||Math.abs(priorPower-a.power)>1e-5));
+   if(changed){s.bessBackupReady='pending';s.bessCost='';}
+   s.bessMake=a.model.name;s.bessChemistry=a.model.chemistry;s.bessUnits=a.units===null?'':String(a.units);
+   s.bessCapacity=a.units===null?'':String(Number((a.model.rated*a.units).toFixed(6)));
+   s.bessDod=String(a.model.usable/a.model.rated*100);
+   s.bessPower=a.power===null?'':String(Number(a.power.toFixed(6)));
+  }
+  if(s.bessAutoEconomics===true&&a.target!==null){
+   s.bessSourceEnergy=String(Number((a.daily*(numeric(s,'bessShiftShare')||0)/100).toFixed(4)));
+   s.bessDemand=String(Number(a.target.toFixed(4)));
+   s.bessImportRate=String(solar.tariff??input.tariff??'');
+  }
+  return s;
+ }
+ function applyDerived(s){
+  for(const k of ['bessCost','bessBackupReady','bessMake','bessChemistry','bessUnits','bessCapacity','bessDod','bessPower','bessSourceEnergy','bessDemand','bessImportRate']){const el=document.getElementById(k);if(el&&s[k]!=null)el.value=s[k];}
+ }
  function compute(s={},solar={}){
+  s=resolve(s,solar);
   const errors=[],missing=[];
   if(!enabled(s))return {enabled:false,mode:'backup',errors,missing,economicsMissing:[],economicErrors:[],capacity:null,usableDc:null,usableAc:null,power:null,load:null,overloaded:false,designReady:false,backupHours:null,potentialHours:null,cost:null,combined:null,dailyDelivered:null,annualDelivered:null,annualValue:null,annualChargingCost:null,annualBenefit:null,payback:null,life:null,reserveHours:null};
   const get=(k,label,min,max,strict=false)=>{const n=numeric(s,k);if(n===null){missing.push(label);return null;}if((strict?n<=min:n<min)||(max!=null&&n>max)){errors.push(label+' is outside the valid range.');return null;}return n;};
@@ -48,45 +88,47 @@
   if(Object.values(result).some(v=>typeof v==='number'&&!Number.isFinite(v))){for(const k of ['usableDc','usableAc','backupHours','potentialHours','combined','dailyDelivered','annualDelivered','annualValue','annualChargingCost','annualBenefit','payback','reserveHours'])result[k]=null;errors.push('The entered values are too large to calculate safely.');}
   return result;
  }
- const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
- const n=(v,d=1)=>v!==null&&Number.isFinite(v)?v.toLocaleString('en-IN',{maximumFractionDigits:d}):'—';
- const money=v=>v!==null&&Number.isFinite(v)?root.Finance.fmtINR(v):'Not entered';
- const metric=(label,value,sub)=>'<div class="bess-metric"><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong><small>'+esc(sub)+'</small></div>';
- const row=(label,value)=>'<div class="bess-row"><span>'+esc(label)+'</span><b>'+esc(value)+'</b></div>';
- function diagram(s,b){
-  const ac=s.bessCoupling==='ac',known=ac||s.bessCoupling==='dc';
-  const svgIcon=(name,x,y)=>name==='battery'?'<g transform="translate('+x+' '+y+')" stroke="#294353" fill="none" stroke-width="2"><rect x="1" y="6" width="24" height="17" rx="3"/><path d="M27 11v7 M7 10v9 M12 10v9 M17 10v9"/></g>':'<g transform="translate('+x+' '+y+')">'+root.Icons.get(name,30,'#294353').replace('<svg ','<svg x="0" y="0" ')+'</g>';
-  const box=(x,y,w,h,label,sub,icon)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="12" fill="#ffffff" stroke="#dce4e5"/>'+svgIcon(icon,x+14,y+14)+'<text x="'+(x+55)+'" y="'+(y+28)+'" font-family="Arial" font-size="11" font-weight="700" fill="#1c2b3f">'+esc(label)+'</text><text x="'+(x+w/2)+'" y="'+(y+h-15)+'" text-anchor="middle" font-family="Arial" font-size="11" fill="#5b6472">'+esc(sub)+'</text>';
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="718" height="278" viewBox="0 0 718 278" role="img" aria-label="Conceptual solar, storage, selected load and grid connections"><defs><marker id="bess-flow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#347c70"/></marker></defs><path d="M179 53H244" fill="none" stroke="#347c70" stroke-width="3" marker-end="url(#bess-flow-arrow)"/><path d="M444 53H523" fill="none" stroke="#347c70" stroke-width="3" marker-end="url(#bess-flow-arrow)"/><path d="M348 179V92" fill="none" stroke="#347c70" stroke-width="3" marker-start="url(#bess-flow-arrow)" marker-end="url(#bess-flow-arrow)"/><path d="M627 179V92" fill="none" stroke="#70879b" stroke-width="2" stroke-dasharray="5 4" marker-start="url(#bess-flow-arrow)" marker-end="url(#bess-flow-arrow)"/>'+box(8,10,171,83,'Solar array',n(Number(s.capacity),3)+' kWp • proposal','panel')+box(244,10,200,83,ac?'AC conversion':known?'Hybrid inverter':'Storage interface',ac?'Solar + battery inverters':known?'DC-coupled design':'Architecture to be confirmed','bolt')+box(523,10,187,83,'Selected loads',b.load!==null?n(b.load,2)+' kW entered':'Load schedule pending','home')+box(244,179,200,87,'Battery storage',n(b.capacity,2)+' kWh rated','battery')+box(544,179,166,87,'Utility grid','Controlled import / export','building')+'<text x="370" y="140" font-family="Arial" font-size="10" fill="#347c70">Charge / discharge</text><rect x="580" y="121" width="94" height="20" rx="4" fill="#edf1f6"/><text x="627" y="134" text-anchor="middle" font-family="Arial" font-size="9" fill="#566b7c">Grid isolation</text><text x="9" y="220" font-family="Arial" font-size="11" fill="#5b6472">'+(known?(ac?'AC-coupled concept':'DC-coupled concept'):'Architecture pending')+'</text><text x="9" y="239" font-family="Arial" font-size="10" fill="#5b6472">Not an installation wiring plan</text></svg>';
- }
- function overview(s,f){
-  const host=document.getElementById('bessOverviewBody');if(!host||!enabled(s))return;
-  const b=compute(s,f),ready=b.designReady?'Backup design marked confirmed':s.bessBackupReady==='no'?'Outage backup excluded from scope':'Backup design requires confirmation';
-  host.innerHTML='<div class="bess-hero"><div><div class="bess-eyebrow">OPTIONAL BATTERY STORAGE</div><h2>Power beyond<br>daylight.</h2><p>Store energy. Prioritise essential loads. Make the next step in your solar journey a considered one.</p><div class="bess-status">'+esc(ready)+'</div></div><figure><img src="assets/images/bess-concept.jpg" alt="Unbranded conceptual battery cabinet and conversion equipment"><figcaption>Concept illustration • not a manufacturer product image</figcaption></figure></div><div class="bess-specname"><b>'+esc(s.bessMake||'Battery make / model to be selected')+'</b><span>'+esc(s.bessChemistry||'Chemistry unspecified')+' · '+esc(s.bessWarranty||'OEM warranty to be confirmed')+'</span></div><div class="bess-metrics">'+metric('Rated storage',n(b.capacity,2)+' kWh','Nameplate capacity')+metric('Usable battery energy',n(b.usableDc,2)+' kWh','After entered depth of discharge')+metric('Continuous AC output',n(b.power,2)+' kW','System output limit')+metric('Full-charge backup',b.backupHours!==null?n(b.backupHours,2)+' hours':b.overloaded?'Load over limit':s.bessBackupReady==='no'?'Not included':b.designReady?'Inputs pending':'Design pending',b.overloaded?'Selected load exceeds rating':'At the selected constant load')+'</div><div class="bess-section-title">HOW SOLAR + STORAGE CONNECT</div><div class="bess-flow">'+diagram(s,b)+'</div><div class="bess-mode-grid">'+[['01','DAYLIGHT','Solar serves the load. Available surplus can charge the battery.'],['02','AFTER SUNSET','Stored energy can supply selected loads within power and energy limits.'],['03','GRID OUTAGE','Backup requires a compatible inverter, isolation and commissioned backup circuits.']].map(x=>'<div><i>'+x[0]+'</i><b>'+x[1]+'</b><p>'+x[2]+'</p></div>').join('')+'</div><div class="bess-notice"><strong>Engineering first.</strong> '+esc(s.bessInverter?'Proposed storage interface: '+s.bessInverter+'. ':'Compatible hybrid / battery inverter not yet selected. ')+'Existing grid-tied equipment is not assumed battery-compatible. Final topology, protections, fire safety, location and approvals require site and OEM review.</div>';
- }
- function assessment(s,f){
-  const host=document.getElementById('bessAssessmentBody');if(!host||!enabled(s))return;
-  const b=compute(s,f),mode=b.mode==='self'?'Solar self-consumption':b.mode==='tou'?'Time-of-use shifting':'Backup-first proposal';
-  const backup=b.backupHours!==null?n(b.backupHours,2)+' h':'Not established';
-  const benefit=b.mode==='backup'?'Not modelled':b.annualBenefit!==null?root.Finance.fmtINR(b.annualBenefit):'Inputs pending';
-  const pay=b.annualBenefit===null?'Inputs pending':b.annualBenefit<=0?'No positive payback':b.cost===null?'Cost required':b.payback>b.life?'Beyond entered service life':n(b.payback,1)+' years';
-  const runtimeChart='<div class="bess-runtime"><div class="bess-section-title">ILLUSTRATIVE BACKUP LOADS</div>'+(b.backupHours!==null?[.5,1,1.5].map(mult=>{const load=b.load*mult,within=load<=b.power,h=within?b.usableAc/load:null;return '<div class="bess-runtime-row"><span>'+esc(n(load,2))+' kW</span><div class="bess-track"><i style="width:'+(within?50/mult:0)+'%;background:#70a999"></i></div><b>'+(within?esc(n(h,1))+' h':'Over limit')+'</b></div>';}).join(''):'<p class="bess-small">Confirm the backup design and enter a valid load within the AC output rating to compare indicative runtimes.</p>')+'</div>';
-  const bars=[['Solar-only net investment',f.netInvestment,'#294353'],['Storage installed upgrade',b.cost,'#e98330'],['Combined indicative investment',b.combined,'#347c70']];
-  const max=Math.max(...bars.map(x=>Number.isFinite(x[1])?Math.max(0,x[1]):0),1);
-  const billbars=bars.map(([label,value,color])=>'<div class="bess-costbar"><div><span>'+label+'</span><b>'+esc(money(value))+'</b></div><div class="bess-track"><i style="width:'+Math.max(0,(value||0)/max*100)+'%;background:'+color+'"></i></div></div>').join('');
-  const energyWidth=b.usableAc!==null&&b.capacity>0?b.usableAc/b.capacity*100:0;
-  const issues=b.errors.length?b.errors.slice(0,3).join(' ')+(b.errors.length>3?' Review the remaining flagged inputs in the control panel.':''):b.mode==='backup'?'Savings model not selected. Backup value is not represented as bill savings.':b.annualBenefit===null?'Complete the battery ratings and all operating / tariff assumptions to calculate.':'Year-one illustration only. Actual dispatch, losses, tariffs and degradation vary.';
-  host.innerHTML='<div class="bess-eyebrow">A CLEARER STORAGE DECISION</div><h2 class="pg-title">Backup, value & investment.</h2><div class="pg-sub">'+esc(mode)+' • transparent assumptions, not guaranteed returns</div><div class="rule-orange"></div><div class="bess-assessment-grid"><section class="bess-panel"><div class="bess-section-title">ENERGY IS NOT THE SAME AS POWER</div><div class="bess-energy"><div class="bess-battery-outline"><div style="width:'+energyWidth+'%"></div></div><strong>'+esc(n(b.usableAc,2))+' kWh</strong><span>Estimated AC energy from a full usable charge</span></div>'+row('Selected constant backup load',b.load!==null?n(b.load,2)+' kW':'Not entered')+row('Full-charge runtime',backup)+row('Reserve-only runtime',b.reserveHours!==null?n(b.reserveHours,2)+' h':'Not modelled')+runtimeChart+'<p class="bess-small">Runtime assumes the entered discharge efficiency, full starting charge and a constant load. Battery age, temperature, auxiliary demand and motor starting surges can reduce it.</p></section><section class="bess-panel"><div class="bess-section-title">INVESTMENT COMPARISON</div>'+billbars+'<p class="bess-small">Storage price must include applicable tax, compatible conversion equipment, protections and installation without duplicating any solar line item. No additional subsidy is assumed.</p><div class="bess-scope-note">Solar prices, savings and payment milestones elsewhere remain <b>solar-only</b>. Agree storage scope and payment terms separately.</div></section></div><div class="bess-section-title">THE DAY-TO-NIGHT OPERATING CONCEPT</div><div class="bess-timeline"><div><b>CHARGE WINDOW</b><span>'+esc(s.bessChargeHours?n(numeric(s,'bessChargeHours'))+' h entered':'Schedule pending')+'</span><small>Solar surplus / eligible off-peak energy</small></div><div><b>STORED ENERGY</b><span>'+esc(s.bessReserve?n(numeric(s,'bessReserve'))+'% reserve':'Reserve not entered')+'</span><small>Reserve reduces everyday energy shifting</small></div><div><b>DISCHARGE WINDOW</b><span>'+esc(s.bessDischargeHours?n(numeric(s,'bessDischargeHours'))+' h entered':'Schedule pending')+'</span><small>Selected demand, not the whole building</small></div></div><div class="bess-section-title">STORAGE-ONLY FINANCIAL ILLUSTRATION</div><div class="bess-metrics bess-three">'+metric('Net year-one benefit',benefit,'After charging opportunity cost and entered O&M')+metric('Simple storage payback',b.mode==='backup'?'Not modelled':pay,'Not discounted; not a system-wide IRR')+metric('Delivered energy / year',b.annualDelivered!==null?n(b.annualDelivered)+' kWh':'Not modelled','Bounded by energy, power, windows and demand')+'</div><div class="bess-assumptions">'+row('Usable DoD / discharge efficiency',n(numeric(s,'bessDod'))+'% / '+n(numeric(s,'bessDischargeEff'))+'%')+row('Charging input power',n(numeric(s,'bessChargePower'))+' kW')+row('Daily charge availability / battery-served demand',n(numeric(s,'bessSourceEnergy'))+' / '+n(numeric(s,'bessDemand'))+' kWh')+row('Round-trip efficiency / cycles / operating days',n(numeric(s,'bessRte'))+'% / '+n(numeric(s,'bessCycles'),2)+' / '+n(numeric(s,'bessDays'),0))+row('Avoided import / charging or export value','₹'+n(numeric(s,'bessImportRate'),2)+' / ₹'+n(numeric(s,'bessSourceRate'),2)+' per kWh')+row('Annual maintenance / assumed service life',money(numeric(s,'bessOm'))+' / '+n(numeric(s,'bessLife'))+' years')+'</div><p class="bess-result-note">'+esc(issues)+'</p><p class="bess-small bess-method"><b>Method:</b> delivered AC energy × avoided import rate − charging energy × source rate − maintenance. Solar surplus is capped by the proposal’s annual generation. Export value is the opportunity cost of storing solar. Favourable net-metering can make storage financially unattractive. No demand-charge, diesel or outage-cost savings are assumed; degradation and replacement costs are excluded. Do not add this result to the solar savings model, which already values generation; combined savings require interval consumption and tariff modelling.</p>';
- }
- function readForm(){return Object.fromEntries(Object.keys(DEFAULTS).map(k=>{const el=document.getElementById(k);return [k,k==='bessEnabled'?!!el?.checked:el?.value??DEFAULTS[k]];}));}
+ function overview(s,f){root.SupplementDesign.bessOverview(s,f);}
+ function assessment(s,f){root.SupplementDesign.bessAssessment(s,f);}
+ function readForm(){return Object.fromEntries(Object.keys(DEFAULTS).map(k=>{const el=document.getElementById(k);return [k,['bessEnabled','bessInclude','bessAutoEconomics'].includes(k)?(el?!!el.checked:DEFAULTS[k]):el?.value??DEFAULTS[k]];}));}
  function syncControls(s){
   const panel=document.getElementById('bessFields');if(!panel)return;
   panel.hidden=!enabled(s);document.querySelectorAll('[data-bess-choice]').forEach(el=>el.setAttribute('aria-pressed',String((el.dataset.bessChoice==='yes')===enabled(s))));
-  const economics=document.getElementById('bessEconomics');economics.hidden=!['self','tou'].includes(s.bessUseCase);
-  const b=compute(s,root.Finance.compute(s)),status=document.getElementById('bessInputStatus');
-  status.textContent=!enabled(s)?'Solar-only proposal. No battery pages will be added.':b.errors.length?b.errors.join(' '):b.capacity===null?'Storage pages added. Enter the battery specifications to complete the illustration.':'Live storage supplement • '+n(b.capacity,2)+' kWh • '+(b.designReady?'backup design marked confirmed':'backup design pending');
-  const label=document.querySelector('label[for="bessSourceRate"]');if(label)label.textContent=b.mode==='self'?'Foregone export credit (₹/kWh)':'Off-peak charging tariff (₹/kWh)';
+  document.getElementById('bessEconomics').hidden=!['self','tou'].includes(s.bessUseCase);
+  const auto=s.bessSpecMode==='auto'&&!!Catalog.get(s.bessModel);
+  document.querySelector('label[for="bessPower"]').textContent=auto?'Calculated design AC output (kW)':'Continuous AC output (kW)';
+  for(const id of ['bessCapacity','bessDod','bessPower'])document.getElementById(id).readOnly=auto;
+  document.getElementById('bessCustomIdentity').hidden=!!Catalog.get(s.bessModel);
+  document.getElementById('bessAutoSetup').hidden=!Catalog.get(s.bessModel);
+  document.getElementById('bessSolarSizing').hidden=s.bessSizing==='backup';
+  const a=sizing(s,root.Finance.compute(s)),b=compute(s,root.Finance.compute(s));
+  document.getElementById('bessInputStatus').textContent=!enabled(s)?'Not included. Your solar-only proposal is unchanged.':(included(s)?'Two pages in the proposal + separate report.':'Standalone report only; excluded from the main proposal.');
+  document.getElementById('bessSizingStatus').textContent=a.model?(a.issue||'Suggested '+a.recommended+' modules · selected '+a.units+' · '+Number(s.bessCapacity||0).toLocaleString('en-IN',{maximumFractionDigits:3})+' kWh. '+(auto?'Linked to quotation.':'Manual specifications override catalogue values.')):'Choose a model for automatic sizing, or use Custom.';
+  document.getElementById('bessValidation').textContent=b.errors.join(' ');
+  document.querySelector('label[for="bessSourceRate"]').textContent=b.mode==='self'?'Foregone export credit (₹/kWh)':'Off-peak charging tariff (₹/kWh)';
+  const source=document.getElementById('bessCatalogueSource');source.textContent=a.model?a.model.edition+' · '+a.model.note:'';
+  document.querySelectorAll('[data-export-format="bess"]').forEach(el=>el.disabled=!enabled(s));
  }
- function wire(){document.querySelectorAll('[data-bess-choice]').forEach(el=>el.addEventListener('click',()=>{const input=document.getElementById('bessEnabled');input.checked=el.dataset.bessChoice==='yes';input.dispatchEvent(new Event('input',{bubbles:true}));}));}
- return {DEFAULTS,enabled,compute,readForm,syncControls,wire,overview,assessment};
+ function wire(){
+  const select=document.getElementById('bessModel');
+  Catalog.models.forEach(m=>select.add(new Option(m.name+' · '+m.rated+' kWh',m.id),select.querySelector('option[value="custom"]')));
+  select.addEventListener('change',()=>{
+   const m=Catalog.get(select.value);document.getElementById('bessSpecMode').value=m?'auto':'manual';
+   document.getElementById('bessBackupReady').value='pending';
+   document.getElementById('bessCost').value='';
+   document.getElementById('bessWarranty').value='';
+   if(m){
+    const defaults={bessDischargeEff:'96',bessPowerDerate:'15',bessUnitsOverride:'',bessBackupReady:'pending',bessCost:'',bessWarranty:''};
+    Object.entries(defaults).forEach(([k,v])=>document.getElementById(k).value=v);
+   }
+  });
+  document.querySelectorAll('[data-bess-choice]').forEach(el=>el.addEventListener('click',()=>{const input=document.getElementById('bessEnabled');input.checked=el.dataset.bessChoice==='yes';input.dispatchEvent(new Event('input',{bubbles:true}));}));
+  for(const id of ['bessInverter','bessCoupling'])document.getElementById(id).addEventListener('input',()=>{document.getElementById('bessBackupReady').value='pending';});
+  document.getElementById('bessUseQuote').addEventListener('click',()=>{
+   for(const [k,v] of Object.entries({bessAutoEconomics:true,bessRte:'88',bessReserve:'20',bessCycles:'1',bessDays:'365',bessChargeHours:'4',bessDischargeHours:'4',bessLife:'10'})){const e=document.getElementById(k);if(e.type==='checkbox')e.checked=v;else e.value=v;}
+   const s=root.Render.lastState,b=compute(s,root.Finance.compute(s));document.getElementById('bessChargePower').value=b.power??'';
+   document.getElementById('bessAutoEconomics').dispatchEvent(new Event('input',{bubbles:true}));
+  });
+ }
+ return {DEFAULTS,enabled,included,reason,compute,resolve,sizing,applyDerived,readForm,syncControls,wire,overview,assessment};
 });

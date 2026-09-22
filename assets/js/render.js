@@ -131,12 +131,12 @@
     const E = CONTENT.exec;
     set('v_exEyebrow', tpl(E.eyebrow, v));
     set('v_exHeading', tpl(E.heading, v));
-    set('v_exSub', root.Bess.enabled(s) ? 'Solar-only figures below • separately priced battery supplement on pages '+pageNum('pageBessOverview')+'–'+pageNum('pageBessAssessment') : tpl(E.sub, v));
+    set('v_exSub', root.Bess.included(s) ? 'Solar-only figures below • separately priced battery supplement on pages '+pageNum('pageBessOverview')+'–'+pageNum('pageBessAssessment') : tpl(E.sub, v));
     set('v_exCustomerLine', s.custName ? ('Prepared exclusively for ' + s.custName +
       (s.custAddress ? ' • ' + s.custAddress : '')) : '');
 
     set('v_exHeroNet', F.fmtINR(f.netInvestment));
-    set('v_exHeroNetLabel', root.Bess.enabled(s) ? 'Solar-only net investment' : E.heroLabels.netInvestment);
+    set('v_exHeroNetLabel', root.Bess.included(s) ? 'Solar-only net investment' : E.heroLabels.netInvestment);
     set('v_exHeroSave', F.fmtINR(f.annualSaving));
     set('v_exHeroSaveLabel', E.heroLabels.year1Saving);
     set('v_exHeroPayback', isFinite(f.payback) ? f.payback.toFixed(1) + ' yrs' : '—');
@@ -219,7 +219,7 @@
     const opts = (s.options || []).slice(0, 4);
     set('v_opEyebrow', P.eyebrow);
     set('v_opHeading', P.heading);
-    set('v_opSub', root.Bess.enabled(s) ? 'Solar-only options • the battery supplement is proposal-level and priced separately.' : P.sub);
+    set('v_opSub', root.Bess.included(s) ? 'Solar-only options • the battery supplement is proposal-level and priced separately.' : P.sub);
     set('v_opPara', P.para);
     set('v_opTableLabel', P.tableLabel);
     set('v_opBoldNote', opts.length ? P.boldNote : '');
@@ -650,7 +650,7 @@
   function renderSavings(s, f, v) {
     const P = CONTENT.pageSavings;
     set('v_svHeading', P.heading);
-    set('v_svSub', root.Bess.enabled(s) ? 'Solar-only energy value • storage investment and operating benefits are assessed separately.' : P.sub);
+    set('v_svSub', root.Bess.included(s) ? 'Solar-only energy value • storage investment and operating benefits are assessed separately.' : P.sub);
     set('v_svPara', P.para);
     set('v_svChipGen', F.fmtNum(f.annualGen) + ' kWh');
     set('v_svChipGenL', P.chips.annualGen);
@@ -699,7 +699,7 @@
   function renderInvestment(s, f, v) {
     const P = CONTENT.pageInvestment;
     set('v_inHeading', P.heading);
-    set('v_inSub', root.Bess.enabled(s) ? 'Solar-only pricing • see Storage Assessment for the separate battery upgrade.' : P.sub);
+    set('v_inSub', root.Bess.included(s) ? 'Solar-only pricing • see Storage Assessment for the separate battery upgrade.' : P.sub);
     set('v_inDesc', tpl(P.desc, v));
 
     set('v_inCostBase', F.fmtINR(f.projectCost));
@@ -709,7 +709,7 @@
     set('v_inCostSub', '− ' + F.fmtINR(f.subsidy));
     set('v_inCostSubL', P.cards.subsidy);
     set('v_inCostNet', F.fmtINR(f.netInvestment));
-    set('v_inCostNetL', root.Bess.enabled(s) ? 'Solar-only net investment' : P.cards.netInvestment);
+    set('v_inCostNetL', root.Bess.included(s) ? 'Solar-only net investment' : P.cards.netInvestment);
     /* subsidy caption reflects exactly how the number was derived */
     const subCap = f.subsidyAuto ? P.cards.subsidyCaptionAuto
       : (s.subsidyOverride !== '' ? P.cards.subsidyCaptionOverride : P.cards.subsidyCaptionNA);
@@ -759,7 +759,7 @@
       '<div class="inc-item">' + I.get(it.icon || 'check', 16, '#D96A0E') +
       '<div class="inc-t">' + esc(it.title) + '</div></div>').join(''));
     set('v_inPayLabel', P.paymentLabel);
-    set('v_inPayNote', (root.Bess.enabled(s) ? 'Solar-only milestones. ' : '') + P.paymentNote);
+    set('v_inPayNote', (root.Bess.included(s) ? 'Solar-only milestones. ' : '') + P.paymentNote);
     const pay = [
       ['v_inPayA', f.pay.advance, 'Advance — on signing'],
       ['v_inPayD', f.pay.dispatch, 'Before material dispatch'],
@@ -800,7 +800,7 @@
     if (!fin) return; /* page hidden; nothing to fill */
     set('v_finEyebrow', P.eyebrow);
     set('v_finHeading', P.heading);
-    set('v_finSub', root.Bess.enabled(s) ? 'Solar-only cash-flow illustration • battery cost and operating benefits are not included.' : P.sub);
+    set('v_finSub', root.Bess.included(s) ? 'Solar-only cash-flow illustration • battery cost and operating benefits are not included.' : P.sub);
     set('v_finPara', P.para);
     set('v_finRecap', P.recapLabel + ':  ₹' + F.fmtINR(fin.loan).replace('₹', '') +
       '  @ ' + s.loanRate + '% p.a.  ×  ' + s.loanYears + ' years  →  EMI ' +
@@ -907,7 +907,7 @@
   function renderTerms(s, f, v) {
     const P = CONTENT.pageTerms;
     set('v_tmHeading', P.heading);
-    set('v_tmSub', root.Bess.enabled(s) ? 'Solar EPC terms below • battery scope, warranties and payment terms require a separate written agreement.' : P.sub);
+    set('v_tmSub', root.Bess.included(s) ? 'Solar EPC terms below • battery scope, warranties and payment terms require a separate written agreement.' : P.sub);
     set('v_tmIntro', P.intro);
     set('v_tmItemsLabel', P.itemsLabel);
     setHTML('v_tmItems', P.items.map((it, i) =>
@@ -940,7 +940,7 @@
     set('v_clEmail', s.companyEmail);
     set('v_clWebsite', s.companyWebsite);
     set('v_clAcceptLabel', P.acceptLabel);
-    set('v_clAcceptIntro', tpl(P.acceptIntro, v));
+    set('v_clAcceptIntro', root.Bess.included(s)||root.AdditionalSystems.included(s) ? 'Signing confirms only the scope separately agreed in writing. Inclusion of a recommended or alternative battery / additional system does not authorise its supply or installation.' : tpl(P.acceptIntro, v));
     set('v_clSignCustomer', P.signCustomer);
     set('v_clSignCompany', tpl(P.signCompany, v));
     set('v_clSignCustomerSub', P.signCustomerSub);
@@ -960,8 +960,10 @@
     { id: 'pageWhySolar', nav: 'Why Solar', title: 'Why Rooftop Solar', render: renderWhySolar },
     { id: 'pageSolution', nav: 'Solution', title: 'Proposed Solution', render: renderSolution },
     { id: 'pageTechSpec', nav: 'Tech Specs', title: 'Technical Specification', render: renderTechSpec },
-    { id: 'pageBessOverview', nav: 'Battery Storage', title: 'Battery Storage', render: (s,f)=>root.Bess.overview(s,f), visible: s=>root.Bess.enabled(s) },
-    { id: 'pageBessAssessment', nav: 'Storage Value', title: 'Storage Assessment', render: (s,f)=>root.Bess.assessment(s,f), visible: s=>root.Bess.enabled(s) },
+    { id: 'pageBessOverview', nav: 'Battery Storage', title: 'Battery Storage', render: (s,f)=>root.Bess.overview(s,f), visible: s=>root.Bess.included(s) },
+    { id: 'pageBessAssessment', nav: 'Storage Value', title: 'Storage Assessment', render: (s,f)=>root.Bess.assessment(s,f), visible: s=>root.Bess.included(s) },
+    { id: 'pageSystemOverview', nav: 'Additional System', title: 'Additional System', render: (s,f)=>root.SupplementDesign.systemOverview(s,f), visible:s=>root.AdditionalSystems.included(s) },
+    { id: 'pageSystemDetail', nav: 'System Scope', title: 'Additional System Scope', render: (s,f)=>root.SupplementDesign.systemDetail(s,f), visible:s=>root.AdditionalSystems.included(s) },
     { id: 'pageScope', nav: 'EPC Scope', title: 'EPC Scope', render: renderScope },
     { id: 'pageQuality', nav: 'Quality', title: 'Installation Quality', render: renderQuality },
     { id: 'pageSavings', nav: 'Savings', title: 'Generation & Savings', render: renderSavings },
@@ -1039,19 +1041,33 @@
     const net = F.fmtINRshort(f.netInvestment);
     el.textContent = 'Live • ' + cap + ' • ' + cust + ' • ' + net;
     const chip = $('liveChip');
-    if (chip) chip.title = 'Live quote — ' + cap + ' for ' + (s.custName || 'customer') + (root.Bess.enabled(s) ? ' — solar-only net ' : ' — net ') + F.fmtINR(f.netInvestment);
+    if (chip) chip.title = 'Live quote — ' + cap + ' for ' + (s.custName || 'customer') + (root.Bess.included(s)||root.AdditionalSystems.included(s) ? ' — solar-only net ' : ' — net ') + F.fmtINR(f.netInvestment);
   }
 
   /* ================================================================== */
   let lastState = null;
   function renderAll(stateOverride) {
-    const s = stateOverride || readState();
+    const raw = stateOverride || readState();
+    const s = root.Bess.resolve(raw,F.compute(raw));
+    if(!stateOverride) root.Bess.applyDerived(s);
     lastState = s;
     const f = F.compute(s);
     const v = tplVars(s, f);
     renderChrome(s, f);
     PAGES.forEach((p) => { try { p.render(s, f, v); } catch (e) { console.error('render', p.id, e); } });
     root.Bess.syncControls(s);
+    root.AdditionalSystems.sync(s);
+    if(root.AdditionalSystems.included(s)){
+      set('v_exSub','Solar-only figures • separately priced system supplement included; final net savings require site modelling.');
+      set('v_svSub','Solar-only potential energy value • additional controls / loads are not modelled.');
+      set('v_inSub','Solar-only pricing • battery and additional-system upgrades are priced separately.');
+      set('v_inCostNetL','Solar-only net investment');
+      set('v_inPayNote','Solar-only milestones. '+CONTENT.pageInvestment.paymentNote);
+      set('v_finSub','Solar-only cash-flow illustration • optional-system prices and operating effects are not included.');
+      set('v_opSub','Solar-only options • optional systems are proposal-level and priced separately.');
+      set('v_exHeroNetLabel','Solar-only net investment');
+      set('v_tmSub','Solar EPC terms • additional system scope, price and payment terms require separate agreement.');
+    }
     updateLiveChip(s, f);
     drawCharts(f);
     if (typeof document !== 'undefined' && document.dispatchEvent) {
@@ -1064,6 +1080,7 @@
     const g = (id) => { const el = $(id); return el ? el.value : ''; };
     return {
       ...root.Bess.readForm(),
+      ...root.AdditionalSystems.readForm(),
       companyName: g('companyName'), companyTagline: g('companyTagline'),
       companyPhone: g('companyPhone'), companyEmail: g('companyEmail'),
       companyAddress: g('companyAddress'), companyWebsite: g('companyWebsite'),

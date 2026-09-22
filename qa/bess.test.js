@@ -4,7 +4,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
 const solar=F.compute({capacity:7,genFactor:1460,costPerKwp:90000,tariff:15}),calc=patch=>B.compute({...fixture,...patch},solar),close=(a,b)=>Math.abs(a-b)<1e-8;
 check('old proposals default to no battery',!B.enabled({})&&!B.DEFAULTS.bessEnabled);
 check('strict enabled parsing never treats the string no/false as Yes',!B.enabled({bessEnabled:'no'})&&!B.enabled({bessEnabled:'false'})&&B.enabled({bessEnabled:'yes'}));
-check('default ratings and economics are blank, not fabricated',Object.entries(B.DEFAULTS).filter(([k])=>/Capacity|Dod|Eff|Power|Load|Cost|Reserve|Rte|Days|Cycles|Rate|Om|Life/.test(k)).every(([,v])=>v===''));
+check('default ratings and economics are blank, not fabricated',Object.entries(B.DEFAULTS).filter(([k])=>k!=='bessPowerDerate'&&/Capacity|Dod|Eff|Power|Load|Cost|Reserve|Rte|Days|Cycles|Rate|Om|Life/.test(k)).every(([,v])=>v===''));
 const off=calc({bessEnabled:false});check('No suppresses stored financial and backup output',!off.enabled&&off.cost===null&&off.annualBenefit===null&&off.backupHours===null&&off.errors.length===0);
 const blank=B.compute({...B.DEFAULTS,bessEnabled:true},solar);check('Yes alone has no invented backup, price or savings',blank.capacity===null&&blank.backupHours===null&&blank.cost===null&&blank.annualBenefit===null);
 const b=calc({});check('usable DC and AC energy keep kWh separate from kW',close(b.usableDc,9)&&close(b.usableAc,8.55)&&b.power===5);

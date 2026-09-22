@@ -464,6 +464,8 @@
     window.__qsBooted = true;
     templatePageImages = Object.fromEntries([...document.querySelectorAll('input[data-photo]')]
       .map(input => [input.dataset.photo, $(input.dataset.photo)?.getAttribute('src') || '']));
+    window.Bess.wire();
+    window.AdditionalSystems.wire();
     pristine = window.StateStore.collectForm();       /* HTML defaults */
     if (!pristine.propDate) {
       $('propDate').value = today();
@@ -478,7 +480,7 @@
       scheduleSave();
     });
     wireForm();
-    window.Bess.wire();
+
     wireManager();
     wireOptions();
     wireShare();

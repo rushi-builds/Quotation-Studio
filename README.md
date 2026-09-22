@@ -9,8 +9,8 @@ Open `quotation.html` in a browser, or serve the folder with any static server.
 
 ## The 15-page proposal journey
 
-The journey is **15–19 pages**: optional comparison, financing and battery
-storage pages appear only when selected / completed. All later pages renumber automatically — in the
+The journey is **15–21 pages**: optional comparison, financing, battery storage and
+additional-system pages appear only when selected / completed. All later pages renumber automatically — in the
 preview, the exported PDF and the customer share view.
 
 - **System Options** (page 3): appears when a proposal carries two or more
@@ -19,12 +19,23 @@ preview, the exported PDF and the customer share view.
   tenure are entered — reducing-balance EMI, total interest, monthly savings
   vs EMI over the tenure with the crossover month, net monthly outgo. Leave
   the loan fields blank for a cash-purchase proposal.
-- **Battery storage (BESS)** (two pages after Technical Specification): choose
-  **Yes** in its own control-panel section for the storage concept, energy-flow
-  diagram, backup comparison and investment / value assessment. **No** leaves
-  the solar-only proposal unchanged. All battery ratings start blank. Storage
-  price and operating benefit are separate from solar figures; no combined
-  savings or OEM compatibility is assumed. See [BESS methodology and QA](docs/bess-2026-09-22.md).
+- **Battery storage (BESS)**: a separate **Yes / No** section, two redesigned
+  visual report pages and an independent **two-page BESS Report** download.
+  Choose customer-requested, seller-recommended or optional alternative. Five
+  documented battery models populate specifications and calculate a bank from
+  an explicit solar-shifting scenario or essential load × backup duration.
+  **Custom** is last in the dropdown, with manual entry beneath; manual ratings,
+  module quantity and converter kW remain controllable. Prices, compatibility,
+  warranty and actual backup requirements are not invented.
+- **Additional System**: Zero Export, Energy Monitoring, EV Charging,
+  DG–Solar Coordination and Custom. Edit purpose, equipment, scope, price,
+  exclusions, delivery, warranty and notes. Includes a **two-page System Report**
+  and a separate **one-page System Power Proposal**. No template invents savings.
+- Both features default **off** and can remain enabled for standalone downloads
+  while excluded from the main proposal. Their prices and benefits stay separate
+  from solar Finance and payment milestones. The solar Power Proposal remains
+  two pages. See [workflow and methodology](docs/bess-2026-09-22.md) and the
+  [versioned battery sources and limits](docs/storage-catalogue.md).
 
 | # | Page | Purpose |
 |---|------|---------|
@@ -47,13 +58,16 @@ preview, the exported PDF and the customer share view.
 ## Architecture
 
 ```
-quotation.html          Form panel + 19 A4 page shells (15 visible by default)
+quotation.html          Form panel + 21 A4 page shells (15 visible by default)
 assets/
   css/app.css           Tokens, form, A4 pages, components, responsive, print
   css/bess.css          Optional storage controls, diagrams and A4 layouts
   js/content.js         Solar brochure text (CONTENT) + portfolio data — data only
   js/finance.js         Solar calculation engine (pure, UMD) — no DOM access
-  js/bess.js            Separate storage engine, form bridge and two visual pages
+  js/bess.js            Separate storage sizing / economics engine and form bridge
+  js/storage-catalog.js Five versioned, sourced battery candidates
+  js/additional-systems.js Four editable templates + Custom and separate pricing
+  js/supplement-design.js Four photo-led report page renderers
   js/icons.js           Inline-SVG icon set (emoji-free: safe for html2canvas PDF)
   js/charts.js          Dependency-free canvas charts (payback, bars, bridge, donut)
   js/model.js           Proposal store: object model, statuses, immutable versions
