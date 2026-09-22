@@ -184,8 +184,7 @@
 
     set('v_exEffectiveHint', tpl(E.effectiveHint, { tariff: s.tariff }));
     show('v_exEffectiveHint', f.effectivePerUnit > 0);
-    set('v_exTraceNote', 'Every figure on this page is computed live from the project inputs — see Generation & Savings Analysis (pages ' +
-      pageNum('pageSavings') + '–' + pageNum('pageInvestment') + ') for the full workings.');
+    set('v_exTraceNote', '');
   }
 
   function modeDesc(mode, s) {
