@@ -392,7 +392,10 @@
       ['Technology', s.moduleTech || '—'],
       ['Rated Power', f.moduleWattage + ' Wp per module'],
       ['Quantity', f.moduleCount + ' modules'],
-      ['Installed Array Size', F.fmtNum(f.installedKwp * 100) / 100 + ' kWp'],
+      // Keep engineering values numeric until final formatting. fmtNum returns
+      // grouped text (e.g. "1,036"), which cannot be used in arithmetic.
+      ['Installed Array Size', Number.isFinite(f.installedKwp)
+        ? f.installedKwp.toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp' : '—'],
       ['Total Module Area', f.arrayArea ? Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)' : '—'],
       ['Performance Warranty', CONTENT.shared.warrantyLine]
     ]);

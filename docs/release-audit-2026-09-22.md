@@ -87,3 +87,29 @@ Approved artwork is unchanged:
 Do not add unrelated UI features during this final stabilization step. Review the updated preview and export one real quotation on the intended device. If Marathi playback on every customer's device is a release requirement, decide on hosted multilingual speech before merging. Otherwise, retain optional device audio with the now-explicit transcript fallback. A cloud quotation-sharing workflow is a separate future feature, not something the current local Customer View should be represented as providing.
 
 **Merge remains an explicit owner decision.**
+
+
+## Post-audit correction — installed-array display
+
+A subsequent user check at **10 kWp / 545 Wp modules** exposed a missed display
+bug: the calculated array size was correct (19 × 545 Wp = **10.355 kWp**), but the
+renderer called `fmtNum` before completing arithmetic. The intermediate value was
+formatted as `1,036`; dividing that comma-containing string yielded `NaN`.
+
+The earlier tests checked module quantities, pricing and A4 layout but did not
+assert this displayed row across the number-grouping boundary. The prior passing
+results therefore did not establish that this formatter was correct.
+
+The renderer now formats the final numeric kWp value directly, to a maximum of
+three decimal places. Calculations and quotation pricing are unchanged. The new
+`qa/array-size.test.js` checks 14 capacity/rating combinations, including 9.81/9.82
+kWp boundary cases, 10 kWp, module-rating edits and larger systems. It checks
+rendered rows and scans all proposal pages for NaN/Infinity, then verifies reload,
+Customer View, print and the actual detailed-PDF capture path. The existing
+technical-specification test also explicitly checks the installed-array row.
+
+Verification after this correction: **332 unit checks**, **22 technical-specification
+browser checks**, and **35 installed-array regression checks** passed. A real
+**15-page detailed PDF** was downloaded through the UI; its technical-page canvas
+was visually inspected and shows **10.355 kWp**. This is a targeted recheck, not a
+claim that every possible input or device combination has been audited.
