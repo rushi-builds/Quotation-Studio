@@ -49,7 +49,7 @@ The actual PDF raster was visually inspected, not only the HTML view.
 Both complete commands exited 0 on the final code before publishing:
 
 - `npm test --prefix qa`: **474 unit/integration checks passed**.
-- `npm run test:browser --prefix qa`: **672 numbered browser checks passed**,
+- `npm run test:browser --prefix qa`: **671 numbered browser checks passed**,
   plus the existing unnumbered live-cover/general-browser export tests.
 - The supplement suite now has **94 checks**; the A4 spacing suite has **28**.
   These include actual standalone PDFs and the 17/21-page combined stress cases.
