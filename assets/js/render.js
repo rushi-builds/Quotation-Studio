@@ -153,7 +153,7 @@
       { l: k.modules, val: f.moduleCount ? f.moduleCount + ' × ' + f.moduleWattage + ' Wp' : '—', icon: 'grid2' },
       { l: k.arrayArea, val: f.arrayArea ? Math.round(f.arrayArea) + ' m²' : '—', icon: 'target' },
       { l: k.irr, val: isFinite(f.irr) ? f.irr.toFixed(1) + '%' : '—', icon: 'trend' },
-      { l: k.effective, val: f.effectivePerUnit > 0 ? '₹' + f.effectivePerUnit.toFixed(2) + ' / unit' : '—', icon: 'rupee' },
+      { l: k.effective, val: f.lifetimeGen > 0 && Number.isFinite(f.effectivePerUnit) && f.effectivePerUnit >= 0 ? '₹' + f.effectivePerUnit.toFixed(2) + ' / unit' : '—', icon: 'rupee' },
       { l: k.co2, val: f.co2Annual.toFixed(1) + ' tonnes', icon: 'leaf' }
     ];
     if (f.monthlyBill > 0 && f.annualSaving > 0) {
@@ -402,7 +402,8 @@
     addRows('INVERTER', [
       ['Make', s.inverterMake],
       ['Rated Output', f.inverterKw + ' kW' + (s.inverterKw ? '' : ' (auto — equal to capacity)')],
-      ['DC/AC Ratio', f.dcAcRatio ? f.dcAcRatio.toFixed(2) + ' : 1' : '—'],
+      ['DC/AC Ratio', Number.isFinite(f.dcAcRatio) && f.dcAcRatio > 0
+        ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '—'],
       ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
     ]);
     addRows('MOUNTING & CABLing'.replace('CABLing', 'CABLING'), [
@@ -656,7 +657,7 @@
     set('v_svChipSaveL', P.chips.annualSaving);
     set('v_svChipY25', F.fmtINR(f.series.saving[24]));
     set('v_svChipY25L', P.chips.year25Saving);
-    set('v_svChipEff', f.effectivePerUnit > 0 ? '₹' + f.effectivePerUnit.toFixed(2) + '/unit' : '—');
+    set('v_svChipEff', f.lifetimeGen > 0 && Number.isFinite(f.effectivePerUnit) && f.effectivePerUnit >= 0 ? '₹' + f.effectivePerUnit.toFixed(2) + '/unit' : '—');
     set('v_svChipEffL', P.chips.effective);
 
     set('v_svChartCumTitle', P.chartCumTitle);
@@ -674,11 +675,11 @@
       rows.map((y) => {
         const cum = f.series.cumSaving[y - 1];
         const net = cum - f.netInvestment;
-        const roi = f.netInvestment > 0 ? (net / f.netInvestment) * 100 : 0;
+        const roi = f.netInvestment > 0 ? (net / f.netInvestment) * 100 : NaN;
         return '<tr><td class="sv-y">' + y + ' yrs</td>' +
           '<td>' + F.fmtINR(cum) + '</td>' +
           '<td class="' + (net >= 0 ? 'pos' : 'neg') + '">' + (net >= 0 ? '+' : '−') + ' ' + F.fmtINR(Math.abs(net)) + '</td>' +
-          '<td class="' + (net >= 0 ? 'pos' : 'neg') + '">' + (roi >= 0 ? '+' : '−') + Math.abs(roi).toFixed(0) + '%</td></tr>';
+          '<td class="' + (net >= 0 ? 'pos' : 'neg') + '">' + (Number.isFinite(roi) ? (roi >= 0 ? '+' : '−') + Math.abs(roi).toFixed(0) + '%' : '—') + '</td></tr>';
       }).join('') + '</tbody>');
 
     set('v_svAssumptionsLabel', P.assumptionsLabel);

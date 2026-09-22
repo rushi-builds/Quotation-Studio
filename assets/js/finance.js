@@ -120,14 +120,18 @@
 
     /* ----- system engineering (derived, traceable) ----- */
     const moduleWattage = num(s.moduleWattage) || 0;
-    const moduleCount = (moduleWattage > 0 && capacity > 0)
-      ? Math.ceil((capacity * 1000) / moduleWattage) : 0;
+    const requiredModules = (moduleWattage > 0 && capacity > 0)
+      ? (capacity * 1000) / moduleWattage : 0;
+    // Suppress only floating-point round-off at whole-module boundaries:
+    // 8.175 kWp / 545 Wp can evaluate as 15.000000000000002 modules.
+    // A real shortfall must still round UP to the next whole module.
+    const moduleCount = Math.ceil(requiredModules - 2 * Number.EPSILON * requiredModules);
     const installedKwp = (moduleCount && moduleWattage)
       ? (moduleCount * moduleWattage) / 1000 : capacity;
     const moduleAreaEach = (num(s.moduleLengthMm) / 1000) * (num(s.moduleWidthMm) / 1000);
     const arrayArea = (moduleCount > 0 && moduleAreaEach > 0) ? moduleCount * moduleAreaEach : 0;
     const inverterKw = num(s.inverterKw) || (capacity > 0 ? capacity : 0);
-    const dcAcRatio = (capacity > 0 && inverterKw > 0) ? capacity / inverterKw : 0;
+    const dcAcRatio = (installedKwp > 0 && inverterKw > 0) ? installedKwp / inverterKw : 0;
 
     /* ----- costs ----- */
     const projectCost = capacity * costPerKwp;               // ex-GST

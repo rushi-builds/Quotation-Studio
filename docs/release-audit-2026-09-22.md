@@ -113,3 +113,44 @@ browser checks**, and **35 installed-array regression checks** passed. A real
 **15-page detailed PDF** was downloaded through the UI; its technical-page canvas
 was visually inspected and shows **10.355 kWp**. This is a targeted recheck, not a
 claim that every possible input or device combination has been audited.
+
+## Follow-up numerical consistency review
+
+The user's request for confidence prompted a further check beyond the NaN fix.
+It found three additional cases that the previous passing suites did not catch:
+
+1. **DC/AC ratio used requested rather than installed DC capacity.** It now uses
+   the actual panel total divided by inverter kW. The 10 kWp / 19 × 545 Wp / 10 kW
+   example displays **1.04 : 1**, not 1.00 : 1. Ratio formatting also rounds decimal
+   midpoint values consistently (10.45 / 10 displays 1.05 : 1).
+2. **Floating-point rounding could add an unnecessary module.** For example,
+   8.175 kWp at 545 Wp evaluates internally just above 15 modules and previously
+   rounded to 16. A relative machine-precision tolerance now removes round-off
+   before ceiling; genuine shortfalls still require another panel. The unit
+   regression checks 300–750 Wp ratings in 5 Wp steps, 1–200 modules, at the exact
+   boundary and one watt above/below: **54,600 sizing scenarios**. A further check
+   confirms that even a 0.001 W shortfall still rounds up.
+3. **Zero net investment had misleading financial display fallbacks.** Milestone
+   ROI now shows a dash rather than an invented 0% when there is no positive
+   investment denominator. With positive lifetime generation and zero net cost,
+   the executive summary and savings page show **₹0.00/unit** rather than a dash.
+   No pricing or savings formula was changed.
+
+The rendered-value regression now includes exact module-count boundaries, DC/AC
+ratios, manual/automatic inverter edits, and zero-investment display states.
+Reload, Customer View and actual detailed-PDF capture assertions include the
+corrected ratio. All three preserved ordinary-case financial baselines match
+exactly, excluding only the deliberately corrected DC/AC ratio field.
+
+**Scope and confidence:** these fixes address verified defects, not every possible
+future issue. Passing automated tests is not a guarantee of a bug-free release.
+Input warnings remain advisory (not an export-blocking gate); they must be resolved
+before customer delivery. Device-dependent Marathi speech and browser-local
+Customer View remain the previously documented limitations. No merge or production
+release is authorized by this review.
+
+**Final rerun:** all **341 unit checks** and **456 numbered browser checks across
+12 suites** passed, plus the live-cover regression and the PDF/browser export
+suite. Actual 2-, 15-, 16- and 17-page PDF paths passed. The 15-page quotation's
+technical-page capture was visually checked: **10.355 kWp** and **1.04 : 1** are
+both present. No browser runtime errors were reported by the export suite.
