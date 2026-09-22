@@ -6,7 +6,7 @@
   const $ = id => document.getElementById(id);
   const locales={en:'en-IN',hi:'hi-IN',mr:'mr-IN'};
   const names={en:'English',hi:'Hindi',mr:'Marathi'};
-  function scriptFor(s, language='en') {
+  function solarScriptFor(s, language='en') {
     const lang=locales[language]?language:'en', f=root.Finance.compute(s);
     const n=(value,digits=0)=>new Intl.NumberFormat(locales[lang],{useGrouping:false,maximumFractionDigits:digits}).format(Number.isFinite(Number(value))?Number(value):0);
     const kw=n(f.capacity,2), count=n(f.moduleCount), watts=n(f.moduleWattage), generation=n(f.annualGen);
@@ -42,6 +42,14 @@
       Number.isFinite(f.payback)?'Estimated payback is '+years+' years.':'The current model does not reach payback within twenty-five years.',
       'These are estimates, not guaranteed generation, bill savings or subsidy approval. Review the written proposal and arrange a site assessment before proceeding.'
     ];
+  }
+  function scriptFor(s, language='en') {
+    const script=solarScriptFor(s,language);
+    if(root.Bess.enabled(s)) {
+      const note=language==='hi'?'नीचे बताए गए मूल्य, बचत और भुगतान केवल सौर प्रणाली के लिए हैं। बैटरी स्टोरेज अलग कीमत वाला विकल्प है। उसकी क्षमता, अतिरिक्त लागत, बैकअप की शर्तें और आकलन प्रस्ताव के बैटरी पृष्ठों पर देखें। बैटरी की बचत को सौर बचत में न जोड़ें।':language==='mr'?'पुढे सांगितलेल्या किंमती, बचत आणि देयके केवळ सौर यंत्रणेसाठी आहेत. बॅटरी स्टोरेज हा स्वतंत्र किमतीचा पर्याय आहे. क्षमता, अतिरिक्त किंमत, बॅकअपच्या अटी आणि अंदाज प्रस्तावातील बॅटरी पृष्ठांवर पाहा. बॅटरीची बचत सौर बचतीत मिळवू नका.':'The prices, savings and payments below are solar-only. Optional battery storage is priced separately. See the battery pages for capacity, additional investment, backup conditions and the storage-only assessment. Do not add its savings to the solar estimate.';
+      script.splice(1,0,note);
+    }
+    return script;
   }
   let host, state=null, stateKey='', language='en', mode='idle', revision=0, timer;
   let chunks=[], chunkIndex=0, pendingNext=false, currentUtterance=null;

@@ -9,16 +9,22 @@ Open `quotation.html` in a browser, or serve the folder with any static server.
 
 ## The 15-page proposal journey
 
-The journey is now **15–17 pages**: two conditional pages appear only when
-their data exists and all later pages renumber automatically — in the
+The journey is **15–19 pages**: optional comparison, financing and battery
+storage pages appear only when selected / completed. All later pages renumber automatically — in the
 preview, the exported PDF and the customer share view.
 
 - **System Options** (page 3): appears when a proposal carries two or more
   saved system options (Good / Better / Best).
-- **Financing & EMI** (page 11): appears when loan amount, interest rate and
+- **Financing & EMI** (after Investment): appears when loan amount, interest rate and
   tenure are entered — reducing-balance EMI, total interest, monthly savings
   vs EMI over the tenure with the crossover month, net monthly outgo. Leave
   the loan fields blank for a cash-purchase proposal.
+- **Battery storage (BESS)** (two pages after Technical Specification): choose
+  **Yes** in its own control-panel section for the storage concept, energy-flow
+  diagram, backup comparison and investment / value assessment. **No** leaves
+  the solar-only proposal unchanged. All battery ratings start blank. Storage
+  price and operating benefit are separate from solar figures; no combined
+  savings or OEM compatibility is assumed. See [BESS methodology and QA](docs/bess-2026-09-22.md).
 
 | # | Page | Purpose |
 |---|------|---------|
@@ -32,21 +38,22 @@ preview, the exported PDF and the customer share view.
 | 8 | Installation Quality | Standards + six-point handover checklist |
 | 9 | Generation & Savings Analysis | Cumulative-savings-vs-investment chart, annual savings bars, milestone table, assumptions strip |
 | 10 | Investment & Cost Breakdown | Cost cards with ₹/Wp, cost build-up chart, optional BOM donut, payment schedule with ₹ amounts, "what the price includes" |
-| 11 | Financing & EMI *(optional)* | Loan recap, EMI/interest/savings cards, savings-vs-EMI chart, crossover callout |
-| 12 | Why Choose Us | Differentiators + five commitments |
-| 13 | Projects Portfolio | 9 reference projects across 3 sectors |
-| 14 | Warranty & Installation Journey | Warranty cards + 6-step journey |
-| 15 | Terms & Conditions | 12 plain-language terms, auto-filled validity/duration/jurisdiction |
-| 16 | Acceptance & Contact | Next steps, urgency highlight, CTA band, signature blocks |
+| 11 | Why Choose Us | Differentiators + five commitments |
+| 12 | Projects Portfolio | 10 reference projects across 3 sectors |
+| 13 | Warranty & Installation Journey | Warranty cards + 6-step journey |
+| 14 | Terms & Conditions | 12 plain-language terms, auto-filled validity/duration/jurisdiction |
+| 15 | Acceptance & Contact | Next steps, urgency highlight, CTA band, signature blocks |
 
 ## Architecture
 
 ```
-quotation.html          Slim shell: form panel + 15 A4 page skeletons (no inline CSS/JS)
+quotation.html          Form panel + 19 A4 page shells (15 visible by default)
 assets/
   css/app.css           Tokens, form, A4 pages, components, responsive, print
-  js/content.js         ALL brochure text (CONTENT) + portfolio data — data only
-  js/finance.js         Calculation engine (pure, UMD) — no DOM access
+  css/bess.css          Optional storage controls, diagrams and A4 layouts
+  js/content.js         Solar brochure text (CONTENT) + portfolio data — data only
+  js/finance.js         Solar calculation engine (pure, UMD) — no DOM access
+  js/bess.js            Separate storage engine, form bridge and two visual pages
   js/icons.js           Inline-SVG icon set (emoji-free: safe for html2canvas PDF)
   js/charts.js          Dependency-free canvas charts (payback, bars, bridge, donut)
   js/model.js           Proposal store: object model, statuses, immutable versions

@@ -33,7 +33,7 @@ const OUT = __dirname + '/shots';
   /* ---- integrity ---- */
   const pageCount = await page.$$eval('.page', (els) => els.length);
   const visibleCount = await page.$$eval('.page', (els) => els.filter((e) => e.getClientRects().length > 0).length);
-  t('17 page shells (options + financing hidden by default)', pageCount === 17, pageCount);
+  t('19 page shells (options, financing and BESS hidden by default)', pageCount === 19, pageCount);
   t('15 visible (options hidden by default)', visibleCount === 15, visibleCount);
   const kv = await page.evaluate(() => ({
     coverName: document.getElementById('v_coverCustName').textContent,

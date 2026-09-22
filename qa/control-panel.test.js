@@ -11,7 +11,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';
   await page.setViewport({width:1440,height:1050});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
-  check('workspace loads with twelve collapsible input sections',await page.$$eval('.studio-section',e=>e.length===12));
+  check('workspace loads with thirteen collapsible input sections',await page.$$eval('.studio-section',e=>e.length===13));
   check('only the customer section starts open',await page.$$eval('.studio-section',els=>els.filter(e=>e.open).length===1&&els[0].open));
   check('original quotation controls remain unique',await page.evaluate(()=>Object.keys(StateStore.DEFAULTS).every(id=>document.querySelectorAll('#'+id).length===1)));
   check('search is not a quotation input',await page.evaluate(()=>!('studioSearch' in StateStore.collectForm())));

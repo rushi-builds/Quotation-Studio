@@ -478,6 +478,7 @@
       scheduleSave();
     });
     wireForm();
+    window.Bess.wire();
     wireManager();
     wireOptions();
     wireShare();

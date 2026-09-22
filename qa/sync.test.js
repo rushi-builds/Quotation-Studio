@@ -48,7 +48,7 @@ function bootApp(seedStorage, url) {
     }
   });
   const { window } = dom;
-  const src = ['content.js', 'finance.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+  const src = ['content.js', 'finance.js', 'bess.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
     'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);

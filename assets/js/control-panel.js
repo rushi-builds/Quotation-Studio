@@ -76,6 +76,7 @@
     const configs = [
       ['custName', 'Customer & system', 'users', 'pageCover', 'Customer, site and proposal details'],
       ['moduleMake', 'Equipment & design', 'panel', 'pageTechSpec', 'Modules, inverter and roof specifications'],
+      ['bessEnabled', 'Battery storage (BESS)', 'bolt', 'pageBessOverview', 'Optional storage, backup and a separate value assessment'],
       ['costPerKwp', 'Pricing & savings', 'chart', 'pageInvestment', 'Pricing, tariff and calculation assumptions'],
       ['payAdvance', 'Payment & financing', 'rupee', 'pageInvestment', 'Payment milestones and optional loan'],
       ['optName', 'Compare system options', 'panel', 'pageOptions', 'Good, Better and Best configurations'],
@@ -135,6 +136,7 @@
       const state = window.Render.lastState || window.Render.readState();
       const f = window.Finance.compute(state);
       overview.querySelector('[data-metric="capacity"]').textContent = (state.capacity || '—') + ' kWp';
+      overview.querySelector('[data-metric="investment"]').previousElementSibling.textContent=window.Bess.enabled(state)?'Solar-only investment':'Net investment';
       overview.querySelector('[data-metric="investment"]').textContent = window.Finance.fmtINR(f.netInvestment);
       overview.querySelector('[data-metric="energy"]').textContent = window.Finance.fmtNum(f.annualGen) + ' kWh';
       overview.querySelector('.studio-page-count').textContent = window.Render.lastVisible.length + ' pages';
@@ -148,6 +150,8 @@
       sections.forEach(({field, text, description}) => { text.querySelector('small').textContent = summaries[field] || description; });
       const selected = $('proposalSelect').selectedOptions[0];
       if (selected) selected.textContent = '#' + (state.propRef || 'Draft') + ' · ' + (state.custName || 'Untitled customer') + ' — ' + (state.capacity || '0') + ' kWp · v' + (state.propVersion || '1.0');
+      const bessSection=document.querySelector('[data-section="bessEnabled"] summary small');
+      if(bessSection) bessSection.textContent=window.Bess.enabled(state) ? 'Included · '+(state.bessCapacity||'—')+' kWh · two storage pages' : 'Not included · solar-only proposal';
       validate();
       if (searchInput.value.trim()) find();
     }
@@ -186,6 +190,7 @@
       });
     }
     function reveal(input) {
+      if(input.id==='bessEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-bess-choice="yes"]');}
       if (input.closest('[data-adv]')) $('modeAll').click();
       for (let parent = input.parentElement; parent && parent !== panel; parent = parent.parentElement) {
         if (parent.tagName === 'DETAILS') parent.open = true;
@@ -199,7 +204,7 @@
       clear.hidden = !query; results.hidden = !query;
       const list = results.querySelector('ul'); list.replaceChildren();
       if (!query) return;
-      const matches = [...form.querySelectorAll('input:not([type=file]),select,textarea')].filter(el => !el.disabled).map(input => {
+      const matches = [...form.querySelectorAll('input:not([type=file]),select,textarea')].filter(el => !el.disabled && (!el.closest('[hidden]') || el.id==='bessEnabled')).map(input => {
         const label = input.labels?.[0]?.textContent || input.getAttribute('aria-label') || input.closest('.field')?.querySelector('label')?.textContent || input.id;
         const path = [];
         for (let parent = input.parentElement; parent && parent !== form; parent = parent.parentElement) {

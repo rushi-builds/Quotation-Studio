@@ -12,6 +12,7 @@
 
 (function (root) {
   const DEFAULTS = {
+    ...root.Bess.DEFAULTS,
     /* ---- Branding ---- */
     companyName: 'KTM Energy Experts',
     companyTagline: 'Govt. Approved Solar EPC Contractor | Est. 2015',
@@ -91,7 +92,7 @@
       if (el.closest('.prop-manager')) return;
       /* system-options controls store their data on the proposal blob instead */
       if (el.closest('.opt-manager')) return;
-      if (!el.id) return;
+      if (!el.id || !['INPUT','SELECT','TEXTAREA'].includes(el.tagName)) return;
       out[el.id] = el.type === 'checkbox' ? el.checked : el.value;
     });
     return out;
@@ -102,7 +103,7 @@
       const el = document.getElementById(id);
       if (!el || el.hasAttribute('data-equipment-custom')) return;
       if (typeof root.EquipmentStore?.setValue === 'function' && root.EquipmentStore.setValue(id, vals[id])) return;
-      if (el.type === 'checkbox') el.checked = !!vals[id];
+      if (el.type === 'checkbox') el.checked = id==='bessEnabled' ? root.Bess.enabled({bessEnabled:vals[id]}) : !!vals[id];
       else {
         // Presets/imports can contain makes outside this browser's catalog.
         // Preserve them rather than silently saving an empty select value.
