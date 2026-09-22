@@ -14,15 +14,23 @@
   <path d="M228 112 250 72h178l29 43Z" fill="#ACC0AF" opacity=".4"/>
   <path d="M251 72h157v49H251Z" fill="#F7F7EE"/>
   <path d="m408 72 30-15v51l-30 13Z" fill="#D1DCD3"/>
+  <path d="M411 118 436 106v3l-25 12Z" fill="#C3D0C7" opacity=".55"/>
+  <path d="M414 88 430 80v16l-16 8Z" fill="#BDCFCE"/>
+  <path d="M416.5 90.5 427.5 85v9l-11 5.5Z" fill="#537780"/>
+  <path d="M421.8 87.8v13.4" stroke="#B7CDCA" stroke-width=".7"/>
+  <path d="M413.6 105.2 430.6 96.6v1.6l-17 8.6Z" fill="#C3D0C7" opacity=".5"/>
   <path d="m244 72 37-33h126l35 18-30 20Z" fill="#69847D"/>
   <path d="m253 67 31-24h120l-21 24Z" fill="url(#roof)"/>
   <g transform="matrix(1 0 -.91 .75 284 43)"><path d="M0 0h120v32H0z" fill="url(#modules)"/></g>
   <path d="m386 69 25-24 23 12-25 14Z" fill="#91A99E"/>
+  <path d="M391.75 69.5 416.75 48m5.75 3-25 21.5m5.75 3-25 21.5" stroke="#7E9689" stroke-width=".5"/>
+  <path d="m386 69 25-24" stroke="#6F8A80" stroke-width=".6"/>
   <path d="M272 87h27v26h-27zm70 0h48v26h-48z" fill="#BDCFCE"/>
   <path d="M276 90h19v19h-19zm70 0h40v19h-40z" fill="#537780"/>
   <path d="M315 88h16v33h-16z" fill="#BAA891"/>
   <path d="M367 90v19M276 100h19" stroke="#B7CDCA"/>
-  <path d="M248 121h166" stroke="#96AE9E" stroke-width="2"/>
+  <path d="M251 72h157v2.6H251Z" fill="#C9CFC4" opacity=".55"/>
+  <path d="M248 121h190" stroke="#96AE9E" stroke-width="2"/>
   <path d="M447 120.5h124l8.5 6.5H438.5Z" fill="#E7E9DA"/>
   <path d="M453.2 76.6h3.6v43h-3.6zm112.2 0h3.4v43h-3.4z" fill="#527984"/>
   <path d="M453.8 76.6h1v43h-1zm112.2 0h1v43h-1z" fill="#A9C3C2"/>
