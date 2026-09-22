@@ -1,4 +1,4 @@
-/* Real typing into equipment suggestions; persistence and actual PDF capture. */
+/* Original dropdowns with a final Custom option and manual input below; persistence and actual PDF capture. */
 'use strict';
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),puppeteer=require('puppeteer-core');
 let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓ '+name);};
@@ -12,23 +12,40 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';
   await page.setViewport({width:1440,height:1100});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
   await page.click('[data-section="moduleMake"] > summary');
-  async function type(id,value){await page.focus('#'+id);await page.keyboard.down('Control');await page.keyboard.press('A');await page.keyboard.up('Control');await page.keyboard.press('Backspace');await page.type('#'+id,value);await page.keyboard.press('Tab');}
+  async function type(id,value){
+   await page.focus('#'+id);await page.keyboard.press('End');
+   id+='Custom';await page.focus('#'+id);await page.keyboard.down('Control');await page.keyboard.press('A');await page.keyboard.up('Control');await page.keyboard.press('Backspace');await page.type('#'+id,value);await page.keyboard.press('Tab');}
   async function matchingForm(){return page.evaluate(values=>Object.entries(values).every(([id,v])=>document.getElementById(id).value===v&&Render.lastState[id]===v),custom);}
   async function matchingSpec(target){return target.$eval('#v_tsTable',(el,values)=>Object.values(values).every(v=>[...el.querySelectorAll('.spec-v')].some(cell=>cell.textContent===v)),custom);}
-  check('all six equipment fields are labelled editable inputs with existing suggestions',await page.evaluate(ids=>ids.every(id=>{const el=document.getElementById(id);return el.type==='text'&&!el.readOnly&&el.list?.options.length>0&&document.querySelector('label[for="'+id+'"]')&&document.getElementById(el.getAttribute('aria-describedby'));}),Object.keys(custom)));
+  check('all six original dropdowns have Custom last and labelled hidden text boxes below',await page.evaluate(ids=>ids.every(id=>{
+   const el=document.getElementById(id),input=document.getElementById(id+'Custom'),wrap=document.getElementById(id+'CustomWrap');
+   return el.tagName==='SELECT'&&el.options.length>1&&el.options[el.options.length-1].text==='Custom…'&&wrap.hidden&&input.disabled&&el.nextElementSibling===wrap&&document.querySelector('label[for="'+id+'"]')&&input.labels.length===1;
+  }),Object.keys(custom)));
+  check('Sungrow / Fronius is available without changing the original inverter default',await page.$eval('#inverterMake',el=>[...el.options].some(o=>o.value==='Sungrow / Fronius or Equivalent')&&el.value==='Deye or Equivalent'));
+
   await page.evaluate(()=>{
    EquipmentStore.cat().modules.push({id:'qa-module',make:'Catalog module 620',wp:620,tech:'Catalog HJT custom',lengthMm:2300,widthMm:1134});
    EquipmentStore.cat().inverters.push({id:'qa-inverter',make:'Catalog inverter 8',kw:8});
    EquipmentStore.save();EquipmentStore.refreshSelects();
   });
-  await type('moduleMake','Catalog module 620');
+  await page.select('#moduleMake','Catalog module 620');
   check('choosing a catalog make still fills real rating, dimensions and custom technology',await page.evaluate(()=>moduleWattage.value==='620'&&moduleLengthMm.value==='2300'&&moduleWidthMm.value==='1134'&&moduleTech.value==='Catalog HJT custom'));
-  await type('inverterMake','Catalog inverter 8');
+  await page.select('#inverterMake','Catalog inverter 8');
   check('known inverter rating still autofills',await page.$eval('#inverterKw',el=>el.value==='8'));
   for(const [id,value] of Object.entries(custom)){
    await type(id,value);
    check(id+' accepts custom keyboard input and updates the preview immediately',await page.evaluate(({id,value})=>Render.lastState[id]===value&&document.getElementById('v_tsTable').textContent.includes(value),{id,value}));
   }
+  check('manual text boxes are visible underneath their dropdowns',await page.evaluate(ids=>ids.every(id=>!document.getElementById(id+'CustomWrap').hidden&&!document.getElementById(id+'Custom').disabled&&document.getElementById(id).selectedIndex===document.getElementById(id).options.length-1),Object.keys(custom)));
+  await page.select('#cableMake','Havells or Equivalent');
+  check('choosing a listed make hides manual entry and immediately renders the listed value',await page.evaluate(()=>cableMakeCustomWrap.hidden&&cableMakeCustom.disabled&&Render.lastState.cableMake==='Havells or Equivalent'));
+  await page.select('#cableMake',custom.cableMake);
+  check('returning to Custom restores this proposal’s typed draft',await page.evaluate(()=>!cableMakeCustomWrap.hidden&&cableMakeCustom.value==='Custom cable <series>'&&Render.lastState.cableMake==='Custom cable <series>'));
+  await type('moduleMake','Panasonic / Waaree / Adani or Equivalent');
+  check('manual text matching a catalog name does not silently apply its ratings',await page.evaluate(()=>moduleMake.selectedOptions[0].hasAttribute('data-custom')&&moduleWattage.value==='620'));
+  await page.evaluate(()=>EquipmentStore.refreshSelects());
+  check('catalog refresh preserves explicitly selected Custom mode',await page.evaluate(()=>moduleMake.selectedOptions[0].hasAttribute('data-custom')&&!moduleMakeCustomWrap.hidden));
+  await type('moduleMake',custom.moduleMake);
   check('unknown names do not invent or overwrite technical ratings',await page.evaluate(()=>moduleWattage.value==='620'&&moduleLengthMm.value==='2300'&&inverterKw.value==='8'));
   check('markup-like brand text is rendered literally, not as elements',await page.$eval('#v_tsTable',el=>!el.querySelector('series')&&el.textContent.includes('Custom cable <series>')));
   check('pricing is unchanged by custom makes',await page.evaluate(()=>Finance.compute(Render.lastState).netInvestment===608070));
@@ -38,12 +55,15 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('clearing a make is not silently replaced with a default',await page.$eval('#moduleMake',el=>el.value===''));
   await type('moduleMake',custom.moduleMake);
   await page.evaluate(()=>window.__qsSaveNow());
+  check('helper fields are not saved as a second source of truth',await page.evaluate(()=>!Object.keys(StateStore.collectForm()).some(key=>key.endsWith('Custom'))));
   check('all six custom values persist in the proposal',await page.evaluate(values=>Object.entries(values).every(([id,v])=>Proposals.active().form[id]===v),custom));
   check('proposal-specific names do not silently change the shared catalog',await page.evaluate(values=>!EquipmentStore.cat().modules.some(x=>x.make===values.moduleMake)&&!EquipmentStore.cat().cables.some(x=>x.label===values.cableMake),custom));
   const original=await page.evaluate(()=>Proposals.activeId());
   await page.reload({waitUntil:'networkidle0'});
   check('reload preserves custom values and rendered specification',await matchingForm()&&await matchingSpec(page));
+  check('reload automatically restores Custom mode with the saved text',await page.evaluate(values=>Object.entries(values).every(([id,value])=>!document.getElementById(id+'CustomWrap').hidden&&document.getElementById(id+'Custom').value===value&&document.getElementById(id).selectedOptions[0].hasAttribute('data-custom')),custom));
   await page.evaluate(()=>document.querySelector('.studio-management').open=true);await page.click('#pmNew');
+  check('new quotation clears all previous manual drafts and hides the text boxes',await page.evaluate(ids=>ids.every(id=>document.getElementById(id+'Custom').value===''&&document.getElementById(id+'CustomWrap').hidden),Object.keys(custom)));
   check('new quotation retains original template equipment, not previous custom entries',await page.evaluate(()=>moduleMake.value===StateStore.DEFAULTS.moduleMake&&roofType.value===StateStore.DEFAULTS.roofType));
   await page.select('#proposalSelect',original);
   check('switching back restores all custom entries',await matchingForm());
@@ -56,7 +76,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   // Saved option fields remain plain strings; applying an option must not require a catalog entry.
   await page.click('#modeAll');await page.evaluate(()=>document.querySelector('[data-section="optName"]').open=true);
   await page.type('#optName','Custom equipment design');await page.click('#optSave');
-  await page.evaluate(()=>{moduleMake.value='Temporary make';moduleMake.dispatchEvent(new Event('input',{bubbles:true}));});
+  await page.evaluate(()=>{StateStore.applyForm({moduleMake:'Temporary make'});moduleMake.dispatchEvent(new Event('input',{bubbles:true}));});
   await page.click('#optList button[data-act="apply"]');
   check('saved system option restores custom module/inverter/technology',await matchingForm());
   await page.evaluate(()=>{window.__realCreate=URL.createObjectURL;URL.createObjectURL=blob=>{window.__equipmentBackup=blob;return window.__realCreate(blob);};StateStore.exportFile();});
@@ -76,7 +96,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await type('cableMake',custom.cableMake);
   check('equipment inputs fit the mobile viewport',await page.evaluate(ids=>document.documentElement.scrollWidth<=innerWidth&&ids.every(id=>document.getElementById(id).getBoundingClientRect().right<=innerWidth),Object.keys(custom)));
   await page.screenshot({path:path.join(out,'mobile.png')});
-  await page.setViewport({width:1440,height:1100});await page.screenshot({path:path.join(out,'desktop.png')});await page.bringToFront();
+  await page.setViewport({width:1440,height:1100});await page.evaluate(()=>{document.querySelector('.studio-tools').open=false;document.querySelector('[data-section="custName"]').open=false;document.querySelector('[data-section="moduleMake"]').scrollIntoView({block:'start'});});await page.screenshot({path:path.join(out,'desktop.png')});await page.bringToFront();
   for(const name of fs.readdirSync(out))if(name.endsWith('.pdf'))fs.unlinkSync(path.join(out,name));
   const cdp=await page.createCDPSession();await cdp.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:out,eventsEnabled:true});
   let timer;const downloadDone=new Promise((resolve,reject)=>{timer=setTimeout(()=>reject(new Error('PDF download timed out')),120000);cdp.on('Browser.downloadProgress',event=>{if(event.state==='completed'){clearTimeout(timer);resolve();}if(event.state==='canceled'){clearTimeout(timer);reject(new Error('PDF download canceled'));}});});downloadDone.catch(()=>{});

@@ -86,7 +86,7 @@
     const out = {};
     document.querySelectorAll('#quoteForm [id]').forEach((el) => {
       if (el.type === 'file' || el.id === 'logoUpload') return;
-      if (el.disabled) return;
+      if (el.disabled || el.hasAttribute('data-equipment-custom')) return;
       /* proposal-manager controls are workflow state, not proposal fields */
       if (el.closest('.prop-manager')) return;
       /* system-options controls store their data on the proposal blob instead */
@@ -100,7 +100,8 @@
   function applyForm(vals) {
     Object.keys(vals || {}).forEach((id) => {
       const el = document.getElementById(id);
-      if (!el) return;
+      if (!el || el.hasAttribute('data-equipment-custom')) return;
+      if (typeof root.EquipmentStore?.setValue === 'function' && root.EquipmentStore.setValue(id, vals[id])) return;
       if (el.type === 'checkbox') el.checked = !!vals[id];
       else {
         // Presets/imports can contain makes outside this browser's catalog.

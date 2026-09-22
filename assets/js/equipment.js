@@ -2,8 +2,8 @@
    Quotation Studio — Equipment Catalog  (Phase 1 foundation)
    --------------------------------------------------------------------------
    Company-level master data for modules, inverters, structures and cables.
-   The editable System Design suggestions are populated from this catalog,
-   while also accepting proposal-specific free text.
+   System Design dropdowns use this catalog, with a final Custom option
+   that reveals a proposal-specific manual entry below the dropdown.
 
    Data integrity rule (per product blueprint):
      - the catalog ships with the entries the company already quotes with
@@ -25,6 +25,7 @@
         { id: 'm3', make: 'Vikram Solar or Equivalent', model: '', wp: 545, tech: 'Mono PERC Half-Cut', lengthMm: 2278, widthMm: 1134, efficiency: '', voc: '', isc: '', vmp: '', imp: '' }
       ],
       inverters: [
+        { id: 'i4', make: 'Sungrow / Fronius or Equivalent', model: '', kw: '', mppt: '', efficiency: '' },
         { id: 'i1', make: 'Deye or Equivalent', model: '', kw: '', mppt: '', efficiency: '' },
         { id: 'i2', make: 'Growatt or Equivalent', model: '', kw: '', mppt: '', efficiency: '' },
         { id: 'i3', make: 'Luminous or Equivalent', model: '', kw: '', mppt: '', efficiency: '' }
@@ -68,24 +69,38 @@
   /* ------------------------------------------------------------------ */
   /* Select wiring                                                       */
   /* ------------------------------------------------------------------ */
-  function fillSelect(sel, entries, current) {
-    if (!sel) return;
-    const choices = sel.tagName === 'SELECT' ? sel : sel.list;
-    if (!choices) return;
-    const labels = [...new Set(entries.map((e) => e.make || e.label).filter(Boolean))];
-    if (current && !labels.includes(current)) labels.push(current); /* keep historical/custom values */
-    // DOM properties preserve literal ampersands, quotes and markup safely.
-    choices.replaceChildren(...labels.map(label => new Option(String(label), String(label))));
-    if (sel.tagName === 'SELECT' && current) sel.value = current;
-    // Never rewrite a text input during a catalog refresh: keep its value/caret.
+  const FIELDS = ['moduleMake', 'moduleTech', 'inverterMake', 'mountMake', 'cableMake', 'roofType'];
+  const CATALOG_FIELDS = {moduleMake:'modules', inverterMake:'inverters', mountMake:'structures', cableMake:'cables'};
+  function isCustom(sel) { return !!sel.selectedOptions[0]?.hasAttribute('data-custom'); }
+  function syncCustom(sel) {
+    const active = isCustom(sel), input = $(sel.id + 'Custom');
+    $(sel.id + 'CustomWrap').hidden = !active;
+    input.disabled = !active;
   }
-
+  function fillSelect(sel, value, keepCustom, clearDraft) {
+    const input = $(sel.id + 'Custom');
+    const entries = CATALOG_FIELDS[sel.id] ? cat()[CATALOG_FIELDS[sel.id]].map(e => e.make || e.label)
+      : [...sel.options].filter(o => !o.hasAttribute('data-custom')).map(o => o.value);
+    const labels = [...new Set(entries.filter(Boolean).map(String))];
+    value = value == null ? '' : String(value);
+    if (clearDraft) input.value = '';
+    const manual = new Option('Custom…', input.value);
+    manual.setAttribute('data-custom', '');
+    // Real strings remain the canonical select value. No UI sentinel is saved
+    // or rendered as an equipment name, including while Custom is empty.
+    sel.replaceChildren(...labels.map(label => new Option(label, label)), manual);
+    if (!keepCustom && labels.includes(value)) sel.value = value;
+    else { input.value = value; manual.value = value; manual.selected = true; }
+    syncCustom(sel);
+  }
+  function setValue(id, value) {
+    if (!FIELDS.includes(id) || !$(id)) return false;
+    // Restore/import/preset transitions must never carry another proposal's draft.
+    fillSelect($(id), value, false, true);
+    return true;
+  }
   function refreshSelects() {
-    const c = cat();
-    fillSelect($('moduleMake'), c.modules, $('moduleMake') && $('moduleMake').value);
-    fillSelect($('inverterMake'), c.inverters, $('inverterMake') && $('inverterMake').value);
-    fillSelect($('mountMake'), c.structures, $('mountMake') && $('mountMake').value);
-    fillSelect($('cableMake'), c.cables, $('cableMake') && $('cableMake').value);
+    FIELDS.forEach(id => { const sel = $(id); if (sel) fillSelect(sel, sel.value, isCustom(sel), false); });
   }
 
   function fire(el) {
@@ -101,7 +116,7 @@
     if (entry.wp) $('moduleWattage').value = entry.wp;
     if (entry.lengthMm) $('moduleLengthMm').value = entry.lengthMm;
     if (entry.widthMm) $('moduleWidthMm').value = entry.widthMm;
-    if (entry.tech) $('moduleTech').value = entry.tech;
+    if (entry.tech) setValue('moduleTech', entry.tech);
     ['moduleWattage', 'moduleLengthMm', 'moduleWidthMm', 'moduleTech'].forEach((id) => fire($(id)));
   }
 
@@ -113,10 +128,26 @@
   }
 
   function wire() {
-    const m = $('moduleMake');
-    const i = $('inverterMake');
-    if (m) m.addEventListener('change', applyModuleDefaults);
-    if (i) i.addEventListener('change', applyInverterDefaults);
+    FIELDS.forEach(id => {
+      const sel = $(id), input = $(id + 'Custom');
+      if (!sel || !input) return;
+      sel.addEventListener('input', () => syncCustom(sel));
+      sel.addEventListener('change', event => {
+        syncCustom(sel);
+        if (isCustom(sel)) { if (event.isTrusted) input.focus(); return; }
+        if (id === 'moduleMake') applyModuleDefaults();
+        if (id === 'inverterMake') applyInverterDefaults();
+      });
+      const update = () => {
+        const manual = sel.querySelector('option[data-custom]');
+        manual.value = input.value;
+        manual.selected = true;
+        // The normal bubbling form event handles render/autosave; do not fire
+        // a catalog-selection change event or invent ratings for custom text.
+      };
+      input.addEventListener('input', update);
+      input.addEventListener('change', update);
+    });
   }
 
   /* ------------------------------------------------------------------ */
@@ -215,5 +246,5 @@
     });
   }
 
-  root.EquipmentStore = { load, save, cat, refreshSelects, wire, renderManager, seed, KEY };
+  root.EquipmentStore = { load, save, cat, refreshSelects, setValue, wire, renderManager, seed, KEY };
 })(typeof self !== 'undefined' ? self : this);

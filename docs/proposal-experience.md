@@ -184,25 +184,29 @@ No financial calculation, cover artwork, audio behaviour or deployment is change
 
 ## Custom equipment entries
 
-In **Equipment & design**, module make, inverter make, mounting structure,
-cabling/protection, module technology and roof type are editable text fields with
-suggestions. Choose an existing value or replace it by typing your own; no separate
-custom-entry dialog is needed. Existing control IDs and saved string values are
-unchanged, including values from older backups and presets.
+**Equipment & design** keeps the original dropdowns for module make, inverter
+make, mounting structure, cabling/protection, module technology and roof type.
+Each dropdown lists its normal choices first and **Custom…** last. Selecting
+Custom reveals a labelled text box directly underneath. Choosing a listed option
+hides that text box again. Sungrow / Fronius or Equivalent is also included in the
+starter inverter catalog; the existing Deye default remains unchanged.
 
-Custom entries belong to the proposal and flow through live preview, save/reload,
-proposal duplication/switching, JSON backup/import, Customer View and detailed PDF.
-To make a brand reusable across proposals, add it in **All settings → Equipment
-library**. Simply typing a name does not modify the shared library. Selecting a
-known catalog entry retains its existing rating/dimension defaults; unknown names
-do not invent specifications, so check their technical ratings manually.
+Only the actual equipment text is saved under the original field IDs—not a Custom
+sentinel or a second helper field. Previously typed or imported custom names
+restore automatically in Custom mode. Values stay synchronized through editing,
+reload, proposal switching/duplication, saved design options, JSON backup/import,
+Customer View and PDF. New/reset operations clear old manual-entry drafts.
 
-Regression coverage: `qa/equipment-entry.test.js` exercises actual keyboard typing
-for all six fields, literal punctuation/markup-like text, catalog defaults,
-persistence, new/reset isolation, saved options, backup/import, Customer View,
-mobile inputs and a real 15-page PDF capture/download.
+Custom entries belong to the proposal. For reusable catalog entries, use **All
+settings → Equipment library**. Known catalog choices retain their rating and
+dimension defaults; Custom text does not invent or overwrite technical ratings.
 
-Verification for this change: **341 unit checks**, **487 numbered browser checks**
-(including **31 custom-equipment checks**), the live-cover regression and the
-actual PDF export suite passed. The custom-equipment technical-page PDF capture
-was also visually inspected. Cover artwork and financial formulas are unchanged.
+`qa/equipment-entry.test.js` checks the dropdown order and conditional inputs,
+actual keyboard typing, selecting listed options and returning to Custom,
+proposal isolation, catalog defaults, literal punctuation/markup, persistence,
+backup/import, Customer View, mobile layout and a real detailed PDF download.
+
+Verification of the corrected dropdown layout: **341 unit checks**, **496
+numbered browser checks** (including **40 equipment-entry checks**), the live-cover
+regression and actual PDF exports passed. Desktop/mobile controls and the custom
+equipment PDF capture were checked. No financial formulas or cover artwork changed.

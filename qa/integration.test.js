@@ -137,16 +137,16 @@ t('blob contains live form', w.Proposals.active().form.capacity === '7');
 /* ---------- Phase 1: equipment catalog ---------- */
 console.log('— equipment catalog (Phase 1) —');
 t('3 seed modules in catalog', w.EquipmentStore.cat().modules.length === 3);
-t('module suggestions built from catalog', d.getElementById('moduleMake').list.options.length === 3);
-t('inverter suggestions built from catalog', d.getElementById('inverterMake').list.options.length === 3);
-t('structure suggestions built from catalog', d.getElementById('mountMake').list.options.length === 2);
+t('module dropdown includes catalog and Custom', d.getElementById('moduleMake').options.length === 4);
+t('inverter dropdown includes catalog and Custom', d.getElementById('inverterMake').options.length === 5);
+t('structure dropdown includes catalog and Custom', d.getElementById('mountMake').options.length === 3);
 t('catalog manager rendered rows', d.querySelectorAll('#eqCatalog .eq-row').length >= 8,
   d.querySelectorAll('#eqCatalog .eq-row').length);
 /* adding a catalog entry propagates to the form select and component fields */
 w.EquipmentStore.cat().modules.push({ id: 'mx', make: 'TestModule 550', model: '', wp: 550, tech: 'TOPCon', lengthMm: '2333', widthMm: '1134', efficiency: '', voc: '', isc: '', vmp: '', imp: '' });
 w.EquipmentStore.save();
 w.EquipmentStore.refreshSelects();
-t('catalog add appears in suggestions', d.getElementById('moduleMake').list.options.length === 4);
+t('catalog add appears above Custom', d.getElementById('moduleMake').options.length === 5);
 d.getElementById('moduleMake').value = 'TestModule 550';
 fire(w, d.getElementById('moduleMake'), 'change');
 t('selecting module syncs wattage', d.getElementById('moduleWattage').value === '550', d.getElementById('moduleWattage').value);

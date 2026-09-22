@@ -134,10 +134,19 @@
 
       <fieldset data-adv>
         <legend>System Design &amp; Equipment</legend>
-        <p class="hint" id="equipmentEntryHint">Choose a suggestion or type your own. Check ratings for custom makes. Entries are saved with this proposal; reusable makes can be added in All settings → Equipment library.</p>
+        <p class="hint" id="equipmentEntryHint">Choose from the list, or select Custom… at the bottom to type your own below. Check ratings for custom makes. Reusable makes can be added in All settings → Equipment library.</p>
         <div class="field"><label>Generation (kWh/kWp/yr)</label><input type="number" id="genFactor" value="1460" step="10" min="0"></div>
-        <div class="field"><label>Module make</label>
-          <input type="text" id="moduleMake" list="moduleMakeChoices" value="Panasonic / Waaree / Adani or Equivalent" placeholder="Choose or type a make…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
+        <div class="field"><label for="moduleMake">Module make</label>
+          <select id="moduleMake" aria-describedby="equipmentEntryHint" aria-controls="moduleMakeCustomWrap">
+            <option>Panasonic / Waaree / Adani or Equivalent</option>
+            <option>Premier Energies or Equivalent</option>
+            <option>Vikram Solar or Equivalent</option>
+            <option value="" data-custom>Custom…</option>
+          </select>
+          <div id="moduleMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+            <label for="moduleMakeCustom">Custom module make</label>
+            <input type="text" id="moduleMakeCustom" data-equipment-custom placeholder="Enter your own module make…" autocomplete="off" spellcheck="false" disabled>
+          </div>
         </div>
         <div class="row3">
           <div class="field"><label>Module rating (Wp)</label><input type="number" id="moduleWattage" value="545" step="5" min="0"></div>
@@ -145,8 +154,18 @@
           <div class="field"><label>Module width (mm)</label><input type="number" id="moduleWidthMm" value="1134" step="1" min="0"></div>
         </div>
         <div class="row2">
-          <div class="field"><label>Module technology</label>
-            <input type="text" id="moduleTech" list="moduleTechChoices" value="Mono PERC Half-Cut" placeholder="Choose or type your own…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
+          <div class="field"><label for="moduleTech">Module technology</label>
+            <select id="moduleTech" aria-describedby="equipmentEntryHint" aria-controls="moduleTechCustomWrap">
+              <option>Mono PERC Half-Cut</option>
+              <option>TOPCon</option>
+              <option>Bifacial TOPCon</option>
+              <option>Polycrystalline</option>
+              <option value="" data-custom>Custom…</option>
+            </select>
+            <div id="moduleTechCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+              <label for="moduleTechCustom">Custom module technology</label>
+              <input type="text" id="moduleTechCustom" data-equipment-custom placeholder="Enter your own module technology…" autocomplete="off" spellcheck="false" disabled>
+            </div>
           </div>
           <div class="field">
             <label>Inverter rating (kW, blank = auto)</label>
@@ -154,18 +173,54 @@
             <div class="hint">Blank uses capacity as the rating. DC/AC ratio is computed on the Tech Spec page.</div>
           </div>
         </div>
-        <div class="field"><label>Inverter make</label>
-          <input type="text" id="inverterMake" list="inverterMakeChoices" value="Deye or Equivalent" placeholder="Choose or type a make…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
+        <div class="field"><label for="inverterMake">Inverter make</label>
+          <select id="inverterMake" aria-describedby="equipmentEntryHint" aria-controls="inverterMakeCustomWrap">
+            <option>Sungrow / Fronius or Equivalent</option>
+            <option selected>Deye or Equivalent</option>
+            <option>Growatt or Equivalent</option>
+            <option>Luminous or Equivalent</option>
+            <option value="" data-custom>Custom…</option>
+          </select>
+          <div id="inverterMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+            <label for="inverterMakeCustom">Custom inverter make</label>
+            <input type="text" id="inverterMakeCustom" data-equipment-custom placeholder="Enter your own inverter make…" autocomplete="off" spellcheck="false" disabled>
+          </div>
         </div>
-        <div class="field"><label>Mounting structure</label>
-          <input type="text" id="mountMake" list="mountMakeChoices" value="Hot-Dip GI / Aluminum-ARS Solartech make" placeholder="Choose or type a make…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
+        <div class="field"><label for="mountMake">Mounting structure</label>
+          <select id="mountMake" aria-describedby="equipmentEntryHint" aria-controls="mountMakeCustomWrap">
+            <option>Hot-Dip GI / Aluminum-ARS Solartech make</option>
+            <option>Hot-Dip GI — In-house KTM manufactured</option>
+            <option value="" data-custom>Custom…</option>
+          </select>
+          <div id="mountMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+            <label for="mountMakeCustom">Custom mounting structure</label>
+            <input type="text" id="mountMakeCustom" data-equipment-custom placeholder="Enter your own mounting structure…" autocomplete="off" spellcheck="false" disabled>
+          </div>
         </div>
-        <div class="field"><label>Cabling &amp; protection</label>
-          <input type="text" id="cableMake" list="cableMakeChoices" value="Polycab / KEI or Equivalent" placeholder="Choose or type a make…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
+        <div class="field"><label for="cableMake">Cabling &amp; protection</label>
+          <select id="cableMake" aria-describedby="equipmentEntryHint" aria-controls="cableMakeCustomWrap">
+            <option>Polycab / KEI or Equivalent</option>
+            <option>Havells or Equivalent</option>
+            <option value="" data-custom>Custom…</option>
+          </select>
+          <div id="cableMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+            <label for="cableMakeCustom">Custom cabling &amp; protection</label>
+            <input type="text" id="cableMakeCustom" data-equipment-custom placeholder="Enter your own cabling &amp; protection…" autocomplete="off" spellcheck="false" disabled>
+          </div>
         </div>
         <div class="row2">
-          <div class="field"><label>Roof type</label>
-            <input type="text" id="roofType" list="roofTypeChoices" value="RCC Terrace" placeholder="Choose or type your own…" autocomplete="off" spellcheck="false" aria-describedby="equipmentEntryHint">
+          <div class="field"><label for="roofType">Roof type</label>
+            <select id="roofType" aria-describedby="equipmentEntryHint" aria-controls="roofTypeCustomWrap">
+              <option>RCC Terrace</option>
+              <option>Tin / Metal Sheet</option>
+              <option>Elevated / Carport</option>
+              <option>Sheet + RCC (mixed)</option>
+              <option value="" data-custom>Custom…</option>
+            </select>
+            <div id="roofTypeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+              <label for="roofTypeCustom">Custom roof type</label>
+              <input type="text" id="roofTypeCustom" data-equipment-custom placeholder="Enter your own roof type…" autocomplete="off" spellcheck="false" disabled>
+            </div>
           </div>
           <div class="field">
             <label>Available roof area (m², optional)</label>
@@ -243,7 +298,7 @@
           <div class="field"><label>Inverter(s)</label><input type="number" id="bomInverter" placeholder="₹" min="0"></div>
         </div>
         <div class="row2">
-          <div class="field"><label>Mounting structure</label><input type="number" id="bomStructure" placeholder="₹" min="0"></div>
+          <div class="field"><label for="mountMake">Mounting structure</label><input type="number" id="bomStructure" placeholder="₹" min="0"></div>
           <div class="field"><label>BOS — cables &amp; protection</label><input type="number" id="bomBos" placeholder="₹" min="0"></div>
         </div>
         <div class="row2">
@@ -318,37 +373,6 @@
       </details>
     </form>
 
-    <!-- Suggestions only: outside the form so they are not proposal fields. -->
-    <datalist id="moduleMakeChoices">
-      <option>Panasonic / Waaree / Adani or Equivalent</option>
-      <option>Premier Energies or Equivalent</option>
-      <option>Vikram Solar or Equivalent</option>
-    </datalist>
-    <datalist id="moduleTechChoices">
-      <option>Mono PERC Half-Cut</option>
-      <option>TOPCon</option>
-      <option>Bifacial TOPCon</option>
-      <option>Polycrystalline</option>
-    </datalist>
-    <datalist id="inverterMakeChoices">
-      <option>Deye or Equivalent</option>
-      <option>Growatt or Equivalent</option>
-      <option>Luminous or Equivalent</option>
-    </datalist>
-    <datalist id="mountMakeChoices">
-      <option>Hot-Dip GI / Aluminum-ARS Solartech make</option>
-      <option>Hot-Dip GI — In-house KTM manufactured</option>
-    </datalist>
-    <datalist id="cableMakeChoices">
-      <option>Polycab / KEI or Equivalent</option>
-      <option>Havells or Equivalent</option>
-    </datalist>
-    <datalist id="roofTypeChoices">
-      <option>RCC Terrace</option>
-      <option>Tin / Metal Sheet</option>
-      <option>Elevated / Carport</option>
-      <option>Sheet + RCC (mixed)</option>
-    </datalist>
 
     <div class="form-actions">
       <label class="pdf-format-label" for="pdfFormat">PDF format</label>
