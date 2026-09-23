@@ -43,8 +43,13 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('benefits and solution use wider two-column cards',await page.evaluate(()=>['v_wsBenefits','v_soSpecs','v_quStandards','v_quChecklist'].every(id=>getComputedStyle(document.getElementById(id)).gridTemplateColumns.split(' ').length===2)));
   check('body and card text enlarged moderately, not globally',await page.evaluate(()=>getComputedStyle(document.getElementById('v_wsPara')).fontSize==='12.2px'&&getComputedStyle(document.querySelector('#pageWhySolar .card-desc')).fontSize==='11.5px'&&getComputedStyle(document.getElementById('v_tsPara')).fontSize==='11.4px'));
   check('large unused areas reduced on summary, benefits, solution and quality',await page.evaluate(()=>[
-   ['pageExec','#v_exTraceNote',880],['pageWhySolar','#v_wsBenefits',900],['pageSolution','.highlight-bar',980],['pageQuality','#v_quChecklist',930]
+   ['pageExec','.exec-artwork',880],['pageWhySolar','#v_wsBenefits',900],['pageSolution','.highlight-bar',980],['pageQuality','#v_quChecklist',930]
   ].every(([id,selector,min])=>{const p=document.getElementById(id),r=p.getBoundingClientRect();return (p.querySelector(selector).getBoundingClientRect().bottom-r.top)/(r.width/794)>=min;})));
+  check('summary page is filled down to the footer with no pale band beside the render',await page.evaluate(()=>{
+   const p=document.getElementById('pageExec'),f=p.querySelector('.exec-artwork'),img=f.querySelector('img'),foot=p.querySelector('.pg-foot');
+   const scale=p.getBoundingClientRect().width/794, fr=f.getBoundingClientRect(), ir=img.getBoundingClientRect();
+   return (foot.getBoundingClientRect().top-fr.bottom)/scale<60 && Math.abs(ir.width/ir.height-718/359)<0.02 && ir.width>=700;
+  }));
   check('portfolio keeps ten normal cards at the approved size',await page.$$eval('#pageProjects .pc-photo',els=>els.length===10&&els.every(e=>e.offsetHeight===132)));
   for(const capacity of ['10','20','100']){await page.evaluate(cap=>{StateStore.applyForm({capacity:cap});Render.renderAll();},capacity);await geometry(capacity+' kWp');}
   await page.evaluate(()=>{
