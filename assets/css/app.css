@@ -865,7 +865,7 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 /* A compact visual finish uses remaining space, never pushes figures/footer
    down. Dense customer text takes priority over this decorative landscape. */
 #pageExec .pg-body > :not(.exec-artwork){flex-shrink:0;}
-.exec-artwork{margin:12px 0 0;flex:1 1 156px;min-height:0;max-height:380px;display:flex;flex-direction:column;overflow:hidden;border-radius:12px;background:#F3F5EF;}
+.exec-artwork{margin:12px 0 0;flex:1 1 156px;min-height:0;max-height:239px;display:flex;flex-direction:column;overflow:hidden;border-radius:12px;background:#F3F5EF;}
 .exec-artwork img{display:block;width:100%;height:0;min-height:0;flex:1 1 auto;object-fit:contain;object-position:center;}
 .exec-artwork figcaption{display:flex;justify-content:space-between;gap:12px;padding:6px 14px;flex:none;font-size:7.4px;line-height:1.2;color:#6C7E78;}
 .exec-artwork figcaption span:first-child{color:#365B54;font-weight:700;letter-spacing:.12em;text-transform:uppercase;}
@@ -1653,18 +1653,17 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 .icon-chip{position:relative;}
 .icon-chip svg{position:relative;z-index:1;}
 
-/* Executive Summary: the supplied render is 2:1 and must be shown whole, so the
-   band needs to be about 380px tall (718 x 359 picture + caption) to fill the
-   page width. Page 2 is compacted here - no content is removed - so the artwork
-   can take that space instead of leaving pale bands on either side. */
-#pageExec .pg-body{padding-top:56px;padding-bottom:36px;}
-#pageExec .exec-hero{padding:11px 16px;margin:10px 0 12px;}
-#pageExec .sec-label{margin-bottom:8px;}
-#pageExec .kpi-tile{padding:7px 10px;}
-#pageExec .kpi-l{margin-top:4px;}
-#pageExec .inc-intro{margin-bottom:6px;}
-#pageExec .inc-grid{grid-template-columns:repeat(4,1fr);gap:6px 14px;}
-#pageExec .inc-item{padding:3px 0;}
-#pageExec .inc-d{font-size:9px;}
-#pageExec .trace-note{margin-top:8px;padding-top:5px;}
-#pageExec .exec-artwork{margin:8px 0 0;}
+/* Executive Summary: the supplied render is about 3:1 and must be shown whole,
+   so the band is sized to the picture's own ratio (718 x 239) at full page width
+   and the page's other blocks take the remaining space. Nothing is removed. */
+#pageExec .pg-body{padding-top:78px;padding-bottom:47px;}
+#pageExec .exec-hero{padding:16px;margin:15px 0 17px;}
+#pageExec .sec-label{margin-bottom:15px;}
+#pageExec .kpi-tile{padding:12px;}
+#pageExec .kpi-l{margin-top:8px;}
+#pageExec .inc-intro{margin-bottom:12px;}
+#pageExec .inc-grid{grid-template-columns:repeat(4,1fr);gap:11px 20px;}
+#pageExec .inc-item{padding:8px 0;}
+#pageExec .inc-d{font-size:10px;}
+#pageExec .trace-note{margin-top:15px;padding-top:9px;}
+#pageExec .exec-artwork{margin:14px 0 0;}

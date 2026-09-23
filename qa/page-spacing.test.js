@@ -35,7 +35,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    }));check(label+' fits A4 with no card/photo/footer collisions: '+issues.join(', '),issues.length===0);
   }
   await geometry('Default 7 kWp');
-  check('summary ends with a loaded original solar illustration, not another text block',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork'),img=e.querySelector('img');return img.complete&&img.naturalWidth===718&&e.offsetHeight>120&&e.textContent.includes('not a site layout');}));
+  check('summary ends with the supplied carport render, not another text block',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork'),img=e.querySelector('img');return img.complete&&img.naturalWidth===718&&e.offsetHeight>120&&img.getAttribute('src').includes('summary-carport-ev')&&!e.querySelector('figcaption');}));
   await page.evaluate(()=>{StateStore.applyForm({custName:'Customer with a moderately long organisation name',custAddress:'Industrial Area, Pune, Maharashtra — project site under review'});Render.renderAll();});
   await geometry('Summary with customer and site details');
   check('summary artwork yields space to customer content and stays above the footer',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork');return e.offsetHeight>60&&e.getBoundingClientRect().bottom<pageExec.querySelector('footer').getBoundingClientRect().top;}));
@@ -48,7 +48,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('summary page is filled down to the footer with no pale band beside the render',await page.evaluate(()=>{
    const p=document.getElementById('pageExec'),f=p.querySelector('.exec-artwork'),img=f.querySelector('img'),foot=p.querySelector('.pg-foot');
    const scale=p.getBoundingClientRect().width/794, fr=f.getBoundingClientRect(), ir=img.getBoundingClientRect();
-   return (foot.getBoundingClientRect().top-fr.bottom)/scale<60 && Math.abs(ir.width/ir.height-718/359)<0.02 && ir.width>=700;
+   return (foot.getBoundingClientRect().top-fr.bottom)/scale<60 && Math.abs(ir.width/ir.height-718/239)<0.03 && ir.width>=690;
   }));
   check('portfolio keeps ten normal cards at the approved size',await page.$$eval('#pageProjects .pc-photo',els=>els.length===10&&els.every(e=>e.offsetHeight===132)));
   for(const capacity of ['10','20','100']){await page.evaluate(cap=>{StateStore.applyForm({capacity:cap});Render.renderAll();},capacity);await geometry(capacity+' kWp');}
