@@ -17,7 +17,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('search is not a quotation input',await page.evaluate(()=>!('studioSearch' in StateStore.collectForm())));
   check('Essentials mode has accessible state and equipment access',await page.evaluate(()=>document.getElementById('modeEss').getAttribute('aria-pressed')==='true'&&document.querySelector('[data-section="moduleMake"]').checkVisibility()&&!document.querySelector('[data-section="companyName"]').checkVisibility()));
   check('live summary matches the existing Finance engine',await page.evaluate(()=>{const f=Finance.compute(Render.lastState);return document.querySelector('[data-metric="investment"]').textContent===Finance.fmtINR(f.netInvestment)&&document.querySelector('[data-metric="energy"]').textContent===Finance.fmtNum(f.annualGen)+' kWh';}));
-  check('local save is persistent and honestly labelled',await page.$eval('#saveIndicator',e=>e.textContent==='Saved locally'&&e.dataset.state==='saved'));
+  check('local save is persistent and honestly labelled',await page.$eval('#saveIndicator',e=>/^Saved in this browser · \d{2}:\d{2}$/.test(e.textContent)&&e.dataset.state==='saved'));
   const shots=path.join(__dirname,'shots');fs.mkdirSync(shots,{recursive:true});await page.screenshot({path:path.join(shots,'control-panel-desktop.png')});
   async function edit(id,value){await page.$eval('#'+id,(e,v)=>{e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));},value);}
   async function search(query){await page.$eval('#studioSearch',(e,v)=>{e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));},query);}
