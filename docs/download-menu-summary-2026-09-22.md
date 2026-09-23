@@ -31,12 +31,17 @@ financial assumptions or saved-proposal schema changes are introduced.
 
 ## Executive Summary finish
 
-`assets/images/summary-solar-landscape.svg` is a new, local vector illustration
-of solar rooftops in a soft green landscape. It sits below the existing figures,
-equipment inclusions and calculation trace note. The caption explicitly says
-**Concept illustration · not a site layout**. It is not a photograph of the
-customer's property, a proposed module layout, a generation forecast or new
-engineering evidence.
+Page 2 now uses `assets/images/summary-carport-ev.jpg`, the supplied company
+render (a house with a solar rooftop beside a solar carport where a car charges
+at an EV charging point, at dusk), cropped to the 718 x 135 band the page allows.
+The source `assets/images/ev.png` is left untouched. It sits below the existing
+figures, equipment inclusions and calculation trace note, shown whole (no crop)
+at the page width. This render is a generative image, so it is not a photograph of
+the customer's property, a proposed module layout, a generation forecast or new
+engineering evidence; the caption that said so was removed at the owner's
+request, so keep that distinction in mind when issuing a proposal. The earlier vector artwork
+(`assets/images/summary-solar-landscape.svg`) remains in the repository but is no
+longer referenced by any page.
 
 The illustration fills the previously unused lower space. Its flexible height
 yields to longer customer/site/equipment copy; existing figures remain readable

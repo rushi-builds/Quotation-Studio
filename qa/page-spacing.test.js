@@ -35,7 +35,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    }));check(label+' fits A4 with no card/photo/footer collisions: '+issues.join(', '),issues.length===0);
   }
   await geometry('Default 7 kWp');
-  check('summary ends with a loaded original solar illustration, not another text block',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork'),img=e.querySelector('img');return img.complete&&img.naturalWidth===718&&e.offsetHeight>120&&e.textContent.includes('not a site layout');}));
+  check('summary ends with the supplied carport render, not another text block',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork'),img=e.querySelector('img');return img.complete&&img.naturalWidth>=1436&&e.offsetHeight>120&&img.getAttribute('src').includes('summary-carport-ev')&&!e.querySelector('figcaption');}));
   await page.evaluate(()=>{StateStore.applyForm({custName:'Customer with a moderately long organisation name',custAddress:'Industrial Area, Pune, Maharashtra — project site under review'});Render.renderAll();});
   await geometry('Summary with customer and site details');
   check('summary artwork yields space to customer content and stays above the footer',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork');return e.offsetHeight>60&&e.getBoundingClientRect().bottom<pageExec.querySelector('footer').getBoundingClientRect().top;}));
@@ -43,8 +43,13 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('benefits and solution use wider two-column cards',await page.evaluate(()=>['v_wsBenefits','v_soSpecs','v_quStandards','v_quChecklist'].every(id=>getComputedStyle(document.getElementById(id)).gridTemplateColumns.split(' ').length===2)));
   check('body and card text enlarged moderately, not globally',await page.evaluate(()=>getComputedStyle(document.getElementById('v_wsPara')).fontSize==='12.2px'&&getComputedStyle(document.querySelector('#pageWhySolar .card-desc')).fontSize==='11.5px'&&getComputedStyle(document.getElementById('v_tsPara')).fontSize==='11.4px'));
   check('large unused areas reduced on summary, benefits, solution and quality',await page.evaluate(()=>[
-   ['pageExec','#v_exTraceNote',880],['pageWhySolar','#v_wsBenefits',900],['pageSolution','.highlight-bar',980],['pageQuality','#v_quChecklist',930]
+   ['pageExec','.exec-artwork',880],['pageWhySolar','#v_wsBenefits',900],['pageSolution','.highlight-bar',980],['pageQuality','#v_quChecklist',930]
   ].every(([id,selector,min])=>{const p=document.getElementById(id),r=p.getBoundingClientRect();return (p.querySelector(selector).getBoundingClientRect().bottom-r.top)/(r.width/794)>=min;})));
+  check('summary page is filled down to the footer with no pale band beside the render',await page.evaluate(()=>{
+   const p=document.getElementById('pageExec'),f=p.querySelector('.exec-artwork'),img=f.querySelector('img'),foot=p.querySelector('.pg-foot');
+   const scale=p.getBoundingClientRect().width/794, fr=f.getBoundingClientRect(), ir=img.getBoundingClientRect();
+   return (foot.getBoundingClientRect().top-fr.bottom)/scale<60 && Math.abs(ir.width/ir.height-718/239)<0.03 && ir.width>=690;
+  }));
   check('portfolio keeps ten normal cards at the approved size',await page.$$eval('#pageProjects .pc-photo',els=>els.length===10&&els.every(e=>e.offsetHeight===132)));
   for(const capacity of ['10','20','100']){await page.evaluate(cap=>{StateStore.applyForm({capacity:cap});Render.renderAll();},capacity);await geometry(capacity+' kWp');}
   await page.evaluate(()=>{
@@ -98,7 +103,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const id=await page.evaluate(()=>Proposals.activeId()),customer=await browser.newPage();
   customer.on('pageerror',e=>errors.push(e.message));await customer.goto(base+'/share.html?p='+encodeURIComponent(id),{waitUntil:'networkidle0'});
   check('Customer View uses the same card layout and enlarged photography',await customer.evaluate(()=>document.querySelector('#pageSolution .photo-top').offsetHeight===260&&getComputedStyle(document.getElementById('v_soSpecs')).gridTemplateColumns.split(' ').length===2));
-  check('Customer View carries the same loaded summary artwork',await customer.$eval('#pageExec .exec-artwork img',e=>e.complete&&e.naturalWidth===718));
+  check('Customer View carries the same loaded summary artwork',await customer.$eval('#pageExec .exec-artwork img',e=>e.complete&&e.naturalWidth>=1436));
   check('no runtime errors',errors.length===0);console.log(`\n${passed} passed, 0 failed`);
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

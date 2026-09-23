@@ -71,7 +71,7 @@ EMI was independently checked against the reducing-balance formula. Residential,
 Approved artwork is unchanged:
 
 - Cover SHA-256: `0d8e226e919f215b2ecd4ac17c57278da6841922322455c0ccb49c11a7876961`
-- Editable cover background SHA-256: `0eae307763f2befa74d16a218617432ff039914b5278c7d5c8ff9b74e0414eda`
+- Editable cover background SHA-256: `5249d1345a1aed1275b4ab8e6acfad494eeaada4d2e1624a39fd0af682893582`
 - Supplied tracking image Git blob: `213b1702f20304fd8b43b3ca54af4e730a29a7af`
 
 ## Remaining release considerations — not hidden

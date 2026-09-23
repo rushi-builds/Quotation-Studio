@@ -40,14 +40,14 @@
     manager.append(management); form.prepend(manager);
     $('waShare').textContent = 'Share via WhatsApp';
     const footer = panel.querySelector('.form-actions');
-    const tools = element('details', 'studio-tools'); tools.append(element('summary', '', 'Backup & reset'));
+    const tools = element('details', 'studio-tools'); tools.append(element('summary', '', 'Save, backup & reset'));
     tools.append(footer.querySelector('.form-links'));
     const secondary = element('div', 'studio-secondary');
     const customerView = $('custViewBtn'); customerView.textContent = 'Customer view ↗';
     secondary.append(customerView, tools); footer.insertBefore(secondary, $('statusMsg'));
     $('exportBtn').textContent = 'Export backup';
+    $('resetBtn').textContent = 'Reset current proposal…';
     footer.querySelector('label[for="importFile"]').textContent = 'Import backup';
-    $('resetBtn').textContent = 'Reset inputs';
     panel.querySelectorAll('label.upload-btn,label[for="importFile"]').forEach(label => {
       label.tabIndex = 0; label.setAttribute('role', 'button');
       label.addEventListener('keydown', event => {
