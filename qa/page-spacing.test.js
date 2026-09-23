@@ -35,7 +35,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    }));check(label+' fits A4 with no card/photo/footer collisions: '+issues.join(', '),issues.length===0);
   }
   await geometry('Default 7 kWp');
-  check('summary ends with the supplied carport render, not another text block',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork'),img=e.querySelector('img');return img.complete&&img.naturalWidth===718&&e.offsetHeight>120&&img.getAttribute('src').includes('summary-carport-ev')&&!e.querySelector('figcaption');}));
+  check('summary ends with the supplied carport render, not another text block',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork'),img=e.querySelector('img');return img.complete&&img.naturalWidth>=1436&&e.offsetHeight>120&&img.getAttribute('src').includes('summary-carport-ev')&&!e.querySelector('figcaption');}));
   await page.evaluate(()=>{StateStore.applyForm({custName:'Customer with a moderately long organisation name',custAddress:'Industrial Area, Pune, Maharashtra — project site under review'});Render.renderAll();});
   await geometry('Summary with customer and site details');
   check('summary artwork yields space to customer content and stays above the footer',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork');return e.offsetHeight>60&&e.getBoundingClientRect().bottom<pageExec.querySelector('footer').getBoundingClientRect().top;}));
@@ -103,7 +103,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const id=await page.evaluate(()=>Proposals.activeId()),customer=await browser.newPage();
   customer.on('pageerror',e=>errors.push(e.message));await customer.goto(base+'/share.html?p='+encodeURIComponent(id),{waitUntil:'networkidle0'});
   check('Customer View uses the same card layout and enlarged photography',await customer.evaluate(()=>document.querySelector('#pageSolution .photo-top').offsetHeight===260&&getComputedStyle(document.getElementById('v_soSpecs')).gridTemplateColumns.split(' ').length===2));
-  check('Customer View carries the same loaded summary artwork',await customer.$eval('#pageExec .exec-artwork img',e=>e.complete&&e.naturalWidth===718));
+  check('Customer View carries the same loaded summary artwork',await customer.$eval('#pageExec .exec-artwork img',e=>e.complete&&e.naturalWidth>=1436));
   check('no runtime errors',errors.length===0);console.log(`\n${passed} passed, 0 failed`);
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
