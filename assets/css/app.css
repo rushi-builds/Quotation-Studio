@@ -866,7 +866,7 @@ details.page-group > summary::-webkit-details-marker{display:none;}
    down. Dense customer text takes priority over this decorative landscape. */
 #pageExec .pg-body > :not(.exec-artwork){flex-shrink:0;}
 .exec-artwork{margin:12px 0 0;flex:1 1 156px;min-height:0;max-height:156px;display:flex;flex-direction:column;overflow:hidden;border-radius:12px;background:#F3F5EF;}
-.exec-artwork img{display:block;width:100%;height:0;min-height:0;flex:1 1 auto;object-fit:cover;object-position:center;}
+.exec-artwork img{display:block;width:100%;height:0;min-height:0;flex:1 1 auto;object-fit:contain;object-position:center;}
 .exec-artwork figcaption{display:flex;justify-content:space-between;gap:12px;padding:6px 14px;flex:none;font-size:7.4px;line-height:1.2;color:#6C7E78;}
 .exec-artwork figcaption span:first-child{color:#365B54;font-weight:700;letter-spacing:.12em;text-transform:uppercase;}
 
