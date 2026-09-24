@@ -634,15 +634,19 @@ function scrubExpiredSessions(db) {
   const t = Date.now();
   db.sessions = (db.sessions || []).filter((s) => Date.parse(s.expires_at) > t);
 }
-/* Session token from HttpOnly cookie OR Authorization Bearer.
-   Bearer is required for embedded HTTPS previews (iframe) where third-party
-   cookies are blocked — cookie still works for direct same-site opens. */
+/* Session token sources (first match wins):
+   1) Authorization: Bearer <token>
+   2) X-QS-Session header (proxies sometimes strip Authorization)
+   3) HttpOnly qs_session cookie
+   4) qs_client cookie set by the browser JS when storage works but cookies from Set-Cookie do not */
 function sessionTokenFrom(req) {
   const auth = String(req.headers.authorization || '');
   const m = auth.match(/^Bearer\s+(.+)$/i);
   if (m && m[1]) return m[1].trim();
+  const hdr = String(req.headers['x-qs-session'] || '').trim();
+  if (hdr) return hdr;
   const cookies = parseCookies(req);
-  return cookies[COOKIE] || null;
+  return cookies[COOKIE] || cookies['qs_client'] || null;
 }
 function requireUser(req, db) {
   scrubExpiredSessions(db);
@@ -1868,7 +1872,7 @@ function serveStatic(req, res, urlPath) {
     const ext = path.extname(full).toLowerCase();
     const type = MIME[ext] || 'application/octet-stream';
     const cache = (ext === '.html' || ext === '.js' || ext === '.css')
-      ? 'no-cache' : 'public, max-age=86400';
+      ? 'no-store, no-cache, must-revalidate' : 'public, max-age=86400';
     res.writeHead(200, {
       'Content-Type': type,
       'Cache-Control': cache,
@@ -1900,7 +1904,7 @@ const server = http.createServer(async (req, res) => {
     }
     const headers = {
       'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-QS-Session',
       'Access-Control-Max-Age': '86400',
       'Vary': 'Origin'
     };

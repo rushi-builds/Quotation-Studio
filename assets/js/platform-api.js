@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Quotation Studio — Platform API client (Phase A)
+   Quotation Studio — Platform API client (Phase A + session bearer)
    --------------------------------------------------------------------------
    Talks to /api/* on the same origin (Cloudflare Worker or local-server).
    Safe no-op helpers when the API is unreachable so the offline studio still
@@ -10,30 +10,62 @@
 (function (root) {
   const BASE = ''; /* same-origin */
 
-  /* Session token lives in sessionStorage so sign-in works inside embedded
-     HTTPS previews where HttpOnly cookies are treated as third-party and blocked.
-     Cookie auth still works on direct same-site opens; Bearer is the fallback. */
+  /* Session token: memory + localStorage + sessionStorage.
+     Preview iframes often block cookies; some also restrict sessionStorage.
+     Memory always works for the tab lifetime; localStorage survives refresh
+     on the same origin. Cookie auth still works when the browser accepts it. */
   const TOKEN_KEY = 'qs.sessionToken';
+  let memoryToken = '';
   function readToken() {
-    try { return sessionStorage.getItem(TOKEN_KEY) || ''; }
-    catch (_) { return ''; }
+    if (memoryToken) return memoryToken;
+    try {
+      const ls = localStorage.getItem(TOKEN_KEY);
+      if (ls) { memoryToken = ls; return ls; }
+    } catch (_) {}
+    try {
+      const ss = sessionStorage.getItem(TOKEN_KEY);
+      if (ss) { memoryToken = ss; return ss; }
+    } catch (_) {}
+    return '';
+  }
+  function writeClientCookie(token) {
+    try {
+      /* Non-HttpOnly cookie the JS can set inside the preview frame.
+         Secure+SameSite=None helps when the frame is HTTPS. */
+      const secure = (typeof location !== 'undefined' && location.protocol === 'https:') ? '; Secure' : '';
+      if (token) {
+        document.cookie = 'qs_client=' + encodeURIComponent(token) +
+          '; Path=/; SameSite=None' + secure + '; Max-Age=2592000';
+      } else {
+        document.cookie = 'qs_client=; Path=/; SameSite=None' + secure + '; Max-Age=0';
+      }
+    } catch (_) {}
   }
   function writeToken(token) {
+    memoryToken = token ? String(token) : '';
     try {
-      if (token) sessionStorage.setItem(TOKEN_KEY, String(token));
+      if (memoryToken) localStorage.setItem(TOKEN_KEY, memoryToken);
+      else localStorage.removeItem(TOKEN_KEY);
+    } catch (_) {}
+    try {
+      if (memoryToken) sessionStorage.setItem(TOKEN_KEY, memoryToken);
       else sessionStorage.removeItem(TOKEN_KEY);
-    } catch (_) { /* private mode / blocked storage */ }
+    } catch (_) {}
+    writeClientCookie(memoryToken);
   }
   function clearToken() { writeToken(''); }
 
   async function request(method, path, body) {
     const opts = {
       method,
-      credentials: 'include',
+      credentials: 'same-origin',
       headers: {}
     };
     const token = readToken();
-    if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+    if (token) {
+      opts.headers['Authorization'] = 'Bearer ' + token;
+      opts.headers['X-QS-Session'] = token;
+    }
     if (body !== undefined) {
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
@@ -54,7 +86,9 @@
       catch (_) { data = { raw: text }; }
     }
     if (!res.ok) {
-      if (res.status === 401) clearToken();
+      /* Only drop a stored token when we actually sent it and the server
+         rejected it — avoids wiping a good token on an unrelated 401. */
+      if (res.status === 401 && token) clearToken();
       const e = new Error((data && data.error) || ('Request failed (' + res.status + ')'));
       e.status = res.status;
       e.data = data;
@@ -174,6 +208,11 @@
     setTeamRole(userId, role) {
       return request('POST', '/api/team/role', { userId, role });
     },
+    /** Persist a session token returned by login/register/reset. */
+    setSessionToken(token) {
+      if (token) writeToken(token);
+    },
+    clearSession() { clearToken(); },
     /** Current session user or null (never throws for 401). */
     async currentUser() {
       try {

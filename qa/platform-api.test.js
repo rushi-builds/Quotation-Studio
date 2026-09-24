@@ -528,6 +528,31 @@ async function main() {
     r = await req('GET', '/api/auth/me', null, r.json.token);
     t('bearer me after login', r.status === 200 && r.json.user);
 
+    {
+      const loginR = await req('POST', '/api/auth/login', {
+        email: 'owner@example.com', password: 'resetpass88'
+      });
+      const tok = loginR.json && loginR.json.token;
+      const meR = await new Promise((resolve, reject) => {
+        const r2 = http.request({
+          hostname: '127.0.0.1', port: PORT, path: '/api/auth/me', method: 'GET',
+          headers: { 'X-QS-Session': tok || '' }
+        }, (res) => {
+          const chunks = [];
+          res.on('data', (c) => chunks.push(c));
+          res.on('end', () => {
+            const text = Buffer.concat(chunks).toString('utf8');
+            let json = null;
+            try { json = text ? JSON.parse(text) : null; } catch (_) {}
+            resolve({ status: res.statusCode, json });
+          });
+        });
+        r2.on('error', reject);
+        r2.end();
+      });
+      t('x-qs-session header auth', meR.status === 200 && meR.json && meR.json.user, meR.status);
+    }
+
   } finally {
     child.kill('SIGTERM');
     try { fs.rmSync(path.join(ROOT, 'platform/data'), { recursive: true, force: true }); } catch (_) {}

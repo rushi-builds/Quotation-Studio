@@ -9,6 +9,10 @@
 
   let mode = 'login'; /* login | register */
   let user = null;
+
+  function keepSession(r) {
+    if (r && r.token && api.setSessionToken) api.setSessionToken(r.token);
+  }
   let allProposals = [];
   let toastTimer = null;
 
@@ -873,6 +877,13 @@
       renderHome((sum && sum.recent) || allProposals.slice(0, 8));
       renderPropTable();
     } catch (err) {
+      if (err && err.status === 401) {
+        /* Session lost (token cleared / expired) — back to sign-in. */
+        showAuth();
+        setAuthMode('login');
+        showAuthError('Your session expired. Please sign in again.');
+        return;
+      }
       banner('err', err.message || 'Could not load dashboard data');
     }
   }
@@ -1060,6 +1071,7 @@
       try {
         if (mode === 'login') {
           const r = await api.login(email, password);
+          keepSession(r);
           user = r.user;
           showApp();
           await refreshAll();
@@ -1067,6 +1079,7 @@
         } else if (mode === 'register') {
           if (!name) throw new Error('Please enter your name.');
           const r = await api.register(name, email, password);
+          keepSession(r);
           user = r.user;
           showApp();
           await refreshAll();
@@ -1092,6 +1105,7 @@
           }
         } else if (mode === 'reset') {
           const r = await api.resetPassword(email, code, newPass);
+          keepSession(r);
           user = r.user;
           showApp();
           await refreshAll();
