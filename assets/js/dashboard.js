@@ -107,7 +107,6 @@
     if ($('tabLogin')) $('tabLogin').classList.toggle('on', isLogin);
     if ($('tabRegister')) $('tabRegister').classList.toggle('on', isRegister);
     if ($('nameField')) $('nameField').hidden = !isRegister;
-    if ($('roleField')) $('roleField').hidden = !isRegister;
     if ($('passwordField')) $('passwordField').hidden = isForgot;
     if ($('resetCodeField')) $('resetCodeField').hidden = !isReset;
     if ($('newPasswordField')) $('newPasswordField').hidden = !isReset;
@@ -126,7 +125,7 @@
       $('authSubmit').textContent = 'Sign in';
     } else if (isRegister) {
       $('authHeading').textContent = 'Create account';
-      $('authSub').textContent = 'Choose your role. First account on this server is Owner; each email can register only once.';
+      $('authSub').textContent = 'First account on this server becomes Owner. Roles are managed in Settings after sign-in.';
       $('authSubmit').textContent = 'Create account';
     } else if (isForgot) {
       $('authHeading').textContent = 'Forgot password';
@@ -1097,8 +1096,7 @@
           toast('Signed in');
         } else if (mode === 'register') {
           if (!name) throw new Error('Please enter your name.');
-          const role = ($('authRole') && $('authRole').value) || 'sales';
-          const r = await api.register(name, email, password, role);
+          const r = await api.register(name, email, password);
           keepSession(r);
           user = r.user;
           showApp();

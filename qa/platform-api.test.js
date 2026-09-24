@@ -552,34 +552,26 @@ async function main() {
       });
       t('x-qs-session header auth', meR.status === 200 && meR.json && meR.json.user, meR.status);
 
-    r = await req('POST', '/api/auth/register', {
-      name: 'Viewer Jo',
-      email: 'viewer-role@example.com',
-      password: 'password123',
-      role: 'viewer'
-    });
-    t('register with viewer role', r.status === 201 && r.json.user && r.json.user.role === 'viewer', r.status);
 
     r = await req('POST', '/api/auth/register', {
-      name: 'Wannabe',
-      email: 'fake-owner@example.com',
-      password: 'password123',
-      role: 'owner'
+      name: 'Sales Sam', email: 'sales-role@example.com', password: 'password123'
     });
-    t('self-assign owner blocked after first', r.status === 400, r.status);
-
+    t('extra sales account', r.status === 201 && r.json.user.role === 'sales', r.status);
     r = await req('POST', '/api/auth/register', {
-      name: 'Sales Sam',
-      email: 'sales-role@example.com',
-      password: 'password123',
-      role: 'sales'
+      name: 'Viewer Jo', email: 'viewer-role@example.com', password: 'password123'
     });
-    t('register with sales role', r.status === 201 && r.json.user.role === 'sales', r.status);
+    t('extra viewer account default sales then demoted', r.status === 201, r.status);
+    const viewerIdForRole = r.json.user && r.json.user.id;
 
     r = await req('POST', '/api/auth/login', {
       email: 'owner@example.com', password: 'resetpass88'
     });
     const ownerTok = r.json.token;
+    if (viewerIdForRole) {
+      r = await req('POST', '/api/team/role', { userId: viewerIdForRole, role: 'viewer' }, ownerTok);
+      t('owner sets viewer via team', r.status === 200 && r.json.member.role === 'viewer', r.status);
+    }
+
     r = await req('POST', '/api/auth/profile', { role: 'sales' }, ownerTok);
     t('sole owner cannot demote self', r.status === 400, r.status);
 

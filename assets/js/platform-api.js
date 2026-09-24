@@ -104,10 +104,8 @@
       catch (_) { return null; }
     },
     me() { return request('GET', '/api/auth/me'); },
-    register(name, email, password, role) {
-      const body = { name, email, password };
-      if (role) body.role = role;
-      return request('POST', '/api/auth/register', body);
+    register(name, email, password) {
+      return request('POST', '/api/auth/register', { name, email, password });
     },
     login(email, password) {
       return request('POST', '/api/auth/login', { email, password });
