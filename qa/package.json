@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node finance.test.js && node engineering-boundaries.test.js && node integration.test.js && node options.test.js && node sync.test.js && node audit-finance.test.js && node bess.test.js && node supplements.test.js",
+    "test": "node finance.test.js && node engineering-boundaries.test.js && node integration.test.js && node options.test.js && node sync.test.js && node audit-finance.test.js && node bess.test.js && node supplements.test.js && node platform-api.test.js",
     "test:browser": "node cover-sync.test.js && node brand-engineering.test.js && node visual-discovery.test.js && node page-spacing.test.js && node audit-browser.test.js && node tech-spec.test.js && node array-size.test.js && node system-diagram.test.js && node experience.test.js && node briefing.test.js && node tracking-project.test.js && node control-panel.test.js && node session.test.js && node equipment-entry.test.js && node blank-defaults.test.js && node release-audit.test.js && node browser.test.js && node bess-browser.test.js && node supplements-browser.test.js"
   },
   "keywords": [],

@@ -7,6 +7,21 @@ no build step, no CDN, all libraries and fonts bundled locally.
 
 Open `quotation.html` in a browser, or serve the folder with any static server.
 
+### Staff dashboard & cloud (Phase A)
+
+```bash
+node platform/local-server/server.js
+# → Studio    http://localhost:8787/quotation.html
+# → Dashboard http://localhost:8787/dashboard.html
+```
+
+Create an account on the dashboard, save proposals to the cloud, and open them
+again from any browser on that server. The A4 proposal design is unchanged;
+cloud save is optional — offline localStorage still works. See
+[docs/platform-phase-a.md](docs/platform-phase-a.md). Later this same app deploys
+to Cloudflare Pages + Workers + D1 (personal account first; company mail transfer
+when ready).
+
 ## The 15-page proposal journey
 
 The journey is **15–21 pages**: optional comparison, financing, battery storage and

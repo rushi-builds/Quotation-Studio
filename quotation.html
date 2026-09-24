@@ -32,6 +32,11 @@
     </div>
     <div class="app-title">Quotation Studio<span class="studio-edition">WORKSPACE</span></div>
     <div class="app-sub">Build with confidence. Every detail, connected.</div>
+    <div class="studio-cloud-bar" id="studioCloudBar" hidden>
+      <a class="cloud-dash-link" href="dashboard.html" title="Staff dashboard">Dashboard</a>
+      <span class="cloud-chip" id="cloudChip" data-state="off">Browser only</span>
+      <button type="button" class="link-btn" id="cloudSaveBtn" hidden title="Save this proposal to your cloud workspace">Save to cloud</button>
+    </div>
     </div>
 
     <form id="quoteForm" autocomplete="off">
@@ -1185,6 +1190,8 @@
 <script src="assets/js/briefing.js"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/workspace-prefs.js"></script>
+<script src="assets/js/platform-api.js"></script>
+<script src="assets/js/cloud-bridge.js"></script>
 <script src="assets/js/app.js"></script>
 <script src="assets/js/control-panel.js"></script>
 </body>

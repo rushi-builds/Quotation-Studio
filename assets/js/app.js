@@ -237,6 +237,7 @@
   function loadActiveIntoUI() {
     const blob = window.Proposals.active();
     if (!blob) return;
+    /* exposed for CloudBridge after pulling a cloud proposal */
     window.StateStore.applyForm(Object.assign({}, window.StateStore.DEFAULTS, blob.form || {}));
     if (blob.form && !blob.form.propDate) $('propDate').value = today();
     window.__qsOptions = Array.isArray(blob.options) ? blob.options : [];
@@ -375,6 +376,14 @@
       return ok ? blob : null;
     } catch (error) { showSaveState('error'); return null; }
   }
+
+  /* Cloud bridge hooks (Phase A) — optional; safe if platform is offline. */
+  window.__qsSaveNow = saveNow;
+  window.__qsLoadActive = function reloadFromActive() {
+    loadActiveIntoUI();
+    if (window.Render && window.Render.renderAll) window.Render.renderAll();
+    if (typeof refreshManager === 'function') refreshManager();
+  };
 
   function creationSaved(blob) {
     if (blob && window.Proposals.get(blob.id) && window.Proposals.list().some(p => p.id === blob.id)) return true;

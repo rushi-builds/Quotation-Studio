@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Dashboard — KTM Quotation Studio</title>
+  <link rel="stylesheet" href="assets/css/dashboard.css" />
+</head>
+<body>
+  <!-- ========== Auth ========== -->
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="auth-brand-mark">KTM</div>
+        <div>
+          <strong style="font-size:14px">Quotation Studio</strong><br />
+          <span style="font-size:11.5px;color:#8A93A0">Staff dashboard</span>
+        </div>
+      </div>
+      <h1 id="authHeading">Sign in</h1>
+      <p class="sub" id="authSub">Cloud proposals, status and the path to customer links — Phase A.</p>
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="on" id="tabLogin" data-mode="login">Sign in</button>
+        <button type="button" id="tabRegister" data-mode="register">Create account</button>
+      </div>
+      <div id="authError" class="auth-error" role="alert"></div>
+      <form id="authForm" autocomplete="on">
+        <div class="field" id="nameField" hidden>
+          <label for="authName">Your name</label>
+          <input id="authName" name="name" type="text" placeholder="Rushikesh Dhumal" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="authEmail">Email</label>
+          <input id="authEmail" name="email" type="email" required placeholder="you@company.com" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="authPassword">Password</label>
+          <input id="authPassword" name="password" type="password" required minlength="8" placeholder="At least 8 characters" autocomplete="current-password" />
+        </div>
+        <button class="btn btn-primary" id="authSubmit" type="submit">Sign in</button>
+      </form>
+      <p class="auth-note">
+        Phase A runs on your platform server (local or Cloudflare).
+        Offline studio still works without an account.
+        Transfer this project to a company Cloudflare account when the company mailbox is ready.
+      </p>
+    </div>
+  </div>
+
+  <!-- ========== App shell ========== -->
+  <div id="dash" class="dash">
+    <aside class="sidebar" aria-label="Dashboard navigation">
+      <div class="side-brand">
+        <div class="side-brand-mark">KTM</div>
+        <div>
+          <strong>Quotation Studio</strong>
+          <span>Sales platform</span>
+        </div>
+      </div>
+      <button type="button" class="nav-item on" data-panel="home"><i class="dot"></i><span class="label">Home</span></button>
+      <button type="button" class="nav-item" data-panel="proposals"><i class="dot"></i><span class="label">Proposals</span></button>
+      <button type="button" class="nav-item soon" title="Phase D+" disabled><i class="dot"></i><span class="label">Activity</span></button>
+      <button type="button" class="nav-item soon" title="Phase E" disabled><i class="dot"></i><span class="label">Reports</span></button>
+      <button type="button" class="nav-item" data-panel="settings"><i class="dot"></i><span class="label">Settings</span></button>
+
+      <div class="side-foot">
+        <div class="side-user">
+          <strong id="userName">—</strong>
+          <span id="userEmail">—</span>
+        </div>
+        <div class="side-links">
+          <a href="quotation.html"><span>Open Studio →</span></a>
+          <button type="button" id="btnLogout"><span>Log out</span></button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div id="banner" class="banner" role="status"></div>
+
+      <!-- Home -->
+      <section id="panel-home" class="panel on">
+        <div class="topbar">
+          <div>
+            <h1 id="homeGreeting">Dashboard</h1>
+            <p class="sub">Your cloud workspace — drafts, sent work and next steps.</p>
+          </div>
+          <div class="topbar-actions">
+            <a class="btn btn-secondary btn-sm" href="quotation.html">Open Studio</a>
+            <button type="button" class="btn btn-primary btn-sm" id="btnNewFromHome">New proposal</button>
+          </div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi"><div class="label">Total</div><div class="value" id="kpiTotal">0</div><div class="hint">Cloud proposals</div></div>
+          <div class="kpi"><div class="label">Drafts</div><div class="value" id="kpiDraft">0</div><div class="hint">Still editing</div></div>
+          <div class="kpi accent"><div class="label">Ready</div><div class="value" id="kpiReady">0</div><div class="hint">Staff-marked only — not delivery tracking</div></div>
+          <div class="kpi"><div class="label">Accepted</div><div class="value" id="kpiAccepted">0</div><div class="hint">Marked manually by staff — not customer-confirmed</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Recent proposals</h2>
+            <span class="muted">Sorted by last update</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data" id="homeTable">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Ref</th>
+                  <th>Capacity</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="homeTableBody">
+                <tr><td colspan="6" class="empty">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="phase-note">
+          <strong>Roadmap on this dashboard.</strong>
+          Phase A (now): sign-in, cloud save, proposal list.
+          Phase B: secure customer link + frozen PDF version.
+          Phase C–E: send workflow, real open tracking, notifications, reports.
+          Tracking will never invent “delivered” or “read” events.
+        </div>
+      </section>
+
+      <!-- Proposals -->
+      <section id="panel-proposals" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Proposals</h1>
+            <p class="sub">Every cloud proposal you own. Open any one in the Studio to edit.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="btnNewProposal">New proposal</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="filters">
+              <input type="search" id="filterQ" placeholder="Search customer, ref, title…" />
+              <select id="filterStatus">
+                <option value="">All statuses</option>
+                <option value="draft">Draft</option>
+                <option value="internal_review">Internal review</option>
+                <option value="ready">Ready</option>
+                <option value="sent">Sent</option>
+                <option value="viewed">Viewed</option>
+                <option value="negotiation">Negotiation</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="expired">Expired</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Ref</th>
+                  <th>Ver</th>
+                  <th>kWp</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="propTableBody">
+                <tr><td colspan="7" class="empty">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section id="panel-settings" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Settings</h1>
+            <p class="sub">Account and platform notes for this Phase A build.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Signed-in account</h2></div>
+          <p style="font-size:13.5px;line-height:1.6;margin:0 0 8px">
+            <strong id="settingsName">—</strong><br />
+            <span class="muted" id="settingsEmail">—</span><br />
+            Role: <span id="settingsRole">—</span>
+          </p>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnLogout2">Log out</button>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Platform</h2></div>
+          <p style="font-size:13px;color:var(--gray);line-height:1.55;margin:0" id="settingsHealth">Checking server…</p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Later: company transfer</h2></div>
+          <p style="font-size:13px;color:var(--gray);line-height:1.55;margin:0">
+            When the company mailbox is ready, create a Cloudflare account with that address,
+            redeploy this repo, export/import the database, and retire the personal account.
+            Details: <code>docs/platform-phase-a.md</code>.
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="assets/js/platform-api.js"></script>
+  <script src="assets/js/dashboard.js"></script>
+</body>
+</html>

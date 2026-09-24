@@ -38,7 +38,7 @@ validated proposal data and calculation engine — never compute their own.
 | 4 — KTM credibility | Project gallery, certifications, testimonials (real assets only) | ◐ Partial (portfolio page exists; needs real asset pipeline) |
 | 5 — Sales system | Tracking, sharing links, WhatsApp/QR, comparison of options | ◐ Partial (statuses/versions done; sharing/tracking pending) |
 | 6 — Engineering integration | Stringing, SLD, cable sizing, detailed engineering docs | ⬜ |
-| 7 — Enterprise platform | CRM, projects, notifications, roles, analytics | ⬜ |
+| 7 — Enterprise platform | CRM, projects, notifications, roles, analytics | ◐ **Phase A started** — staff auth, cloud proposal API, dashboard shell (`docs/platform-phase-a.md`). Secure customer links / frozen PDFs / real tracking still later phases. |
 
 ---
 

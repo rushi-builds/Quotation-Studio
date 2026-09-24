@@ -4,6 +4,15 @@ qa/package-lock.json
 qa/shots/
 qa/.install-done
 
+# Platform local data (Phase A file-backed DB — never commit secrets)
+platform/data/
+platform/**/*.tmp
+
+# Cloudflare / wrangler local state (when used)
+.wrangler/
+.dev.vars
+.cf-vars
+
 # OS / editor
 .DS_Store
 Thumbs.db
