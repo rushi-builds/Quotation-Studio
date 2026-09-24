@@ -16,6 +16,12 @@
   let allProposals = [];
   let toastTimer = null;
 
+  const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Viewer' };
+  function roleLabel(role) {
+    const r = String(role || '').toLowerCase();
+    return ROLE_LABEL[r] || (role || '—');
+  }
+
   const STATUS_LABEL = {
     draft: 'Draft',
     internal_review: 'Internal review',
@@ -149,8 +155,19 @@
     $('userEmail').textContent = user.email || '';
     $('settingsName').textContent = user.name || '—';
     $('settingsEmail').textContent = user.email || '—';
-    $('settingsRole').textContent = user.role || '—';
+    if ($('settingsRole')) $('settingsRole').textContent = roleLabel(user.role);
     if ($('profileName')) $('profileName').value = user.name || '';
+    if ($('profileRole')) {
+      $('profileRole').value = user.role || 'sales';
+      const isOwner = user.role === 'owner';
+      $('profileRole').disabled = !isOwner;
+      if ($('profileRoleHint')) {
+        $('profileRoleHint').textContent = isOwner
+          ? 'You can change your role here. If you step down from Owner, promote another Owner in Team first.'
+          : 'Your role is ' + roleLabel(user.role) + '. Only a workspace Owner can change it (Settings → Team).';
+      }
+    }
+    if ($('profileSaveMsg')) $('profileSaveMsg').textContent = '';
     if ($('currPassword')) $('currPassword').value = '';
     if ($('newPassword')) $('newPassword').value = '';
     if ($('newPassword2')) $('newPassword2').value = '';
@@ -436,7 +453,7 @@
     if (!body) return;
     if (!user || user.role !== 'owner') {
       body.innerHTML = '<tr><td colspan="3" class="empty">Only the workspace owner can manage team roles. Your role: ' +
-        escapeHtml((user && user.role) || '—') + '.</td></tr>';
+        escapeHtml(roleLabel(user && user.role)) + '.</td></tr>';
       return;
     }
     try {
@@ -448,7 +465,7 @@
           '<td class="muted">' + escapeHtml(m.email) + '</td>' +
           '<td><select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select">' +
             ['owner', 'sales', 'viewer'].map((role) => (
-              '<option value="' + role + '"' + (m.role === role ? ' selected' : '') + '>' + role + '</option>'
+              '<option value="' + role + '"' + (m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
             )).join('') +
           '</select></td></tr>'
       )).join('') || '<tr><td colspan="3" class="empty">No members.</td></tr>';
@@ -459,8 +476,9 @@
             toast('Role updated');
             if (sel.getAttribute('data-team-user') === user.id) {
               user.role = sel.value;
-              if ($('settingsRole')) $('settingsRole').textContent = user.role;
-              if ($('kpiRole')) $('kpiRole').textContent = user.role;
+              if ($('settingsRole')) $('settingsRole').textContent = roleLabel(user.role);
+              if ($('kpiRole')) $('kpiRole').textContent = roleLabel(user.role);
+              showApp();
             }
           } catch (err) {
             toast(err.message || 'Could not change role');
@@ -874,7 +892,7 @@
       if ($('kpiUnread')) $('kpiUnread').textContent = c.unreadNotifications != null ? c.unreadNotifications : '0';
       if ($('kpiTasks')) $('kpiTasks').textContent = c.openTasks != null ? c.openTasks : '0';
       if ($('kpiOverdue')) $('kpiOverdue').textContent = c.overdueTasks != null ? c.overdueTasks : '0';
-      if ($('kpiRole')) $('kpiRole').textContent = (sum && sum.role) || (user && user.role) || '—';
+      if ($('kpiRole')) $('kpiRole').textContent = roleLabel((sum && sum.role) || (user && user.role) || '');
       renderHome((sum && sum.recent) || allProposals.slice(0, 8));
       renderPropTable();
     } catch (err) {
@@ -1162,17 +1180,28 @@
     if ($('btnSaveProfile')) {
       $('btnSaveProfile').addEventListener('click', async () => {
         const name = ($('profileName') && $('profileName').value || '').trim();
+        const role = ($('profileRole') && $('profileRole').value) || undefined;
+        const msg = $('profileSaveMsg');
+        if (msg) msg.textContent = '';
         if (!name) {
+          if (msg) msg.textContent = 'Name cannot be empty.';
           toast('Name cannot be empty');
           return;
         }
+        $('btnSaveProfile').disabled = true;
         try {
-          const r = await api.updateProfile({ name });
+          const payload = { name };
+          if ($('profileRole') && !$('profileRole').disabled && role) payload.role = role;
+          const r = await api.updateProfile(payload);
           user = r.user;
           showApp();
-          toast('Profile updated');
+          if (msg) msg.textContent = 'Saved. Role: ' + roleLabel(user.role) + '.';
+          toast('Account updated');
         } catch (err) {
-          toast(err.message || 'Could not update profile');
+          if (msg) msg.textContent = err.message || 'Could not update account';
+          toast(err.message || 'Could not update account');
+        } finally {
+          $('btnSaveProfile').disabled = false;
         }
       });
     }

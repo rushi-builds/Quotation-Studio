@@ -900,6 +900,27 @@ async function handleApi(req, res, url) {
         if (!name) return sendJson(res, 400, { error: 'Name cannot be empty.' });
         user.name = name.slice(0, 120);
       }
+      if (body.role != null) {
+        const role = String(body.role || '').trim().toLowerCase();
+        if (!['owner', 'sales', 'viewer'].includes(role)) {
+          return sendJson(res, 400, { error: 'Role must be Owner, Sales, or Viewer.' });
+        }
+        /* Only an Owner may change roles (including their own). Sales/Viewer stay fixed until an Owner updates them in Team. */
+        if (user.role !== 'owner') {
+          return sendJson(res, 403, {
+            error: 'Only an Owner can change roles. Ask a workspace Owner in Settings → Team.'
+          });
+        }
+        if (role !== 'owner') {
+          const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
+          if (!otherOwners.length) {
+            return sendJson(res, 400, {
+              error: 'You are the only Owner. Promote someone else to Owner in Team first, or keep Owner on this account.'
+            });
+          }
+        }
+        user.role = role;
+      }
       user.updated_at = nowISO();
       saveDb(db);
       return sendJson(res, 200, { user: publicUser(user) });

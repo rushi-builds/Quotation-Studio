@@ -575,6 +575,40 @@ async function main() {
       role: 'sales'
     });
     t('register with sales role', r.status === 201 && r.json.user.role === 'sales', r.status);
+
+    r = await req('POST', '/api/auth/login', {
+      email: 'owner@example.com', password: 'resetpass88'
+    });
+    const ownerTok = r.json.token;
+    r = await req('POST', '/api/auth/profile', { role: 'sales' }, ownerTok);
+    t('sole owner cannot demote self', r.status === 400, r.status);
+
+    r = await req('GET', '/api/team/members', null, ownerTok);
+    const salesMem = (r.json.members || []).find((m) => m.email === 'sales-role@example.com');
+    t('sales member listed for promote', !!salesMem);
+    if (salesMem) {
+      r = await req('POST', '/api/team/role', { userId: salesMem.id, role: 'owner' }, ownerTok);
+      t('promote second owner', r.status === 200 && r.json.member.role === 'owner', r.status);
+      r = await req('POST', '/api/auth/profile', { name: 'Owner Renamed', role: 'sales' }, ownerTok);
+      t('owner can change own role via profile', r.status === 200 && r.json.user.role === 'sales', r.status);
+      r = await req('POST', '/api/auth/login', {
+        email: 'sales-role@example.com', password: 'password123'
+      });
+      const otherOwnerTok = r.json.token;
+      r = await req('GET', '/api/team/members', null, otherOwnerTok);
+      const orig = (r.json.members || []).find((m) => m.email === 'owner@example.com');
+      if (orig) {
+        r = await req('POST', '/api/team/role', { userId: orig.id, role: 'owner' }, otherOwnerTok);
+        t('restore original owner', r.status === 200, r.status);
+      }
+    }
+
+    r = await req('POST', '/api/auth/login', {
+      email: 'viewer-role@example.com', password: 'password123'
+    });
+    const viewTok = r.json && r.json.token;
+    r = await req('POST', '/api/auth/profile', { role: 'owner' }, viewTok);
+    t('viewer cannot self-promote via profile', r.status === 403, r.status);
     }
 
   } finally {
