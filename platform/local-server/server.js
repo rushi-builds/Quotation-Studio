@@ -415,7 +415,7 @@ function roleRank(role) {
 }
 
 function requireRole(user, minRole) {
-  return roleRank(user && user.role) >= roleRank(minRole);
+  return roleRank(permissionRole(user)) >= roleRank(minRole);
 }
 
 /** Notify owner when a customer-facing event is worth a follow-up. */
@@ -587,8 +587,32 @@ function sessionCookie(token, maxAgeSec, req) {
   if (isHttps) parts.push('Secure');
   return parts.join('; ');
 }
+function roleDisplay(u) {
+  if (!u) return '';
+  const r = String(u.role || '').toLowerCase();
+  if (r === 'custom' && u.role_custom) return String(u.role_custom);
+  if (r === 'owner') return 'Owner';
+  if (r === 'sales') return 'Sales';
+  if (r === 'viewer') return 'Viewer';
+  if (u.role_custom) return String(u.role_custom);
+  return u.role || '';
+}
 function publicUser(u) {
-  return { id: u.id, email: u.email, name: u.name, role: u.role };
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    role: u.role,
+    roleCustom: u.role_custom || null,
+    roleLabel: roleDisplay(u)
+  };
+}
+/** Permission rank: custom titles act as Sales (can write, cannot manage team). */
+function permissionRole(user) {
+  const r = String((user && user.role) || '').toLowerCase();
+  if (r === 'owner') return 'owner';
+  if (r === 'viewer') return 'viewer';
+  return 'sales'; /* sales + custom */
 }
 function proposalSummary(p) {
   return {
@@ -708,15 +732,27 @@ async function handleApi(req, res, url) {
           error: 'An account with this email already exists. Sign in instead, or use Forgot password if you cannot access it.'
         });
       }
-      /* Role is not chosen at Create account.
-         First account → Owner. Later accounts → Sales.
-         Owners change roles in Settings (self) or Team. */
+      /* Role chosen on Create account: owner | sales | viewer | custom. */
+      let role = String(body.role || 'sales').trim().toLowerCase();
+      let roleCustom = null;
+      if (role === 'custom') {
+        roleCustom = String(body.roleCustom || body.customRole || '').trim().slice(0, 60);
+        if (!roleCustom) {
+          authThrottleFail(req, email);
+          return sendJson(res, 400, { error: 'Enter a custom role title (for example Project lead).' });
+        }
+        role = 'custom';
+      } else if (!['owner', 'sales', 'viewer'].includes(role)) {
+        authThrottleFail(req, email);
+        return sendJson(res, 400, { error: 'Choose a role: Owner, Sales, Viewer, or Custom.' });
+      }
       const user = {
         id: uid('usr'),
         email,
         name: name.slice(0, 120),
         password_hash: hashPassword(password),
-        role: (db.users || []).length === 0 ? 'owner' : 'sales',
+        role,
+        role_custom: roleCustom,
         created_at: nowISO(),
         updated_at: nowISO()
       };
@@ -882,27 +918,7 @@ async function handleApi(req, res, url) {
         if (!name) return sendJson(res, 400, { error: 'Name cannot be empty.' });
         user.name = name.slice(0, 120);
       }
-      if (body.role != null) {
-        const role = String(body.role || '').trim().toLowerCase();
-        if (!['owner', 'sales', 'viewer'].includes(role)) {
-          return sendJson(res, 400, { error: 'Role must be Owner, Sales, or Viewer.' });
-        }
-        /* Only an Owner may change roles (including their own). Sales/Viewer stay fixed until an Owner updates them in Team. */
-        if (user.role !== 'owner') {
-          return sendJson(res, 403, {
-            error: 'Only an Owner can change roles. Ask a workspace Owner in Settings → Team.'
-          });
-        }
-        if (role !== 'owner') {
-          const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
-          if (!otherOwners.length) {
-            return sendJson(res, 400, {
-              error: 'You are the only Owner. Promote someone else to Owner in Team first, or keep Owner on this account.'
-            });
-          }
-        }
-        user.role = role;
-      }
+      /* Role is set at Create account (or Team). Profile only updates name. */
       user.updated_at = nowISO();
       saveDb(db);
       return sendJson(res, 200, { user: publicUser(user) });
@@ -1835,6 +1851,8 @@ async function handleApi(req, res, url) {
         name: u.name,
         email: u.email,
         role: u.role,
+        roleCustom: u.role_custom || null,
+        roleLabel: roleDisplay(u),
         createdAt: u.created_at
       }));
       return sendJson(res, 200, {
@@ -1868,10 +1886,18 @@ async function handleApi(req, res, url) {
         }
       }
       target.role = role;
+      target.role_custom = null;
       target.updated_at = nowISO();
       saveDb(db);
       return sendJson(res, 200, {
-        member: { id: target.id, name: target.name, email: target.email, role: target.role }
+        member: {
+          id: target.id,
+          name: target.name,
+          email: target.email,
+          role: target.role,
+          roleCustom: null,
+          roleLabel: roleDisplay(target)
+        }
       });
     }
 

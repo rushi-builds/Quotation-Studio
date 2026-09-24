@@ -16,10 +16,15 @@
   let allProposals = [];
   let toastTimer = null;
 
-  const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Viewer' };
-  function roleLabel(role) {
-    const r = String(role || '').toLowerCase();
-    return ROLE_LABEL[r] || (role || '—');
+  const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Viewer', custom: 'Custom' };
+  function roleLabel(roleOrUser) {
+    if (roleOrUser && typeof roleOrUser === 'object') {
+      if (roleOrUser.roleLabel) return roleOrUser.roleLabel;
+      if (roleOrUser.role === 'custom' && roleOrUser.roleCustom) return roleOrUser.roleCustom;
+      return roleLabel(roleOrUser.role);
+    }
+    const r = String(roleOrUser || '').toLowerCase();
+    return ROLE_LABEL[r] || (roleOrUser || '—');
   }
 
   const STATUS_LABEL = {
@@ -107,6 +112,11 @@
     if ($('tabLogin')) $('tabLogin').classList.toggle('on', isLogin);
     if ($('tabRegister')) $('tabRegister').classList.toggle('on', isRegister);
     if ($('nameField')) $('nameField').hidden = !isRegister;
+    if ($('roleField')) $('roleField').hidden = !isRegister;
+    if ($('customRoleField')) {
+      const showCustom = isRegister && $('authRole') && $('authRole').value === 'custom';
+      $('customRoleField').hidden = !showCustom;
+    }
     if ($('passwordField')) $('passwordField').hidden = isForgot;
     if ($('resetCodeField')) $('resetCodeField').hidden = !isReset;
     if ($('newPasswordField')) $('newPasswordField').hidden = !isReset;
@@ -125,7 +135,7 @@
       $('authSubmit').textContent = 'Sign in';
     } else if (isRegister) {
       $('authHeading').textContent = 'Create account';
-      $('authSub').textContent = 'First account on this server becomes Owner. Roles are managed in Settings after sign-in.';
+      $('authSub').textContent = 'Pick your role when you create the account. Each email can register only once.';
       $('authSubmit').textContent = 'Create account';
     } else if (isForgot) {
       $('authHeading').textContent = 'Forgot password';
@@ -154,18 +164,8 @@
     $('userEmail').textContent = user.email || '';
     $('settingsName').textContent = user.name || '—';
     $('settingsEmail').textContent = user.email || '—';
-    if ($('settingsRole')) $('settingsRole').textContent = roleLabel(user.role);
+    if ($('settingsRole')) $('settingsRole').textContent = roleLabel(user);
     if ($('profileName')) $('profileName').value = user.name || '';
-    if ($('profileRole')) {
-      $('profileRole').value = user.role || 'sales';
-      const isOwner = user.role === 'owner';
-      $('profileRole').disabled = !isOwner;
-      if ($('profileRoleHint')) {
-        $('profileRoleHint').textContent = isOwner
-          ? 'You can change your role here. If you step down from Owner, promote another Owner in Team first.'
-          : 'Your role is ' + roleLabel(user.role) + '. Only a workspace Owner can change it (Settings → Team).';
-      }
-    }
     if ($('profileSaveMsg')) $('profileSaveMsg').textContent = '';
     if ($('currPassword')) $('currPassword').value = '';
     if ($('newPassword')) $('newPassword').value = '';
@@ -463,9 +463,16 @@
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
           '<td class="muted">' + escapeHtml(m.email) + '</td>' +
           '<td><select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select">' +
-            ['owner', 'sales', 'viewer'].map((role) => (
-              '<option value="' + role + '"' + (m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
-            )).join('') +
+            (function () {
+              const opts = ['owner', 'sales', 'viewer'];
+              let html = opts.map((role) => (
+                '<option value="' + role + '"' + (m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
+              )).join('');
+              if (m.role === 'custom' || m.roleCustom) {
+                html = '<option value="custom" selected>' + escapeHtml(m.roleLabel || m.roleCustom || 'Custom') + '</option>' + html;
+              }
+              return html;
+            })() +
           '</select></td></tr>'
       )).join('') || '<tr><td colspan="3" class="empty">No members.</td></tr>';
       body.querySelectorAll('.team-role-select').forEach((sel) => {
@@ -475,8 +482,8 @@
             toast('Role updated');
             if (sel.getAttribute('data-team-user') === user.id) {
               user.role = sel.value;
-              if ($('settingsRole')) $('settingsRole').textContent = roleLabel(user.role);
-              if ($('kpiRole')) $('kpiRole').textContent = roleLabel(user.role);
+              user.roleCustom = null;
+              user.roleLabel = roleLabel(sel.value);
               showApp();
             }
           } catch (err) {
@@ -891,7 +898,7 @@
       if ($('kpiUnread')) $('kpiUnread').textContent = c.unreadNotifications != null ? c.unreadNotifications : '0';
       if ($('kpiTasks')) $('kpiTasks').textContent = c.openTasks != null ? c.openTasks : '0';
       if ($('kpiOverdue')) $('kpiOverdue').textContent = c.overdueTasks != null ? c.overdueTasks : '0';
-      if ($('kpiRole')) $('kpiRole').textContent = roleLabel((sum && sum.role) || (user && user.role) || '');
+      if ($('kpiRole')) $('kpiRole').textContent = roleLabel(user || (sum && sum.role) || '');
       renderHome((sum && sum.recent) || allProposals.slice(0, 8));
       renderPropTable();
     } catch (err) {
@@ -1071,6 +1078,13 @@
   async function boot() {
     $('tabLogin').addEventListener('click', () => setAuthMode('login'));
     $('tabRegister').addEventListener('click', () => setAuthMode('register'));
+    if ($('authRole')) {
+      $('authRole').addEventListener('change', () => {
+        if ($('customRoleField')) {
+          $('customRoleField').hidden = $('authRole').value !== 'custom' || mode !== 'register';
+        }
+      });
+    }
     if ($('btnForgot')) {
       $('btnForgot').addEventListener('click', () => setAuthMode('forgot'));
     }
@@ -1096,7 +1110,12 @@
           toast('Signed in');
         } else if (mode === 'register') {
           if (!name) throw new Error('Please enter your name.');
-          const r = await api.register(name, email, password);
+          const role = ($('authRole') && $('authRole').value) || 'sales';
+          const roleCustom = ($('authRoleCustom') && $('authRoleCustom').value || '').trim();
+          if (role === 'custom' && !roleCustom) {
+            throw new Error('Enter a custom role title, or pick Owner, Sales, or Viewer.');
+          }
+          const r = await api.register(name, email, password, role, roleCustom);
           keepSession(r);
           user = r.user;
           showApp();
@@ -1178,7 +1197,6 @@
     if ($('btnSaveProfile')) {
       $('btnSaveProfile').addEventListener('click', async () => {
         const name = ($('profileName') && $('profileName').value || '').trim();
-        const role = ($('profileRole') && $('profileRole').value) || undefined;
         const msg = $('profileSaveMsg');
         if (msg) msg.textContent = '';
         if (!name) {
@@ -1188,16 +1206,14 @@
         }
         $('btnSaveProfile').disabled = true;
         try {
-          const payload = { name };
-          if ($('profileRole') && !$('profileRole').disabled && role) payload.role = role;
-          const r = await api.updateProfile(payload);
+          const r = await api.updateProfile({ name });
           user = r.user;
           showApp();
-          if (msg) msg.textContent = 'Saved. Role: ' + roleLabel(user.role) + '.';
-          toast('Account updated');
+          if (msg) msg.textContent = 'Name saved.';
+          toast('Name saved');
         } catch (err) {
-          if (msg) msg.textContent = err.message || 'Could not update account';
-          toast(err.message || 'Could not update account');
+          if (msg) msg.textContent = err.message || 'Could not update name';
+          toast(err.message || 'Could not update name');
         } finally {
           $('btnSaveProfile').disabled = false;
         }

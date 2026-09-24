@@ -107,7 +107,8 @@ async function main() {
     r = await req('POST', '/api/auth/register', {
       name: 'Test Owner',
       email: 'owner@example.com',
-      password: 'password123'
+      password: 'password123',
+      role: 'owner'
     });
     t('register 201', r.status === 201 && r.json.user && r.json.user.role === 'owner', r.status);
     const cookie = cookieFrom(r);
@@ -398,9 +399,10 @@ async function main() {
     r = await req('POST', '/api/auth/register', {
       name: 'Viewer User',
       email: 'viewer@example.com',
-      password: 'password123'
+      password: 'password123',
+      role: 'viewer'
     });
-    t('second user register', r.status === 201 && r.json.user.role === 'sales', r.status);
+    t('second user register', r.status === 201 && r.json.user.role === 'viewer', r.status);
     const viewerCookie = cookieFrom(r);
     const viewerId = r.json.user.id;
 
@@ -554,53 +556,40 @@ async function main() {
 
 
     r = await req('POST', '/api/auth/register', {
-      name: 'Sales Sam', email: 'sales-role@example.com', password: 'password123'
+      name: 'Sales Sam', email: 'sales-role@example.com', password: 'password123', role: 'sales'
     });
-    t('extra sales account', r.status === 201 && r.json.user.role === 'sales', r.status);
+    t('register sales role', r.status === 201 && r.json.user.role === 'sales', r.status);
+
     r = await req('POST', '/api/auth/register', {
-      name: 'Viewer Jo', email: 'viewer-role@example.com', password: 'password123'
+      name: 'Owner Two', email: 'owner-two@example.com', password: 'password123', role: 'owner'
     });
-    t('extra viewer account default sales then demoted', r.status === 201, r.status);
-    const viewerIdForRole = r.json.user && r.json.user.id;
+    t('register owner role allowed', r.status === 201 && r.json.user.role === 'owner', r.status);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Viewer Jo', email: 'viewer-role@example.com', password: 'password123', role: 'viewer'
+    });
+    t('register viewer role', r.status === 201 && r.json.user.role === 'viewer', r.status);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Custom Chris', email: 'custom-role@example.com', password: 'password123',
+      role: 'custom', roleCustom: 'Project lead'
+    });
+    t('register custom role', r.status === 201 && r.json.user.role === 'custom' && r.json.user.roleLabel === 'Project lead', r.status);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Bad Custom', email: 'bad-custom@example.com', password: 'password123', role: 'custom'
+    });
+    t('custom role requires title', r.status === 400, r.status);
 
     r = await req('POST', '/api/auth/login', {
-      email: 'owner@example.com', password: 'resetpass88'
+      email: 'custom-role@example.com', password: 'password123'
     });
-    const ownerTok = r.json.token;
-    if (viewerIdForRole) {
-      r = await req('POST', '/api/team/role', { userId: viewerIdForRole, role: 'viewer' }, ownerTok);
-      t('owner sets viewer via team', r.status === 200 && r.json.member.role === 'viewer', r.status);
-    }
+    const customTok = r.json.token;
+    r = await req('POST', '/api/proposals', { title: 'Custom can write' }, customTok);
+    t('custom role can create proposals', r.status === 201, r.status);
 
-    r = await req('POST', '/api/auth/profile', { role: 'sales' }, ownerTok);
-    t('sole owner cannot demote self', r.status === 400, r.status);
-
-    r = await req('GET', '/api/team/members', null, ownerTok);
-    const salesMem = (r.json.members || []).find((m) => m.email === 'sales-role@example.com');
-    t('sales member listed for promote', !!salesMem);
-    if (salesMem) {
-      r = await req('POST', '/api/team/role', { userId: salesMem.id, role: 'owner' }, ownerTok);
-      t('promote second owner', r.status === 200 && r.json.member.role === 'owner', r.status);
-      r = await req('POST', '/api/auth/profile', { name: 'Owner Renamed', role: 'sales' }, ownerTok);
-      t('owner can change own role via profile', r.status === 200 && r.json.user.role === 'sales', r.status);
-      r = await req('POST', '/api/auth/login', {
-        email: 'sales-role@example.com', password: 'password123'
-      });
-      const otherOwnerTok = r.json.token;
-      r = await req('GET', '/api/team/members', null, otherOwnerTok);
-      const orig = (r.json.members || []).find((m) => m.email === 'owner@example.com');
-      if (orig) {
-        r = await req('POST', '/api/team/role', { userId: orig.id, role: 'owner' }, otherOwnerTok);
-        t('restore original owner', r.status === 200, r.status);
-      }
-    }
-
-    r = await req('POST', '/api/auth/login', {
-      email: 'viewer-role@example.com', password: 'password123'
-    });
-    const viewTok = r.json && r.json.token;
-    r = await req('POST', '/api/auth/profile', { role: 'owner' }, viewTok);
-    t('viewer cannot self-promote via profile', r.status === 403, r.status);
+    r = await req('POST', '/api/auth/profile', { role: 'owner' }, customTok);
+    t('profile ignores role change body', r.status === 200 && r.json.user.role === 'custom', r.status);
     }
 
   } finally {
