@@ -57,6 +57,18 @@
       return request('POST', '/api/auth/login', { email, password });
     },
     logout() { return request('POST', '/api/auth/logout', {}); },
+    forgotPassword(email) {
+      return request('POST', '/api/auth/forgot-password', { email });
+    },
+    resetPassword(email, code, password) {
+      return request('POST', '/api/auth/reset-password', { email, code, password });
+    },
+    changePassword(currentPassword, newPassword) {
+      return request('POST', '/api/auth/change-password', { currentPassword, newPassword });
+    },
+    updateProfile(payload) {
+      return request('POST', '/api/auth/profile', payload || {});
+    },
     summary() { return request('GET', '/api/dashboard/summary'); },
     listProposals() { return request('GET', '/api/proposals'); },
     getProposal(id) { return request('GET', '/api/proposals/' + encodeURIComponent(id)); },

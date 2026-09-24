@@ -25,25 +25,38 @@
         <button type="button" id="tabRegister" data-mode="register">Create account</button>
       </div>
       <div id="authError" class="auth-error" role="alert"></div>
+      <div id="authOk" class="banner ok" style="display:none;margin-bottom:10px" role="status"></div>
       <form id="authForm" autocomplete="on">
         <div class="field" id="nameField" hidden>
           <label for="authName">Your name</label>
-          <input id="authName" name="name" type="text" placeholder="Rushikesh Dhumal" autocomplete="name" />
+          <input id="authName" name="name" type="text" placeholder="Your full name" autocomplete="name" />
         </div>
         <div class="field">
-          <label for="authEmail">Email</label>
+          <label for="authEmail">Work email</label>
           <input id="authEmail" name="email" type="email" required placeholder="you@company.com" autocomplete="username" />
         </div>
-        <div class="field">
+        <div class="field" id="passwordField">
           <label for="authPassword">Password</label>
-          <input id="authPassword" name="password" type="password" required minlength="8" placeholder="At least 8 characters" autocomplete="current-password" />
+          <input id="authPassword" name="password" type="password" required minlength="8" maxlength="128" placeholder="At least 8 characters, no spaces" autocomplete="current-password" />
+        </div>
+        <div class="field" id="resetCodeField" hidden>
+          <label for="authResetCode">Recovery code</label>
+          <input id="authResetCode" name="code" type="text" maxlength="40" placeholder="Shown once after Forgot password" autocomplete="one-time-code" />
+        </div>
+        <div class="field" id="newPasswordField" hidden>
+          <label for="authNewPassword">New password</label>
+          <input id="authNewPassword" name="newPassword" type="password" minlength="8" maxlength="128" placeholder="At least 8 characters, no spaces" autocomplete="new-password" />
         </div>
         <button class="btn btn-primary" id="authSubmit" type="submit">Sign in</button>
       </form>
-      <p class="auth-note">
-        Phase A runs on your platform server (local or Cloudflare).
-        Offline studio still works without an account.
-        Transfer this project to a company Cloudflare account when the company mailbox is ready.
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center">
+        <button type="button" class="btn btn-ghost btn-sm" id="btnForgot" style="padding-left:0">Forgot password?</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnBackSignIn" hidden>Back to sign in</button>
+      </div>
+      <p class="auth-note" id="authNote">
+        Use a real work email you control. Each email can register only once.
+        Password reset uses a one-time recovery code on this server (email delivery is not configured yet).
+        Offline Studio still works without an account.
       </p>
     </div>
   </div>
@@ -476,12 +489,36 @@
         </div>
         <div class="card">
           <div class="card-head"><h2>Signed-in account</h2></div>
-          <p style="font-size:13.5px;line-height:1.6;margin:0 0 8px">
+          <p style="font-size:13.5px;line-height:1.6;margin:0 0 12px">
             <strong id="settingsName">—</strong><br />
             <span class="muted" id="settingsEmail">—</span><br />
             Role: <span id="settingsRole">—</span>
           </p>
+          <div class="filters" style="margin-bottom:10px">
+            <input type="text" id="profileName" placeholder="Display name" style="flex:1;min-width:160px" />
+            <button type="button" class="btn btn-secondary btn-sm" id="btnSaveProfile">Save name</button>
+          </div>
           <button type="button" class="btn btn-secondary btn-sm" id="btnLogout2">Log out</button>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Change password</h2></div>
+          <p class="muted" style="font-size:12.5px;line-height:1.5;margin:0 0 10px">
+            Choose a new password (minimum 8 characters, no spaces). Other devices signed in with this account will be signed out.
+          </p>
+          <div class="field" style="margin-bottom:8px">
+            <label for="currPassword" style="display:block;font-size:12px;font-weight:600;color:#5B6B80;margin-bottom:4px">Current password</label>
+            <input id="currPassword" type="password" minlength="8" maxlength="128" autocomplete="current-password" style="width:100%;padding:8px 11px;border-radius:9px;border:1px solid #E4E8EE" />
+          </div>
+          <div class="field" style="margin-bottom:8px">
+            <label for="newPassword" style="display:block;font-size:12px;font-weight:600;color:#5B6B80;margin-bottom:4px">New password</label>
+            <input id="newPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" style="width:100%;padding:8px 11px;border-radius:9px;border:1px solid #E4E8EE" />
+          </div>
+          <div class="field" style="margin-bottom:10px">
+            <label for="newPassword2" style="display:block;font-size:12px;font-weight:600;color:#5B6B80;margin-bottom:4px">Confirm new password</label>
+            <input id="newPassword2" type="password" minlength="8" maxlength="128" autocomplete="new-password" style="width:100%;padding:8px 11px;border-radius:9px;border:1px solid #E4E8EE" />
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btnChangePassword">Update password</button>
+          <p id="passwordChangeMsg" class="muted" style="font-size:12.5px;margin:10px 0 0" role="status"></p>
         </div>
         <div class="card">
           <div class="card-head"><h2>Platform</h2></div>

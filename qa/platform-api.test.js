@@ -195,7 +195,7 @@ async function main() {
       password: 'password123'
     });
     t('good login', r.status === 200 && r.json.user.email === 'owner@example.com');
-    const cookie2 = cookieFrom(r);
+    let cookie2 = cookieFrom(r);
 
     /* After success, same account is not stuck behind a long lock from earlier fails. */
     r = await req('POST', '/api/auth/login', {
@@ -406,6 +406,103 @@ async function main() {
     r = await req('GET', '/api/health');
     t('health phase E', r.status === 200 && r.json.phase === 'E');
     t('health features flags', r.json.features && r.json.features.notifications && r.json.features.reports);
+
+    /* ---- Account hygiene: password change, forgot/reset, duplicate email ---- */
+    r = await req('POST', '/api/auth/register', {
+      name: 'Dup',
+      email: 'owner@example.com',
+      password: 'password123'
+    });
+    t('duplicate email blocked', r.status === 409, r.status);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Bad',
+      email: 'not-an-email',
+      password: 'password123'
+    });
+    t('invalid email rejected', r.status === 400);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Bad',
+      email: 'okuser@example.com',
+      password: 'short'
+    });
+    t('short password rejected', r.status === 400);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Bad',
+      email: 'spacepass@example.com',
+      password: 'bad pass1'
+    });
+    t('password with spaces rejected', r.status === 400);
+
+    r = await req('POST', '/api/auth/change-password', {
+      currentPassword: 'password123',
+      newPassword: 'newpass999'
+    }, cookie2);
+    t('change password while signed in', r.status === 200, r.status);
+
+    r = await req('POST', '/api/auth/login', {
+      email: 'owner@example.com',
+      password: 'password123'
+    });
+    t('old password fails after change', r.status === 401);
+
+    r = await req('POST', '/api/auth/login', {
+      email: 'owner@example.com',
+      password: 'newpass999'
+    });
+    t('new password works', r.status === 200);
+    cookie2 = cookieFrom(r);
+
+    r = await req('POST', '/api/auth/forgot-password', {
+      email: 'owner@example.com'
+    });
+    t('forgot password returns code for existing', r.status === 200 && r.json.recoveryCode, r.status);
+    const code = r.json.recoveryCode;
+
+    r = await req('POST', '/api/auth/forgot-password', {
+      email: 'no-such-user-xyz@example.com'
+    });
+    t('forgot unknown email still 200', r.status === 200 && r.json.ok && !r.json.recoveryCode, r.status);
+
+    r = await req('POST', '/api/auth/reset-password', {
+      email: 'owner@example.com',
+      code: 'wrong-code',
+      password: 'anotherpass1'
+    });
+    t('bad recovery code rejected', r.status === 400);
+
+    r = await req('POST', '/api/auth/reset-password', {
+      email: 'owner@example.com',
+      code: code,
+      password: 'resetpass88'
+    });
+    t('reset password with code', r.status === 200 && r.json.user, r.status);
+    cookie2 = cookieFrom(r);
+
+    r = await req('POST', '/api/auth/reset-password', {
+      email: 'owner@example.com',
+      code: code,
+      password: 'resetpass99'
+    });
+    t('recovery code is single use', r.status === 400);
+
+    r = await req('POST', '/api/auth/login', {
+      email: 'owner@example.com',
+      password: 'resetpass88'
+    });
+    t('login with reset password', r.status === 200);
+    cookie2 = cookieFrom(r);
+
+    r = await req('POST', '/api/auth/profile', { name: 'Owner Renamed' }, cookie2);
+    t('profile name update', r.status === 200 && r.json.user.name === 'Owner Renamed');
+
+    r = await req('POST', '/api/auth/change-password', {
+      currentPassword: 'wrong',
+      newPassword: 'whatever12'
+    }, cookie2);
+    t('wrong current password rejected', r.status === 400);
 
   } finally {
     child.kill('SIGTERM');

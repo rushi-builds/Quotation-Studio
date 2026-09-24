@@ -448,7 +448,7 @@ function ensureData() {
     fs.writeFileSync(DB_PATH, JSON.stringify({
       users: [], sessions: [], customers: [], proposals: [],
       versions: [], tokens: [], events: [], sends: [],
-      notifications: [], tasks: []
+      notifications: [], tasks: [], password_resets: []
     }, null, 2));
   }
 }
@@ -461,11 +461,44 @@ function loadDb() {
   if (!Array.isArray(db.sends)) db.sends = [];
   if (!Array.isArray(db.notifications)) db.notifications = [];
   if (!Array.isArray(db.tasks)) db.tasks = [];
+  if (!Array.isArray(db.password_resets)) db.password_resets = [];
   if (!Array.isArray(db.users)) db.users = [];
   if (!Array.isArray(db.sessions)) db.sessions = [];
   if (!Array.isArray(db.customers)) db.customers = [];
   if (!Array.isArray(db.proposals)) db.proposals = [];
   return db;
+}
+function passwordPolicyError(password) {
+  const p = String(password || '');
+  if (p.length < 8) return 'Password must be at least 8 characters';
+  if (p.length > 128) return 'Password must be at most 128 characters';
+  if (/\s/.test(p)) return 'Password cannot contain spaces';
+  return null;
+}
+function revokeUserSessions(db, userId, keepToken) {
+  db.sessions = (db.sessions || []).filter((s) => {
+    if (s.user_id !== userId) return true;
+    if (keepToken && s.token === keepToken) return true;
+    return false;
+  });
+}
+function issuePasswordReset(db, user) {
+  /* Invalidate previous unused codes for this user. */
+  const now = nowISO();
+  (db.password_resets || []).forEach((r) => {
+    if (r.user_id === user.id && !r.used_at) r.used_at = now;
+  });
+  const raw = crypto.randomBytes(4).toString('hex') + '-' + crypto.randomBytes(4).toString('hex');
+  const row = {
+    id: uid('rst'),
+    user_id: user.id,
+    code_hash: hashToken(raw.toLowerCase()),
+    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    used_at: null,
+    created_at: now
+  };
+  db.password_resets.push(row);
+  return raw.toLowerCase();
 }
 function saveDb(db) {
   ensureData();
@@ -640,22 +673,24 @@ async function handleApi(req, res, url) {
       if (blocked != null) return sendAuthLimited(res, blocked);
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         authThrottleFail(req, email);
-        return sendJson(res, 400, { error: 'Valid email required' });
+        return sendJson(res, 400, { error: 'Enter a valid email address (for example name@company.com).' });
       }
-      if (password.length < 8) {
+      const policy = passwordPolicyError(password);
+      if (policy) {
         authThrottleFail(req, email);
-        return sendJson(res, 400, { error: 'Password must be at least 8 characters' });
+        return sendJson(res, 400, { error: policy });
       }
       if ((db.users || []).some((u) => u.email.toLowerCase() === email)) {
-        /* Count as a failed auth-shaped attempt so register spam still backs off,
-           but keep the existing-account message (registration UX needs it). */
+        /* Registration needs a clear duplicate message; login stays non-enumerating. */
         authThrottleFail(req, email);
-        return sendJson(res, 409, { error: 'An account with this email already exists' });
+        return sendJson(res, 409, {
+          error: 'An account with this email already exists. Sign in instead, or use Forgot password if you cannot access it.'
+        });
       }
       const user = {
         id: uid('usr'),
         email,
-        name,
+        name: name.slice(0, 120),
         password_hash: hashPassword(password),
         role: (db.users || []).length === 0 ? 'owner' : 'sales',
         created_at: nowISO(),
@@ -678,6 +713,10 @@ async function handleApi(req, res, url) {
       const password = String(body.password || '');
       const blocked = authThrottleCheck(req, email);
       if (blocked != null) return sendAuthLimited(res, blocked);
+      if (!email || !password) {
+        authThrottleFail(req, email);
+        return sendJson(res, 401, { error: 'Invalid email or password' });
+      }
       const user = (db.users || []).find((u) => u.email.toLowerCase() === email);
       /* Uniform failure path: same status + message whether email is unknown
          or password is wrong (no username enumeration on login). */
@@ -710,6 +749,129 @@ async function handleApi(req, res, url) {
     if (parts[0] === 'auth' && parts[1] === 'me' && method === 'GET') {
       const user = requireUser(req, db);
       if (!user) return sendJson(res, 401, { error: 'Not signed in' });
+      return sendJson(res, 200, { user: publicUser(user) });
+    }
+
+    /* Forgot password — no outbound email on this local stack.
+       For existing accounts we return a one-time recovery code (shown once).
+       For unknown emails we return the same generic OK (no account enumeration). */
+    if (parts[0] === 'auth' && parts[1] === 'forgot-password' && method === 'POST') {
+      const body = await readBody(req);
+      const email = String(body.email || '').trim().toLowerCase();
+      const blocked = authThrottleCheck(req, email);
+      if (blocked != null) return sendAuthLimited(res, blocked);
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return sendJson(res, 400, { error: 'Enter a valid email address.' });
+      }
+      const user = (db.users || []).find((u) => u.email.toLowerCase() === email);
+      const generic = {
+        ok: true,
+        message: 'If an account exists for that email, a recovery code is available. Enter it below with your new password. Codes expire in 30 minutes and can be used once.'
+      };
+      if (!user) {
+        /* Spend a little work so timing is closer to the real path. */
+        hashPassword('timing-pad-' + email);
+        authThrottleFail(req, email);
+        return sendJson(res, 200, generic);
+      }
+      const rawCode = issuePasswordReset(db, user);
+      saveDb(db);
+      authThrottleSuccess(email);
+      return sendJson(res, 200, Object.assign({}, generic, {
+        recoveryCode: rawCode,
+        delivery: 'local_display',
+        note: 'Email delivery is not configured on this server yet. Copy this recovery code now — it will not be shown again.'
+      }));
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'reset-password' && method === 'POST') {
+      const body = await readBody(req);
+      const email = String(body.email || '').trim().toLowerCase();
+      const code = String(body.code || '').trim().toLowerCase();
+      const password = String(body.password || '');
+      const blocked = authThrottleCheck(req, email);
+      if (blocked != null) return sendAuthLimited(res, blocked);
+      const policy = passwordPolicyError(password);
+      if (policy) {
+        authThrottleFail(req, email);
+        return sendJson(res, 400, { error: policy });
+      }
+      if (!email || !code) {
+        authThrottleFail(req, email);
+        return sendJson(res, 400, { error: 'Email and recovery code are required.' });
+      }
+      const user = (db.users || []).find((u) => u.email.toLowerCase() === email);
+      const codeHash = hashToken(code);
+      const reset = user
+        ? (db.password_resets || []).find((r) =>
+          r.user_id === user.id &&
+          !r.used_at &&
+          r.code_hash === codeHash &&
+          Date.parse(r.expires_at) > Date.now()
+        )
+        : null;
+      if (!user || !reset) {
+        authThrottleFail(req, email);
+        return sendJson(res, 400, { error: 'Invalid or expired recovery code. Request a new one.' });
+      }
+      reset.used_at = nowISO();
+      user.password_hash = hashPassword(password);
+      user.updated_at = nowISO();
+      revokeUserSessions(db, user.id, null);
+      authThrottleSuccess(email);
+      const token = crypto.randomBytes(24).toString('hex');
+      const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
+      db.sessions.push({ token, user_id: user.id, expires_at: expires, created_at: nowISO() });
+      saveDb(db);
+      return sendJson(res, 200, {
+        user: publicUser(user),
+        message: 'Password updated. You are signed in. Other sessions were signed out.'
+      }, {
+        'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400, req)
+      });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
+      const sessionUser = requireUser(req, db);
+      if (!sessionUser) return sendJson(res, 401, { error: 'Sign in required' });
+      const body = await readBody(req);
+      const currentPassword = String(body.currentPassword || '');
+      const newPassword = String(body.newPassword || '');
+      const user = (db.users || []).find((u) => u.id === sessionUser.id);
+      if (!user) return sendJson(res, 401, { error: 'Sign in required' });
+      if (!verifyPassword(currentPassword, user.password_hash)) {
+        return sendJson(res, 400, { error: 'Current password is incorrect.' });
+      }
+      const policy = passwordPolicyError(newPassword);
+      if (policy) return sendJson(res, 400, { error: policy });
+      if (verifyPassword(newPassword, user.password_hash)) {
+        return sendJson(res, 400, { error: 'New password must be different from the current password.' });
+      }
+      user.password_hash = hashPassword(newPassword);
+      user.updated_at = nowISO();
+      const cookies = parseCookies(req);
+      const keep = cookies[COOKIE] || null;
+      revokeUserSessions(db, user.id, keep);
+      saveDb(db);
+      return sendJson(res, 200, {
+        ok: true,
+        message: 'Password changed. Other signed-in sessions were signed out.'
+      });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'profile' && method === 'POST') {
+      const sessionUser = requireUser(req, db);
+      if (!sessionUser) return sendJson(res, 401, { error: 'Sign in required' });
+      const body = await readBody(req);
+      const user = (db.users || []).find((u) => u.id === sessionUser.id);
+      if (!user) return sendJson(res, 401, { error: 'Sign in required' });
+      if (body.name != null) {
+        const name = String(body.name || '').trim();
+        if (!name) return sendJson(res, 400, { error: 'Name cannot be empty.' });
+        user.name = name.slice(0, 120);
+      }
+      user.updated_at = nowISO();
+      saveDb(db);
       return sendJson(res, 200, { user: publicUser(user) });
     }
 

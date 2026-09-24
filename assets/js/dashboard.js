@@ -69,23 +69,70 @@
   }
 
   /* ---------- auth UI ---------- */
+  function clearAuthMessages() {
+    if ($('authError')) {
+      $('authError').classList.remove('on');
+      $('authError').textContent = '';
+    }
+    if ($('authOk')) {
+      $('authOk').style.display = 'none';
+      $('authOk').textContent = '';
+    }
+  }
+
+  function showAuthOk(msg) {
+    const el = $('authOk');
+    if (!el) return;
+    el.style.display = msg ? 'block' : 'none';
+    el.className = 'banner on ok';
+    el.textContent = msg || '';
+  }
+
   function setAuthMode(next) {
     mode = next;
-    $('tabLogin').classList.toggle('on', mode === 'login');
-    $('tabRegister').classList.toggle('on', mode === 'register');
-    $('nameField').hidden = mode !== 'register';
-    $('authHeading').textContent = mode === 'login' ? 'Sign in' : 'Create account';
-    $('authSub').textContent = mode === 'login'
-      ? 'Cloud proposals, status and the path to customer links — Phase A.'
-      : 'First account on this server becomes Owner. Use your work email when you have it.';
-    $('authSubmit').textContent = mode === 'login' ? 'Sign in' : 'Create account';
-    $('authPassword').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
-    $('authError').classList.remove('on');
-    $('authError').textContent = '';
+    const isLogin = mode === 'login';
+    const isRegister = mode === 'register';
+    const isForgot = mode === 'forgot';
+    const isReset = mode === 'reset';
+    if ($('tabLogin')) $('tabLogin').classList.toggle('on', isLogin);
+    if ($('tabRegister')) $('tabRegister').classList.toggle('on', isRegister);
+    if ($('nameField')) $('nameField').hidden = !isRegister;
+    if ($('passwordField')) $('passwordField').hidden = isForgot;
+    if ($('resetCodeField')) $('resetCodeField').hidden = !isReset;
+    if ($('newPasswordField')) $('newPasswordField').hidden = !isReset;
+    if ($('authPassword')) {
+      $('authPassword').required = isLogin || isRegister;
+      $('authPassword').autocomplete = isLogin ? 'current-password' : 'new-password';
+    }
+    if ($('authResetCode')) $('authResetCode').required = isReset;
+    if ($('authNewPassword')) $('authNewPassword').required = isReset;
+    if ($('btnForgot')) $('btnForgot').hidden = !(isLogin || isForgot);
+    if ($('btnBackSignIn')) $('btnBackSignIn').hidden = isLogin || isRegister;
+
+    if (isLogin) {
+      $('authHeading').textContent = 'Sign in';
+      $('authSub').textContent = 'Access your cloud proposals, customer links and follow-ups.';
+      $('authSubmit').textContent = 'Sign in';
+    } else if (isRegister) {
+      $('authHeading').textContent = 'Create account';
+      $('authSub').textContent = 'First account on this server becomes Owner. Each email can register only once.';
+      $('authSubmit').textContent = 'Create account';
+    } else if (isForgot) {
+      $('authHeading').textContent = 'Forgot password';
+      $('authSub').textContent = 'Enter the email for your account. If it exists, a one-time recovery code will be shown (email delivery is not configured on this server yet).';
+      $('authSubmit').textContent = 'Get recovery code';
+    } else if (isReset) {
+      $('authHeading').textContent = 'Set new password';
+      $('authSub').textContent = 'Enter the recovery code and choose a new password (minimum 8 characters, no spaces).';
+      $('authSubmit').textContent = 'Update password & sign in';
+    }
+    clearAuthMessages();
   }
 
   function showAuthError(msg) {
+    clearAuthMessages();
     const el = $('authError');
+    if (!el) return;
     el.textContent = msg || 'Something went wrong';
     el.classList.add('on');
   }
@@ -98,6 +145,11 @@
     $('settingsName').textContent = user.name || '—';
     $('settingsEmail').textContent = user.email || '—';
     $('settingsRole').textContent = user.role || '—';
+    if ($('profileName')) $('profileName').value = user.name || '';
+    if ($('currPassword')) $('currPassword').value = '';
+    if ($('newPassword')) $('newPassword').value = '';
+    if ($('newPassword2')) $('newPassword2').value = '';
+    if ($('passwordChangeMsg')) $('passwordChangeMsg').textContent = '';
     const hour = new Date().getHours();
     const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
     $('homeGreeting').textContent = greet + ', ' + (user.name || 'there').split(' ')[0];
@@ -990,21 +1042,61 @@
   async function boot() {
     $('tabLogin').addEventListener('click', () => setAuthMode('login'));
     $('tabRegister').addEventListener('click', () => setAuthMode('register'));
+    if ($('btnForgot')) {
+      $('btnForgot').addEventListener('click', () => setAuthMode('forgot'));
+    }
+    if ($('btnBackSignIn')) {
+      $('btnBackSignIn').addEventListener('click', () => setAuthMode('login'));
+    }
     $('authForm').addEventListener('submit', async (ev) => {
       ev.preventDefault();
-      $('authError').classList.remove('on');
+      clearAuthMessages();
       const email = $('authEmail').value.trim();
-      const password = $('authPassword').value;
-      const name = $('authName').value.trim();
+      const password = $('authPassword') ? $('authPassword').value : '';
+      const name = $('authName') ? $('authName').value.trim() : '';
+      const code = $('authResetCode') ? $('authResetCode').value.trim() : '';
+      const newPass = $('authNewPassword') ? $('authNewPassword').value : '';
       $('authSubmit').disabled = true;
       try {
-        const r = mode === 'login'
-          ? await api.login(email, password)
-          : await api.register(name, email, password);
-        user = r.user;
-        showApp();
-        await refreshAll();
-        toast(mode === 'login' ? 'Signed in' : 'Account created');
+        if (mode === 'login') {
+          const r = await api.login(email, password);
+          user = r.user;
+          showApp();
+          await refreshAll();
+          toast('Signed in');
+        } else if (mode === 'register') {
+          if (!name) throw new Error('Please enter your name.');
+          const r = await api.register(name, email, password);
+          user = r.user;
+          showApp();
+          await refreshAll();
+          toast('Account created');
+        } else if (mode === 'forgot') {
+          const r = await api.forgotPassword(email);
+          if (r.recoveryCode) {
+            showAuthOk(
+              (r.message || 'Recovery code ready.') +
+              ' Your code: ' + r.recoveryCode +
+              ' — copy it now, then continue to set a new password.'
+            );
+            if ($('authResetCode')) $('authResetCode').value = r.recoveryCode;
+            setAuthMode('reset');
+            /* keep the success banner after mode switch */
+            showAuthOk(
+              'Recovery code: ' + r.recoveryCode +
+              '. It expires in 30 minutes and works once. Enter it below with your new password.'
+            );
+          } else {
+            showAuthOk(r.message || 'If that account exists, follow the recovery steps provided by your administrator.');
+            setAuthMode('reset');
+          }
+        } else if (mode === 'reset') {
+          const r = await api.resetPassword(email, code, newPass);
+          user = r.user;
+          showApp();
+          await refreshAll();
+          toast(r.message || 'Password updated');
+        }
       } catch (err) {
         showAuthError(err.message || 'Authentication failed');
       } finally {
@@ -1020,6 +1112,54 @@
     }
     $('btnLogout').addEventListener('click', doLogout);
     $('btnLogout2').addEventListener('click', doLogout);
+
+    if ($('btnChangePassword')) {
+      $('btnChangePassword').addEventListener('click', async () => {
+        const msg = $('passwordChangeMsg');
+        const cur = ($('currPassword') && $('currPassword').value) || '';
+        const n1 = ($('newPassword') && $('newPassword').value) || '';
+        const n2 = ($('newPassword2') && $('newPassword2').value) || '';
+        if (msg) msg.textContent = '';
+        if (!cur || !n1) {
+          if (msg) msg.textContent = 'Enter your current and new passwords.';
+          return;
+        }
+        if (n1 !== n2) {
+          if (msg) msg.textContent = 'New password and confirmation do not match.';
+          return;
+        }
+        $('btnChangePassword').disabled = true;
+        try {
+          const r = await api.changePassword(cur, n1);
+          if ($('currPassword')) $('currPassword').value = '';
+          if ($('newPassword')) $('newPassword').value = '';
+          if ($('newPassword2')) $('newPassword2').value = '';
+          if (msg) msg.textContent = r.message || 'Password updated.';
+          toast('Password changed');
+        } catch (err) {
+          if (msg) msg.textContent = err.message || 'Could not change password';
+        } finally {
+          $('btnChangePassword').disabled = false;
+        }
+      });
+    }
+    if ($('btnSaveProfile')) {
+      $('btnSaveProfile').addEventListener('click', async () => {
+        const name = ($('profileName') && $('profileName').value || '').trim();
+        if (!name) {
+          toast('Name cannot be empty');
+          return;
+        }
+        try {
+          const r = await api.updateProfile({ name });
+          user = r.user;
+          showApp();
+          toast('Profile updated');
+        } catch (err) {
+          toast(err.message || 'Could not update profile');
+        }
+      });
+    }
 
     document.querySelectorAll('.nav-item[data-panel]').forEach((n) => {
       n.addEventListener('click', () => showPanel(n.getAttribute('data-panel')));
