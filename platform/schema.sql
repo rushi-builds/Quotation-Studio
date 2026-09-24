@@ -117,4 +117,40 @@ CREATE TABLE IF NOT EXISTS portal_events (
 CREATE INDEX IF NOT EXISTS idx_events_owner ON portal_events(owner_id);
 CREATE INDEX IF NOT EXISTS idx_events_proposal ON portal_events(proposal_id);
 
--- Later: sends, notifications, files (R2 keys)
+-- Phase C: outbound send attempts (honest state machine — no fabricated delivery)
+CREATE TABLE IF NOT EXISTS sends (
+  id              TEXT PRIMARY KEY,
+  proposal_id     TEXT NOT NULL REFERENCES proposals(id) ON DELETE CASCADE,
+  version_id      TEXT REFERENCES proposal_versions(id) ON DELETE SET NULL,
+  token_id        TEXT REFERENCES access_tokens(id) ON DELETE SET NULL,
+  owner_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  channel         TEXT NOT NULL
+                  CHECK (channel IN ('whatsapp_manual', 'email_manual', 'copy_link', 'other')),
+  state           TEXT NOT NULL DEFAULT 'draft'
+                  CHECK (state IN (
+                    'draft',
+                    'share_clicked',
+                    'submitted_to_provider',
+                    'delivered',
+                    'failed',
+                    'cancelled'
+                  )),
+  recipient_name  TEXT NOT NULL DEFAULT '',
+  recipient_to    TEXT NOT NULL DEFAULT '',
+  message_body    TEXT NOT NULL DEFAULT '',
+  portal_url      TEXT NOT NULL DEFAULT '',
+  provider        TEXT NOT NULL DEFAULT 'manual',
+  provider_message_id TEXT,
+  note            TEXT NOT NULL DEFAULT '',
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL,
+  share_clicked_at TEXT,
+  submitted_at    TEXT,
+  delivered_at    TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_sends_owner ON sends(owner_id);
+CREATE INDEX IF NOT EXISTS idx_sends_proposal ON sends(proposal_id);
+CREATE INDEX IF NOT EXISTS idx_sends_state ON sends(state);
+
+-- Later: notifications, files (R2 keys)

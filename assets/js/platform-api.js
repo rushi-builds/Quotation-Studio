@@ -88,6 +88,24 @@
     listEvents(id) {
       return request('GET', '/api/proposals/' + encodeURIComponent(id) + '/events');
     },
+    sendPreview(id) {
+      return request('GET', '/api/proposals/' + encodeURIComponent(id) + '/send-preview');
+    },
+    listSends(proposalId) {
+      if (proposalId) {
+        return request('GET', '/api/proposals/' + encodeURIComponent(proposalId) + '/sends');
+      }
+      return request('GET', '/api/sends');
+    },
+    createSend(proposalId, payload) {
+      return request('POST', '/api/proposals/' + encodeURIComponent(proposalId) + '/sends', payload || {});
+    },
+    updateSendState(sendId, state, note) {
+      return request('POST', '/api/sends/' + encodeURIComponent(sendId) + '/state', {
+        state: state,
+        note: note || undefined
+      });
+    },
     /** Current session user or null (never throws for 401). */
     async currentUser() {
       try {

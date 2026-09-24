@@ -61,6 +61,7 @@
       <button type="button" class="nav-item on" data-panel="home"><i class="dot"></i><span class="label">Home</span></button>
       <button type="button" class="nav-item" data-panel="proposals"><i class="dot"></i><span class="label">Proposals</span></button>
       <button type="button" class="nav-item" data-panel="publish"><i class="dot"></i><span class="label">Publish &amp; links</span></button>
+      <button type="button" class="nav-item" data-panel="send"><i class="dot"></i><span class="label">Send centre</span></button>
       <button type="button" class="nav-item soon" title="Phase E" disabled><i class="dot"></i><span class="label">Reports</span></button>
       <button type="button" class="nav-item" data-panel="settings"><i class="dot"></i><span class="label">Settings</span></button>
 
@@ -123,9 +124,9 @@
         <div class="phase-note">
           <strong>Platform status.</strong>
           Phase A: sign-in and cloud drafts.
-          Phase B (available now): publish an immutable customer version and issue a secure link.
-          Later: provider-backed sending, richer activity, and reports.
-          Open counts record link access only — never fabricated delivery receipts.
+          Phase B: publish an immutable customer version and secure link.
+          Phase C (available now): Send centre for manual WhatsApp / email / copy-link with honest states.
+          Provider-confirmed delivery and full reports come later — never fabricated.
         </div>
       </section>
 
@@ -209,6 +210,68 @@
               </thead>
               <tbody id="eventsBody">
                 <tr><td colspan="3" class="empty">Select a proposal to view events.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Send centre -->
+      <section id="panel-send" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Send centre</h1>
+            <p class="sub">Prepare a professional message with the secure proposal link. Manual channels record that you started sharing — not that the message was delivered.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Compose</h2></div>
+          <div class="filters" style="margin-bottom:12px">
+            <select id="sendSelect" aria-label="Proposal to send" style="flex:1;min-width:200px"></select>
+          </div>
+          <div class="filters" style="margin-bottom:12px">
+            <select id="sendChannel" aria-label="Channel" style="min-width:180px">
+              <option value="whatsapp_manual">WhatsApp (manual)</option>
+              <option value="email_manual">Email (manual)</option>
+              <option value="copy_link">Copy link only</option>
+              <option value="other">Other / offline</option>
+            </select>
+            <input type="text" id="sendRecipientName" placeholder="Recipient name" style="flex:1;min-width:140px" />
+            <input type="text" id="sendRecipientTo" placeholder="WhatsApp number or email" style="flex:1;min-width:160px" />
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label for="sendMessage" style="display:block;font-size:12px;font-weight:600;color:#5B6B80;margin-bottom:5px">Message</label>
+            <textarea id="sendMessage" rows="10" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #E4E8EE;font:inherit;line-height:1.45"></textarea>
+          </div>
+          <p class="muted" id="sendHonesty" style="font-size:12.5px;line-height:1.5;margin:0 0 12px">
+            Publishing creates a frozen customer version and a new secure link inside this message.
+            Opening WhatsApp or Mail does <strong>not</strong> mean the customer received it.
+          </p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-primary btn-sm" id="btnSendPrepare">Publish link &amp; prepare send</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnSendLaunch" hidden>Open channel</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnSendCopy" hidden>Copy message</button>
+          </div>
+          <div id="sendResult" class="banner info" style="display:none;margin-top:12px"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Send history</h2>
+            <span class="muted">Honest states only</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Channel</th>
+                  <th>To</th>
+                  <th>State</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="sendsBody">
+                <tr><td colspan="5" class="empty">Select a proposal to view send history.</td></tr>
               </tbody>
             </table>
           </div>

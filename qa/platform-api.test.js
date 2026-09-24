@@ -296,6 +296,44 @@ async function main() {
     t('portal omits editor', !portalHtml.body.includes('editor.js'));
     t('portal loads portal.js', portalHtml.body.includes('portal.js'));
 
+    /* ---- Phase C: send centre (honest manual states) ---- */
+    r = await req('POST', '/api/proposals/' + pid + '/sends', {
+      channel: 'whatsapp_manual',
+      recipientName: 'Portal Customer',
+      recipientTo: '9876543210',
+      publishFirst: true,
+      markShareClicked: true
+    }, cookie2);
+    t('send prepare 201', r.status === 201 && r.json.send && r.json.launch, r.status);
+    t('send state is share_clicked', r.json.send.state === 'share_clicked', r.json.send && r.json.send.state);
+    t('send never claims verified delivery', r.json.send.deliveryIsVerified === false);
+    t('whatsapp launch url present', !!(r.json.launch && r.json.launch.whatsappUrl && r.json.launch.whatsappUrl.includes('wa.me')));
+    t('portal url in launch', !!(r.json.launch && r.json.launch.portalUrl && r.json.launch.portalUrl.includes('portal.html?t=')));
+    const sendId = r.json.send.id;
+    const sendTok = r.json.access && r.json.access.token;
+
+    r = await req('POST', '/api/sends/' + sendId + '/state', { state: 'delivered' }, cookie2);
+    t('manual cannot mark delivered', r.status === 400 && r.json.code === 'DELIVERY_NOT_AVAILABLE', r.status);
+
+    r = await req('POST', '/api/sends/' + sendId + '/state', { state: 'cancelled' }, cookie2);
+    t('manual can cancel', r.status === 200 && r.json.send.state === 'cancelled');
+
+    r = await req('GET', '/api/proposals/' + pid + '/sends', null, cookie2);
+    t('sends list', r.status === 200 && r.json.sends.length >= 1);
+
+    r = await req('POST', '/api/proposals/' + pid + '/sends', {
+      channel: 'email_manual',
+      recipientTo: 'customer@example.com',
+      recipientName: 'Portal Customer',
+      publishFirst: true
+    }, cookie2);
+    t('email send prepare', r.status === 201 && r.json.launch && r.json.launch.mailtoUrl, r.status);
+    t('email mailto has recipient', r.json.launch.mailtoUrl.includes('customer%40example.com') || r.json.launch.mailtoUrl.includes('customer@example.com'));
+
+    r = await req('GET', '/api/health');
+    t('health phase C', r.status === 200 && r.json.phase === 'C');
+    t('health denies provider delivery', r.json.sending && r.json.sending.providerDelivery === false);
+
   } finally {
     child.kill('SIGTERM');
     try { fs.rmSync(path.join(ROOT, 'platform/data'), { recursive: true, force: true }); } catch (_) {}

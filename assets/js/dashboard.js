@@ -110,6 +110,8 @@
   }
 
   /* ---------- navigation ---------- */
+  let lastLaunch = null;
+
   function showPanel(name) {
     document.querySelectorAll('.panel').forEach((p) => p.classList.remove('on'));
     document.querySelectorAll('.nav-item[data-panel]').forEach((n) => {
@@ -120,7 +122,225 @@
     if (name === 'proposals') renderPropTable();
     if (name === 'home') renderHome();
     if (name === 'publish') refreshPublishPanel();
+    if (name === 'send') refreshSendPanel();
     if (name === 'settings') refreshHealth();
+  }
+
+  function fillSendSelect(preferId) {
+    const sel = $('sendSelect');
+    if (!sel) return;
+    const cur = preferId || sel.value;
+    if (!allProposals.length) {
+      sel.innerHTML = '<option value="">No cloud proposals yet</option>';
+      return;
+    }
+    sel.innerHTML = allProposals.map((p) => {
+      const label = (p.customer || 'Untitled') + ' — ' + (p.ref || p.id);
+      return '<option value="' + escapeHtml(p.id) + '">' + escapeHtml(label) + '</option>';
+    }).join('');
+    if (cur && allProposals.some((p) => p.id === cur)) sel.value = cur;
+  }
+
+  async function refreshSendPanel() {
+    fillSendSelect();
+    const id = $('sendSelect') && $('sendSelect').value;
+    lastLaunch = null;
+    if ($('btnSendLaunch')) $('btnSendLaunch').hidden = true;
+    if ($('btnSendCopy')) $('btnSendCopy').hidden = true;
+    if ($('sendResult')) {
+      $('sendResult').style.display = 'none';
+      $('sendResult').className = 'banner info';
+    }
+    if (!id) {
+      if ($('sendsBody')) {
+        $('sendsBody').innerHTML = '<tr><td colspan="5" class="empty">Select a proposal to view send history.</td></tr>';
+      }
+      if ($('sendMessage')) $('sendMessage').value = '';
+      return;
+    }
+    try {
+      const [preview, sends] = await Promise.all([
+        api.sendPreview(id),
+        api.listSends(id)
+      ]);
+      if ($('sendRecipientName') && !$('sendRecipientName').value) {
+        $('sendRecipientName').value = preview.defaultRecipientName || '';
+      }
+      if ($('sendRecipientTo') && !$('sendRecipientTo').value) {
+        const ch = ($('sendChannel') && $('sendChannel').value) || 'whatsapp_manual';
+        $('sendRecipientTo').value = ch === 'email_manual'
+          ? (preview.defaultEmail || '')
+          : (preview.defaultWhatsApp || '');
+      }
+      if ($('sendMessage') && !$('sendMessage').value.trim()) {
+        const cust = preview.defaultRecipientName || 'there';
+        const p = preview.proposal || {};
+        $('sendMessage').value =
+          'Dear ' + cust + ',\n\n' +
+          'Please find your personalised rooftop solar proposal' +
+          (p.capacity ? (' for ' + p.capacity + ' kWp') : '') +
+          (p.ref ? (' (reference ' + p.ref + ')') : '') + '.\n\n' +
+          'Secure proposal link (read-only):\n' +
+          '[A secure link will be inserted when you prepare the send]\n\n' +
+          'You can review the design, savings summary and next steps in your browser. ' +
+          'A PDF can be downloaded from the same page.\n\n' +
+          'Kind regards';
+      }
+      if ($('sendHonesty') && preview.honestyNote) {
+        $('sendHonesty').textContent = preview.honestyNote;
+      }
+      renderSends((sends && sends.sends) || []);
+    } catch (err) {
+      banner('err', err.message || 'Could not load send centre');
+    }
+  }
+
+  function renderSends(rows) {
+    const body = $('sendsBody');
+    if (!body) return;
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="5" class="empty">No send attempts recorded yet.</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map((s) => {
+      let badgeCls = 'draft';
+      if (s.state === 'share_clicked') badgeCls = 'sent';
+      if (s.state === 'delivered') badgeCls = 'accepted';
+      if (s.state === 'failed' || s.state === 'cancelled') badgeCls = 'rejected';
+      return '<tr>' +
+        '<td class="muted">' + escapeHtml(fmtDate(s.createdAt)) + '</td>' +
+        '<td>' + escapeHtml(s.channelLabel || s.channel) + '</td>' +
+        '<td>' + escapeHtml(s.recipientTo || s.recipientName || '—') + '</td>' +
+        '<td><span class="badge ' + badgeCls + '" title="' + escapeHtml(s.stateLabel || '') + '">' +
+          escapeHtml(s.stateLabel || s.state) + '</span></td>' +
+        '<td class="row-actions">' +
+          (s.state !== 'cancelled' && s.state !== 'failed'
+            ? '<button type="button" class="btn btn-ghost btn-sm" data-act="cancel-send" data-id="' +
+              escapeHtml(s.id) + '">Cancel</button>'
+            : '') +
+        '</td></tr>';
+    }).join('');
+    body.querySelectorAll('[data-act="cancel-send"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await api.updateSendState(btn.getAttribute('data-id'), 'cancelled');
+          toast('Send marked cancelled');
+          await refreshSendPanel();
+        } catch (err) {
+          toast(err.message || 'Could not update send');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  async function prepareSend() {
+    const id = $('sendSelect') && $('sendSelect').value;
+    if (!id) {
+      toast('Select a proposal first');
+      return;
+    }
+    const btn = $('btnSendPrepare');
+    if (btn) btn.disabled = true;
+    try {
+      let message = ($('sendMessage') && $('sendMessage').value) || '';
+      /* Placeholder replaced server-side if empty link line; keep user edits. */
+      const r = await api.createSend(id, {
+        channel: ($('sendChannel') && $('sendChannel').value) || 'whatsapp_manual',
+        recipientName: ($('sendRecipientName') && $('sendRecipientName').value) || '',
+        recipientTo: ($('sendRecipientTo') && $('sendRecipientTo').value) || '',
+        messageBody: message.includes('[A secure link will be inserted')
+          ? undefined
+          : message,
+        publishFirst: true,
+        expiresInDays: 30,
+        markShareClicked: true
+      });
+      lastLaunch = r.launch || null;
+      if ($('sendMessage') && r.launch && r.launch.copyText) {
+        $('sendMessage').value = r.launch.copyText;
+      }
+      const box = $('sendResult');
+      if (box) {
+        box.style.display = 'block';
+        box.className = 'banner on ok';
+        box.innerHTML =
+          '<strong>Ready to share.</strong> State recorded as <em>share opened (not delivery-confirmed)</em>.<br />' +
+          'Portal: <code style="word-break:break-all;font-size:12px">' +
+          escapeHtml((r.launch && r.launch.portalUrl) || '') + '</code>' +
+          '<div class="muted" style="margin-top:6px;font-size:12px">' +
+          escapeHtml((r.launch && r.launch.honesty) || '') + '</div>';
+      }
+      if ($('btnSendLaunch')) {
+        const canLaunch = !!(lastLaunch && (lastLaunch.whatsappUrl || lastLaunch.mailtoUrl));
+        $('btnSendLaunch').hidden = !canLaunch;
+        $('btnSendLaunch').textContent =
+          lastLaunch && lastLaunch.whatsappUrl ? 'Open WhatsApp' :
+          lastLaunch && lastLaunch.mailtoUrl ? 'Open email app' : 'Open channel';
+      }
+      if ($('btnSendCopy')) $('btnSendCopy').hidden = false;
+      toast('Send prepared');
+      await refreshAll();
+      fillSendSelect(id);
+      await refreshSendPanelKeepMessage();
+    } catch (err) {
+      toast(err.message || 'Could not prepare send');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function refreshSendPanelKeepMessage() {
+    const msg = $('sendMessage') && $('sendMessage').value;
+    const name = $('sendRecipientName') && $('sendRecipientName').value;
+    const to = $('sendRecipientTo') && $('sendRecipientTo').value;
+    const id = $('sendSelect') && $('sendSelect').value;
+    fillSendSelect(id);
+    if (!id) return;
+    try {
+      const sends = await api.listSends(id);
+      renderSends((sends && sends.sends) || []);
+    } catch (_) {}
+    if ($('sendMessage') && msg) $('sendMessage').value = msg;
+    if ($('sendRecipientName') && name) $('sendRecipientName').value = name;
+    if ($('sendRecipientTo') && to) $('sendRecipientTo').value = to;
+    if (lastLaunch) {
+      if ($('btnSendCopy')) $('btnSendCopy').hidden = false;
+      if ($('btnSendLaunch')) {
+        const canLaunch = !!(lastLaunch.whatsappUrl || lastLaunch.mailtoUrl);
+        $('btnSendLaunch').hidden = !canLaunch;
+      }
+    }
+  }
+
+  function launchChannel() {
+    if (!lastLaunch) {
+      toast('Prepare a send first');
+      return;
+    }
+    const url = lastLaunch.whatsappUrl || lastLaunch.mailtoUrl;
+    if (!url) {
+      toast('This channel has no external launch URL — use Copy message');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  async function copySendMessage() {
+    const text = (lastLaunch && lastLaunch.copyText) ||
+      ($('sendMessage') && $('sendMessage').value) || '';
+    if (!text) {
+      toast('Nothing to copy');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Message copied');
+    } catch (_) {
+      toast('Copy failed — select the message text manually');
+    }
   }
 
   function fillPublishSelect(preferId) {
@@ -355,6 +575,7 @@
       '<div class="row-actions">' +
         '<button type="button" class="btn btn-secondary btn-sm" data-act="open" data-id="' + escapeHtml(p.id) + '">Open in Studio</button>' +
         '<button type="button" class="btn btn-ghost btn-sm" data-act="pub" data-id="' + escapeHtml(p.id) + '">Publish</button>' +
+        '<button type="button" class="btn btn-ghost btn-sm" data-act="send" data-id="' + escapeHtml(p.id) + '">Send</button>' +
         '<button type="button" class="btn btn-ghost btn-sm" data-act="dup" data-id="' + escapeHtml(p.id) + '">Duplicate</button>' +
         '<button type="button" class="btn btn-danger-soft btn-sm" data-act="del" data-id="' + escapeHtml(p.id) + '">Delete</button>' +
       '</div>';
@@ -397,6 +618,13 @@
       fillPublishSelect(id);
       if ($('publishSelect')) $('publishSelect').value = id;
       refreshPublishPanel();
+      return;
+    }
+    if (act === 'send') {
+      showPanel('send');
+      fillSendSelect(id);
+      if ($('sendSelect')) $('sendSelect').value = id;
+      refreshSendPanel();
       return;
     }
     if (act === 'dup') {
@@ -510,6 +738,32 @@
     if ($('btnPublish')) $('btnPublish').addEventListener('click', publishSelected);
     if ($('publishSelect')) {
       $('publishSelect').addEventListener('change', () => { refreshPublishPanel(); });
+    }
+    if ($('btnSendPrepare')) $('btnSendPrepare').addEventListener('click', prepareSend);
+    if ($('btnSendLaunch')) $('btnSendLaunch').addEventListener('click', launchChannel);
+    if ($('btnSendCopy')) $('btnSendCopy').addEventListener('click', copySendMessage);
+    if ($('sendSelect')) {
+      $('sendSelect').addEventListener('change', () => {
+        if ($('sendMessage')) $('sendMessage').value = '';
+        if ($('sendRecipientName')) $('sendRecipientName').value = '';
+        if ($('sendRecipientTo')) $('sendRecipientTo').value = '';
+        refreshSendPanel();
+      });
+    }
+    if ($('sendChannel')) {
+      $('sendChannel').addEventListener('change', () => {
+        /* Refresh defaults for the new channel without wiping a custom message. */
+        const id = $('sendSelect') && $('sendSelect').value;
+        if (!id) return;
+        api.sendPreview(id).then((preview) => {
+          const ch = $('sendChannel').value;
+          if ($('sendRecipientTo')) {
+            $('sendRecipientTo').value = ch === 'email_manual'
+              ? (preview.defaultEmail || '')
+              : (preview.defaultWhatsApp || '');
+          }
+        }).catch(() => {});
+      });
     }
 
     /* session restore */

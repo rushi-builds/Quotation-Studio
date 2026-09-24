@@ -245,12 +245,90 @@ function parseExpiryDays(body) {
   if (days > 365) days = 365;
   return new Date(Date.now() + days * 864e5).toISOString();
 }
+
+const SEND_CHANNELS = {
+  whatsapp_manual: { label: 'WhatsApp (manual)', provider: 'manual' },
+  email_manual: { label: 'Email (manual)', provider: 'manual' },
+  copy_link: { label: 'Copy link only', provider: 'manual' },
+  other: { label: 'Other / offline', provider: 'manual' }
+};
+const SEND_STATES = {
+  draft: 'Draft',
+  share_clicked: 'Share opened (not delivery-confirmed)',
+  submitted_to_provider: 'Submitted to provider',
+  delivered: 'Delivered (provider-confirmed only)',
+  failed: 'Failed',
+  cancelled: 'Cancelled'
+};
+function publicSend(s) {
+  return {
+    id: s.id,
+    proposalId: s.proposal_id,
+    versionId: s.version_id || null,
+    tokenId: s.token_id || null,
+    channel: s.channel,
+    channelLabel: (SEND_CHANNELS[s.channel] || {}).label || s.channel,
+    state: s.state,
+    stateLabel: SEND_STATES[s.state] || s.state,
+    recipientName: s.recipient_name || '',
+    recipientTo: s.recipient_to || '',
+    messageBody: s.message_body || '',
+    portalUrl: s.portal_url || '',
+    provider: s.provider || 'manual',
+    providerMessageId: s.provider_message_id || null,
+    note: s.note || '',
+    createdAt: s.created_at,
+    updatedAt: s.updated_at,
+    shareClickedAt: s.share_clicked_at || null,
+    submittedAt: s.submitted_at || null,
+    deliveredAt: s.delivered_at || null,
+    /* Honest capability flags — UI must not invent delivery for manual channels */
+    canConfirmDelivery: s.provider !== 'manual' && s.state === 'submitted_to_provider',
+    deliveryIsVerified: s.state === 'delivered' && !!s.delivered_at && s.provider !== 'manual'
+  };
+}
+function buildDefaultMessage(row, portalUrl) {
+  let form = {};
+  try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
+  const company = form.companyName || 'KTM Energy Experts';
+  const cust = row.customer_name || form.custName || 'there';
+  const cap = row.capacity || form.capacity || '';
+  const ref = row.ref || form.propRef || '';
+  const lines = [
+    'Dear ' + cust + ',',
+    '',
+    'Please find your personalised rooftop solar proposal from ' + company +
+      (cap ? (' for ' + cap + ' kWp') : '') +
+      (ref ? (' (reference ' + ref + ')') : '') + '.',
+    '',
+    'Secure proposal link (read-only):',
+    portalUrl || '[link will appear after publish]',
+    '',
+    'You can review the system design, savings summary and next steps in your browser.',
+    'A PDF can be downloaded from the same page. This link does not require a password.',
+    '',
+    'If you have questions or would like a site survey, reply on this chat or use the request form inside the proposal.',
+    '',
+    'Kind regards,',
+    company,
+    form.companyPhone ? String(form.companyPhone) : '',
+    form.companyEmail ? String(form.companyEmail) : ''
+  ].filter((line, i, arr) => !(line === '' && arr[i - 1] === ''));
+  return lines.join('\n');
+}
+function digitsForWhatsApp(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  let digits = raw.replace(/\D/g, '');
+  if (/^[6-9]\d{9}$/.test(digits)) digits = '91' + digits;
+  return /^[1-9]\d{10,14}$/.test(digits) ? digits : '';
+}
 function ensureData() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify({
       users: [], sessions: [], customers: [], proposals: [],
-      versions: [], tokens: [], events: []
+      versions: [], tokens: [], events: [], sends: []
     }, null, 2));
   }
 }
@@ -260,6 +338,7 @@ function loadDb() {
   if (!Array.isArray(db.versions)) db.versions = [];
   if (!Array.isArray(db.tokens)) db.tokens = [];
   if (!Array.isArray(db.events)) db.events = [];
+  if (!Array.isArray(db.sends)) db.sends = [];
   if (!Array.isArray(db.users)) db.users = [];
   if (!Array.isArray(db.sessions)) db.sessions = [];
   if (!Array.isArray(db.customers)) db.customers = [];
@@ -515,9 +594,14 @@ async function handleApi(req, res, url) {
     if (parts[0] === 'health' && method === 'GET') {
       return sendJson(res, 200, {
         ok: true,
-        phase: 'B',
+        phase: 'C',
         storage: 'local-json',
-        time: nowISO()
+        time: nowISO(),
+        sending: {
+          manualChannels: Object.keys(SEND_CHANNELS),
+          providerDelivery: false,
+          note: 'Manual WhatsApp/email record share_clicked only. Delivered requires a future provider webhook.'
+        }
       });
     }
 
@@ -943,6 +1027,253 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { events: list });
     }
 
+    /* ---------- Phase C: send centre (manual channels; honest states) ---------- */
+    if (parts[0] === 'proposals' && parts[1] && parts[2] === 'send-preview' && method === 'GET') {
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
+      let form = {};
+      try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
+      const latestVersion = (db.versions || [])
+        .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+        .slice()
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] || null;
+      const activeLink = (db.tokens || [])
+        .filter((t) => t.proposal_id === row.id && t.owner_id === user.id && tokenIsActive(t))
+        .slice()
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] || null;
+      return sendJson(res, 200, {
+        proposal: proposalSummary(row),
+        hasPublishedVersion: !!latestVersion,
+        latestVersion: latestVersion ? publicVersion(latestVersion) : null,
+        hasActiveLink: !!activeLink,
+        /* Raw token is never re-listed; staff must publish/create link to obtain URL. */
+        needsNewLinkForUrl: true,
+        defaultRecipientName: row.customer_name || form.custName || '',
+        defaultWhatsApp: form.custPhone || form.customerPhone || '',
+        defaultEmail: form.custEmail || form.customerEmail || '',
+        companyWhatsApp: form.companyPhone || '',
+        channels: Object.keys(SEND_CHANNELS).map((id) => ({
+          id,
+          label: SEND_CHANNELS[id].label,
+          provider: SEND_CHANNELS[id].provider,
+          recordsAs: 'share_clicked',
+          deliveryVerified: false
+        })),
+        honestyNote: 'Opening WhatsApp or your mail app only records that you started sharing. It does not prove the message was sent or delivered.'
+      });
+    }
+
+    if (parts[0] === 'proposals' && parts[1] && parts[2] === 'sends' && method === 'GET') {
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
+      const list = (db.sends || [])
+        .filter((s) => s.proposal_id === row.id && s.owner_id === user.id)
+        .slice()
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .map(publicSend);
+      return sendJson(res, 200, { sends: list });
+    }
+
+    if (parts[0] === 'sends' && parts.length === 1 && method === 'GET') {
+      const list = (db.sends || [])
+        .filter((s) => s.owner_id === user.id)
+        .slice()
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .slice(0, 100)
+        .map(publicSend);
+      return sendJson(res, 200, { sends: list });
+    }
+
+    if (parts[0] === 'proposals' && parts[1] && parts[2] === 'sends' && method === 'POST') {
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
+      const body = await readBody(req);
+      const channel = String(body.channel || 'whatsapp_manual');
+      if (!SEND_CHANNELS[channel]) {
+        return sendJson(res, 400, { error: 'Unsupported send channel' });
+      }
+
+      /* Ensure a published version + fresh customer link so the message has a real portal URL. */
+      let version = null;
+      if (body.versionId) {
+        version = (db.versions || []).find(
+          (v) => v.id === body.versionId && v.proposal_id === row.id && v.owner_id === user.id
+        );
+      }
+      if (!version) {
+        version = (db.versions || [])
+          .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+          .slice()
+          .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
+      }
+      if (!version || body.publishFirst) {
+        const snapshot = customerSnapshotFromProposal(row);
+        const snapshotJson = JSON.stringify(snapshot);
+        version = {
+          id: uid('ver'),
+          proposal_id: row.id,
+          owner_id: user.id,
+          version_label: snapshot.versionLabel || row.version_label || '1.0',
+          snapshot_json: snapshotJson,
+          snapshot_sha256: sha256Hex(snapshotJson),
+          pdf_sha256: null,
+          pdf_path: null,
+          note: String(body.note || 'Published for customer send').slice(0, 500),
+          created_at: nowISO()
+        };
+        db.versions.push(version);
+        recordEvent(db, {
+          token_id: null,
+          version_id: version.id,
+          proposal_id: row.id,
+          owner_id: user.id,
+          event_type: 'version_published',
+          meta: { snapshotSha256: version.snapshot_sha256, via: 'send' }
+        });
+      }
+
+      const rawToken = newAccessTokenRaw();
+      const tokenRow = {
+        id: uid('tok'),
+        token_hash: hashToken(rawToken),
+        version_id: version.id,
+        proposal_id: row.id,
+        owner_id: user.id,
+        label: String(body.linkLabel || 'Send link').slice(0, 120),
+        expires_at: parseExpiryDays(body),
+        revoked_at: null,
+        created_at: nowISO(),
+        first_opened_at: null,
+        last_opened_at: null,
+        open_count: 0
+      };
+      db.tokens.push(tokenRow);
+
+      const host = req.headers.host || ('localhost:' + PORT);
+      const proto = (req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim() || 'http';
+      const portalUrl = proto + '://' + host + '/portal.html?t=' + encodeURIComponent(rawToken);
+      const messageBody = String(body.messageBody || buildDefaultMessage(row, portalUrl)).slice(0, 4000);
+      const recipientTo = String(body.recipientTo || '').trim().slice(0, 200);
+      const recipientName = String(body.recipientName || row.customer_name || '').trim().slice(0, 200);
+
+      if (channel === 'whatsapp_manual' && recipientTo && !digitsForWhatsApp(recipientTo)) {
+        return sendJson(res, 400, {
+          error: 'Enter a valid WhatsApp mobile number with country code (for example +91 98765 43210).'
+        });
+      }
+      if (channel === 'email_manual' && recipientTo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientTo)) {
+        return sendJson(res, 400, { error: 'Enter a valid email address.' });
+      }
+
+      const markShared = body.markShareClicked !== false;
+      const sendRow = {
+        id: uid('snd'),
+        proposal_id: row.id,
+        version_id: version.id,
+        token_id: tokenRow.id,
+        owner_id: user.id,
+        channel,
+        state: markShared ? 'share_clicked' : 'draft',
+        recipient_name: recipientName,
+        recipient_to: recipientTo,
+        message_body: messageBody,
+        portal_url: portalUrl,
+        provider: 'manual',
+        provider_message_id: null,
+        note: String(body.note || '').slice(0, 500),
+        created_at: nowISO(),
+        updated_at: nowISO(),
+        share_clicked_at: markShared ? nowISO() : null,
+        submitted_at: null,
+        delivered_at: null
+      };
+      db.sends.push(sendRow);
+
+      if (row.status === 'draft' || row.status === 'ready' || row.status === 'internal_review') {
+        row.status = 'sent';
+        if (!row.sent_at) row.sent_at = nowISO();
+        row.updated_at = nowISO();
+      }
+
+      recordEvent(db, {
+        token_id: tokenRow.id,
+        version_id: version.id,
+        proposal_id: row.id,
+        owner_id: user.id,
+        event_type: markShared ? 'share_clicked' : 'send_drafted',
+        meta: { channel, sendId: sendRow.id }
+      });
+      saveDb(db);
+
+      const waDigits = channel === 'whatsapp_manual' ? digitsForWhatsApp(recipientTo) : '';
+      const launch = {
+        whatsappUrl: waDigits
+          ? ('https://wa.me/' + waDigits + '?text=' + encodeURIComponent(messageBody))
+          : null,
+        mailtoUrl: channel === 'email_manual' && recipientTo
+          ? ('mailto:' + encodeURIComponent(recipientTo) +
+            '?subject=' + encodeURIComponent(
+              (row.ref ? row.ref + ' — ' : '') + 'Your solar proposal'
+            ) +
+            '&body=' + encodeURIComponent(messageBody))
+          : null,
+        copyText: messageBody,
+        portalUrl,
+        /* Explicit: these launches are not provider delivery receipts */
+        honesty: 'Launching WhatsApp or mail only means the share flow was opened. Delivery is unconfirmed until a provider reports it.'
+      };
+
+      return sendJson(res, 201, {
+        send: publicSend(sendRow),
+        access: publicToken(tokenRow, rawToken),
+        version: publicVersion(version),
+        launch
+      });
+    }
+
+    if (parts[0] === 'sends' && parts[1] && parts[2] === 'state' && method === 'POST') {
+      const sendRow = (db.sends || []).find((s) => s.id === parts[1] && s.owner_id === user.id);
+      if (!sendRow) return sendJson(res, 404, { error: 'Send record not found' });
+      const body = await readBody(req);
+      const next = String(body.state || '');
+      const allowedManual = {
+        share_clicked: true,
+        cancelled: true,
+        failed: true,
+        draft: true
+      };
+      /* Manual channels must never jump to delivered / submitted_to_provider. */
+      if (sendRow.provider === 'manual') {
+        if (next === 'delivered' || next === 'submitted_to_provider') {
+          return sendJson(res, 400, {
+            error: 'Manual channels cannot be marked delivered. That state is reserved for provider-confirmed webhooks (not enabled yet).',
+            code: 'DELIVERY_NOT_AVAILABLE'
+          });
+        }
+        if (!allowedManual[next]) {
+          return sendJson(res, 400, { error: 'Unsupported state for this send' });
+        }
+      } else if (!SEND_STATES[next]) {
+        return sendJson(res, 400, { error: 'Unknown state' });
+      }
+      sendRow.state = next;
+      sendRow.updated_at = nowISO();
+      if (next === 'share_clicked' && !sendRow.share_clicked_at) sendRow.share_clicked_at = nowISO();
+      if (next === 'submitted_to_provider' && !sendRow.submitted_at) sendRow.submitted_at = nowISO();
+      if (next === 'delivered' && !sendRow.delivered_at) sendRow.delivered_at = nowISO();
+      if (body.note) sendRow.note = String(body.note).slice(0, 500);
+      recordEvent(db, {
+        token_id: sendRow.token_id,
+        version_id: sendRow.version_id,
+        proposal_id: sendRow.proposal_id,
+        owner_id: user.id,
+        event_type: 'send_state_' + next,
+        meta: { sendId: sendRow.id, channel: sendRow.channel }
+      });
+      saveDb(db);
+      return sendJson(res, 200, { send: publicSend(sendRow) });
+    }
+
     return sendJson(res, 404, { error: 'Unknown API route' });
   } catch (err) {
     const status = err && err.status ? err.status : 500;
@@ -1015,7 +1346,7 @@ const server = http.createServer(async (req, res) => {
 
 ensureData();
 server.listen(PORT, HOST, () => {
-  console.log('Quotation Studio platform (Phase A + B)');
+  console.log('Quotation Studio platform (Phase A + B + C)');
   console.log('  App:    http://' + HOST + ':' + PORT + '/quotation.html');
   console.log('  Dash:   http://' + HOST + ':' + PORT + '/dashboard.html');
   console.log('  Portal: http://' + HOST + ':' + PORT + '/portal.html?t=<token>');
