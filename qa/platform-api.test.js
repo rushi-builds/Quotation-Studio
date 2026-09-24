@@ -551,6 +551,30 @@ async function main() {
         r2.end();
       });
       t('x-qs-session header auth', meR.status === 200 && meR.json && meR.json.user, meR.status);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Viewer Jo',
+      email: 'viewer-role@example.com',
+      password: 'password123',
+      role: 'viewer'
+    });
+    t('register with viewer role', r.status === 201 && r.json.user && r.json.user.role === 'viewer', r.status);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Wannabe',
+      email: 'fake-owner@example.com',
+      password: 'password123',
+      role: 'owner'
+    });
+    t('self-assign owner blocked after first', r.status === 400, r.status);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Sales Sam',
+      email: 'sales-role@example.com',
+      password: 'password123',
+      role: 'sales'
+    });
+    t('register with sales role', r.status === 201 && r.json.user.role === 'sales', r.status);
     }
 
   } finally {

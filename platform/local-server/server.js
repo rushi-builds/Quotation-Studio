@@ -708,12 +708,33 @@ async function handleApi(req, res, url) {
           error: 'An account with this email already exists. Sign in instead, or use Forgot password if you cannot access it.'
         });
       }
+      /* Role at signup:
+         - Empty server → always Owner (workspace bootstrap).
+         - Later accounts → Sales or Viewer (Owner is assigned by an existing Owner in Team). */
+      const isFirst = (db.users || []).length === 0;
+      let role = 'sales';
+      if (isFirst) {
+        role = 'owner';
+      } else {
+        const wanted = String(body.role || 'sales').trim().toLowerCase();
+        if (wanted === 'owner') {
+          authThrottleFail(req, email);
+          return sendJson(res, 400, {
+            error: 'Owner role cannot be self-assigned after the first account. Choose Sales or Viewer, then ask an Owner to promote you in Settings → Team.'
+          });
+        }
+        if (wanted !== 'sales' && wanted !== 'viewer') {
+          authThrottleFail(req, email);
+          return sendJson(res, 400, { error: 'Role must be sales or viewer.' });
+        }
+        role = wanted;
+      }
       const user = {
         id: uid('usr'),
         email,
         name: name.slice(0, 120),
         password_hash: hashPassword(password),
-        role: (db.users || []).length === 0 ? 'owner' : 'sales',
+        role,
         created_at: nowISO(),
         updated_at: nowISO()
       };
