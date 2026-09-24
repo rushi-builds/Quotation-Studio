@@ -66,9 +66,12 @@ function verifyPassword(password, stored) {
   }
 }
 
-/* Auth rate limits: per client IP + per email (email stops office-NAT false blocks
-   and slows password guessing even when many IPs are used). */
+/* Auth throttling: fixed IP ceiling + per-email exponential backoff.
+   - Same 429 body for every blocked attempt (no username enumeration via limit).
+   - Limits apply to the *attempt* path before user lookup, for any email string.
+   - Successful login/register clears that email's backoff. */
 const authHits = new Map();
+const AUTH_429 = 'Too many sign-in attempts. Try again in a few minutes.';
 function clientIp(req) {
   /* Prefer Cloudflare's verified edge header; do not trust X-Forwarded-For alone
      (it is attacker-controlled unless the edge strips/overwrites it). */
@@ -76,21 +79,64 @@ function clientIp(req) {
   if (cf) return cf;
   return req.socket.remoteAddress || 'unknown';
 }
-function rateLimitTouch(key, max, windowMs) {
-  const now = Date.now();
-  let bucket = authHits.get(key);
-  if (!bucket || now > bucket.resetAt) {
-    bucket = { count: 0, resetAt: now + windowMs };
-    authHits.set(key, bucket);
+function rateBucket(key) {
+  let b = authHits.get(key);
+  if (!b) {
+    b = { fails: 0, blockedUntil: 0 };
+    authHits.set(key, b);
   }
-  bucket.count += 1;
-  return bucket.count <= max;
+  return b;
 }
-function rateLimitAuth(req, email) {
-  const ipOk = rateLimitTouch('ip:' + clientIp(req), 40, 15 * 60 * 1000);
+/** Returns null if allowed, or retry-after seconds if blocked. */
+function authThrottleCheck(req, email) {
+  const now = Date.now();
+  const ipKey = 'ip:' + clientIp(req);
+  const ip = rateBucket(ipKey);
+  /* Sliding-ish fixed window on IP: count recent fails; hard ceiling. */
+  if (!ip.windowStart || now - ip.windowStart > 15 * 60 * 1000) {
+    ip.windowStart = now;
+    ip.windowCount = 0;
+  }
+  if (ip.windowCount >= 40) {
+    return Math.max(1, Math.ceil((ip.windowStart + 15 * 60 * 1000 - now) / 1000));
+  }
   const em = String(email || '').trim().toLowerCase();
-  const emailOk = !em || rateLimitTouch('email:' + em, 12, 15 * 60 * 1000);
-  return ipOk && emailOk;
+  if (em) {
+    const eb = rateBucket('email:' + em);
+    if (eb.blockedUntil && now < eb.blockedUntil) {
+      return Math.max(1, Math.ceil((eb.blockedUntil - now) / 1000));
+    }
+  }
+  return null;
+}
+function authThrottleFail(req, email) {
+  const now = Date.now();
+  const ip = rateBucket('ip:' + clientIp(req));
+  if (!ip.windowStart || now - ip.windowStart > 15 * 60 * 1000) {
+    ip.windowStart = now;
+    ip.windowCount = 0;
+  }
+  ip.windowCount += 1;
+  const em = String(email || '').trim().toLowerCase();
+  if (!em) return;
+  const eb = rateBucket('email:' + em);
+  eb.fails = (eb.fails || 0) + 1;
+  /* Exponential backoff after the 5th failure: 2s, 4s, 8s… capped at 15 min.
+     Early failures stay fast so a typo does not lock a real user out. */
+  if (eb.fails >= 5) {
+    const exp = Math.min(15 * 60, Math.pow(2, Math.min(eb.fails - 4, 10)));
+    eb.blockedUntil = now + exp * 1000;
+  }
+}
+function authThrottleSuccess(email) {
+  const em = String(email || '').trim().toLowerCase();
+  if (!em) return;
+  authHits.delete('email:' + em);
+}
+function sendAuthLimited(res, retryAfterSec) {
+  return sendJson(res, 429, { error: AUTH_429 }, {
+    'Retry-After': String(Math.max(1, retryAfterSec || 60))
+  });
 }
 function proposalRevision(row) {
   const n = Number(row && row.revision);
@@ -276,16 +322,21 @@ async function handleApi(req, res, url) {
       const email = String(body.email || '').trim().toLowerCase();
       const name = String(body.name || '').trim() || email.split('@')[0] || 'User';
       const password = String(body.password || '');
-      if (!rateLimitAuth(req, email)) {
-        return sendJson(res, 429, { error: 'Too many sign-in attempts. Try again in a few minutes.' });
-      }
+      /* Throttle before existence checks so 429 timing/body cannot reveal accounts. */
+      const blocked = authThrottleCheck(req, email);
+      if (blocked != null) return sendAuthLimited(res, blocked);
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        authThrottleFail(req, email);
         return sendJson(res, 400, { error: 'Valid email required' });
       }
       if (password.length < 8) {
+        authThrottleFail(req, email);
         return sendJson(res, 400, { error: 'Password must be at least 8 characters' });
       }
       if ((db.users || []).some((u) => u.email.toLowerCase() === email)) {
+        /* Count as a failed auth-shaped attempt so register spam still backs off,
+           but keep the existing-account message (registration UX needs it). */
+        authThrottleFail(req, email);
         return sendJson(res, 409, { error: 'An account with this email already exists' });
       }
       const user = {
@@ -298,6 +349,7 @@ async function handleApi(req, res, url) {
         updated_at: nowISO()
       };
       db.users.push(user);
+      authThrottleSuccess(email);
       const token = crypto.randomBytes(24).toString('hex');
       const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
       db.sessions.push({ token, user_id: user.id, expires_at: expires, created_at: nowISO() });
@@ -311,13 +363,16 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       const email = String(body.email || '').trim().toLowerCase();
       const password = String(body.password || '');
-      if (!rateLimitAuth(req, email)) {
-        return sendJson(res, 429, { error: 'Too many sign-in attempts. Try again in a few minutes.' });
-      }
+      const blocked = authThrottleCheck(req, email);
+      if (blocked != null) return sendAuthLimited(res, blocked);
       const user = (db.users || []).find((u) => u.email.toLowerCase() === email);
+      /* Uniform failure path: same status + message whether email is unknown
+         or password is wrong (no username enumeration on login). */
       if (!user || !verifyPassword(password, user.password_hash)) {
+        authThrottleFail(req, email);
         return sendJson(res, 401, { error: 'Invalid email or password' });
       }
+      authThrottleSuccess(email);
       const token = crypto.randomBytes(24).toString('hex');
       const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
       db.sessions.push({ token, user_id: user.id, expires_at: expires, created_at: nowISO() });

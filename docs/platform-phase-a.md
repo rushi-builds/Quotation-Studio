@@ -42,7 +42,7 @@ proposal design stay intact.
 | Password hash | `scrypt` with explicit cost (not bare SHA-256) |
 | Session cookie | `HttpOnly`, `SameSite=Lax`, `Secure` when HTTPS |
 | CORS | No `*` + credentials; same-origin / matching host only |
-| Auth rate limit | Per IP (`CF-Connecting-IP` when present) **and** per email on login + register |
+| Auth throttle | Per IP (`CF-Connecting-IP` when present) + per-email **exponential backoff**; same 429 text always; login failures use one message (no email-existence leak); success clears that email’s backoff |
 | Client bundle secrets | None — only same-origin `/api` calls |
 | Row isolation | Every proposal query filters `owner_id = session user` (D1 has no RLS — must stay manual) |
 | Cloud save conflict | Monotonic server `revision` integer; client sends `baseRevision`; mismatch → **409** (not client clocks) |

@@ -172,6 +172,23 @@ async function main() {
       password: 'wrong-password'
     });
     t('bad login 401', r.status === 401);
+    t('bad login uniform message', r.json && r.json.error === 'Invalid email or password');
+
+    r = await req('POST', '/api/auth/login', {
+      email: 'nobody-not-registered@example.com',
+      password: 'wrong-password'
+    });
+    t('unknown email same 401 message', r.status === 401 && r.json.error === 'Invalid email or password');
+
+    /* Exhaust backoff on a throwaway email: 5 quick fails then 429. */
+    const burn = 'burn-' + Date.now() + '@example.com';
+    let limited = null;
+    for (let i = 0; i < 8; i++) {
+      limited = await req('POST', '/api/auth/login', { email: burn, password: 'x' });
+      if (limited.status === 429) break;
+    }
+    t('email backoff eventually 429', limited && limited.status === 429, limited && limited.status);
+    t('429 body does not reveal account', limited && limited.json.error === 'Too many sign-in attempts. Try again in a few minutes.');
 
     r = await req('POST', '/api/auth/login', {
       email: 'owner@example.com',
@@ -179,6 +196,13 @@ async function main() {
     });
     t('good login', r.status === 200 && r.json.user.email === 'owner@example.com');
     const cookie2 = cookieFrom(r);
+
+    /* After success, same account is not stuck behind a long lock from earlier fails. */
+    r = await req('POST', '/api/auth/login', {
+      email: 'owner@example.com',
+      password: 'password123'
+    });
+    t('success clears email backoff', r.status === 200);
 
     const html = await new Promise((resolve, reject) => {
       http.get({ hostname: '127.0.0.1', port: PORT, path: '/dashboard.html' }, (res) => {
