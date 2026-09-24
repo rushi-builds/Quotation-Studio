@@ -572,20 +572,19 @@ function parseCookies(req) {
   return out;
 }
 function sessionCookie(token, maxAgeSec, req) {
+  const proto = (req && (req.headers['x-forwarded-proto'] || '')).split(',')[0].trim();
+  const isHttps = proto === 'https';
+  /* Lax on plain HTTP (local). None+Secure on HTTPS so an embedded preview
+     iframe can still receive the cookie when the browser allows it. Bearer
+     token in the API client is the reliable fallback when cookies are blocked. */
   const parts = [
     COOKIE + '=' + encodeURIComponent(token),
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    'SameSite=' + (isHttps ? 'None' : 'Lax'),
     'Max-Age=' + String(maxAgeSec)
   ];
-  /* Secure only on HTTPS so local http preview still stores the cookie. */
-  const proto = (req && (req.headers['x-forwarded-proto'] || '')).split(',')[0].trim();
-  const host = (req && req.headers.host) || '';
-  if (proto === 'https' || (!proto && !/^localhost\b|^127\.0\.0\.1\b/i.test(host))) {
-    /* Prefer Secure when we look production-like; never force it on localhost. */
-  }
-  if (proto === 'https') parts.push('Secure');
+  if (isHttps) parts.push('Secure');
   return parts.join('; ');
 }
 function publicUser(u) {
@@ -635,16 +634,34 @@ function scrubExpiredSessions(db) {
   const t = Date.now();
   db.sessions = (db.sessions || []).filter((s) => Date.parse(s.expires_at) > t);
 }
+/* Session token from HttpOnly cookie OR Authorization Bearer.
+   Bearer is required for embedded HTTPS previews (iframe) where third-party
+   cookies are blocked — cookie still works for direct same-site opens. */
+function sessionTokenFrom(req) {
+  const auth = String(req.headers.authorization || '');
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  if (m && m[1]) return m[1].trim();
+  const cookies = parseCookies(req);
+  return cookies[COOKIE] || null;
+}
 function requireUser(req, db) {
   scrubExpiredSessions(db);
-  const cookies = parseCookies(req);
-  const token = cookies[COOKIE];
+  const token = sessionTokenFrom(req);
   if (!token) return null;
   const session = (db.sessions || []).find((s) => s.token === token);
   if (!session) return null;
   if (Date.parse(session.expires_at) <= Date.now()) return null;
   const user = (db.users || []).find((u) => u.id === session.user_id);
   return user || null;
+}
+function createSession(db, user) {
+  const token = crypto.randomBytes(24).toString('hex');
+  const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
+  db.sessions.push({ token, user_id: user.id, expires_at: expires, created_at: nowISO() });
+  return { token, expiresAt: expires };
+}
+function authSuccessHeaders(token, req) {
+  return { 'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400, req) };
 }
 function safePath(urlPath) {
   const decoded = decodeURIComponent(urlPath.split('?')[0]);
@@ -698,13 +715,9 @@ async function handleApi(req, res, url) {
       };
       db.users.push(user);
       authThrottleSuccess(email);
-      const token = crypto.randomBytes(24).toString('hex');
-      const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
-      db.sessions.push({ token, user_id: user.id, expires_at: expires, created_at: nowISO() });
+      const sess = createSession(db, user);
       saveDb(db);
-      return sendJson(res, 201, { user: publicUser(user) }, {
-        'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400, req)
-      });
+      return sendJson(res, 201, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req));
     }
 
     if (parts[0] === 'auth' && parts[1] === 'login' && method === 'POST') {
@@ -725,18 +738,13 @@ async function handleApi(req, res, url) {
         return sendJson(res, 401, { error: 'Invalid email or password' });
       }
       authThrottleSuccess(email);
-      const token = crypto.randomBytes(24).toString('hex');
-      const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
-      db.sessions.push({ token, user_id: user.id, expires_at: expires, created_at: nowISO() });
+      const sess = createSession(db, user);
       saveDb(db);
-      return sendJson(res, 200, { user: publicUser(user) }, {
-        'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400, req)
-      });
+      return sendJson(res, 200, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req));
     }
 
     if (parts[0] === 'auth' && parts[1] === 'logout' && method === 'POST') {
-      const cookies = parseCookies(req);
-      const token = cookies[COOKIE];
+      const token = sessionTokenFrom(req);
       if (token) {
         db.sessions = (db.sessions || []).filter((s) => s.token !== token);
         saveDb(db);
@@ -819,16 +827,14 @@ async function handleApi(req, res, url) {
       user.updated_at = nowISO();
       revokeUserSessions(db, user.id, null);
       authThrottleSuccess(email);
-      const token = crypto.randomBytes(24).toString('hex');
-      const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
-      db.sessions.push({ token, user_id: user.id, expires_at: expires, created_at: nowISO() });
+      const sess = createSession(db, user);
       saveDb(db);
       return sendJson(res, 200, {
         user: publicUser(user),
+        token: sess.token,
+        expiresAt: sess.expiresAt,
         message: 'Password updated. You are signed in. Other sessions were signed out.'
-      }, {
-        'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400, req)
-      });
+      }, authSuccessHeaders(sess.token, req));
     }
 
     if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
@@ -849,8 +855,7 @@ async function handleApi(req, res, url) {
       }
       user.password_hash = hashPassword(newPassword);
       user.updated_at = nowISO();
-      const cookies = parseCookies(req);
-      const keep = cookies[COOKIE] || null;
+      const keep = sessionTokenFrom(req);
       revokeUserSessions(db, user.id, keep);
       saveDb(db);
       return sendJson(res, 200, {
@@ -1895,7 +1900,7 @@ const server = http.createServer(async (req, res) => {
     }
     const headers = {
       'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400',
       'Vary': 'Origin'
     };

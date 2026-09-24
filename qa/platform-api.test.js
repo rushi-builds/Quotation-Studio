@@ -18,18 +18,27 @@ const t = (name, cond, extra) => {
   else { fail++; console.error('  ✗ FAIL:', name, extra !== undefined ? '→ ' + String(extra).slice(0, 200) : ''); }
 };
 
-function req(method, urlPath, body, cookie) {
+function req(method, urlPath, body, auth) {
   return new Promise((resolve, reject) => {
     const data = body != null ? JSON.stringify(body) : null;
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {})
+    };
+    /* auth may be a Cookie header value, a raw session token, or { cookie, token }. */
+    if (typeof auth === 'string' && auth) {
+      if (auth.includes('=') || auth.startsWith('qs_session')) headers.Cookie = auth;
+      else headers.Authorization = 'Bearer ' + auth;
+    } else if (auth && typeof auth === 'object') {
+      if (auth.cookie) headers.Cookie = auth.cookie;
+      if (auth.token) headers.Authorization = 'Bearer ' + auth.token;
+    }
     const r = http.request({
       hostname: '127.0.0.1',
       port: PORT,
       path: urlPath,
       method,
-      headers: Object.assign({
-        'Content-Type': 'application/json',
-        ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {})
-      }, cookie ? { Cookie: cookie } : {})
+      headers
     }, (res) => {
       const chunks = [];
       res.on('data', (c) => chunks.push(c));
@@ -50,6 +59,9 @@ function req(method, urlPath, body, cookie) {
 function cookieFrom(res) {
   if (!res.setCookie || !res.setCookie.length) return '';
   return res.setCookie.map((c) => c.split(';')[0]).join('; ');
+}
+function tokenFrom(res) {
+  return (res && res.json && res.json.token) || '';
 }
 
 async function main() {
@@ -100,6 +112,10 @@ async function main() {
     t('register 201', r.status === 201 && r.json.user && r.json.user.role === 'owner', r.status);
     const cookie = cookieFrom(r);
     t('session cookie set', /qs_session=/.test(cookie), cookie);
+    t('register returns session token', !!(r.json && r.json.token), r.json && r.json.token);
+    const bearer = tokenFrom(r);
+    r = await req('GET', '/api/auth/me', null, bearer);
+    t('me works with Bearer token only', r.status === 200 && r.json.user && r.json.user.email === 'owner@example.com', r.status);
 
     r = await req('GET', '/api/auth/me', null, cookie);
     t('me returns user', r.status === 200 && r.json.user.email === 'owner@example.com');
@@ -503,6 +519,14 @@ async function main() {
       newPassword: 'whatever12'
     }, cookie2);
     t('wrong current password rejected', r.status === 400);
+
+    r = await req('POST', '/api/auth/login', {
+      email: 'owner@example.com',
+      password: 'resetpass88'
+    });
+    t('login returns session token', !!(r.json && r.json.token));
+    r = await req('GET', '/api/auth/me', null, r.json.token);
+    t('bearer me after login', r.status === 200 && r.json.user);
 
   } finally {
     child.kill('SIGTERM');

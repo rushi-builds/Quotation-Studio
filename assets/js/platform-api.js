@@ -10,12 +10,30 @@
 (function (root) {
   const BASE = ''; /* same-origin */
 
+  /* Session token lives in sessionStorage so sign-in works inside embedded
+     HTTPS previews where HttpOnly cookies are treated as third-party and blocked.
+     Cookie auth still works on direct same-site opens; Bearer is the fallback. */
+  const TOKEN_KEY = 'qs.sessionToken';
+  function readToken() {
+    try { return sessionStorage.getItem(TOKEN_KEY) || ''; }
+    catch (_) { return ''; }
+  }
+  function writeToken(token) {
+    try {
+      if (token) sessionStorage.setItem(TOKEN_KEY, String(token));
+      else sessionStorage.removeItem(TOKEN_KEY);
+    } catch (_) { /* private mode / blocked storage */ }
+  }
+  function clearToken() { writeToken(''); }
+
   async function request(method, path, body) {
     const opts = {
       method,
-      credentials: 'same-origin',
+      credentials: 'include',
       headers: {}
     };
+    const token = readToken();
+    if (token) opts.headers['Authorization'] = 'Bearer ' + token;
     if (body !== undefined) {
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
@@ -36,11 +54,13 @@
       catch (_) { data = { raw: text }; }
     }
     if (!res.ok) {
+      if (res.status === 401) clearToken();
       const e = new Error((data && data.error) || ('Request failed (' + res.status + ')'));
       e.status = res.status;
       e.data = data;
       throw e;
     }
+    if (data && data.token) writeToken(data.token);
     return data;
   }
 
@@ -56,7 +76,10 @@
     login(email, password) {
       return request('POST', '/api/auth/login', { email, password });
     },
-    logout() { return request('POST', '/api/auth/logout', {}); },
+    async logout() {
+      try { return await request('POST', '/api/auth/logout', {}); }
+      finally { clearToken(); }
+    },
     forgotPassword(email) {
       return request('POST', '/api/auth/forgot-password', { email });
     },
