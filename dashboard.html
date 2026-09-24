@@ -62,7 +62,9 @@
       <button type="button" class="nav-item" data-panel="proposals"><i class="dot"></i><span class="label">Proposals</span></button>
       <button type="button" class="nav-item" data-panel="publish"><i class="dot"></i><span class="label">Publish &amp; links</span></button>
       <button type="button" class="nav-item" data-panel="send"><i class="dot"></i><span class="label">Send centre</span></button>
-      <button type="button" class="nav-item soon" title="Phase E" disabled><i class="dot"></i><span class="label">Reports</span></button>
+      <button type="button" class="nav-item" data-panel="activity"><i class="dot"></i><span class="label">Activity</span></button>
+      <button type="button" class="nav-item" data-panel="tasks"><i class="dot"></i><span class="label">Follow-ups</span></button>
+      <button type="button" class="nav-item" data-panel="reports"><i class="dot"></i><span class="label">Reports</span></button>
       <button type="button" class="nav-item" data-panel="settings"><i class="dot"></i><span class="label">Settings</span></button>
 
       <div class="side-foot">
@@ -98,6 +100,12 @@
           <div class="kpi accent"><div class="label">Ready</div><div class="value" id="kpiReady">0</div><div class="hint">Staff-marked only — not delivery tracking</div></div>
           <div class="kpi"><div class="label">Accepted</div><div class="value" id="kpiAccepted">0</div><div class="hint">Marked manually by staff — not customer-confirmed</div></div>
         </div>
+        <div class="kpi-row" style="margin-top:0">
+          <div class="kpi"><div class="label">Unread</div><div class="value" id="kpiUnread">0</div><div class="hint">Notifications</div></div>
+          <div class="kpi"><div class="label">Open tasks</div><div class="value" id="kpiTasks">0</div><div class="hint">Follow-ups</div></div>
+          <div class="kpi"><div class="label">Overdue</div><div class="value" id="kpiOverdue">0</div><div class="hint">Past due date</div></div>
+          <div class="kpi"><div class="label">Role</div><div class="value" id="kpiRole" style="font-size:18px">—</div><div class="hint">Workspace access</div></div>
+        </div>
         <div class="card">
           <div class="card-head">
             <h2>Recent proposals</h2>
@@ -123,10 +131,139 @@
         </div>
         <div class="phase-note">
           <strong>Platform status.</strong>
-          Phase A: sign-in and cloud drafts.
-          Phase B: publish an immutable customer version and secure link.
-          Phase C (available now): Send centre for manual WhatsApp / email / copy-link with honest states.
-          Provider-confirmed delivery and full reports come later — never fabricated.
+          Phases A–E are available on this server: cloud drafts, secure customer portal, send centre,
+          activity &amp; notifications, follow-up tasks, and reports with role-aware access.
+          Manual channels never invent delivery. Provider webhooks and R2 PDF storage remain optional next steps.
+        </div>
+      </section>
+
+      <!-- Activity & notifications -->
+      <section id="panel-activity" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Activity</h1>
+            <p class="sub">Customer portal events and share actions — labelled honestly, including suspected link previews.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnMarkAllRead">Mark notifications read</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Notifications</h2>
+            <span class="muted" id="notifUnreadLabel">0 unread</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Alert</th>
+                  <th>Detail</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="notifBody">
+                <tr><td colspan="4" class="empty">No notifications yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Event timeline</h2>
+            <span class="muted">Newest first</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Event</th>
+                  <th>Proposal</th>
+                </tr>
+              </thead>
+              <tbody id="activityBody">
+                <tr><td colspan="3" class="empty">No activity yet. Publish a link and open the customer portal to generate events.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Follow-up tasks -->
+      <section id="panel-tasks" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Follow-ups</h1>
+            <p class="sub">Track calls, visits and next steps against proposals. Overdue items stay visible until completed.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>New follow-up</h2></div>
+          <div class="filters" style="margin-bottom:12px">
+            <input type="text" id="taskTitle" placeholder="Task title — e.g. Call after site visit" style="flex:2;min-width:180px" />
+            <select id="taskProposal" aria-label="Related proposal" style="flex:1;min-width:160px">
+              <option value="">No linked proposal</option>
+            </select>
+            <input type="date" id="taskDue" aria-label="Due date" />
+            <button type="button" class="btn btn-primary btn-sm" id="btnTaskAdd">Add task</button>
+          </div>
+          <div class="field">
+            <input type="text" id="taskNotes" placeholder="Optional notes" style="width:100%;padding:8px 11px;border-radius:9px;border:1px solid #E4E8EE" />
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Open &amp; recent tasks</h2>
+            <span class="muted">Open tasks sort by due date</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Due</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tasksBody">
+                <tr><td colspan="4" class="empty">No follow-ups yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reports -->
+      <section id="panel-reports" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Reports</h1>
+            <p class="sub">Workspace totals with explicit honesty notes. Missing commercial values are counted, not invented.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnReportRefresh">Refresh</button>
+          </div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi"><div class="label">Proposals</div><div class="value" id="repTotal">0</div><div class="hint">In this workspace</div></div>
+          <div class="kpi"><div class="label">Accepted</div><div class="value" id="repAccepted">0</div><div class="hint">Staff-marked</div></div>
+          <div class="kpi accent"><div class="label">Quoted value</div><div class="value" id="repValue" style="font-size:20px">—</div><div class="hint" id="repValueHint">Where data exists</div></div>
+          <div class="kpi"><div class="label">Link opens</div><div class="value" id="repOpens">0</div><div class="hint">Excludes prefetch bots</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Engagement</h2></div>
+          <div id="repEngagement" class="muted" style="font-size:13.5px;line-height:1.6">Loading…</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Status breakdown</h2></div>
+          <div id="repStatus" class="muted" style="font-size:13.5px;line-height:1.6">Loading…</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>How to read these numbers</h2></div>
+          <ul id="repHonesty" style="margin:0;padding-left:18px;font-size:13px;line-height:1.55;color:#5B6472"></ul>
         </div>
       </section>
 
@@ -349,6 +486,30 @@
         <div class="card">
           <div class="card-head"><h2>Platform</h2></div>
           <p style="font-size:13px;color:var(--gray);line-height:1.55;margin:0" id="settingsHealth">Checking server…</p>
+        </div>
+        <div class="card" id="teamCard">
+          <div class="card-head">
+            <h2>Team &amp; roles</h2>
+            <span class="muted">Owner only</span>
+          </div>
+          <p class="muted" style="font-size:12.5px;line-height:1.5;margin:0 0 10px">
+            Roles: <strong>Owner</strong> (full access + team), <strong>Sales</strong> (create/edit/send),
+            <strong>Viewer</strong> (read-only). First registered account is Owner.
+          </p>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                </tr>
+              </thead>
+              <tbody id="teamBody">
+                <tr><td colspan="3" class="empty">Only the workspace owner can manage team roles.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
         <div class="card">
           <div class="card-head"><h2>Later: company transfer</h2></div>

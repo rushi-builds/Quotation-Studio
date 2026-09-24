@@ -18,14 +18,12 @@ node platform/local-server/server.js
 Create an account on the dashboard, save proposals to the cloud, and open them
 again from any browser on that server. **Publish & links** freezes an immutable
 customer version and issues a secure `portal.html?t=…` link. **Send centre**
-prepares WhatsApp / email / copy-link messages with that URL and records only
-honest states (`share_clicked` — never fake delivery). The A4 proposal design is
-unchanged; cloud save is optional — offline localStorage still works. See
-[docs/platform-phase-a.md](docs/platform-phase-a.md),
-[docs/platform-phase-b.md](docs/platform-phase-b.md), and
-[docs/platform-phase-c.md](docs/platform-phase-c.md). Later: Cloudflare Pages +
-Workers + D1 + R2, then provider-backed sending.
-
+prepares WhatsApp / email / copy-link messages with honest states only.
+**Activity**, **Follow-ups**, and **Reports** cover notifications, tasks, and
+pipeline metrics with explicit honesty notes; **Settings** includes owner role
+management. The A4 proposal design is unchanged; offline localStorage still
+works. Docs: `docs/platform-phase-a.md` … `docs/platform-phase-d-e.md`.
+Later: Cloudflare Pages + Workers + D1 + R2, provider webhooks.
 ## The 15-page proposal journey
 
 The journey is **15–21 pages**: optional comparison, financing, battery storage and

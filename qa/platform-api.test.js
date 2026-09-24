@@ -331,8 +331,81 @@ async function main() {
     t('email mailto has recipient', r.json.launch.mailtoUrl.includes('customer%40example.com') || r.json.launch.mailtoUrl.includes('customer@example.com'));
 
     r = await req('GET', '/api/health');
-    t('health phase C', r.status === 200 && r.json.phase === 'C');
+    t('health phase C or later', r.status === 200 && ['C','D','E'].includes(r.json.phase), r.json && r.json.phase);
     t('health denies provider delivery', r.json.sending && r.json.sending.providerDelivery === false);
+
+    /* ---- Phase D: notifications + tasks ---- */
+    r = await req('GET', '/api/notifications', null, cookie2);
+    t('notifications list', r.status === 200 && Array.isArray(r.json.notifications), r.status);
+    t('open created a notification', r.json.notifications.some((n) => n.kind === 'link_opened' || n.kind === 'version_published') || r.json.unread >= 0);
+
+    r = await req('POST', '/api/tasks', {
+      title: 'Call customer after open',
+      proposalId: pid,
+      dueInDays: 2,
+      notes: 'Follow up on portal open'
+    }, cookie2);
+    t('create task', r.status === 201 && r.json.task && r.json.task.status === 'open', r.status);
+    const taskId = r.json.task.id;
+    t('task not overdue immediately for +2d', r.json.task.overdue === false);
+
+    r = await req('GET', '/api/tasks', null, cookie2);
+    t('list tasks', r.status === 200 && r.json.tasks.some((x) => x.id === taskId));
+
+    r = await req('PUT', '/api/tasks/' + taskId, { status: 'done' }, cookie2);
+    t('complete task', r.status === 200 && r.json.task.status === 'done');
+
+    r = await req('POST', '/api/tasks', {
+      title: 'Overdue sample',
+      dueAt: new Date(Date.now() - 864e5).toISOString()
+    }, cookie2);
+    t('overdue task flagged', r.status === 201 && r.json.task.overdue === true, r.status);
+
+    r = await req('GET', '/api/activity', null, cookie2);
+    t('activity feed', r.status === 200 && Array.isArray(r.json.activity));
+
+    r = await req('POST', '/api/notifications/read-all', {}, cookie2);
+    t('mark all notifications read', r.status === 200);
+
+    r = await req('GET', '/api/notifications?unread=1', null, cookie2);
+    t('unread empty after read-all', r.status === 200 && r.json.unread === 0);
+
+    /* ---- Phase E: reports + roles ---- */
+    r = await req('GET', '/api/reports/summary', null, cookie2);
+    t('reports summary', r.status === 200 && r.json.proposals && r.json.engagement, r.status);
+    t('reports honesty notes', Array.isArray(r.json.honesty) && r.json.honesty.length >= 1);
+    t('reports value note present', r.json.value && typeof r.json.value.note === 'string');
+
+    r = await req('GET', '/api/team/members', null, cookie2);
+    t('owner can list team', r.status === 200 && r.json.members && r.json.members.length >= 1, r.status);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Viewer User',
+      email: 'viewer@example.com',
+      password: 'password123'
+    });
+    t('second user register', r.status === 201 && r.json.user.role === 'sales', r.status);
+    const viewerCookie = cookieFrom(r);
+    const viewerId = r.json.user.id;
+
+    r = await req('POST', '/api/team/role', { userId: viewerId, role: 'viewer' }, cookie2);
+    t('owner sets viewer role', r.status === 200 && r.json.member.role === 'viewer', r.status);
+
+    r = await req('POST', '/api/proposals', {
+      form: { custName: 'Should Fail', capacity: '1' },
+      status: 'draft'
+    }, viewerCookie);
+    t('viewer cannot create proposal', r.status === 403, r.status);
+
+    r = await req('GET', '/api/proposals', null, viewerCookie);
+    t('viewer can list own proposals', r.status === 200);
+
+    r = await req('GET', '/api/team/members', null, viewerCookie);
+    t('viewer cannot list team', r.status === 403);
+
+    r = await req('GET', '/api/health');
+    t('health phase E', r.status === 200 && r.json.phase === 'E');
+    t('health features flags', r.json.features && r.json.features.notifications && r.json.features.reports);
 
   } finally {
     child.kill('SIGTERM');

@@ -106,6 +106,39 @@
         note: note || undefined
       });
     },
+    listNotifications(unreadOnly) {
+      return request('GET', '/api/notifications' + (unreadOnly ? '?unread=1' : ''));
+    },
+    markNotificationRead(id) {
+      return request('POST', '/api/notifications/' + encodeURIComponent(id) + '/read', {});
+    },
+    markAllNotificationsRead() {
+      return request('POST', '/api/notifications/read-all', {});
+    },
+    listActivity() {
+      return request('GET', '/api/activity');
+    },
+    listTasks(status) {
+      return request('GET', '/api/tasks' + (status ? ('?status=' + encodeURIComponent(status)) : ''));
+    },
+    createTask(payload) {
+      return request('POST', '/api/tasks', payload || {});
+    },
+    updateTask(id, payload) {
+      return request('PUT', '/api/tasks/' + encodeURIComponent(id), payload || {});
+    },
+    deleteTask(id) {
+      return request('DELETE', '/api/tasks/' + encodeURIComponent(id));
+    },
+    reportSummary() {
+      return request('GET', '/api/reports/summary');
+    },
+    listTeam() {
+      return request('GET', '/api/team/members');
+    },
+    setTeamRole(userId, role) {
+      return request('POST', '/api/team/role', { userId, role });
+    },
     /** Current session user or null (never throws for 401). */
     async currentUser() {
       try {

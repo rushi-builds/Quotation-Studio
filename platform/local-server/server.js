@@ -323,12 +323,132 @@ function digitsForWhatsApp(value) {
   if (/^[6-9]\d{9}$/.test(digits)) digits = '91' + digits;
   return /^[1-9]\d{10,14}$/.test(digits) ? digits : '';
 }
+
+const NOTIFY_KINDS = {
+  link_opened: { title: 'Proposal link opened', priority: 'normal' },
+  suspected_prefetch: { title: 'Link preview / bot (not a confirmed open)', priority: 'low' },
+  pdf_download_requested: { title: 'PDF download requested', priority: 'normal' },
+  survey_requested: { title: 'Customer requested a survey / review', priority: 'high' },
+  interest_recorded: { title: 'Customer interest recorded', priority: 'high' },
+  share_clicked: { title: 'Share flow started', priority: 'low' },
+  version_published: { title: 'Version published', priority: 'low' },
+  link_revoked: { title: 'Customer link revoked', priority: 'normal' },
+  task_due: { title: 'Follow-up due', priority: 'high' },
+  task_overdue: { title: 'Follow-up overdue', priority: 'high' }
+};
+
+function pushNotification(db, partial) {
+  const n = {
+    id: uid('ntf'),
+    owner_id: partial.owner_id,
+    proposal_id: partial.proposal_id || null,
+    event_id: partial.event_id || null,
+    kind: partial.kind || 'info',
+    title: String(partial.title || 'Notification').slice(0, 200),
+    body: String(partial.body || '').slice(0, 500),
+    read_at: null,
+    created_at: nowISO()
+  };
+  db.notifications.push(n);
+  /* Keep the newest 500 per owner to bound local JSON size. */
+  const mine = db.notifications.filter((x) => x.owner_id === n.owner_id);
+  if (mine.length > 500) {
+    const drop = new Set(
+      mine.slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
+        .slice(0, mine.length - 500).map((x) => x.id)
+    );
+    db.notifications = db.notifications.filter((x) => !drop.has(x.id));
+  }
+  return n;
+}
+
+function publicNotification(n) {
+  return {
+    id: n.id,
+    proposalId: n.proposal_id || null,
+    eventId: n.event_id || null,
+    kind: n.kind,
+    title: n.title,
+    body: n.body,
+    readAt: n.read_at || null,
+    createdAt: n.created_at,
+    unread: !n.read_at
+  };
+}
+
+function publicTask(t) {
+  const due = t.due_at ? Date.parse(t.due_at) : null;
+  const overdue = t.status === 'open' && due != null && due < Date.now();
+  return {
+    id: t.id,
+    proposalId: t.proposal_id || null,
+    title: t.title || '',
+    notes: t.notes || '',
+    dueAt: t.due_at || null,
+    status: t.status || 'open',
+    overdue: !!overdue,
+    createdAt: t.created_at,
+    updatedAt: t.updated_at,
+    completedAt: t.completed_at || null
+  };
+}
+
+function proposalQuotedValue(row) {
+  let form = {};
+  try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
+  const keys = ['netInvestment', 'totalInvestment', 'projectCost', 'systemCost', 'grossCost', 'priceTotal'];
+  for (let i = 0; i < keys.length; i++) {
+    const n = Number(form[keys[i]]);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const cap = Number(row.capacity || form.capacity || 0);
+  const rate = Number(form.ratePerKwp || form.pricePerKwp || form.epcRate || 0);
+  if (Number.isFinite(cap) && cap > 0 && Number.isFinite(rate) && rate > 0) return cap * rate;
+  return null;
+}
+
+function roleRank(role) {
+  if (role === 'owner') return 3;
+  if (role === 'sales') return 2;
+  if (role === 'viewer') return 1;
+  return 0;
+}
+
+function requireRole(user, minRole) {
+  return roleRank(user && user.role) >= roleRank(minRole);
+}
+
+/** Notify owner when a customer-facing event is worth a follow-up. */
+function notifyFromPortalEvent(db, ev) {
+  if (!ev || !ev.owner_id) return null;
+  const skip = { suspected_prefetch: true };
+  if (skip[ev.event_type]) return null;
+  const kindMeta = NOTIFY_KINDS[ev.event_type];
+  if (!kindMeta) return null;
+  /* Only first confirmed open gets a notification — not every refresh. */
+  if (ev.event_type === 'link_opened') {
+    let meta = {};
+    try { meta = JSON.parse(ev.meta_json || '{}'); } catch (_) {}
+    if (meta.openCount && Number(meta.openCount) > 1) return null;
+  }
+  const prop = (db.proposals || []).find((p) => p.id === ev.proposal_id);
+  const who = prop ? (prop.customer_name || prop.ref || 'a proposal') : 'a proposal';
+  return pushNotification(db, {
+    owner_id: ev.owner_id,
+    proposal_id: ev.proposal_id || null,
+    event_id: ev.id,
+    kind: ev.event_type,
+    title: kindMeta.title,
+    body: who + (prop && prop.ref ? ' · ' + prop.ref : '')
+  });
+}
 function ensureData() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify({
       users: [], sessions: [], customers: [], proposals: [],
-      versions: [], tokens: [], events: [], sends: []
+      versions: [], tokens: [], events: [], sends: [],
+      notifications: [], tasks: []
     }, null, 2));
   }
 }
@@ -339,6 +459,8 @@ function loadDb() {
   if (!Array.isArray(db.tokens)) db.tokens = [];
   if (!Array.isArray(db.events)) db.events = [];
   if (!Array.isArray(db.sends)) db.sends = [];
+  if (!Array.isArray(db.notifications)) db.notifications = [];
+  if (!Array.isArray(db.tasks)) db.tasks = [];
   if (!Array.isArray(db.users)) db.users = [];
   if (!Array.isArray(db.sessions)) db.sessions = [];
   if (!Array.isArray(db.customers)) db.customers = [];
@@ -594,13 +716,19 @@ async function handleApi(req, res, url) {
     if (parts[0] === 'health' && method === 'GET') {
       return sendJson(res, 200, {
         ok: true,
-        phase: 'C',
+        phase: 'E',
         storage: 'local-json',
         time: nowISO(),
         sending: {
           manualChannels: Object.keys(SEND_CHANNELS),
           providerDelivery: false,
           note: 'Manual WhatsApp/email record share_clicked only. Delivered requires a future provider webhook.'
+        },
+        features: {
+          notifications: true,
+          tasks: true,
+          reports: true,
+          roles: ['owner', 'sales', 'viewer']
         }
       });
     }
@@ -627,7 +755,7 @@ async function handleApi(req, res, url) {
         || String(req.headers['purpose'] || '').toLowerCase() === 'prefetch'
         || String(req.headers['sec-purpose'] || '').toLowerCase().includes('prefetch');
       if (isPrefetch) {
-        recordEvent(db, {
+        const ev = recordEvent(db, {
           token_id: tok.id,
           version_id: version.id,
           proposal_id: tok.proposal_id,
@@ -635,11 +763,12 @@ async function handleApi(req, res, url) {
           event_type: 'suspected_prefetch',
           meta: { ua }
         });
+        notifyFromPortalEvent(db, ev);
       } else {
         if (!tok.first_opened_at) tok.first_opened_at = nowISO();
         tok.last_opened_at = nowISO();
         tok.open_count = (tok.open_count || 0) + 1;
-        recordEvent(db, {
+        const ev = recordEvent(db, {
           token_id: tok.id,
           version_id: version.id,
           proposal_id: tok.proposal_id,
@@ -647,6 +776,7 @@ async function handleApi(req, res, url) {
           event_type: 'link_opened',
           meta: { ua, openCount: tok.open_count }
         });
+        notifyFromPortalEvent(db, ev);
       }
       saveDb(db);
       return sendJson(res, 200, {
@@ -677,7 +807,7 @@ async function handleApi(req, res, url) {
       if (!allowed[type]) {
         return sendJson(res, 400, { error: 'Unknown event type' });
       }
-      recordEvent(db, {
+      const ev = recordEvent(db, {
         token_id: tok.id,
         version_id: tok.version_id,
         proposal_id: tok.proposal_id,
@@ -685,6 +815,7 @@ async function handleApi(req, res, url) {
         event_type: type,
         meta: body.meta && typeof body.meta === 'object' ? body.meta : {}
       });
+      notifyFromPortalEvent(db, ev);
       saveDb(db);
       return sendJson(res, 201, { ok: true });
     }
@@ -692,6 +823,9 @@ async function handleApi(req, res, url) {
     /* Everything below needs a staff session */
     const user = requireUser(req, db);
     if (!user) return sendJson(res, 401, { error: 'Sign in required' });
+
+    const canWrite = requireRole(user, 'sales'); /* owner + sales */
+    const canAdmin = requireRole(user, 'owner');
 
     /* DASHBOARD SUMMARY */
     if (parts[0] === 'dashboard' && parts[1] === 'summary' && method === 'GET') {
@@ -706,21 +840,25 @@ async function handleApi(req, res, url) {
         .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
         .slice(0, 8)
         .map(proposalSummary);
-      /* Phase A honesty: no real send/open pipeline yet. "Ready" is a staff
-         status only — never labelled as verified customer delivery. */
+      const unread = (db.notifications || []).filter((n) => n.owner_id === user.id && !n.read_at).length;
+      const openTasks = (db.tasks || []).filter((t) => t.owner_id === user.id && t.status === 'open');
+      const overdueTasks = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
       return sendJson(res, 200, {
         counts: {
           total: mine.length,
           draft: byStatus.draft || 0,
           ready: (byStatus.ready || 0) + (byStatus.internal_review || 0),
           accepted: byStatus.accepted || 0,
-          /* kept for older clients; same values, not "provider-confirmed sent" */
           sent: (byStatus.sent || 0) + (byStatus.viewed || 0),
           won: byStatus.accepted || 0,
           lost: byStatus.rejected || 0,
-          byStatus
+          byStatus,
+          unreadNotifications: unread,
+          openTasks: openTasks.length,
+          overdueTasks
         },
-        recent
+        recent,
+        role: user.role
       });
     }
 
@@ -735,6 +873,7 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot create or edit proposals.' });
       const body = await readBody(req);
       const meta = metaFromBody(body, null);
       const row = {
@@ -772,6 +911,7 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts.length === 2 && method === 'PUT') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot edit proposals.' });
       const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
@@ -820,6 +960,7 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts.length === 2 && method === 'DELETE') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot delete proposals.' });
       const before = (db.proposals || []).length;
       db.proposals = (db.proposals || []).filter(
         (p) => !(p.id === parts[1] && p.owner_id === user.id)
@@ -832,6 +973,7 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'duplicate' && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot duplicate proposals.' });
       const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       let form = {};
@@ -869,6 +1011,7 @@ async function handleApi(req, res, url) {
 
     /* ---------- Phase B: publish frozen version + secure customer link ---------- */
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'publish' && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot publish proposals.' });
       const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
@@ -950,6 +1093,7 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'links' && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot create customer links.' });
       const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
@@ -993,6 +1137,7 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'links' && parts[1] && parts[2] === 'revoke' && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot revoke links.' });
       const tok = (db.tokens || []).find((t) => t.id === parts[1] && t.owner_id === user.id);
       if (!tok) return sendJson(res, 404, { error: 'Link not found' });
       if (!tok.revoked_at) tok.revoked_at = nowISO();
@@ -1085,6 +1230,7 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'sends' && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot prepare sends.' });
       const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
@@ -1232,6 +1378,7 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'sends' && parts[1] && parts[2] === 'state' && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot update sends.' });
       const sendRow = (db.sends || []).find((s) => s.id === parts[1] && s.owner_id === user.id);
       if (!sendRow) return sendJson(res, 404, { error: 'Send record not found' });
       const body = await readBody(req);
@@ -1272,6 +1419,265 @@ async function handleApi(req, res, url) {
       });
       saveDb(db);
       return sendJson(res, 200, { send: publicSend(sendRow) });
+    }
+
+    /* ---------- Phase D: notifications + activity + follow-up tasks ---------- */
+    if (parts[0] === 'notifications' && parts.length === 1 && method === 'GET') {
+      const unreadOnly = url.searchParams.get('unread') === '1';
+      let list = (db.notifications || []).filter((n) => n.owner_id === user.id);
+      if (unreadOnly) list = list.filter((n) => !n.read_at);
+      list = list.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 100);
+      const unread = (db.notifications || []).filter((n) => n.owner_id === user.id && !n.read_at).length;
+      return sendJson(res, 200, {
+        notifications: list.map(publicNotification),
+        unread
+      });
+    }
+
+    if (parts[0] === 'notifications' && parts[1] === 'read-all' && method === 'POST') {
+      const now = nowISO();
+      (db.notifications || []).forEach((n) => {
+        if (n.owner_id === user.id && !n.read_at) n.read_at = now;
+      });
+      saveDb(db);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (parts[0] === 'notifications' && parts[1] && parts[2] === 'read' && method === 'POST') {
+      const n = (db.notifications || []).find((x) => x.id === parts[1] && x.owner_id === user.id);
+      if (!n) return sendJson(res, 404, { error: 'Notification not found' });
+      if (!n.read_at) n.read_at = nowISO();
+      saveDb(db);
+      return sendJson(res, 200, { notification: publicNotification(n) });
+    }
+
+    if (parts[0] === 'activity' && parts.length === 1 && method === 'GET') {
+      const list = (db.events || [])
+        .filter((e) => e.owner_id === user.id)
+        .slice()
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .slice(0, 150)
+        .map((e) => {
+          const prop = (db.proposals || []).find((p) => p.id === e.proposal_id);
+          return {
+            id: e.id,
+            type: e.event_type,
+            proposalId: e.proposal_id || null,
+            proposalTitle: prop ? (prop.title || prop.customer_name || prop.ref || '') : '',
+            versionId: e.version_id || null,
+            tokenId: e.token_id || null,
+            createdAt: e.created_at,
+            meta: (() => { try { return JSON.parse(e.meta_json || '{}'); } catch (_) { return {}; } })()
+          };
+        });
+      return sendJson(res, 200, { activity: list });
+    }
+
+    if (parts[0] === 'tasks' && parts.length === 1 && method === 'GET') {
+      const status = url.searchParams.get('status') || '';
+      let list = (db.tasks || []).filter((t) => t.owner_id === user.id);
+      if (status) list = list.filter((t) => t.status === status);
+      list = list.slice().sort((a, b) => {
+        const ad = a.due_at || '9999';
+        const bd = b.due_at || '9999';
+        if (a.status !== b.status) return a.status === 'open' ? -1 : 1;
+        return String(ad).localeCompare(String(bd));
+      });
+      return sendJson(res, 200, { tasks: list.map(publicTask) });
+    }
+
+    if (parts[0] === 'tasks' && parts.length === 1 && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view tasks but cannot create them.' });
+      const body = await readBody(req);
+      const title = String(body.title || '').trim();
+      if (!title) return sendJson(res, 400, { error: 'Task title is required' });
+      let dueAt = null;
+      if (body.dueAt) {
+        const t = Date.parse(body.dueAt);
+        if (!Number.isFinite(t)) return sendJson(res, 400, { error: 'Invalid due date' });
+        dueAt = new Date(t).toISOString();
+      } else if (body.dueInDays != null) {
+        const d = Number(body.dueInDays);
+        if (!Number.isFinite(d) || d < 0) return sendJson(res, 400, { error: 'Invalid dueInDays' });
+        dueAt = new Date(Date.now() + d * 864e5).toISOString();
+      }
+      if (body.proposalId) {
+        const p = (db.proposals || []).find((x) => x.id === body.proposalId && x.owner_id === user.id);
+        if (!p) return sendJson(res, 404, { error: 'Proposal not found for this task' });
+      }
+      const task = {
+        id: uid('tsk'),
+        owner_id: user.id,
+        proposal_id: body.proposalId || null,
+        title: title.slice(0, 200),
+        notes: String(body.notes || '').slice(0, 2000),
+        due_at: dueAt,
+        status: 'open',
+        created_at: nowISO(),
+        updated_at: nowISO(),
+        completed_at: null
+      };
+      db.tasks.push(task);
+      saveDb(db);
+      return sendJson(res, 201, { task: publicTask(task) });
+    }
+
+    if (parts[0] === 'tasks' && parts[1] && parts.length === 2 && method === 'PUT') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view tasks but cannot update them.' });
+      const task = (db.tasks || []).find((t) => t.id === parts[1] && t.owner_id === user.id);
+      if (!task) return sendJson(res, 404, { error: 'Task not found' });
+      const body = await readBody(req);
+      if (body.title != null) {
+        const title = String(body.title).trim();
+        if (!title) return sendJson(res, 400, { error: 'Task title cannot be empty' });
+        task.title = title.slice(0, 200);
+      }
+      if (body.notes != null) task.notes = String(body.notes).slice(0, 2000);
+      if (body.dueAt !== undefined) {
+        if (body.dueAt === null || body.dueAt === '') task.due_at = null;
+        else {
+          const t = Date.parse(body.dueAt);
+          if (!Number.isFinite(t)) return sendJson(res, 400, { error: 'Invalid due date' });
+          task.due_at = new Date(t).toISOString();
+        }
+      }
+      if (body.status) {
+        if (!['open', 'done', 'cancelled'].includes(body.status)) {
+          return sendJson(res, 400, { error: 'Invalid task status' });
+        }
+        task.status = body.status;
+        if (body.status === 'done') task.completed_at = nowISO();
+        if (body.status === 'open') task.completed_at = null;
+      }
+      task.updated_at = nowISO();
+      saveDb(db);
+      return sendJson(res, 200, { task: publicTask(task) });
+    }
+
+    if (parts[0] === 'tasks' && parts[1] && parts.length === 2 && method === 'DELETE') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view tasks but cannot delete them.' });
+      const before = (db.tasks || []).length;
+      db.tasks = (db.tasks || []).filter((t) => !(t.id === parts[1] && t.owner_id === user.id));
+      if (db.tasks.length === before) return sendJson(res, 404, { error: 'Task not found' });
+      saveDb(db);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    /* ---------- Phase E: reports + team roles ---------- */
+    if (parts[0] === 'reports' && parts[1] === 'summary' && method === 'GET') {
+      const mine = (db.proposals || []).filter((p) => p.owner_id === user.id);
+      const byStatus = {};
+      let quotedKnown = 0;
+      let quotedSum = 0;
+      let quotedMissing = 0;
+      mine.forEach((p) => {
+        const s = p.status || 'draft';
+        byStatus[s] = (byStatus[s] || 0) + 1;
+        const v = proposalQuotedValue(p);
+        if (v != null) { quotedKnown += 1; quotedSum += v; }
+        else quotedMissing += 1;
+      });
+      const mySends = (db.sends || []).filter((s) => s.owner_id === user.id);
+      const myEvents = (db.events || []).filter((e) => e.owner_id === user.id);
+      const opens = myEvents.filter((e) => e.event_type === 'link_opened').length;
+      const prefetches = myEvents.filter((e) => e.event_type === 'suspected_prefetch').length;
+      const surveys = myEvents.filter((e) => e.event_type === 'survey_requested').length;
+      const pdfs = myEvents.filter((e) => e.event_type === 'pdf_download_requested').length;
+      const shareClicks = mySends.filter((s) => s.state === 'share_clicked' || s.share_clicked_at).length;
+      const published = (db.versions || []).filter((v) => v.owner_id === user.id).length;
+      const activeLinks = (db.tokens || []).filter((t) => t.owner_id === user.id && tokenIsActive(t)).length;
+      const openTasks = (db.tasks || []).filter((t) => t.owner_id === user.id && t.status === 'open');
+      const overdueTasks = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
+
+      /* Pipeline by salesperson is single-owner local accounts for now; multi-user
+         shared org reporting arrives with company multi-tenant auth. */
+      return sendJson(res, 200, {
+        generatedAt: nowISO(),
+        role: user.role,
+        proposals: {
+          total: mine.length,
+          byStatus,
+          accepted: byStatus.accepted || 0,
+          rejected: byStatus.rejected || 0,
+          sentOrOut: (byStatus.sent || 0) + (byStatus.viewed || 0) + (byStatus.negotiation || 0)
+        },
+        value: {
+          currency: 'INR',
+          quotedSum,
+          proposalsWithValue: quotedKnown,
+          proposalsMissingValue: quotedMissing,
+          note: 'Quoted value uses explicit investment fields when present, otherwise capacity × rate when both exist. Missing values are counted separately — never invented.'
+        },
+        engagement: {
+          versionsPublished: published,
+          activeCustomerLinks: activeLinks,
+          shareClicksRecorded: shareClicks,
+          linkOpens: opens,
+          suspectedPrefetches: prefetches,
+          pdfDownloadRequests: pdfs,
+          surveyRequests: surveys,
+          note: 'Opens and survey requests come from the customer portal. Share clicks are manual send starts, not provider delivery.'
+        },
+        followUps: {
+          openTasks: openTasks.length,
+          overdueTasks
+        },
+        honesty: [
+          'No provider-confirmed email/WhatsApp delivery counts are included.',
+          'Prefetch / link-unfurl bots are listed separately from human opens.',
+          'Accepted / rejected statuses are staff-marked unless a future verified workflow is added.'
+        ]
+      });
+    }
+
+    if (parts[0] === 'team' && parts[1] === 'members' && method === 'GET') {
+      if (!canAdmin) {
+        return sendJson(res, 403, { error: 'Only the workspace owner can view team members.' });
+      }
+      /* Local single-tenant: list accounts on this server. Company org scoping comes later. */
+      const members = (db.users || []).map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        createdAt: u.created_at
+      }));
+      return sendJson(res, 200, {
+        members,
+        roles: [
+          { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
+          { id: 'sales', label: 'Sales', canWrite: true, canManageTeam: false },
+          { id: 'viewer', label: 'Viewer', canWrite: false, canManageTeam: false }
+        ]
+      });
+    }
+
+    if (parts[0] === 'team' && parts[1] === 'role' && method === 'POST') {
+      if (!canAdmin) {
+        return sendJson(res, 403, { error: 'Only the workspace owner can change roles.' });
+      }
+      const body = await readBody(req);
+      const targetId = String(body.userId || '');
+      const role = String(body.role || '');
+      if (!['owner', 'sales', 'viewer'].includes(role)) {
+        return sendJson(res, 400, { error: 'Role must be owner, sales, or viewer' });
+      }
+      const target = (db.users || []).find((u) => u.id === targetId);
+      if (!target) return sendJson(res, 404, { error: 'User not found' });
+      if (target.id === user.id && role !== 'owner') {
+        const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
+        if (!otherOwners.length) {
+          return sendJson(res, 400, {
+            error: 'Promote another owner before changing your own role away from owner.'
+          });
+        }
+      }
+      target.role = role;
+      target.updated_at = nowISO();
+      saveDb(db);
+      return sendJson(res, 200, {
+        member: { id: target.id, name: target.name, email: target.email, role: target.role }
+      });
     }
 
     return sendJson(res, 404, { error: 'Unknown API route' });

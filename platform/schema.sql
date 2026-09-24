@@ -153,4 +153,38 @@ CREATE INDEX IF NOT EXISTS idx_sends_owner ON sends(owner_id);
 CREATE INDEX IF NOT EXISTS idx_sends_proposal ON sends(proposal_id);
 CREATE INDEX IF NOT EXISTS idx_sends_state ON sends(state);
 
--- Later: notifications, files (R2 keys)
+-- Phase D: in-app notifications + follow-up tasks
+CREATE TABLE IF NOT EXISTS notifications (
+  id           TEXT PRIMARY KEY,
+  owner_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  proposal_id  TEXT REFERENCES proposals(id) ON DELETE SET NULL,
+  event_id     TEXT,
+  kind         TEXT NOT NULL DEFAULT 'info',
+  title        TEXT NOT NULL DEFAULT '',
+  body         TEXT NOT NULL DEFAULT '',
+  read_at      TEXT,
+  created_at   TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_owner ON notifications(owner_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(owner_id, read_at);
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id            TEXT PRIMARY KEY,
+  owner_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  proposal_id   TEXT REFERENCES proposals(id) ON DELETE SET NULL,
+  title         TEXT NOT NULL DEFAULT '',
+  notes         TEXT NOT NULL DEFAULT '',
+  due_at        TEXT,
+  status        TEXT NOT NULL DEFAULT 'open'
+                CHECK (status IN ('open', 'done', 'cancelled')),
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL,
+  completed_at  TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);
+
+-- Later: R2 file objects for server-held PDFs
