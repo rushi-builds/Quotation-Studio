@@ -16,11 +16,14 @@ node platform/local-server/server.js
 ```
 
 Create an account on the dashboard, save proposals to the cloud, and open them
-again from any browser on that server. The A4 proposal design is unchanged;
-cloud save is optional — offline localStorage still works. See
-[docs/platform-phase-a.md](docs/platform-phase-a.md). Later this same app deploys
-to Cloudflare Pages + Workers + D1 (personal account first; company mail transfer
-when ready).
+again from any browser on that server. **Publish & links** freezes an immutable
+customer version and issues a secure `portal.html?t=…` link (draft edits do not
+change what the customer sees). The A4 proposal design is unchanged; cloud save
+is optional — offline localStorage still works. See
+[docs/platform-phase-a.md](docs/platform-phase-a.md) and
+[docs/platform-phase-b.md](docs/platform-phase-b.md). Later this same app deploys
+to Cloudflare Pages + Workers + D1 + R2 (personal account first; company mail
+transfer when ready).
 
 ## The 15-page proposal journey
 

@@ -70,6 +70,24 @@
     duplicateProposal(id) {
       return request('POST', '/api/proposals/' + encodeURIComponent(id) + '/duplicate', {});
     },
+    publishProposal(id, payload) {
+      return request('POST', '/api/proposals/' + encodeURIComponent(id) + '/publish', payload || {});
+    },
+    listVersions(id) {
+      return request('GET', '/api/proposals/' + encodeURIComponent(id) + '/versions');
+    },
+    listLinks(id) {
+      return request('GET', '/api/proposals/' + encodeURIComponent(id) + '/links');
+    },
+    createLink(id, payload) {
+      return request('POST', '/api/proposals/' + encodeURIComponent(id) + '/links', payload || {});
+    },
+    revokeLink(linkId) {
+      return request('POST', '/api/links/' + encodeURIComponent(linkId) + '/revoke', {});
+    },
+    listEvents(id) {
+      return request('GET', '/api/proposals/' + encodeURIComponent(id) + '/events');
+    },
     /** Current session user or null (never throws for 401). */
     async currentUser() {
       try {

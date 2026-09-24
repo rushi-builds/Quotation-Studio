@@ -218,6 +218,84 @@ async function main() {
     r = await req('GET', '/api/proposals', null, cookie2);
     t('session works after re-login', r.status === 200);
 
+    /* ---- Phase B: publish, portal token, freeze, revoke ---- */
+    r = await req('POST', '/api/proposals', {
+      form: { custName: 'Portal Customer', capacity: '8', propRef: 'KTM/2026/Solar/100', companyName: 'KTM Energy Experts', companyPhone: '+91 93094 86769' },
+      status: 'ready'
+    }, cookie2);
+    t('phaseB create proposal', r.status === 201, r.status);
+    const pid = r.json.proposal.id;
+
+    r = await req('POST', '/api/proposals/' + pid + '/publish', {
+      label: 'Customer link',
+      expiresInDays: 14,
+      note: 'Test publish'
+    }, cookie2);
+    t('publish 201', r.status === 201 && r.json.version && r.json.access && r.json.access.token, r.status);
+    const rawTok = r.json.access.token;
+    const versionId = r.json.version.id;
+    const snapHash = r.json.version.snapshotSha256;
+    t('token is long', rawTok && rawTok.length >= 40, rawTok && rawTok.length);
+    t('snapshot hash present', !!(snapHash && snapHash.length === 64));
+
+    r = await req('GET', '/api/portal/proposal?t=' + encodeURIComponent(rawTok));
+    t('portal opens without staff cookie', r.status === 200 && r.json.snapshot && r.json.snapshot.customerName === 'Portal Customer', r.status);
+    t('portal snapshot has form', r.json.snapshot.form && r.json.snapshot.form.custName === 'Portal Customer');
+    t('portal does not leak password fields', !JSON.stringify(r.json).includes('password_hash'));
+
+    /* Draft edit after publish must not change frozen portal snapshot */
+    r = await req('PUT', '/api/proposals/' + pid, {
+      form: { custName: 'CHANGED DRAFT', capacity: '99', propRef: 'KTM/2026/Solar/100' },
+      status: 'draft',
+      baseRevision: 1
+    }, cookie2);
+    t('draft edit after publish', r.status === 200 || r.status === 409, r.status);
+    /* If conflict on revision, fetch current and force update without base */
+    if (r.status === 409) {
+      r = await req('PUT', '/api/proposals/' + pid, {
+        form: { custName: 'CHANGED DRAFT', capacity: '99', propRef: 'KTM/2026/Solar/100' },
+        status: 'draft'
+      }, cookie2);
+    }
+    t('draft now changed', r.status === 200 && r.json.proposal.customer === 'CHANGED DRAFT', r.status);
+
+    r = await req('GET', '/api/portal/proposal?t=' + encodeURIComponent(rawTok));
+    t('portal still shows frozen customer name', r.status === 200 && r.json.snapshot.customerName === 'Portal Customer', r.json.snapshot && r.json.snapshot.customerName);
+    t('portal snapshot hash unchanged', r.json.version.snapshotSha256 === snapHash);
+
+    r = await req('GET', '/api/portal/proposal?t=not-a-real-token-value-at-all-xx');
+    t('bad token 404', r.status === 404);
+
+    r = await req('GET', '/api/proposals/' + pid + '/versions', null, cookie2);
+    t('versions list', r.status === 200 && r.json.versions.length >= 1);
+
+    r = await req('GET', '/api/proposals/' + pid + '/links', null, cookie2);
+    t('links list', r.status === 200 && r.json.links.length >= 1);
+    const linkId = r.json.links[0].id;
+    t('links hide raw token', r.json.links.every((L) => !L.token));
+
+    r = await req('POST', '/api/links/' + linkId + '/revoke', {}, cookie2);
+    t('revoke link', r.status === 200 && r.json.access && r.json.access.revokedAt, r.status);
+
+    r = await req('GET', '/api/portal/proposal?t=' + encodeURIComponent(rawTok));
+    t('revoked token denied', r.status === 404);
+
+    r = await req('GET', '/api/proposals/' + pid + '/events', null, cookie2);
+    t('events include publish', r.status === 200 && r.json.events.some((e) => e.type === 'version_published'));
+    t('events include open or prefetch', r.json.events.some((e) => e.type === 'link_opened' || e.type === 'suspected_prefetch'));
+
+    const portalHtml = await new Promise((resolve, reject) => {
+      http.get({ hostname: '127.0.0.1', port: PORT, path: '/portal.html' }, (res) => {
+        const c = [];
+        res.on('data', (b) => c.push(b));
+        res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(c).toString('utf8') }));
+      }).on('error', reject);
+    });
+    t('portal html served', portalHtml.status === 200);
+    t('portal omits control-panel', !portalHtml.body.includes('control-panel.js'));
+    t('portal omits editor', !portalHtml.body.includes('editor.js'));
+    t('portal loads portal.js', portalHtml.body.includes('portal.js'));
+
   } finally {
     child.kill('SIGTERM');
     try { fs.rmSync(path.join(ROOT, 'platform/data'), { recursive: true, force: true }); } catch (_) {}

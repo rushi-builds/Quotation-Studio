@@ -142,17 +142,129 @@ function proposalRevision(row) {
   const n = Number(row && row.revision);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
 }
+function sha256Hex(text) {
+  return crypto.createHash('sha256').update(String(text), 'utf8').digest('hex');
+}
+function hashToken(raw) {
+  return sha256Hex(String(raw || ''));
+}
+function newAccessTokenRaw() {
+  return crypto.randomBytes(32).toString('base64url');
+}
+function publicVersion(v) {
+  return {
+    id: v.id,
+    proposalId: v.proposal_id,
+    versionLabel: v.version_label || '1.0',
+    snapshotSha256: v.snapshot_sha256 || '',
+    pdfSha256: v.pdf_sha256 || null,
+    note: v.note || '',
+    createdAt: v.created_at
+  };
+}
+function publicToken(t, rawToken) {
+  const out = {
+    id: t.id,
+    versionId: t.version_id,
+    proposalId: t.proposal_id,
+    label: t.label || '',
+    expiresAt: t.expires_at || null,
+    revokedAt: t.revoked_at || null,
+    createdAt: t.created_at,
+    firstOpenedAt: t.first_opened_at || null,
+    lastOpenedAt: t.last_opened_at || null,
+    openCount: t.open_count || 0,
+    portalPath: '/portal.html?t='
+  };
+  if (rawToken) {
+    out.token = rawToken;
+    out.portalPath = '/portal.html?t=' + encodeURIComponent(rawToken);
+  }
+  return out;
+}
+function customerSnapshotFromProposal(row) {
+  let form = {}, content = null, projectImages = null, pageImages = null, options = [];
+  try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
+  try { content = row.content_json ? JSON.parse(row.content_json) : null; } catch (_) {}
+  try { projectImages = row.project_images_json ? JSON.parse(row.project_images_json) : null; } catch (_) {}
+  try { pageImages = row.page_images_json ? JSON.parse(row.page_images_json) : null; } catch (_) {}
+  try { options = JSON.parse(row.options_json || '[]'); } catch (_) {}
+  /* Never expose internal staff fields in a frozen customer snapshot. */
+  const safeForm = Object.assign({}, form);
+  delete safeForm.internalNotes;
+  delete safeForm.staffNotes;
+  delete safeForm.costMargin;
+  delete safeForm.marginPct;
+  return {
+    schema: 1,
+    publishedAt: nowISO(),
+    ref: row.ref || safeForm.propRef || '',
+    versionLabel: row.version_label || safeForm.propVersion || '1.0',
+    statusAtPublish: row.status || 'draft',
+    form: safeForm,
+    content,
+    projectImages,
+    pageImages,
+    options,
+    capacity: row.capacity || safeForm.capacity || '',
+    customerName: row.customer_name || safeForm.custName || ''
+  };
+}
+function findTokenByRaw(db, raw) {
+  if (!raw || String(raw).length < 20) return null;
+  const h = hashToken(raw);
+  return (db.tokens || []).find((t) => t.token_hash === h) || null;
+}
+function tokenIsActive(t) {
+  if (!t) return false;
+  if (t.revoked_at) return false;
+  if (t.expires_at && Date.parse(t.expires_at) <= Date.now()) return false;
+  return true;
+}
+function recordEvent(db, partial) {
+  const ev = {
+    id: uid('evt'),
+    token_id: partial.token_id || null,
+    version_id: partial.version_id || null,
+    proposal_id: partial.proposal_id || null,
+    owner_id: partial.owner_id || null,
+    event_type: partial.event_type || 'unknown',
+    meta_json: JSON.stringify(partial.meta || {}),
+    created_at: nowISO()
+  };
+  db.events.push(ev);
+  return ev;
+}
+function parseExpiryDays(body) {
+  if (body && body.expiresAt) {
+    const t = Date.parse(body.expiresAt);
+    if (Number.isFinite(t) && t > Date.now()) return new Date(t).toISOString();
+  }
+  let days = body && body.expiresInDays != null ? Number(body.expiresInDays) : 30;
+  if (!Number.isFinite(days) || days <= 0) days = 30;
+  if (days > 365) days = 365;
+  return new Date(Date.now() + days * 864e5).toISOString();
+}
 function ensureData() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify({
-      users: [], sessions: [], customers: [], proposals: []
+      users: [], sessions: [], customers: [], proposals: [],
+      versions: [], tokens: [], events: []
     }, null, 2));
   }
 }
 function loadDb() {
   ensureData();
-  return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+  const db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+  if (!Array.isArray(db.versions)) db.versions = [];
+  if (!Array.isArray(db.tokens)) db.tokens = [];
+  if (!Array.isArray(db.events)) db.events = [];
+  if (!Array.isArray(db.users)) db.users = [];
+  if (!Array.isArray(db.sessions)) db.sessions = [];
+  if (!Array.isArray(db.customers)) db.customers = [];
+  if (!Array.isArray(db.proposals)) db.proposals = [];
+  return db;
 }
 function saveDb(db) {
   ensureData();
@@ -403,13 +515,97 @@ async function handleApi(req, res, url) {
     if (parts[0] === 'health' && method === 'GET') {
       return sendJson(res, 200, {
         ok: true,
-        phase: 'A',
+        phase: 'B',
         storage: 'local-json',
         time: nowISO()
       });
     }
 
-    /* Everything below needs a session */
+    /* ---------- Public customer portal (token only — no staff session) ---------- */
+    if (parts[0] === 'portal' && parts[1] === 'proposal' && method === 'GET') {
+      const raw = String(url.searchParams.get('t') || '');
+      const tok = findTokenByRaw(db, raw);
+      if (!tok || !tokenIsActive(tok)) {
+        return sendJson(res, 404, {
+          error: 'This proposal link is invalid, expired, or has been revoked. Please contact the sender for a new link or the PDF.'
+        });
+      }
+      const version = (db.versions || []).find((v) => v.id === tok.version_id);
+      if (!version) {
+        return sendJson(res, 404, { error: 'The published proposal version is no longer available.' });
+      }
+      let snapshot = null;
+      try { snapshot = JSON.parse(version.snapshot_json); } catch (_) {
+        return sendJson(res, 500, { error: 'Published proposal data could not be read.' });
+      }
+      const ua = String(req.headers['user-agent'] || '').slice(0, 180);
+      const isPrefetch = /bot|crawl|spider|preview|whatsapp|facebookexternalhit|slackbot|twitterbot|linkedinbot|discordbot|embedly|quora/i.test(ua)
+        || String(req.headers['purpose'] || '').toLowerCase() === 'prefetch'
+        || String(req.headers['sec-purpose'] || '').toLowerCase().includes('prefetch');
+      if (isPrefetch) {
+        recordEvent(db, {
+          token_id: tok.id,
+          version_id: version.id,
+          proposal_id: tok.proposal_id,
+          owner_id: tok.owner_id,
+          event_type: 'suspected_prefetch',
+          meta: { ua }
+        });
+      } else {
+        if (!tok.first_opened_at) tok.first_opened_at = nowISO();
+        tok.last_opened_at = nowISO();
+        tok.open_count = (tok.open_count || 0) + 1;
+        recordEvent(db, {
+          token_id: tok.id,
+          version_id: version.id,
+          proposal_id: tok.proposal_id,
+          owner_id: tok.owner_id,
+          event_type: 'link_opened',
+          meta: { ua, openCount: tok.open_count }
+        });
+      }
+      saveDb(db);
+      return sendJson(res, 200, {
+        version: publicVersion(version),
+        snapshot,
+        access: {
+          expiresAt: tok.expires_at || null,
+          openCount: tok.open_count || 0,
+          privacyNote: 'Opening this link may be recorded so the sender can follow up. No payment data is collected here.'
+        }
+      });
+    }
+
+    if (parts[0] === 'portal' && parts[1] === 'event' && method === 'POST') {
+      const body = await readBody(req);
+      const raw = String(body.token || url.searchParams.get('t') || '');
+      const tok = findTokenByRaw(db, raw);
+      if (!tok || !tokenIsActive(tok)) {
+        return sendJson(res, 404, { error: 'Invalid or revoked link' });
+      }
+      const allowed = {
+        pdf_download_requested: true,
+        section_view: true,
+        interest_recorded: true,
+        survey_requested: true
+      };
+      const type = String(body.type || '');
+      if (!allowed[type]) {
+        return sendJson(res, 400, { error: 'Unknown event type' });
+      }
+      recordEvent(db, {
+        token_id: tok.id,
+        version_id: tok.version_id,
+        proposal_id: tok.proposal_id,
+        owner_id: tok.owner_id,
+        event_type: type,
+        meta: body.meta && typeof body.meta === 'object' ? body.meta : {}
+      });
+      saveDb(db);
+      return sendJson(res, 201, { ok: true });
+    }
+
+    /* Everything below needs a staff session */
     const user = requireUser(req, db);
     if (!user) return sendJson(res, 401, { error: 'Sign in required' });
 
@@ -587,6 +783,166 @@ async function handleApi(req, res, url) {
       return sendJson(res, 201, { proposal: proposalFull(copy) });
     }
 
+    /* ---------- Phase B: publish frozen version + secure customer link ---------- */
+    if (parts[0] === 'proposals' && parts[1] && parts[2] === 'publish' && method === 'POST') {
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
+      const body = await readBody(req);
+      const snapshot = customerSnapshotFromProposal(row);
+      const snapshotJson = JSON.stringify(snapshot);
+      const version = {
+        id: uid('ver'),
+        proposal_id: row.id,
+        owner_id: user.id,
+        version_label: snapshot.versionLabel || row.version_label || '1.0',
+        snapshot_json: snapshotJson,
+        snapshot_sha256: sha256Hex(snapshotJson),
+        pdf_sha256: null,
+        pdf_path: null,
+        note: String(body.note || '').slice(0, 500),
+        created_at: nowISO()
+      };
+      db.versions.push(version);
+
+      const rawToken = newAccessTokenRaw();
+      const expiresAt = parseExpiryDays(body);
+      const tokenRow = {
+        id: uid('tok'),
+        token_hash: hashToken(rawToken),
+        version_id: version.id,
+        proposal_id: row.id,
+        owner_id: user.id,
+        label: String(body.label || 'Customer link').slice(0, 120),
+        expires_at: expiresAt,
+        revoked_at: null,
+        created_at: nowISO(),
+        first_opened_at: null,
+        last_opened_at: null,
+        open_count: 0
+      };
+      db.tokens.push(tokenRow);
+
+      if (row.status === 'draft' || row.status === 'ready' || row.status === 'internal_review') {
+        row.status = 'sent';
+        if (!row.sent_at) row.sent_at = nowISO();
+        row.updated_at = nowISO();
+      }
+      recordEvent(db, {
+        token_id: tokenRow.id,
+        version_id: version.id,
+        proposal_id: row.id,
+        owner_id: user.id,
+        event_type: 'version_published',
+        meta: { snapshotSha256: version.snapshot_sha256 }
+      });
+      saveDb(db);
+      return sendJson(res, 201, {
+        version: publicVersion(version),
+        access: publicToken(tokenRow, rawToken),
+        message: 'Published an immutable customer version. Editing the draft will not change this link.'
+      });
+    }
+
+    if (parts[0] === 'proposals' && parts[1] && parts[2] === 'versions' && method === 'GET') {
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
+      const list = (db.versions || [])
+        .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+        .slice()
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .map(publicVersion);
+      return sendJson(res, 200, { versions: list });
+    }
+
+    if (parts[0] === 'proposals' && parts[1] && parts[2] === 'links' && method === 'GET') {
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
+      const list = (db.tokens || [])
+        .filter((t) => t.proposal_id === row.id && t.owner_id === user.id)
+        .slice()
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .map((t) => publicToken(t, null));
+      return sendJson(res, 200, { links: list });
+    }
+
+    if (parts[0] === 'proposals' && parts[1] && parts[2] === 'links' && method === 'POST') {
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
+      const body = await readBody(req);
+      let version = null;
+      if (body.versionId) {
+        version = (db.versions || []).find(
+          (v) => v.id === body.versionId && v.proposal_id === row.id && v.owner_id === user.id
+        );
+      } else {
+        version = (db.versions || [])
+          .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+          .slice()
+          .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
+      }
+      if (!version) {
+        return sendJson(res, 400, {
+          error: 'Publish a version first, then create additional customer links.'
+        });
+      }
+      const rawToken = newAccessTokenRaw();
+      const tokenRow = {
+        id: uid('tok'),
+        token_hash: hashToken(rawToken),
+        version_id: version.id,
+        proposal_id: row.id,
+        owner_id: user.id,
+        label: String(body.label || 'Customer link').slice(0, 120),
+        expires_at: parseExpiryDays(body),
+        revoked_at: null,
+        created_at: nowISO(),
+        first_opened_at: null,
+        last_opened_at: null,
+        open_count: 0
+      };
+      db.tokens.push(tokenRow);
+      saveDb(db);
+      return sendJson(res, 201, {
+        version: publicVersion(version),
+        access: publicToken(tokenRow, rawToken)
+      });
+    }
+
+    if (parts[0] === 'links' && parts[1] && parts[2] === 'revoke' && method === 'POST') {
+      const tok = (db.tokens || []).find((t) => t.id === parts[1] && t.owner_id === user.id);
+      if (!tok) return sendJson(res, 404, { error: 'Link not found' });
+      if (!tok.revoked_at) tok.revoked_at = nowISO();
+      recordEvent(db, {
+        token_id: tok.id,
+        version_id: tok.version_id,
+        proposal_id: tok.proposal_id,
+        owner_id: user.id,
+        event_type: 'link_revoked',
+        meta: {}
+      });
+      saveDb(db);
+      return sendJson(res, 200, { access: publicToken(tok, null) });
+    }
+
+    if (parts[0] === 'proposals' && parts[1] && parts[2] === 'events' && method === 'GET') {
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
+      const list = (db.events || [])
+        .filter((e) => e.proposal_id === row.id && e.owner_id === user.id)
+        .slice()
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .slice(0, 100)
+        .map((e) => ({
+          id: e.id,
+          type: e.event_type,
+          versionId: e.version_id,
+          tokenId: e.token_id,
+          createdAt: e.created_at,
+          meta: (() => { try { return JSON.parse(e.meta_json || '{}'); } catch (_) { return {}; } })()
+        }));
+      return sendJson(res, 200, { events: list });
+    }
+
     return sendJson(res, 404, { error: 'Unknown API route' });
   } catch (err) {
     const status = err && err.status ? err.status : 500;
@@ -659,9 +1015,10 @@ const server = http.createServer(async (req, res) => {
 
 ensureData();
 server.listen(PORT, HOST, () => {
-  console.log('Quotation Studio platform (Phase A)');
-  console.log('  App:  http://' + HOST + ':' + PORT + '/quotation.html');
-  console.log('  Dash: http://' + HOST + ':' + PORT + '/dashboard.html');
-  console.log('  API:  http://' + HOST + ':' + PORT + '/api/health');
-  console.log('  Data: ' + DB_PATH);
+  console.log('Quotation Studio platform (Phase A + B)');
+  console.log('  App:    http://' + HOST + ':' + PORT + '/quotation.html');
+  console.log('  Dash:   http://' + HOST + ':' + PORT + '/dashboard.html');
+  console.log('  Portal: http://' + HOST + ':' + PORT + '/portal.html?t=<token>');
+  console.log('  API:    http://' + HOST + ':' + PORT + '/api/health');
+  console.log('  Data:   ' + DB_PATH);
 });

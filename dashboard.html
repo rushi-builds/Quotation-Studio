@@ -60,7 +60,7 @@
       </div>
       <button type="button" class="nav-item on" data-panel="home"><i class="dot"></i><span class="label">Home</span></button>
       <button type="button" class="nav-item" data-panel="proposals"><i class="dot"></i><span class="label">Proposals</span></button>
-      <button type="button" class="nav-item soon" title="Phase D+" disabled><i class="dot"></i><span class="label">Activity</span></button>
+      <button type="button" class="nav-item" data-panel="publish"><i class="dot"></i><span class="label">Publish &amp; links</span></button>
       <button type="button" class="nav-item soon" title="Phase E" disabled><i class="dot"></i><span class="label">Reports</span></button>
       <button type="button" class="nav-item" data-panel="settings"><i class="dot"></i><span class="label">Settings</span></button>
 
@@ -121,11 +121,97 @@
           </div>
         </div>
         <div class="phase-note">
-          <strong>Roadmap on this dashboard.</strong>
-          Phase A (now): sign-in, cloud save, proposal list.
-          Phase B: secure customer link + frozen PDF version.
-          Phase C–E: send workflow, real open tracking, notifications, reports.
-          Tracking will never invent “delivered” or “read” events.
+          <strong>Platform status.</strong>
+          Phase A: sign-in and cloud drafts.
+          Phase B (available now): publish an immutable customer version and issue a secure link.
+          Later: provider-backed sending, richer activity, and reports.
+          Open counts record link access only — never fabricated delivery receipts.
+        </div>
+      </section>
+
+      <!-- Publish & secure links -->
+      <section id="panel-publish" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Publish &amp; customer links</h1>
+            <p class="sub">Freeze the current cloud draft into an immutable version, then share a secure link. Editing the draft afterwards does not change what the customer sees.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Select proposal</h2>
+          </div>
+          <div class="filters" style="margin-bottom:12px">
+            <select id="publishSelect" aria-label="Proposal to publish" style="flex:1;min-width:200px"></select>
+            <button type="button" class="btn btn-primary btn-sm" id="btnPublish">Publish version &amp; create link</button>
+          </div>
+          <p class="muted" style="font-size:12.5px;line-height:1.5;margin:0 0 8px">
+            Default link validity: 30 days. You can revoke a link at any time. The raw token is shown once — copy it immediately.
+          </p>
+          <div id="publishResult" class="banner info" style="display:none"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Published versions</h2>
+            <span class="muted">Immutable snapshots</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Version</th>
+                  <th>Published</th>
+                  <th>Snapshot hash</th>
+                </tr>
+              </thead>
+              <tbody id="versionsBody">
+                <tr><td colspan="3" class="empty">Select a proposal to view published versions.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Customer links</h2>
+            <span class="muted">Token hashes only — raw token never stored</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Created</th>
+                  <th>Expires</th>
+                  <th>Opens</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="linksBody">
+                <tr><td colspan="6" class="empty">Select a proposal to view links.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Recent events</h2>
+            <span class="muted">Honest activity only</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Event</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody id="eventsBody">
+                <tr><td colspan="3" class="empty">Select a proposal to view events.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 

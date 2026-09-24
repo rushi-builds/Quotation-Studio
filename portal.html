@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Your Solar Proposal</title>
+  <meta name="description" content="Secure, read-only view of your rooftop solar proposal." />
+  <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png" />
+  <link rel="stylesheet" href="assets/css/app.css" />
+  <link rel="stylesheet" href="assets/css/bess.css" />
+  <link rel="stylesheet" href="assets/css/experience.css" />
+  <link rel="stylesheet" href="assets/css/portal.css" />
+</head>
+<body class="share-mode portal-mode">
+  <div id="portalGate" class="portal-gate">
+    <div class="portal-gate-card" role="status">
+      <div class="portal-mark">KTM</div>
+      <h1 id="gateTitle">Loading your proposal…</h1>
+      <p id="gateSub" class="portal-gate-sub">Please wait while we open the published version prepared for you.</p>
+    </div>
+  </div>
+
+  <main class="preview-panel share-panel" id="portalMain" hidden>
+    <div class="share-topbar">
+      <div class="st-left">
+        <img src="assets/images/ktm-logo-light.png" alt="Company logo" id="shareLogo" />
+        <div>
+          <div class="st-title" id="shareTitle">Your Solar Proposal</div>
+          <div class="st-sub" id="shareSub"></div>
+        </div>
+      </div>
+      <div class="st-actions">
+        <span class="st-status" id="shareStatus"></span>
+        <button type="button" id="requestJump" class="request-jump" disabled>Request survey / 3D / PVsyst</button>
+        <label class="pdf-format-label" for="pdfFormat">PDF format
+          <select id="pdfFormat" class="pdf-format">
+            <option value="full">Detailed Proposal — all applicable pages</option>
+            <option value="power">Power Proposal — 2-page summary</option>
+          </select>
+        </label>
+        <button type="button" id="sharePrint" disabled>Download PDF</button>
+      </div>
+    </div>
+
+    <div class="portal-privacy" id="portalPrivacy" hidden>
+      Opening this secure link may be recorded so your installer can follow up.
+      This page is read-only. It does not collect payment details.
+    </div>
+
+    <div class="share-banner">
+      <div class="sb-eyebrow">PREPARED EXCLUSIVELY FOR</div>
+      <div class="sb-name" id="shareCustomer">—</div>
+      <div class="sb-cap" id="shareCapacity"></div>
+    </div>
+
+    <section id="savingsExplorer" class="savings-explorer screen-only" hidden aria-labelledby="scenarioTitle"></section>
+
+    <div id="sharePages"></div>
+
+    <div class="share-accept-card" id="shareAcceptWrap" style="display:none;">
+      <div class="sac-head">
+        <div class="sac-badge">AFTER YOUR PROPOSAL REVIEW</div>
+        <h3 class="sac-title">Plan your next step</h3>
+        <p class="sac-sub">If the proposal suits your needs, confirm your interest and request an engineering review. The team checks your site before preparing agreed deliverables. This does not book a survey, place an order, or generate a simulation by itself.</p>
+      </div>
+      <section id="shareSimBar" class="engineering-section" aria-labelledby="engineeringHeading" style="display:none;">
+        <h4 id="engineeringHeading">Engineering documents</h4>
+        <p id="engineeringAvailability" class="hint"></p>
+        <div id="shareSimActions" class="ssb-actions"></div>
+      </section>
+      <form id="engineeringRequestForm" class="engineering-request">
+        <div class="sac-field">
+          <label for="requestStage">Where are you in your decision?</label>
+          <select id="requestStage">
+            <option value="reviewing">Still reviewing / comparing</option>
+            <option value="interested">The proposal interests me — discuss the site</option>
+            <option value="ready">Ready to discuss the final scope</option>
+          </select>
+        </div>
+        <fieldset class="request-services">
+          <legend>What would you like the team to arrange?</legend>
+          <label><input type="checkbox" id="requestSurvey" checked /> Site survey / feasibility discussion</label>
+          <label id="requestArkaLabel"><input type="checkbox" id="requestArka" /> Arka 3D layout &amp; shading review</label>
+          <label id="requestPvsystLabel"><input type="checkbox" id="requestPvsyst" /> PVsyst generation simulation report</label>
+        </fieldset>
+        <div class="sac-row">
+          <div class="sac-field">
+            <label for="requestLocation">Site address / locality</label>
+            <input id="requestLocation" type="text" maxlength="240" required autocomplete="street-address" />
+          </div>
+          <div class="sac-field">
+            <label for="requestWindow">Preferred call / survey window (optional)</label>
+            <input id="requestWindow" type="text" maxlength="120" placeholder="e.g. Saturday morning" />
+          </div>
+        </div>
+        <div class="sac-field">
+          <label for="requestPhone">WhatsApp number</label>
+          <input id="requestPhone" type="tel" maxlength="20" required autocomplete="tel" placeholder="+91 …" />
+        </div>
+        <div class="sac-field">
+          <label for="requestNotes">Anything the team should know? (optional)</label>
+          <textarea id="requestNotes" rows="3" maxlength="500"></textarea>
+        </div>
+        <p class="hint" id="requestHint">Your message opens WhatsApp with the company number from this proposal. Delivery is not confirmed until they reply.</p>
+        <button type="submit" class="sac-submit" id="requestSubmit">Review message &amp; open WhatsApp</button>
+      </form>
+    </div>
+  </main>
+
+  <!-- Customer portal loads render stack only — never control-panel, editor, or staff APIs with cookies. -->
+  <script src="assets/vendor/html2canvas.min.js"></script>
+  <script src="assets/vendor/jspdf.umd.min.js"></script>
+  <script src="assets/vendor/qrcode.min.js"></script>
+  <script src="assets/js/content.js"></script>
+  <script src="assets/js/finance.js"></script>
+  <script src="assets/js/storage-catalog.js"></script>
+  <script src="assets/js/bess.js"></script>
+  <script src="assets/js/additional-systems.js"></script>
+  <script src="assets/js/supplement-design.js"></script>
+  <script src="assets/js/icons.js"></script>
+  <script src="assets/js/charts.js"></script>
+  <script src="assets/js/model.js"></script>
+  <script src="assets/js/state.js"></script>
+  <script src="assets/js/equipment.js"></script>
+  <script src="assets/js/render.js"></script>
+  <script src="assets/js/experience.js"></script>
+  <script src="assets/js/briefing.js"></script>
+  <script src="assets/js/export.js"></script>
+  <script src="assets/js/portal.js"></script>
+</body>
+</html>

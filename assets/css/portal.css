@@ -1,0 +1,61 @@
+/* Customer portal chrome (Phase B) — professional, read-only */
+.portal-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 0%, #FFE8CC 0%, transparent 55%),
+    #EEF1F5;
+}
+.portal-gate-card {
+  width: min(420px, 100%);
+  background: #fff;
+  border: 1px solid #E4E8EE;
+  border-radius: 16px;
+  padding: 28px 26px;
+  box-shadow: 0 16px 40px rgba(28, 43, 63, 0.08);
+  text-align: left;
+}
+.portal-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #F2811D, #D96A0E);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  display: grid;
+  place-items: center;
+  font-family: 'Poppins', 'Inter', sans-serif;
+  margin-bottom: 14px;
+}
+.portal-gate-card h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1C2B3F;
+  margin: 0 0 8px;
+  font-family: 'Poppins', 'Inter', sans-serif;
+}
+.portal-gate-sub {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #5B6472;
+}
+.portal-gate-card.is-error h1 { color: #9B1C1C; }
+.portal-privacy {
+  width: 100%;
+  max-width: calc(var(--page-w, 794px) * var(--page-scale, 1));
+  margin: 0 auto 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #F7F9FC;
+  border: 1px solid #E4E8EE;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #5B6B80;
+}
+body.portal-mode .share-topbar {
+  /* same studio tokens; portal never shows builder controls */
+}

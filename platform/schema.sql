@@ -67,4 +67,54 @@ CREATE INDEX IF NOT EXISTS idx_proposals_owner ON proposals(owner_id);
 CREATE INDEX IF NOT EXISTS idx_proposals_status ON proposals(status);
 CREATE INDEX IF NOT EXISTS idx_proposals_updated ON proposals(updated_at);
 
--- Phase B will add: proposal_versions, access_tokens, sends, events, files
+-- Phase B: immutable published snapshots + secure customer access tokens
+CREATE TABLE IF NOT EXISTS proposal_versions (
+  id              TEXT PRIMARY KEY,
+  proposal_id     TEXT NOT NULL REFERENCES proposals(id) ON DELETE CASCADE,
+  owner_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  version_label   TEXT NOT NULL DEFAULT '1.0',
+  snapshot_json   TEXT NOT NULL,
+  snapshot_sha256 TEXT NOT NULL DEFAULT '',
+  pdf_sha256      TEXT,
+  pdf_path        TEXT,
+  note            TEXT NOT NULL DEFAULT '',
+  created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_versions_proposal ON proposal_versions(proposal_id);
+CREATE INDEX IF NOT EXISTS idx_versions_owner ON proposal_versions(owner_id);
+
+CREATE TABLE IF NOT EXISTS access_tokens (
+  id              TEXT PRIMARY KEY,
+  token_hash      TEXT NOT NULL UNIQUE,
+  version_id      TEXT NOT NULL REFERENCES proposal_versions(id) ON DELETE CASCADE,
+  proposal_id     TEXT NOT NULL REFERENCES proposals(id) ON DELETE CASCADE,
+  owner_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  label           TEXT NOT NULL DEFAULT '',
+  expires_at      TEXT,
+  revoked_at      TEXT,
+  created_at      TEXT NOT NULL,
+  first_opened_at TEXT,
+  last_opened_at  TEXT,
+  open_count      INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_hash ON access_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_tokens_proposal ON access_tokens(proposal_id);
+CREATE INDEX IF NOT EXISTS idx_tokens_version ON access_tokens(version_id);
+
+CREATE TABLE IF NOT EXISTS portal_events (
+  id          TEXT PRIMARY KEY,
+  token_id    TEXT REFERENCES access_tokens(id) ON DELETE SET NULL,
+  version_id  TEXT REFERENCES proposal_versions(id) ON DELETE SET NULL,
+  proposal_id TEXT,
+  owner_id    TEXT,
+  event_type  TEXT NOT NULL,
+  meta_json   TEXT NOT NULL DEFAULT '{}',
+  created_at  TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_owner ON portal_events(owner_id);
+CREATE INDEX IF NOT EXISTS idx_events_proposal ON portal_events(proposal_id);
+
+-- Later: sends, notifications, files (R2 keys)

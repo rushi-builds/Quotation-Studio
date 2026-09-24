@@ -119,7 +119,178 @@
     if (panel) panel.classList.add('on');
     if (name === 'proposals') renderPropTable();
     if (name === 'home') renderHome();
+    if (name === 'publish') refreshPublishPanel();
     if (name === 'settings') refreshHealth();
+  }
+
+  function fillPublishSelect(preferId) {
+    const sel = $('publishSelect');
+    if (!sel) return;
+    const cur = preferId || sel.value;
+    if (!allProposals.length) {
+      sel.innerHTML = '<option value="">No cloud proposals yet</option>';
+      return;
+    }
+    sel.innerHTML = allProposals.map((p) => {
+      const label = (p.customer || 'Untitled') + ' — ' + (p.ref || p.id) + ' · ' + (STATUS_LABEL[p.status] || p.status);
+      return '<option value="' + escapeHtml(p.id) + '">' + escapeHtml(label) + '</option>';
+    }).join('');
+    if (cur && allProposals.some((p) => p.id === cur)) sel.value = cur;
+  }
+
+  async function refreshPublishPanel() {
+    fillPublishSelect();
+    const id = $('publishSelect') && $('publishSelect').value;
+    if (!id) {
+      if ($('versionsBody')) $('versionsBody').innerHTML = '<tr><td colspan="3" class="empty">Select a proposal to view published versions.</td></tr>';
+      if ($('linksBody')) $('linksBody').innerHTML = '<tr><td colspan="6" class="empty">Select a proposal to view links.</td></tr>';
+      if ($('eventsBody')) $('eventsBody').innerHTML = '<tr><td colspan="3" class="empty">Select a proposal to view events.</td></tr>';
+      return;
+    }
+    try {
+      const [vers, links, events] = await Promise.all([
+        api.listVersions(id),
+        api.listLinks(id),
+        api.listEvents(id)
+      ]);
+      renderVersions((vers && vers.versions) || []);
+      renderLinks((links && links.links) || []);
+      renderEvents((events && events.events) || []);
+    } catch (err) {
+      banner('err', err.message || 'Could not load publish data');
+    }
+  }
+
+  function renderVersions(rows) {
+    const body = $('versionsBody');
+    if (!body) return;
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="3" class="empty">No published versions yet. Publish to freeze the current draft for customers.</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map((v) => (
+      '<tr>' +
+        '<td><strong>v' + escapeHtml(v.versionLabel || '1.0') + '</strong></td>' +
+        '<td class="muted">' + escapeHtml(fmtDate(v.createdAt)) + '</td>' +
+        '<td class="mono muted" style="font-size:11px">' + escapeHtml((v.snapshotSha256 || '').slice(0, 16)) + '…</td>' +
+      '</tr>'
+    )).join('');
+  }
+
+  function renderLinks(rows) {
+    const body = $('linksBody');
+    if (!body) return;
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="6" class="empty">No customer links yet.</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map((t) => {
+      let status = 'Active';
+      let badgeCls = 'ready';
+      if (t.revokedAt) { status = 'Revoked'; badgeCls = 'rejected'; }
+      else if (t.expiresAt && Date.parse(t.expiresAt) <= Date.now()) { status = 'Expired'; badgeCls = 'expired'; }
+      return '<tr>' +
+        '<td>' + escapeHtml(t.label || 'Customer link') + '</td>' +
+        '<td class="muted">' + escapeHtml(fmtDate(t.createdAt)) + '</td>' +
+        '<td class="muted">' + escapeHtml(t.expiresAt ? fmtDate(t.expiresAt) : '—') + '</td>' +
+        '<td class="mono">' + escapeHtml(String(t.openCount || 0)) + '</td>' +
+        '<td><span class="badge ' + badgeCls + '">' + escapeHtml(status) + '</span></td>' +
+        '<td class="row-actions">' +
+          (t.revokedAt ? '' :
+            '<button type="button" class="btn btn-danger-soft btn-sm" data-act="revoke" data-id="' + escapeHtml(t.id) + '">Revoke</button>') +
+        '</td></tr>';
+    }).join('');
+    body.querySelectorAll('[data-act="revoke"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Revoke this customer link? The recipient will no longer be able to open it.')) return;
+        btn.disabled = true;
+        try {
+          await api.revokeLink(btn.getAttribute('data-id'));
+          toast('Link revoked');
+          await refreshPublishPanel();
+        } catch (err) {
+          toast(err.message || 'Could not revoke link');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  function renderEvents(rows) {
+    const body = $('eventsBody');
+    if (!body) return;
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="3" class="empty">No events recorded yet.</td></tr>';
+      return;
+    }
+    const labels = {
+      version_published: 'Version published',
+      link_opened: 'Link opened',
+      suspected_prefetch: 'Suspected link preview / bot',
+      pdf_download_requested: 'PDF download requested',
+      survey_requested: 'Survey / review requested',
+      link_revoked: 'Link revoked',
+      interest_recorded: 'Interest recorded',
+      section_view: 'Section viewed'
+    };
+    body.innerHTML = rows.map((e) => (
+      '<tr>' +
+        '<td class="muted">' + escapeHtml(fmtDate(e.createdAt)) + '</td>' +
+        '<td>' + escapeHtml(labels[e.type] || e.type) + '</td>' +
+        '<td class="muted" style="font-size:12px">' + escapeHtml(e.meta && e.meta.ua ? String(e.meta.ua).slice(0, 60) : (e.versionId ? 'version ' + e.versionId.slice(0, 10) : '—')) + '</td>' +
+      '</tr>'
+    )).join('');
+  }
+
+  async function publishSelected() {
+    const id = $('publishSelect') && $('publishSelect').value;
+    if (!id) {
+      toast('Select a proposal first');
+      return;
+    }
+    const btn = $('btnPublish');
+    if (btn) btn.disabled = true;
+    try {
+      const r = await api.publishProposal(id, {
+        label: 'Customer link',
+        expiresInDays: 30,
+        note: 'Published from dashboard'
+      });
+      const path = (r.access && r.access.portalPath) || '';
+      const absolute = path ? (location.origin + path) : '';
+      const box = $('publishResult');
+      if (box) {
+        box.style.display = 'block';
+        box.className = 'banner on ok';
+        box.innerHTML =
+          '<strong>Published.</strong> Secure link (copy now — shown once):<br />' +
+          '<code style="word-break:break-all;font-size:12px">' + escapeHtml(absolute || path) + '</code>' +
+          '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
+            '<button type="button" class="btn btn-secondary btn-sm" id="btnCopyLink">Copy link</button>' +
+            '<a class="btn btn-secondary btn-sm" id="btnOpenPortal" href="' + escapeHtml(path) + '" target="_blank" rel="noopener">Open portal</a>' +
+          '</div>';
+        const copyBtn = $('btnCopyLink');
+        if (copyBtn) {
+          copyBtn.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(absolute || path);
+              toast('Link copied');
+            } catch (_) {
+              toast('Copy failed — select the link text manually');
+            }
+          });
+        }
+      }
+      toast('Version published');
+      await refreshAll();
+      fillPublishSelect(id);
+      await refreshPublishPanel();
+    } catch (err) {
+      toast(err.message || 'Publish failed');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   /* ---------- data ---------- */
@@ -183,6 +354,7 @@
     const actions =
       '<div class="row-actions">' +
         '<button type="button" class="btn btn-secondary btn-sm" data-act="open" data-id="' + escapeHtml(p.id) + '">Open in Studio</button>' +
+        '<button type="button" class="btn btn-ghost btn-sm" data-act="pub" data-id="' + escapeHtml(p.id) + '">Publish</button>' +
         '<button type="button" class="btn btn-ghost btn-sm" data-act="dup" data-id="' + escapeHtml(p.id) + '">Duplicate</button>' +
         '<button type="button" class="btn btn-danger-soft btn-sm" data-act="del" data-id="' + escapeHtml(p.id) + '">Delete</button>' +
       '</div>';
@@ -218,6 +390,13 @@
     if (!id) return;
     if (act === 'open') {
       openInStudio(id);
+      return;
+    }
+    if (act === 'pub') {
+      showPanel('publish');
+      fillPublishSelect(id);
+      if ($('publishSelect')) $('publishSelect').value = id;
+      refreshPublishPanel();
       return;
     }
     if (act === 'dup') {
@@ -328,6 +507,10 @@
     $('btnNewProposal').addEventListener('click', createBlankAndOpen);
     $('filterQ').addEventListener('input', renderPropTable);
     $('filterStatus').addEventListener('change', renderPropTable);
+    if ($('btnPublish')) $('btnPublish').addEventListener('click', publishSelected);
+    if ($('publishSelect')) {
+      $('publishSelect').addEventListener('change', () => { refreshPublishPanel(); });
+    }
 
     /* session restore */
     try {
