@@ -121,6 +121,18 @@
     form.append(library, $('advancedPanel'));
     $('advancedPanel').classList.add('studio-content');
 
+    /* Reference-number guard. The template ships with a sample reference, and
+       two proposals can end up sharing one number without anything noticing —
+       both send a customer a quotation with the wrong identifier. The authored
+       value is read once, before any saved proposal can overwrite it. */
+    const SAMPLE_REF = String(($('propRef') || {}).getAttribute?.('value') || '').trim();
+    const refWarning = element('p', 'studio-ref-warning');
+    refWarning.id = 'refWarning';
+    refWarning.setAttribute('role', 'status');
+    refWarning.hidden = true;
+    const refField = $('proposalSelect') && $('proposalSelect').closest('.field');
+    if (refField) refField.after(refWarning);
+
     function labels() {
       panel.querySelectorAll('.field').forEach(field => {
         const controls = field.querySelectorAll('input:not([type=file]),select,textarea');
@@ -134,6 +146,20 @@
     labels();
     const editorObserver = new MutationObserver(labels);
     editorObserver.observe($('advContainer'), {childList: true});
+
+    function referenceIssue(state) {
+      const ref = String(state.propRef || '').trim();
+      if (!ref) return 'This proposal has no reference number — press New in Proposals to issue the next one.';
+      const active = window.Proposals.activeId();
+      const clash = (window.Proposals.list() || []).find(p => p.id !== active &&
+        String(p.ref || '').trim().toLowerCase() === ref.toLowerCase());
+      if (clash) return 'Reference ' + ref + ' is already used by another proposal (#' +
+        (clash.ref || clash.id.slice(-4)) + ' · ' + (clash.title || 'untitled') +
+        '). Two customers must not receive one number — issue a new version, or give this one its own reference.';
+      if (SAMPLE_REF && ref === SAMPLE_REF) return 'This is still the template sample reference (' + SAMPLE_REF +
+        '). Press New in Proposals to issue this proposal its own number.';
+      return '';
+    }
 
     function update() {
       const state = window.Render.lastState || window.Render.readState();
@@ -174,26 +200,33 @@
       if(bessSection) bessSection.textContent=window.Bess.enabled(state) ? (window.Bess.included(state)?'Included':'Standalone')+' · '+(state.bessCapacity||'—')+' kWh' : 'Not included · solar-only proposal';
       const sysSummary=document.querySelector('[data-section="systemEnabled"] summary small');
       if(sysSummary)sysSummary.textContent=window.AdditionalSystems.enabled(state)?(state.systemName||'Custom system')+' · '+(window.AdditionalSystems.included(state)?'included':'standalone'):'Optional controls, charging or a custom system';
+      const refIssue = referenceIssue(state);
+      refWarning.hidden = !refIssue;
+      if (refIssue) refWarning.textContent = refIssue;
       validate();
       if (searchInput.value.trim()) find();
     }
     const feedback = element('div', 'studio-feedback'); feedback.setAttribute('role', 'status');
     feedback.hidden = true; panel.insertBefore(feedback, form);
+    let lastIssues = {blocking: [], advisory: []};
     function validate() {
-      const messages = [];
+      /* Two levels: blocking issues would print a wrong document, advisories
+         are suspicions worth a look. The panel shows both; the download only
+         refuses for the first kind. */
+      const blocking = [], advisory = [];
       [['custName', 'Add a customer name.'], ['capacity', 'Enter a system capacity greater than zero.'], ['costPerWp', 'Enter a cost per Wp greater than zero.']].forEach(([id, message]) => {
         const el = $(id), invalid = id === 'custName' ? !el.value.trim() : !(Number(el.value) > 0);
         el.setAttribute('aria-invalid', String(invalid));
-        if (invalid) messages.push({id, message});
+        if (invalid) blocking.push({id, message});
       });
       const pay = ['payAdvance', 'payDispatch', 'payCompletion'];
       const invalidPay = pay.some(id => !$(id).value || Number($(id).value) < 0 || Number($(id).value) > 100) || Math.abs(pay.reduce((n, id) => n + Number($(id).value), 0) - 100) > .01;
       pay.forEach(id => $(id).setAttribute('aria-invalid', String(invalidPay)));
-      if (invalidPay) messages.push({id: 'payAdvance', message: 'Payment milestones must total 100%.'});
+      if (invalidPay) blocking.push({id: 'payAdvance', message: 'Payment milestones must total 100%.'});
       const loan = ['loanAmt', 'loanRate', 'loanYears'], hasLoan = loan.some(id => $(id).value !== '');
       const invalidLoan = hasLoan && (!loan.every(id => $(id).value !== '') || !($('loanAmt').value > 0) || !(Number($('loanRate').value) > 0) || !($('loanYears').value >= 1 && $('loanYears').value <= 30));
       loan.forEach(id => $(id).setAttribute('aria-invalid', String(invalidLoan)));
-      if (invalidLoan) messages.push({id: 'loanAmt', message: 'Enter a positive loan amount and interest rate, with a tenure of 1–30 years.'});
+      if (invalidLoan) blocking.push({id: 'loanAmt', message: 'Enter a positive loan amount and interest rate, with a tenure of 1–30 years.'});
       const handled = new Set(['capacity','costPerWp',...pay,...loan]);
       form.querySelectorAll('input[type="number"]').forEach(input => {
         if (handled.has(input.id)) return;
@@ -202,15 +235,26 @@
         if (input.id === 'degradation') invalid ||= Number(input.value) >= 100;
         if (input.id === 'subsidyOverride' && input.value !== '') invalid ||= Number(input.value) > window.Finance.compute(window.Render.lastState).grossTotal;
         input.setAttribute('aria-invalid', String(invalid));
-        if (invalid) messages.push({id:input.id,message:'Check ' + (input.labels?.[0]?.textContent || input.id) + ': the value is outside the expected range.'});
+        if (invalid) advisory.push({id:input.id,message:'Check ' + (input.labels?.[0]?.textContent || input.id) + ': the value is outside the expected range.'});
       });
+      const messages = blocking.concat(advisory);
       feedback.replaceChildren(); feedback.hidden = !messages.length;
       if (messages.length) feedback.append(element('strong', '', 'Review your inputs'));
       messages.forEach(({id, message}) => {
         const button = element('button', '', message + ' →'); button.type = 'button';
         button.addEventListener('click', () => reveal($(id))); feedback.append(button);
       });
+      lastIssues = {blocking, advisory};
+      return lastIssues;
     }
+    /* The export pre-flight reads exactly this list, so the panel and the
+       download can never disagree about what is wrong. */
+    window.__qsPreflight = {
+      run: validate,
+      issues: () => lastIssues,
+      reveal: (id) => { const el = $(id); if (el) reveal(el); }
+    };
+
     function reveal(input) {
       if(input.id==='systemEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-system-choice="yes"]');}
       if(input.id==='bessEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-bess-choice="yes"]');}
