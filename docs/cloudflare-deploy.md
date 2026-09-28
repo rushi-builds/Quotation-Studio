@@ -206,11 +206,74 @@ Details also in `docs/platform-phase-a.md`.
 
 ---
 
+## If every page shows **Hello World**
+
+That text is Cloudflare’s **default empty Worker stub**.  
+It means the Worker name exists and D1 may be bound, but **our repo code was never uploaded**.
+
+Fix = deploy from this repo (do this on your laptop):
+
+```bash
+cd Quotation-Studio
+git pull
+cd platform/cloudflare
+npm install
+npx wrangler login
+npx wrangler whoami
+```
+
+### A) Put the real D1 id in `wrangler.toml`
+
+Dashboard → **Storage & databases** → **D1** → **`quotation-studio-db`** → copy **Database ID**.
+
+Or CLI:
+
+```bash
+npx wrangler d1 list
+```
+
+Edit `platform/cloudflare/wrangler.toml`:
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "quotation-studio-db"
+database_id = "PASTE-YOUR-REAL-UUID-HERE"
+```
+
+Binding variable name must stay **`DB`** (not a random name).  
+In the dashboard binding row it may show a label like `quotation_stu…` — after a proper `wrangler deploy`, it becomes **`DB`**.
+
+### B) Apply tables (once)
+
+```bash
+npx wrangler d1 execute quotation-studio-db --remote --file=../schema.sql
+```
+
+### C) Deploy **our** Worker (replaces Hello World)
+
+```bash
+npx wrangler deploy
+```
+
+Wait until it prints a success URL. Then hard-refresh:
+
+- https://quotation-studio.rushidhumal-04.workers.dev/api/health  
+  → JSON with `"storage":"cloudflare-d1"` and `"phase":"E"` (not Hello World)
+- https://quotation-studio.rushidhumal-04.workers.dev/dashboard.html  
+  → Sign in / Create account UI
+
+**Do not** use dashboard **Quick edit** to paste random code.  
+**Do not** redeploy the default “Hello World” template.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| `database_id` invalid | Paste id from `wrangler d1 create` into `wrangler.toml` |
+| **Hello World** on every URL | You never ran `wrangler deploy` from `platform/cloudflare` — see section above |
+| `database_id` invalid | Paste id from D1 dashboard / `wrangler d1 list` into `wrangler.toml` |
 | `/api/health` 500 DB missing | Binding name must be `DB`; redeploy after toml fix |
 | Sign-in works then 401 | Use HTTPS workers.dev URL; hard refresh; Create account again on **this** D1 |
 | Static 404 | Deploy from `platform/cloudflare` so assets `directory = "../.."` is repo root |
