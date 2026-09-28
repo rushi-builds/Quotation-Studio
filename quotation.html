@@ -142,7 +142,11 @@
       <fieldset data-adv>
         <legend>System Design &amp; Equipment</legend>
         <p class="hint" id="equipmentEntryHint">Choose from the list, or select Custom… at the bottom to type your own below. Check ratings for custom makes. Reusable makes can be added in All settings → Equipment library.</p>
-        <div class="field"><label>Generation (kWh/kWp/yr)</label><input type="number" id="genFactor" value="1460" step="10" min="0"></div>
+        <div class="field">
+          <label>Generation (kWh/kWp/yr)</label>
+          <input type="number" id="genFactor" value="1460" step="10" min="0">
+          <div class="hint" id="hintGenFactor"></div>
+        </div>
         <div class="field"><label for="moduleMake">Module make</label>
           <select id="moduleMake" aria-describedby="equipmentEntryHint" aria-controls="moduleMakeCustomWrap">
             <option>Panasonic / Waaree / Adani or Equivalent</option>
@@ -232,7 +236,15 @@
           <div class="field">
             <label>Available roof area (m², optional)</label>
             <input type="number" id="availableArea" placeholder="e.g. 60" min="0">
-            <div class="hint">Enables the module-area fit check on the Tech Spec page.</div>
+            <div class="hint">Enables the roof-area fit check on the Tech Spec page.</div>
+          </div>
+          <div class="field">
+            <label>Roof clearance factor (× module area)</label>
+            <input type="number" id="roofClearanceFactor" value="1.4" step="0.1" min="1">
+            <div class="hint">Module area is not roof area. Walkways, parapet setback and
+            inter-row shadow spacing need extra space — the fit check multiplies module
+              area by this factor. Use 1.4 for a typical tilted RCC layout, 1.1–1.2 for
+              flush-mounted rows, 1.8–2.0 where wide row spacing is required.</div>
           </div>
         </div>
       </fieldset>
@@ -313,12 +325,16 @@
       <fieldset>
         <legend>Financial Assumptions</legend>
         <div class="row2">
-          <div class="field"><label>Cost per kWp (₹)</label><input type="number" id="costPerKwp" value="90000" step="500" min="0"></div>
+          <div class="field">
+            <label>Cost per Wp (₹)</label>
+            <input type="number" id="costPerWp" value="63.63" step="0.01" min="0">
+            <div class="hint" id="hintCostPerWp"></div>
+          </div>
           <div class="field"><label>GST (%)</label><input type="number" id="gstPercent" value="8.9" step="0.1" min="0"></div>
         </div>
         <div class="row2">
-          <div class="field"><label>Blended tariff saved (₹/unit)</label><input type="number" id="tariff" value="15" step="0.5" min="0"></div>
-          <div class="field"><label>Tariff escalation (%/yr)</label><input type="number" id="escalation" value="6" step="0.5" min="0"></div>
+          <div class="field"><label>Blended tariff saved (₹/unit)</label><input type="number" id="tariff" value="10" step="0.5" min="0"></div>
+          <div class="field"><label>Tariff escalation (%/yr)</label><input type="number" id="escalation" value="4" step="0.5" min="0"></div>
         </div>
         <div class="field">
           <label>Panel degradation (%/yr)</label>
@@ -327,8 +343,8 @@
         </div>
         <div class="field"><label>Subsidy override (₹, blank = auto)</label><input type="number" id="subsidyOverride" placeholder="auto" min="0"></div>
         <div class="row2">
-          <div class="field"><label>Grid CO₂ factor (kg/kWh)</label><input type="number" id="co2Factor" value="0.79" step="0.01" min="0"></div>
-          <div class="field"><label>Tree absorption (kg CO₂/yr)</label><input type="number" id="treeFactor" value="58.4" step="0.1" min="0"></div>
+          <div class="field"><label>Grid CO₂ factor (kg/kWh)</label><input type="number" id="co2Factor" value="0.71" step="0.01" min="0"></div>
+          <div class="field"><label>Tree absorption (kg CO₂/yr)</label><input type="number" id="treeFactor" value="22" step="0.1" min="0"></div>
         </div>
         <div class="field"><label>Payment terms — advance / before dispatch / on completion (%)</label>
           <div class="row3">

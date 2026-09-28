@@ -204,11 +204,18 @@
   /* PAGE — SYSTEM OPTIONS COMPARISON (visible when 2+ options saved)    */
   /* ================================================================== */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
-    'inverterMake', 'inverterKw', 'costPerKwp', 'gstPercent', 'tariff', 'escalation',
+    'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
     'degradation', 'subsidyOverride'];
 
   function optionFinance(opt, s) {
-    const merged = Object.assign({}, s, opt.fields || {});
+    const fields = Object.assign({}, opt.fields || {});
+    /* Options capture the form's ₹/Wp value; the engine works in ₹/kWp. An
+       option saved before that switch still carries its own costPerKwp, which
+       the merge below applies unchanged. */
+    if (fields.costPerWp !== undefined) {
+      fields.costPerKwp = String((parseFloat(fields.costPerWp) || 0) * 1000);
+    }
+    const merged = Object.assign({}, s, fields);
     merged.options = []; /* no recursion inside option computations */
     return F.compute(merged);
   }
@@ -393,8 +400,13 @@
       ['Quantity', f.moduleCount + ' modules'],
       // Keep engineering values numeric until final formatting. fmtNum returns
       // grouped text (e.g. "1,036"), which cannot be used in arithmetic.
-      ['Installed Array Size', Number.isFinite(f.installedKwp)
-        ? f.installedKwp.toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp' : '—'],
+      // The contracted figure is printed alongside whenever whole modules land
+      // above it, so the page never shows two unexplained capacities.
+      ['Installed Array Size', Number.isFinite(f.installedKwp) && f.installedKwp > 0
+        ? f.installedKwp.toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp' +
+          (f.capacityExact ? '' : ' (contracted ' +
+            Number(f.contractedKwp).toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp)')
+        : '—'],
       ['Total Module Area', f.arrayArea ? Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)' : '—'],
       ['Performance Warranty', CONTENT.shared.warrantyLine]
     ]);
@@ -412,11 +424,14 @@
       ['Earthing & Lightning Protection', 'Included (as per EPC scope)']
     ]);
     if (s.availableArea) {
-      const need = Math.ceil(f.arrayArea || 0);
+      /* Module area alone is not enough roof: the required figure includes the
+         clearance factor (walkways, parapet setback, inter-row spacing). */
+      const need = Math.ceil(f.requiredArea || 0);
       const ok = parseFloat(s.availableArea) >= need;
       addRows('SITE', [
         ['Available Roof Area', s.availableArea + ' m²'],
-        ['Required Module Area', need + ' m² ' + (ok ? '— fits ✓' : '— exceeds available area')]
+        ['Roof Area Required', need + ' m² (module area × ' + f.roofClearanceFactor +
+          ' clearance) ' + (ok ? '— fits ✓' : '— exceeds available area')]
       ]);
     }
     $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
@@ -1094,8 +1109,11 @@
       inverterMake: g('inverterMake'), inverterKw: g('inverterKw'),
       mountMake: g('mountMake'), cableMake: g('cableMake'),
       roofType: g('roofType'), availableArea: g('availableArea'),
+      roofClearanceFactor: g('roofClearanceFactor'),
       pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'),
-      costPerKwp: g('costPerKwp'), gstPercent: g('gstPercent'),
+      /* The form collects ₹/Wp; the engine and every stored field work in
+         ₹/kWp, so the conversion happens here at the single boundary. */
+      costPerKwp: String((parseFloat(g('costPerWp')) || 0) * 1000), gstPercent: g('gstPercent'),
       corpTaxRate: g('corpTaxRate'), depreciationRate: g('depreciationRate'),
       tariff: g('tariff'), escalation: g('escalation'), degradation: g('degradation'),
       subsidyOverride: g('subsidyOverride'), co2Factor: g('co2Factor'), treeFactor: g('treeFactor'),

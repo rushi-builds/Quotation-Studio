@@ -10,7 +10,11 @@
 .studio-heading .app-title{font-size:23px;letter-spacing:-.9px;font-weight:700;display:flex;align-items:center;gap:12px;}
 .studio-edition{font-size:8px;letter-spacing:1.6px;font-weight:600;color:#8390a2;padding-top:4px;}
 .studio-heading .app-sub{font-size:11px;color:#728095;margin:6px 0 0;}
-.studio-overview{flex-shrink:0;background:linear-gradient(118deg,#172b40,#243e55);border:1px solid #30485c;border-radius:13px;padding:15px 16px 17px;color:#fff;box-shadow:0 6px 16px #142c4310;margin-bottom:18px;}
+/* The live summary pins to the top of the scrolling form panel, so the effect
+   of an input is visible while the field itself is being edited further down.
+   The wrapper supplies the white backdrop the card needs once it is stuck. */
+.studio-overview-bar{position:sticky;top:0;z-index:30;background:#fff;margin-left:-22px;margin-right:-22px;padding-left:22px;padding-right:22px;padding-bottom:18px;}
+.studio-overview{flex-shrink:0;background:linear-gradient(118deg,#172b40,#243e55);border:1px solid #30485c;border-radius:13px;padding:15px 16px 17px;color:#fff;box-shadow:0 6px 16px #142c4310;}
 .studio-overview-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;font-size:8px;letter-spacing:1.2px;color:#c7d6e4;}
 .studio-overview-top i{display:inline-block;width:5px;height:5px;background:#80c9ad;border-radius:50%;margin-right:6px;vertical-align:1px;}
 .studio-page-count{letter-spacing:0;color:#c0cedb;font-size:10px;}
@@ -103,10 +107,39 @@
 .studio-ready [hidden]{display:none!important;}
 .preview-panel .page-wrap{scroll-margin-top:145px;}
 @media(min-width:1101px){.studio-ready+.preview-panel{background:#eaf0f5;padding-top:22px;}}
-@media(max-width:1100px){.form-panel.studio-ready{width:100%;height:auto;padding:20px 22px 0;}.studio-ready .form-actions{position:relative;bottom:auto;}.studio-heading .brand-row{margin-bottom:9px;}.studio-overview{max-width:100%;}.studio-metrics strong{font-size:19px;}.studio-section-copy small{white-space:normal;}.studio-search{z-index:51;}}
+@media(max-width:1100px){.form-panel.studio-ready{width:100%;height:auto;padding:20px 22px 0;}.studio-ready .form-actions{position:relative;bottom:auto;}.studio-heading .brand-row{margin-bottom:9px;}.studio-overview{max-width:100%;}.studio-metrics strong{font-size:19px;}.studio-section-copy small{white-space:normal;}.studio-search{z-index:51;}
+/* On narrow screens the whole page scrolls, so a pinned card would cover the
+   fields beneath it. Drop back to the ordinary flow. */
+.studio-overview-bar{position:static;margin-left:0;margin-right:0;padding-left:0;padding-right:0;}}
 @media(max-width:560px){.form-panel.studio-ready{padding:18px 16px 0;}.studio-ready .form-actions{margin-left:-16px;margin-right:-16px;padding:13px 16px;}.studio-heading .app-title{font-size:22px;}.studio-edition{font-size:7px;letter-spacing:1px;}.studio-metrics strong{font-size:15px;}.studio-metrics div+div{padding-left:10px;}.studio-ready .row2{grid-template-columns:1fr 1fr;}.studio-ready .row3{grid-template-columns:1fr;}.studio-ready .row3:has(#payAdvance){grid-template-columns:repeat(3,1fr);}.studio-ready .field input,.studio-ready .field select,.studio-ready .field textarea{font-size:12px;min-height:40px;}.studio-section>summary{padding:14px 12px;}}
 @media(prefers-reduced-motion:reduce){.studio-ready *{scroll-behavior:auto!important;transition:none!important;}}
 @media print{.form-panel.studio-ready{display:none!important;}}
+
+/* Export pre-flight dialog and the notice that replaces it when nothing is
+   wrong. Both are created by export.js on the builder page only; the customer
+   view never calls that code. */
+#exportCheckDialog{border:0;border-radius:15px;padding:22px 24px 18px;max-width:min(560px,92vw);color:#1c2b3f;background:#fff;box-shadow:0 28px 70px #0d1f3338;font-family:'Inter',sans-serif;}
+#exportCheckDialog::backdrop{background:#0b1c2e59;}
+.qs-dialog-title{margin:0;font-size:17px;letter-spacing:-.3px;}
+.qs-dialog-note{margin:7px 0 15px;font-size:11.5px;line-height:1.6;color:#5c6b7e;}
+.qs-dialog-list{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto;}
+.qs-dialog-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;font-size:11.5px;line-height:1.55;background:#fdf4f4;border:1px solid #f1d4d4;border-left:3px solid #cf4a4a;border-radius:9px;padding:9px 11px;color:#7c3030;}
+.qs-dialog-item.is-advisory{background:#fffaef;border-color:#f0e1c5;border-left-color:#d99327;color:#7a5a1f;}
+.qs-dialog-item button{flex-shrink:0;border:0;background:#ffffffd0;border-radius:6px;padding:5px 9px;font:600 10.5px 'Inter',sans-serif;color:inherit;cursor:pointer;}
+.qs-dialog-item button:hover{background:#fff;}
+.qs-dialog-actions{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap;}
+.qs-btn{border:1px solid #d7dee8;background:#fff;border-radius:8px;padding:10px 15px;font:600 11.5px 'Inter',sans-serif;color:#3c4c60;cursor:pointer;}
+.qs-btn:hover{border-color:#bfc9d6;}
+.qs-btn.is-primary{background:#e98330;border-color:#e98330;color:#fff;}
+.qs-toast{position:fixed;left:50%;top:20px;z-index:9999;transform:translate(-50%,-16px);opacity:0;pointer-events:none;max-width:min(92vw,520px);text-align:center;background:#166534;color:#fff;font:600 12px 'Inter',sans-serif;padding:11px 17px;border-radius:999px;box-shadow:0 14px 34px #0d1f3338;transition:opacity .3s ease,transform .3s ease;}
+.qs-toast.is-visible{opacity:1;transform:translate(-50%,0);}
+.qs-toast[data-kind=error]{background:#a23333;}
+@media(prefers-reduced-motion:reduce){.qs-toast{transition:none;}}
+/* html2canvas clones the document for the capture; keep both out of the PDF. */
+.qs-pdf-capture .qs-toast,.qs-pdf-capture #exportCheckDialog{display:none!important;}
+/* Reference-number guard, shown under the Proposals select. */
+.studio-ref-warning{margin:9px 0 0;font-size:10.5px;line-height:1.55;background:#fff6e6;border:1px solid #f0dcb8;border-left:3px solid #d99327;border-radius:8px;padding:8px 10px;color:#7a5a1f;}
+.studio-ref-warning[hidden]{display:none;}
 
 /* Hints are intentionally muted and never stored as proposal values. */
 .studio-ready .field input::placeholder{color:#98a3b3;opacity:1;}
