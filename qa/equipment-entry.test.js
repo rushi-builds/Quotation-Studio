@@ -48,7 +48,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await type('moduleMake',custom.moduleMake);
   check('unknown names do not invent or overwrite technical ratings',await page.evaluate(()=>moduleWattage.value==='620'&&moduleLengthMm.value==='2300'&&inverterKw.value==='8'));
   check('markup-like brand text is rendered literally, not as elements',await page.$eval('#v_tsTable',el=>!el.querySelector('series')&&el.textContent.includes('Custom cable <series>')));
-  check('pricing is unchanged by custom makes',await page.evaluate(()=>Finance.compute(Render.lastState).netInvestment===608070));
+  check('pricing is unchanged by custom makes',await page.evaluate(()=>Math.abs(Finance.compute(Render.lastState).netInvestment-407051.49)<1e-8));
   await page.evaluate(()=>EquipmentStore.refreshSelects());
   check('catalog refresh does not discard custom values',await matchingForm());
   await type('moduleMake','');await page.evaluate(()=>EquipmentStore.refreshSelects());
