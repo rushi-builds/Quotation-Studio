@@ -103,8 +103,27 @@ optimistic enough to invite challenge. Both remain editable per proposal.
 | Tariff escalation | 6 %/yr | **4 %/yr** | 6 % compounded to ₹64/unit by year 25. 4 % is a defensible long-run Indian tariff CAGR. |
 
 Effect on the default 7 kWp proposal: lifetime savings ₹78.09 L → ₹40.18 L and
-payback 3.6 → 5.4 years. The new figures are lower but defensible in front of a
-customer, which was the stated goal.
+payback 3.6 → 5.4 years at the then-default ₹90/Wp. The lifetime figures are
+lower but defensible in front of a customer, which was the stated goal.
+
+### 3.1 The quoted rate default — set to ₹63.63/Wp
+
+The rate was the last template carry-over: ₹90,000/kWp from before the form
+switched to ₹/Wp. It had never been set from a market figure, and it sat above
+the range 2026 references give for residential rooftop around Pune
+(≈₹50,000–70,000/kWp gross for 3–10 kW systems), while the app's own presets
+(₹62/58/48/42 per Wp) sat inside it.
+
+On the owner's instruction the shipped default is now **₹63.63/Wp**, in the HTML
+form (`#costPerWp`, `step="0.01"` so the value is expressible) and in
+`StateStore.DEFAULTS`. Presets are unchanged. The default 7 kWp proposal is
+therefore ₹4,45,410 ex-GST → ₹4,85,051 with GST → **₹4,07,051 net** after the
+₹78,000 subsidy cap, at a payback of **3.7 years** — inside the market range and
+still a defensible quote.
+
+`qa/reconcile-render.test.js` now also asserts that every authored default
+satisfies its own `step` and `min`, because 63.63 against the old `step="0.5"`
+is a step mismatch that would flag the field and snap the spinners.
 
 `genFactor` (1460 kWh/kWp/yr) was reviewed and **retained**: at 4.00 units/kWp/day
 it is reasonable-to-conservative for Pune. `unitsPerKwpDay` and `cufPercent`

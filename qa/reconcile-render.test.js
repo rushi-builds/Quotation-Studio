@@ -145,12 +145,14 @@ console.log('— Reconcile (rendered): the shipped defaults are pinned —');
    Reading the live value alone is tautological (the test would simply follow
    whatever the default became), so BOTH sources are pinned explicitly. */
 const REVIEWED = {
-  capacity: '7', genFactor: '1460', costPerWp: '90', gstPercent: '8.9',
+  capacity: '7', genFactor: '1460', costPerWp: '63.63', gstPercent: '8.9',
   tariff: '10', escalation: '4', degradation: '0.5', roofClearanceFactor: '1.4',
   co2Factor: '0.71', treeFactor: '22', moduleWattage: '545',
   moduleLengthMm: '2278', moduleWidthMm: '1134'
 };
 const authored = (id) => d.getElementById(id).getAttribute('value');
+/* the shipped default, read once — restore points must not hardcode a rate */
+const DEFAULT_RATE = authored('costPerWp');
 for (const [id, want] of Object.entries(REVIEWED)) {
   check(id + ' = ' + want + ' in StateStore.DEFAULTS (used on boot)', () => {
     assert.equal(w.StateStore.DEFAULTS[id], want);
@@ -162,6 +164,19 @@ for (const [id, want] of Object.entries(REVIEWED)) {
 check('live form values match the authored defaults', () => {
   for (const [id, want] of Object.entries(REVIEWED)) {
     assert.equal(d.getElementById(id).value, want, id + ' live value');
+  }
+});
+check('every authored default satisfies its own step and min', () => {
+  /* A default in the step's own terms is not a free choice: 63.63 against
+     step="0.5" is a step mismatch, which flags the field and makes the spinners
+     snap to 63.5/64. Guard the whole sheet, not just the rate. */
+  for (const input of d.querySelectorAll('input[type="number"][value]')) {
+    const step = input.getAttribute('step');
+    if (!step || step === 'any') continue;
+    assert.equal(input.validity.stepMismatch, false,
+      input.id + ' default ' + input.value + ' does not fit step ' + step);
+    assert.equal(input.validity.rangeUnderflow, false, input.id + ' is below min');
+    assert.equal(input.validity.rangeOverflow, false, input.id + ' is above max');
   }
 });
 check('the 8.9 % default matches the 70:30 composite rule, not the pre-reform 12 %', () => {
@@ -187,24 +202,24 @@ check('editing the ₹/Wp rate moves the quoted price', () => {
   setInput('costPerWp', 75);
   assert.equal(w.Finance.compute(w.Render.lastState).projectCost, 525000, '7 kWp × ₹75/Wp');
   assert.equal(txt('v_exHeroNet'), inr(525000 * 1.089 - 78000), 'exec hero follows the rate');
-  setInput('costPerWp', 90);
-  assert.equal(w.Finance.compute(w.Render.lastState).projectCost, 630000, 'restored');
+  setInput('costPerWp', DEFAULT_RATE);
+  assert.equal(w.Finance.compute(w.Render.lastState).projectCost, 7 * DEFAULT_RATE * 1000, 'restored');
 });
 check('a fractional ₹/Wp rate is preserved, not rounded', () => {
   setInput('costPerWp', 88.5);
   assert.equal(w.Render.lastState.costPerKwp, '88500');
-  setInput('costPerWp', 90);
+  setInput('costPerWp', DEFAULT_RATE);
 });
 check('a proposal saved with the old ₹/kWp field still resumes its own price', () => {
   /* legacy blob: form.costPerKwp only, no costPerWp */
   w.StateStore.applyForm({ costPerKwp: '64500' });
   assert.equal(d.getElementById('costPerWp').value, '64.5', '₹64,500/kWp must resume as ₹64.5/Wp');
-  setInput('costPerWp', 90);
+  setInput('costPerWp', DEFAULT_RATE);
 });
 check('a fresh ₹/Wp value is never re-converted when the form is re-applied', () => {
   w.StateStore.applyForm({ costPerWp: '88' });
   assert.equal(d.getElementById('costPerWp').value, '88');
-  setInput('costPerWp', 90);
+  setInput('costPerWp', DEFAULT_RATE);
 });
 check('saving an option captures ₹/Wp and it survives the round trip', () => {
   setInput('capacity', 7);
@@ -218,6 +233,7 @@ check('saving an option captures ₹/Wp and it survives the round trip', () => {
   /* clean up so later page-count assertions are unaffected */
   const del = d.getElementById('optDelete') || d.querySelector('[data-opt-delete]');
   if (del) del.click();
+  setInput('costPerWp', DEFAULT_RATE);
 });
 
 console.log('— Reconcile (rendered): the panel reports derived totals while typing —');
@@ -246,6 +262,11 @@ check('both hints follow a rate change', () => {
   setInput('costPerWp', 80);
   assert.ok(txt('hintCostPerWp').includes(inr(560000)), txt('hintCostPerWp'));
   setInput('costPerWp', 90);
+});
+check('the hints report the shipped default rate', () => {
+  setInput('costPerWp', DEFAULT_RATE);
+  assert.ok(txt('hintCostPerWp').includes(inr(7 * DEFAULT_RATE * 1000)),
+    'default rate hint: ' + txt('hintCostPerWp'));
 });
 check('the hints degrade honestly with no capacity instead of showing ₹0', () => {
   setInput('capacity', 0);
@@ -284,6 +305,10 @@ check('the live summary still updates from the capacity input', () => {
   assert.equal(d.querySelector('[data-metric="energy"]').textContent, num(7.085 * 1460) + ' kWh');
 });
 
+/* the sweep below renders from the shipped defaults, so the rate must be back */
+setInput('costPerWp', DEFAULT_RATE);
+setInput('capacity', 7);
+
 console.log('— Reconcile (rendered): capacity sweep across the pages —');
 for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
   check(cap + ' kWp renders consistently on every page', () => {
@@ -321,7 +346,11 @@ for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
     /* investment */
     assert.equal(txt('v_inCostNet'), inr(e.net), 'investment net cost');
     assert.equal(txt('v_inCostSub'), '− ' + inr(e.subsidy), 'investment subsidy');
-    assert.ok(txt('v_inRate').includes('₹' + (e.cost / (cap * 1000)).toFixed(0)), 'investment ₹/Wp');
+    /* the page prints the rate to one decimal, so read it back as a number and
+       hold it to that print precision rather than to any rounding call */
+    const shownRate = parseFloat(txt('v_inRate').replace(/[^\d.]/g, ''));
+    assert.ok(Math.abs(shownRate - e.cost / (cap * 1000)) <= 0.05,
+      'investment ₹/Wp showed ' + shownRate + ' for ' + (e.cost / (cap * 1000)));
 
     /* the multiplication a customer would do by hand must agree with the page */
     assert.ok(Math.abs(digit(txt('v_svChipGen')) - e.installed * cfg.genFactor) < 1,

@@ -67,7 +67,7 @@
     /* Quoted as ₹ per Wp — the rate customers and sales teams actually quote.
        The calculation engine keeps working in ₹/kWp; state.js and render.js
        convert at the boundary. */
-    costPerWp: '90',
+    costPerWp: '63.63',
     corpTaxRate: '25',
     depreciationRate: '40',
     gstPercent: '8.9',
