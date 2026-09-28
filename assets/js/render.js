@@ -204,11 +204,18 @@
   /* PAGE — SYSTEM OPTIONS COMPARISON (visible when 2+ options saved)    */
   /* ================================================================== */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
-    'inverterMake', 'inverterKw', 'costPerKwp', 'gstPercent', 'tariff', 'escalation',
+    'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
     'degradation', 'subsidyOverride'];
 
   function optionFinance(opt, s) {
-    const merged = Object.assign({}, s, opt.fields || {});
+    const fields = Object.assign({}, opt.fields || {});
+    /* Options capture the form's ₹/Wp value; the engine works in ₹/kWp. An
+       option saved before that switch still carries its own costPerKwp, which
+       the merge below applies unchanged. */
+    if (fields.costPerWp !== undefined) {
+      fields.costPerKwp = String((parseFloat(fields.costPerWp) || 0) * 1000);
+    }
+    const merged = Object.assign({}, s, fields);
     merged.options = []; /* no recursion inside option computations */
     return F.compute(merged);
   }
@@ -1104,7 +1111,9 @@
       roofType: g('roofType'), availableArea: g('availableArea'),
       roofClearanceFactor: g('roofClearanceFactor'),
       pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'),
-      costPerKwp: g('costPerKwp'), gstPercent: g('gstPercent'),
+      /* The form collects ₹/Wp; the engine and every stored field work in
+         ₹/kWp, so the conversion happens here at the single boundary. */
+      costPerKwp: String((parseFloat(g('costPerWp')) || 0) * 1000), gstPercent: g('gstPercent'),
       corpTaxRate: g('corpTaxRate'), depreciationRate: g('depreciationRate'),
       tariff: g('tariff'), escalation: g('escalation'), degradation: g('degradation'),
       subsidyOverride: g('subsidyOverride'), co2Factor: g('co2Factor'), treeFactor: g('treeFactor'),

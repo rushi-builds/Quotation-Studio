@@ -10,7 +10,11 @@
 .studio-heading .app-title{font-size:23px;letter-spacing:-.9px;font-weight:700;display:flex;align-items:center;gap:12px;}
 .studio-edition{font-size:8px;letter-spacing:1.6px;font-weight:600;color:#8390a2;padding-top:4px;}
 .studio-heading .app-sub{font-size:11px;color:#728095;margin:6px 0 0;}
-.studio-overview{flex-shrink:0;background:linear-gradient(118deg,#172b40,#243e55);border:1px solid #30485c;border-radius:13px;padding:15px 16px 17px;color:#fff;box-shadow:0 6px 16px #142c4310;margin-bottom:18px;}
+/* The live summary pins to the top of the scrolling form panel, so the effect
+   of an input is visible while the field itself is being edited further down.
+   The wrapper supplies the white backdrop the card needs once it is stuck. */
+.studio-overview-bar{position:sticky;top:0;z-index:30;background:#fff;margin-left:-22px;margin-right:-22px;padding-left:22px;padding-right:22px;padding-bottom:18px;}
+.studio-overview{flex-shrink:0;background:linear-gradient(118deg,#172b40,#243e55);border:1px solid #30485c;border-radius:13px;padding:15px 16px 17px;color:#fff;box-shadow:0 6px 16px #142c4310;}
 .studio-overview-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;font-size:8px;letter-spacing:1.2px;color:#c7d6e4;}
 .studio-overview-top i{display:inline-block;width:5px;height:5px;background:#80c9ad;border-radius:50%;margin-right:6px;vertical-align:1px;}
 .studio-page-count{letter-spacing:0;color:#c0cedb;font-size:10px;}
@@ -103,7 +107,10 @@
 .studio-ready [hidden]{display:none!important;}
 .preview-panel .page-wrap{scroll-margin-top:145px;}
 @media(min-width:1101px){.studio-ready+.preview-panel{background:#eaf0f5;padding-top:22px;}}
-@media(max-width:1100px){.form-panel.studio-ready{width:100%;height:auto;padding:20px 22px 0;}.studio-ready .form-actions{position:relative;bottom:auto;}.studio-heading .brand-row{margin-bottom:9px;}.studio-overview{max-width:100%;}.studio-metrics strong{font-size:19px;}.studio-section-copy small{white-space:normal;}.studio-search{z-index:51;}}
+@media(max-width:1100px){.form-panel.studio-ready{width:100%;height:auto;padding:20px 22px 0;}.studio-ready .form-actions{position:relative;bottom:auto;}.studio-heading .brand-row{margin-bottom:9px;}.studio-overview{max-width:100%;}.studio-metrics strong{font-size:19px;}.studio-section-copy small{white-space:normal;}.studio-search{z-index:51;}
+/* On narrow screens the whole page scrolls, so a pinned card would cover the
+   fields beneath it. Drop back to the ordinary flow. */
+.studio-overview-bar{position:static;margin-left:0;margin-right:0;padding-left:0;padding-right:0;}}
 @media(max-width:560px){.form-panel.studio-ready{padding:18px 16px 0;}.studio-ready .form-actions{margin-left:-16px;margin-right:-16px;padding:13px 16px;}.studio-heading .app-title{font-size:22px;}.studio-edition{font-size:7px;letter-spacing:1px;}.studio-metrics strong{font-size:15px;}.studio-metrics div+div{padding-left:10px;}.studio-ready .row2{grid-template-columns:1fr 1fr;}.studio-ready .row3{grid-template-columns:1fr;}.studio-ready .row3:has(#payAdvance){grid-template-columns:repeat(3,1fr);}.studio-ready .field input,.studio-ready .field select,.studio-ready .field textarea{font-size:12px;min-height:40px;}.studio-section>summary{padding:14px 12px;}}
 @media(prefers-reduced-motion:reduce){.studio-ready *{scroll-behavior:auto!important;transition:none!important;}}
 @media print{.form-panel.studio-ready{display:none!important;}}

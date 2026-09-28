@@ -44,8 +44,17 @@ function mockCtx() {
 
 const pageErrors = [];
 function bootApp() {
-  const html = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8')
+  let html = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8')
     .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
+  /* jsdom fetches nothing, so inline every stylesheet the page links: layout
+     rules (the sticky summary bar) only exist for a style-aware assertion. */
+  html = html.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, (tag) => {
+    const href = /href=["']([^"']+)["']/i.exec(tag);
+    if (!href || /^https?:/i.test(href[1])) return tag;
+    const file = path.join(ROOT, href[1]);
+    if (!fs.existsSync(file)) return tag;
+    return '<style data-from="' + href[1] + '">' + fs.readFileSync(file, 'utf8') + '</style>';
+  });
   const dom = new JSDOM(html, {
     url: 'http://localhost/quotation.html',
     runScripts: 'dangerously',
@@ -117,7 +126,8 @@ const setInput = (id, value) => {
 /* read the shipping defaults out of the form instead of assuming them */
 const cfg = {
   genFactor: digit(d.getElementById('genFactor').value),
-  rate: digit(d.getElementById('costPerKwp').value),
+  /* the form quotes ₹/Wp; the engine and this expectation work in ₹/kWp */
+  rate: digit(d.getElementById('costPerWp').value) * 1000,
   gstPct: digit(d.getElementById('gstPercent').value),
   tariff: digit(d.getElementById('tariff').value),
   esc: digit(d.getElementById('escalation').value),
@@ -135,7 +145,7 @@ console.log('— Reconcile (rendered): the shipped defaults are pinned —');
    Reading the live value alone is tautological (the test would simply follow
    whatever the default became), so BOTH sources are pinned explicitly. */
 const REVIEWED = {
-  capacity: '7', genFactor: '1460', costPerKwp: '90000', gstPercent: '8.9',
+  capacity: '7', genFactor: '1460', costPerWp: '90', gstPercent: '8.9',
   tariff: '10', escalation: '4', degradation: '0.5', roofClearanceFactor: '1.4',
   co2Factor: '0.71', treeFactor: '22', moduleWattage: '545',
   moduleLengthMm: '2278', moduleWidthMm: '1134'
@@ -160,6 +170,118 @@ check('the 8.9 % default matches the 70:30 composite rule, not the pre-reform 12
 });
 check('roof clearance factor is present and editable', () => {
   assert.equal(d.getElementById('roofClearanceFactor').disabled, false);
+});
+
+console.log('— Reconcile (rendered): ₹/Wp form rate maps to the ₹/kWp engine —');
+check('the form quotes ₹/Wp and the legacy ₹/kWp field is gone', () => {
+  assert.ok(d.getElementById('costPerWp'), 'costPerWp input must exist');
+  assert.equal(d.getElementById('costPerKwp'), null, 'the old ₹/kWp input must be removed');
+});
+check('₹90/Wp becomes ₹90,000/kWp for the engine', () => {
+  setInput('costPerWp', 90);
+  setInput('capacity', 7);
+  assert.equal(w.Render.lastState.costPerKwp, '90000', 'engine input');
+  assert.equal(w.Finance.compute(w.Render.lastState).projectCost, 630000, 'project cost');
+});
+check('editing the ₹/Wp rate moves the quoted price', () => {
+  setInput('costPerWp', 75);
+  assert.equal(w.Finance.compute(w.Render.lastState).projectCost, 525000, '7 kWp × ₹75/Wp');
+  assert.equal(txt('v_exHeroNet'), inr(525000 * 1.089 - 78000), 'exec hero follows the rate');
+  setInput('costPerWp', 90);
+  assert.equal(w.Finance.compute(w.Render.lastState).projectCost, 630000, 'restored');
+});
+check('a fractional ₹/Wp rate is preserved, not rounded', () => {
+  setInput('costPerWp', 88.5);
+  assert.equal(w.Render.lastState.costPerKwp, '88500');
+  setInput('costPerWp', 90);
+});
+check('a proposal saved with the old ₹/kWp field still resumes its own price', () => {
+  /* legacy blob: form.costPerKwp only, no costPerWp */
+  w.StateStore.applyForm({ costPerKwp: '64500' });
+  assert.equal(d.getElementById('costPerWp').value, '64.5', '₹64,500/kWp must resume as ₹64.5/Wp');
+  setInput('costPerWp', 90);
+});
+check('a fresh ₹/Wp value is never re-converted when the form is re-applied', () => {
+  w.StateStore.applyForm({ costPerWp: '88' });
+  assert.equal(d.getElementById('costPerWp').value, '88');
+  setInput('costPerWp', 90);
+});
+check('saving an option captures ₹/Wp and it survives the round trip', () => {
+  setInput('capacity', 7);
+  setInput('costPerWp', 90);
+  d.getElementById('optName').value = 'QA ₹/Wp option';
+  d.getElementById('optSave').click();
+  const saved = (w.__qsOptions || [])[0];
+  assert.ok(saved, 'an option must be saved');
+  assert.equal(saved.fields.costPerWp, '90', 'the option snapshot carries ₹/Wp');
+  assert.equal(saved.fields.costPerKwp, undefined, 'no ₹/kWp in a new snapshot');
+  /* clean up so later page-count assertions are unaffected */
+  const del = d.getElementById('optDelete') || d.querySelector('[data-opt-delete]');
+  if (del) del.click();
+});
+
+console.log('— Reconcile (rendered): the panel reports derived totals while typing —');
+check('the generation field explains its own derived total', () => {
+  setInput('capacity', 7);
+  setInput('genFactor', 1460);
+  const hint = txt('hintGenFactor');
+  assert.ok(hint.includes(num(10344.1) + ' kWh'), 'hint must show the year-1 total, got: ' + hint);
+  assert.ok(hint.includes('7.085 kWp installed'), 'hint must name the installed array, got: ' + hint);
+});
+check('the generation hint follows a capacity change with no preview scrolling', () => {
+  setInput('capacity', 10);
+  assert.ok(txt('hintGenFactor').includes(num(10.355 * 1460) + ' kWh'), txt('hintGenFactor'));
+  assert.ok(txt('hintGenFactor').includes('10.355 kWp installed'), txt('hintGenFactor'));
+  setInput('capacity', 7);
+});
+check('the cost field explains the project cost it produces', () => {
+  setInput('capacity', 7);
+  setInput('costPerWp', 90);
+  const hint = txt('hintCostPerWp');
+  assert.ok(hint.includes(inr(630000)), 'hint must show ex-GST cost, got: ' + hint);
+  assert.ok(hint.includes(inr(630000 * 1.089)), 'hint must show the GST-inclusive total, got: ' + hint);
+  assert.ok(hint.includes('ex-GST') && hint.includes('with GST'), 'hint must label both, got: ' + hint);
+});
+check('both hints follow a rate change', () => {
+  setInput('costPerWp', 80);
+  assert.ok(txt('hintCostPerWp').includes(inr(560000)), txt('hintCostPerWp'));
+  setInput('costPerWp', 90);
+});
+check('the hints degrade honestly with no capacity instead of showing ₹0', () => {
+  setInput('capacity', 0);
+  assert.ok(/capacity/i.test(txt('hintGenFactor')), txt('hintGenFactor'));
+  setInput('capacity', 7);
+});
+check('the live summary is pinned inside a sticky bar', () => {
+  const bar = d.querySelector('.studio-overview-bar');
+  assert.ok(bar, 'sticky wrapper must exist');
+  assert.ok(bar.contains(d.querySelector('.studio-overview')), 'the summary lives inside the bar');
+  assert.equal(w.getComputedStyle(bar).position, 'sticky', 'the bar must be sticky');
+  assert.equal(w.getComputedStyle(bar).backgroundColor, 'rgb(255, 255, 255)',
+    'the bar needs an opaque backdrop or the fields scroll through it');
+});
+check('the sticky bar releases on a narrow screen so it cannot cover fields', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'assets/css/control-panel.css'), 'utf8');
+  /* pull the max-width:1100px block out by balancing braces — the sheet is minified-ish */
+  const at = /@media\s*\(\s*max-width:\s*1100px\s*\)\s*\{/.exec(css);
+  assert.ok(at, 'a narrow-screen override must exist');
+  let i = at.index + at[0].length - 1, depth = 0, block = '';
+  for (; i < css.length; i++) {
+    const ch = css[i];
+    if (ch === '{') depth++;
+    else if (ch === '}') { depth--; if (depth === 0) { i++; break; } }
+    if (depth > 0) block += ch;
+  }
+  const rule = /\.studio-overview-bar\s*\{([^}]*)\}/.exec(block);
+  assert.ok(rule, 'the bar must be restyled in that block');
+  assert.match(rule[1], /position:\s*static/, 'the bar must fall back to static below 1100px');
+});
+check('the live summary still updates from the capacity input', () => {
+  setInput('capacity', 3);
+  assert.equal(d.querySelector('[data-metric="capacity"]').textContent, '3 kWp');
+  assert.equal(d.querySelector('[data-metric="energy"]').textContent, num(3.27 * 1460) + ' kWh');
+  setInput('capacity', 7);
+  assert.equal(d.querySelector('[data-metric="energy"]').textContent, num(7.085 * 1460) + ' kWh');
 });
 
 console.log('— Reconcile (rendered): capacity sweep across the pages —');

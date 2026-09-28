@@ -64,7 +64,10 @@
          co2Factor 0.71   — CEA CO2 Baseline Database v21.0, FY2024-25.
          treeFactor 22    — mature-tree absorption, 20-25 kg CO2/yr.
          clearance 1.4x   — module area → roof area for walkways/parapet/rows. */
-    costPerKwp: '90000',
+    /* Quoted as ₹ per Wp — the rate customers and sales teams actually quote.
+       The calculation engine keeps working in ₹/kWp; state.js and render.js
+       convert at the boundary. */
+    costPerWp: '90',
     corpTaxRate: '25',
     depreciationRate: '40',
     gstPercent: '8.9',
@@ -111,6 +114,12 @@
   }
 
   function applyForm(vals) {
+    /* Proposals saved before the switch to ₹/Wp stored `costPerKwp`. Convert
+       legacy values so a resumed quotation keeps its own price instead of
+       silently falling back to the template default. */
+    if (vals && vals.costPerWp === undefined && vals.costPerKwp !== undefined && vals.costPerKwp !== '') {
+      vals = Object.assign({}, vals, { costPerWp: String((parseFloat(vals.costPerKwp) || 0) / 1000) });
+    }
     Object.keys(vals || {}).forEach((id) => {
       const el = document.getElementById(id);
       if (!el || el.hasAttribute('data-equipment-custom')) return;
