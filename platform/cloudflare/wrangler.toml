@@ -1,0 +1,34 @@
+# Quotation Studio — NEW Cloudflare project (do NOT reuse solar-epc-relay)
+# --------------------------------------------------------------------------
+# Project name:  quotation-studio
+# D1 database:   quotation-studio-db
+# --------------------------------------------------------------------------
+# After you create the D1 DB in the dashboard (or via wrangler), paste the
+# real database_id below. Until then, local `wrangler dev` can use --local.
+#
+# See docs/cloudflare-deploy.md for every click/CLI step.
+
+name = "quotation-studio"
+main = "src/worker.js"
+compatibility_date = "2024-11-12"
+compatibility_flags = ["nodejs_compat"]
+
+# Workers static assets = the repo front-end (HTML/CSS/JS images).
+# Worker runs first so /api/* is handled in code; everything else is static.
+[assets]
+directory = "../.."
+binding = "ASSETS"
+run_worker_first = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "quotation-studio-db"
+# REPLACE this after: wrangler d1 create quotation-studio-db
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[vars]
+# Public app name only — never put secrets here.
+APP_NAME = "Quotation Studio"
+
+# Secrets (set via CLI or dashboard — not committed):
+#   wrangler secret put SESSION_PEPPER

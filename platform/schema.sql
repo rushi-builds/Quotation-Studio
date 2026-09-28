@@ -8,8 +8,10 @@ CREATE TABLE IF NOT EXISTS users (
   email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
   name          TEXT NOT NULL,
   password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL DEFAULT 'owner'
-                CHECK (role IN ('owner', 'sales', 'viewer')),
+  /* owner | sales | viewer | custom — custom uses role_custom title */
+  role          TEXT NOT NULL DEFAULT 'sales'
+                CHECK (role IN ('owner', 'sales', 'viewer', 'custom')),
+  role_custom   TEXT,
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );

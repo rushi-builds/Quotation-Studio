@@ -23,7 +23,7 @@ prepares WhatsApp / email / copy-link messages with honest states only.
 pipeline metrics with explicit honesty notes; **Settings** includes owner role
 management. The A4 proposal design is unchanged; offline localStorage still
 works. Docs: `docs/platform-phase-a.md` … `docs/platform-phase-d-e.md`.
-Later: Cloudflare Pages + Workers + D1 + R2, provider webhooks.
+Cloudflare: **new** Worker project `quotation-studio` + D1 `quotation-studio-db` (do **not** use `solar-epc-relay`). Scaffold in `platform/cloudflare/`. Step-by-step: `docs/cloudflare-deploy.md`. Later: R2 PDFs, provider webhooks.
 ## The 15-page proposal journey
 
 The journey is **15–21 pages**: optional comparison, financing, battery storage and

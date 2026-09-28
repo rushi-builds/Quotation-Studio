@@ -12,6 +12,8 @@ platform/**/*.tmp
 .wrangler/
 .dev.vars
 .cf-vars
+platform/cloudflare/node_modules/
+platform/cloudflare/package-lock.json
 
 # OS / editor
 .DS_Store
