@@ -207,6 +207,38 @@ Details also in `docs/platform-phase-a.md`.
 ---
 
 
+
+## If health says **D1 database binding DB is missing**
+
+Worker code is running, but **`env.DB` is empty**.
+
+### Fix A — wrangler deploy (best)
+
+```bash
+cd Quotation-Studio
+git pull
+cd platform/cloudflare
+# wrangler.toml already has:
+#   binding = "DB"
+#   database_id = "78f2b390-8468-4250-b8fd-c7ec119b56b8"
+npm install
+npx wrangler d1 execute quotation-studio-db --remote --file=../schema.sql
+npm run deploy
+```
+
+### Fix B — dashboard only (if you cannot CLI yet)
+
+1. Cloudflare → **Workers & Pages** → **quotation-studio** → **Settings** → **Bindings**
+2. Remove any D1 row whose **variable name is not exactly `DB`**
+3. **Add binding** → D1 →  
+   - Variable name: **`DB`** (exactly, capital D B)  
+   - Database: **quotation-studio-db**
+4. **Add binding** → Assets (if available) or redeploy with wrangler for ASSETS  
+5. Save → redeploy / wait ~30s → hard refresh `/api/health`
+
+After a good deploy, health JSON should include `"hasDb": true` and `"ok": true`.
+
+---
 ## If you see **ASSETS binding missing**
 
 Worker code is live, but **static files were not uploaded**.

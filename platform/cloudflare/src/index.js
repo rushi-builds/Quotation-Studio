@@ -1,11 +1,6 @@
 /* ============================================================================
    Quotation Studio — Cloudflare Worker entry (index.js)
-   --------------------------------------------------------------------------
-   Same code as worker.js. If the dashboard shows a default "Hello World"
-   index.js, REPLACE that entire file with THIS file from the repo:
-     platform/cloudflare/src/index.js
-   Prefer: cd platform/cloudflare && npx wrangler deploy
-   (Quick Edit paste works only if D1 binding name is DB + nodejs_compat on).
+   Same as worker.js — prefer: cd platform/cloudflare && npm run deploy
    ============================================================================ */
 
 /* ============================================================================
@@ -498,10 +493,48 @@ async function notifyFromPortalEvent(db, ev) {
   });
 }
 
+/* Resolve bindings even if the dashboard renamed them (must still be D1 / Assets). */
+function getDb(env) {
+  if (env && env.DB && typeof env.DB.prepare === 'function') return env.DB;
+  if (!env || typeof env !== 'object') return null;
+  for (const key of Object.keys(env)) {
+    const v = env[key];
+    if (v && typeof v.prepare === 'function' && typeof v.batch === 'function') return v;
+  }
+  for (const key of Object.keys(env)) {
+    const v = env[key];
+    if (v && typeof v.prepare === 'function') return v;
+  }
+  return null;
+}
+function getAssets(env) {
+  if (env && env.ASSETS && typeof env.ASSETS.fetch === 'function') return env.ASSETS;
+  if (!env || typeof env !== 'object') return null;
+  for (const key of Object.keys(env)) {
+    const v = env[key];
+    if (v && typeof v.fetch === 'function' && key !== 'DB') {
+      /* Workers Assets binding exposes fetch(); skip obvious non-assets */
+      if (typeof v.prepare === 'function') continue;
+      return v;
+    }
+  }
+  return null;
+}
+function bindingNames(env) {
+  try { return env && typeof env === 'object' ? Object.keys(env).sort() : []; }
+  catch (_) { return []; }
+}
+
 /* ---------- API ---------- */
 async function handleApi(request, env, url) {
-  const db = env.DB;
-  if (!db) return json({ error: 'D1 database binding DB is missing. Check wrangler.toml.' }, 500);
+  const db = getDb(env);
+  if (!db) {
+    return json({
+      error: 'D1 database binding is missing.',
+      hint: 'In Cloudflare → Workers → quotation-studio → Settings → Bindings, add D1 with variable name DB pointing at quotation-studio-db. Or run: cd platform/cloudflare && npx wrangler deploy',
+      bindingNames: bindingNames(env)
+    }, 500);
+  }
 
   const method = request.method || 'GET';
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
@@ -699,6 +732,9 @@ async function handleApi(request, env, url) {
         storage: 'cloudflare-d1',
         time: nowISO(),
         project: 'quotation-studio',
+        bindings: bindingNames(env),
+        hasDb: true,
+        hasAssets: !!getAssets(env),
         sending: {
           manualChannels: Object.keys(SEND_CHANNELS),
           providerDelivery: false,
@@ -1637,20 +1673,39 @@ export default {
       return handleApi(request, env, url);
     }
 
-    /* Static assets from Workers Assets (repo root) */
-    if (env.ASSETS) {
+    /* Static assets from Workers Assets (./public via wrangler [assets]) */
+    const assets = getAssets(env);
+    if (assets) {
       let path = url.pathname;
       if (path === '/') path = '/index.html';
       if (path === '/dashboard') path = '/dashboard.html';
       const assetUrl = new URL(path, url.origin);
-      const res = await env.ASSETS.fetch(new Request(assetUrl.toString(), request));
-      if (res.status === 404 && !path.includes('.')) {
-        /* SPA-style fallback not needed — return 404 plain */
-        return text('Not found', 404);
+      const res = await assets.fetch(new Request(assetUrl.toString(), request));
+      if (res.status === 404) {
+        return new Response(
+          '<!DOCTYPE html><html><body style="font-family:system-ui;padding:2rem;background:#111;color:#eee">' +
+          '<h1>File not in ASSETS</h1>' +
+          '<p>Path: <code>' + path.replace(/</g, '') + '</code></p>' +
+          '<p>Run on your laptop:</p>' +
+          '<pre style="background:#222;padding:1rem;border-radius:8px">cd platform/cloudflare\nnpm run deploy</pre>' +
+          '<p>That syncs HTML/CSS/JS into <code>./public</code> and uploads ASSETS.</p>' +
+          '<p><a href="/api/health" style="color:#F2811D">/api/health</a></p>' +
+          '</body></html>',
+          { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
+        );
       }
       return res;
     }
 
-    return text('ASSETS binding missing — deploy with wrangler assets config.', 500);
+    return new Response(
+      '<!DOCTYPE html><html><body style="font-family:system-ui;padding:2rem;background:#111;color:#eee">' +
+      '<h1>ASSETS binding missing</h1>' +
+      '<p>Worker is live, but static files were not uploaded.</p>' +
+      '<pre style="background:#222;padding:1rem;border-radius:8px">cd Quotation-Studio/platform/cloudflare\ngit pull\nnpm install\nnpm run deploy</pre>' +
+      '<p>Bindings seen: <code>' + bindingNames(env).join(', ') + '</code></p>' +
+      '<p><a href="/api/health" style="color:#F2811D">/api/health</a></p>' +
+      '</body></html>',
+      { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
+    );
   }
 };
