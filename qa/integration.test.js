@@ -83,11 +83,11 @@ t('rendered all 21 page shells (options, financing and BESS hidden by default)',
 t('page labels generated', /Page 1 of 15/.test(d.querySelector('[data-page="pageCover"] .page-label').textContent),
   d.querySelector('[data-page="pageCover"] .page-label').textContent);
 t('cover shows a neutral customer placeholder', d.getElementById('v_coverCustName').textContent === 'Customer Name');
-t('cover badge generation', /₹78/.test(d.getElementById('v_coverBadgeGen').textContent),
+t('cover badge generation', /₹40/.test(d.getElementById('v_coverBadgeGen').textContent),
   d.getElementById('v_coverBadgeGen').textContent);
 t('exec hero net = ₹6,08,070', d.getElementById('v_exHeroNet').textContent === '₹6,08,070',
   d.getElementById('v_exHeroNet').textContent);
-t('exec payback ≈ 3.7 yrs', /^3\.\d/.test(d.getElementById('v_exHeroPayback').textContent),
+t('exec payback ≈ 5.4 yrs', /^5\.\d/.test(d.getElementById('v_exHeroPayback').textContent),
   d.getElementById('v_exHeroPayback').textContent);
 t('exec 8 KPI tiles', d.querySelectorAll('#v_exKpis .kpi-tile').length === 8);
 t('summary does not repeat its financial tiles in a journey strip', !d.getElementById('v_exJourney'));
@@ -201,6 +201,43 @@ t('bill-offset KPI appears', d.getElementById('v_exKpis').textContent.includes('
 d.getElementById('availableArea').value = '25';
 fire(w, d.getElementById('availableArea'), 'input');
 t('area fit check flags shortage', d.getElementById('v_tsTable').textContent.includes('exceeds available area'));
+
+/* ---------- installed vs contracted capacity + roof clearance ---------- */
+console.log('— installed capacity & roof area —');
+t('tech spec states the installed array beside the contracted capacity',
+  d.getElementById('v_tsTable').textContent.includes('7.085 kWp (contracted 7 kWp)'),
+  d.getElementById('v_tsTable').textContent.match(/Installed Array Size.*?kWp[^k]*/));
+t('roof requirement names the clearance factor instead of bare module area',
+  d.getElementById('v_tsTable').textContent.includes('Roof Area Required') &&
+  d.getElementById('v_tsTable').textContent.includes('module area × 1.4 clearance'),
+  d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,70}/));
+d.getElementById('roofClearanceFactor').value = '1.1';
+fire(w, d.getElementById('roofClearanceFactor'), 'input');
+t('changing the clearance factor re-renders the required roof area live',
+  d.getElementById('v_tsTable').textContent.includes('module area × 1.1 clearance'),
+  d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,70}/));
+t('the same roof fits at 1.1× clearance but not at 1.4×', (() => {
+  d.getElementById('availableArea').value = '40';
+  fire(w, d.getElementById('availableArea'), 'input');
+  const flushFits = d.getElementById('v_tsTable').textContent.includes('fits ✓');
+  d.getElementById('roofClearanceFactor').value = '1.4';
+  fire(w, d.getElementById('roofClearanceFactor'), 'input');
+  const tiltedFails = d.getElementById('v_tsTable').textContent.includes('exceeds available area');
+  return flushFits && tiltedFails;
+})(), d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,70}/));
+t('subsidy follows installed DC capacity below the 3 kWp slab', (() => {
+  d.getElementById('capacity').value = '2.5';
+  fire(w, d.getElementById('capacity'), 'input');
+  const shown = d.getElementById('v_inCostSub').textContent;
+  d.getElementById('capacity').value = '7';
+  fire(w, d.getElementById('capacity'), 'input');
+  return shown.includes('73,050');
+})(), d.getElementById('v_inCostSub').textContent);
+d.getElementById('roofClearanceFactor').value = '1.4';
+fire(w, d.getElementById('roofClearanceFactor'), 'input');
+/* restore the values later assertions expect */
+d.getElementById('availableArea').value = '25';
+fire(w, d.getElementById('availableArea'), 'input');
 
 const advInput = [...d.querySelectorAll('#advContainer input')].find((i) => i.value === 'Why Rooftop Solar?');
 if (advInput) {
@@ -348,8 +385,8 @@ setTimeout(() => {
     d.getElementById('v_finHighlight').style.display !== 'none' &&
     d.getElementById('v_finHighlight').textContent.includes('cash-flow positive'),
     d.getElementById('v_finHighlight').textContent);
-  t('net outgo card shows saving − EMI (₹6,441 / mo)',
-    d.getElementById('v_finCards').textContent.includes('₹6,441'),
+  t('net outgo card shows saving − EMI (₹2,286 / mo)',
+    d.getElementById('v_finCards').textContent.includes('₹2,286'),
     d.getElementById('v_finCards').textContent);
   d.getElementById('loanAmt').value = ''; fire(w, d.getElementById('loanAmt'), 'input');
   d.getElementById('loanRate').value = ''; fire(w, d.getElementById('loanRate'), 'input');

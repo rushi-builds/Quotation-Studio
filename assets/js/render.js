@@ -393,8 +393,13 @@
       ['Quantity', f.moduleCount + ' modules'],
       // Keep engineering values numeric until final formatting. fmtNum returns
       // grouped text (e.g. "1,036"), which cannot be used in arithmetic.
-      ['Installed Array Size', Number.isFinite(f.installedKwp)
-        ? f.installedKwp.toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp' : '—'],
+      // The contracted figure is printed alongside whenever whole modules land
+      // above it, so the page never shows two unexplained capacities.
+      ['Installed Array Size', Number.isFinite(f.installedKwp) && f.installedKwp > 0
+        ? f.installedKwp.toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp' +
+          (f.capacityExact ? '' : ' (contracted ' +
+            Number(f.contractedKwp).toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp)')
+        : '—'],
       ['Total Module Area', f.arrayArea ? Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)' : '—'],
       ['Performance Warranty', CONTENT.shared.warrantyLine]
     ]);
@@ -412,11 +417,14 @@
       ['Earthing & Lightning Protection', 'Included (as per EPC scope)']
     ]);
     if (s.availableArea) {
-      const need = Math.ceil(f.arrayArea || 0);
+      /* Module area alone is not enough roof: the required figure includes the
+         clearance factor (walkways, parapet setback, inter-row spacing). */
+      const need = Math.ceil(f.requiredArea || 0);
       const ok = parseFloat(s.availableArea) >= need;
       addRows('SITE', [
         ['Available Roof Area', s.availableArea + ' m²'],
-        ['Required Module Area', need + ' m² ' + (ok ? '— fits ✓' : '— exceeds available area')]
+        ['Roof Area Required', need + ' m² (module area × ' + f.roofClearanceFactor +
+          ' clearance) ' + (ok ? '— fits ✓' : '— exceeds available area')]
       ]);
     }
     $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
@@ -1094,6 +1102,7 @@
       inverterMake: g('inverterMake'), inverterKw: g('inverterKw'),
       mountMake: g('mountMake'), cableMake: g('cableMake'),
       roofType: g('roofType'), availableArea: g('availableArea'),
+      roofClearanceFactor: g('roofClearanceFactor'),
       pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'),
       costPerKwp: g('costPerKwp'), gstPercent: g('gstPercent'),
       corpTaxRate: g('corpTaxRate'), depreciationRate: g('depreciationRate'),

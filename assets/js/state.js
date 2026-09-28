@@ -53,17 +53,28 @@
     briefingEnabled: true,
     pvsystUrl: '',
     arkaUrl: '',
-    /* ---- Financial assumptions ---- */
+    /* ---- Financial assumptions ----
+       Defaults are deliberately conservative and defensible in front of a
+       customer; every one of them is editable per proposal.
+         tariff ₹10/unit  — blended MSEDCL LT-1 residential rate (~₹10.3/unit
+                            for a ~400-unit consumer incl. duty and fixed
+                            charges). ₹15 sat above even the top slab.
+         escalation 4%/yr — long-run Indian tariff CAGR; 6% compounded to
+                            ₹64/unit over 25 years, which invites challenge.
+         co2Factor 0.71   — CEA CO2 Baseline Database v21.0, FY2024-25.
+         treeFactor 22    — mature-tree absorption, 20-25 kg CO2/yr.
+         clearance 1.4x   — module area → roof area for walkways/parapet/rows. */
     costPerKwp: '90000',
     corpTaxRate: '25',
     depreciationRate: '40',
     gstPercent: '8.9',
-    tariff: '15',
-    escalation: '6',
+    tariff: '10',
+    escalation: '4',
     degradation: '0.5',
+    roofClearanceFactor: '1.4',
     subsidyOverride: '',
-    co2Factor: '0.79',
-    treeFactor: '58.4',
+    co2Factor: '0.71',
+    treeFactor: '22',
     payAdvance: '50',
     payDispatch: '40',
     payCompletion: '10',

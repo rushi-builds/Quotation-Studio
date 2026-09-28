@@ -45,7 +45,7 @@ const OUT = __dirname + '/shots';
   }));
   t('cover personalised', kv.coverName.includes('QA Customer'), kv.coverName);
   t('hero net ₹6,08,070', kv.heroNet === '₹6,08,070', kv.heroNet);
-  t('payback ~3.7', /^3\.\d/.test(kv.payback), kv.payback);
+  t('payback ~5.4', /^5\.\d/.test(kv.payback), kv.payback);
   t('page numbering', kv.pgnum === 'Page 14 of 15', kv.pgnum);
   t('8 KPI tiles', kv.kpis === 8, kv.kpis);
 

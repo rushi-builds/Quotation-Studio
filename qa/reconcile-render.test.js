@@ -1,0 +1,272 @@
+/* ==========================================================================
+   Reconcile (rendered) — the pages must DISPLAY what the engine computed
+   --------------------------------------------------------------------------
+   companion to reconcile.test.js, which proves the engine's arithmetic.
+   This file boots the real app in jsdom, changes capacity through the real
+   input element, and reads each figure back out of the DOM, so a renderer
+   that drifts from the engine fails here even when the engine is correct.
+
+   Every displayed value is checked against an independent recomputation —
+   the form's own defaults are read at runtime rather than assumed.
+
+   Run: node qa/reconcile-render.test.js
+   ========================================================================== */
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const { JSDOM } = require('jsdom');
+
+const ROOT = path.join(__dirname, '..');
+let passed = 0, failed = 0;
+function check(name, fn) {
+  try { fn(); passed++; console.log('  ✓ ' + name); }
+  catch (e) { failed++; console.error('  ✗ FAIL: ' + name + ' → ' + e.message); }
+}
+const assert = require('node:assert/strict');
+
+/* ---------- canvas stub (same approach as the project's jsdom harness) ---------- */
+function mockCtx() {
+  const gradient = { addColorStop() {} };
+  return new Proxy({}, {
+    get(target, prop) {
+      if (prop === 'measureText') return () => ({ width: 42 });
+      if (prop === 'createLinearGradient' || prop === 'createRadialGradient') return () => gradient;
+      if (prop === 'getImageData') return () => ({ data: new Uint8ClampedArray(4) });
+      if (typeof prop === 'string') {
+        if (!(prop in target)) target[prop] = () => {};
+        return target[prop];
+      }
+      return undefined;
+    },
+    set() { return true; }
+  });
+}
+
+const pageErrors = [];
+function bootApp() {
+  const html = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8')
+    .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
+  const dom = new JSDOM(html, {
+    url: 'http://localhost/quotation.html',
+    runScripts: 'dangerously',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.HTMLCanvasElement.prototype.getContext = function () { return mockCtx(); };
+      window.Element.prototype.scrollIntoView = function () {};
+      Object.defineProperty(window.HTMLImageElement.prototype, 'complete', { get: () => true });
+      Object.defineProperty(window.HTMLImageElement.prototype, 'naturalWidth', { get: () => 100 });
+      Object.defineProperty(window.HTMLImageElement.prototype, 'naturalHeight', { get: () => 100 });
+      window.devicePixelRatio = 2;
+      window.confirm = () => true;
+      window.addEventListener('error', (e) => pageErrors.push(e.message));
+    }
+  });
+  const { window } = dom;
+  /* the order matches quotation.html, so page wiring behaves as it does live */
+  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js',
+    'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js', 'equipment.js',
+    'render.js', 'editor.js', 'experience.js', 'briefing.js', 'export.js', 'workspace-prefs.js',
+    'app.js', 'control-panel.js']
+    .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
+  window.eval(src);
+  window.document.dispatchEvent(new window.Event('DOMContentLoaded', { bubbles: true }));
+  return window;
+}
+
+/* ---------- independent arithmetic (shares nothing with finance.js) ---------- */
+function expected(cap, cfg) {
+  const ratio = Math.round(((cap * 1000) / cfg.wattage) * 1e6) / 1e6;
+  const count = Math.ceil(ratio);
+  const installed = count * cfg.wattage / 1000;
+  const cost = cap * cfg.rate;
+  const gross = cost + cost * cfg.gstPct / 100;
+  let subsidy = 30000 * Math.min(installed, 2);
+  if (installed > 2) subsidy += 18000 * Math.min(installed - 2, 1);
+  subsidy = Math.min(subsidy, 78000);
+  const net = gross - subsidy;
+  const annualGen = installed * cfg.genFactor;
+  let cum = 0, payback = NaN;
+  for (let y = 0; y < 25; y++) {
+    const before = cum;
+    cum += annualGen * Math.pow(1 - cfg.deg / 100, y) * cfg.tariff * Math.pow(1 + cfg.esc / 100, y);
+    if (Number.isNaN(payback) && cum >= net) payback = y + (net - before) / (cum - before);
+  }
+  return { count, installed, cost, gross, subsidy, net, annualGen, lifetime: cum, payback };
+}
+
+const inr = (n) => '₹' + Math.round(n).toLocaleString('en-IN');
+const num = (n) => Math.round(n).toLocaleString('en-IN');
+function short(n) {
+  const a = Math.abs(n);
+  if (a >= 1e7) return '₹' + (Math.round((n / 1e7) * 100) / 100) + ' Cr';
+  if (a >= 1e5) return '₹' + (Math.round((n / 1e5) * 100) / 100) + ' L';
+  return inr(n);
+}
+const digit = (text) => parseFloat(String(text).replace(/[^\d.]/g, ''));
+
+/* =============================================================== run ===== */
+const w = bootApp();
+const d = w.document;
+const txt = (id) => (d.getElementById(id) || {}).textContent || '';
+const setInput = (id, value) => {
+  const el = d.getElementById(id);
+  el.value = String(value);
+  el.dispatchEvent(new w.Event('input', { bubbles: true }));
+};
+
+/* read the shipping defaults out of the form instead of assuming them */
+const cfg = {
+  genFactor: digit(d.getElementById('genFactor').value),
+  rate: digit(d.getElementById('costPerKwp').value),
+  gstPct: digit(d.getElementById('gstPercent').value),
+  tariff: digit(d.getElementById('tariff').value),
+  esc: digit(d.getElementById('escalation').value),
+  deg: digit(d.getElementById('degradation').value),
+  clearance: digit(d.getElementById('roofClearanceFactor').value),
+  wattage: digit(d.getElementById('moduleWattage').value)
+};
+
+let bootErrors = pageErrors.length;
+
+console.log('— Reconcile (rendered): the shipped defaults are pinned —');
+/* Two different things seed the form, and they disagreeing is a real risk:
+     · StateStore.DEFAULTS (state.js) — applied on boot and when resuming a proposal
+     · the HTML value attributes      — applied by "New proposal"
+   Reading the live value alone is tautological (the test would simply follow
+   whatever the default became), so BOTH sources are pinned explicitly. */
+const REVIEWED = {
+  capacity: '7', genFactor: '1460', costPerKwp: '90000', gstPercent: '8.9',
+  tariff: '10', escalation: '4', degradation: '0.5', roofClearanceFactor: '1.4',
+  co2Factor: '0.71', treeFactor: '22', moduleWattage: '545',
+  moduleLengthMm: '2278', moduleWidthMm: '1134'
+};
+const authored = (id) => d.getElementById(id).getAttribute('value');
+for (const [id, want] of Object.entries(REVIEWED)) {
+  check(id + ' = ' + want + ' in StateStore.DEFAULTS (used on boot)', () => {
+    assert.equal(w.StateStore.DEFAULTS[id], want);
+  });
+  check(id + ' = ' + want + ' as the HTML default (used by "New proposal")', () => {
+    assert.equal(authored(id), want);
+  });
+}
+check('live form values match the authored defaults', () => {
+  for (const [id, want] of Object.entries(REVIEWED)) {
+    assert.equal(d.getElementById(id).value, want, id + ' live value');
+  }
+});
+check('the 8.9 % default matches the 70:30 composite rule, not the pre-reform 12 %', () => {
+  assert.equal(Math.round((0.7 * 5 + 0.3 * 18) * 10) / 10, 8.9);
+  assert.notEqual(w.StateStore.DEFAULTS.gstPercent, '12');
+});
+check('roof clearance factor is present and editable', () => {
+  assert.equal(d.getElementById('roofClearanceFactor').disabled, false);
+});
+
+console.log('— Reconcile (rendered): capacity sweep across the pages —');
+for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
+  check(cap + ' kWp renders consistently on every page', () => {
+    setInput('capacity', cap);
+    const e = expected(cap, cfg);
+
+    /* cover */
+    assert.equal(txt('v_coverCapacity'), cap + ' kWp', 'cover capacity');
+    assert.equal(txt('v_coverBadgeGen'), short(e.lifetime), 'cover lifetime-savings badge');
+
+    /* executive summary */
+    assert.equal(txt('v_exHeroNet'), inr(e.net), 'exec net investment');
+    assert.ok(txt('v_exHeroPayback').startsWith(e.payback.toFixed(1)), 'exec payback ' + txt('v_exHeroPayback'));
+    assert.ok(txt('v_exKpis').includes(num(e.annualGen) + ' kWh'), 'exec generation KPI');
+
+    /* technical specification */
+    const ts = txt('v_tsTable');
+    assert.ok(ts.includes(e.count + ' modules'), 'tech spec module count');
+    assert.ok(ts.includes('Installed Array Size'), 'tech spec array-size row present');
+    const shownKw = parseFloat((ts.match(/([\d.]+) kWp/) || [])[1]);
+    assert.ok(Math.abs(shownKw - e.installed) < 0.0005, 'tech spec installed array ' + shownKw + ' vs ' + e.installed);
+    if (Math.abs(e.installed - cap) > 1e-9) {
+      assert.ok(ts.includes('contracted ' + cap + ' kWp'), 'tech spec must name the contracted capacity');
+    }
+    const moduleArea = e.count * (digit(d.getElementById('moduleLengthMm').value) / 1000) *
+      (digit(d.getElementById('moduleWidthMm').value) / 1000);
+    assert.ok(ts.includes(Math.round(moduleArea) + ' m²'), 'tech spec module area');
+    const dcac = (e.installed / cap).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    assert.ok(ts.includes(dcac + ' : 1'), 'tech spec DC/AC ratio must use the installed array');
+
+    /* generation & savings */
+    assert.equal(txt('v_svChipGen'), num(e.annualGen) + ' kWh', 'savings page generation chip');
+    assert.ok(txt('v_svAssumptions').includes(cfg.genFactor + ' kWh/kWp/yr'), 'assumptions strip generation basis');
+
+    /* investment */
+    assert.equal(txt('v_inCostNet'), inr(e.net), 'investment net cost');
+    assert.equal(txt('v_inCostSub'), '− ' + inr(e.subsidy), 'investment subsidy');
+    assert.ok(txt('v_inRate').includes('₹' + (e.cost / (cap * 1000)).toFixed(0)), 'investment ₹/Wp');
+
+    /* the multiplication a customer would do by hand must agree with the page */
+    assert.ok(Math.abs(digit(txt('v_svChipGen')) - e.installed * cfg.genFactor) < 1,
+      'shown generation must equal shown installed array × generation factor');
+  });
+}
+
+console.log('— Reconcile (rendered): subsidy follows installed DC capacity —');
+for (const [cap, want] of [[1, 32700], [2, 63240], [2.5, 73050], [3, 78000], [10, 78000]]) {
+  check(cap + ' kWp shows the installed-capacity subsidy ' + inr(want), () => {
+    setInput('capacity', cap);
+    assert.equal(txt('v_inCostSub'), '− ' + inr(want));
+  });
+}
+check('a lower figure than the installed basis is never shown below the 3 kW slab', () => {
+  /* guard against a regression to contracted-capacity subsidy */
+  for (const [cap, contracted] of [[2, 60000], [2.5, 69000]]) {
+    setInput('capacity', cap);
+    const shown = digit(txt('v_inCostSub'));
+    assert.ok(shown > contracted, cap + ' kWp showed ' + shown + ', expected more than ' + contracted);
+  }
+});
+
+console.log('— Reconcile (rendered): roof clearance drives the fit verdict —');
+check('the same roof flips verdict when the clearance factor changes', () => {
+  setInput('capacity', 7);
+  setInput('availableArea', 40);
+  setInput('roofClearanceFactor', 1.1);
+  assert.ok(txt('v_tsTable').includes('fits ✓'), 'should fit at ×1.1');
+  assert.ok(txt('v_tsTable').includes('module area × 1.1 clearance'), 'must state the factor it used');
+  setInput('roofClearanceFactor', 1.4);
+  assert.ok(txt('v_tsTable').includes('exceeds available area'), 'should not fit at ×1.4');
+  assert.ok(txt('v_tsTable').includes('module area × 1.4 clearance'), 'must state the factor it used');
+  setInput('availableArea', '');
+});
+
+console.log('— Reconcile (rendered): commercial customers —');
+check('commercial shows nil subsidy and gross investment', () => {
+  setInput('capacity', 25);
+  const typeEl = d.getElementById('customerType');
+  typeEl.value = 'commercial';
+  typeEl.dispatchEvent(new w.Event('change', { bubbles: true }));
+  assert.equal(txt('v_inCostSub'), '− ₹0', 'commercial subsidy must be nil');
+  assert.ok(txt('v_inCostSubCap').includes('Not applicable'), 'subsidy caption must explain why');
+  const gross = 25 * cfg.rate * (1 + cfg.gstPct / 100);
+  assert.equal(txt('v_exHeroNet'), inr(gross), 'commercial net equals gross');
+  typeEl.value = 'residential';
+  typeEl.dispatchEvent(new w.Event('change', { bubbles: true }));
+});
+
+console.log('— Reconcile (rendered): the pages agree with each other —');
+check('cover badge, exec hero and investment card carry one net figure', () => {
+  setInput('capacity', 7);
+  const net = txt('v_exHeroNet');
+  assert.equal(txt('v_inCostNet'), net, 'investment card must match the summary');
+  assert.equal(txt('v_inCostSub'), '− ₹78,000', '7 kWp is above the subsidy cap');
+});
+check('generation is identical on the summary, savings page and assumptions strip', () => {
+  setInput('capacity', 7);
+  const gen = num(expected(7, cfg).annualGen) + ' kWh';
+  assert.ok(txt('v_exKpis').includes(gen), 'summary KPI');
+  assert.equal(txt('v_svChipGen'), gen, 'savings chip');
+});
+check('no runtime errors during the whole sweep', () => {
+  assert.equal(pageErrors.length, bootErrors, pageErrors.join(' | '));
+});
+
+/* =================================================================== report */
+console.log('\n' + passed + ' passed, ' + failed + ' failed');
+process.exit(failed ? 1 : 0);
