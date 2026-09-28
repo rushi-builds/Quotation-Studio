@@ -206,6 +206,34 @@ Details also in `docs/platform-phase-a.md`.
 
 ---
 
+
+## If you see **ASSETS binding missing**
+
+Worker code is live, but **static files were not uploaded**.
+
+Cause: deploy without the `[assets]` folder, or only pasting `index.js` in the dashboard.
+
+Fix on your laptop:
+
+```bash
+cd Quotation-Studio
+git pull
+cd platform/cloudflare
+npm install
+# refresh HTML/CSS/JS into public/
+npm run sync
+# database_id must be real in wrangler.toml
+npx wrangler deploy
+```
+
+After deploy, hard-refresh:
+
+- https://quotation-studio.rushidhumal-04.workers.dev/dashboard.html → sign-in UI  
+- https://quotation-studio.rushidhumal-04.workers.dev/api/health → JSON  
+
+Do **not** only Quick-Edit the worker — always `npx wrangler deploy` from `platform/cloudflare` so `./public` binds as **ASSETS**.
+
+---
 ## If every page shows **Hello World**
 
 That text is Cloudflare’s **default empty Worker stub**.  

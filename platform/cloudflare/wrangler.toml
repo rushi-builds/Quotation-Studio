@@ -3,32 +3,28 @@
 # Project name:  quotation-studio
 # D1 database:   quotation-studio-db
 # --------------------------------------------------------------------------
-# After you create the D1 DB in the dashboard (or via wrangler), paste the
-# real database_id below. Until then, local `wrangler dev` can use --local.
-#
-# See docs/cloudflare-deploy.md for every click/CLI step.
+# 1) Put your real D1 database_id below (from: wrangler d1 list)
+# 2) cd platform/cloudflare && npm install && npx wrangler deploy
+# See docs/cloudflare-deploy.md
 
 name = "quotation-studio"
 main = "src/worker.js"
 compatibility_date = "2024-11-12"
 compatibility_flags = ["nodejs_compat"]
 
-# Workers static assets = the repo front-end (HTML/CSS/JS images).
-# Worker runs first so /api/* is handled in code; everything else is static.
+# Static HTML/CSS/JS/images — must be under this package so ASSETS binds on deploy.
+# If you only paste worker code in the dashboard, ASSETS is missing → black page error.
 [assets]
-directory = "../.."
+directory = "./public"
 binding = "ASSETS"
+# Worker handles /api/* first; everything else is served from ./public
 run_worker_first = true
 
 [[d1_databases]]
 binding = "DB"
 database_name = "quotation-studio-db"
-# REPLACE this after: wrangler d1 create quotation-studio-db
+# REPLACE with real UUID from: npx wrangler d1 list
 database_id = "00000000-0000-0000-0000-000000000000"
 
 [vars]
-# Public app name only — never put secrets here.
 APP_NAME = "Quotation Studio"
-
-# Secrets (set via CLI or dashboard — not committed):
-#   wrangler secret put SESSION_PEPPER

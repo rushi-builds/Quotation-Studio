@@ -3,8 +3,9 @@
   "private": true,
   "description": "Cloudflare Worker + D1 for Quotation Studio (new project, not solar-epc-relay)",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "sync": "bash sync-public.sh",
+    "dev": "npm run sync && wrangler dev",
+    "deploy": "npm run sync && wrangler deploy",
     "db:create": "wrangler d1 create quotation-studio-db",
     "db:schema": "wrangler d1 execute quotation-studio-db --remote --file=../schema.sql",
     "db:schema:local": "wrangler d1 execute quotation-studio-db --local --file=../schema.sql",

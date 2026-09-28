@@ -18,3 +18,4 @@ platform/cloudflare/package-lock.json
 # OS / editor
 .DS_Store
 Thumbs.db
+platform/cloudflare/public/
