@@ -23,8 +23,8 @@ run_worker_first = true
 [[d1_databases]]
 binding = "DB"
 database_name = "quotation-studio-db"
-# REPLACE with real UUID from: npx wrangler d1 list
-database_id = "00000000-0000-0000-0000-000000000000"
+# quotation-studio-db (personal CF account)
+database_id = "78f2b390-8468-4250-b8fd-c7ec119b56b8"
 
 [vars]
 APP_NAME = "Quotation Studio"
