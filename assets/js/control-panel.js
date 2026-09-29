@@ -141,7 +141,7 @@
       symbol.innerHTML = window.Icons.get('panel', 19, '#6D7B8C');
       const copy = element('span', 'studio-section-copy');
       copy.append(element('strong', '', 'Engineering design basis'),
-        element('small', '', 'Wind, string, cable, earthing & roof-load checks — printed as DATA REQUIRED until supplied'));
+        element('small', '', 'Wind, string, cable, earthing & roof-load checks - printed as DATA REQUIRED until supplied'));
       summary.append(symbol, copy, element('span', 'studio-chevron', '⌄'));
       d.append(summary);
       engFs.querySelector('legend').classList.add('studio-sr-only');
@@ -152,7 +152,7 @@
     form.insertBefore(wrap, $('advancedPanel'));
 
     /* Reference-number guard. The template ships with a sample reference, and
-       two proposals can end up sharing one number without anything noticing —
+       two proposals can end up sharing one number without anything noticing -
        both send a customer a quotation with the wrong identifier. The authored
        value is read once, before any saved proposal can overwrite it. */
     const SAMPLE_REF = String(($('propRef') || {}).getAttribute?.('value') || '').trim();
@@ -179,13 +179,13 @@
 
     function referenceIssue(state) {
       const ref = String(state.propRef || '').trim();
-      if (!ref) return 'This proposal has no reference number — press New in Proposals to issue the next one.';
+      if (!ref) return 'This proposal has no reference number - press New in Proposals to issue the next one.';
       const active = window.Proposals.activeId();
       const clash = (window.Proposals.list() || []).find(p => p.id !== active &&
         String(p.ref || '').trim().toLowerCase() === ref.toLowerCase());
       if (clash) return 'Reference ' + ref + ' is already used by another proposal (#' +
         (clash.ref || clash.id.slice(-4)) + ' · ' + (clash.title || 'untitled') +
-        '). Two customers must not receive one number — issue a new version, or give this one its own reference.';
+        '). Two customers must not receive one number - issue a new version, or give this one its own reference.';
       if (SAMPLE_REF && ref === SAMPLE_REF) return 'This is still the template sample reference (' + SAMPLE_REF +
         '). Press New in Proposals to issue this proposal its own number.';
       return '';
@@ -194,14 +194,14 @@
     function update() {
       const state = window.Render.lastState || window.Render.readState();
       const f = window.Finance.compute(state);
-      overview.querySelector('[data-metric="capacity"]').textContent = (state.capacity || '—') + ' kWp';
+      overview.querySelector('[data-metric="capacity"]').textContent = (state.capacity || '-') + ' kWp';
       overview.querySelector('[data-metric="investment"]').previousElementSibling.textContent=(window.Bess.included(state)||window.AdditionalSystems.included(state))?'Solar-only investment':'Net investment';
       overview.querySelector('[data-metric="investment"]').textContent = window.Finance.fmtINR(f.netInvestment);
       overview.querySelector('[data-metric="energy"]').textContent = window.Finance.fmtNum(f.annualGen) + ' kWh';
       overview.querySelector('.studio-page-count').textContent = window.Render.lastVisible.length + ' pages';
       /* Live derived read-outs. The rate fields above them are per-kWp and
          per-Wp, so without these the panel looks like it ignores the capacity
-         input entirely — the totals only moved on the preview side. */
+         input entirely - the totals only moved on the preview side. */
       const genHint = $('hintGenFactor');
       if (genHint) {
         genHint.textContent = f.annualGen > 0
@@ -218,19 +218,19 @@
       }
       const summaries = {
         custName: state.custName || 'Add customer details',
-        moduleMake: (state.moduleWattage || '—') + ' W modules · ' + (state.inverterKw || f.inverterKw || '—') + ' kW inverter',
+        moduleMake: (state.moduleWattage || '-') + ' W modules · ' + (state.inverterKw || f.inverterKw || '-') + ' kW inverter',
         costPerWp: '₹' + (Math.round((state.costPerKwp || 0) / 10) / 100) + '/Wp · ₹' + (state.tariff || '0') + '/unit',
         payAdvance: [state.payAdvance || 0, state.payDispatch || 0, state.payCompletion || 0].join(' / ') + '% · ' + (f.financing ? 'Financing included' : 'Payment milestones'),
         galleryUrl: state.galleryUrl ? 'Link entered · verify before sharing' : 'Add your public QR destination when ready'
       };
       sections.forEach(({field, text, description}) => { text.querySelector('small').textContent = summaries[field] || description; });
       const selected = $('proposalSelect').selectedOptions[0];
-      if (selected) selected.textContent = '#' + (state.propRef || 'Draft') + ' · ' + (state.custName || 'Untitled customer') + ' — ' + (state.capacity || '0') + ' kWp · v' + (state.propVersion || '1.0');
+      if (selected) selected.textContent = '#' + (state.propRef || 'Draft') + ' · ' + (state.custName || 'Untitled customer') + ' - ' + (state.capacity || '0') + ' kWp · v' + (state.propVersion || '1.0');
       const bessSection=document.querySelector('[data-section="bessEnabled"] summary small');
-      if(bessSection) bessSection.textContent=window.Bess.enabled(state) ? (window.Bess.included(state)?'Included':'Standalone')+' · '+(state.bessCapacity||'—')+' kWh' : 'Not included · solar-only proposal';
+      if(bessSection) bessSection.textContent=window.Bess.enabled(state) ? (window.Bess.included(state)?'Included':'Standalone')+' · '+(state.bessCapacity||'-')+' kWh' : 'Not included · solar-only proposal';
       const sysSummary=document.querySelector('[data-section="systemEnabled"] summary small');
       if(sysSummary)sysSummary.textContent=window.AdditionalSystems.enabled(state)?(state.systemName||'Custom system')+' · '+(window.AdditionalSystems.included(state)?'included':'standalone'):'Optional controls, charging or a custom system';
-      /* The panel stays silent about the reference too — the pre-flight
+      /* The panel stays silent about the reference too - the pre-flight
          raises it before a PDF exists. */
       refWarning.hidden = true;
       validateWithEngineering(f, state);
@@ -276,7 +276,7 @@
 
     /* The panel stays silent: an invalid field carries its own red outline,
        and the export pre-flight names every blocker before a PDF exists.
-       The strip therefore never renders — the hidden-rule below is kept as
+       The strip therefore never renders - the hidden-rule below is kept as
        the guarantee that nothing extra ever appears above the form. */
     function renderFeedback(list) {
       const messages = list.blocking.concat(list.advisory)
@@ -316,7 +316,7 @@
     }
     /* The Tech Spec page is a fixed A4 box. Its fit ladder shrinks the drawing
        and the cell padding to make the design basis fit, and reports what is
-       left over — but only a real browser can measure that. An overfull page
+       left over - but only a real browser can measure that. An overfull page
        would print with its last rows cut off, so it is named in the dialog
        before the sheet reaches a customer. */
     function overflowIssues() {
@@ -332,7 +332,7 @@
       const add = (list, item) => { if (!seen.has(item.id + '|' + item.message)) list.push(item); };
       eng.blocking.forEach((i) => add(merged.blocking, i));
       eng.advisory.forEach((i) => add(merged.advisory, i));
-      /* A DATA REQUIRED gap prints openly on the page, so it never blocks —
+      /* A DATA REQUIRED gap prints openly on the page, so it never blocks -
          but the preparer still gets one look before the sheet leaves the
          building: the gap rides along as an advisory, so the export
          pre-flight raises it and offers "Download anyway" rather than

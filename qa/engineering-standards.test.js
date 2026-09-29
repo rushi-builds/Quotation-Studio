@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Engineering standards — every figure the design basis prints is checked
+   Engineering standards - every figure the design basis prints is checked
    against the standard that defines it, and against arithmetic worked out
    here independently of the module that produced it.
 
@@ -46,9 +46,9 @@ const SITE = {
 };
 
 /* ==========================================================================
-   IS 875 (Part 3):2015 — wind
+   IS 875 (Part 3):2015 - wind
    ========================================================================== */
-console.log('— IS 875 (Part 3):2015 — wind load —');
+console.log('- IS 875 (Part 3):2015 - wind load -');
 
 check('k2 at 10 m is the table\'s own Class A row: 1.05 / 1.00 / 0.91 / 0.80', () => {
   assert.equal(E.k2For('1', 10).k2, 1.05);
@@ -90,7 +90,7 @@ check('Pune 39 m/s in a suburban terrain: Vz and pz worked out independently', (
   assert.equal(w.ok, true);
 });
 
-check('the pressure is 0.6 Vz² — nothing else is folded in', () => {
+check('the pressure is 0.6 Vz² - nothing else is folded in', () => {
   /* Kd, Ka and Kc all reduce pressure. Leaving them out is the conservative
      side of the code, and the page says so rather than looking forgetful. */
   const w = E.wind(SITE);
@@ -133,9 +133,9 @@ check('the same array on the roof interior stays inside the standard class', () 
 });
 
 /* ==========================================================================
-   Shadow geometry — the roof area an array actually needs
+   Shadow geometry - the roof area an array actually needs
    ========================================================================== */
-console.log('— row spacing on the winter solstice —');
+console.log('- row spacing on the winter solstice -');
 
 check('the sun angle is the standard elevation formula for Pune on 21 December', () => {
   /* sin α = sin φ sin δ + cos φ cos δ cos ω, with ω = 45° (±3 h) and δ = −23.45° */
@@ -182,7 +182,7 @@ check('a steeper array needs more roof, and a flat one needs exactly its own are
   near(at(22), 1.596, 0.001);
 });
 
-check('required area is modules × pitch × width — the shaded block, not the module area', () => {
+check('required area is modules × pitch × width - the shaded block, not the module area', () => {
   const lay = E.layout(SITE, 13);
   const pitch = lay.geo.pitchM;
   near(lay.requiredArea, 13 * pitch * 1.134, 1e-9);
@@ -199,16 +199,16 @@ check('a roof between the module area and the shaded block is not called a fit',
   near(E.layout({ ...SITE, availableArea: '40' }, 13).shortfallM2, 7.96, 0.02);
 });
 
-check('no tilt or latitude means no geometry — and no verdict', () => {
+check('no tilt or latitude means no geometry - and no verdict', () => {
   const lay = E.layout({ ...SITE, tiltDeg: '', latitudeDeg: '' }, 13);
   assert.equal(lay.ok, false);
   assert.ok(lay.missing.length >= 1);
 });
 
 /* ==========================================================================
-   IS 3043:2018 — earthing
+   IS 3043:2018 - earthing
    ========================================================================== */
-console.log('— IS 3043:2018 — earthing —');
+console.log('- IS 3043:2018 - earthing -');
 
 check('the standard\'s own worked example: 3 m pipe, 50 mm dia, 50 Ω·m → 11.8 Ω', () => {
   /* R = (ρ/2πL)·[ln(4L/d) − 1] with ρ=50, L=3, d=0.0508 */
@@ -249,7 +249,7 @@ check('soil that cannot reach the target says so instead of printing a number no
   assert.ok(rocky.electrodeCount <= 12);
 });
 
-check('no soil test means DATA REQUIRED — the app will not guess a number of pits', () => {
+check('no soil test means DATA REQUIRED - the app will not guess a number of pits', () => {
   const e = E.earthing({ ...SITE, soilResistivity: '' });
   assert.equal(e.ok, false);
   assert.ok(e.missing.join(' ').includes('soil resistivity'));
@@ -257,9 +257,9 @@ check('no soil test means DATA REQUIRED — the app will not guess a number of p
 });
 
 /* ==========================================================================
-   IS 732 / IEC 62548 — cable and string
+   IS 732 / IEC 62548 - cable and string
    ========================================================================== */
-console.log('— IS 732 / IEC 62548 — cable and string —');
+console.log('- IS 732 / IEC 62548 - cable and string -');
 
 check('copper at 70 °C is the resistivity used, not the 20 °C datasheet figure', () => {
   near(E.RHO_CU_70, 0.0172 * (1 + 0.00393 * 45), 1e-12);
@@ -343,7 +343,7 @@ check('a 600 V inverter makes the same array two short strings instead of one lo
   assert.equal(st.maxSeriesByVoltage, 11);
   assert.equal(st.strings, 2);
   assert.equal(st.seriesPerString, 7);
-  assert.equal(st.overVoltage, false, 'seven modules at 53 V is 371 V — inside the limit');
+  assert.equal(st.overVoltage, false, 'seven modules at 53 V is 371 V - inside the limit');
   assert.ok(st.vocColdString < 600);
   assert.equal(st.impossible, false);
 });
@@ -389,7 +389,7 @@ check('without datasheet figures the string check is DATA REQUIRED, never a sile
 /* ==========================================================================
    IEC/IS 62305 and the MNRE/UPNEDA roof-load benchmark
    ========================================================================== */
-console.log('— IEC 62305 — lightning, and the terrace load benchmark —');
+console.log('- IEC 62305 - lightning, and the terrace load benchmark -');
 
 check('Ng follows 0.04 × Td^1.25 from the local thunderstorm-day count', () => {
   const li = E.lightning({ ...SITE, thunderstormDays: '30' });
@@ -427,9 +427,9 @@ check('terrace load is modules plus racking over the array, against the 60 kg/m�
 });
 
 /* ==========================================================================
-   The export gate — which level each finding lands on
+   The export gate - which level each finding lands on
    ========================================================================== */
-console.log('— the gate: block, warn, or note —');
+console.log('- the gate: block, warn, or note -');
 
 check('a sheet with everything specified and compliant reports nothing to stop for', () => {
   const done = {
@@ -487,7 +487,7 @@ check('a marginal cable drop warns but does not stop the document', () => {
 /* ==========================================================================
    finance.js follows the geometry, and the page prints the basis
    ========================================================================== */
-console.log('— the engine and the printed page —');
+console.log('- the engine and the printed page -');
 
 check('finance derives the clearance, and a typed factor still overrides it', () => {
   delete require.cache[require.resolve('../assets/js/engineering.js')];
@@ -609,7 +609,7 @@ check('the engineering basis is kept inside its page, and an overflowing page is
 
   /* jsdom lays nothing out (scrollHeight is always 0), so the fit ladder is
      driven by handing the element a height: each tightening step is modelled as
-     the compression it actually is — content that fits after a step stops the
+     the compression it actually is - content that fits after a step stops the
      ladder, content that cannot be helped is reported instead of clipped. */
   /* every dial the fit ladder can turn, counted as one step each */
   const steps = () => ['is-tight-spec', 'is-tighter-spec', 'is-diagram-spec', 'is-diagram-tighter']
@@ -621,7 +621,7 @@ check('the engineering basis is kept inside its page, and an overflowing page is
   model(1200, 150);                       /* a little long: one step is enough */
   assert.deepEqual([...w.Render.fitPages()], [], 'a page that can be tightened is not reported as broken');
   assert.ok(page.className.includes('is-tight-spec'),
-    'and it is tightened — the cheapest step that makes it fit, never simply everything');
+    'and it is tightened - the cheapest step that makes it fit, never simply everything');
   assert.ok(/is-tight-spec/.test(page.className), 'the specification table compacts before the diagram gives up size');
 
   page.className = 'page';                /* too long to save: say so */

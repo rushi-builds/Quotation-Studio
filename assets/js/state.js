@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Quotation Studio — Form State Helpers
+   Quotation Studio - Form State Helpers
    --------------------------------------------------------------------------
    Low-level bridge between the DOM form and plain objects:
      - DEFAULTS mirror the input ids in quotation.html
@@ -63,19 +63,19 @@
     /* ---- Financial assumptions ----
        Defaults are deliberately conservative and defensible in front of a
        customer; every one of them is editable per proposal.
-         tariff ₹10/unit  — blended MSEDCL LT-1 residential rate (~₹10.3/unit
+         tariff ₹10/unit  - blended MSEDCL LT-1 residential rate (~₹10.3/unit
                             for a ~400-unit consumer incl. duty and fixed
                             charges). ₹15 sat above even the top slab.
-         escalation 4%/yr — long-run Indian tariff CAGR; 6% compounded to
+         escalation 4%/yr - long-run Indian tariff CAGR; 6% compounded to
                             ₹64/unit over 25 years, which invites challenge.
-         co2Factor 0.71   — CEA CO2 Baseline Database v21.0, FY2024-25.
-         treeFactor 22    — mature-tree absorption, 20-25 kg CO2/yr.
+         co2Factor 0.71   - CEA CO2 Baseline Database v21.0, FY2024-25.
+         treeFactor 22    - mature-tree absorption, 20-25 kg CO2/yr.
        Roof clearance is no longer a fixed 1.4x assumption: engineering.js
        derives it from the tilt and latitude (see the block below). */
-    /* Quoted as ₹ per Wp — the rate customers and sales teams actually quote.
+    /* Quoted as ₹ per Wp - the rate customers and sales teams actually quote.
        The calculation engine keeps working in ₹/kWp; state.js and render.js
        convert at the boundary. */
-    costPerWp: '63.63',
+    costPerWp: '63.6',
     corpTaxRate: '25',
     depreciationRate: '40',
     gstPercent: '8.9',
@@ -86,11 +86,11 @@
        Every figure below is either a standard's own arithmetic or a site value
        the designer supplies. They print on the Tech Spec page; blanks print as
        DATA REQUIRED. Values here are the shipped assumptions, not derivations:
-         tilt 15°        site figure — MNRE/UPNEDA bands 22–24° for north India
+         tilt 15°        site figure - MNRE/UPNEDA bands 22–24° for north India
          latitude 18.52  Pune
          Vb 39 m/s       IS 875-3:2015 basic wind speed map
          terrain 3       suburban, IS 875-3 Table 2 Class A
-         netUpliftCp 1.2 design assumption — confirm with the structural designer
+         netUpliftCp 1.2 design assumption - confirm with the structural designer
          roofZone edge   suction is far stronger at edges and corners
          Vmax 1100 V     typical three-phase rooftop inverter DC limit
          MPPT 200–1000 V typical window; datasheet wins
@@ -145,7 +145,7 @@
        value is a deliberate manual override and the page says so. */
     roofClearanceFactor: '',
       subsidyOverride: '',
-      /* Maharashtra state top-up (₹, optional): published only as a range —
+      /* Maharashtra state top-up (₹, optional): published only as a range -
          ₹25,000–₹60,000 by capacity (max at 3 kW); SMART <100-unit households
          add ₹17,500 BPL / ₹15,000 SC-ST / ₹10,000 others on the 1 kW
          benchmark. Enter the figure MSEDCL I-SMART confirms for the customer. */
@@ -162,7 +162,7 @@
     bomBos: '',
     bomInstall: '',
     bomLiaison: '',
-    /* ---- Financing (optional — all three required to show EMI analysis) ---- */
+    /* ---- Financing (optional - all three required to show EMI analysis) ---- */
     loanAmt: '',
     loanRate: '',
     loanYears: '',

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Quotation Studio — Inline SVG Icon Set
+   Quotation Studio - Inline SVG Icon Set
    --------------------------------------------------------------------------
    Emoji glyphs render inconsistently in html2canvas/PDF, so every icon in
    the proposal is a small inline SVG. Colours are emitted as explicit

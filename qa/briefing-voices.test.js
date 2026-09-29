@@ -35,7 +35,7 @@ function boot(voices) {
 const names = { en: 'English test voice', hi: 'Hindi test voice', mr: 'Marathi test voice' };
 const voice = (lang, local) => ({ name: names[String(lang).split('-')[0]] || lang, lang, localService: !!local });
 
-console.log('\n— briefing voice selection —');
+console.log('\n- briefing voice selection -');
 
 check('a Marathi voice is used as-is when the device has one', () => {
   const { Briefing } = boot([voice('en-IN', true), voice('hi-IN', true), voice('mr-IN', true)]);
@@ -82,7 +82,7 @@ check('a local voice still wins over a non-natural network voice', () => {
   assert.equal(Briefing.voicePlan('hi').voice.name, local.name);
 });
 
-check('no English substitution for Marathi either — that would be gibberish', () => {
+check('no English substitution for Marathi either - that would be gibberish', () => {
   const { Briefing } = boot([voice('en-IN', true)]);
   assert.equal(Briefing.voicePlan('mr').voice, null);
   assert.equal(Briefing.voicePlan('en').exact, true);

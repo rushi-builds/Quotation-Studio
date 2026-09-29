@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Reconcile — independent recomputation of every engine output
+   Reconcile - independent recomputation of every engine output
    --------------------------------------------------------------------------
    finance.js is never trusted here. Every figure is recomputed from first
    principles with deliberately DIFFERENT methods:
@@ -44,7 +44,7 @@ function independent(s) {
   const tariff = n(s.tariff);
   const esc = n(s.escalation) / 100;
   const deg = n(s.degradation) / 100;
-  /* Blank or zero means "derive it" — finance.js asks engineering.js for the
+  /* Blank or zero means "derive it" - finance.js asks engineering.js for the
      row pitch when that module is present, and falls back to 1.4 without it.
      Any positive value is a deliberate manual override, clamped to at least
      the bare module area. */
@@ -249,17 +249,17 @@ const BASE = {
 };
 const withBase = (over) => Object.assign({}, BASE, over);
 
-console.log('— Reconcile: capacity sweep (1 → 500 kWp at 545 Wp) —');
+console.log('- Reconcile: capacity sweep (1 → 500 kWp at 545 Wp) -');
 for (const cap of [1, 2, 2.5, 3, 5, 7, 8.175, 10, 15, 20, 25, 50, 100, 250, 500]) {
   check(cap + ' kWp reproduces independently', () => agree(cap + ' kWp', withBase({ capacity: String(cap) })));
 }
 
-console.log('— Reconcile: module wattage sweep (10 kWp) —');
+console.log('- Reconcile: module wattage sweep (10 kWp) -');
 for (const W of [400, 440, 500, 545, 550, 585, 600, 620, 700]) {
   check('10 kWp at ' + W + ' Wp reproduces independently', () => agree(String(W) + ' Wp', withBase({ capacity: '10', moduleWattage: String(W) })));
 }
 
-console.log('— Reconcile: subsidy, tax and connection-type edges —');
+console.log('- Reconcile: subsidy, tax and connection-type edges -');
 const EDGES = [
   ['1 kWp residential', { capacity: '1' }],
   ['2 kWp residential (slab step)', { capacity: '2' }],
@@ -291,7 +291,7 @@ for (const [label, over] of EDGES) {
   check(label + ' reproduces independently', () => agree(label, withBase(over)));
 }
 
-console.log('— Reconcile: undefined results are never fabricated —');
+console.log('- Reconcile: undefined results are never fabricated -');
 check('zero tariff leaves IRR undefined rather than a fabricated percentage', () => {
   assert.ok(Number.isNaN(F.compute(withBase({ capacity: '7', tariff: '0' })).irr));
 });
@@ -309,7 +309,7 @@ check('empty state produces no NaN in the economics that should exist', () => {
   assert.ok(!Number.isFinite(f.payback), 'payback must stay undefined with no cost');
 });
 
-console.log('— Reconcile: financing and EMI —');
+console.log('- Reconcile: financing and EMI -');
 for (const [label, loan] of [
   ['₹5,00,000 @ 9 % / 10 yr', { loanAmt: '500000', loanRate: '9', loanYears: '10' }],
   ['₹9,00,000 @ 11 % / 5 yr', { loanAmt: '900000', loanRate: '11', loanYears: '5' }],
@@ -343,7 +343,7 @@ check('partial financing inputs produce no financing block', () => {
   assert.equal(F.compute(withBase({ capacity: '10', loanAmt: '500000', loanRate: '0', loanYears: '10' })).financing, null);
 });
 
-console.log('— Reconcile: IRR agrees with a high-precision solve —');
+console.log('- Reconcile: IRR agrees with a high-precision solve -');
 for (const cap of [3, 7, 10, 25]) {
   check(cap + ' kWp IRR matches a 200-step bisection', () => {
     const f = F.compute(withBase({ capacity: String(cap) }));
@@ -356,7 +356,7 @@ for (const cap of [3, 7, 10, 25]) {
   });
 }
 
-console.log('— Reconcile: invariants that must hold for every capacity —');
+console.log('- Reconcile: invariants that must hold for every capacity -');
 const inv = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40, 50, 75, 100].map((c) => F.compute(withBase({ capacity: String(c) })));
 check('installed capacity is never below the contracted figure', () => {
   inv.forEach((f, i) => assert.ok(f.installedKwp >= f.contractedKwp - 1e-9, 'failed at index ' + i));
@@ -388,7 +388,7 @@ check('capacity factor for 1460 kWh/kWp/yr stays between 10 % and 25 %', () => {
   inv.forEach((f, i) => assert.ok(f.cufPercent > 10 && f.cufPercent < 25, 'failed at index ' + i));
 });
 
-console.log('— Reconcile: defaults against published sources —');
+console.log('- Reconcile: defaults against published sources -');
 check('GST default equals the 70:30 composite rule', () => {
   assert.equal(Math.round((0.7 * 5 + 0.3 * 18) * 10) / 10, 8.9);
 });
@@ -425,7 +425,7 @@ check('PM Surya Ghar slabs and the ₹78,000 ceiling are unchanged', () => {
 });
 check('projection horizon is 25 years', () => assert.equal(F.YEARS, 25));
 
-console.log('— Reconcile: Indian formatting —');
+console.log('- Reconcile: Indian formatting -');
 check('currency groups in the Indian system', () => {
   assert.equal(F.fmtINR(1234567), '₹12,34,567');
   assert.equal(F.fmtINR(0), '₹0');
@@ -436,10 +436,10 @@ check('compact form picks lakh and crore correctly', () => {
   assert.equal(F.fmtINRshort(8450), '₹8,450');
 });
 check('non-finite values render as a dash, never NaN or Infinity', () => {
-  assert.equal(F.fmtINR(NaN), '—');
-  assert.equal(F.fmtINR(Infinity), '—');
-  assert.equal(F.fmtINRshort(NaN), '—');
-  assert.equal(F.fmtNum(NaN), '—');
+  assert.equal(F.fmtINR(NaN), '-');
+  assert.equal(F.fmtINR(Infinity), '-');
+  assert.equal(F.fmtINRshort(NaN), '-');
+  assert.equal(F.fmtNum(NaN), '-');
 });
 check('date ordinals handle 1st/2nd/3rd and the 11th–13th exceptions', () => {
   assert.equal(F.fmtDate('2026-09-19'), '19th September 2026');
@@ -458,10 +458,10 @@ check('addDays crosses months and years', () => {
 });
 
 /* ==========================================================================
-   Printed hand calculation — 7 kWp at 545 Wp, shipping defaults.
+   Printed hand calculation - 7 kWp at 545 Wp, shipping defaults.
    Every line below is arithmetic a reviewer can repeat on paper.
    ========================================================================== */
-console.log('— Reconcile: printed hand calculation (7 kWp @ 545 Wp, shipped defaults) —');
+console.log('- Reconcile: printed hand calculation (7 kWp @ 545 Wp, shipped defaults) -');
 check('the documented 7 kWp proposal reproduces line by line', () => {
   const f = F.compute({ capacity: 7, moduleWattage: 545, moduleLengthMm: 2278, moduleWidthMm: 1134, genFactor: 1460,
     costPerKwp: 90000, gstPercent: 8.9, tariff: 10, escalation: 4, degradation: 0.5,

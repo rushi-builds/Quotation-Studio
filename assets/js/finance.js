@@ -1,8 +1,8 @@
 /* ==========================================================================
-   Quotation Studio — Financial & Engineering Engine
+   Quotation Studio - Financial & Engineering Engine
    --------------------------------------------------------------------------
    Pure calculation layer. No DOM access. Every value returned is derived
-   ONLY from the state passed in (form inputs) — nothing is invented here.
+   ONLY from the state passed in (form inputs) - nothing is invented here.
 
    State fields consumed (all optional-safe):
      capacity, genFactor, costPerKwp, gstPercent, tariff, escalation,
@@ -29,12 +29,12 @@
 
   /* ---------- number formatting helpers ---------- */
   function fmtINR(n) {
-    if (!isFinite(n)) return '—';
+    if (!isFinite(n)) return '-';
     return '₹' + Math.round(n).toLocaleString('en-IN');
   }
   /** Compact Indian format for tight tiles: ₹6.7L / ₹1.24Cr / ₹8,450 */
   function fmtINRshort(n) {
-    if (!isFinite(n)) return '—';
+    if (!isFinite(n)) return '-';
     const abs = Math.abs(n);
     if (abs >= 1e7) return '₹' + trimDec(n / 1e7) + ' Cr';
     if (abs >= 1e5) return '₹' + trimDec(n / 1e5) + ' L';
@@ -42,7 +42,7 @@
   }
   function trimDec(v) { v = Math.round(v * 100) / 100; return String(v); }
   function fmtNum(n) {
-    if (!isFinite(n)) return '—';
+    if (!isFinite(n)) return '-';
     return Math.round(n).toLocaleString('en-IN');
   }
   function fmtDate(dstr) {
@@ -128,9 +128,9 @@
        Two distinct capacities, both kept explicit so the document cannot
        contradict itself:
 
-         contractedKwp — the kWp written on the quotation / agreed with the
+         contractedKwp - the kWp written on the quotation / agreed with the
                          customer. The quoted investment follows this.
-         installedKwp  — the array that physically gets built. Modules come in
+         installedKwp  - the array that physically gets built. Modules come in
                          whole units, so ceil() normally lands a little ABOVE
                          the contracted figure. All physics follows this one:
                          generation, subsidy, area, DC/AC ratio, CO2.
@@ -159,7 +159,7 @@
        at the worst hour of the design day. engineering.js works that pitch out
        from the tilt, the latitude and the winter-solstice sun angle, so the
        factor is a result here rather than a hidden assumption. A figure typed
-       into the field still wins — the page then labels it a manual factor. */
+       into the field still wins - the page then labels it a manual factor. */
     const manualClearance = num(s.roofClearanceFactor, 0);
     const engLayout = (GLOBAL.Engineering && GLOBAL.Engineering.layout)
       ? GLOBAL.Engineering.layout(s, moduleCount) : null;
@@ -188,7 +188,7 @@
       { key: 'modules',  label: 'Solar Modules',            value: num(bom.modules) },
       { key: 'inverter', label: 'Inverter(s)',              value: num(bom.inverter) },
       { key: 'structure', label: 'Mounting Structure',      value: num(bom.structure) },
-      { key: 'bos',      label: 'BOS — Cables & Protection', value: num(bom.bos) },
+      { key: 'bos',      label: 'BOS - Cables & Protection', value: num(bom.bos) },
       { key: 'install',  label: 'Installation & Commissioning', value: num(bom.install) },
       { key: 'liaison',  label: 'Net-Metering & Liaisoning', value: num(bom.liaison) }
     ].filter((it) => it.value > 0);
@@ -197,12 +197,12 @@
 
     /* ----- subsidy -----
        PM Surya Ghar CFA is assessed on the DC capacity actually installed and
-       registered with the DISCOM, so it follows installedKwp — not the
+       registered with the DISCOM, so it follows installedKwp - not the
        contracted figure. The difference only shows below the 3 kW cap:
        2.5 kWp contracted at 545 Wp is 5 modules = 2.725 kWp → ₹73,050, not
        the ₹69,000 a contracted-basis calculation would report. */
     const customerType = s.customerType || 'residential';
-    /* Maharashtra state top-up: published only as a range — ₹25,000–₹60,000
+    /* Maharashtra state top-up: published only as a range - ₹25,000–₹60,000
        by capacity, maxing at 3 kW (SMART households below 100 units/month add
        ₹17,500 BPL / ₹15,000 SC-ST / ₹10,000 others on the 1 kW benchmark).
        No per-kW slab is public, so the app never invents one: the dealer
@@ -242,7 +242,7 @@
        Year-1 energy follows the INSTALLED array (see note above), so the
        generation figure always reconciles with the module table on page 6. */
     const annualGen = installedKwp * genFactor;                // year-1 kWh
-    /* Transparency helpers for the assumptions strip — derived, never typed. */
+    /* Transparency helpers for the assumptions strip - derived, never typed. */
     const unitsPerKwpDay = genFactor > 0 ? genFactor / 365 : 0;
     const cufPercent = genFactor > 0 ? (genFactor / 8760) * 100 : 0;
     let gen = annualGen, t = tariff;
@@ -318,7 +318,7 @@
     };
     pay.sumPct = pay.advance.pct + pay.dispatch.pct + pay.completion.pct;
 
-    /* ----- financing (EMI) — only when all three loan inputs are entered;
+    /* ----- financing (EMI) - only when all three loan inputs are entered;
        standard reducing-balance formula, nothing else assumed ----- */
     const loanAmt = num(s.loanAmt);
     const loanRate = num(s.loanRate);

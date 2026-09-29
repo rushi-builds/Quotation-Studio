@@ -1,18 +1,18 @@
 /* ==========================================================================
-   Quotation Studio — Chart Engine (dependency-free, canvas-based)
+   Quotation Studio - Chart Engine (dependency-free, canvas-based)
    --------------------------------------------------------------------------
    Charts are drawn on <canvas> because html2canvas rasterises canvas
    bitmaps with perfect fidelity during PDF export (unlike SVG/CSS tricks).
 
-   Every chart is computed ONLY from the finance object passed in — the
+   Every chart is computed ONLY from the finance object passed in - the
    same object rendered as text elsewhere in the proposal, so charts can
    never disagree with the numbers.
 
    Charts:
-     Charts.cumulative(canvas, f)  — cumulative savings vs net investment
-     Charts.annual(canvas, f)      — annual savings bars over 25 years
-     Charts.bridge(canvas, f)      — cost build-up (base → GST → subsidy → net)
-     Charts.donut(canvas, f)       — BOM composition (only when BOM is entered)
+     Charts.cumulative(canvas, f)  - cumulative savings vs net investment
+     Charts.annual(canvas, f)      - annual savings bars over 25 years
+     Charts.bridge(canvas, f)      - cost build-up (base → GST → subsidy → net)
+     Charts.donut(canvas, f)       - BOM composition (only when BOM is entered)
    ========================================================================== */
 'use strict';
 
@@ -31,7 +31,7 @@
   const FONT_DISPLAY = "'Poppins', 'Inter', Arial, sans-serif";
 
   function shortINR(n) {
-    if (!isFinite(n)) return '—';
+    if (!isFinite(n)) return '-';
     const abs = Math.abs(n);
     if (abs >= 1e7) return '₹' + trim((n / 1e7)) + 'Cr';
     if (abs >= 1e5) return '₹' + trim((n / 1e5)) + 'L';
@@ -156,8 +156,8 @@
       ctx.fillStyle = '#FFFFFF';
       ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = ORANGE_DARK; ctx.lineWidth = 2.4; ctx.stroke();
-      /* marker label — flip above the point when it sits near the x-axis */
-      const label = 'Payback — Year ' + f.payback.toFixed(1);
+      /* marker label - flip above the point when it sits near the x-axis */
+      const label = 'Payback - Year ' + f.payback.toFixed(1);
       ctx.font = '700 10.5px ' + FONT_DISPLAY;
       const tw = ctx.measureText(label).width;
       const lx = Math.min(Math.max(px - tw / 2, pad.l), W - pad.r - tw);
@@ -259,7 +259,7 @@
     const steps = [
       { label: 'Project Cost', v: f.projectCost, color: NAVY, sub: 'excl. GST' },
       { label: '+ GST', v: f.gstAmount, color: NAVY_SOFT, sub: f.gstPercent + '%', start: f.projectCost },
-      { label: '− Subsidy', v: -f.subsidy, color: GREEN, sub: f.subsidy > 0 ? 'PM Surya Ghar' : '—', start: f.grossTotal },
+      { label: '− Subsidy', v: -f.subsidy, color: GREEN, sub: f.subsidy > 0 ? 'PM Surya Ghar' : '-', start: f.grossTotal },
       { label: 'Net Payable', v: f.netInvestment, color: ORANGE, sub: 'your investment', total: true }
     ];
     const pad = { l: 16, r: 16, t: 34, b: 42 };
@@ -388,12 +388,12 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* 5. Financing — monthly savings vs EMI over the loan tenure          */
+  /* 5. Financing - monthly savings vs EMI over the loan tenure          */
   /* ------------------------------------------------------------------ */
   function emi(canvas, f) {
     if (!canvas) return;
     /* measure once: clientWidth/Height are 0 while the page is hidden, and
-       setup() rewrites the width/height attributes on every draw — so cache
+       setup() rewrites the width/height attributes on every draw - so cache
        the first reliable reading (falls back to the pristine attributes). */
     if (!canvas.__qsW) {
       canvas.__qsW = canvas.clientWidth || Number(canvas.getAttribute('width')) || 700;

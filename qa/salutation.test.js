@@ -1,8 +1,8 @@
 /* The spoken greeting is a promise to the customer: the right honourific for
    the right person, and never a guess dressed up as knowledge. Every rule in
-   salutation.js — titles, the organisation guard, the unisex list, both
+   salutation.js - titles, the organisation guard, the unisex list, both
    dictionaries, every ending, the dealer override and the per-language lines
-   — is pinned here. */
+   - is pinned here. */
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -46,7 +46,7 @@ function bootBriefing() {
 
 const { Salutation } = bootSalutation();
 
-console.log('\n— salutation: display name —');
+console.log('\n- salutation: display name -');
 
 check('full name speaks the first name only', () => {
   assert.equal(Salutation.displayName('Rushikesh Joshi'), 'Rushikesh');
@@ -76,7 +76,7 @@ check('blank and whitespace-only names display nothing', () => {
   assert.equal(Salutation.displayName('   '), '');
 });
 
-console.log('\n— salutation: explicit titles prove gender —');
+console.log('\n- salutation: explicit titles prove gender -');
 
 check('Mr. / Shri prove male before any name rule runs', () => {
   assert.equal(Salutation.detectGender('Mr. Anyone'), 'male');
@@ -97,7 +97,7 @@ check('Dr. followed by a unisex name stays neutral', () => {
   assert.equal(Salutation.detectGender('Dr. Kiran Rao'), null);
 });
 
-console.log('\n— salutation: organisations get no honourific —');
+console.log('\n- salutation: organisations get no honourific -');
 
 check('company tokens veto the greeting title', () => {
   assert.equal(Salutation.detectGender('Tata Power'), null);
@@ -107,7 +107,7 @@ check('company tokens veto the greeting title', () => {
   assert.equal(Salutation.detectGender('Sneha Builders'), null);
 });
 
-console.log('\n— salutation: unisex names are never a coin flip —');
+console.log('\n- salutation: unisex names are never a coin flip -');
 
 check('unisex names resolve to no title', () => {
   assert.equal(Salutation.detectGender('Kiran Rao'), null);
@@ -116,7 +116,7 @@ check('unisex names resolve to no title', () => {
   assert.equal(Salutation.detectGender('Vimal Kumar'), null);
 });
 
-console.log('\n— salutation: the name dictionary —');
+console.log('\n- salutation: the name dictionary -');
 
 check('dictionary males, including the weak-ending traps', () => {
   assert.equal(Salutation.detectGender('Ravi Kulkarni'), 'male');   // ends in i
@@ -137,7 +137,7 @@ check('dictionary females', () => {
   assert.equal(Salutation.detectGender('Snehal Desai'), 'female');
 });
 
-console.log('\n— salutation: ending heuristics —');
+console.log('\n- salutation: ending heuristics -');
 
 check('strong feminine endings', () => {
   assert.equal(Salutation.detectGender('Bhagyashree Patil'), 'female'); // -shree (dictionary)
@@ -182,7 +182,7 @@ check('Devanagari names never hit the Latin endings', () => {
   assert.equal(Salutation.detectGender('स्नेहा जोशी'), null);
 });
 
-console.log('\n— salutation: the dealer override always wins —');
+console.log('\n- salutation: the dealer override always wins -');
 
 check('fixed overrides beat detection', () => {
   assert.equal(Salutation.honorMode('Rushikesh Joshi', 'female'), 'female');
@@ -208,7 +208,7 @@ check('blank custom falls back to the neutral honourific', () => {
   const g = Salutation.composeGreeting('en', { custName: 'Rahul Sharma', custSalutation: 'custom', custSalutationCustom: '  ' });
   assert.ok(g.includes('Rahul ji,'), g);
 });
-console.log('\n— salutation: composed greetings —');
+console.log('\n- salutation: composed greetings -');
 
 const hi = (name, sal) => Salutation.composeGreeting('hi', { companyName: 'KTM Energy Experts', custName: name, custSalutation: sal });
 const mr = (name, sal) => Salutation.composeGreeting('mr', { companyName: 'KTM Energy Experts', custName: name, custSalutation: sal });
@@ -260,7 +260,7 @@ check('English without a name keeps the legacy line exactly', () => {
     'Welcome to your rooftop solar proposal from KTM Energy Experts.');
 });
 
-console.log('\n— salutation: script matching — every voice reads its own script —');
+console.log('\n- salutation: script matching - every voice reads its own script -');
 
 check('Devanagari is Latinised for the English greeting', () => {
   assert.equal(Salutation.toLatin('रुशिकेश'), 'Rushikesh');
@@ -337,7 +337,7 @@ check('organisations keep their typed name and never get a title', () => {
   assert.equal(Salutation.composeGreeting('mr', s), 'नमस्कार Tata Power. आपल्या रूफटॉप सौर ऊर्जा प्रस्तावाचा हा संक्षिप्त आढावा आहे.');
 });
 
-console.log('\n— salutation: the dealer\u2019s phonetic spelling —');
+console.log('\n- salutation: the dealer\u2019s phonetic spelling -');
 
 check('a typed "say the name as" is honoured in every language', () => {
   const s = { companyName: 'KTM Energy Experts', custName: 'Rushikesh Joshi', custSpokenName: 'रुशिकेश', custSalutation: 'male' };
@@ -358,7 +358,7 @@ check('a Devanagari spoken name with no detection keeps the neutral ji', () => {
   assert.ok(Salutation.composeGreeting('mr', s).startsWith('नमस्कार रुशिकेश जी.'));
 });
 
-console.log('\n— salutation: the closing —');
+console.log('\n- salutation: the closing -');
 
 check('every language ends with thanks', () => {
   assert.equal(Salutation.composeClosing('hi'), 'आपके समय के लिए धन्यवाद।');
@@ -366,7 +366,7 @@ check('every language ends with thanks', () => {
   assert.equal(Salutation.composeClosing('en'), 'Thank you for your time.');
 });
 
-console.log('\n— salutation: inside the real briefing script —');
+console.log('\n- salutation: inside the real briefing script -');
 
 check('the briefing opens with the personal greeting and ends with thanks', () => {
   const { Briefing } = bootBriefing();

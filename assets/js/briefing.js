@@ -130,11 +130,11 @@
     markVoices();
     const plan=voicePlan(language);
     if(plan.voice && plan.exact) return 'Ready in '+names[language]+' · '+plan.voice.name+'. Press Play to begin.';
-    if(plan.voice) return 'No '+names[language]+' voice is installed on this device — playback will use '+plan.voice.name+
+    if(plan.voice) return 'No '+names[language]+' voice is installed on this device - playback will use '+plan.voice.name+
       ' (a '+names[plan.family]+' voice, the closest available). The written '+names[language]+' briefing is below.';
     if(!voicesSettled()) return 'Checking the voices installed on this device… If nothing appears in a few seconds, press Check voices again.';
-    const neither=language==='mr'?' — neither a Marathi nor a Hindi voice is installed':
-                  language==='hi'?' — neither a Hindi nor a Marathi voice is installed':'';
+    const neither=language==='mr'?' - neither a Marathi nor a Hindi voice is installed':
+                  language==='hi'?' - neither a Hindi nor a Marathi voice is installed':'';
     return names[language]+' voice unavailable in this browser on this device'+neither+
       '. Install a voice in the operating system (Windows: Settings → Time & language → Speech → Add voices), press Check voices again, or read the '+names[language]+' briefing below.';
   }
@@ -217,7 +217,7 @@
     /* A manual re-check restarts the wait, so a slow platform can still answer. */
     $('briefingRefresh')?.addEventListener('click',()=>{ if(!voiceList().length){voicesGaveUp=false;watchVoices();} });
     /* The recovery button (legacy id) switches to whichever language can
-       actually be spoken here — Hindi for a Marathi reader when that is what
+       actually be spoken here - Hindi for a Marathi reader when that is what
        the device has, English otherwise. Language choice never autoplays. */
     $('briefingUseEnglish')?.addEventListener('click',()=>{
       const target=fallbackLanguage()||'en';

@@ -58,7 +58,7 @@ function bootApp(seedStorage, url) {
 
 const fire = (w, el, type) => el.dispatchEvent(new w.Event(type, { bubbles: true }));
 
-console.log('— sync: boot & clean cover —');
+console.log('- sync: boot & clean cover -');
 const w = bootApp();
 const d = w.document;
 
@@ -104,7 +104,7 @@ t('live chip dot has no animation (subtle per rule)', (() => {
   return !style.animationName || style.animationName === 'none' || style.animation === '' || !style.animation.includes('livePulse');
 })(), 'should be static per no-gimmicks rule');
 
-console.log('— sync: control-panel modes —');
+console.log('- sync: control-panel modes -');
 const form = d.getElementById('quoteForm');
 const advanced = [...form.querySelectorAll('[data-adv]')];
 t('defaults to Essentials', form.classList.contains('qs-mode-essentials'));
@@ -112,7 +112,7 @@ t('Essentials button active by default', d.getElementById('modeEss').classList.c
 /* Ten since the commercial tax illustration moved inside Financial
    Assumptions as a nested optional; the engineering basis and the rest stay
    hidden in Essentials while every result still prints on the Tech Spec page. */
-t('nine advanced sections — QR & links now sits in the working list', advanced.length === 9, advanced.length);
+t('nine advanced sections - QR & links now sits in the working list', advanced.length === 9, advanced.length);
 t('the engineering design basis is one of them',
   advanced.some((el) => el.querySelector('#tiltDeg') && el.querySelector('#soilResistivity')), 'engineering fieldset');
 t('all advanced sections hidden in Essentials', advanced.every((el) => w.getComputedStyle(el).display === 'none'));
@@ -141,7 +141,7 @@ const invalidMode = bootApp({ 'qstudio.formMode': 'unknown' });
 t('unknown preference falls back to Essentials', invalidMode.document.getElementById('quoteForm').classList.contains('qs-mode-essentials'));
 invalidMode.close();
 
-console.log('— sync: design and simulation references —');
+console.log('- sync: design and simulation references -');
 const refsWrap = d.getElementById('v_tsRefsWrap');
 const pvsystUrl = 'https://www.example.com/reports/site-pvsyst.pdf';
 const arkaUrl = 'https://design.example.org/site/arka';
@@ -186,17 +186,17 @@ updateLink('pvsystUrl', '');
 updateLink('arkaUrl', '');
 t('clearing both report links hides block', w.getComputedStyle(refsWrap).display === 'none');
 
-console.log('— sync: initial capacity 7 kWp real-sync —');
+console.log('- sync: initial capacity 7 kWp real-sync -');
 t('cover capacity = 7 kWp', d.getElementById('v_coverCapacity').textContent === '7 kWp', d.getElementById('v_coverCapacity').textContent);
 t('cover badge Kwp = 7 kWp', d.getElementById('v_coverBadgeKwp').textContent === '7 kWp');
 t('cover badge is the project cost incl. GST (7 kWp)', d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtINRshort(w.Finance.compute(w.Render.lastState).grossTotal), d.getElementById('v_coverBadgeGen').textContent);
 t('cover badge savings contains ₹ and L/Cr not units', d.getElementById('v_coverBadgeGen').textContent.includes('₹') && !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('tech spec module count 13 for 7kWp', d.getElementById('v_tsTable').textContent.includes('13 modules'));
 t('solution spec shows 7 kWp', d.getElementById('v_soSpecs').textContent.includes('7 kWp'));
-t('exec hero net = ₹4,07,051 for 7kWp', d.getElementById('v_exHeroNet').textContent === '₹4,07,051');
+t('exec hero net = ₹4,06,823 for 7kWp', d.getElementById('v_exHeroNet').textContent === '₹4,06,823');
 t('investment rate card present', d.getElementById('v_inRate').textContent.includes('/ Wp'));
 
-console.log('— sync: change capacity to 10 kWp —');
+console.log('- sync: change capacity to 10 kWp -');
 d.getElementById('capacity').value = '10';
 fire(w, d.getElementById('capacity'), 'input');
 
@@ -204,13 +204,13 @@ t('cover capacity updates to 10 kWp', d.getElementById('v_coverCapacity').textCo
 t('cover badge updates to 10 kWp', d.getElementById('v_coverBadgeKwp').textContent === '10 kWp');
 t('cover badge project cost updates for 10 kWp', d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtINRshort(w.Finance.compute(w.Render.lastState).grossTotal), d.getElementById('v_coverBadgeGen').textContent);
 t('live chip updates to 10 kWp', d.getElementById('liveChipText').textContent.includes('10 kWp') || d.getElementById('liveChipText').textContent.includes('10'), d.getElementById('liveChipText').textContent);
-t('exec hero net updates to ₹6,14,931 for 10kWp', d.getElementById('v_exHeroNet').textContent === '₹6,14,931', d.getElementById('v_exHeroNet').textContent);
+t('exec hero net updates to ₹6,14,604 for 10kWp', d.getElementById('v_exHeroNet').textContent === '₹6,14,604', d.getElementById('v_exHeroNet').textContent);
 t('tech spec module count 19 for 10kWp', d.getElementById('v_tsTable').textContent.includes('19 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('solution spec updates to 10 kWp', d.getElementById('v_soSpecs').textContent.includes('10 kWp'));
 t('badge savings does not show units per year', !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('live chip title contains capacity', (d.getElementById('liveChip').title || '').includes('10 kWp') || (d.getElementById('liveChip').title || '').includes('10'));
 
-console.log('— sync: change capacity to 5 kWp —');
+console.log('- sync: change capacity to 5 kWp -');
 d.getElementById('capacity').value = '5';
 fire(w, d.getElementById('capacity'), 'input');
 
@@ -221,23 +221,23 @@ t('live chip updates to 5 kWp', d.getElementById('liveChipText').textContent.inc
 t('tech spec module count 10 for 5kWp', d.getElementById('v_tsTable').textContent.includes('10 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('exec hero net for 5kWp has ₹', d.getElementById('v_exHeroNet').textContent.includes('₹'), d.getElementById('v_exHeroNet').textContent);
 
-console.log('— sync: customer name live-sync to live chip —');
+console.log('- sync: customer name live-sync to live chip -');
 d.getElementById('custName').value = 'Ms. Test Customer';
 fire(w, d.getElementById('custName'), 'input');
 t('live chip shows customer first name Test', d.getElementById('liveChipText').textContent.includes('Test') || d.getElementById('liveChipText').textContent.includes('Ms.'), d.getElementById('liveChipText').textContent);
 t('cover customer name updates', d.getElementById('v_coverCustName').textContent.includes('Test Customer'));
 
-console.log('— sync: 20 kWp final check (₹13,07,861, ₹1.14 Cr, 37 modules) —');
+console.log('- sync: 20 kWp final check (₹13,07,208, ₹1.14 Cr, 37 modules) -');
 d.getElementById('capacity').value = '20';
 fire(w, d.getElementById('capacity'), 'input');
 t('20kWp cover = 20 kWp', d.getElementById('v_coverCapacity').textContent === '20 kWp');
-t('20kWp hero = ₹13,07,861', d.getElementById('v_exHeroNet').textContent === '₹13,07,861', d.getElementById('v_exHeroNet').textContent);
+t('20kWp hero = ₹13,07,208', d.getElementById('v_exHeroNet').textContent === '₹13,07,208', d.getElementById('v_exHeroNet').textContent);
 t('20kWp cover badge is the project cost', d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtINRshort(w.Finance.compute(w.Render.lastState).grossTotal), d.getElementById('v_coverBadgeGen').textContent);
 t('20kWp badge no units', !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('20kWp modules = 37', d.getElementById('v_tsTable').textContent.includes('37 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('live chip shows 20 kWp', d.getElementById('liveChipText').textContent.includes('20 kWp'));
 
-console.log('— sync: share.html OG tags —');
+console.log('- sync: share.html OG tags -');
 const shareHtml = fs.readFileSync(path.join(ROOT, 'share.html'), 'utf8');
 t('share.html has og:title', shareHtml.includes('og:title'));
 t('share.html has og:image', shareHtml.includes('og:image'));
@@ -245,7 +245,7 @@ t('share.html og:image is v2 portrait', shareHtml.includes('v2-portrait'));
 t('share.html has twitter:card', shareHtml.includes('twitter:card'));
 t('share.html has og:description', shareHtml.includes('og:description'));
 
-console.log('— sync: final integrity —');
+console.log('- sync: final integrity -');
 t('no errors after all syncs', errors.length === 0, errors.join('|'));
 t('page count still 15 by default (no options/finance)', d.querySelectorAll('#pageNav .nav-chip').length === 15, d.querySelectorAll('#pageNav .nav-chip').length);
 t('timeline exists (Created→Sent→Accepted)', !!d.getElementById('pmTimeline') && d.getElementById('pmTimeline').querySelectorAll('.pm-tl-step').length === 3);

@@ -10,10 +10,10 @@
 
    Sources, all named at the point of use:
      IS 875 (Part 3):2015   wind load on the array and its attachments
-     IS 3043:2018           earthing — electrode resistance and targets
-     IS 732                 wiring — voltage drop limits on the AC side
+     IS 3043:2018           earthing - electrode resistance and targets
+     IS 732                 wiring - voltage drop limits on the AC side
      IS/IEC 60364-7-712,
-     IEC 62548              PV array design — string voltage, currents
+     IEC 62548              PV array design - string voltage, currents
      IEC 62109-1            inverter DC input limits (Vmax, MPPT window)
      IEC 61215-2            module mechanical load (static load test)
      IEC/IS 62305 (+IS 2309) lightning risk parameters
@@ -22,7 +22,7 @@
                              roof-edge clearance, HDGI galvanising
    The financial module (finance.js) keeps working without this file: it
    falls back to its older clearance-factor estimate when Engineering is
-   absent. Load order matters — this file must precede finance.js.
+   absent. Load order matters - this file must precede finance.js.
    ===================================================================== */
 (function (root) {
   const DEG = Math.PI / 180;
@@ -34,7 +34,7 @@
   const num = (v, d) => (has(v) ? Number(v) : d);
 
   /* =====================================================================
-     1. WIND — IS 875 (Part 3):2015
+     1. WIND - IS 875 (Part 3):2015
      ===================================================================== */
 
   /* Table 2, Class A (largest horizontal dimension under 20 m). Values are
@@ -61,7 +61,7 @@
   /* Vz = Vb · k1 · k2 · k3 · k4   (Cl. 6.3)
      pz = 0.6 · Vz²                (Cl. 7.2, N/m²)
      Kd, Ka and Kc (Cl. 7.2.1–7.2.3) all reduce the pressure, so they are
-     deliberately NOT applied — leaving them out is the conservative side of
+     deliberately NOT applied - leaving them out is the conservative side of
      the code. The basis line on the page says so, so nobody thinks they were
      forgotten. */
   function wind(s) {
@@ -116,7 +116,7 @@
   }
 
   /* =====================================================================
-     2. SHADOW GEOMETRY — the roof area an array actually needs
+     2. SHADOW GEOMETRY - the roof area an array actually needs
      =====================================================================
      Module surface area is not roof area. On any roof carrying more than one
      row, each row occupies its own depth plus the shadow the row in front
@@ -192,11 +192,11 @@
   }
 
   /* =====================================================================
-     3. STRINGS — IS/IEC 60364-7-712 and IEC 62548, against IEC 62109 limits
+     3. STRINGS - IS/IEC 60364-7-712 and IEC 62548, against IEC 62109 limits
      =====================================================================
      A string must clear two walls. At the coldest expected cell temperature
      the open-circuit voltage is at its highest and must stay under the
-     inverter's maximum DC input voltage, a hard limit — exceeding it destroys
+     inverter's maximum DC input voltage, a hard limit - exceeding it destroys
      the input stage. At the hottest it must still sit above the MPPT floor,
      or the machine stops tracking. Both use the module's own temperature
      coefficients, which is why the datasheet numbers are inputs here and
@@ -256,7 +256,7 @@
   }
 
   /* =====================================================================
-     4. CABLE — IS 732 limits, with the tighter DC target of IEC 62548
+     4. CABLE - IS 732 limits, with the tighter DC target of IEC 62548
      =====================================================================
      ΔU = 2·ρ·L·I/A on a two-wire circuit, √3·ρ·L·I/A on three-phase.
      ρ is copper at 70 °C (0.0202 Ω·mm²/m), the operating temperature IS 732
@@ -303,7 +303,7 @@
   }
 
   /* =====================================================================
-     5. EARTHING — IS 3043:2018
+     5. EARTHING - IS 3043:2018
      =====================================================================
      A 3 m pipe electrode 50 mm across in soil of resistivity ρ:
         R = (ρ / 2πL) · [ ln(4L/d) − 1 ]
@@ -324,7 +324,7 @@
     const out = {
       targetOhm, lengthM, diaM,
       twoConnections: true,
-      basis: 'IS 3043:2018 — R = (ρ/2πL)·[ln(4L/d) − 1]; two distinct earth connections for 250–650 V (CEA Safety Regulations 2010)'
+      basis: 'IS 3043:2018 - R = (ρ/2πL)·[ln(4L/d) − 1]; two distinct earth connections for 250–650 V (CEA Safety Regulations 2010)'
     };
     if (!has(s.soilResistivity)) {
       out.ok = false;
@@ -356,12 +356,12 @@
   }
 
   /* =====================================================================
-     6. LIGHTNING — IS/IEC 62305 (IS 2309)
+     6. LIGHTNING - IS/IEC 62305 (IS 2309)
      =====================================================================
      Ng ≈ 0.04 · Td^1.25 flashes/km²/year from the local thunderstorm-day
      count, collection area Ad = LW + 2(L+W)H + πH², expected strikes per
      year Nd = Ng·Ad·10⁻⁶. Whether an LPS is *required* is a risk decision
-     (IEC 62305-2) that belongs to the designer — so the numbers are shown
+     (IEC 62305-2) that belongs to the designer - so the numbers are shown
      and the protection parameters for the chosen level are printed instead
      of the app pretending to make that call.
   */
@@ -389,7 +389,7 @@
   }
 
   /* =====================================================================
-     7. ROOF LOAD — MNRE/UPNEDA rooftop specification
+     7. ROOF LOAD - MNRE/UPNEDA rooftop specification
      =====================================================================
      "the total load of the structure including PV modules on the terrace is
      less than 60 kg/m²". Modules plus racking over the area the array
@@ -415,7 +415,7 @@
   }
 
   /* =====================================================================
-     8. THE WHOLE BASIS — and what it means for the export gate
+     8. THE WHOLE BASIS - and what it means for the export gate
      =====================================================================
      Blocking issues are the ones where a number already proves the design
      wrong: the roof cannot hold the array, a string would exceed the
@@ -439,9 +439,9 @@
     const li = lightning(s);
     const r = roofLoad(s, c.moduleCount, l.ok ? l.requiredArea : 0);
     /* Three levels, because two were not enough to be honest without being
-       noisy.  blocking  — a number already proves the design wrong; no PDF.
-       advisory  — a real suspicion worth a look; the reader may proceed.
-       notes     — an input nobody has supplied yet, or a design statement that
+       noisy.  blocking  - a number already proves the design wrong; no PDF.
+       advisory  - a real suspicion worth a look; the reader may proceed.
+       notes     - an input nobody has supplied yet, or a design statement that
                    is simply informing. The page prints DATA REQUIRED for these
                    and the panel lists them, but a document that makes no claim
                    it cannot support has nothing to stop for. */
@@ -458,7 +458,7 @@
       advisory.push({
         id: 'availableArea',
         message: 'Roof area is ' + Math.ceil(l.requiredArea) + ' m² of shaded array in ' + l.availableArea +
-          ' m² — the 0.6 m clear band around it is not yet confirmed.'
+          ' m² - the 0.6 m clear band around it is not yet confirmed.'
       });
     }
     if (st.ok) {
@@ -467,13 +467,13 @@
           id: 'inverterVmaxDc',
           message: 'One module already reaches ' + Math.round(st.vocColdPerModule) +
             ' V open-circuit at ' + num(s.minAmbientC, 0) + ' °C, above this inverter’s ' +
-            num(s.inverterVmaxDc) + ' V limit — no string of these modules can be built. (IEC 62548)'
+            num(s.inverterVmaxDc) + ' V limit - no string of these modules can be built. (IEC 62548)'
         });
       } else if (st.overVoltage) {
         blocking.push({
           id: 'inverterVmaxDc',
           message: 'A string of ' + st.seriesPerString + ' modules reaches ' + Math.round(st.vocColdString) +
-            ' V open-circuit at ' + num(s.minAmbientC, 0) + ' °C — above the inverter limit of ' + num(s.inverterVmaxDc) +
+            ' V open-circuit at ' + num(s.minAmbientC, 0) + ' °C - above the inverter limit of ' + num(s.inverterVmaxDc) +
             ' V. The input stage fails on the first cold morning.'
         });
       }
@@ -482,7 +482,7 @@
           id: 'mpptMinV',
           message: 'At ' + num(s.maxCellC, 65) + ' °C cell temperature a string of ' + st.seriesPerString +
             ' modules falls to ' + Math.round(st.vmpHotString) + ' V, below the ' + num(s.mpptMinV) +
-            ' V MPPT floor — the inverter would stop tracking.'
+            ' V MPPT floor - the inverter would stop tracking.'
         });
       }
       if (st.iscOverload) {
@@ -495,7 +495,7 @@
     } else {
       notes.push({
         id: 'moduleVoc',
-        message: 'DATA REQUIRED — string design cannot be checked: add the module Voc/Vmp/Isc/Imp and the inverter DC limits (' +
+        message: 'DATA REQUIRED - string design cannot be checked: add the module Voc/Vmp/Isc/Imp and the inverter DC limits (' +
           st.missing.join(', ') + ').'
       });
     }
@@ -507,21 +507,21 @@
           w.moduleRatingPa + ' Pa IEC 61215 mechanical-load rating.'
       });
     }
-    if (!w.ok) notes.push({ id: 'windSpeed', message: 'DATA REQUIRED — wind load is not calculated: ' + w.missing.join(', ') + '.' });
+    if (!w.ok) notes.push({ id: 'windSpeed', message: 'DATA REQUIRED - wind load is not calculated: ' + w.missing.join(', ') + '.' });
     else if (w.k2BeyondTable) {
-      notes.push({ id: 'buildingHeightM', message: 'Height is above the 15 m row of IS 875-3 Table 2 — k2 must be read from the table for this height.' });
+      notes.push({ id: 'buildingHeightM', message: 'Height is above the 15 m row of IS 875-3 Table 2 - k2 must be read from the table for this height.' });
     }
     if (cb.dc.ok && !cb.dc.pass) {
       advisory.push({ id: 'dcCableSizeMm2', message: 'DC voltage drop is ' + cb.dc.percent.toFixed(2) + ' %, above the ' + cb.dc.limitPct + ' % design limit.' });
-    } else if (!cb.dc.ok) notes.push({ id: 'dcCableLengthM', message: 'DATA REQUIRED — DC voltage drop is not checked: ' + cb.dc.missing.join(', ') + '.' });
+    } else if (!cb.dc.ok) notes.push({ id: 'dcCableLengthM', message: 'DATA REQUIRED - DC voltage drop is not checked: ' + cb.dc.missing.join(', ') + '.' });
     if (cb.ac.ok && !cb.ac.pass) {
       advisory.push({ id: 'acCableSizeMm2', message: 'AC voltage drop is ' + cb.ac.percent.toFixed(2) + ' %, above the IS 732 limit of ' + cb.ac.limitPct + ' %.' });
-    } else if (!cb.ac.ok) notes.push({ id: 'acCableLengthM', message: 'DATA REQUIRED — AC voltage drop is not checked: ' + cb.ac.missing.join(', ') + '.' });
-    if (!e.ok) notes.push({ id: 'soilResistivity', message: 'DATA REQUIRED — earthing design needs ' + e.missing.join(', ') + '.' });
+    } else if (!cb.ac.ok) notes.push({ id: 'acCableLengthM', message: 'DATA REQUIRED - AC voltage drop is not checked: ' + cb.ac.missing.join(', ') + '.' });
+    if (!e.ok) notes.push({ id: 'soilResistivity', message: 'DATA REQUIRED - earthing design needs ' + e.missing.join(', ') + '.' });
     else if (e.chemicalRequired) notes.push({
       id: 'soilResistivity',
       message: 'Earthing: ' + e.singleOhm.toFixed(1) + ' Ω for one ' + e.lengthM + ' m pipe electrode at ' +
-        e.soilResistivity + ' Ω·m — the ' + e.targetOhm + ' Ω target is not reachable with pipe electrodes alone. ' +
+        e.soilResistivity + ' Ω·m - the ' + e.targetOhm + ' Ω target is not reachable with pipe electrodes alone. ' +
         'A chemical or deeper electrode design is required (IS 3043).'
     });
     else notes.push({
@@ -537,7 +537,7 @@
           ' m rolling sphere, down conductors within ' + li.params.down + ' m, earth ≤ ' + li.earthOhm + ' Ω.'
       });
     }
-    if (!r.pass) notes.push({ id: 'moduleWeightKg', message: 'DATA REQUIRED — roof load is not checked: module weight and array area are needed.' });
+    if (!r.pass) notes.push({ id: 'moduleWeightKg', message: 'DATA REQUIRED - roof load is not checked: module weight and array area are needed.' });
 
     return {
       wind: w, layout: l, string: st, cable: cb, earthing: e, lightning: li, roofLoad: r,

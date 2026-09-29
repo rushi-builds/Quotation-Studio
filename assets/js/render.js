@@ -1,8 +1,8 @@
 /* ==========================================================================
-   Quotation Studio — Page Renderers
+   Quotation Studio - Page Renderers
    --------------------------------------------------------------------------
    Renders all proposal pages from (state × CONTENT × Finance). Pages are
-   registered in PAGES[] — the single source of truth for page order,
+   registered in PAGES[] - the single source of truth for page order,
    numbering, the preview navigator and the PDF export loop.
 
    Rules:
@@ -47,22 +47,22 @@
       capacity: s.capacity, annualGen: F.fmtNum(f.annualGen) + ' kWh',
       co2Annual: f.co2Annual.toFixed(1), treesAnnual: F.fmtNum(f.treesAnnual),
       company: s.companyName, companyCaps: s.companyName.toUpperCase(),
-      payback: isFinite(f.payback) ? f.payback.toFixed(1) : '—',
-      moduleCount: f.moduleCount || '—', moduleWattage: f.moduleWattage || '—',
-      inverterRating: f.inverterKw ? f.inverterKw + ' kW' : '—',
+      payback: isFinite(f.payback) ? f.payback.toFixed(1) : '-',
+      moduleCount: f.moduleCount || '-', moduleWattage: f.moduleWattage || '-',
+      inverterRating: f.inverterKw ? f.inverterKw + ' kW' : '-',
       tariff: s.tariff, escalation: s.escalation, degradation: s.degradation,
       genFactor: s.genFactor, validity: s.validityDays + ' days',
       duration: s.durationText, jurisdiction: s.jurisdiction,
       surveyWindow: s.surveyWindow,
       monthlySaving: F.fmtINR(f.annualSaving / 12),
       netInvestment: F.fmtINR(f.netInvestment),
-      validTill: F.fmtDate(F.addDays(s.propDate, s.validityDays)) || '—',
+      validTill: F.fmtDate(F.addDays(s.propDate, s.validityDays)) || '-',
       customerType: TYPE_LABEL[s.customerType] || 'Residential'
     };
   }
 
   /* ================================================================== */
-  /* PAGE 1 — COVER                                                      */
+  /* PAGE 1 - COVER                                                      */
   /* ================================================================== */
   function renderCover(s, f, v) {
     set('v_coverEyebrow', tpl(CONTENT.cover.eyebrowByType[s.customerType] || CONTENT.cover.eyebrowByType.residential, v));
@@ -74,7 +74,7 @@
     set('v_coverCapacityLabel', CONTENT.cover.labels.capacity);
     set('v_coverCapacity', s.capacity + ' kWp');
     set('v_coverDateLabel', CONTENT.cover.labels.date);
-    set('v_coverDate', F.fmtDate(s.propDate) || '—');
+    set('v_coverDate', F.fmtDate(s.propDate) || '-');
     set('v_coverValidLabel', CONTENT.cover.labels.validTill);
     set('v_coverValid', v.validTill);
     set('v_coverRefLabel', CONTENT.cover.labels.reference);
@@ -109,7 +109,7 @@
       });
     }
 
-    /* cover QR — generated only from a real link provided by the user */
+    /* cover QR - generated only from a real link provided by the user */
     const qrWrap = $('coverQrWrap');
     if (qrWrap) {
       const url = (s.shareUrl || '').trim();
@@ -127,7 +127,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 2 — EXECUTIVE SUMMARY                                          */
+  /* PAGE 2 - EXECUTIVE SUMMARY                                          */
   /* ================================================================== */
   function renderExec(s, f, v) {
     const E = CONTENT.exec;
@@ -141,24 +141,24 @@
     set('v_exHeroNetLabel', root.Bess.included(s) ? 'Solar-only net investment' : E.heroLabels.netInvestment);
     set('v_exHeroSave', F.fmtINR(f.annualSaving));
     set('v_exHeroSaveLabel', E.heroLabels.year1Saving);
-    set('v_exHeroPayback', isFinite(f.payback) ? f.payback.toFixed(1) + ' yrs' : '—');
+    set('v_exHeroPayback', isFinite(f.payback) ? f.payback.toFixed(1) + ' yrs' : '-');
     set('v_exHeroPaybackLabel', E.heroLabels.payback);
     /* The fourth hero tile names the money the customer gets back from the
-       scheme — the actual computed subsidy (central slab plus any entered
+       scheme - the actual computed subsidy (central slab plus any entered
        state top-up, or the override), never a promise. */
     set('v_exHeroLifetime', F.fmtINR(f.subsidy));
     set('v_exHeroLifetimeLabel', E.heroLabels.subsidy);
 
-    /* KPI tiles — 8 tiles; the bill-offset tile replaces the warranty tile
+    /* KPI tiles - 8 tiles; the bill-offset tile replaces the warranty tile
        only when the customer's monthly bill has been entered. */
     const k = E.kpis;
     const tiles = [
       { l: k.capacity, val: s.capacity + ' kWp', icon: 'panel' },
       { l: k.annualGen, val: F.fmtNum(f.annualGen) + ' kWh', icon: 'sun' },
-      { l: k.modules, val: f.moduleCount ? f.moduleCount + ' × ' + f.moduleWattage + ' Wp' : '—', icon: 'grid2' },
-      { l: k.arrayArea, val: f.arrayArea ? Math.round(f.arrayArea) + ' m²' : '—', icon: 'target' },
-      { l: k.irr, val: isFinite(f.irr) ? f.irr.toFixed(1) + '%' : '—', icon: 'trend' },
-      { l: k.effective, val: f.lifetimeGen > 0 && Number.isFinite(f.effectivePerUnit) && f.effectivePerUnit >= 0 ? '₹' + f.effectivePerUnit.toFixed(2) + ' / unit' : '—', icon: 'rupee' },
+      { l: k.modules, val: f.moduleCount ? f.moduleCount + ' × ' + f.moduleWattage + ' Wp' : '-', icon: 'grid2' },
+      { l: k.arrayArea, val: f.arrayArea ? Math.round(f.arrayArea) + ' m²' : '-', icon: 'target' },
+      { l: k.irr, val: isFinite(f.irr) ? f.irr.toFixed(1) + '%' : '-', icon: 'trend' },
+      { l: k.effective, val: f.lifetimeGen > 0 && Number.isFinite(f.effectivePerUnit) && f.effectivePerUnit >= 0 ? '₹' + f.effectivePerUnit.toFixed(2) + ' / unit' : '-', icon: 'rupee' },
       { l: k.co2, val: f.co2Annual.toFixed(1) + ' tonnes', icon: 'leaf' }
     ];
     if (f.monthlyBill > 0 && f.annualSaving > 0) {
@@ -194,7 +194,7 @@
 
   function modeDesc(mode, s) {
     const map = {
-      module: s.moduleMake + ' — ' + (f_moduleLine(s)),
+      module: s.moduleMake + ' - ' + (f_moduleLine(s)),
       inverter: s.inverterMake + '.',
       mount: s.mountMake + '.',
       cable: s.cableMake + ' cables & protection.'
@@ -206,7 +206,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE — SYSTEM OPTIONS COMPARISON (visible when 2+ options saved)    */
+  /* PAGE - SYSTEM OPTIONS COMPARISON (visible when 2+ options saved)    */
   /* ================================================================== */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
     'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
@@ -255,13 +255,13 @@
     const m = P.metrics;
     const rows = [
       { label: m.capacity, vals: cols.map((c) => c.fin.capacity + ' kWp') },
-      { label: m.modules, vals: cols.map((c) => c.fin.moduleCount ? c.fin.moduleCount + ' × ' + c.fin.moduleWattage + ' Wp' : '—') },
+      { label: m.modules, vals: cols.map((c) => c.fin.moduleCount ? c.fin.moduleCount + ' × ' + c.fin.moduleWattage + ' Wp' : '-') },
       { label: m.annualGen, vals: cols.map((c) => c.fin.annualGen), fmt: (x) => F.fmtNum(x) + ' kWh', best: 'max' },
       { label: m.annualSaving, vals: cols.map((c) => c.fin.annualSaving), fmt: F.fmtINR, best: 'max' },
       { label: m.netInvestment, vals: cols.map((c) => c.fin.netInvestment), fmt: F.fmtINR, best: 'min' },
       { label: m.costPerWp, vals: cols.map((c) => c.fin.costPerWp), fmt: (x) => '₹' + (Math.round(x * 10) / 10) + ' / Wp', best: 'min' },
-      { label: m.payback, vals: cols.map((c) => c.fin.payback), fmt: (x) => isFinite(x) ? x.toFixed(1) + ' yrs' : '—', best: 'min' },
-      { label: m.irr, vals: cols.map((c) => c.fin.irr), fmt: (x) => isFinite(x) ? x.toFixed(1) + '%' : '—', best: 'max' },
+      { label: m.payback, vals: cols.map((c) => c.fin.payback), fmt: (x) => isFinite(x) ? x.toFixed(1) + ' yrs' : '-', best: 'min' },
+      { label: m.irr, vals: cols.map((c) => c.fin.irr), fmt: (x) => isFinite(x) ? x.toFixed(1) + '%' : '-', best: 'max' },
       { label: m.lifetime, vals: cols.map((c) => c.fin.lifetimeSaving), fmt: F.fmtINR, best: 'max' },
       { label: m.co2, vals: cols.map((c) => c.fin.co2Annual), fmt: (x) => x.toFixed(1) + ' t/yr', best: 'max' }
     ];
@@ -275,7 +275,7 @@
     });
     html += '</tbody>';
     setHTML('v_opTable', html);
-    /* at-a-glance chips — computed winners from the same comparison */
+    /* at-a-glance chips - computed winners from the same comparison */
     const oldChips = document.getElementById('v_opChips');
     if (oldChips) oldChips.remove();
     if (opts.length >= 2) {
@@ -308,7 +308,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 3 — ABOUT                                                      */
+  /* PAGE 3 - ABOUT                                                      */
   /* ================================================================== */
   function renderAbout(s, f, v) {
     const P = CONTENT.pageAbout;
@@ -330,7 +330,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 4 — WHY ROOFTOP SOLAR                                          */
+  /* PAGE 4 - WHY ROOFTOP SOLAR                                          */
   /* ================================================================== */
   function renderWhySolar(s, f, v) {
     const P = CONTENT.pageWhySolar;
@@ -357,7 +357,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 5 — PROPOSED SOLUTION                                          */
+  /* PAGE 5 - PROPOSED SOLUTION                                          */
   /* ================================================================== */
   function renderSolution(s, f, v) {
     const P = CONTENT.pageSolution;
@@ -367,7 +367,7 @@
     const dyn = [
       { icon: 'target', title: s.capacity + ' kWp', desc: 'Recommended System Capacity' },
       { icon: 'sun', title: '≈ ' + F.fmtNum(f.annualGen) + ' kWh', desc: 'Estimated Annual Energy Generation (Year 1)' },
-      { icon: 'panel', title: f.moduleCount + ' × ' + f.moduleWattage + ' Wp', desc: (s.moduleTech || 'Solar') + ' Modules — ' + s.moduleMake }
+      { icon: 'panel', title: f.moduleCount + ' × ' + f.moduleWattage + ' Wp', desc: (s.moduleTech || 'Solar') + ' Modules - ' + s.moduleMake }
     ];
     setHTML('v_soSpecs', dyn.concat(P.specs).map((it) =>
       '<div class="card spec-card">' + I.chip(it.icon, 28) +
@@ -377,7 +377,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 6 — TECHNICAL SPECIFICATION                                    */
+  /* PAGE 6 - TECHNICAL SPECIFICATION                                    */
   /* ================================================================== */
   function renderTechSpec(s, f, v) {
     const P = CONTENT.pageTechSpec;
@@ -405,7 +405,7 @@
     };
     addRows('SOLAR MODULES', [
       ['Make', s.moduleMake],
-      ['Technology', s.moduleTech || '—'],
+      ['Technology', s.moduleTech || '-'],
       ['Rated Power', f.moduleWattage + ' Wp per module'],
       ['Quantity', f.moduleCount + ' modules'],
       // Keep engineering values numeric until final formatting. fmtNum returns
@@ -416,21 +416,21 @@
         ? f.installedKwp.toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp' +
           (f.capacityExact ? '' : ' (contracted ' +
             Number(f.contractedKwp).toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp)')
-        : '—'],
-      ['Total Module Area', f.arrayArea ? Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)' : '—'],
+        : '-'],
+      ['Total Module Area', f.arrayArea ? Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)' : '-'],
       ['Performance Warranty', CONTENT.shared.warrantyLine]
     ]);
     addRows('INVERTER', [
       ['Make', s.inverterMake],
-      ['Rated Output', f.inverterKw + ' kW' + (s.inverterKw ? '' : ' (auto — equal to capacity)')],
+      ['Rated Output', f.inverterKw + ' kW' + (s.inverterKw ? '' : ' (auto - equal to capacity)')],
       ['DC/AC Ratio', Number.isFinite(f.dcAcRatio) && f.dcAcRatio > 0
-        ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '—'],
+        ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '-'],
       ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
     ]);
     /* ---- engineering design basis ------------------------------------------
        Everything below is either arithmetic a named standard defines or a
        figure the designer supplied. Where an input is missing the row says
-       DATA REQUIRED and the design-basis block lists what to bring — the page
+       DATA REQUIRED and the design-basis block lists what to bring - the page
        never fills that gap with a plausible-looking number. */
     const phaseCount = f.isCommercialOrInd ? 3 : 1;
     const acVoltageV = phaseCount === 3 ? 415 : 230;
@@ -445,20 +445,20 @@
 
     addRows('MOUNTING & CABLING', [
       ['Structure Make', s.mountMake],
-      ['Roof Type', s.roofType || '—'],
+      ['Roof Type', s.roofType || '-'],
       ['Cabling & Protection', s.cableMake],
-      /* Not "included as per EPC scope" — that claims a design without one.
+      /* Not "included as per EPC scope" - that claims a design without one.
          Either the electrode design is here, or the row says what is missing. */
       ['Earthing', (eng && eng.earthing.ok)
         ? eng.earthing.electrodeCount + ' × ' + eng.earthing.lengthM + ' m pipe electrode at ' +
           eng.earthing.soilResistivity + ' Ω·m ⇒ ' + round1(eng.earthing.parallelOhm) +
-          ' Ω against ' + eng.earthing.targetOhm + ' Ω (IS 3043) — two distinct earths (CEA 2010)'
-        : REQ + ' — soil resistivity test; electrode design to follow (IS 3043)'],
+          ' Ω against ' + eng.earthing.targetOhm + ' Ω (IS 3043) - two distinct earths (CEA 2010)'
+        : REQ + ' - soil resistivity test; electrode design to follow (IS 3043)'],
       ['Lightning Protection', (eng && eng.lightning.ok && eng.lightning.strikesPerYear)
         ? 'LPL ' + eng.lightning.lpsClass + ': ' + eng.lightning.params.mesh + ' m mesh, ' +
           eng.lightning.params.sphere + ' m rolling sphere, down conductors ≤ ' +
-          eng.lightning.params.down + ' m, earth ≤ ' + eng.lightning.earthOhm + ' Ω (IEC 62305) — risk assessment to confirm'
-        : REQ + ' — lightning risk assessment (IEC 62305)']
+          eng.lightning.params.down + ' m, earth ≤ ' + eng.lightning.earthOhm + ' Ω (IEC 62305) - risk assessment to confirm'
+        : REQ + ' - lightning risk assessment (IEC 62305)']
     ]);
     if (s.availableArea) {
       /* Module area alone is not enough roof. Two rows tell the truth about
@@ -467,17 +467,17 @@
       const need = Math.ceil(f.requiredArea || 0);
       const avail = parseFloat(s.availableArea);
       const verdict = f.clearanceSource === 'manual'
-        ? (avail >= need ? '— fits ✓' : '— exceeds available area')
+        ? (avail >= need ? '- fits ✓' : '- exceeds available area')
         : (eng && eng.layout && eng.layout.ok
-            ? (eng.layout.verdict === 'short' ? '— exceeds available area'
-              : eng.layout.verdict === 'tight' ? '— fits the rows; the clear band around them is not confirmed'
-              : '— fits ✓')
-            : (avail >= need ? '— fits ✓' : '— exceeds available area'));
+            ? (eng.layout.verdict === 'short' ? '- exceeds available area'
+              : eng.layout.verdict === 'tight' ? '- fits the rows; the clear band around them is not confirmed'
+              : '- fits ✓')
+            : (avail >= need ? '- fits ✓' : '- exceeds available area'));
       const basis = f.clearanceSource === 'manual'
-        ? 'module area × ' + f.roofClearanceFactor + ' clearance — manual factor'
+        ? 'module area × ' + f.roofClearanceFactor + ' clearance - manual factor'
         : (eng && eng.layout && eng.layout.ok
             ? 'row pitch ' + round2(eng.layout.geo.pitchM) + ' m at ' + s.tiltDeg + '° tilt, no shading ' +
-              '09:00–15:00 on 21 December at ' + s.latitudeDeg + '°N — module area × ' +
+              '09:00–15:00 on 21 December at ' + s.latitudeDeg + '°N - module area × ' +
               round2(f.roofClearanceFactor) + ' clearance'
             : 'module area × ' + round2(f.roofClearanceFactor) + ' clearance');
       addRows('SITE', [
@@ -490,11 +490,11 @@
       const wind = eng.wind, lay = eng.layout, str = eng.string;
       const rows2 = [];
       if (lay && lay.ok) {
-        rows2.push(['Tilt & row spacing', s.tiltDeg + '° tilt, ' + s.latitudeDeg + '°N — row pitch ' +
+        rows2.push(['Tilt & row spacing', s.tiltDeg + '° tilt, ' + s.latitudeDeg + '°N - row pitch ' +
           round2(lay.geo.pitchM) + ' m from a ' + round1(lay.geo.altitudeDeg) +
           '° mid-morning sun on 21 December (winter solstice)']);
       } else {
-        rows2.push(['Tilt & row spacing', REQ + ' — ' + (lay ? lay.missing.join(', ') : 'design inputs')]);
+        rows2.push(['Tilt & row spacing', REQ + ' - ' + (lay ? lay.missing.join(', ') : 'design inputs')]);
       }
       rows2.push(['Wind pressure', wind.ok
         ? wind.vb + ' m/s (IS 875-3:2015 map) × k1 ' + wind.k1 + ' × k2 ' + wind.k2.toFixed(2) +
@@ -502,31 +502,31 @@
           round1(wind.pz) + ' N/m². Net uplift ' + round1(wind.uplift) + ' N/m² at ×' +
           wind.netCp + ' coefficient and ×' + wind.zoneFactor + ' ' + wind.roofZone +
           ' zone ⇒ ' + round1(wind.factoredUplift) + ' N/m² design, ' +
-          round1(wind.perAnchorN) + ' N per anchor — module rating ' + wind.moduleRatingPa +
+          round1(wind.perAnchorN) + ' N per anchor - module rating ' + wind.moduleRatingPa +
           ' Pa (IEC 61215)'
-        : REQ + ' — site wind data (IS 875-3:2015)']);
+        : REQ + ' - site wind data (IS 875-3:2015)']);
       rows2.push(['String design', str.ok
         ? str.strings + ' × ' + str.seriesPerString + ' modules in series · Voc at ' + s.minAmbientC +
           ' °C = ' + Math.round(str.vocColdString) + ' V against the inverter’s ' + s.inverterVmaxDc +
           ' V limit' + (str.maxSeriesByVoltage === str.seriesPerString ? ' · longest string allowed here is ' + str.maxSeriesByVoltage + ' modules' : '') +
           ' · Vmp at ' + s.maxCellC + ' °C = ' + Math.round(str.vmpHotString) + ' V against the ' +
           s.mpptMinV + ' V MPPT floor (IEC 62548)'
-        : REQ + ' — module datasheet & inverter DC limits (IEC 62548)']);
+        : REQ + ' - module datasheet & inverter DC limits (IEC 62548)']);
       rows2.push(['Cable voltage drop', (eng.cable.dc.ok ? 'DC ' + eng.cable.dc.percent.toFixed(2) + ' % over ' +
-        eng.cable.dc.lengthM + ' m of ' + eng.cable.dc.sizeMm2 + ' mm²' : 'DC ' + REQ + ' — length & size') + ' · ' +
+        eng.cable.dc.lengthM + ' m of ' + eng.cable.dc.sizeMm2 + ' mm²' : 'DC ' + REQ + ' - length & size') + ' · ' +
         (eng.cable.ac.ok ? 'AC ' + eng.cable.ac.percent.toFixed(2) + ' % over ' + eng.cable.ac.lengthM +
           ' m of ' + eng.cable.ac.sizeMm2 + ' mm² (' + eng.cable.ac.phases + '-phase, IS 732 limit ' +
-          eng.cable.ac.limitPct + ' %)' : 'AC ' + REQ + ' — length & size')]);
+          eng.cable.ac.limitPct + ' %)' : 'AC ' + REQ + ' - length & size')]);
       if (eng.roofLoad.ok) {
         rows2.push(['Terrace load', round1(eng.roofLoad.kgPerM2) + ' kg/m² from modules (' +
           eng.roofLoad.moduleWeightKg + ' kg each) and racking against the ' +
           eng.roofLoad.benchmarkKgM2 + ' kg/m² benchmark (MNRE/UPNEDA). Roof capacity itself is a structural check']);
       } else {
-        rows2.push(['Terrace load', REQ + ' — module weight & array area (MNRE/UPNEDA)']);
+        rows2.push(['Terrace load', REQ + ' - module weight & array area (MNRE/UPNEDA)']);
       }
-      const strip = (m) => m.replace(/^DATA REQUIRED — /, '');
+      const strip = (m) => m.replace(/^DATA REQUIRED - /, '');
       /* The honesty row stays, but as a short shopping list rather than full
-         sentences — the detail lives in the rows above and in the panel. */
+         sentences - the detail lives in the rows above and in the panel. */
       const GAP_LABEL = {
         moduleVoc: 'module datasheet (string design)',
         windSpeed: 'site wind speed',
@@ -539,8 +539,8 @@
         .map((n) => GAP_LABEL[n.id] || strip(n.message));
       const design = eng.notes.filter((n) => !/^DATA REQUIRED/.test(n.message)).map((n) => strip(n.message));
       rows2.push(['Data still required', gaps.length
-        ? REQ + ' — ' + gaps.join(' · ')
-        : 'None — every design figure on this page is either calculated or supplied']);
+        ? REQ + ' - ' + gaps.join(' · ')
+        : 'None - every design figure on this page is either calculated or supplied']);
       if (design.length) rows2.push(['Design notes', design.join(' ')]);
       if (eng.advisory.length) rows2.push(['Review before sending', eng.advisory.map((a) => a.message).join(' ')]);
       addRows('ENGINEERING DESIGN BASIS', rows2);
@@ -574,8 +574,8 @@
   function systemDiagram(s, f, P, v) {
     const L = P.diagramLabels;
     const vars = Object.assign({
-      moduleCount: f.moduleCount || '—', moduleWattage: f.moduleWattage || '—',
-      inverterRating: f.inverterKw ? f.inverterKw + ' kW' : '—'
+      moduleCount: f.moduleCount || '-', moduleWattage: f.moduleWattage || '-',
+      inverterRating: f.inverterKw ? f.inverterKw + ' kW' : '-'
     }, v || {});
     const navy = '#17354A', muted = '#64788A', dc = '#EC841F', ac = '#347A9A';
     const ctx = document.createElement('canvas').getContext('2d');
@@ -725,7 +725,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 7 — EPC SCOPE                                                  */
+  /* PAGE 7 - EPC SCOPE                                                  */
   /* ================================================================== */
   function renderScope(s, f, v) {
     const P = CONTENT.pageScope;
@@ -749,7 +749,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 8 — INSTALLATION QUALITY                                       */
+  /* PAGE 8 - INSTALLATION QUALITY                                       */
   /* ================================================================== */
   function renderQuality(s, f, v) {
     const P = CONTENT.pageQuality;
@@ -770,7 +770,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 9 — GENERATION & SAVINGS ANALYSIS                              */
+  /* PAGE 9 - GENERATION & SAVINGS ANALYSIS                              */
   /* ================================================================== */
   function renderSavings(s, f, v) {
     const P = CONTENT.pageSavings;
@@ -783,7 +783,7 @@
     set('v_svChipSaveL', P.chips.annualSaving);
     set('v_svChipY25', F.fmtINR(f.series.saving[24]));
     set('v_svChipY25L', P.chips.year25Saving);
-    set('v_svChipEff', f.lifetimeGen > 0 && Number.isFinite(f.effectivePerUnit) && f.effectivePerUnit >= 0 ? '₹' + f.effectivePerUnit.toFixed(2) + '/unit' : '—');
+    set('v_svChipEff', f.lifetimeGen > 0 && Number.isFinite(f.effectivePerUnit) && f.effectivePerUnit >= 0 ? '₹' + f.effectivePerUnit.toFixed(2) + '/unit' : '-');
     set('v_svChipEffL', P.chips.effective);
 
     set('v_svChartCumTitle', P.chartCumTitle);
@@ -805,7 +805,7 @@
         return '<tr><td class="sv-y">' + y + ' yrs</td>' +
           '<td>' + F.fmtINR(cum) + '</td>' +
           '<td class="' + (net >= 0 ? 'pos' : 'neg') + '">' + (net >= 0 ? '+' : '−') + ' ' + F.fmtINR(Math.abs(net)) + '</td>' +
-          '<td class="' + (net >= 0 ? 'pos' : 'neg') + '">' + (Number.isFinite(roi) ? (roi >= 0 ? '+' : '−') + Math.abs(roi).toFixed(0) + '%' : '—') + '</td></tr>';
+          '<td class="' + (net >= 0 ? 'pos' : 'neg') + '">' + (Number.isFinite(roi) ? (roi >= 0 ? '+' : '−') + Math.abs(roi).toFixed(0) + '%' : '-') + '</td></tr>';
       }).join('') + '</tbody>');
 
     set('v_svAssumptionsLabel', P.assumptionsLabel);
@@ -819,7 +819,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 10 — INVESTMENT & COST BREAKDOWN                               */
+  /* PAGE 10 - INVESTMENT & COST BREAKDOWN                               */
   /* ================================================================== */
   function renderInvestment(s, f, v) {
     const P = CONTENT.pageInvestment;
@@ -875,7 +875,7 @@
       }).join('') +
         (Math.abs(f.bomDelta) > Math.max(2000, f.projectCost * 0.02)
           ? '<div class="bom-warn">⚠ Breakdown entered covers ' + F.fmtINR(f.bomSum) + ' of the ' +
-            F.fmtINR(f.projectCost) + ' project cost — the two are shown exactly as entered.</div>'
+            F.fmtINR(f.projectCost) + ' project cost - the two are shown exactly as entered.</div>'
           : ''));
     }
 
@@ -887,7 +887,7 @@
     set('v_inPayLabel', P.paymentLabel);
     set('v_inPayNote', (root.Bess.included(s) ? 'Solar-only milestones. ' : '') + P.paymentNote);
     const pay = [
-      ['v_inPayA', f.pay.advance, 'Advance — on signing'],
+      ['v_inPayA', f.pay.advance, 'Advance - on signing'],
       ['v_inPayD', f.pay.dispatch, 'Before material dispatch'],
       ['v_inPayC', f.pay.completion, 'On completion & handover']
     ];
@@ -898,14 +898,14 @@
     const sumWarn = $('v_inPayWarn');
     if (Math.round(f.pay.sumPct) !== 100) {
       sumWarn.style.display = '';
-      set('v_inPayWarn', '⚠ Payment schedule totals ' + f.pay.sumPct + '% — adjust the three percentages to total 100%.');
+      set('v_inPayWarn', '⚠ Payment schedule totals ' + f.pay.sumPct + '% - adjust the three percentages to total 100%.');
     } else sumWarn.style.display = 'none';
 
     set('v_inDisclaimer', P.disclaimer);
   }
 
   /* ================================================================== */
-  /* PAGE 10b — FINANCING & EMI (optional page)                          */
+  /* PAGE 10b - FINANCING & EMI (optional page)                          */
   /* ================================================================== */
   /* page visibility: true when the three loan inputs are all entered     */
   let _finKey = null, _finVis = false;
@@ -954,7 +954,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 11 — WHY CHOOSE KTM                                            */
+  /* PAGE 11 - WHY CHOOSE KTM                                            */
   /* ================================================================== */
   function renderWhyKtm(s, f, v) {
     const P = CONTENT.pageWhyKtm;
@@ -974,7 +974,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 12 — PROJECTS PORTFOLIO                                        */
+  /* PAGE 12 - PROJECTS PORTFOLIO                                        */
   /* ================================================================== */
   function renderProjects(s, f, v) {
     const P = CONTENT.pageProjects;
@@ -988,7 +988,7 @@
     setHTML('v_prStats',
       '<span class="ps-big">' + listed + ' flagship projects</span>' +
       '<span class="ps-sep"></span>' +
-      '<span>' + P.categories.length + ' sectors — industrial, commercial & residential</span>' +
+      '<span>' + P.categories.length + ' sectors - industrial, commercial & residential</span>' +
       '<span class="ps-sep"></span>' +
       '<span>' + esc(s.statProjects) + ' delivered to date</span>');
     const catIcons = ['factory', 'building', 'home'];
@@ -1007,7 +1007,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 13 — WARRANTY & INSTALLATION JOURNEY                           */
+  /* PAGE 13 - WARRANTY & INSTALLATION JOURNEY                           */
   /* ================================================================== */
   function renderWarranty(s, f, v) {
     const P = CONTENT.pageWarranty;
@@ -1030,7 +1030,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 14 — TERMS & CONDITIONS                                        */
+  /* PAGE 14 - TERMS & CONDITIONS                                        */
   /* ================================================================== */
   function renderTerms(s, f, v) {
     const P = CONTENT.pageTerms;
@@ -1047,7 +1047,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 15 — CLOSING / ACCEPTANCE / CONTACT                            */
+  /* PAGE 15 - CLOSING / ACCEPTANCE / CONTACT                            */
   /* ================================================================== */
   function renderClosing(s, f, v) {
     const P = CONTENT.pageClosing;
@@ -1125,7 +1125,7 @@
       const wrap = document.querySelector('.page-wrap[data-page="' + p.id + '"]');
       if (wrap) wrap.style.display = '';
       const label = document.querySelector('.page-wrap[data-page="' + p.id + '"] .page-label');
-      if (label) label.textContent = 'Page ' + (i + 1) + ' of ' + total + ' — ' + p.title;
+      if (label) label.textContent = 'Page ' + (i + 1) + ' of ' + total + ' - ' + p.title;
       const foot = $('v_pgnum_' + p.id);
       if (foot) foot.textContent = 'Page ' + (i + 1) + ' of ' + total;
     });
@@ -1136,7 +1136,7 @@
         if (wrap) wrap.style.display = 'none';
       }
     });
-    const meta = s.propRef + '  •  v' + s.propVersion + '  •  ' + (F.fmtDate(s.propDate) || '—');
+    const meta = s.propRef + '  •  v' + s.propVersion + '  •  ' + (F.fmtDate(s.propDate) || '-');
     document.querySelectorAll('[data-head-ref]').forEach((el) => { el.textContent = meta; });
     const footLeft = s.companyName + '  •  ' + s.companyPhone + '  •  ' + s.companyWebsite;
     document.querySelectorAll('[data-foot-company]').forEach((el) => { el.textContent = footLeft; });
@@ -1160,20 +1160,20 @@
     C.emi($('chartFinEmi'), f);
   }
 
-  /* Live quote chip — shows capacity + customer + net investment live */
+  /* Live quote chip - shows capacity + customer + net investment live */
   function updateLiveChip(s, f) {
     const el = $('liveChipText');
     if (!el) return;
-    const cap = (s.capacity || '—') + ' kWp';
+    const cap = (s.capacity || '-') + ' kWp';
     const cust = (s.custName || '').trim().split(' ')[0] || 'Live';
     const net = F.fmtINRshort(f.netInvestment);
     el.textContent = 'Live • ' + cap + ' • ' + cust + ' • ' + net;
     const chip = $('liveChip');
-    if (chip) chip.title = 'Live quote — ' + cap + ' for ' + (s.custName || 'customer') + (root.Bess.included(s)||root.AdditionalSystems.included(s) ? ' — solar-only net ' : ' — net ') + F.fmtINR(f.netInvestment);
+    if (chip) chip.title = 'Live quote - ' + cap + ' for ' + (s.custName || 'customer') + (root.Bess.included(s)||root.AdditionalSystems.included(s) ? ' - solar-only net ' : ' - net ') + F.fmtINR(f.netInvestment);
   }
 
   /* A page is a fixed A4 box with overflow hidden, so content that runs past
-     the bottom prints as missing rather than warning anyone — and the footer
+     the bottom prints as missing rather than warning anyone - and the footer
      sits over the last of it either way. The design basis is the one block
      whose height is not fixed, so the page takes the cheapest room back first
      and stops as soon as it fits: tighter table cells, then a smaller system

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Export pre-flight — the builder's own findings decide whether a PDF is made
+   Export pre-flight - the builder's own findings decide whether a PDF is made
    --------------------------------------------------------------------------
    Booting includes control-panel.js, so this exercises the REAL validation, the
    REAL gate on the download button, the dialog that reports what is actually
@@ -145,7 +145,7 @@ const idle = () => waitFor(() => !d.getElementById('downloadBtn').disabled);
 const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.renderAll(); };
 
 (async () => {
-  console.log('— Export pre-flight: the reference-number guard —');
+  console.log('- Export pre-flight: the reference-number guard -');
   const refAdvisories = () => w.__qsPreflight.run().advisory.filter((i) => i.id === 'propRef');
   check('the sample reference stays off the panel but is flagged pre-flight', () => {
     w.Render.renderAll();
@@ -178,7 +178,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     assert.ok(refAdvisories().some((i) => /already used by another proposal/.test(i.message)), JSON.stringify(refAdvisories()));
   });
 
-  console.log('— Export pre-flight: what counts as blocking —');
+  console.log('- Export pre-flight: what counts as blocking -');
   const issues = () => w.__qsPreflight.run();
   check('a complete sheet has nothing to report', () => {
     /* complete now means named AND fully specified: a datasheet gap rides
@@ -227,7 +227,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     reset();
   });
 
-  console.log('— Export pre-flight: a clean sheet —');
+  console.log('- Export pre-flight: a clean sheet -');
   await (async () => {
     await idle();
     fullSheet();
@@ -237,7 +237,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     check('no dialog appears when nothing is wrong', () => assert.equal(dlg().open, false));
     check('the PDF is produced', () => assert.ok(/^Proposal_/.test(savedName), savedName));
     check('a confirmation says the checks passed', () =>
-      assert.ok(/All checks passed — your download has started\./.test(txt('exportToast')), txt('exportToast')));
+      assert.ok(/All checks passed - your download has started\./.test(txt('exportToast')), txt('exportToast')));
     check('the confirmation is showing, as a success', () => {
       assert.equal(toast().classList.contains('is-visible'), true);
       assert.equal(toast().getAttribute('data-kind'), 'ok');
@@ -249,7 +249,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     });
   })();
 
-  console.log('— Export pre-flight: a blocking problem stops the PDF —');
+  console.log('- Export pre-flight: a blocking problem stops the PDF -');
   await (async () => {
     await idle();
     cleanSheet();
@@ -274,7 +274,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     reset();
   })();
 
-  console.log('— Export pre-flight: an advisory is raised, not enforced —');
+  console.log('- Export pre-flight: an advisory is raised, not enforced -');
   await (async () => {
     await idle();
     cleanSheet();
@@ -283,7 +283,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     clickDownload();
     await wait(60);
     check('the pre-flight opens for an advisory too', () => assert.equal(dlg().open, true));
-    check('no PDF yet — the choice belongs to the preparer', () => assert.equal(savedName, '', savedName));
+    check('no PDF yet - the choice belongs to the preparer', () => assert.equal(savedName, '', savedName));
     check('the advisory is described as a check, not a refusal', () =>
       assert.ok(/Check these before you download/.test(dlg().textContent) && !/not ready to send/.test(dlg().textContent),
         dlg().textContent.trim().slice(0, 60)));
@@ -297,7 +297,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     reset();
   })();
 
-  console.log('— Export pre-flight: DATA REQUIRED gaps ask once, then stand aside —');
+  console.log('- Export pre-flight: DATA REQUIRED gaps ask once, then stand aside -');
   await (async () => {
     await idle();
     cleanSheet();
@@ -316,7 +316,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     reset();
   })();
 
-  console.log('— Export pre-flight: the confirmation fades on its own —');
+  console.log('- Export pre-flight: the confirmation fades on its own -');
   await (async () => {
     await idle();
     fullSheet();
@@ -332,7 +332,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     check('the PDF was still produced', () => assert.ok(/^Proposal_/.test(savedName), savedName));
   })();
 
-  console.log('— Export pre-flight: a failed generation is reported —');
+  console.log('- Export pre-flight: a failed generation is reported -');
   await (async () => {
     await idle();
     fullSheet();
@@ -349,7 +349,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     reset();
   })();
 
-  console.log('— Export pre-flight: closing the dialog generates nothing —');
+  console.log('- Export pre-flight: closing the dialog generates nothing -');
   await (async () => {
     await idle();
     cleanSheet();

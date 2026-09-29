@@ -93,12 +93,12 @@ const t = (name, condition) => {
     t('clearing links restores original note position', cleared.refsHidden &&
       cleared.noteTop === results['no-links'].noteTop && cleared.noteBottom === results['no-links'].noteBottom);
 
-    t('7 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹4,07,051'));
+    t('7 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹4,06,823'));
     await page.$eval('#capacity', (el) => {
       el.value = '20';
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    t('20 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹13,07,861'));
+    t('20 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹13,07,208'));
     t('20 kWp cover badge shows the project cost, not the savings', await page.evaluate(() =>
       document.getElementById('v_coverBadgeGen').textContent ===
       Finance.fmtINRshort(Finance.compute(Render.lastState).grossTotal)));
@@ -106,8 +106,8 @@ const t = (name, condition) => {
     t('20 kWp module count unchanged', await page.$eval('#v_tsTable', (el) => el.textContent.includes('37 modules')));
     /* The page is a fixed A4 box with overflow hidden, so an engineering basis
        that runs past the bottom prints as missing text rather than warning
-       anyone. Only a real engine can answer whether it fits — jsdom reports
-       scrollHeight as 0 — so it is answered here, with the design-basis inputs
+       anyone. Only a real engine can answer whether it fits - jsdom reports
+       scrollHeight as 0 - so it is answered here, with the design-basis inputs
        both complete and empty (a DATA REQUIRED line is the longest form). */
     const fit = await page.evaluate(() => {
       const set = (id, value) => {
@@ -149,7 +149,7 @@ const t = (name, condition) => {
 
     /* One combination genuinely cannot fit on a single sheet: roof-area rows,
        reference pills and the full design basis together. It must be reported
-       — never clipped in silence — and every row must still be in the page. */
+       - never clipped in silence - and every row must still be in the page. */
     await setLinks('https://www.example.com/reports/site-pvsyst.pdf', '');
     const dense = await page.evaluate(() => {
       const set = (id, value) => {

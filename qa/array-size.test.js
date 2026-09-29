@@ -12,7 +12,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';
   await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
   const cases=[
-   ['0','545',0,'0 kWp','—'],['1.5','545',3,'1.635 kWp','1.09 : 1'],['7','545',13,'7.085 kWp','1.01 : 1'],
+   ['0','545',0,'0 kWp','-'],['1.5','545',3,'1.635 kWp','1.09 : 1'],['7','545',13,'7.085 kWp','1.01 : 1'],
    ['8.175','545',15,'8.175 kWp','1.00 : 1'],['8.174999','545',15,'8.175 kWp','1.00 : 1'],
    ['8.175001','545',16,'8.72 kWp','1.07 : 1'],['32.7','545',60,'32.7 kWp','1.00 : 1'],
    ['9.81','545',18,'9.81 kWp','1.00 : 1'],['9.82','545',19,'10.355 kWp','1.05 : 1'],
@@ -34,7 +34,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   }
   await edit('10','545');
   await page.evaluate(()=>{const el=document.getElementById('subsidyOverride');el.value='980100';el.dispatchEvent(new Event('input',{bubbles:true}));});
-  check('zero net investment has undefined ROI, not an invented 0%',await page.$$eval('#v_svTable tbody tr',rows=>rows.length===5&&rows.every(row=>row.lastElementChild.textContent==='—')));
+  check('zero net investment has undefined ROI, not an invented 0%',await page.$$eval('#v_svTable tbody tr',rows=>rows.length===5&&rows.every(row=>row.lastElementChild.textContent==='-')));
   check('zero-cost generation shows ₹0.00/unit, not an undefined cost',await page.$eval('#v_svChipEff',el=>el.textContent==='₹0.00/unit'));
   await page.evaluate(()=>{const el=document.getElementById('subsidyOverride');el.value='';el.dispatchEvent(new Event('input',{bubbles:true}));});
 

@@ -55,7 +55,7 @@ check('generation follows the installed array, not the contracted figure',()=>{
  assert.equal(F.compute({...state,moduleWattage:500}).annualGen,10*1460);
 });
 check('subsidy is assessed on installed DC capacity at the slab boundary',()=>{
- /* 2 kWp contracted at 545 Wp is 4 modules = 2.18 kWp, which earns ₹63,240 —
+ /* 2 kWp contracted at 545 Wp is 4 modules = 2.18 kWp, which earns ₹63,240 -
     the ₹60,000 a contracted-basis calculation would have reported. */
  assert.equal(F.compute({capacity:2,moduleWattage:545}).subsidy,63240);
  assert.equal(F.compute({capacity:2.5,moduleWattage:545}).subsidy,73050);

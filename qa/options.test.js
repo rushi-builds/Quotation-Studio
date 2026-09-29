@@ -64,7 +64,7 @@ const dumpStorage = (w) => {
   return out;
 };
 
-console.log('— options: default state —');
+console.log('- options: default state -');
 const w = bootBuilder();
 const d = w.document;
 t('no errors on boot', errors.length === 0, errors.join('|'));
@@ -74,14 +74,14 @@ t('nav has 15 chips (no options)', d.querySelectorAll('#pageNav .nav-chip').leng
 t('labels say of 15', d.getElementById('v_pgnum_pageAbout').textContent === 'Page 3 of 15');
 t('opt list shows empty hint', d.getElementById('optList').textContent.includes('No saved options'));
 
-console.log('— options: save & compare —');
+console.log('- options: save & compare -');
 d.getElementById('capacity').value = '5';
 fire(w, d.getElementById('capacity'), 'input');
-d.getElementById('optName').value = 'Good — 5 kWp';
+d.getElementById('optName').value = 'Good - 5 kWp';
 d.getElementById('optSave').click();
 d.getElementById('capacity').value = '8';
 fire(w, d.getElementById('capacity'), 'input');
-d.getElementById('optName').value = 'Best — 8 kWp';
+d.getElementById('optName').value = 'Best - 8 kWp';
 d.getElementById('optSave').click();
 
 t('two options stored', w.__qsOptions.length === 2);
@@ -94,14 +94,14 @@ t('options page is page 3', d.getElementById('v_pgnum_pageOptions').textContent 
 t('comparison has 2 option columns', d.querySelectorAll('#v_opTable thead th').length === 3,
   d.querySelectorAll('#v_opTable thead th').length);
 t('comparison rows = 10 metrics', d.querySelectorAll('#v_opTable tbody tr').length === 10);
-t('header shows option names', d.getElementById('v_opTable').textContent.includes('Good — 5 kWp') &&
-  d.getElementById('v_opTable').textContent.includes('Best — 8 kWp'));
+t('header shows option names', d.getElementById('v_opTable').textContent.includes('Good - 5 kWp') &&
+  d.getElementById('v_opTable').textContent.includes('Best - 8 kWp'));
 t('payback row exists', d.getElementById('v_opTable').textContent.includes('Payback Period'));
 t('best-cell highlighting applied', d.querySelectorAll('#v_opTable td.best').length >= 3,
   d.querySelectorAll('#v_opTable td.best').length);
 t('option summaries computed (payback in list)', d.getElementById('optList').textContent.includes('payback'));
 
-console.log('— options: recommended, apply, delete —');
+console.log('- options: recommended, apply, delete -');
 const recBtn = [...d.querySelectorAll('#optList button[data-act="rec"]')][1];
 recBtn.click();
 t('recommended badge in table header', !!d.querySelector('#v_opTable th .opt-rec'));
@@ -120,7 +120,7 @@ t('apply option restores its capacity (8)', d.getElementById('capacity').value =
 t('delete removes option', w.__qsOptions.length === 1);
 t('page still visible with 1 option? (needs 2) → hidden', d.querySelector('[data-page="pageOptions"]').style.display === 'none');
 
-console.log('— whatsapp share —');
+console.log('- whatsapp share -');
 d.getElementById('custName').value = 'QA Customer'; fire(w, d.getElementById('custName'), 'input');
 d.getElementById('shareUrl').value = 'https://example.com/p/KTME-2026-013';
 fire(w, d.getElementById('shareUrl'), 'input');
@@ -130,7 +130,7 @@ t('wa.me link opened', (w.__lastOpen || '').startsWith('https://wa.me/?text='));
 t('message contains customer name', openUrl.includes('QA Customer'));
 t('message contains proposal link', openUrl.includes('https://example.com/p/KTME-2026-013'));
 
-console.log('— persistence with options —');
+console.log('- persistence with options -');
 setTimeout(async () => {
   const dump = dumpStorage(w);
   const activeBlob = JSON.parse(dump['qstudio.proposal.' + dump['qstudio.activeId']]);
@@ -161,7 +161,7 @@ setTimeout(async () => {
     JSON.stringify(imported.options || []).slice(0, 80));
 
   /* ---------- share view ---------- */
-  console.log('— share view (share.html?p=…) —');
+  console.log('- share view (share.html?p=…) -');
   const shareId = dump['qstudio.activeId'];
   const shareStorage = {};
   Object.keys(dump).forEach((k) => {

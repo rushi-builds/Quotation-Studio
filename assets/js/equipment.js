@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Quotation Studio — Equipment Catalog  (Phase 1 foundation)
+   Quotation Studio - Equipment Catalog  (Phase 1 foundation)
    --------------------------------------------------------------------------
    Company-level master data for modules, inverters, structures and cables.
    System Design dropdowns use this catalog, with a final Custom option
@@ -8,7 +8,7 @@
    Data integrity rule (per product blueprint):
      - the catalog ships with the entries the company already quotes with
      - electrical detail fields (Voc/Isc/Vmp/Imp/efficiency/MPPT…) are left
-       BLANK until the team enters datasheet values — nothing is invented
+       BLANK until the team enters datasheet values - nothing is invented
      - selecting a module fills its rating/dimensions/technology into the
        form, and its Voc/Isc/Vmp/Imp when the catalogue holds them
      - selecting an inverter fills its rating, and its DC voltage/current
@@ -35,7 +35,7 @@
       ],
       structures: [
         { id: 's1', label: 'Hot-Dip GI / Aluminum-ARS Solartech make' },
-        { id: 's2', label: 'Hot-Dip GI — In-house KTM manufactured' }
+        { id: 's2', label: 'Hot-Dip GI - In-house KTM manufactured' }
       ],
       cables: [
         { id: 'c1', label: 'Polycab / KEI or Equivalent' },

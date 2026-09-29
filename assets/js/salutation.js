@@ -2,23 +2,23 @@
    faceless "Namaskar".
 
    The greeting spoken by the briefing needs an honourific, and the form never
-   asks for gender. So this module derives one from the customer's name — and
+   asks for gender. So this module derives one from the customer's name - and
    follows the same discipline as the engineering pages: state what the data
    proves, never guess out loud.
 
    Detection pipeline (first given name only; surnames are unreliable):
-     1. explicit honourifics   — "Mr." / "Shri" prove male, "Mrs." / "Smt." /
+     1. explicit honourifics   - "Mr." / "Shri" prove male, "Mrs." / "Smt." /
                                  "Kumari" prove female; "Dr." / "Prof." carry
                                  no gender and are skipped.
-     2. organisation guard     — "Pvt", "Ltd", "Industries" and friends mean a
+     2. organisation guard     - "Pvt", "Ltd", "Industries" and friends mean a
                                  company name, never a person: no honourific.
-     3. unisex dictionary      — Kiran, Kamal, Sonu… are spoken both ways; a
+     3. unisex dictionary      - Kiran, Kamal, Sonu… are spoken both ways; a
                                  coin flip here would be a guess, so no title.
-     4. name dictionary        — common Indian / Marathi first names.
-     5. ending heuristics      — strong endings (-esh, -endra, -ini, -ika,
+     4. name dictionary        - common Indian / Marathi first names.
+     5. ending heuristics      - strong endings (-esh, -endra, -ini, -ika,
                                  -shri…) then weak ones (-a, -i for feminine;
                                  -ak, -il, -ay, -av for masculine).
-     6. nothing matched        — no title is spoken.
+     6. nothing matched        - no title is spoken.
 
    When detection lands nothing, the neutral "ji"/"जी" is used: it is
    respectful and correct for every gender in English, Hindi and Marathi
@@ -38,7 +38,7 @@
   const TITLE_SKIP = new Set(['dr', 'prof', 'professor', 'er', 'adv', 'ca', 'cs',
     'col', 'maj', 'gen', 'capt', 'wing', 'sqn', 'hon', 'late']);
 
-  /* ---- 3. spoken both ways — never a coin flip ------------------------- */
+  /* ---- 3. spoken both ways - never a coin flip ------------------------- */
   const UNISEX = new Set(['kiran', 'kamal', 'sonu', 'vimal', 'prem', 'kanchan',
     'shashi', 'suman', 'chanda', 'bala', 'daya']);
 
@@ -204,7 +204,7 @@
   }
 
   /* The spoken honourific per language. Hindi and Marathi answer every
-     gender with "जी" — respectful everywhere, never a gender guess spoken
+     gender with "जी" - respectful everywhere, never a gender guess spoken
      out loud. English splits sir/ma'am, with "ji" as the safe middle
      when nothing is known. */
   const HONORS = {
@@ -216,7 +216,7 @@
   /* ---- script matching ----------------------------------------------------
      Voices only read their own script: an English voice falls silent on
      Devanagari, and an Indic voice stumbles over Latin-spelled Indian names.
-     So the greeting always meets the voice in its own script — Devanagari is
+     So the greeting always meets the voice in its own script - Devanagari is
      Latinised for English ("रुशिकेश" → "Rushikesh") and Latin is Devanagari-
      sed for Hindi/Marathi ("Rushikesh" → "रुशिकेश"). Both directions are
      plain letter arithmetic with a small exception list for the few names
@@ -261,7 +261,7 @@
   const V_ORDER = ['aa', 'ee', 'oo', 'ai', 'au', 'ri', 'a', 'i', 'u', 'e', 'o'];
   const V_MATRA = { aa: 'ा', i: 'ि', ee: 'ी', u: 'ु', oo: 'ू', ri: 'ृ', e: 'े', ai: 'ै', o: 'ो', au: 'ौ' };
   const V_IND = { aa: 'आ', a: 'अ', ee: 'ई', i: 'इ', oo: 'ऊ', u: 'उ', ri: 'ऋ', e: 'ए', ai: 'ऐ', o: 'ओ', au: 'औ' };
-  /* Latin script does not write vowel length — "Radhika" is राधिका but
+  /* Latin script does not write vowel length - "Radhika" is राधिका but
      "Kavita" is कविता, same shape, different sound. That is lexical, not
      rule-able, so the common names carry their own verified Devanagari,
      matching what Google Translate and a Marathi speaker would write. The
@@ -370,7 +370,7 @@
         if (nx.v === 'a') {
           const after = toks[j + 2];
           if (!after) {
-            /* Explicit final "a" sounds "aa" (Sneha → स्नेहा, Raja → राजा) —
+            /* Explicit final "a" sounds "aa" (Sneha → स्नेहा, Raja → राजा) -
                unless the name closes on a conjunct, where Hindi/Marathi drop
                the schwa (Mahendra → महेंद्र). */
             const prev = out[out.length - 1];

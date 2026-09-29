@@ -1,12 +1,12 @@
 /* ==========================================================================
-   Reconcile (rendered) — the pages must DISPLAY what the engine computed
+   Reconcile (rendered) - the pages must DISPLAY what the engine computed
    --------------------------------------------------------------------------
    companion to reconcile.test.js, which proves the engine's arithmetic.
    This file boots the real app in jsdom, changes capacity through the real
    input element, and reads each figure back out of the DOM, so a renderer
    that drifts from the engine fails here even when the engine is correct.
 
-   Every displayed value is checked against an independent recomputation —
+   Every displayed value is checked against an independent recomputation -
    the form's own defaults are read at runtime rather than assumed.
 
    Run: node qa/reconcile-render.test.js
@@ -141,18 +141,18 @@ const cfg = {
 
 let bootErrors = pageErrors.length;
 
-console.log('— Reconcile (rendered): the shipped defaults are pinned —');
+console.log('- Reconcile (rendered): the shipped defaults are pinned -');
 /* Two different things seed the form, and they disagreeing is a real risk:
-     · StateStore.DEFAULTS (state.js) — applied on boot and when resuming a proposal
-     · the HTML value attributes      — applied by "New proposal"
+     · StateStore.DEFAULTS (state.js) - applied on boot and when resuming a proposal
+     · the HTML value attributes      - applied by "New proposal"
    Reading the live value alone is tautological (the test would simply follow
    whatever the default became), so BOTH sources are pinned explicitly. */
 const REVIEWED = {
-  capacity: '7', genFactor: '1460', costPerWp: '63.63', gstPercent: '8.9',
+  capacity: '7', genFactor: '1460', costPerWp: '63.6', gstPercent: '8.9',
   tariff: '10', escalation: '4', degradation: '0.5',
   co2Factor: '0.71', treeFactor: '22', moduleWattage: '545',
   moduleLengthMm: '2278', moduleWidthMm: '1134',
-  /* engineering design basis — the assumptions the whole engineering section
+  /* engineering design basis - the assumptions the whole engineering section
      stands on, so they are pinned here rather than left to drift */
   tiltDeg: '15', latitudeDeg: '18.52', shadeHalfWindowHours: '3', roofSetbackM: '0.6',
   windSpeed: '39', buildingHeightM: '10', windK1: '1', windK3: '1', windK4: '1',
@@ -164,7 +164,7 @@ const REVIEWED = {
   roofLoadBenchmarkKgM2: '60'
 };
 const authored = (id) => d.getElementById(id).getAttribute('value');
-/* the shipped default, read once — restore points must not hardcode a rate */
+/* the shipped default, read once - restore points must not hardcode a rate */
 const DEFAULT_RATE = authored('costPerWp');
 for (const [id, want] of Object.entries(REVIEWED)) {
   check(id + ' = ' + want + ' in StateStore.DEFAULTS (used on boot)', () => {
@@ -180,7 +180,7 @@ check('live form values match the authored defaults', () => {
   }
 });
 check('every authored default satisfies its own step and min', () => {
-  /* A default in the step's own terms is not a free choice: 63.63 against
+  /* A default in the step's own terms is not a free choice: 63.6 against
      step="0.5" is a step mismatch, which flags the field and makes the spinners
      snap to 63.5/64. Guard the whole sheet, not just the rate. */
   for (const input of d.querySelectorAll('input[type="number"][value]')) {
@@ -203,7 +203,7 @@ check('roof clearance factor is present, editable, and blank means derive', () =
   assert.equal(authored('roofClearanceFactor'), null, 'no authored default to fall back on');
 });
 
-console.log('— Reconcile (rendered): ₹/Wp form rate maps to the ₹/kWp engine —');
+console.log('- Reconcile (rendered): ₹/Wp form rate maps to the ₹/kWp engine -');
 check('the form quotes ₹/Wp and the legacy ₹/kWp field is gone', () => {
   assert.ok(d.getElementById('costPerWp'), 'costPerWp input must exist');
   assert.equal(d.getElementById('costPerKwp'), null, 'the old ₹/kWp input must be removed');
@@ -252,7 +252,7 @@ check('saving an option captures ₹/Wp and it survives the round trip', () => {
   setInput('costPerWp', DEFAULT_RATE);
 });
 
-console.log('— Reconcile (rendered): the panel reports derived totals while typing —');
+console.log('- Reconcile (rendered): the panel reports derived totals while typing -');
 check('the generation field explains its own derived total', () => {
   setInput('capacity', 7);
   setInput('genFactor', 1460);
@@ -299,7 +299,7 @@ check('the live summary is pinned inside a sticky bar', () => {
 });
 check('the sticky bar releases on a narrow screen so it cannot cover fields', () => {
   const css = fs.readFileSync(path.join(ROOT, 'assets/css/control-panel.css'), 'utf8');
-  /* pull the max-width:1100px block out by balancing braces — the sheet is minified-ish */
+  /* pull the max-width:1100px block out by balancing braces - the sheet is minified-ish */
   const at = /@media\s*\(\s*max-width:\s*1100px\s*\)\s*\{/.exec(css);
   assert.ok(at, 'a narrow-screen override must exist');
   let i = at.index + at[0].length - 1, depth = 0, block = '';
@@ -325,7 +325,7 @@ check('the live summary still updates from the capacity input', () => {
 setInput('costPerWp', DEFAULT_RATE);
 setInput('capacity', 7);
 
-console.log('— Reconcile (rendered): capacity sweep across the pages —');
+console.log('- Reconcile (rendered): capacity sweep across the pages -');
 for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
   check(cap + ' kWp renders consistently on every page', () => {
     setInput('capacity', cap);
@@ -375,7 +375,7 @@ for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
   });
 }
 
-console.log('— Reconcile (rendered): subsidy follows installed DC capacity —');
+console.log('- Reconcile (rendered): subsidy follows installed DC capacity -');
 for (const [cap, want] of [[1, 32700], [2, 63240], [2.5, 73050], [3, 78000], [10, 78000]]) {
   check(cap + ' kWp shows the installed-capacity subsidy ' + inr(want), () => {
     setInput('capacity', cap);
@@ -391,7 +391,7 @@ check('a lower figure than the installed basis is never shown below the 3 kW sla
   }
 });
 
-console.log('— Reconcile (rendered): roof clearance drives the fit verdict —');
+console.log('- Reconcile (rendered): roof clearance drives the fit verdict -');
 check('the same roof flips verdict when the clearance factor changes', () => {
   setInput('capacity', 7);
   setInput('availableArea', 40);
@@ -404,7 +404,7 @@ check('the same roof flips verdict when the clearance factor changes', () => {
   setInput('availableArea', '');
 });
 
-console.log('— Reconcile (rendered): commercial customers —');
+console.log('- Reconcile (rendered): commercial customers -');
 check('commercial shows nil subsidy and gross investment', () => {
   setInput('capacity', 25);
   const typeEl = d.getElementById('customerType');
@@ -418,7 +418,7 @@ check('commercial shows nil subsidy and gross investment', () => {
   typeEl.dispatchEvent(new w.Event('change', { bubbles: true }));
 });
 
-console.log('— Reconcile (rendered): the pages agree with each other —');
+console.log('- Reconcile (rendered): the pages agree with each other -');
 check('cover badge, exec hero and investment card carry one net figure', () => {
   setInput('capacity', 7);
   const net = txt('v_exHeroNet');
