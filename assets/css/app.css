@@ -830,6 +830,21 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 .ktm-cover__date { left: 22.925%; top: 77.089%; width: 23%; height: 1.7%; }
 .ktm-cover__capacity-kpi { left: 23.3%; top: 86.927%; width: 21%; height: 3.64%; font-weight: 700; white-space: nowrap; }
 .ktm-cover__savings-kpi { left: 67.925%; top: 86.927%; width: 28%; height: 3.64%; font-weight: 700; white-space: nowrap; color: #ff890b; }
+/* The cover artwork ships with a savings glyph and label baked in; these two
+   overlays replace them with the project-cost pairing so the cover's money
+   figure is the cost of the project, not a projection. */
+.ktm-cover__cost-icon {
+  position: absolute; left: 53.8%; top: 84.29%; width: 9.27%; height: 6.54%;
+  border-radius: 50%; background: #fff; color: #0b1c30;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Poppins', 'Inter', Arial, sans-serif; font-weight: 700; font-size: 40px; line-height: 1;
+}
+.ktm-cover__cost-label {
+  position: absolute; left: 67.9%; top: 84.85%; width: 25.7%; height: 2.1%;
+  background: #061729; color: #fff;
+  font-family: 'Inter', Arial, sans-serif; font-weight: 400; font-size: 19px; line-height: 1.2;
+  display: flex; align-items: center;
+}
 @media print { .ktm-cover { page-break-after: always; } }
 
 /* ---------- 9. Executive summary ---------- */

@@ -189,7 +189,7 @@ t('clearing both report links hides block', w.getComputedStyle(refsWrap).display
 console.log('— sync: initial capacity 7 kWp real-sync —');
 t('cover capacity = 7 kWp', d.getElementById('v_coverCapacity').textContent === '7 kWp', d.getElementById('v_coverCapacity').textContent);
 t('cover badge Kwp = 7 kWp', d.getElementById('v_coverBadgeKwp').textContent === '7 kWp');
-t('cover badge savings = ₹40.18 L (lifetime)', d.getElementById('v_coverBadgeGen').textContent.includes('₹40.18') || d.getElementById('v_coverBadgeGen').textContent.includes('₹40'), d.getElementById('v_coverBadgeGen').textContent);
+t('cover badge is the project cost incl. GST (7 kWp)', d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtINRshort(w.Finance.compute(w.Render.lastState).grossTotal), d.getElementById('v_coverBadgeGen').textContent);
 t('cover badge savings contains ₹ and L/Cr not units', d.getElementById('v_coverBadgeGen').textContent.includes('₹') && !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('tech spec module count 13 for 7kWp', d.getElementById('v_tsTable').textContent.includes('13 modules'));
 t('solution spec shows 7 kWp', d.getElementById('v_soSpecs').textContent.includes('7 kWp'));
@@ -202,7 +202,7 @@ fire(w, d.getElementById('capacity'), 'input');
 
 t('cover capacity updates to 10 kWp', d.getElementById('v_coverCapacity').textContent === '10 kWp', d.getElementById('v_coverCapacity').textContent);
 t('cover badge updates to 10 kWp', d.getElementById('v_coverBadgeKwp').textContent === '10 kWp');
-t('cover badge savings updates to ₹58.73 L for 10kWp', d.getElementById('v_coverBadgeGen').textContent.includes('₹58.73') || d.getElementById('v_coverBadgeGen').textContent.includes('₹58'), d.getElementById('v_coverBadgeGen').textContent);
+t('cover badge project cost updates for 10 kWp', d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtINRshort(w.Finance.compute(w.Render.lastState).grossTotal), d.getElementById('v_coverBadgeGen').textContent);
 t('live chip updates to 10 kWp', d.getElementById('liveChipText').textContent.includes('10 kWp') || d.getElementById('liveChipText').textContent.includes('10'), d.getElementById('liveChipText').textContent);
 t('exec hero net updates to ₹6,14,931 for 10kWp', d.getElementById('v_exHeroNet').textContent === '₹6,14,931', d.getElementById('v_exHeroNet').textContent);
 t('tech spec module count 19 for 10kWp', d.getElementById('v_tsTable').textContent.includes('19 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
@@ -216,7 +216,7 @@ fire(w, d.getElementById('capacity'), 'input');
 
 t('cover capacity updates to 5 kWp', d.getElementById('v_coverCapacity').textContent === '5 kWp');
 t('cover badge updates to 5 kWp', d.getElementById('v_coverBadgeKwp').textContent === '5 kWp');
-t('cover badge savings for 5kWp is ₹30.91 L', d.getElementById('v_coverBadgeGen').textContent.includes('₹30.91') || d.getElementById('v_coverBadgeGen').textContent.includes('₹30'), d.getElementById('v_coverBadgeGen').textContent);
+t('cover badge project cost for 5 kWp', d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtINRshort(w.Finance.compute(w.Render.lastState).grossTotal), d.getElementById('v_coverBadgeGen').textContent);
 t('live chip updates to 5 kWp', d.getElementById('liveChipText').textContent.includes('5 kWp'));
 t('tech spec module count 10 for 5kWp', d.getElementById('v_tsTable').textContent.includes('10 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('exec hero net for 5kWp has ₹', d.getElementById('v_exHeroNet').textContent.includes('₹'), d.getElementById('v_exHeroNet').textContent);
@@ -232,7 +232,7 @@ d.getElementById('capacity').value = '20';
 fire(w, d.getElementById('capacity'), 'input');
 t('20kWp cover = 20 kWp', d.getElementById('v_coverCapacity').textContent === '20 kWp');
 t('20kWp hero = ₹13,07,861', d.getElementById('v_exHeroNet').textContent === '₹13,07,861', d.getElementById('v_exHeroNet').textContent);
-t('20kWp lifetime savings badge = ₹1.14 Cr', d.getElementById('v_coverBadgeGen').textContent.includes('₹1.14') || d.getElementById('v_coverBadgeGen').textContent.includes('₹1.1'), d.getElementById('v_coverBadgeGen').textContent);
+t('20kWp cover badge is the project cost', d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtINRshort(w.Finance.compute(w.Render.lastState).grossTotal), d.getElementById('v_coverBadgeGen').textContent);
 t('20kWp badge no units', !d.getElementById('v_coverBadgeGen').textContent.includes('units'), d.getElementById('v_coverBadgeGen').textContent);
 t('20kWp modules = 37', d.getElementById('v_tsTable').textContent.includes('37 modules'), d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 t('live chip shows 20 kWp', d.getElementById('liveChipText').textContent.includes('20 kWp'));

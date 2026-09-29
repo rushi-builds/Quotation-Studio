@@ -229,14 +229,17 @@
   }
   function wire() {
     const btn=$('downloadBtn'),status=$('statusMsg');
+    /* A fresh message cancels the previous export's fade-out, so an old timer
+       can never wipe a newer status line. */
+    let statusTimer=0;
     if(btn) btn.addEventListener('click',async()=>{
       /* Nothing is generated until the sheet passes its own checks. */
       if (await preflight() !== 'proceed') return;
       btn.disabled=true;btn.classList.add('busy');
-      try {await exportPdf(m=>{status.textContent=m;},{format:$('pdfFormat')?.value});}
-      catch(err){console.error(err);status.textContent=err.message || 'PDF generation failed. Please try again.';
+      try {clearTimeout(statusTimer);await exportPdf(m=>{status.textContent=m;},{format:$('pdfFormat')?.value});}
+      catch(err){console.error(err);clearTimeout(statusTimer);status.textContent=err.message || 'PDF generation failed. Please try again.';
         notice(err.message || 'PDF generation failed. Please try again.','error');}
-      finally {btn.disabled=false;btn.classList.remove('busy');setTimeout(()=>{status.textContent='';},8000);}
+      finally {btn.disabled=false;btn.classList.remove('busy');clearTimeout(statusTimer);statusTimer=setTimeout(()=>{status.textContent='';},8000);}
     });
     document.querySelectorAll('[data-export-format]').forEach(button=>button.addEventListener('click',async()=>{
       const old=button.textContent;button.disabled=true;

@@ -113,6 +113,7 @@
           <input type="text" id="prepName" placeholder="Enter preparer name">
         </div>
         <div class="field"><label>Customer name</label><input type="text" id="custName" value="" placeholder="Enter customer name"></div>
+        <details class="studio-advanced"><summary>Advanced audio settings</summary>
         <div class="field"><label>Say the name as (audio, optional)</label><input type="text" id="custSpokenName" value="" placeholder="e.g. रुशिकेश — type it the way it should sound"></div>
         <div class="field"><label>Address customer as (audio greeting)</label>
           <select id="custSalutation">
@@ -123,6 +124,7 @@
             <option value="none">Name only, no title</option>
           </select>
         </div>
+        </details>
         <div class="field"><label>Customer address</label><input type="text" id="custAddress" value="" placeholder="Enter site address"></div>
         <div class="row3">
           <div class="field"><label>Proposal date</label><input type="date" id="propDate"></div>
@@ -683,7 +685,9 @@
             <span class="ktm-cover__value ktm-cover__reference" id="v_coverRef" data-cover-font="16" aria-label="Proposal number"></span>
             <span class="ktm-cover__value ktm-cover__date" id="v_coverDate" data-cover-font="16" aria-label="Proposal date"></span>
             <span class="ktm-cover__value ktm-cover__capacity-kpi" id="v_coverBadgeKwp" data-cover-font="49" aria-label="Project capacity"></span>
-            <span class="ktm-cover__value ktm-cover__savings-kpi" id="v_coverBadgeGen" data-cover-font="49" aria-label="Projected 25-year savings"></span>
+            <span class="ktm-cover__cost-icon" aria-hidden="true">&#8377;</span>
+            <span class="ktm-cover__cost-label">Project Cost</span>
+            <span class="ktm-cover__value ktm-cover__savings-kpi" id="v_coverBadgeGen" data-cover-font="49" aria-label="Project cost including GST"></span>
           </div>
         </div>
         <!-- Non-artwork metadata retained for renderer compatibility; live values are above -->

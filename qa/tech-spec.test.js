@@ -99,7 +99,9 @@ const t = (name, condition) => {
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
     t('20 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹13,07,861'));
-    t('20 kWp lifetime savings unchanged', await page.$eval('#v_coverBadgeGen', (el) => el.textContent.includes('₹1.14')));
+    t('20 kWp cover badge shows the project cost, not the savings', await page.evaluate(() =>
+      document.getElementById('v_coverBadgeGen').textContent ===
+      Finance.fmtINRshort(Finance.compute(Render.lastState).grossTotal)));
     t('20 kWp installed array shows 20.165 kWp beside the contracted 20 kWp', await page.$eval('#v_tsTable', el => [...el.querySelectorAll('tr')].some(row => row.querySelector('.spec-k')?.textContent === 'Installed Array Size' && row.querySelector('.spec-v')?.textContent === '20.165 kWp (contracted 20 kWp)')));
     t('20 kWp module count unchanged', await page.$eval('#v_tsTable', (el) => el.textContent.includes('37 modules')));
     /* The page is a fixed A4 box with overflow hidden, so an engineering basis

@@ -83,8 +83,13 @@ t('rendered all 21 page shells (options, financing and BESS hidden by default)',
 t('page labels generated', /Page 1 of 15/.test(d.querySelector('[data-page="pageCover"] .page-label').textContent),
   d.querySelector('[data-page="pageCover"] .page-label').textContent);
 t('cover shows a neutral customer placeholder', d.getElementById('v_coverCustName').textContent === 'Customer Name');
-t('cover badge generation', /₹40/.test(d.getElementById('v_coverBadgeGen').textContent),
-  d.getElementById('v_coverBadgeGen').textContent);
+t('cover badge is the project cost incl. GST', (() => {
+  const f = w.Finance.compute(w.Render.lastState);
+  return d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtINRshort(f.grossTotal);
+})(), d.getElementById('v_coverBadgeGen').textContent);
+t('exec hero names the actual subsidy', d.getElementById('v_exHeroLifetime').textContent === '₹78,000' &&
+  /Estimated Subsidy/.test(d.getElementById('v_exHeroLifetimeLabel').textContent),
+  d.getElementById('v_exHeroLifetime').textContent + ' / ' + d.getElementById('v_exHeroLifetimeLabel').textContent);
 t('exec hero net = ₹4,07,051', d.getElementById('v_exHeroNet').textContent === '₹4,07,051',
   d.getElementById('v_exHeroNet').textContent);
 t('exec payback ≈ 3.7 yrs', /^3\.7/.test(d.getElementById('v_exHeroPayback').textContent),

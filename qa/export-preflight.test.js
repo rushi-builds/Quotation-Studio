@@ -119,6 +119,15 @@ w.jspdf = {
 };
 const clickDownload = () => d.getElementById('downloadBtn').click();
 const cleanSheet = () => { reset(); setInput('custName', 'QA Customer'); };
+/* A sheet where every design-basis figure is supplied and the checked values
+   pass, so the pre-flight has nothing to say and the download runs direct. */
+const fullSheet = () => {
+  cleanSheet();
+  [['moduleVoc', '49.70'], ['moduleVmp', '41.50'], ['moduleIsc', '13.90'], ['moduleImp', '13.00'],
+    ['inverterVmaxDc', '600'], ['mpptMinV', '80'], ['inverterMaxCurrentA', '40'],
+    ['dcCableLengthM', '10'], ['dcCableSizeMm2', '10'], ['acCableLengthM', '10'], ['acCableSizeMm2', '16'],
+    ['soilResistivity', '50']].forEach(([id, v]) => setInput(id, v));
+};
 async function waitFor(predicate, ms = 15000) {
   const started = Date.now();
   while (Date.now() - started < ms) {
@@ -168,9 +177,9 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
   console.log('— Export pre-flight: what counts as blocking —');
   const issues = () => w.__qsPreflight.run();
   check('a complete sheet has nothing to report', () => {
-    /* the shipped template carries no customer, so a complete sheet is one
-       with a name on it — that is the app's own first blocking rule */
-    cleanSheet();
+    /* complete now means named AND fully specified: a datasheet gap rides
+       along as an advisory, so the truly silent sheet has none of them */
+    fullSheet();
     const found = issues();
     assert.equal(found.blocking.length, 0, JSON.stringify(found.blocking));
     assert.equal(found.advisory.length, 0, JSON.stringify(found.advisory));
@@ -217,7 +226,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
   console.log('— Export pre-flight: a clean sheet —');
   await (async () => {
     await idle();
-    cleanSheet();
+    fullSheet();
     savedName = '';
     clickDownload();
     await waitFor(() => savedName !== '');
@@ -284,14 +293,35 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     reset();
   })();
 
-  console.log('— Export pre-flight: the confirmation fades on its own —');
+  console.log('— Export pre-flight: DATA REQUIRED gaps ask once, then stand aside —');
   await (async () => {
     await idle();
     cleanSheet();
+    savedName = '';
+    clickDownload();
+    await wait(60);
+    check('missing datasheet figures now raise the pre-flight', () => assert.equal(dlg().open, true));
+    check('the gaps are listed as checks, not refusals', () =>
+      assert.ok(/Check these before you download/.test(dlg().textContent) && /DATA REQUIRED/.test(dlg().textContent),
+        dlg().textContent.trim().slice(0, 90)));
+    check('the download is still offered', () => assert.ok(actionMatching(/Download anyway/)));
+    actionMatching(/Download anyway/).click();
+    await waitFor(() => savedName !== '');
+    check('and going ahead produces the PDF', () => assert.ok(/^Proposal_/.test(savedName), savedName));
+    check('the dialog is closed afterwards', () => assert.equal(dlg().open, false));
+    reset();
+  })();
+
+  console.log('— Export pre-flight: the confirmation fades on its own —');
+  await (async () => {
+    await idle();
+    fullSheet();
+    await wait(30);
     toast().classList.remove('is-visible');
     savedName = '';
     clickDownload();
     await wait(120);
+    check('a fully specified sheet downloads with no dialog', () => assert.equal(dlg().open, false));
     check('it is visible while the download runs', () => assert.equal(toast().classList.contains('is-visible'), true));
     await wait(3600);
     check('and removes itself without being clicked', () => assert.equal(toast().classList.contains('is-visible'), false));
@@ -301,7 +331,7 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
   console.log('— Export pre-flight: a failed generation is reported —');
   await (async () => {
     await idle();
-    cleanSheet();
+    fullSheet();
     saveThrows = new Error('capture failed');
     clickDownload();
     await waitFor(() => saveThrows === null || /capture failed/.test(txt('exportToast')), 4000);

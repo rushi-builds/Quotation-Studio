@@ -240,20 +240,34 @@
       return {blocking, advisory, notes: []};
     }
 
-    /* The strip shows everything wrong or still missing. The gate never sees
-       the notes: a page that says DATA REQUIRED is making no claim it cannot
-       support, so there is nothing to stop the download for. */
+    /* The strip is a short action list, not a paragraph dump: one compact chip
+       per finding, full sentence kept as the hover title. Blocking chips sit
+       first and carry the stronger tint. */
+    function shortLabel(id, message) {
+      const MAP = {
+        custName: 'Customer name', capacity: 'System capacity', costPerWp: 'Cost per Wp',
+        payAdvance: 'Payment milestones', loanAmt: 'Loan details',
+        moduleVoc: 'Module datasheet', windSpeed: 'Wind speed', buildingHeightM: 'Height row (IS 875)',
+        dcCableLengthM: 'DC cable schedule', acCableLengthM: 'AC cable schedule',
+        soilResistivity: 'Soil resistivity', moduleWeightKg: 'Roof load data',
+        availableArea: 'Roof area', inverterVmaxDc: 'Inverter DC limits', mpptMinV: 'MPPT range',
+        inverterMaxCurrentA: 'Inverter DC current', moduleLoadClassPa: 'Module load class',
+        dcCableSizeMm2: 'DC voltage drop', acCableSizeMm2: 'AC voltage drop',
+        pageTechSpec: 'Tech-spec page fit'
+      };
+      if (MAP[id]) return MAP[id];
+      const m = /^Check ([^:]+):/.exec(message); if (m) return m[1].trim();
+      return message.length > 46 ? message.slice(0, 46) + '…' : message;
+    }
     function renderFeedback(list) {
-      const messages = list.blocking.concat(list.advisory, list.notes || []);
+      const messages = list.blocking.concat(list.advisory);
       const notesOnly = !list.blocking.length && !list.advisory.length;
-      /* A missing datasheet value is not something to review: it is a figure
-         nobody has supplied yet, and the specification page already prints it
-         as DATA REQUIRED. The strip appears for a real problem and, when it is
-         up, the missing inputs are listed beside it rather than left out. */
       feedback.replaceChildren(); feedback.hidden = notesOnly || !messages.length;
-      if (!feedback.hidden) feedback.append(element('strong', '', 'Review your inputs'));
-      messages.forEach(({id, message}) => {
-        const button = element('button', '', message + ' →'); button.type = 'button';
+      if (!feedback.hidden) feedback.append(element('strong', '', 'Review before sending'));
+      messages.forEach(({id, message}, index) => {
+        const button = element('button', '', shortLabel(id, message) + ' →');
+        button.type = 'button'; button.title = message;
+        if (index < list.blocking.length) button.className = 'is-blocking';
         /* An engineering advisory can name an input that is not in the panel
            (a datasheet figure); reveal() tolerates a missing element. */
         button.addEventListener('click', () => reveal($(id))); feedback.append(button);
@@ -306,7 +320,15 @@
       const add = (list, item) => { if (!seen.has(item.id + '|' + item.message)) list.push(item); };
       eng.blocking.forEach((i) => add(merged.blocking, i));
       eng.advisory.forEach((i) => add(merged.advisory, i));
-      eng.notes.forEach((i) => add(merged.notes, i));
+      /* A DATA REQUIRED gap prints openly on the page, so it never blocks —
+         but the preparer still gets one look before the sheet leaves the
+         building: the gap rides along as an advisory, so the export
+         pre-flight raises it and offers "Download anyway" rather than
+         refusing. Informational notes stay out of the gate entirely. */
+      eng.notes.forEach((i) => {
+        if (/^DATA REQUIRED/.test(i.message)) add(merged.advisory, i);
+        else add(merged.notes, i);
+      });
       overflowIssues().forEach((i) => add(merged.advisory, i));
       renderFeedback(merged);
       /* What the download sees: the two levels that change the document. */

@@ -333,7 +333,8 @@ for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
 
     /* cover */
     assert.equal(txt('v_coverCapacity'), cap + ' kWp', 'cover capacity');
-    assert.equal(txt('v_coverBadgeGen'), short(e.lifetime), 'cover lifetime-savings badge');
+    assert.equal(txt('v_coverBadgeGen'), short(e.gross), 'cover project-cost badge');
+    assert.equal(txt('v_exHeroLifetime'), inr(e.subsidy), 'exec subsidy tile');
 
     /* executive summary */
     assert.equal(txt('v_exHeroNet'), inr(e.net), 'exec net investment');

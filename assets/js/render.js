@@ -85,7 +85,9 @@
     set('v_coverPrepLabel', CONTENT.cover.labels.preparedBy);
     set('v_coverPrepBy', s.prepName);
     set('v_coverBadgeKwp', s.capacity + ' kWp');
-    set('v_coverBadgeGen', F.fmtINRshort(f.lifetimeSaving));
+    /* The cover's second KPI is the cost of the project (incl. GST); the
+       25-year projection lives in the savings table, not on the cover. */
+    set('v_coverBadgeGen', F.fmtINRshort(f.grossTotal));
     set('v_coverStatYears', s.statYears);
     set('v_coverStatProjects', s.statProjects);
     set('v_coverStatCapacity', s.statCapacity);
@@ -141,8 +143,11 @@
     set('v_exHeroSaveLabel', E.heroLabels.year1Saving);
     set('v_exHeroPayback', isFinite(f.payback) ? f.payback.toFixed(1) + ' yrs' : '—');
     set('v_exHeroPaybackLabel', E.heroLabels.payback);
-    set('v_exHeroLifetime', F.fmtINRshort(f.lifetimeSaving));
-    set('v_exHeroLifetimeLabel', E.heroLabels.lifetime);
+    /* The fourth hero tile names the money the customer gets back from the
+       scheme — the actual computed subsidy (central slab plus any entered
+       state top-up, or the override), never a promise. */
+    set('v_exHeroLifetime', F.fmtINR(f.subsidy));
+    set('v_exHeroLifetimeLabel', E.heroLabels.subsidy);
 
     /* KPI tiles — 8 tiles; the bill-offset tile replaces the warranty tile
        only when the customer's monthly bill has been entered. */
@@ -448,12 +453,12 @@
         ? eng.earthing.electrodeCount + ' × ' + eng.earthing.lengthM + ' m pipe electrode at ' +
           eng.earthing.soilResistivity + ' Ω·m ⇒ ' + round1(eng.earthing.parallelOhm) +
           ' Ω against ' + eng.earthing.targetOhm + ' Ω (IS 3043) — two distinct earths (CEA 2010)'
-        : 'To be designed after the soil resistivity test — ' + REQ + ' (IS 3043)'],
+        : REQ + ' — soil resistivity test; electrode design to follow (IS 3043)'],
       ['Lightning Protection', (eng && eng.lightning.ok && eng.lightning.strikesPerYear)
         ? 'LPL ' + eng.lightning.lpsClass + ': ' + eng.lightning.params.mesh + ' m mesh, ' +
           eng.lightning.params.sphere + ' m rolling sphere, down conductors ≤ ' +
           eng.lightning.params.down + ' m, earth ≤ ' + eng.lightning.earthOhm + ' Ω (IEC 62305) — risk assessment to confirm'
-        : 'Risk assessment not yet made — ' + REQ + ' (IS/IEC 62305)']
+        : REQ + ' — lightning risk assessment (IEC 62305)']
     ]);
     if (s.availableArea) {
       /* Module area alone is not enough roof. Two rows tell the truth about
@@ -499,31 +504,42 @@
           ' zone ⇒ ' + round1(wind.factoredUplift) + ' N/m² design, ' +
           round1(wind.perAnchorN) + ' N per anchor — module rating ' + wind.moduleRatingPa +
           ' Pa (IEC 61215)'
-        : REQ + ' — ' + wind.missing.join(', ')]);
+        : REQ + ' — site wind data (IS 875-3:2015)']);
       rows2.push(['String design', str.ok
         ? str.strings + ' × ' + str.seriesPerString + ' modules in series · Voc at ' + s.minAmbientC +
           ' °C = ' + Math.round(str.vocColdString) + ' V against the inverter’s ' + s.inverterVmaxDc +
           ' V limit' + (str.maxSeriesByVoltage === str.seriesPerString ? ' · longest string allowed here is ' + str.maxSeriesByVoltage + ' modules' : '') +
           ' · Vmp at ' + s.maxCellC + ' °C = ' + Math.round(str.vmpHotString) + ' V against the ' +
           s.mpptMinV + ' V MPPT floor (IEC 62548)'
-        : REQ + ' — ' + str.missing.join(', ')]);
+        : REQ + ' — module datasheet & inverter DC limits (IEC 62548)']);
       rows2.push(['Cable voltage drop', (eng.cable.dc.ok ? 'DC ' + eng.cable.dc.percent.toFixed(2) + ' % over ' +
-        eng.cable.dc.lengthM + ' m of ' + eng.cable.dc.sizeMm2 + ' mm²' : 'DC ' + REQ) + ' · ' +
+        eng.cable.dc.lengthM + ' m of ' + eng.cable.dc.sizeMm2 + ' mm²' : 'DC ' + REQ + ' — length & size') + ' · ' +
         (eng.cable.ac.ok ? 'AC ' + eng.cable.ac.percent.toFixed(2) + ' % over ' + eng.cable.ac.lengthM +
           ' m of ' + eng.cable.ac.sizeMm2 + ' mm² (' + eng.cable.ac.phases + '-phase, IS 732 limit ' +
-          eng.cable.ac.limitPct + ' %)' : 'AC ' + REQ)]);
+          eng.cable.ac.limitPct + ' %)' : 'AC ' + REQ + ' — length & size')]);
       if (eng.roofLoad.ok) {
         rows2.push(['Terrace load', round1(eng.roofLoad.kgPerM2) + ' kg/m² from modules (' +
           eng.roofLoad.moduleWeightKg + ' kg each) and racking against the ' +
           eng.roofLoad.benchmarkKgM2 + ' kg/m² benchmark (MNRE/UPNEDA). Roof capacity itself is a structural check']);
       } else {
-        rows2.push(['Terrace load', REQ + ' — module weight and array area']);
+        rows2.push(['Terrace load', REQ + ' — module weight & array area (MNRE/UPNEDA)']);
       }
       const strip = (m) => m.replace(/^DATA REQUIRED — /, '');
-      const gaps = eng.notes.filter((n) => /^DATA REQUIRED/.test(n.message)).map((n) => strip(n.message));
+      /* The honesty row stays, but as a short shopping list rather than full
+         sentences — the detail lives in the rows above and in the panel. */
+      const GAP_LABEL = {
+        moduleVoc: 'module datasheet (string design)',
+        windSpeed: 'site wind speed',
+        dcCableLengthM: 'DC cable schedule',
+        acCableLengthM: 'AC cable schedule',
+        soilResistivity: 'soil resistivity (earthing)',
+        moduleWeightKg: 'module weight & array area'
+      };
+      const gaps = eng.notes.filter((n) => /^DATA REQUIRED/.test(n.message))
+        .map((n) => GAP_LABEL[n.id] || strip(n.message));
       const design = eng.notes.filter((n) => !/^DATA REQUIRED/.test(n.message)).map((n) => strip(n.message));
       rows2.push(['Data still required', gaps.length
-        ? gaps.join(' ')
+        ? REQ + ' — ' + gaps.join(' · ')
         : 'None — every design figure on this page is either calculated or supplied']);
       if (design.length) rows2.push(['Design notes', design.join(' ')]);
       if (eng.advisory.length) rows2.push(['Review before sending', eng.advisory.map((a) => a.message).join(' ')]);

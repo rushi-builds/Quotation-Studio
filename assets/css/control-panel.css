@@ -82,9 +82,16 @@
 .studio-ready .row3 input{padding-left:7px;padding-right:7px;}
 .studio-ready .studio-payment-label{font-size:9px;}
 .studio-view-page{display:block;width:100%;margin:8px 0 0;padding:10px;border:0;border-top:1px solid #edf0f4;background:transparent;text-align:right;font:500 10px 'Inter',sans-serif;color:#9b5d29;cursor:pointer;}
-.studio-feedback{background:#fff7ef;border:1px solid #f0d7ba;padding:12px;border-radius:9px;margin:0 0 13px;}
-.studio-feedback strong{display:block;color:#8c531e;font-size:11px;margin-bottom:5px;}
-.studio-feedback button{display:block;text-align:left;border:0;background:transparent;padding:5px 0;font:10px/1.5 'Inter',sans-serif;color:#97622f;cursor:pointer;}
+.studio-feedback{background:#fff7ef;border:1px solid #f0d7ba;padding:10px 12px;border-radius:9px;margin:0 0 13px;}
+.studio-feedback strong{display:block;color:#8c531e;font-size:11px;margin-bottom:7px;letter-spacing:.02em;}
+.studio-feedback button{display:inline-block;text-align:left;border:1px solid #e8c9a4;background:#fff;border-radius:999px;padding:4px 10px;margin:0 6px 6px 0;font:600 10.5px/1.4 'Inter',sans-serif;color:#97622f;cursor:pointer;}
+.studio-feedback button:hover{border-color:#c98a4b;color:#7a4416;}
+.studio-feedback button.is-blocking{background:#8c531e;border-color:#8c531e;color:#fff;}
+/* Audio personalisation is a nicety, not the pitch: it lives folded away. */
+.studio-advanced{margin:2px 0 10px;border:1px dashed #d8c6ae;border-radius:8px;padding:6px 10px 8px;}
+.studio-advanced summary{cursor:pointer;font:600 10.5px/1.6 'Inter',sans-serif;color:#7c6a52;letter-spacing:.04em;text-transform:uppercase;}
+.studio-advanced summary::before{content:'▸ ';}
+.studio-advanced[open] summary::before{content:'▾ ';}
 .studio-ready details.advanced{background:#f1f4f8;border:1px solid #dce4ed;border-radius:10px;margin-bottom:10px;}
 .studio-ready details.advanced>summary{padding:14px;font:600 11px 'Inter',sans-serif;color:#52677e;}
 .studio-ready .form-actions{flex-shrink:0;margin:18px -22px 0;padding:14px 22px 12px;background:#fffffffa;border-top:1px solid #dfe5ed;box-shadow:0 -8px 22px #263a5106;backdrop-filter:blur(12px);z-index:50;}

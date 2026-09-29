@@ -42,7 +42,8 @@ const CONTENT = {
       netInvestment: 'Your Net Investment',
       year1Saving: 'Saving in Year 1',
       payback: 'Payback Period',
-      lifetime: 'Savings over 25 Years'
+      lifetime: 'Savings over 25 Years',
+      subsidy: 'Estimated Subsidy'
     },
     kpiSectionLabel: 'YOUR SYSTEM BY THE NUMBERS',
     kpis: {
