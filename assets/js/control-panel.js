@@ -146,6 +146,9 @@
       engFs.querySelector('legend').classList.add('studio-sr-only');
       wrap.insertBefore(d, engFs); d.append(engFs);
     }
+    /* Panel order: the working list, then QR & links, then the drawer, and
+       Advanced Edit last. */
+    form.insertBefore(wrap, $('advancedPanel'));
 
     /* Reference-number guard. The template ships with a sample reference, and
        two proposals can end up sharing one number without anything noticing —

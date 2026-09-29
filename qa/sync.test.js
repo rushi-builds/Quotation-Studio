@@ -112,7 +112,7 @@ t('Essentials button active by default', d.getElementById('modeEss').classList.c
 /* Ten since the commercial tax illustration moved inside Financial
    Assumptions as a nested optional; the engineering basis and the rest stay
    hidden in Essentials while every result still prints on the Tech Spec page. */
-t('ten advanced sections including the engineering design basis', advanced.length === 10, advanced.length);
+t('nine advanced sections — QR & links now sits in the working list', advanced.length === 9, advanced.length);
 t('the engineering design basis is one of them',
   advanced.some((el) => el.querySelector('#tiltDeg') && el.querySelector('#soilResistivity')), 'engineering fieldset');
 t('all advanced sections hidden in Essentials', advanced.every((el) => w.getComputedStyle(el).display === 'none'));
