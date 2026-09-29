@@ -13,7 +13,7 @@
     const s=root.Render.lastState||{},select=$('pdfFormat'),reports=formatsFor(s);
     // Remove unavailable entries, rather than merely disabling them: native
     // select popups (especially on mobile) can still display disabled options.
-    const available=[['full','Detailed Proposal — all applicable pages'],['power','Power Proposal — 2-page summary']];
+    const available=[['full','Detailed Proposal - all applicable pages'],['power','Power Proposal - 2-page summary']];
     for(const [value,report] of Object.entries(reports)) {
       if(value==='bess'?root.Bess.enabled(s):root.AdditionalSystems.enabled(s))
         available.push([value,report.title+' · '+report.ids.length+(report.ids.length===1?' page':' pages')]);
@@ -116,7 +116,7 @@
         });
       }
       const cust=(s.custName||'Customer').replace(/[^a-z0-9]+/gi,'_'),ref=(s.propRef||'').replace(/[^a-z0-9]+/gi,'-');
-      pdf.setProperties({title:(reports[format]?.title||(format==='power'?'Power Proposal':'Solar Proposal'))+' — '+s.custName+' ('+s.capacity+' kWp)',subject:'Rooftop solar EPC proposal '+ref+' v'+s.propVersion,author:s.companyName,creator:s.companyName+' — Quotation Studio'});
+      pdf.setProperties({title:(reports[format]?.title||(format==='power'?'Power Proposal':'Solar Proposal'))+' - '+s.custName+' ('+s.capacity+' kWp)',subject:'Rooftop solar EPC proposal '+ref+' v'+s.propVersion,author:s.companyName,creator:s.companyName+' - Quotation Studio'});
       pdf.save((reports[format]?reports[format].title.replace(/[^a-z0-9_-]+/gi,'_')+'_':format==='power'?'Power_Proposal_':'Proposal_')+cust+'_'+s.capacity+'kWp_'+ref+'.pdf');
       set('Downloaded ✓ ('+pages.length+' pages)');
     } finally {snapshot?.remove();busy=false;}
@@ -165,7 +165,7 @@
     if (c.dialog.open) return Promise.resolve('cancel');
     c.title.textContent = stop ? 'This quotation is not ready to send' : 'Check these before you download';
     c.note.textContent = stop
-      ? 'These inputs would print a wrong offer. Fix them and the PDF is generated — the button will work again straight away.'
+      ? 'These inputs would print a wrong offer. Fix them and the PDF is generated - the button will work again straight away.'
       : 'These look unusual but may be deliberate. The PDF can still be produced exactly as it stands.';
     c.list.replaceChildren();
     let settle = () => {};
@@ -222,21 +222,24 @@
     let found;
     try { found = api.run() || {}; } catch (e) { return 'proceed'; }
     if (!(found.blocking || []).length && !(found.advisory || []).length) {
-      notice('All checks passed — your download has started.', 'ok');
+      notice('All checks passed - your download has started.', 'ok');
       return 'proceed';
     }
     return ask(found);
   }
   function wire() {
     const btn=$('downloadBtn'),status=$('statusMsg');
+    /* A fresh message cancels the previous export's fade-out, so an old timer
+       can never wipe a newer status line. */
+    let statusTimer=0;
     if(btn) btn.addEventListener('click',async()=>{
       /* Nothing is generated until the sheet passes its own checks. */
       if (await preflight() !== 'proceed') return;
       btn.disabled=true;btn.classList.add('busy');
-      try {await exportPdf(m=>{status.textContent=m;},{format:$('pdfFormat')?.value});}
-      catch(err){console.error(err);status.textContent=err.message || 'PDF generation failed. Please try again.';
+      try {clearTimeout(statusTimer);await exportPdf(m=>{status.textContent=m;},{format:$('pdfFormat')?.value});}
+      catch(err){console.error(err);clearTimeout(statusTimer);status.textContent=err.message || 'PDF generation failed. Please try again.';
         notice(err.message || 'PDF generation failed. Please try again.','error');}
-      finally {btn.disabled=false;btn.classList.remove('busy');setTimeout(()=>{status.textContent='';},8000);}
+      finally {btn.disabled=false;btn.classList.remove('busy');clearTimeout(statusTimer);statusTimer=setTimeout(()=>{status.textContent='';},8000);}
     });
     document.querySelectorAll('[data-export-format]').forEach(button=>button.addEventListener('click',async()=>{
       const old=button.textContent;button.disabled=true;

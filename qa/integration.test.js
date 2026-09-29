@@ -55,7 +55,7 @@ function bootApp(seedStorage) {
   });
   const { window } = dom;
   /* browser <script> tags share top-level scope; a single concatenated eval mimics that */
-  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
     'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
@@ -73,8 +73,8 @@ const dumpStorage = (w) => {
   return out;
 };
 
-/* =================== run 1 — fresh boot =================== */
-console.log('— boot —');
+/* =================== run 1 - fresh boot =================== */
+console.log('- boot -');
 const w = bootApp();
 const d = w.document;
 
@@ -83,9 +83,14 @@ t('rendered all 21 page shells (options, financing and BESS hidden by default)',
 t('page labels generated', /Page 1 of 15/.test(d.querySelector('[data-page="pageCover"] .page-label').textContent),
   d.querySelector('[data-page="pageCover"] .page-label').textContent);
 t('cover shows a neutral customer placeholder', d.getElementById('v_coverCustName').textContent === 'Customer Name');
-t('cover badge generation', /₹40/.test(d.getElementById('v_coverBadgeGen').textContent),
-  d.getElementById('v_coverBadgeGen').textContent);
-t('exec hero net = ₹4,07,051', d.getElementById('v_exHeroNet').textContent === '₹4,07,051',
+t('cover badge is the project cost incl. GST', (() => {
+  const f = w.Finance.compute(w.Render.lastState);
+  return d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtINRshort(f.grossTotal);
+})(), d.getElementById('v_coverBadgeGen').textContent);
+t('exec hero names the actual subsidy', d.getElementById('v_exHeroLifetime').textContent === '₹78,000' &&
+  /Estimated Subsidy/.test(d.getElementById('v_exHeroLifetimeLabel').textContent),
+  d.getElementById('v_exHeroLifetime').textContent + ' / ' + d.getElementById('v_exHeroLifetimeLabel').textContent);
+t('exec hero net = ₹4,06,823', d.getElementById('v_exHeroNet').textContent === '₹4,06,823',
   d.getElementById('v_exHeroNet').textContent);
 t('exec payback ≈ 3.7 yrs', /^3\.7/.test(d.getElementById('v_exHeroPayback').textContent),
   d.getElementById('v_exHeroPayback').textContent);
@@ -103,12 +108,12 @@ t('tech spec module count 13', d.getElementById('v_tsTable').textContent.include
 t('scope deliverables 6', d.querySelectorAll('#v_scDeliverables .deliv-box').length === 6);
 t('quality checklist 6', d.querySelectorAll('#v_quChecklist .check-card').length === 6);
 t('savings table 5 milestone rows', d.querySelectorAll('#v_svTable tbody tr').length === 5);
-t('investment cost cards filled', d.getElementById('v_inCostNet').textContent === '₹4,07,051',
+t('investment cost cards filled', d.getElementById('v_inCostNet').textContent === '₹4,06,823',
   d.getElementById('v_inCostNet').textContent);
 t('investment ₹/Wp = ₹63.6', d.getElementById('v_inRate').textContent === '₹63.6 / Wp', d.getElementById('v_inRate').textContent);
 t('BOM section hidden when empty', d.getElementById('v_inBomSection').style.display === 'none');
 t('pay chips rendered', d.querySelectorAll('#v_inPayChips .pay-chip').length === 3);
-t('advance chip amount = ₹2,42,526', d.getElementById('v_inPayChips').textContent.includes('₹2,42,526'),
+t('advance chip amount = ₹2,42,411', d.getElementById('v_inPayChips').textContent.includes('₹2,42,411'),
   d.getElementById('v_inPayChips').textContent);
 t('why-ktm has six differentiators without repeated company stats', d.querySelectorAll('#v_wkDiffs .diff-card').length === 6);
 t('projects 10 cards with images', d.querySelectorAll('#v_prCats .proj-card img').length === 10);
@@ -127,7 +132,7 @@ t('advanced editor built', d.querySelectorAll('#advContainer details.page-group'
 t('navigator has 15 chips', d.querySelectorAll('#pageNav .nav-chip').length === 15);
 
 /* ---------- Phase 1: proposal store ---------- */
-console.log('— proposal store (Phase 1) —');
+console.log('- proposal store (Phase 1) -');
 t('one proposal created on first boot', w.Proposals.list().length === 1, w.Proposals.list().length);
 t('active id set', !!w.Proposals.activeId());
 t('manager dropdown populated', d.getElementById('proposalSelect').options.length === 1);
@@ -135,7 +140,7 @@ t('status select shows Draft', d.getElementById('pmStatus').value === 'draft', d
 t('blob contains live form', w.Proposals.active().form.capacity === '7');
 
 /* ---------- Phase 1: equipment catalog ---------- */
-console.log('— equipment catalog (Phase 1) —');
+console.log('- equipment catalog (Phase 1) -');
 t('3 seed modules in catalog', w.EquipmentStore.cat().modules.length === 3);
 t('module dropdown includes catalog and Custom', d.getElementById('moduleMake').options.length === 4);
 t('inverter dropdown includes catalog and Custom', d.getElementById('inverterMake').options.length === 5);
@@ -157,10 +162,10 @@ d.getElementById('moduleMake').value = 'Panasonic / Waaree / Adani or Equivalent
 fire(w, d.getElementById('moduleMake'), 'change');
 
 /* ---------- interactions ---------- */
-console.log('— interactions —');
+console.log('- interactions -');
 d.getElementById('capacity').value = '10';
 fire(w, d.getElementById('capacity'), 'input');
-t('capacity 10 → hero updates', d.getElementById('v_exHeroNet').textContent === '₹6,14,931',
+t('capacity 10 → hero updates', d.getElementById('v_exHeroNet').textContent === '₹6,14,604',
   d.getElementById('v_exHeroNet').textContent);
 t('capacity 10 → module count 19', d.getElementById('v_tsTable').textContent.includes('19 modules'),
   d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
@@ -186,7 +191,7 @@ t('BOM section appears', d.getElementById('v_inBomSection').style.display !== 'n
 t('BOM legend 6 rows', d.querySelectorAll('#v_inBomLegend .bom-row').length === 6);
 t('BOM legend has %', d.getElementById('v_inBomLegend').textContent.includes('%'));
 const bomSet = (id, v) => { d.getElementById(id).value = v; fire(w, d.getElementById(id), 'input'); };
-bomSet('bomModules', '115410');   /* 115,410 + 330,000 = 445,410 — the quoted price */
+bomSet('bomModules', '115410');   /* 115,410 + 330,000 = 445,410 - the quoted price */
 t('BOM matching the quoted price stays silent',
   d.getElementById('v_inBomLegend').querySelector('.bom-warn') === null,
   'a 0 delta must not warn');
@@ -210,14 +215,18 @@ fire(w, d.getElementById('availableArea'), 'input');
 t('area fit check flags shortage', d.getElementById('v_tsTable').textContent.includes('exceeds available area'));
 
 /* ---------- installed vs contracted capacity + roof clearance ---------- */
-console.log('— installed capacity & roof area —');
+console.log('- installed capacity & roof area -');
 t('tech spec states the installed array beside the contracted capacity',
   d.getElementById('v_tsTable').textContent.includes('7.085 kWp (contracted 7 kWp)'),
   d.getElementById('v_tsTable').textContent.match(/Installed Array Size.*?kWp[^k]*/));
-t('roof requirement names the clearance factor instead of bare module area',
+/* The required roof area is no longer "module area × 1.4": it is the shaded
+   row pitch worked out from the tilt and the winter-solstice sun angle, and the
+   page has to say which one it used. */
+t('roof requirement states the derived row pitch, not bare module area',
   d.getElementById('v_tsTable').textContent.includes('Roof Area Required') &&
-  d.getElementById('v_tsTable').textContent.includes('module area × 1.4 clearance'),
-  d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,70}/));
+  /row pitch \d+\.\d+ m at 15° tilt, no shading 09:00–15:00 on 21 December/.test(d.getElementById('v_tsTable').textContent) &&
+  /module area × 1\.4\d clearance/.test(d.getElementById('v_tsTable').textContent),
+  d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,140}/));
 d.getElementById('roofClearanceFactor').value = '1.1';
 fire(w, d.getElementById('roofClearanceFactor'), 'input');
 t('changing the clearance factor re-renders the required roof area live',
@@ -256,7 +265,7 @@ if (advInput) {
 }
 
 /* ---------- manager workflow ---------- */
-console.log('— manager workflow —');
+console.log('- manager workflow -');
 d.getElementById('pmNew').click();
 t('New creates 2nd proposal', w.Proposals.list().length === 2, w.Proposals.list().length);
 t('New switches active', w.Proposals.get(w.Proposals.activeId()).form.custName === '');
@@ -322,7 +331,7 @@ t('switching restores capacity', d.getElementById('capacity').value === '7',
 
 /* ---------- persistence ---------- */
 setTimeout(() => {
-  console.log('— persistence —');
+  console.log('- persistence -');
   const dump = dumpStorage(w);
   t('active blob persisted edits', (() => {
     const blob = JSON.parse(dump['qstudio.proposal.' + dump['qstudio.activeId']]);
@@ -337,8 +346,8 @@ setTimeout(() => {
     return eq.modules.length === 4 && eq.modules.some((m) => m.make === 'TestModule 550');
   })());
 
-  /* run 2 — restore from full storage dump */
-  console.log('— restore —');
+  /* run 2 - restore from full storage dump */
+  console.log('- restore -');
   const w2 = bootApp(dump);
   const d2 = w2.document;
   t('restored heading (Why Go Solar?)', d2.getElementById('v_wsHeading').textContent === 'Why Go Solar?',
@@ -349,8 +358,8 @@ setTimeout(() => {
   t('restored equipment catalog', w2.EquipmentStore.cat().modules.length === 4);
   t('no errors in run 2', errors.length === 0, errors.join(' | '));
 
-  /* run 3 — legacy migration */
-  console.log('— legacy migration —');
+  /* run 3 - legacy migration */
+  console.log('- legacy migration -');
   const legacyPayload = JSON.stringify({
     v: 2, savedAt: '2026-01-01T00:00:00.000Z',
     form: { capacity: '9', custName: 'Legacy Customer', propRef: 'LEGACY/001', propVersion: '1.0' },
@@ -366,7 +375,7 @@ setTimeout(() => {
     d3.getElementById('v_wsHeading').textContent);
 
   /* ---------- financing (EMI) page flow ---------- */
-  console.log('— financing (EMI) page —');
+  console.log('- financing (EMI) page -');
   t('Financing page hidden by default',
     d.querySelector('.page-wrap[data-page="pageFinance"]').style.display === 'none' &&
     !Array.from(d.querySelectorAll('.nav-chip')).some((c) => c.textContent === 'Financing'));
@@ -420,7 +429,7 @@ setTimeout(() => {
     wF.document.getElementById('v_finCards').textContent.slice(0, 60));
 
   /* ---------- pdf export smoke ---------- */
-  console.log('— pdf export —');
+  console.log('- pdf export -');
   d.getElementById('custName').value = 'QA Customer'; fire(w, d.getElementById('custName'), 'input');
   let savedName = '';
   w.html2canvas = async () => ({ toDataURL: () => 'data:image/jpeg;base64,AAAA' });

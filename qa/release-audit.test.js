@@ -80,7 +80,7 @@ check('EMI independently reconciles to reducing-balance formula',Math.abs(loan.e
   check('delayed uploads cannot cross proposal boundaries',await page.$eval('#img_closing',(e,src)=>e.getAttribute('src')===src,closing));
   await page.evaluate(()=>window.FileReader=window.__Reader);
   await page.evaluate(()=>{document.getElementById('capacity').value='0';Render.renderAll();});
-  check('undefined IRR renders as a dash, not NaN or a fabricated percentage',await page.$eval('#v_exKpis',e=>!e.textContent.includes('NaN')&&!e.textContent.includes('452.5%')&&e.textContent.includes('—')));
+  check('undefined IRR renders as a dash, not NaN or a fabricated percentage',await page.$eval('#v_exKpis',e=>!e.textContent.includes('NaN')&&!e.textContent.includes('452.5%')&&e.textContent.includes('-')));
   await page.evaluate(()=>window.__qsSaveNow());
   const quota=await page.evaluate(()=>{
     const originalId=Proposals.activeId(),index=Proposals.list().map(p=>p.id).sort().join(','),set=Storage.prototype.setItem;

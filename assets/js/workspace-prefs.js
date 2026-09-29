@@ -1,5 +1,5 @@
 /* ---------- workspace preferences (resume on reopen) ----------
-   Remembers *presentation* state only — which proposal was open, the
+   Remembers *presentation* state only - which proposal was open, the
    Essentials/All switch, which control-panel sections were expanded, and
    where the reader was. It is deliberately stored away from the proposal
    data: if this record is corrupt or missing the proposal itself still

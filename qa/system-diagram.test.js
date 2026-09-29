@@ -78,7 +78,7 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     check('manual inverter rating updates the visible drawing', (await label(page,'inverter-value')) === expected[1] && expected[1] === '12 kW');
     await geometry(page,'Edited equipment');
     await page.evaluate(() => {
-      const input=[...document.querySelectorAll('.field')].find(e=>e.querySelector('label')?.textContent==='Diagram — dcdb').querySelector('input');
+      const input=[...document.querySelectorAll('.field')].find(e=>e.querySelector('label')?.textContent==='Diagram - dcdb').querySelector('input');
       input.value='DC isolator'; input.dispatchEvent(new Event('input',{bubbles:true}));
     });
     check('new protection labels are editable through real Advanced editor', (await label(page,'dcdb')) === 'DC isolator');

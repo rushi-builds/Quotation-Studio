@@ -8,7 +8,7 @@ function t(name, cond, extra) {
   else { fail++; console.error('  ✗ FAIL:', name, extra !== undefined ? '→ ' + extra : ''); }
 }
 
-console.log('— Subsidy slabs (PM Surya Ghar) —');
+console.log('- Subsidy slabs (PM Surya Ghar) -');
 t('1 kW → ₹30,000', F.calcSubsidy(1) === 30000);
 t('2 kW → ₹60,000', F.calcSubsidy(2) === 60000);
 t('2.5 kW → ₹69,000', F.calcSubsidy(2.5) === 69000);
@@ -16,14 +16,14 @@ t('3 kW → ₹78,000 (cap)', F.calcSubsidy(3) === 78000);
 t('10 kW → ₹78,000 (cap)', F.calcSubsidy(10) === 78000);
 t('0 kW → 0', F.calcSubsidy(0) === 0);
 
-console.log('— Formatting —');
+console.log('- Formatting -');
 t('INR grouping', F.fmtINR(1234567) === '₹12,34,567', F.fmtINR(1234567));
 t('short lakh', F.fmtINRshort(670000) === '₹6.7 L', F.fmtINRshort(670000));
 t('short crore', F.fmtINRshort(12400000) === '₹1.24 Cr', F.fmtINRshort(12400000));
 t('date', F.fmtDate('2026-09-19') === '19th September 2026', F.fmtDate('2026-09-19'));
 t('addDays 15', F.addDays('2026-09-19', 15) === '2026-10-04', F.addDays('2026-09-19', 15));
 
-console.log('— Core compute (7 kWp, ₹90k/kWp, 8.9% GST, ₹15 tariff) —');
+console.log('- Core compute (7 kWp, ₹90k/kWp, 8.9% GST, ₹15 tariff) -');
 const base = {
   capacity: 7, genFactor: 1460, costPerKwp: 90000, gstPercent: 8.9,
   tariff: 15, escalation: 6, degradation: 0.5, customerType: 'residential',
@@ -57,7 +57,7 @@ t('moduleCount = ceil(7000/545) = 13', f.moduleCount === 13, f.moduleCount);
 t('arrayArea = 13 × 2.5832 ≈ 33.6 m²', Math.abs(f.arrayArea - 33.58) < 0.05, f.arrayArea);
 t('effective ₹/unit = net / lifetimeGen', Math.abs(f.effectivePerUnit - f.netInvestment / f.lifetimeGen) < 0.001);
 
-console.log('— Installed vs contracted capacity (whole modules) —');
+console.log('- Installed vs contracted capacity (whole modules) -');
 t('contracted stays 7 kWp, installed is 7.085 kWp (13 × 545 Wp)',
   f.contractedKwp === 7 && Math.abs(f.installedKwp - 7.085) < 1e-9);
 t('generation follows the installed array, not the contract',
@@ -76,7 +76,7 @@ t('no module wattage → installed falls back to the contracted figure', (() => 
   return bare.installedKwp === 7 && bare.annualGen === 7 * 1460;
 })());
 
-console.log('— Subsidy follows the installed DC capacity —');
+console.log('- Subsidy follows the installed DC capacity -');
 t('2.5 kWp contracted = 2.725 kWp installed → ₹73,050 (not ₹69,000)', (() => {
   const s = F.compute({ ...base, capacity: 2.5 });
   return s.moduleCount === 5 && Math.abs(s.installedKwp - 2.725) < 1e-9 && s.subsidy === 73050;
@@ -92,8 +92,20 @@ t('commercial stays nil regardless of installed capacity',
   F.compute({ ...base, capacity: 2.5, customerType: 'commercial' }).subsidy === 0);
 t('an explicit override still wins over the installed-capacity slab',
   F.compute({ ...base, capacity: 2.5, subsidyOverride: '90000' }).subsidy === 90000);
+t('a Maharashtra state top-up adds to the central slab (2 kWp + ₹25,000 → ₹85,000)', (() => {
+  const s = F.compute({ ...base, capacity: 2, stateTopUp: '25000' });
+  return s.subsidy === 63240 + 25000 && s.stateTopUp === 25000;
+})(), F.compute({ ...base, capacity: 2, stateTopUp: '25000' }).subsidy);
+t('the top-up respects the same residential-only rule',
+  F.compute({ ...base, capacity: 2, stateTopUp: '25000', customerType: 'commercial' }).subsidy === 0);
+t('blank, zero or invalid top-up changes nothing',
+  F.compute({ ...base, capacity: 2, stateTopUp: '' }).subsidy === 63240 &&
+  F.compute({ ...base, capacity: 2, stateTopUp: '0' }).subsidy === 63240 &&
+  F.compute({ ...base, capacity: 2, stateTopUp: 'abc' }).subsidy === 63240);
+t('an explicit override wins over central plus top-up',
+  F.compute({ ...base, capacity: 2, stateTopUp: '25000', subsidyOverride: '90000' }).subsidy === 90000);
 
-console.log('— Roof area clearance —');
+console.log('- Roof area clearance -');
 t('required area = module area × clearance factor (default 1.4)',
   Math.abs(f.requiredArea - f.arrayArea * 1.4) < 1e-9 && f.roofClearanceFactor === 1.4);
 t('a roof equal to bare module area does not fit once clearance is applied',
@@ -109,7 +121,7 @@ t('a clearance factor below 1 is clamped to bare module area', (() => {
 t('zero capacity has zero required area, not NaN',
   F.compute({ capacity: 0 }).requiredArea === 0);
 
-console.log('— Generation transparency —');
+console.log('- Generation transparency -');
 t('units/kWp/day and CUF derive from the generation factor',
   Math.abs(f.unitsPerKwpDay - 4) < 1e-9 && Math.abs(f.cufPercent - 16.6667) < 0.001);
 t('no generation factor → no derived rate, no NaN', (() => {
@@ -117,7 +129,7 @@ t('no generation factor → no derived rate, no NaN', (() => {
   return z.unitsPerKwpDay === 0 && z.cufPercent === 0 && z.annualGen === 0;
 })());
 
-console.log('— Customer type & subsidy logic —');
+console.log('- Customer type & subsidy logic -');
 t('commercial → subsidy 0', F.compute({ ...base, customerType: 'commercial' }).subsidy === 0);
 t('industrial → subsidy 0', F.compute({ ...base, customerType: 'industrial' }).subsidy === 0);
 t('commercial with override → override wins',
@@ -125,7 +137,7 @@ t('commercial with override → override wins',
 t('residential override wins over slabs',
   F.compute({ ...base, subsidyOverride: '10000' }).subsidy === 10000);
 
-console.log('— Payments & BOM —');
+console.log('- Payments & BOM -');
 t('payment % sum 100', f.pay.sumPct === 100);
 t('advance amount = 50% of gross', Math.abs(f.pay.advance.amount - 686070 / 2) < 1);
 const fBom = F.compute({ ...base, bomModules: '300000', bomInverter: '80000', bomStructure: '70000' });
@@ -133,12 +145,12 @@ t('bomSum = 4,50,000', fBom.bomSum === 450000, fBom.bomSum);
 t('bomDelta = 630000−450000 = 180000', fBom.bomDelta === 180000, fBom.bomDelta);
 t('bomItems filtered to 3', fBom.bomItems.length === 3);
 
-console.log('— Bill offset —');
+console.log('- Bill offset -');
 const fBill = F.compute({ ...base, monthlyBill: '12000' });
 t('offset = 155162/144000 = 108% → capped 100', Math.round(fBill.billOffset) === 108 && fBill.billOffsetCapped === 100,
   fBill.billOffset);
 
-console.log('— Environment factors —');
+console.log('- Environment factors -');
 t('co2Annual = 10,344×0.71/1000 = 7.34 t (CEA v21.0 default)',
   Math.abs(f.co2Annual - 7.3443) < 0.01, f.co2Annual);
 t('tree factor defaults to 22 kg (not the retired 58.4)',
@@ -147,7 +159,7 @@ const fEnv = F.compute({ ...base, co2Factor: '0.5' });
 t('custom CO₂ factor respected', Math.abs(fEnv.co2Annual - 10344.1 * 0.5 / 1000) < 0.01);
 t('custom tree factor respected', Math.abs(F.compute({ ...base, treeFactor: '30' }).treesAnnual - 244.81) < 0.05);
 
-console.log('— Financing & EMI —');
+console.log('- Financing & EMI -');
 const fLoan = F.compute({ ...base, loanAmt: '500000', loanRate: '9', loanYears: '10' });
 /* independent EMI formula: P·r / (1 − (1+r)^−n) */
 (() => {
@@ -176,14 +188,14 @@ t('partial financing inputs → financing null',
 t('zero-rate guard (rate 0 → null, no div-by-zero NaN)',
   F.compute({ ...base, loanAmt: '500000', loanRate: '0', loanYears: '10' }).financing === null);
 
-console.log('— Edge cases —');
+console.log('- Edge cases -');
 const zero = F.compute({});
 t('zero inputs do not crash', isFinite(zero.projectCost) && zero.projectCost === 0);
 t('zero payback is NaN not 0-clone', !isFinite(zero.payback));
 const neg = F.compute({ ...base, costPerKwp: '0' });
 t('zero cost → payback NaN', !isFinite(neg.payback));
 const huge = F.compute({ ...base, capacity: '500' });
-t('500 kWp: subsidy still ₹78,000 (capped slab) — documentable', huge.subsidy === 78000, huge.subsidy);
+t('500 kWp: subsidy still ₹78,000 (capped slab) - documentable', huge.subsidy === 78000, huge.subsidy);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

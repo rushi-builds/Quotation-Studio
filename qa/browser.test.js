@@ -99,12 +99,12 @@ const OUT = __dirname + '/shots';
 
   /* ---- system options (Good/Better/Best) + cover QR ---- */
   await page.evaluate(() => { document.getElementById('optName').focus(); });
-  await page.type('#optName', 'Good — 5 kWp');
+  await page.type('#optName', 'Good - 5 kWp');
   await page.evaluate(() => { const c = document.getElementById('capacity'); c.value = '5'; c.dispatchEvent(new Event('input', { bubbles: true })); });
   await page.click('#optSave');
   await page.evaluate(() => { const c = document.getElementById('capacity'); c.value = '8'; c.dispatchEvent(new Event('input', { bubbles: true })); });
   await page.evaluate(() => { document.getElementById('optName').focus(); });
-  await page.type('#optName', 'Best — 8 kWp');
+  await page.type('#optName', 'Best - 8 kWp');
   await page.click('#optSave');
   await new Promise((r) => setTimeout(r, 400));
   const opt = await page.evaluate(() => ({
@@ -114,8 +114,8 @@ const OUT = __dirname + '/shots';
     cols: document.querySelectorAll('#v_opTable thead th').length,
     rows: document.querySelectorAll('#v_opTable tbody tr').length,
     bests: document.querySelectorAll('#v_opTable td.best').length,
-    names: document.getElementById('v_opTable').textContent.includes('Good — 5 kWp') &&
-           document.getElementById('v_opTable').textContent.includes('Best — 8 kWp'),
+    names: document.getElementById('v_opTable').textContent.includes('Good - 5 kWp') &&
+           document.getElementById('v_opTable').textContent.includes('Best - 8 kWp'),
     optCount: (window.__qsOptions || []).length
   }));
   t('options page visible with 2 options', opt.visible, opt.visible);
@@ -234,9 +234,9 @@ const OUT = __dirname + '/shots';
   t('status confirms 16 pages', status.includes('16'), status);
 
   /* ---- financing (EMI) page: appears, paints, exports as page 17 ---- */
-  console.log('— financing (EMI) —');
+  console.log('- financing (EMI) -');
   /* the first export must be fully finished (button re-enabled, status final)
-     before we mutate state — a mid-run click would be silently ignored */
+     before we mutate state - a mid-run click would be silently ignored */
   let settled = false;
   for (let i = 0; i < 120; i++) {
     const st = await page.$eval('#statusMsg', (e) => e.textContent).catch(() => '');
