@@ -20,10 +20,10 @@
                                  -ak, -il, -ay, -av for masculine).
      6. nothing matched        — no title is spoken.
 
-   When detection lands nothing, or the dealer picks it, the neutral "ji" is
-   used: it is respectful and correct for every gender in English, Hindi and
-   Marathi alike. The form's "Address customer as" control always wins over
-   detection, so a wrong guess is one click away from being fixed.
+   When detection lands nothing, the neutral "ji"/"जी" is used: it is
+   respectful and correct for every gender in English, Hindi and Marathi
+   alike. A stored override from an older session still wins over
+   detection, should one ever be present.
 
    Devanagari input is supported for reading and display; gender endings are
    applied to Latin spellings only, so a Devanagari name that is not in the
@@ -203,13 +203,14 @@
     return detectGender(rawName) || 'neutral';
   }
 
-  /* The spoken honourific per language. Hindi answers every gender with "जी"
-     by design; English and Marathi split sir/ma'am, with "ji"/"जी" as the
-     safe middle when nothing is known. */
+  /* The spoken honourific per language. Hindi and Marathi answer every
+     gender with "जी" — respectful everywhere, never a gender guess spoken
+     out loud. English splits sir/ma'am, with "ji" as the safe middle
+     when nothing is known. */
   const HONORS = {
     en: { male: 'sir', female: 'ma\u2019am', neutral: 'ji' },
     hi: { male: 'जी', female: 'जी', neutral: 'जी' },
-    mr: { male: 'सर', female: 'मॅडम', neutral: 'जी' }
+    mr: { male: 'जी', female: 'जी', neutral: 'जी' }
   };
 
   /* ---- script matching ----------------------------------------------------

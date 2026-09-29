@@ -77,7 +77,7 @@
     customerFields.querySelector('legend').after($('custName').closest('.field'), $('custAddress').closest('.field'));
     customerFields.append($('prepName').closest('.field'));
     /* The advanced audio card sits directly under the Prepared-by box. */
-    const audioAdv = $('custSalutation') ? $('custSalutation').closest('details.studio-advanced') : null;
+    const audioAdv = document.querySelector('details.studio-advanced');
     if (audioAdv) customerFields.append(audioAdv);
 
     const configs = [
@@ -233,8 +233,6 @@
       /* The panel stays silent about the reference too — the pre-flight
          raises it before a PDF exists. */
       refWarning.hidden = true;
-      const salCustomField = $('custSalutationCustomField');
-      if (salCustomField) salCustomField.hidden = $('custSalutation').value !== 'custom';
       validateWithEngineering(f, state);
       if (searchInput.value.trim()) find();
     }
