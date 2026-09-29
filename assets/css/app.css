@@ -1544,12 +1544,14 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 }
 /* Bottom-pinned closers: the acceptance block and the investment disclaimer
    sit at the foot of their pages instead of floating above dead space. */
-#pageClosing .accept-block{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:118px;margin:0;}
-#pageClosing .disclaimer-box{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:56px;margin:0;}
+#pageClosing .accept-block{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:175px;margin:0;}
+#pageClosing .disclaimer-box{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:113px;margin:0;}
 #pageClosing .pg-body{padding-bottom:380px;}
 #pageClosing .engineering-overview{margin-top:26px;}
 #pageInvestment .disclaimer-line{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:44px;margin:0;}
 #pageInvestment .pg-body{padding-bottom:110px;}
+#pageInvestment .spacer{flex:0 0 42px;}
+#pageInvestment.has-bom .spacer{flex:0 0 16px;}
 #pageProjects .proj-card img { height:132px; }
 .photo-top { top:76px; }
 .photo-top img { object-position:50% 50%; }
