@@ -92,6 +92,11 @@
 .studio-advanced summary{cursor:pointer;font:600 10.5px/1.6 'Inter',sans-serif;color:#7c6a52;letter-spacing:.04em;text-transform:uppercase;}
 .studio-advanced summary::before{content:'▸ ';}
 .studio-advanced[open] summary::before{content:'▾ ';}
+/* The whole expert shelf folds into one drawer; opening it in Essentials
+   must still show its (data-adv) sections. */
+.studio-advanced-wrap{margin:12px 0;border:1px dashed #d8c6ae;border-radius:10px;padding:8px 10px;background:#fbf7f1;}
+.studio-advanced-wrap>summary{cursor:pointer;font:700 11px/1.6 'Inter',sans-serif;color:#5c4a33;letter-spacing:.05em;text-transform:uppercase;}
+form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
 .studio-ready details.advanced{background:#f1f4f8;border:1px solid #dce4ed;border-radius:10px;margin-bottom:10px;}
 .studio-ready details.advanced>summary{padding:14px;font:600 11px 'Inter',sans-serif;color:#52677e;}
 .studio-ready .form-actions{flex-shrink:0;margin:18px -22px 0;padding:14px 22px 12px;background:#fffffffa;border-top:1px solid #dfe5ed;box-shadow:0 -8px 22px #263a5106;backdrop-filter:blur(12px);z-index:50;}

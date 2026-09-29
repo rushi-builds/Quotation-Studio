@@ -63,6 +63,10 @@
     const finance = paymentFields.closest('fieldset');
     const loanHint = paymentFields.nextElementSibling, loanRow = loanHint.nextElementSibling;
     payments.append(paymentFields, loanHint, loanRow); finance.after(payments);
+    /* The optional commercial-tax illustration lives with the money, not as
+       its own section: folded inside Payment & financing. */
+    const taxBox = finance.querySelector('.studio-advanced-tax');
+    if (taxBox) payments.append(taxBox);
     ['Advance (%)', 'Before dispatch (%)', 'On completion (%)'].forEach((text, i) => {
       const input = [$('payAdvance'), $('payDispatch'), $('payCompletion')][i];
       const label = element('label', 'studio-payment-label', text); label.htmlFor = input.id;
@@ -81,16 +85,18 @@
       ['bessEnabled', 'Battery storage (BESS)', 'bolt', 'pageBessOverview', 'Optional storage, backup and a separate value assessment'],
       ['systemEnabled', 'Additional systems', 'grid2', 'pageSystemOverview', 'Zero Export, monitoring, EV charging, DG coordination or Custom'],
       ['costPerWp', 'Pricing & savings', 'chart', 'pageInvestment', 'Pricing, tariff and calculation assumptions'],
-      ['payAdvance', 'Payment & financing', 'rupee', 'pageInvestment', 'Payment milestones and optional loan'],
+      ['payAdvance', 'Payment & financing', 'rupee', 'pageInvestment', 'Payment milestones, optional loan & tax illustration'],
       ['optName', 'Compare system options', 'panel', 'pageOptions', 'Good, Better and Best configurations'],
       ['bomModules', 'Cost breakdown', 'badge', 'pageInvestment', 'Optional itemised costs before GST'],
-      ['depreciationRate', 'Tax assumptions', 'doc', 'pageInvestment', 'Optional commercial tax illustration'],
       ['pvsystUrl', 'Engineering reports', 'doc', 'pageTechSpec', 'PVsyst and Arka document links'],
       ['durationText', 'Terms & delivery', 'shield', 'pageTerms', 'Delivery commitments and jurisdiction'],
       ['companyName', 'Company branding', 'building', 'pageAbout', 'Company identity and contact information'],
       ['up_cover', 'Page photographs', 'drone', 'pageCover', 'Replace photographs on individual pages'],
-      ['galleryUrl', 'QR & customer audio', 'globe', 'pageClosing', 'Gallery destination and optional narration']
+      ['galleryUrl', 'QR & links', 'globe', 'pageClosing', 'What the customer’s QR code opens']
     ];
+    /* Everything the dealer touches once, not per quote, folds into the
+       advanced drawer after the sections are built. */
+    const ADVANCED_SECTIONS = ['optName', 'bomModules', 'pvsystUrl', 'durationText', 'companyName', 'up_cover'];
     const sections = [];
     configs.forEach(([field, title, icon, target, description], index) => {
       const fieldset = $(field).closest('fieldset');
@@ -120,6 +126,26 @@
     const library = form.querySelector('.eq-panel'); library.querySelector('summary').textContent = 'Equipment library';
     form.append(library, $('advancedPanel'));
     $('advancedPanel').classList.add('studio-content');
+
+    /* Fold the once-per-company and expert sections into the advanced drawer
+       so the working panel stays a short list; the drawer opens in both modes. */
+    const wrap = $('advancedWrap');
+    sections.filter((sec) => ADVANCED_SECTIONS.includes(sec.field)).forEach((sec) => wrap.append(sec.details));
+    wrap.append(library);
+    const engFs = $('tiltDeg') ? $('tiltDeg').closest('fieldset') : null;
+    if (engFs && engFs.parentElement === wrap) {
+      const d = element('details', 'studio-section'); d.dataset.section = 'tiltDeg'; d.setAttribute('data-adv', '');
+      const summary = element('summary');
+      const symbol = element('span', 'studio-section-icon'); symbol.setAttribute('aria-hidden', 'true');
+      symbol.innerHTML = window.Icons.get('panel', 19, '#6D7B8C');
+      const copy = element('span', 'studio-section-copy');
+      copy.append(element('strong', '', 'Engineering design basis'),
+        element('small', '', 'Wind, string, cable, earthing & roof-load checks — printed as DATA REQUIRED until supplied'));
+      summary.append(symbol, copy, element('span', 'studio-chevron', '⌄'));
+      d.append(summary);
+      engFs.querySelector('legend').classList.add('studio-sr-only');
+      wrap.insertBefore(d, engFs); d.append(engFs);
+    }
 
     /* Reference-number guard. The template ships with a sample reference, and
        two proposals can end up sharing one number without anything noticing —
@@ -260,7 +286,11 @@
       return message.length > 46 ? message.slice(0, 46) + '…' : message;
     }
     function renderFeedback(list) {
-      const messages = list.blocking.concat(list.advisory);
+      /* DATA REQUIRED gaps stay out of the strip: the page prints them, the
+         pre-flight names them before download — the strip is for things that
+         are wrong, not things that are simply not yet supplied. */
+      const messages = list.blocking.concat(list.advisory)
+        .filter((m) => !/^DATA REQUIRED/.test(m.message));
       const notesOnly = !list.blocking.length && !list.advisory.length;
       feedback.replaceChildren(); feedback.hidden = notesOnly || !messages.length;
       if (!feedback.hidden) feedback.append(element('strong', '', 'Review before sending'));

@@ -32,7 +32,7 @@ async function installSpeech(page) {
   await edit({custName:'QA Customer',custAddress:'QA Site'}); // Explicit privacy-test fixture, not an application default.
   await page.click('#modeAll');
   await page.click('[data-section="galleryUrl"] > summary');
-  check('QR destination and audio toggle are available in Advanced / All settings',await page.$eval('#customerExperienceSettings',e=>e.checkVisibility()&&!!e.querySelector('#galleryUrl')&&!!e.querySelector('#briefingEnabled')));
+  check('QR links stay in QR & links; the audio toggle lives with the audio settings',await page.evaluate(()=>{const q=document.getElementById('customerExperienceSettings');const a=document.querySelector('.studio-advanced');return q.checkVisibility()&&!!q.querySelector('#galleryUrl')&&!q.querySelector('#briefingEnabled')&&!!a&&!!a.querySelector('#briefingEnabled');}));
   check('blank destination shows setup guidance but no customer QR',await page.evaluate(()=>document.getElementById('closingGallery').hidden&&document.getElementById('galleryStatus').textContent.includes('Add a public HTTPS')));
   await edit({qrDestinationType:'video',galleryUrl:'https://example.com/project-videos'});
   check('video destination updates closing card label, accessibility name and exact link',await page.$eval('#closingGallery',e=>e.href==='https://example.com/project-videos'&&e.textContent.includes('Open video / playlist')&&e.getAttribute('aria-label').includes('video')));

@@ -109,10 +109,10 @@ const form = d.getElementById('quoteForm');
 const advanced = [...form.querySelectorAll('[data-adv]')];
 t('defaults to Essentials', form.classList.contains('qs-mode-essentials'));
 t('Essentials button active by default', d.getElementById('modeEss').classList.contains('active') && !d.getElementById('modeAll').classList.contains('active'));
-/* Eleven since the engineering design basis joined them: the section is
-   hidden in Essentials, and its defaults carry the sheet there, while every
-   result still prints on the Tech Spec page. */
-t('eleven advanced sections including the engineering design basis', advanced.length === 11, advanced.length);
+/* Ten since the commercial tax illustration moved inside Financial
+   Assumptions as a nested optional; the engineering basis and the rest stay
+   hidden in Essentials while every result still prints on the Tech Spec page. */
+t('ten advanced sections including the engineering design basis', advanced.length === 10, advanced.length);
 t('the engineering design basis is one of them',
   advanced.some((el) => el.querySelector('#tiltDeg') && el.querySelector('#soilResistivity')), 'engineering fieldset');
 t('all advanced sections hidden in Essentials', advanced.every((el) => w.getComputedStyle(el).display === 'none'));
