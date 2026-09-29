@@ -92,6 +92,18 @@ t('commercial stays nil regardless of installed capacity',
   F.compute({ ...base, capacity: 2.5, customerType: 'commercial' }).subsidy === 0);
 t('an explicit override still wins over the installed-capacity slab',
   F.compute({ ...base, capacity: 2.5, subsidyOverride: '90000' }).subsidy === 90000);
+t('a Maharashtra state top-up adds to the central slab (2 kWp + ₹25,000 → ₹85,000)', (() => {
+  const s = F.compute({ ...base, capacity: 2, stateTopUp: '25000' });
+  return s.subsidy === 63240 + 25000 && s.stateTopUp === 25000;
+})(), F.compute({ ...base, capacity: 2, stateTopUp: '25000' }).subsidy);
+t('the top-up respects the same residential-only rule',
+  F.compute({ ...base, capacity: 2, stateTopUp: '25000', customerType: 'commercial' }).subsidy === 0);
+t('blank, zero or invalid top-up changes nothing',
+  F.compute({ ...base, capacity: 2, stateTopUp: '' }).subsidy === 63240 &&
+  F.compute({ ...base, capacity: 2, stateTopUp: '0' }).subsidy === 63240 &&
+  F.compute({ ...base, capacity: 2, stateTopUp: 'abc' }).subsidy === 63240);
+t('an explicit override wins over central plus top-up',
+  F.compute({ ...base, capacity: 2, stateTopUp: '25000', subsidyOverride: '90000' }).subsidy === 90000);
 
 console.log('— Roof area clearance —');
 t('required area = module area × clearance factor (default 1.4)',

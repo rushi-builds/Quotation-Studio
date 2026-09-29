@@ -202,15 +202,21 @@
        2.5 kWp contracted at 545 Wp is 5 modules = 2.725 kWp → ₹73,050, not
        the ₹69,000 a contracted-basis calculation would report. */
     const customerType = s.customerType || 'residential';
+    /* Maharashtra state top-up: published only as a range — ₹25,000–₹60,000
+       by capacity, maxing at 3 kW (SMART households below 100 units/month add
+       ₹17,500 BPL / ₹15,000 SC-ST / ₹10,000 others on the 1 kW benchmark).
+       No per-kW slab is public, so the app never invents one: the dealer
+       enters the figure that applies to this customer and the sheet states it
+       is potential, subject to eligibility and approval. */
+    const topUpRaw = parseFloat(s.stateTopUp);
+    const stateTopUp = (customerType === 'residential' && isFinite(topUpRaw) && topUpRaw > 0) ? topUpRaw : 0;
     let subsidy;
     const overrideRaw = (s.subsidyOverride === '' || s.subsidyOverride === null ||
       s.subsidyOverride === undefined) ? NaN : parseFloat(s.subsidyOverride);
     if (isFinite(overrideRaw)) {
       subsidy = overrideRaw;                                   // explicit override wins
-    } else if (customerType === 'residential') {
-      subsidy = calcSubsidy(installedKwp);
     } else {
-      subsidy = 0;                                             // PM Surya Ghar is residential
+      subsidy = (customerType === 'residential' ? calcSubsidy(installedKwp) : 0) + stateTopUp;
     }
     const subsidyAuto = (customerType === 'residential' && !isFinite(overrideRaw));
     const netInvestment = grossTotal - subsidy;
@@ -349,7 +355,7 @@
       roofClearanceFactor, requiredArea, clearanceSource, layout: engLayout, capacityExact,
       inverterKw, dcAcRatio,
       // costs
-      projectCost, gstAmount, grossTotal, subsidy, subsidyAuto, netInvestment,
+      projectCost, gstAmount, grossTotal, subsidy, stateTopUp, subsidyAuto, netInvestment,
       costPerWp, costPerWpDelivered, bomItems, bomSum, bomDelta, gstPercent,
       taxDepreciationYear1, taxShield, corpTaxRatePct, depreciationRatePct, isCommercialOrInd,
       monthlyBillSaving, monthlyBillAfter,

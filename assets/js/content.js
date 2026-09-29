@@ -260,6 +260,7 @@ const CONTENT = {
       gstLine: 'GST',
       subsidy: 'Government Subsidy',
       subsidyCaptionAuto: 'PM Surya Ghar — auto-calculated',
+      subsidyCaptionTopUp: 'PM Surya Ghar + Maharashtra state top-up (entered)',
       subsidyCaptionOverride: 'As per proposal',
       subsidyCaptionNA: 'Not applicable for this connection type',
       totalCost: 'Total Project Cost',

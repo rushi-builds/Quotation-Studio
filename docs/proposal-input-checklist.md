@@ -229,6 +229,12 @@ roof load against the 60 kg/m² benchmark.
   ₹78,000, residential only. Type a figure only when you are deliberately
   showing something else — it wins over the calculation, so it also becomes your
   responsibility on the page.
+- **Maharashtra state top-up (₹)** — optional, on top of the central slab. The
+  state publishes only a range: ₹25,000–₹60,000 by capacity, maxing at 3 kW;
+  SMART households below 100 units/month add ₹17,500 (BPL) / ₹15,000 (SC/ST) /
+  ₹10,000 (others) on the 1 kW benchmark. No per-kW slab is public, so the
+  sheet never invents one — confirm the customer's figure on MSEDCL I-SMART and
+  type it here; it prints as potential, subject to eligibility and approval.
 - **Grid CO₂ factor** — 0.71 kg/kWh, CEA CO₂ Baseline Database v21.0 for
   FY 2024-25. **Tree absorption** — 22 kg CO₂/yr, a mature tree. Both are
   defensible published figures; do not adjust them by feel.

@@ -144,7 +144,12 @@
     /* Blank means derive the roof clearance from tilt and latitude; a typed
        value is a deliberate manual override and the page says so. */
     roofClearanceFactor: '',
-    subsidyOverride: '',
+      subsidyOverride: '',
+      /* Maharashtra state top-up (₹, optional): published only as a range —
+         ₹25,000–₹60,000 by capacity (max at 3 kW); SMART <100-unit households
+         add ₹17,500 BPL / ₹15,000 SC-ST / ₹10,000 others on the 1 kW
+         benchmark. Enter the figure MSEDCL I-SMART confirms for the customer. */
+      stateTopUp: '',
     co2Factor: '0.71',
     treeFactor: '22',
     payAdvance: '50',
