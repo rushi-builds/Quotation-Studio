@@ -288,8 +288,13 @@
       } else if (i === 0) {
         y0 = pad.t + ih - (ih * st.v) / maxY; y1 = pad.t + ih;
       } else {
-        y0 = pad.t + ih - (ih * (st.start + st.v)) / maxY;
-        y1 = pad.t + ih - (ih * st.start) / maxY;
+        y0 = pad.t + ih - (ih * Math.max(st.start, st.start + st.v)) / maxY;
+        y1 = pad.t + ih - (ih * Math.min(st.start, st.start + st.v)) / maxY;
+        /* grounded guide: faint column from the baseline so the delta
+           never looks like it is floating */
+        ctx.fillStyle = 'rgba(91,107,128,0.10)';
+        roundRect(ctx, x, y1, bw, Math.max((pad.t + ih) - y1, 2), 4);
+        ctx.fill();
       }
       const g = ctx.createLinearGradient(0, y0, 0, y1);
       g.addColorStop(0, st.color);
@@ -316,6 +321,11 @@
       ctx.font = '700 13px ' + FONT_DISPLAY;
       const valText = (st.v < 0 ? '− ' : '') + shortINR(Math.abs(st.v));
       ctx.fillText(valText, x + bw / 2, y0 - 9);
+      if (!st.total && i > 0) {
+        ctx.fillStyle = '#98A1AD';
+        ctx.font = '500 8.5px ' + FONT;
+        ctx.fillText(shortINR(st.start) + ' → ' + shortINR(st.start + st.v), x + bw / 2, y0 - 21);
+      }
       ctx.fillStyle = TEXT;
       ctx.font = '600 11.5px ' + FONT;
       ctx.fillText(st.label, x + bw / 2, pad.t + ih + 17);
