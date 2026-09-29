@@ -188,7 +188,9 @@ const CONTENT = {
       { icon: 'key',   title: 'Roof Access', desc: 'Safe and unobstructed rooftop access throughout the installation period.' },
       { icon: 'bolt',  title: 'Utilities at Site', desc: 'Water and electricity to be made available during installation.' },
       { icon: 'home',  title: 'Structural Adequacy', desc: 'Roof and building structure must be capable of bearing the system load.' },
-      { icon: 'wifi',  title: 'Internet Service', desc: 'Internet service for remote monitoring of the system.' }
+      { icon: 'wifi',  title: 'Internet Service', desc: 'Internet service for remote monitoring of the system.' },
+      { icon: 'doc',  title: 'Approvals & Signatures', desc: 'Society/property permissions and DISCOM documents signed as applicable.' },
+      { icon: 'calendar',  title: 'Service Access', desc: 'Site access for commissioning, training and after-sales visits.' }
     ],
     addlLabel: 'ADDITIONAL SCOPE (IF REQUIRED)',
     addl: [
@@ -422,7 +424,8 @@ const CONTENT = {
     next: [
       { icon: 'doc', title: 'Electricity information', desc: 'The latest bill, tariff category and sanctioned load help establish the design basis.' },
       { icon: 'drone', title: 'Roof & site information', desc: 'Roof dimensions, photos, shading and access constraints support the feasibility review.' },
-      { icon: 'sun', title: 'Scope confirmation', desc: 'Design assumptions, deliverables, any fees and dates are agreed before engineering proceeds.' }
+      { icon: 'sun', title: 'Scope confirmation', desc: 'Design assumptions, deliverables, any fees and dates are agreed before engineering proceeds.' },
+      { icon: 'calendar', title: 'Preferred visit window', desc: 'A convenient date and window for the site visit, if required.' }
     ],
     readyLabel: 'WHY ACT NOW',
     ready: [

@@ -993,8 +993,8 @@ details.page-group > summary::-webkit-details-marker{display:none;}
   font-size:9px;color:#8A5A00;background:#FFF6E6;border-radius:6px;
   padding:6px 9px;margin-top:8px;line-height:1.5;
 }
-.includes-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 14px;}
-.includes-grid .inc-item{padding:4px 0;}
+.includes-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 10px;}
+.includes-grid .inc-item{padding:7px 9px;background:#FBF7EF;border:1px solid #EFE3CF;border-radius:9px;align-items:center;}
 .includes-grid .inc-t{font-size:10.2px;}
 .pay-terms{display:flex;gap:10px;margin-top:2px;}
 .pay-chip{
@@ -1535,13 +1535,18 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageWhySolar .photo-top, #pageSolution .photo-top, #pageWhyKtm .photo-top { width:324px; height:230px; }
 #pageWhySolar .intro-col, #pageSolution .intro-col, #pageWhyKtm .intro-col { max-width:374px; min-height:244px; }
 #pageProjects .intro-col { max-width:none; min-height:0; }
+.proj-cta-row{display:flex;justify-content:flex-end;margin:0 0 12px;}
 .proj-gallery-cta{
-  position:absolute;top:66px;right:var(--page-pad);z-index:4;
   display:inline-flex;align-items:center;gap:6px;padding:7px 13px;
   border:1.5px solid #D96A0E;border-radius:999px;background:#fff;
   color:#D96A0E;font:600 10.5px/1 'Inter',sans-serif;letter-spacing:.02em;text-decoration:none;
 }
-@media print { .proj-gallery-cta{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+/* Bottom-pinned closers: the acceptance block and the investment disclaimer
+   sit at the foot of their pages instead of floating above dead space. */
+#pageClosing .accept-block{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:102px;margin:0;}
+#pageClosing .disclaimer-box{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:44px;margin:0;}
+#pageClosing .pg-body{padding-bottom:380px;}
+#pageInvestment .disclaimer-line{margin-top:auto;}
 #pageProjects .proj-card img { height:132px; }
 .photo-top { top:76px; }
 .photo-top img { object-position:50% 50%; }
