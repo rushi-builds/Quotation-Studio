@@ -1699,13 +1699,13 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec.is-table-min .spec-table .spec-k{width:30%;}
 #pageTechSpec.is-table-min #v_tsRefsWrap{margin-top:0;}
 #pageTechSpec.is-table-min .note-box{margin-top:4px;}
-#chartBridge{width:718px!important;height:252px!important;}
+#chartBridge{width:718px!important;height:340px!important;}
 #chartDonut{width:230px!important;height:230px!important;}
-#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #chartBridge{height:180px!important;}
-#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #chartDonut{width:150px!important;height:150px!important;flex-shrink:0;}
-#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .spacer{max-height:16px;}
-#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .bom-row{padding:3.5px 0;}
-#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .bom-intro{margin-bottom:6px;}
+#pageInvestment.has-bom #chartBridge{height:200px!important;}
+#pageInvestment.has-bom #chartDonut{width:150px!important;height:150px!important;flex-shrink:0;}
+#pageInvestment.has-bom .spacer{max-height:16px;}
+#pageInvestment.has-bom .bom-row{padding:3.5px 0;}
+#pageInvestment.has-bom .bom-intro{margin-bottom:6px;}
 #pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .sec-label{margin-bottom:8px;}
 #pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .rule-orange{margin:9px 0;}
 #pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #v_inDesc{margin:8px 0;}

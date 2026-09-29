@@ -262,13 +262,13 @@
       { label: '− Subsidy', v: -f.subsidy, color: GREEN, sub: f.subsidy > 0 ? 'PM Surya Ghar' : '—', start: f.grossTotal },
       { label: 'Net Payable', v: f.netInvestment, color: ORANGE, sub: 'your investment', total: true }
     ];
-    const pad = { l: 16, r: 16, t: 30, b: 34 };
+    const pad = { l: 16, r: 16, t: 34, b: 42 };
     const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
     const maxY = niceCeil(f.grossTotal * 1.08);
     const slot = iw / steps.length;
-    const bw = Math.min(slot * 0.5, 86);
+    const bw = Math.min(slot * 0.55, 104);
 
-    ctx.font = '500 10px ' + FONT;
+    ctx.font = '500 10.5px ' + FONT;
     const ticks = 3;
     for (let i = 0; i <= ticks; i++) {
       const v = (maxY / ticks) * i;
@@ -313,15 +313,15 @@
       /* value + labels */
       ctx.textAlign = 'center';
       ctx.fillStyle = NAVY;
-      ctx.font = '700 11px ' + FONT_DISPLAY;
+      ctx.font = '700 13px ' + FONT_DISPLAY;
       const valText = (st.v < 0 ? '− ' : '') + shortINR(Math.abs(st.v));
-      ctx.fillText(valText, x + bw / 2, y0 - 7);
+      ctx.fillText(valText, x + bw / 2, y0 - 9);
       ctx.fillStyle = TEXT;
-      ctx.font = '600 10.5px ' + FONT;
-      ctx.fillText(st.label, x + bw / 2, pad.t + ih + 15);
-      ctx.font = '500 9px ' + FONT;
+      ctx.font = '600 11.5px ' + FONT;
+      ctx.fillText(st.label, x + bw / 2, pad.t + ih + 17);
+      ctx.font = '500 9.8px ' + FONT;
       ctx.fillStyle = '#8A93A0';
-      ctx.fillText(st.sub, x + bw / 2, pad.t + ih + 27);
+      ctx.fillText(st.sub, x + bw / 2, pad.t + ih + 30);
     });
   }
   function shade(hex) {

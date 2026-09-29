@@ -863,6 +863,7 @@
     set('v_inBomIntro', P.bomIntro);
     const hasBom = f.bomSum > 0;
     show('v_inBomSection', hasBom);
+    if ($('pageInvestment')) $('pageInvestment').classList.toggle('has-bom', hasBom);
     if (hasBom) {
       setHTML('v_inBomLegend', f.bomItems.map((it, i) => {
         const pct = (it.value / f.bomSum) * 100;
