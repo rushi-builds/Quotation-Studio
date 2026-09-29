@@ -76,6 +76,9 @@
     const customerFields = $('custName').closest('fieldset');
     customerFields.querySelector('legend').after($('custName').closest('.field'), $('custAddress').closest('.field'));
     customerFields.append($('prepName').closest('.field'));
+    /* The advanced audio card sits directly under the Prepared-by box. */
+    const audioAdv = $('custSalutation') ? $('custSalutation').closest('details.studio-advanced') : null;
+    if (audioAdv) customerFields.append(audioAdv);
 
     const configs = [
       ['custName', 'Customer & system', 'users', 'pageCover', 'Customer, site and proposal details'],
