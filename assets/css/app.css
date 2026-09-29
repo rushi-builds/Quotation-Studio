@@ -996,6 +996,7 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 .includes-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 10px;}
 .includes-grid .inc-item{padding:7px 9px;background:#FBF7EF;border:1px solid #EFE3CF;border-radius:9px;align-items:center;}
 .includes-grid .inc-t{font-size:10.2px;}
+.includes-grid .inc-img{width:34px;height:34px;object-fit:cover;border-radius:8px;flex:0 0 34px;}
 .pay-terms{display:flex;gap:10px;margin-top:2px;}
 .pay-chip{
   flex:1;background:linear-gradient(150deg,#243B57,#1C2B3F);border-radius:10px;
@@ -1543,10 +1544,12 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 }
 /* Bottom-pinned closers: the acceptance block and the investment disclaimer
    sit at the foot of their pages instead of floating above dead space. */
-#pageClosing .accept-block{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:102px;margin:0;}
-#pageClosing .disclaimer-box{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:44px;margin:0;}
+#pageClosing .accept-block{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:118px;margin:0;}
+#pageClosing .disclaimer-box{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:56px;margin:0;}
 #pageClosing .pg-body{padding-bottom:380px;}
-#pageInvestment .disclaimer-line{margin-top:auto;}
+#pageClosing .engineering-overview{margin-top:26px;}
+#pageInvestment .disclaimer-line{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:44px;margin:0;}
+#pageInvestment .pg-body{padding-bottom:110px;}
 #pageProjects .proj-card img { height:132px; }
 .photo-top { top:76px; }
 .photo-top img { object-position:50% 50%; }

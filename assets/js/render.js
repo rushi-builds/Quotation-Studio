@@ -881,7 +881,7 @@
     /* payment schedule */
     set('v_inIncludesLabel', 'WHAT THE PRICE INCLUDES');
     setHTML('v_inIncludes', CONTENT.pageSolution.included.map((it) =>
-      '<div class="inc-item">' + I.get(it.icon || 'check', 16, '#D96A0E') +
+      '<div class="inc-item">' + (it.img ? '<img class="inc-img" src="assets/images/' + it.img + '" alt="">' : I.get(it.icon || 'check', 16, '#D96A0E')) +
       '<div class="inc-t">' + esc(it.title) + '</div></div>').join(''));
     set('v_inPayLabel', P.paymentLabel);
     set('v_inPayNote', (root.Bess.included(s) ? 'Solar-only milestones. ' : '') + P.paymentNote);

@@ -126,12 +126,12 @@ const CONTENT = {
     includedLabel: "WHAT'S INCLUDED",
     /* mode:* descriptions follow the System Specification dropdowns in the form */
     included: [
-      { icon: 'panel',  title: 'Premium Solar Modules', mode: 'module' },
-      { icon: 'bolt',   title: 'Smart Inverter', mode: 'inverter' },
-      { icon: 'gear',   title: 'Durable Mounting Structure', mode: 'mount' },
-      { icon: 'cable',  title: 'Cables & Protection', mode: 'cable' },
-      { icon: 'wrench', title: 'Professional Installation', desc: 'Certified engineers, leakproof roof penetration and clean cable management.' },
-      { icon: 'phone',  title: 'Monitoring & Support', desc: 'Wi-Fi generation monitoring with dedicated after-sales support.' }
+      { icon: 'panel',  img: 'inc-modules.png', title: 'Premium Solar Modules', mode: 'module' },
+      { icon: 'bolt',   img: 'inc-inverter.png', title: 'Smart Inverter', mode: 'inverter' },
+      { icon: 'gear',   img: 'inc-mount.png', title: 'Durable Mounting Structure', mode: 'mount' },
+      { icon: 'cable',  img: 'inc-cables.png', title: 'Cables & Protection', mode: 'cable' },
+      { icon: 'wrench', img: 'inc-install.png', title: 'Professional Installation', desc: 'Certified engineers, leakproof roof penetration and clean cable management.' },
+      { icon: 'phone',  img: 'inc-monitor.png', title: 'Monitoring & Support', desc: 'Wi-Fi generation monitoring with dedicated after-sales support.' }
     ]
   },
 
@@ -277,7 +277,7 @@ const CONTENT = {
     bomIntro: 'Indicative composition of the project cost (before GST), as entered for this proposal:',
     paymentLabel: 'PAYMENT SCHEDULE',
     paymentNote: 'Milestones as per agreement. Amounts shown against the total project cost including GST.',
-    disclaimer: 'Figures above are engineering estimates based on the generation, tariff and subsidy assumptions entered for this proposal. Actual generation, savings, payback and returns depend on site conditions, shading, sanctioned load, DISCOM tariff and government policy applicable at the time of installation. Government subsidy shown per PM Surya Ghar Yojana slabs prevailing at proposal date — subject to change.'
+    disclaimer: 'Figures are engineering estimates based on the inputs above; actual generation and savings depend on site conditions, DISCOM tariff and policy at installation. Subsidy as per PM Surya Ghar slabs on the proposal date — subject to change.'
   },
 
   /* ------------------------------------------------------------------ */
