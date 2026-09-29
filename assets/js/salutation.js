@@ -211,8 +211,13 @@
 
   function composeGreeting(lang, s) {
     const company = String((s && s.companyName) || '').trim();
-    const name = displayName(s && s.custName);
-    const mode = honorMode(s && s.custName, s && s.custSalutation);
+    /* "Say the name as" is the dealer's phonetic spelling: OS voices mangle
+       Latin-spelled Indian names, so whatever is typed here is spoken
+       verbatim — type it in Devanagari and an Indic voice reads it exactly
+       the way a person would. Empty falls back to the detected first name. */
+    const spoken = String((s && s.custSpokenName) || '').trim();
+    const name = spoken || displayName(s && s.custName);
+    const mode = honorMode(spoken || (s && s.custName), s && s.custSalutation);
     const honor = name && mode !== 'none' ? HONORS[lang][mode] : '';
     if (lang === 'hi') {
       const lead = name ? 'नमस्कार ' + name + (honor ? ' ' + honor : '') + '।' : 'नमस्कार।';

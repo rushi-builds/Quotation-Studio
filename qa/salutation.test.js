@@ -249,6 +249,27 @@ check('English without a name keeps the legacy line exactly', () => {
     'Welcome to your rooftop solar proposal from KTM Energy Experts.');
 });
 
+console.log('\n— salutation: the dealer\u2019s phonetic spelling —');
+
+check('a typed "say the name as" is spoken verbatim in Devanagari', () => {
+  const s = { companyName: 'KTM Energy Experts', custName: 'Rushikesh Joshi', custSpokenName: 'रुशिकेश', custSalutation: 'male' };
+  assert.ok(Salutation.composeGreeting('mr', s).startsWith('नमस्कार रुशिकेश सर.'));
+  assert.ok(Salutation.composeGreeting('hi', s).startsWith('नमस्कार रुशिकेश जी।'));
+  assert.ok(Salutation.composeGreeting('en', s).startsWith('Welcome, रुशिकेश sir,'));
+});
+check('auto detection runs on the spoken name when it is the only name', () => {
+  const s = { companyName: '', custName: 'R. Sharma', custSpokenName: 'Priya', custSalutation: 'auto' };
+  assert.ok(Salutation.composeGreeting('en', s).startsWith('Welcome, Priya ma\u2019am,'));
+});
+check('an empty phonetic spelling changes nothing', () => {
+  const s = { companyName: 'KTM Energy Experts', custName: 'Rushikesh Joshi', custSpokenName: '   ', custSalutation: 'auto' };
+  assert.ok(Salutation.composeGreeting('en', s).startsWith('Welcome, Rushikesh sir,'));
+});
+check('a Devanagari spoken name with no detection keeps the neutral ji', () => {
+  const s = { companyName: '', custName: 'Rushikesh Joshi', custSpokenName: 'रुशिकेश', custSalutation: 'auto' };
+  assert.ok(Salutation.composeGreeting('mr', s).startsWith('नमस्कार रुशिकेश जी.'));
+});
+
 console.log('\n— salutation: the closing —');
 
 check('every language ends with thanks', () => {

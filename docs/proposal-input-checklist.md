@@ -76,6 +76,11 @@ not shown. Nothing is invented.
 
 - **Customer name** — as it should appear on the offer. The audio briefing
   speaks its first name in the greeting, so keep a real name here for demos.
+- **Say the name as (audio, optional)** — OS voices often stumble over
+  Latin-spelled Indian names ("Ru-shi-kesh", robotic). Type the name exactly
+  the way it should sound — in Devanagari, e.g. `रुशिकेश`, an Indic voice
+  reads it exactly as a person would — and the greeting uses it verbatim.
+  Leave empty to use the typed customer name as-is.
 - **Address customer as (audio greeting)** — optional. The briefing opens
   personally — "Welcome, Rushikesh sir", "नमस्कार प्रिया जी", "नमस्कार सर" —
   and by default the app detects sir/ma'am from the name: explicit titles

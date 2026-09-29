@@ -31,6 +31,10 @@
     /* Audio greeting honourific: auto-detect from the name (salutation.js),
        or a fixed sir / ma'am / ji / none. */
     custSalutation: 'auto',
+    /* Optional: exactly how the audio greeting should say the name. OS voices
+       often stumble over Latin-spelled Indian names, so the dealer can type
+       the name in its own script (e.g. रुशिकेश) once and it reads naturally. */
+    custSpokenName: '',
     custAddress: '',
     propDate: '',
     propRef: 'KTM/2026/Solar/013',
