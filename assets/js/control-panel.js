@@ -269,42 +269,16 @@
       return {blocking, advisory, notes: []};
     }
 
-    /* The strip is a short action list, not a paragraph dump: one compact chip
-       per finding, full sentence kept as the hover title. Blocking chips sit
-       first and carry the stronger tint. */
-    function shortLabel(id, message) {
-      const MAP = {
-        custName: 'Customer name', capacity: 'System capacity', costPerWp: 'Cost per Wp',
-        payAdvance: 'Payment milestones', loanAmt: 'Loan details',
-        moduleVoc: 'Module datasheet', windSpeed: 'Wind speed', buildingHeightM: 'Height row (IS 875)',
-        dcCableLengthM: 'DC cable schedule', acCableLengthM: 'AC cable schedule',
-        soilResistivity: 'Soil resistivity', moduleWeightKg: 'Roof load data',
-        availableArea: 'Roof area', inverterVmaxDc: 'Inverter DC limits', mpptMinV: 'MPPT range',
-        inverterMaxCurrentA: 'Inverter DC current', moduleLoadClassPa: 'Module load class',
-        dcCableSizeMm2: 'DC voltage drop', acCableSizeMm2: 'AC voltage drop',
-        pageTechSpec: 'Tech-spec page fit'
-      };
-      if (MAP[id]) return MAP[id];
-      const m = /^Check ([^:]+):/.exec(message); if (m) return m[1].trim();
-      return message.length > 46 ? message.slice(0, 46) + '…' : message;
-    }
+    /* The panel stays silent: an invalid field carries its own red outline,
+       and the export pre-flight names every blocker before a PDF exists.
+       The strip therefore never renders — the hidden-rule below is kept as
+       the guarantee that nothing extra ever appears above the form. */
     function renderFeedback(list) {
-      /* DATA REQUIRED gaps stay out of the strip: the page prints them, the
-         pre-flight names them before download — the strip is for things that
-         are wrong, not things that are simply not yet supplied. */
       const messages = list.blocking.concat(list.advisory)
         .filter((m) => !/^DATA REQUIRED/.test(m.message));
       const notesOnly = !list.blocking.length && !list.advisory.length;
       feedback.replaceChildren(); feedback.hidden = notesOnly || !messages.length;
-      if (!feedback.hidden) feedback.append(element('strong', '', 'Review before sending'));
-      messages.forEach(({id, message}, index) => {
-        const button = element('button', '', shortLabel(id, message) + ' →');
-        button.type = 'button'; button.title = message;
-        if (index < list.blocking.length) button.className = 'is-blocking';
-        /* An engineering advisory can name an input that is not in the panel
-           (a datasheet figure); reveal() tolerates a missing element. */
-        button.addEventListener('click', () => reveal($(id))); feedback.append(button);
-      });
+      feedback.hidden = true;
     }
 
     /* Kept for the plain "what does the form say" question. */
