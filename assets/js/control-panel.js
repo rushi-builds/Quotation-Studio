@@ -203,13 +203,13 @@
       const refIssue = referenceIssue(state);
       refWarning.hidden = !refIssue;
       if (refIssue) refWarning.textContent = refIssue;
-      validate();
+      validateWithEngineering(f, state);
       if (searchInput.value.trim()) find();
     }
     const feedback = element('div', 'studio-feedback'); feedback.setAttribute('role', 'status');
     feedback.hidden = true; panel.insertBefore(feedback, form);
     let lastIssues = {blocking: [], advisory: []};
-    function validate() {
+    function collect() {
       /* Two levels: blocking issues would print a wrong document, advisories
          are suspicions worth a look. The panel shows both; the download only
          refuses for the first kind. */
@@ -237,25 +237,92 @@
         input.setAttribute('aria-invalid', String(invalid));
         if (invalid) advisory.push({id:input.id,message:'Check ' + (input.labels?.[0]?.textContent || input.id) + ': the value is outside the expected range.'});
       });
-      const messages = blocking.concat(advisory);
-      feedback.replaceChildren(); feedback.hidden = !messages.length;
-      if (messages.length) feedback.append(element('strong', '', 'Review your inputs'));
+      return {blocking, advisory, notes: []};
+    }
+
+    /* The strip shows everything wrong or still missing. The gate never sees
+       the notes: a page that says DATA REQUIRED is making no claim it cannot
+       support, so there is nothing to stop the download for. */
+    function renderFeedback(list) {
+      const messages = list.blocking.concat(list.advisory, list.notes || []);
+      const notesOnly = !list.blocking.length && !list.advisory.length;
+      /* A missing datasheet value is not something to review: it is a figure
+         nobody has supplied yet, and the specification page already prints it
+         as DATA REQUIRED. The strip appears for a real problem and, when it is
+         up, the missing inputs are listed beside it rather than left out. */
+      feedback.replaceChildren(); feedback.hidden = notesOnly || !messages.length;
+      if (!feedback.hidden) feedback.append(element('strong', '', 'Review your inputs'));
       messages.forEach(({id, message}) => {
         const button = element('button', '', message + ' →'); button.type = 'button';
+        /* An engineering advisory can name an input that is not in the panel
+           (a datasheet figure); reveal() tolerates a missing element. */
         button.addEventListener('click', () => reveal($(id))); feedback.append(button);
       });
-      lastIssues = {blocking, advisory};
+    }
+
+    /* Kept for the plain "what does the form say" question. */
+    function validate() {
+      const list = collect();
+      renderFeedback(list);
+      lastIssues = { blocking: list.blocking, advisory: list.advisory };
+      return lastIssues;
+    }
+    /* ---- engineering design basis ----------------------------------------
+       The same two levels, from engineering.js: a figure that already proves
+       the design wrong stops the PDF, and an input nobody has supplied yet is
+       an advisory that the page prints as DATA REQUIRED. The panel and the
+       download read this one function, so they cannot disagree. */
+    function engineeringIssues(f, state) {
+      if (!window.Engineering || typeof window.Engineering.report !== 'function') return { blocking: [], advisory: [] };
+      state = state || window.Render.lastState || window.Render.readState();
+      f = f || window.Finance.compute(state);
+      const phases = f.isCommercialOrInd ? 3 : 1;
+      const acVoltageV = phases === 3 ? 415 : 230;
+      const acCurrentA = f.inverterKw > 0
+        ? (f.inverterKw * 1000) / (acVoltageV * (phases === 3 ? Math.sqrt(3) : 1)) : 0;
+      let out;
+      try {
+        out = window.Engineering.report(state, {
+          moduleCount: f.moduleCount, acCurrentA, acVoltageV, phases
+        }) || {};
+      } catch (e) { return { blocking: [], advisory: [] }; }
+      return { blocking: out.blocking || [], advisory: out.advisory || [], notes: out.notes || [] };
+    }
+    /* The Tech Spec page is a fixed A4 box. Its fit ladder shrinks the drawing
+       and the cell padding to make the design basis fit, and reports what is
+       left over — but only a real browser can measure that. An overfull page
+       would print with its last rows cut off, so it is named in the dialog
+       before the sheet reaches a customer. */
+    function overflowIssues() {
+      return (window.__qsPageOverflow || []).length ? [{
+        id: 'pageTechSpec',
+        message: 'The Technical Specification page is too full: with the roof-area figures and the reference links both shown, its last rows would be cut off. Remove a reference link (or leave the roof area blank) and it fits again.'
+      }] : [];
+    }
+    function validateWithEngineering(f, state) {
+      const merged = collect();
+      const eng = engineeringIssues(f, state);
+      const seen = new Set(merged.blocking.concat(merged.advisory, merged.notes).map((i) => i.id + '|' + i.message));
+      const add = (list, item) => { if (!seen.has(item.id + '|' + item.message)) list.push(item); };
+      eng.blocking.forEach((i) => add(merged.blocking, i));
+      eng.advisory.forEach((i) => add(merged.advisory, i));
+      eng.notes.forEach((i) => add(merged.notes, i));
+      overflowIssues().forEach((i) => add(merged.advisory, i));
+      renderFeedback(merged);
+      /* What the download sees: the two levels that change the document. */
+      lastIssues = { blocking: merged.blocking, advisory: merged.advisory };
       return lastIssues;
     }
     /* The export pre-flight reads exactly this list, so the panel and the
        download can never disagree about what is wrong. */
     window.__qsPreflight = {
-      run: validate,
+      run: validateWithEngineering,
       issues: () => lastIssues,
       reveal: (id) => { const el = $(id); if (el) reveal(el); }
     };
 
     function reveal(input) {
+      if (!input) return;
       if(input.id==='systemEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-system-choice="yes"]');}
       if(input.id==='bessEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-bess-choice="yes"]');}
       if (input.closest('[data-adv]')) $('modeAll').click();

@@ -1,6 +1,15 @@
 /* On-demand proposal narration. Deterministic, localized scripts use the same
    Finance state as the PDF, never an exploratory slider or an external LLM.
-   Web Speech voices are device/provider-dependent; never substitute a language. */
+
+   Web Speech voices are device/provider-dependent, and a Marathi (mr) voice
+   exists on almost no desktop: Chrome desktop ships none, and Windows only
+   installs one when the Marathi language pack is added. Refusing to play in
+   that situation leaves the reader with silence; reading Devanagari with an
+   English voice would be gibberish. So playback follows a stated chain -
+   Marathi, else Hindi (same script, closest installed), and the same in
+   reverse - and the status line always names the voice that is actually
+   speaking, so a substitute is never passed off as the real thing. English
+   text is only ever read by an English voice. */
 'use strict';
 (function(root) {
   const $ = id => document.getElementById(id);
@@ -56,30 +65,97 @@
   let chunks=[], chunkIndex=0, pendingNext=false, currentUtterance=null;
   const synthesis=()=>root.speechSynthesis;
   const supported=()=>!!(synthesis() && root.SpeechSynthesisUtterance);
-  function voiceFor(lang) {
-    if(!supported()) return null;
-    // Prefer an Indian/local voice, but require the exact language family.
-    return synthesis().getVoices().filter(v=>v.lang?.toLowerCase().replace(/_/g,'-').split('-')[0]===lang)
-      .sort((a,b)=>(Number(b.lang.toLowerCase()===locales[lang].toLowerCase())*2+Number(b.localService))-(Number(a.lang.toLowerCase()===locales[lang].toLowerCase())*2+Number(a.localService)))[0] || null;
+  /* Which voice families may read which language. Devanagari scripts are
+     mutually legible to a TTS engine at the grapheme level, so Marathi and
+     Hindi may stand in for each other - with the substitution stated on
+     screen. Latin-script English is never read by, or used for, an Indic
+     voice. */
+  const VOICE_CHAIN={en:['en'],hi:['hi','mr'],mr:['mr','hi']};
+  const normalize=v=>String(v?.lang||'').toLowerCase().replace(/_/g,'-');
+  function voiceList(){ if(!supported()) return []; try{ return synthesis().getVoices()||[]; }catch(_){ return []; } }
+  function voicePlan(lang) {
+    const wanted=locales[lang]?lang:'en';
+    if(!supported()) return {voice:null,exact:false,family:null};
+    const voices=voiceList();
+    for(const family of VOICE_CHAIN[wanted]) {
+      const pool=voices.filter(v=>normalize(v).split('-')[0]===family);
+      if(!pool.length) continue;
+      /* Within the family, prefer the Indian locale and a locally installed
+         voice over a region-less or network-only one. */
+      const score=v=>Number(normalize(v)===locales[family].toLowerCase())*2+Number(!!v.localService);
+      const best=pool.slice().sort((a,b)=>score(b)-score(a))[0];
+      return {voice:best,exact:family===wanted,family};
+    }
+    return {voice:null,exact:false,family:null};
+  }
+  function voiceFor(lang) { return voicePlan(lang).voice; }
+  function fallbackLanguage() {
+    const order=language==='mr'?['hi','en']:language==='hi'?['mr','en']:[];
+    for(const l of order) { if(voicePlan(l).exact) return l; }
+    return null;
+  }
+  /* Some engines answer getVoices() with an empty list until the platform has
+     finished enumerating them, and a few never fire voiceschanged at all. Say
+     that voices are still being checked instead of reporting a missing voice
+     that is merely late. */
+  let voicesLoaded=false, voicesPoll=null, voicesGaveUp=false;
+  function markVoices(){
+    if(voicesLoaded) return true;
+    if(voiceList().length){voicesLoaded=true;clearInterval(voicesPoll);voicesPoll=null;}
+    return voicesLoaded;
+  }
+  /* Settled means the platform has answered: either a list arrived, or the
+     wait is over and the honest answer is "this device has none". */
+  function voicesSettled(){ return markVoices() || voicesGaveUp; }
+  function watchVoices(){
+    if(!supported()||voicesPoll) return;
+    const deadline=Date.now()+10000;
+    voicesPoll=setInterval(()=>{
+      if(markVoices()||Date.now()>deadline){
+        if(!voicesLoaded) voicesGaveUp=true;
+        clearInterval(voicesPoll);voicesPoll=null;
+        if(mode==='idle'){controls(availability());revealFallback();}
+      }
+    },250);
   }
   function availability() {
     if(!supported()) return 'Audio playback is not supported in this browser. You can read the briefing below.';
-    const voice=voiceFor(language);
-    return voice?'Ready in '+names[language]+' · '+voice.name+'. Press Play to begin.':names[language]+' voice unavailable in this browser on this device. Read the '+names[language]+' briefing below, or choose an available audio language.';
+    markVoices();
+    const plan=voicePlan(language);
+    if(plan.voice && plan.exact) return 'Ready in '+names[language]+' · '+plan.voice.name+'. Press Play to begin.';
+    if(plan.voice) return 'No '+names[language]+' voice is installed on this device — playback will use '+plan.voice.name+
+      ' (a '+names[plan.family]+' voice, the closest available). The written '+names[language]+' briefing is below.';
+    if(!voicesSettled()) return 'Checking the voices installed on this device… If nothing appears in a few seconds, press Check voices again.';
+    const neither=language==='mr'?' — neither a Marathi nor a Hindi voice is installed':
+                  language==='hi'?' — neither a Hindi nor a Marathi voice is installed':'';
+    return names[language]+' voice unavailable in this browser on this device'+neither+
+      '. Install a voice in the operating system (Windows: Settings → Time & language → Speech → Add voices), press Check voices again, or read the '+names[language]+' briefing below.';
+  }
+  function playingNote() {
+    const plan=voicePlan(language);
+    return plan.voice && !plan.exact
+      ? 'Playing the '+names[language]+' text with a '+names[plan.family]+' voice · quotation values.'
+      : 'Playing in '+names[language]+' · quotation values.';
   }
   function controls(message) {
     if(!host) return;
-    $('briefingPlay').disabled=mode!=='idle' || !voiceFor(language);
+    const plan=voicePlan(language), alternate=fallbackLanguage();
+    $('briefingPlay').disabled=mode!=='idle' || !plan.voice;
     $('briefingPause').disabled=!['playing','paused'].includes(mode);
     $('briefingPause').textContent=mode==='paused'?'Resume':'Pause';
     $('briefingStop').disabled=mode==='idle';
-    const missing = !voiceFor(language);
-    if ($('briefingVoiceHelp')) $('briefingVoiceHelp').hidden = !missing;
+    /* The help block explains a substitute voice as well as a missing one. */
+    if ($('briefingVoiceHelp')) $('briefingVoiceHelp').hidden = !!plan.exact;
     if ($('briefingRefresh')) $('briefingRefresh').disabled = !supported();
-    if ($('briefingUseEnglish')) $('briefingUseEnglish').hidden = !missing || language === 'en' || !voiceFor('en');
+    if ($('briefingUseEnglish')) {
+      $('briefingUseEnglish').hidden = plan.exact || !alternate;
+      if (alternate) $('briefingUseEnglish').textContent = 'Switch to '+names[alternate]+' audio';
+    }
     host.querySelectorAll('[data-briefing-language]').forEach(button => {
-      const available = !!voiceFor(button.dataset.briefingLanguage);
-      button.title = names[button.dataset.briefingLanguage] + (available ? ': audio and written briefing available' : ': written briefing available; no matching browser voice');
+      const p=voicePlan(button.dataset.briefingLanguage);
+      button.title = names[button.dataset.briefingLanguage] + (p.exact ? ': audio and written briefing available'
+        : p.voice ? ': audio will use the closest installed voice ('+p.voice.name+'); written briefing available'
+        : ': written briefing available; no matching browser voice');
     });
     if(message && $('briefingStatus').textContent!==message) $('briefingStatus').textContent=message;
   }
@@ -101,8 +177,10 @@
     if(chunkIndex>=chunks.length) {mode='idle';currentUtterance=null;controls('Briefing complete. You can play it again or read the written proposal.');return;}
     const utterance=new root.SpeechSynthesisUtterance(chunks[chunkIndex]);
     currentUtterance=utterance; // retain a reference while some engines speak
-    utterance.lang=locales[language]; utterance.voice=voice; utterance.rate=0.95;
-    utterance.onstart=()=>{if(token!==revision)return;clearTimeout(timer);mode='playing';controls('Playing in '+names[language]+' · quotation values.');};
+    /* The voice decides the phonetic model, so a substitute speaks with its own
+       locale rather than a locale whose voice the engine cannot find. */
+    utterance.lang=voice.lang||locales[language]; utterance.voice=voice; utterance.rate=0.95;
+    utterance.onstart=()=>{if(token!==revision)return;clearTimeout(timer);mode='playing';controls(playingNote());};
     utterance.onend=()=>{
       if(token!==revision)return;clearTimeout(timer);chunkIndex++;
       if(mode==='paused') {pendingNext=true;return;}
@@ -115,7 +193,7 @@
   }
   function play() {
     if(!state || mode!=='idle') return;
-    const voice=voiceFor(language); if(!voice) {controls(availability());return;}
+    const voice=voicePlan(language).voice; if(!voice) {controls(availability());return;}
     // Short utterances avoid long-text stalls in mobile speech engines.
     chunks=scriptFor(state,language); chunkIndex=0; pendingNext=false;
     synthesis().cancel(); synthesis().resume();
@@ -128,16 +206,22 @@
       stop(); language=button.dataset.briefingLanguage; updateTranscript(); revealFallback();
     }));
     $('briefingPlay').addEventListener('click',play);
-    $('briefingRefresh')?.addEventListener('click',()=>{ controls(availability()); revealFallback(); });
+    $('briefingRefresh')?.addEventListener('click',()=>{ markVoices(); controls(availability()); revealFallback(); });
+    /* A manual re-check restarts the wait, so a slow platform can still answer. */
+    $('briefingRefresh')?.addEventListener('click',()=>{ if(!voiceList().length){voicesGaveUp=false;watchVoices();} });
+    /* The recovery button (legacy id) switches to whichever language can
+       actually be spoken here — Hindi for a Marathi reader when that is what
+       the device has, English otherwise. Language choice never autoplays. */
     $('briefingUseEnglish')?.addEventListener('click',()=>{
-      stop(); language='en'; updateTranscript(); // Language choice never autoplays.
+      const target=fallbackLanguage()||'en';
+      stop(); language=target; updateTranscript();
     });
     $('briefingStop').addEventListener('click',()=>stop('Stopped. Press Play to restart from the beginning.'));
     $('briefingPause').addEventListener('click',()=>{
       if(mode==='playing') {synthesis().pause();mode='paused';controls('Paused. Resume or stop the briefing.');}
       else if(mode==='paused') {
-        mode='playing'; synthesis().resume();controls('Playing in '+names[language]+' · quotation values.');
-        if(pendingNext) {pendingNext=false;speakChunk(revision,voiceFor(language));}
+        mode='playing'; synthesis().resume();controls(playingNote());
+        if(pendingNext) {pendingNext=false;speakChunk(revision,voicePlan(language).voice);}
       }
     });
     // Closing the player must not leave hidden narration running.
@@ -147,7 +231,7 @@
     });
   }
   function revealFallback() {
-    if (host?.open && !voiceFor(language)) host.querySelector('.briefing-transcript').open = true;
+    if (host?.open && !voicePlan(language).exact) host.querySelector('.briefing-transcript').open = true;
   }
   function sync() {
     const el=$('proposalBriefing'), next=root.Render?.lastState; if(!el || !next)return;
@@ -159,13 +243,17 @@
     else if(changed && active) controls('Proposal updated. Press Play to hear the latest quotation values.');
   }
   if(supported()) synthesis().addEventListener?.('voiceschanged',()=>{
-    if(mode!=='idle' && !voiceFor(language))stop('The selected voice is no longer available. Read the briefing or select another language.');
+    markVoices();
+    /* A substitute keeps the narration alive; only losing every usable voice
+       stops it. */
+    if(mode!=='idle' && !voicePlan(language).voice)stop('The selected voice is no longer available. Read the briefing or select another language.');
     else if(mode==='idle'){controls(availability());revealFallback();}
   });
+  watchVoices();
   root.addEventListener('focus',()=>{if(mode==='idle')controls(availability());});
   root.addEventListener('pagehide',()=>stop());
   root.addEventListener('beforeprint',()=>stop());
   document.addEventListener('visibilitychange',()=>{if(document.hidden && mode!=='idle')stop('Stopped while this page was in the background. Press Play to restart.');});
   document.addEventListener('qs:rendered',sync);
-  root.Briefing={scriptFor,voiceFor,stop};
+  root.Briefing={scriptFor,voiceFor,voicePlan,fallbackLanguage,stop};
 })(window);

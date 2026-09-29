@@ -73,6 +73,21 @@ async function installSpeech(page) {
   await page.evaluate(()=>{__speech.voices=__speech.voices.filter(v=>v.lang==='en-IN');__speech.dispatchEvent(new Event('voiceschanged'));});
   await page.evaluate(()=>{__speech.voices.push({name:'Marathi added later',lang:'mr-IN',localService:true});__speech.dispatchEvent(new Event('voiceschanged'));});
   check('asynchronously added voices enable Play without autoplay',await page.evaluate(()=>!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
+  /* The Marathi case that actually happens: Chrome desktop ships no Marathi
+     voice at all, so the honest options are Hindi (same script) or silence. */
+  await page.evaluate(()=>{__speech.voices=[{name:'English test voice',lang:'en-IN',localService:true},{name:'Hindi test voice',lang:'hi-IN',localService:true}];__speech.dispatchEvent(new Event('voiceschanged'));});
+  check('Marathi without a Marathi voice plays with the Hindi voice, and is never silently substituted',await page.evaluate(()=>{const s=document.getElementById('briefingStatus').textContent;return !document.getElementById('briefingPlay').disabled&&s.includes('No Marathi voice is installed')&&s.includes('Hindi test voice')&&document.getElementById('briefingText').lang==='mr';}));
+  check('the Marathi text itself is unchanged by the substitute voice',await page.evaluate(()=>/\u0900-\u097F/.test('')===false&&/[\u0900-\u097F]/.test(document.getElementById('briefingText').textContent)&&document.getElementById('briefingText').textContent.includes('अंदाजित')));
+  check('the recovery button offers the Hindi briefing as native audio',await page.evaluate(()=>!document.getElementById('briefingUseEnglish').hidden&&document.getElementById('briefingUseEnglish').textContent==='Switch to Hindi audio'));
+  await page.click('#briefingPlay');
+  check('Marathi text is spoken by the Hindi voice, never by the English one',await page.evaluate(()=>{const u=__speech.spoken.at(-1);return u.voice.lang==='hi-IN'&&u.lang==='hi-IN'&&/[\u0900-\u097F]/.test(u.text);}));
+  check('the playing status repeats which voice is speaking',await page.evaluate(()=>document.getElementById('briefingStatus').textContent.includes('with a Hindi voice')));
+  await page.click('#briefingStop');
+  await page.click('#briefingUseEnglish');
+  check('switching to the Hindi briefing is still an explicit choice and does not autoplay',await page.evaluate(()=>document.querySelector('[data-briefing-language="hi"]').getAttribute('aria-pressed')==='true'&&document.getElementById('briefingStop').disabled&&document.getElementById('briefingText').lang==='hi'));
+  await page.click('[data-briefing-language="mr"]');
+  await page.evaluate(()=>{__speech.voices.push({name:'Marathi test voice',lang:'mr-IN',localService:true});__speech.dispatchEvent(new Event('voiceschanged'));});
+  check('a real Marathi voice, once installed, takes over and the substitute notice goes away',await page.evaluate(()=>document.getElementById('briefingStatus').textContent.includes('Ready in Marathi')&&document.getElementById('briefingUseEnglish').hidden&&!document.getElementById('briefingPlay').disabled));
   await page.click('#briefingPlay');await page.evaluate(()=>__speech.spoken.at(-1).onerror({error:'network'}));
   check('speech-provider errors leave a usable transcript and retry controls',await page.evaluate(()=>document.getElementById('briefingStatus').textContent.includes('could not play')&&!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
   await page.click('[data-briefing-language="en"]');await page.click('#briefingPlay');
@@ -107,6 +122,28 @@ async function installSpeech(page) {
   await customer.emulateMediaType('print');
   check('audio interface stays out of browser print and both PDF page trees',await customer.evaluate(()=>!document.getElementById('proposalBriefing').checkVisibility()&&![...document.querySelectorAll('.page')].some(e=>e.querySelector('#proposalBriefing'))));
   await customer.emulateMediaType('screen');
+  /* Chrome hands back an empty voice list until the platform has finished
+     enumerating them, and a few builds never fire voiceschanged at all. Saying
+     "Marathi voice unavailable" at that moment is simply wrong. */
+  const late=await browser.newPage();
+  await late.evaluateOnNewDocument(()=>{
+    const speech=new EventTarget();
+    let voices=[];
+    speech.getVoices=()=>voices;speech.cancel=()=>{};speech.pause=()=>{};speech.resume=()=>{};speech.speak=()=>{};
+    Object.defineProperty(window,'speechSynthesis',{value:speech,configurable:true});
+    Object.defineProperty(window,'SpeechSynthesisUtterance',{value:class{constructor(t){this.text=t;}},configurable:true});
+    window.__arrive=()=>{voices=[{name:'Late Marathi voice',lang:'mr-IN',localService:true}];};
+  });
+  await late.setViewport({width:1440,height:1100});
+  await late.goto(base+'/quotation.html',{waitUntil:'networkidle0'});
+  await late.evaluate(()=>Experience.whenReady());
+  await late.$eval('#proposalBriefing',e=>{e.open=true;e.scrollIntoView({behavior:'instant'});});
+  await late.click('[data-briefing-language="mr"]');
+  check('voices still being enumerated say so, instead of claiming Marathi is missing',await late.evaluate(()=>{const s=document.getElementById('briefingStatus').textContent;return s.includes('Checking the voices')&&!s.includes('unavailable')&&document.getElementById('briefingPlay').disabled;}));
+  await late.evaluate(()=>window.__arrive());
+  await late.waitForFunction(()=>!document.getElementById('briefingPlay').disabled,{timeout:5000});
+  check('a voice that arrives late enables Marathi on its own, without a manual refresh',await late.evaluate(()=>!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
+  await late.close();
   const fallback=await browser.newPage();await fallback.evaluateOnNewDocument(()=>{Object.defineProperty(window,'speechSynthesis',{value:undefined});});
   await fallback.goto(base+'/quotation.html',{waitUntil:'networkidle0'});
   check('unsupported browsers clearly offer the written briefing instead',await fallback.evaluate(()=>document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStatus').textContent.includes('not supported')&&!!document.getElementById('briefingText').textContent));

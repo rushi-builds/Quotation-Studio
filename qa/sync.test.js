@@ -48,7 +48,7 @@ function bootApp(seedStorage, url) {
     }
   });
   const { window } = dom;
-  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
     'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
@@ -109,7 +109,12 @@ const form = d.getElementById('quoteForm');
 const advanced = [...form.querySelectorAll('[data-adv]')];
 t('defaults to Essentials', form.classList.contains('qs-mode-essentials'));
 t('Essentials button active by default', d.getElementById('modeEss').classList.contains('active') && !d.getElementById('modeAll').classList.contains('active'));
-t('ten advanced sections including tax and QR/audio settings', advanced.length === 10, advanced.length);
+/* Eleven since the engineering design basis joined them: the section is
+   hidden in Essentials, and its defaults carry the sheet there, while every
+   result still prints on the Tech Spec page. */
+t('eleven advanced sections including the engineering design basis', advanced.length === 11, advanced.length);
+t('the engineering design basis is one of them',
+  advanced.some((el) => el.querySelector('#tiltDeg') && el.querySelector('#soilResistivity')), 'engineering fieldset');
 t('all advanced sections hidden in Essentials', advanced.every((el) => w.getComputedStyle(el).display === 'none'));
 t('capacity remains visible in Customer & System beside customer type', (() => {
   const cap = d.getElementById('capacity');

@@ -44,6 +44,10 @@ function independent(s) {
   const tariff = n(s.tariff);
   const esc = n(s.escalation) / 100;
   const deg = n(s.degradation) / 100;
+  /* Blank or zero means "derive it" — finance.js asks engineering.js for the
+     row pitch when that module is present, and falls back to 1.4 without it.
+     Any positive value is a deliberate manual override, clamped to at least
+     the bare module area. */
   const clearance = Math.max(1, n(s.roofClearanceFactor, 1.4));
 
   /* ratio rounded to 6 dp then ceil: neutralises the same binary round-off the
@@ -394,9 +398,19 @@ check('grid CO₂ factor defaults to CEA v21.0 (0.710 tCO₂/MWh)', () => {
 check('tree absorption defaults to 22 kg CO₂ per tree per year', () => {
   assert.equal(F.compute({ capacity: 7, moduleWattage: 545 }).treeFactor, 22);
 });
-check('roof clearance defaults to ×1.4 and never drops below bare module area', () => {
-  assert.equal(F.compute({ capacity: 7, moduleWattage: 545 }).roofClearanceFactor, 1.4);
-  assert.equal(F.compute({ capacity: 7, moduleWattage: 545, roofClearanceFactor: 0 }).roofClearanceFactor, 1);
+check('roof clearance: derived when it can be, manual when typed, never below bare module area', () => {
+  /* Without the geometry inputs (this process has no engineering.js) the old
+     1.4 estimate still stands, and a typed factor still wins. */
+  const plain = F.compute({ capacity: 7, moduleWattage: 545 });
+  assert.equal(plain.roofClearanceFactor, 1.4);
+  assert.equal(plain.clearanceSource, 'fallback');
+  const manual = F.compute({ capacity: 7, moduleWattage: 545, roofClearanceFactor: '1.1' });
+  assert.equal(manual.roofClearanceFactor, 1.1);
+  assert.equal(manual.clearanceSource, 'manual');
+  /* A zero is not a clearance factor anybody builds; the field's own min is 1,
+     so it reads as "not set" rather than as an override. */
+  assert.equal(F.compute({ capacity: 7, moduleWattage: 545, roofClearanceFactor: 0 }).clearanceSource, 'fallback');
+  assert.ok(Math.ceil(plain.requiredArea) >= Math.ceil(plain.arrayArea));
 });
 check('PM Surya Ghar slabs and the ₹78,000 ceiling are unchanged', () => {
   assert.equal(F.SUBSIDY_MAX, 78000);

@@ -55,7 +55,7 @@ function bootApp(seedStorage) {
   });
   const { window } = dom;
   /* browser <script> tags share top-level scope; a single concatenated eval mimics that */
-  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
     'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
@@ -214,10 +214,14 @@ console.log('— installed capacity & roof area —');
 t('tech spec states the installed array beside the contracted capacity',
   d.getElementById('v_tsTable').textContent.includes('7.085 kWp (contracted 7 kWp)'),
   d.getElementById('v_tsTable').textContent.match(/Installed Array Size.*?kWp[^k]*/));
-t('roof requirement names the clearance factor instead of bare module area',
+/* The required roof area is no longer "module area × 1.4": it is the shaded
+   row pitch worked out from the tilt and the winter-solstice sun angle, and the
+   page has to say which one it used. */
+t('roof requirement states the derived row pitch, not bare module area',
   d.getElementById('v_tsTable').textContent.includes('Roof Area Required') &&
-  d.getElementById('v_tsTable').textContent.includes('module area × 1.4 clearance'),
-  d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,70}/));
+  /row pitch \d+\.\d+ m at 15° tilt, no shading 09:00–15:00 on 21 December/.test(d.getElementById('v_tsTable').textContent) &&
+  /module area × 1\.4\d clearance/.test(d.getElementById('v_tsTable').textContent),
+  d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,140}/));
 d.getElementById('roofClearanceFactor').value = '1.1';
 fire(w, d.getElementById('roofClearanceFactor'), 'input');
 t('changing the clearance factor re-renders the required roof area live',

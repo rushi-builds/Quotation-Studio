@@ -63,7 +63,8 @@
                             ₹64/unit over 25 years, which invites challenge.
          co2Factor 0.71   — CEA CO2 Baseline Database v21.0, FY2024-25.
          treeFactor 22    — mature-tree absorption, 20-25 kg CO2/yr.
-         clearance 1.4x   — module area → roof area for walkways/parapet/rows. */
+       Roof clearance is no longer a fixed 1.4x assumption: engineering.js
+       derives it from the tilt and latitude (see the block below). */
     /* Quoted as ₹ per Wp — the rate customers and sales teams actually quote.
        The calculation engine keeps working in ₹/kWp; state.js and render.js
        convert at the boundary. */
@@ -74,7 +75,68 @@
     tariff: '10',
     escalation: '4',
     degradation: '0.5',
-    roofClearanceFactor: '1.4',
+    /* ---- Engineering design basis (engineering.js) -------------------------
+       Every figure below is either a standard's own arithmetic or a site value
+       the designer supplies. They print on the Tech Spec page; blanks print as
+       DATA REQUIRED. Values here are the shipped assumptions, not derivations:
+         tilt 15°        site figure — MNRE/UPNEDA bands 22–24° for north India
+         latitude 18.52  Pune
+         Vb 39 m/s       IS 875-3:2015 basic wind speed map
+         terrain 3       suburban, IS 875-3 Table 2 Class A
+         netUpliftCp 1.2 design assumption — confirm with the structural designer
+         roofZone edge   suction is far stronger at edges and corners
+         Vmax 1100 V     typical three-phase rooftop inverter DC limit
+         MPPT 200–1000 V typical window; datasheet wins
+         Tmin 0 °C       conventional cold cell temperature (safety side)
+         Tmax cell 65 °C
+         2400 Pa         IEC 61215-2 module mechanical-load rating
+         60 kg/m²        MNRE/UPNEDA terrace load benchmark
+       --------------------------------------------------------------------- */
+    tiltDeg: '15',
+    latitudeDeg: '18.52',
+    shadeHalfWindowHours: '3',
+    roofSetbackM: '0.6',
+    windSpeed: '39',
+    terrainCategory: '3',
+    buildingHeightM: '10',
+    windK1: '1',
+    windK3: '1',
+    windK4: '1',
+    netUpliftCp: '1.2',
+    roofZone: 'edge',
+    anchorsPerModule: '4',
+    moduleLoadClassPa: '2400',
+    moduleVoc: '',
+    moduleVmp: '',
+    moduleIsc: '',
+    moduleImp: '',
+    moduleVocBetaPct: '-0.27',
+    moduleVmpBetaPct: '-0.36',
+    inverterVmaxDc: '1100',
+    mpptMinV: '200',
+    mpptMaxV: '1000',
+    inverterMaxCurrentA: '',
+    minAmbientC: '0',
+    maxCellC: '65',
+    dcCableLengthM: '',
+    dcCableSizeMm2: '',
+    acCableLengthM: '',
+    acCableSizeMm2: '',
+    soilResistivity: '',
+    earthTargetOhm: '5',
+    electrodeLengthM: '3',
+    electrodeDiaM: '0.05',
+    electrodeEfficiency: '0.75',
+    thunderstormDays: '30',
+    lpsClass: 'IV',
+    buildingLengthM: '',
+    buildingWidthM: '',
+    moduleWeightKg: '28',
+    rackKgPerM2: '2.5',
+    roofLoadBenchmarkKgM2: '60',
+    /* Blank means derive the roof clearance from tilt and latitude; a typed
+       value is a deliberate manual override and the page says so. */
+    roofClearanceFactor: '',
     subsidyOverride: '',
     co2Factor: '0.71',
     treeFactor: '22',

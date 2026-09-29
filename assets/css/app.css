@@ -1635,6 +1635,40 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 /* Compact only the optional dense cases. No text, disclaimers or numbers are
    removed, and chart canvases redraw at these sizes rather than being squashed. */
 #pageTechSpec.has-site-area:has(#v_tsRefsWrap:not([style*="display: none"])) .spec-table td{padding-top:3.5px;padding-bottom:3.5px;}
+/* The engineering design basis is long by nature — it is the arithmetic behind
+   every other number on the page. It reads at a slightly smaller size so the
+   page keeps its shape, and if the whole table still runs past the A4 box the
+   render pass adds is-tight-spec, then is-tighter-spec, until it fits. On a
+   fixed-height page with overflow hidden, unnoticed overflow prints as missing
+   text, so the fit is measured rather than assumed. */
+#pageTechSpec .spec-table tr.is-eng td{font-size:9.9px;padding:3px 10px;}
+#pageTechSpec .spec-table tr.is-eng td.spec-k{width:30%;}
+#pageTechSpec.is-tight-spec .spec-table td{padding-top:3px;padding-bottom:3px;}
+#pageTechSpec.is-tighter-spec .spec-table td{padding-top:2px;padding-bottom:2px;font-size:10px;}
+#pageTechSpec.is-tighter-spec .spec-table tr.is-eng td{font-size:9.4px;padding:2px 10px;}
+/* The system diagram is the only block on this page that can give up height
+   without giving up a number: the specification table below it cannot. It is
+   drawn on a viewBox, so capping its width scales it down cleanly instead of
+   squashing it, and the note under it still explains it. */
+#pageTechSpec.is-diagram-spec #v_tsDiagram svg{max-width:90%;margin-left:auto;margin-right:auto;}
+#pageTechSpec.is-diagram-tighter #v_tsDiagram svg{max-width:72%;margin-left:auto;margin-right:auto;}
+/* Two further steps exist for the one page that carries everything at once:
+   site-area rows, reference pills and the full design basis. They scale the
+   drawing, never a figure; every number and every clause citation stays at
+   full size, and the ladder stops at the first step that fits. */
+#pageTechSpec.is-diagram-tiny #v_tsDiagram svg{max-width:55%;margin-left:auto;margin-right:auto;}
+#pageTechSpec.is-diagram-min #v_tsDiagram svg{max-width:42%;margin-left:auto;margin-right:auto;}
+/* The last resort, and the only step that touches type: cell padding to its
+   floor and the table to 9 px, which is still above every legibility floor the
+   browser tests hold it to. Figures, units, clause citations and the honesty
+   note are never removed or shortened — a page that cannot hold its content
+   says so through the overflow report instead of quietly dropping a row. */
+#pageTechSpec.is-table-min .spec-table{font-size:9.6px;}
+#pageTechSpec.is-table-min .spec-table td{padding-top:1.5px;padding-bottom:1.5px;}
+#pageTechSpec.is-table-min .spec-table tr.is-eng td{font-size:9px;padding:1.5px 10px;}
+#pageTechSpec.is-table-min .spec-table .spec-k{width:30%;}
+#pageTechSpec.is-table-min #v_tsRefsWrap{margin-top:0;}
+#pageTechSpec.is-table-min .note-box{margin-top:4px;}
 #chartBridge{width:718px!important;height:252px!important;}
 #chartDonut{width:230px!important;height:230px!important;}
 #pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #chartBridge{height:180px!important;}

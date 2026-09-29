@@ -72,7 +72,7 @@ function bootApp() {
   });
   const { window } = dom;
   /* the order matches quotation.html, so page wiring behaves as it does live */
-  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js',
+  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js',
     'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js', 'equipment.js',
     'render.js', 'editor.js', 'experience.js', 'briefing.js', 'export.js', 'workspace-prefs.js',
     'app.js', 'control-panel.js']
@@ -132,7 +132,10 @@ const cfg = {
   tariff: digit(d.getElementById('tariff').value),
   esc: digit(d.getElementById('escalation').value),
   deg: digit(d.getElementById('degradation').value),
-  clearance: digit(d.getElementById('roofClearanceFactor').value),
+  /* The clearance is no longer a literal default: it is derived from these
+     two, so they are what the defaults pin. */
+  tilt: digit(d.getElementById('tiltDeg').value),
+  latitude: digit(d.getElementById('latitudeDeg').value),
   wattage: digit(d.getElementById('moduleWattage').value)
 };
 
@@ -146,9 +149,19 @@ console.log('— Reconcile (rendered): the shipped defaults are pinned —');
    whatever the default became), so BOTH sources are pinned explicitly. */
 const REVIEWED = {
   capacity: '7', genFactor: '1460', costPerWp: '63.63', gstPercent: '8.9',
-  tariff: '10', escalation: '4', degradation: '0.5', roofClearanceFactor: '1.4',
+  tariff: '10', escalation: '4', degradation: '0.5',
   co2Factor: '0.71', treeFactor: '22', moduleWattage: '545',
-  moduleLengthMm: '2278', moduleWidthMm: '1134'
+  moduleLengthMm: '2278', moduleWidthMm: '1134',
+  /* engineering design basis — the assumptions the whole engineering section
+     stands on, so they are pinned here rather than left to drift */
+  tiltDeg: '15', latitudeDeg: '18.52', shadeHalfWindowHours: '3', roofSetbackM: '0.6',
+  windSpeed: '39', buildingHeightM: '10', windK1: '1', windK3: '1', windK4: '1',
+  netUpliftCp: '1.2', anchorsPerModule: '4',
+  inverterVmaxDc: '1100', mpptMinV: '200', mpptMaxV: '1000', minAmbientC: '0',
+  maxCellC: '65', moduleVocBetaPct: '-0.27', moduleVmpBetaPct: '-0.36',
+  electrodeLengthM: '3', electrodeDiaM: '0.05', electrodeEfficiency: '0.75',
+  thunderstormDays: '30', moduleWeightKg: '28', rackKgPerM2: '2.5',
+  roofLoadBenchmarkKgM2: '60'
 };
 const authored = (id) => d.getElementById(id).getAttribute('value');
 /* the shipped default, read once — restore points must not hardcode a rate */
@@ -183,8 +196,11 @@ check('the 8.9 % default matches the 70:30 composite rule, not the pre-reform 12
   assert.equal(Math.round((0.7 * 5 + 0.3 * 18) * 10) / 10, 8.9);
   assert.notEqual(w.StateStore.DEFAULTS.gstPercent, '12');
 });
-check('roof clearance factor is present and editable', () => {
-  assert.equal(d.getElementById('roofClearanceFactor').disabled, false);
+check('roof clearance factor is present, editable, and blank means derive', () => {
+  const el = d.getElementById('roofClearanceFactor');
+  assert.equal(el.disabled, false);
+  assert.equal(el.value, '', 'blank by default so the geometry decides');
+  assert.equal(authored('roofClearanceFactor'), null, 'no authored default to fall back on');
 });
 
 console.log('— Reconcile (rendered): ₹/Wp form rate maps to the ₹/kWp engine —');

@@ -117,7 +117,7 @@ const CONTENT = {
     /* First spec cards (capacity, generation, modules) are generated automatically */
     specs: [
       { title: 'Inverter', desc: 'High-efficiency hybrid/string inverter with real-time Wi-Fi monitoring' },
-      { title: 'Module Mounting Structure', desc: 'Hot-dip galvanized steel or aluminium — engineered for monsoon wind loads' },
+      { title: 'Module Mounting Structure', desc: 'Hot-dip galvanized steel or aluminium — designed for the site wind load to IS 875 (Part 3):2015; the calculation sheet is shared before execution' },
       { title: 'Balance of System', desc: 'DC/AC protection, earthing and lightning arrestor included' },
       { title: 'Net Metering & Government Subsidy', desc: 'DISCOM-approved, end-to-end liaisoning included' },
       { title: 'Warranty', desc: '25 years module performance warranty' }
@@ -208,8 +208,8 @@ const CONTENT = {
     para: 'A solar system is only as good as the hands that install it. Every KTM installation follows a documented engineering standard — trained certified crews, torque-specified fastening, protected roof penetrations and dressing-level electrical work — so your system performs safely, day after day, for decades.',
     standardsLabel: 'THE KTM INSTALLATION STANDARD',
     standards: [
-      { icon: 'gear',   title: 'Engineered Mounting', desc: 'Structures designed by in-house engineers and torqued to specification — built to withstand decades of monsoon wind loads.' },
-      { icon: 'shield', title: 'Roof Protection', desc: 'Leakproof roof penetrations with sealed anchors and elevated structure design — your roof stays watertight.' },
+      { icon: 'gear',   title: 'Engineered Mounting', desc: 'Structures designed by in-house engineers to the site wind load (IS 875 Part 3), torqued to specification and logged at handover.' },
+      { icon: 'shield', title: 'Roof Protection', desc: 'Sealed, elevated roof penetrations — every one water-tested and the result recorded before handover.' },
       { icon: 'cable',  title: 'Neat Electrical Work', desc: 'Dressed cable trays, labelled connections and organised DC/AC routing — clean enough to inspect anytime.' },
       { icon: 'badge',  title: 'Safety First', desc: 'Certified crews with harnesses, helmets and PPE on every site — zero-compromise safety culture.' }
     ],
@@ -309,7 +309,7 @@ const CONTENT = {
       { icon: 'gear',   title: 'In-House Structure Manufacturing', desc: 'Precision-engineered HDGI mounting structures, designed and manufactured in-house.' },
       { icon: 'drone',  title: 'Drone Site Survey', desc: 'Precision aerial mapping for accurate shadow analysis, roof measurement and layout planning.' },
       { icon: 'chart',  title: 'PVsyst Energy Simulation', desc: 'Yield assessment is prepared during the agreed engineering scope, using verified site and equipment inputs—not generated automatically by this quotation.' },
-      { icon: 'shield', title: 'Quality & Safety First', desc: 'IS/IEC-compliant installations with rigorous internal quality audits at every stage.' },
+      { icon: 'shield', title: 'Quality & Safety First', desc: 'Installation, earthing and testing to IS 732, IS 3043, IS/IEC 60364-7-712 and the IEC 62446-1 schedule, with quality audits at every stage.' },
       { icon: 'wrench', title: 'End-to-End EPC & After-Sales Support', desc: 'From design to commissioning to long-term AMC — we are with you for the life of the system.' },
       { icon: 'star',   title: '4.8-Star Rated on Google', desc: '400+ verified customer reviews across Maharashtra.' }
     ],
@@ -515,6 +515,13 @@ const PROJECT_IMAGES = {
    Both builder and customer view use this, so saved proposals get the same
    corrected engineering sequence without changing their financial inputs. */
 const CONTENT_COPY_UPDATES = Object.freeze({
+  /* Wind, water-tightness and blanket-compliance claims retired: a document
+     that does not compute the wind load cannot call a structure "engineered for
+     monsoon wind loads". Proposals saved before this get the honest wording. */
+  "Hot-dip galvanized steel or aluminium — engineered for monsoon wind loads": "Hot-dip galvanized steel or aluminium — designed for the site wind load to IS 875 (Part 3):2015; the calculation sheet is shared before execution",
+  "Structures designed by in-house engineers and torqued to specification — built to withstand decades of monsoon wind loads.": "Structures designed by in-house engineers to the site wind load (IS 875 Part 3), torqued to specification and logged at handover.",
+  "Leakproof roof penetrations with sealed anchors and elevated structure design — your roof stays watertight.": "Sealed, elevated roof penetrations — every one water-tested and the result recorded before handover.",
+  "IS/IEC-compliant installations with rigorous internal quality audits at every stage.": "Installation, earthing and testing to IS 732, IS 3043, IS/IEC 60364-7-712 and the IEC 62446-1 schedule, with quality audits at every stage.",
   "Solar Array": "Rooftop Solar",
   "DISCOM Grid": "MSEDCL (MSEB)",
   "Surplus generation is exported to the grid and credited via net metering.": "Conceptual grid-tied layout, not a wiring plan. Protection and import/export are subject to site design and DISCOM approval.",

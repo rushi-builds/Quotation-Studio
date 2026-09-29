@@ -10,7 +10,10 @@
      - electrical detail fields (Voc/Isc/Vmp/Imp/efficiency/MPPT…) are left
        BLANK until the team enters datasheet values — nothing is invented
      - selecting a module fills its rating/dimensions/technology into the
-       form; selecting an inverter fills its rating only when one is set
+       form, and its Voc/Isc/Vmp/Imp when the catalogue holds them
+     - selecting an inverter fills its rating, and its DC voltage/current
+       limits when the catalogue holds them, so the string check has real
+       numbers to work with instead of a blank
    ========================================================================== */
 'use strict';
 
@@ -117,7 +120,19 @@
     if (entry.lengthMm) $('moduleLengthMm').value = entry.lengthMm;
     if (entry.widthMm) $('moduleWidthMm').value = entry.widthMm;
     if (entry.tech) setValue('moduleTech', entry.tech);
-    ['moduleWattage', 'moduleLengthMm', 'moduleWidthMm', 'moduleTech'].forEach((id) => fire($(id)));
+    const touched = ['moduleWattage', 'moduleLengthMm', 'moduleWidthMm', 'moduleTech'];
+    /* Datasheet figures only. The catalogue ships them blank on purpose, so a
+       module with no electrical detail selected leaves the string check saying
+       DATA REQUIRED rather than passing on an invented voltage. */
+    [['voc', 'moduleVoc'], ['isc', 'moduleIsc'], ['vmp', 'moduleVmp'], ['imp', 'moduleImp']]
+      .forEach(([from, to]) => {
+        if (entry[from] === '' || entry[from] === undefined || entry[from] === null) return;
+        const el = $(to);
+        if (!el) return;
+        el.value = entry[from];
+        touched.push(to);
+      });
+    touched.forEach((id) => fire($(id)));
   }
 
   function applyInverterDefaults() {
@@ -125,6 +140,16 @@
     const entry = cat().inverters.find((i) => i.make === sel.value);
     if (!entry) return;
     if (entry.kw) { $('inverterKw').value = entry.kw; fire($('inverterKw')); }
+    /* The DC limits decide whether a string is safe, so they travel with the
+       inverter the moment the catalogue carries them. */
+    [['vmaxDc', 'inverterVmaxDc'], ['mpptMin', 'mpptMinV'], ['mpptMax', 'mpptMaxV'], ['maxCurrent', 'inverterMaxCurrentA']]
+      .forEach(([from, to]) => {
+        if (entry[from] === '' || entry[from] === undefined || entry[from] === null) return;
+        const el = $(to);
+        if (!el) return;
+        el.value = entry[from];
+        fire(el);
+      });
   }
 
   function wire() {

@@ -239,14 +239,172 @@
             <div class="hint">Enables the roof-area fit check on the Tech Spec page.</div>
           </div>
           <div class="field">
-            <label>Roof clearance factor (× module area)</label>
-            <input type="number" id="roofClearanceFactor" value="1.4" step="0.1" min="1">
-            <div class="hint">Module area is not roof area. Walkways, parapet setback and
-            inter-row shadow spacing need extra space — the fit check multiplies module
-              area by this factor. Use 1.4 for a typical tilted RCC layout, 1.1–1.2 for
-              flush-mounted rows, 1.8–2.0 where wide row spacing is required.</div>
+            <label>Roof clearance factor (× module area) — leave blank to derive</label>
+            <input type="number" id="roofClearanceFactor" placeholder="auto from tilt &amp; latitude" step="0.01" min="1">
+            <div class="hint">Left blank, the factor is computed from the tilt and latitude below:
+            row pitch = module depth + the shadow it throws on 21 December (IS 875 is a wind
+            code; this geometry is the standard solar design criterion). Only type here to
+            override that with a figure of your own — the page then says it is a manual
+            factor rather than a calculated one.</div>
           </div>
         </div>
+      </fieldset>
+
+      <fieldset data-adv class="eng-basis">
+        <legend>Engineering design basis</legend>
+        <div class="hint">Each line is either arithmetic a named standard defines or a figure you
+        supply. Everything prints on the Tech Spec page; anything left blank prints as
+        DATA REQUIRED instead of a number that merely looks plausible.</div>
+
+        <details class="eng-group" open>
+          <summary>Array geometry &amp; row spacing</summary>
+          <div class="field"><label for="tiltDeg">Module tilt (° from horizontal)</label>
+            <input type="number" id="tiltDeg" value="15" step="1" min="0" max="60">
+            <div class="hint">Site figure. MNRE/UPNEDA rooftop specifications show 22–24° for north India, location dependent; a lower tilt needs less row spacing.</div></div>
+          <div class="field"><label for="latitudeDeg">Site latitude (°N)</label>
+            <input type="number" id="latitudeDeg" value="18.52" step="0.01" min="-60" max="60">
+            <div class="hint">Sets the winter-solstice sun angle the row pitch is built on (Pune 18.52).</div></div>
+          <div class="field"><label for="shadeHalfWindowHours">No-shading window (± h around solar noon)</label>
+            <input type="number" id="shadeHalfWindowHours" value="3" step="0.5" min="1" max="5">
+            <div class="hint">3 = no inter-row shading between 09:00 and 15:00 solar time on 21 December.</div></div>
+          <div class="field"><label for="roofSetbackM">Clear band around the array (m)</label>
+            <input type="number" id="roofSetbackM" value="0.6" step="0.1" min="0">
+            <div class="hint">MNRE/UPNEDA rooftop specification keeps the array clear of the roof edge.</div></div>
+        </details>
+
+        <details class="eng-group">
+          <summary>Wind load — IS 875 (Part 3):2015</summary>
+          <div class="field"><label for="windSpeed">Basic wind speed Vb (m/s)</label>
+            <input type="number" id="windSpeed" value="39" step="1" min="0">
+            <div class="hint">Read from the IS 875-3:2015 basic wind speed map. Pune 39, Mumbai 44, Chennai 50, Delhi 47.</div></div>
+          <div class="field"><label for="terrainCategory">Terrain category</label>
+            <select id="terrainCategory">
+              <option value="1">1 — open coast, flat treeless plain</option>
+              <option value="2">2 — open terrain, scattered obstructions</option>
+              <option value="3" selected>3 — suburban / closely spaced obstructions</option>
+              <option value="4">4 — dense city centre</option>
+            </select>
+            <div class="hint">IS 875-3 Table 2, Class A column set.</div></div>
+          <div class="field"><label for="buildingHeightM">Building height (m)</label>
+            <input type="number" id="buildingHeightM" value="10" step="0.5" min="0">
+            <div class="hint">Height above ground that k2 is read at. Above 15 m read k2 from the table.</div></div>
+          <div class="field"><label for="windK1">k1 — risk coefficient</label>
+            <input type="number" id="windK1" value="1" step="0.01" min="0">
+            <div class="hint">IS 875-3 Table 1: 1.00 for a normal 50-year structure.</div></div>
+          <div class="field"><label for="windK3">k3 — topography factor</label>
+            <input type="number" id="windK3" value="1" step="0.01" min="0">
+            <div class="hint">1.00 on flat ground; up to 1.36 on an escarpment or hill crest.</div></div>
+          <div class="field"><label for="windK4">k4 — cyclonic region factor</label>
+            <input type="number" id="windK4" value="1" step="0.05" min="0">
+            <div class="hint">1.00 inland; 1.15–1.30 within 60 km of a cyclone-prone coast.</div></div>
+          <div class="field"><label for="netUpliftCp">Net uplift pressure coefficient</label>
+            <input type="number" id="netUpliftCp" value="1.2" step="0.1" min="0">
+            <div class="hint">Design assumption, printed on the page — confirm with the structural designer for the chosen tilt and roof.</div></div>
+          <div class="field"><label for="roofZone">Array position on the roof</label>
+            <select id="roofZone">
+              <option value="interior">Interior (×1.0)</option>
+              <option value="edge" selected>Edge (×1.5)</option>
+              <option value="corner">Corner (×2.0)</option>
+            </select>
+            <div class="hint">Suction is far stronger at edges and corners. The multiplier is listed, not hidden.</div></div>
+          <div class="field"><label for="anchorsPerModule">Anchors per module</label>
+            <input type="number" id="anchorsPerModule" value="4" step="1" min="1">
+            <div class="hint">Divides the uplift into a load per fixing.</div></div>
+          <div class="field"><label for="moduleLoadClassPa">Module mechanical-load class (Pa)</label>
+            <select id="moduleLoadClassPa">
+              <option value="2400" selected>2400 — IEC 61215 standard</option>
+              <option value="5400">5400 — heavy-load class</option>
+            </select>
+            <div class="hint">The module's own IEC 61215-2 static mechanical-load rating.</div></div>
+        </details>
+
+        <details class="eng-group">
+          <summary>String &amp; cable — IEC 62548, IEC 62109, IS 732</summary>
+          <div class="field"><label for="moduleVoc">Module Voc at STC (V)</label>
+            <input type="number" id="moduleVoc" step="0.01" min="0" placeholder="from the datasheet">
+            <div class="hint">Rated open-circuit voltage. Leave blank until you have the datasheet — the string check then reports DATA REQUIRED instead of passing silently.</div></div>
+          <div class="field"><label for="moduleVmp">Module Vmp at STC (V)</label>
+            <input type="number" id="moduleVmp" step="0.01" min="0"></div>
+          <div class="field"><label for="moduleIsc">Module Isc at STC (A)</label>
+            <input type="number" id="moduleIsc" step="0.01" min="0"></div>
+          <div class="field"><label for="moduleImp">Module Imp at STC (A)</label>
+            <input type="number" id="moduleImp" step="0.01" min="0"></div>
+          <div class="field"><label for="moduleVocBetaPct">Voc temperature coefficient (%/°C)</label>
+            <input type="number" id="moduleVocBetaPct" value="-0.27" step="0.01">
+            <div class="hint">PERC ≈ −0.27, TOPCon ≈ −0.25, HJT ≈ −0.21. Datasheet value wins.</div></div>
+          <div class="field"><label for="moduleVmpBetaPct">Vmp temperature coefficient (%/°C)</label>
+            <input type="number" id="moduleVmpBetaPct" value="-0.36" step="0.01"></div>
+          <div class="field"><label for="inverterVmaxDc">Inverter max DC input voltage (V)</label>
+            <input type="number" id="inverterVmaxDc" value="1100" step="10" min="0">
+            <div class="hint">A hard limit: exceeding it destroys the input stage.</div></div>
+          <div class="field"><label for="mpptMinV">MPPT minimum voltage (V)</label>
+            <input type="number" id="mpptMinV" value="200" step="10" min="0"></div>
+          <div class="field"><label for="mpptMaxV">MPPT maximum voltage (V)</label>
+            <input type="number" id="mpptMaxV" value="1000" step="10" min="0"></div>
+          <div class="field"><label for="inverterMaxCurrentA">Inverter max DC input current (A)</label>
+            <input type="number" id="inverterMaxCurrentA" step="0.1" min="0" placeholder="from the datasheet">
+            <div class="hint">Checked against 1.25 × Isc × strings (IEC 62548).</div></div>
+          <div class="field"><label for="minAmbientC">Minimum ambient (°C)</label>
+            <input type="number" id="minAmbientC" value="0" step="1">
+            <div class="hint">Cell temperature at dawn is taken as the ambient minimum — the coldest string voltage.</div></div>
+          <div class="field"><label for="maxCellC">Maximum cell temperature (°C)</label>
+            <input type="number" id="maxCellC" value="65" step="1"></div>
+          <div class="field"><label for="dcCableLengthM">DC run length (m, one way)</label>
+            <input type="number" id="dcCableLengthM" step="1" min="0" placeholder="array to inverter"></div>
+          <div class="field"><label for="dcCableSizeMm2">DC cable size (mm²)</label>
+            <input type="number" id="dcCableSizeMm2" step="0.5" min="0" placeholder="e.g. 4"></div>
+          <div class="field"><label for="acCableLengthM">AC run length (m, one way)</label>
+            <input type="number" id="acCableLengthM" step="1" min="0" placeholder="inverter to meter"></div>
+          <div class="field"><label for="acCableSizeMm2">AC cable size (mm²)</label>
+            <input type="number" id="acCableSizeMm2" step="0.5" min="0"></div>
+        </details>
+
+        <details class="eng-group">
+          <summary>Earthing &amp; lightning — IS 3043, IS/IEC 62305</summary>
+          <div class="field"><label for="soilResistivity">Soil resistivity (Ω·m)</label>
+            <input type="number" id="soilResistivity" step="1" min="0" placeholder="from the site test">
+            <div class="hint">IS 3043 sizes the electrode from this. Without it the page reports DATA REQUIRED — it will not guess a number of earth pits.</div></div>
+          <div class="field"><label for="earthTargetOhm">Earth resistance target (Ω)</label>
+            <select id="earthTargetOhm">
+              <option value="5" selected>5 — general LV installation (IS 3043)</option>
+              <option value="1">1 — system / substation earth</option>
+              <option value="10">10 — lightning earth</option>
+            </select></div>
+          <div class="field"><label for="electrodeLengthM">Pipe electrode length (m)</label>
+            <input type="number" id="electrodeLengthM" value="3" step="0.5" min="1"></div>
+          <div class="field"><label for="electrodeDiaM">Pipe electrode diameter (m)</label>
+            <input type="number" id="electrodeDiaM" value="0.05" step="0.005" min="0.01"></div>
+          <div class="field"><label for="electrodeEfficiency">Group efficiency of parallel electrodes</label>
+            <input type="number" id="electrodeEfficiency" value="0.75" step="0.05" min="0.4" max="0.95">
+            <div class="hint">R_group = R1 / (n × η). 0.6–0.8 is the usual band for pits spaced at least twice their length apart (IS 3043 practice).</div></div>
+          <div class="field"><label for="thunderstormDays">Thunderstorm days per year</label>
+            <input type="number" id="thunderstormDays" value="30" step="1" min="0">
+            <div class="hint">Gives Ng ≈ 0.04 × Td^1.25 flashes/km²/yr (IS/IEC 62305).</div></div>
+          <div class="field"><label for="lpsClass">Lightning protection level (if provided)</label>
+            <select id="lpsClass">
+              <option value="I">I — 20 m sphere, 5 m mesh</option>
+              <option value="II">II — 30 m sphere, 10 m mesh</option>
+              <option value="III">III — 45 m sphere, 15 m mesh</option>
+              <option value="IV" selected>IV — 60 m sphere, 20 m mesh</option>
+            </select>
+            <div class="hint">IEC 62305-3 parameters; whether an LPS is required is a risk decision that stays with the designer.</div></div>
+          <div class="field"><label for="buildingLengthM">Building length (m)</label>
+            <input type="number" id="buildingLengthM" step="1" min="0" placeholder="for the collection area"></div>
+          <div class="field"><label for="buildingWidthM">Building width (m)</label>
+            <input type="number" id="buildingWidthM" step="1" min="0"></div>
+        </details>
+
+        <details class="eng-group">
+          <summary>Roof load — MNRE / UPNEDA rooftop specification</summary>
+          <div class="field"><label for="moduleWeightKg">Module weight (kg)</label>
+            <input type="number" id="moduleWeightKg" value="28" step="0.5" min="0"></div>
+          <div class="field"><label for="rackKgPerM2">Racking weight (kg/m² of array)</label>
+            <input type="number" id="rackKgPerM2" value="2.5" step="0.1" min="0">
+            <div class="hint">HDGI rail and purlin weight per square metre of array.</div></div>
+          <div class="field"><label for="roofLoadBenchmarkKgM2">Roof load benchmark (kg/m²)</label>
+            <input type="number" id="roofLoadBenchmarkKgM2" value="60" step="1" min="0">
+            <div class="hint">MNRE/UPNEDA put the terrace load from structure plus modules under 60 kg/m².</div></div>
+        </details>
       </fieldset>
 
 <fieldset class="bess-controls"><legend>Battery storage (BESS)</legend>
@@ -491,7 +649,7 @@
         <div class="briefing-controls"><button type="button" id="briefingPlay">Play summary</button><button type="button" id="briefingPause" disabled>Pause</button><button type="button" id="briefingStop" disabled>Stop</button></div>
         <p id="briefingStatus" class="briefing-status" role="status" aria-live="polite"></p>
         <div id="briefingVoiceHelp" class="briefing-voice-help" hidden>
-          <p>Audio uses voices supplied by your browser and operating system, not a hosted recording. A language pack alone may not provide a speech voice. You can always read the translated briefing below.</p>
+          <p>Audio uses voices supplied by your browser and operating system, not a hosted recording. A language pack alone may not provide a speech voice. If the Marathi voice is missing, the briefing is read with the closest installed voice — a Hindi voice reads Marathi text correctly enough to follow — and the status line names it. To add the real one: <strong>Windows → Settings → Time &amp; language → Speech → Add voices</strong>, then press <strong>Check voices again</strong>. The written briefing below is always complete.</p>
           <div class="briefing-controls"><button type="button" id="briefingRefresh">Check voices again</button><button type="button" id="briefingUseEnglish" hidden>Use English audio</button></div>
         </div>
         <details class="briefing-transcript"><summary>Read the briefing</summary><p id="briefingText"></p></details>
@@ -1185,6 +1343,7 @@
 <script src="assets/vendor/jspdf.umd.min.js"></script>
 <script src="assets/vendor/qrcode.min.js"></script>
 <script src="assets/js/content.js"></script>
+<script src="assets/js/engineering.js"></script>
 <script src="assets/js/finance.js"></script>
 <script src="assets/js/storage-catalog.js"></script>
 <script src="assets/js/bess.js"></script>

@@ -18,6 +18,12 @@
   else { root.Finance = factory(); }
 }(typeof self !== 'undefined' ? self : this, function () {
 
+  /* The UMD wrapper hands the export target to the caller, not to this body,
+     so the global is looked up here. engineering.js is a soft dependency: if
+     it is absent the roof clearance falls back to the old 1.4 factor. */
+  const GLOBAL = typeof self !== 'undefined' ? self
+    : (typeof globalThis !== 'undefined' ? globalThis : this);
+
   const YEARS = 25;
   const PROJECTION_YEARS = 25; // horizon used for cash-flow projections
 
@@ -148,8 +154,21 @@
        "fits" for roofs that cannot actually take the array. The clearance
        factor is user-editable (default 1.4) and printed on the page instead of
        being hidden inside the verdict. */
-    const roofClearanceFactor = Math.max(1, num(s.roofClearanceFactor, 1.4));
-    const requiredArea = arrayArea * roofClearanceFactor;
+    /* Roof area. Module area is not roof area: on a roof carrying more than one
+       row, each row takes its own depth plus the shadow the row in front throws
+       at the worst hour of the design day. engineering.js works that pitch out
+       from the tilt, the latitude and the winter-solstice sun angle, so the
+       factor is a result here rather than a hidden assumption. A figure typed
+       into the field still wins — the page then labels it a manual factor. */
+    const manualClearance = num(s.roofClearanceFactor, 0);
+    const engLayout = (GLOBAL.Engineering && GLOBAL.Engineering.layout)
+      ? GLOBAL.Engineering.layout(s, moduleCount) : null;
+    const derived = engLayout && engLayout.ok;
+    const roofClearanceFactor = manualClearance > 0 ? Math.max(1, manualClearance)
+      : (derived ? engLayout.clearanceRatio : 1.4);
+    const requiredArea = (derived && !(manualClearance > 0))
+      ? engLayout.requiredArea : arrayArea * roofClearanceFactor;
+    const clearanceSource = manualClearance > 0 ? 'manual' : (derived ? 'derived' : 'fallback');
     const inverterKw = num(s.inverterKw) || (capacity > 0 ? capacity : 0);
     const dcAcRatio = (installedKwp > 0 && inverterKw > 0) ? installedKwp / inverterKw : 0;
 
@@ -327,7 +346,7 @@
     return {
       // engineering
       capacity, contractedKwp, moduleWattage, moduleCount, installedKwp, arrayArea,
-      roofClearanceFactor, requiredArea, capacityExact,
+      roofClearanceFactor, requiredArea, clearanceSource, layout: engLayout, capacityExact,
       inverterKw, dcAcRatio,
       // costs
       projectCost, gstAmount, grossTotal, subsidy, subsidyAuto, netInvestment,

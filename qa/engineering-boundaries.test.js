@@ -67,10 +67,15 @@ check('roof clearance is applied and clamped at bare module area',()=>{
  const dims={moduleLengthMm:2278,moduleWidthMm:1134};
  const a=F.compute({capacity:10,moduleWattage:545,...dims,roofClearanceFactor:1.4});
  assert(Math.abs(a.requiredArea-a.arrayArea*1.4)<1e-9);
- const b=F.compute({capacity:10,moduleWattage:545,...dims,roofClearanceFactor:0});
- assert.equal(b.requiredArea,b.arrayArea);
+ assert.equal(a.clearanceSource,'manual');
+ /* A typed factor below 1 is clamped: an array can never need less roof than
+    the modules themselves cover. */
+ const b=F.compute({capacity:10,moduleWattage:545,...dims,roofClearanceFactor:0.5});
+ assert(Math.abs(b.requiredArea-b.arrayArea)<1e-9);
+ /* Nothing typed and no geometry available in this process: the 1.4 estimate. */
  const c=F.compute({capacity:10,moduleWattage:545,...dims});
  assert.equal(c.roofClearanceFactor,1.4);
+ assert.equal(c.clearanceSource,'fallback');
 });
 check('environmental defaults are the current published figures',()=>{
  const f=F.compute({capacity:7,genFactor:1460,moduleWattage:545});

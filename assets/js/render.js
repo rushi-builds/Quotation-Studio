@@ -387,10 +387,15 @@
 
     set('v_tsGroupsLabel', P.groupsLabel);
     const rows = [];
+    /* `group` tags the engineering block so the CSS can compact it; it is the
+       longest group on the page and the only one whose length varies with what
+       the engine could actually calculate. */
     const addRows = (group, list) => {
+      const eng = group.indexOf('ENGINEERING') === 0;
       rows.push('<tr class="spec-group"><td colspan="2">' + esc(group) + '</td></tr>');
       list.forEach(([k, val]) => {
-        rows.push('<tr><td class="spec-k">' + esc(k) + '</td><td class="spec-v">' + esc(val) + '</td></tr>');
+        rows.push('<tr' + (eng ? ' class="is-eng"' : '') +
+          '><td class="spec-k">' + esc(k) + '</td><td class="spec-v">' + esc(val) + '</td></tr>');
       });
     };
     addRows('SOLAR MODULES', [
@@ -417,22 +422,112 @@
         ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '—'],
       ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
     ]);
-    addRows('MOUNTING & CABLing'.replace('CABLing', 'CABLING'), [
+    /* ---- engineering design basis ------------------------------------------
+       Everything below is either arithmetic a named standard defines or a
+       figure the designer supplied. Where an input is missing the row says
+       DATA REQUIRED and the design-basis block lists what to bring — the page
+       never fills that gap with a plausible-looking number. */
+    const phaseCount = f.isCommercialOrInd ? 3 : 1;
+    const acVoltageV = phaseCount === 3 ? 415 : 230;
+    const acCurrentA = f.inverterKw > 0
+      ? (f.inverterKw * 1000) / (acVoltageV * (phaseCount === 3 ? Math.sqrt(3) : 1)) : 0;
+    const eng = root.Engineering ? root.Engineering.report(s, {
+      moduleCount: f.moduleCount, acCurrentA, acVoltageV, phases: phaseCount
+    }) : null;
+    const REQ = 'DATA REQUIRED';
+    const round1 = (x) => Math.round(x * 10) / 10;
+    const round2 = (x) => Math.round(x * 100) / 100;
+
+    addRows('MOUNTING & CABLING', [
       ['Structure Make', s.mountMake],
       ['Roof Type', s.roofType || '—'],
       ['Cabling & Protection', s.cableMake],
-      ['Earthing & Lightning Protection', 'Included (as per EPC scope)']
+      /* Not "included as per EPC scope" — that claims a design without one.
+         Either the electrode design is here, or the row says what is missing. */
+      ['Earthing', (eng && eng.earthing.ok)
+        ? eng.earthing.electrodeCount + ' × ' + eng.earthing.lengthM + ' m pipe electrode at ' +
+          eng.earthing.soilResistivity + ' Ω·m ⇒ ' + round1(eng.earthing.parallelOhm) +
+          ' Ω against ' + eng.earthing.targetOhm + ' Ω (IS 3043) — two distinct earths (CEA 2010)'
+        : 'To be designed after the soil resistivity test — ' + REQ + ' (IS 3043)'],
+      ['Lightning Protection', (eng && eng.lightning.ok && eng.lightning.strikesPerYear)
+        ? 'LPL ' + eng.lightning.lpsClass + ': ' + eng.lightning.params.mesh + ' m mesh, ' +
+          eng.lightning.params.sphere + ' m rolling sphere, down conductors ≤ ' +
+          eng.lightning.params.down + ' m, earth ≤ ' + eng.lightning.earthOhm + ' Ω (IEC 62305) — risk assessment to confirm'
+        : 'Risk assessment not yet made — ' + REQ + ' (IS/IEC 62305)']
     ]);
     if (s.availableArea) {
-      /* Module area alone is not enough roof: the required figure includes the
-         clearance factor (walkways, parapet setback, inter-row spacing). */
+      /* Module area alone is not enough roof. Two rows tell the truth about
+         which figure it is: a factor worked out from the tilt and the
+         winter-solstice sun angle, or one the designer typed in. */
       const need = Math.ceil(f.requiredArea || 0);
-      const ok = parseFloat(s.availableArea) >= need;
+      const avail = parseFloat(s.availableArea);
+      const verdict = f.clearanceSource === 'manual'
+        ? (avail >= need ? '— fits ✓' : '— exceeds available area')
+        : (eng && eng.layout && eng.layout.ok
+            ? (eng.layout.verdict === 'short' ? '— exceeds available area'
+              : eng.layout.verdict === 'tight' ? '— fits the rows; the clear band around them is not confirmed'
+              : '— fits ✓')
+            : (avail >= need ? '— fits ✓' : '— exceeds available area'));
+      const basis = f.clearanceSource === 'manual'
+        ? 'module area × ' + f.roofClearanceFactor + ' clearance — manual factor'
+        : (eng && eng.layout && eng.layout.ok
+            ? 'row pitch ' + round2(eng.layout.geo.pitchM) + ' m at ' + s.tiltDeg + '° tilt, no shading ' +
+              '09:00–15:00 on 21 December at ' + s.latitudeDeg + '°N — module area × ' +
+              round2(f.roofClearanceFactor) + ' clearance'
+            : 'module area × ' + round2(f.roofClearanceFactor) + ' clearance');
       addRows('SITE', [
         ['Available Roof Area', s.availableArea + ' m²'],
-        ['Roof Area Required', need + ' m² (module area × ' + f.roofClearanceFactor +
-          ' clearance) ' + (ok ? '— fits ✓' : '— exceeds available area')]
+        ['Roof Area Required', need + ' m² (' + basis + ') ' + verdict]
       ]);
+    }
+    /* The design basis itself, so the reader can check the arithmetic. */
+    if (eng) {
+      const wind = eng.wind, lay = eng.layout, str = eng.string;
+      const rows2 = [];
+      if (lay && lay.ok) {
+        rows2.push(['Tilt & row spacing', s.tiltDeg + '° tilt, ' + s.latitudeDeg + '°N — row pitch ' +
+          round2(lay.geo.pitchM) + ' m from a ' + round1(lay.geo.altitudeDeg) +
+          '° mid-morning sun on 21 December (winter solstice)']);
+      } else {
+        rows2.push(['Tilt & row spacing', REQ + ' — ' + (lay ? lay.missing.join(', ') : 'design inputs')]);
+      }
+      rows2.push(['Wind pressure', wind.ok
+        ? wind.vb + ' m/s (IS 875-3:2015 map) × k1 ' + wind.k1 + ' × k2 ' + wind.k2.toFixed(2) +
+          ' × k3 ' + wind.k3 + ' × k4 ' + wind.k4 + ' ⇒ Vz ' + round1(wind.vz) + ' m/s, pz ' +
+          round1(wind.pz) + ' N/m². Net uplift ' + round1(wind.uplift) + ' N/m² at ×' +
+          wind.netCp + ' coefficient and ×' + wind.zoneFactor + ' ' + wind.roofZone +
+          ' zone ⇒ ' + round1(wind.factoredUplift) + ' N/m² design, ' +
+          round1(wind.perAnchorN) + ' N per anchor — module rating ' + wind.moduleRatingPa +
+          ' Pa (IEC 61215)'
+        : REQ + ' — ' + wind.missing.join(', ')]);
+      rows2.push(['String design', str.ok
+        ? str.strings + ' × ' + str.seriesPerString + ' modules in series · Voc at ' + s.minAmbientC +
+          ' °C = ' + Math.round(str.vocColdString) + ' V against the inverter’s ' + s.inverterVmaxDc +
+          ' V limit' + (str.maxSeriesByVoltage === str.seriesPerString ? ' · longest string allowed here is ' + str.maxSeriesByVoltage + ' modules' : '') +
+          ' · Vmp at ' + s.maxCellC + ' °C = ' + Math.round(str.vmpHotString) + ' V against the ' +
+          s.mpptMinV + ' V MPPT floor (IEC 62548)'
+        : REQ + ' — ' + str.missing.join(', ')]);
+      rows2.push(['Cable voltage drop', (eng.cable.dc.ok ? 'DC ' + eng.cable.dc.percent.toFixed(2) + ' % over ' +
+        eng.cable.dc.lengthM + ' m of ' + eng.cable.dc.sizeMm2 + ' mm²' : 'DC ' + REQ) + ' · ' +
+        (eng.cable.ac.ok ? 'AC ' + eng.cable.ac.percent.toFixed(2) + ' % over ' + eng.cable.ac.lengthM +
+          ' m of ' + eng.cable.ac.sizeMm2 + ' mm² (' + eng.cable.ac.phases + '-phase, IS 732 limit ' +
+          eng.cable.ac.limitPct + ' %)' : 'AC ' + REQ)]);
+      if (eng.roofLoad.ok) {
+        rows2.push(['Terrace load', round1(eng.roofLoad.kgPerM2) + ' kg/m² from modules (' +
+          eng.roofLoad.moduleWeightKg + ' kg each) and racking against the ' +
+          eng.roofLoad.benchmarkKgM2 + ' kg/m² benchmark (MNRE/UPNEDA). Roof capacity itself is a structural check']);
+      } else {
+        rows2.push(['Terrace load', REQ + ' — module weight and array area']);
+      }
+      const strip = (m) => m.replace(/^DATA REQUIRED — /, '');
+      const gaps = eng.notes.filter((n) => /^DATA REQUIRED/.test(n.message)).map((n) => strip(n.message));
+      const design = eng.notes.filter((n) => !/^DATA REQUIRED/.test(n.message)).map((n) => strip(n.message));
+      rows2.push(['Data still required', gaps.length
+        ? gaps.join(' ')
+        : 'None — every design figure on this page is either calculated or supplied']);
+      if (design.length) rows2.push(['Design notes', design.join(' ')]);
+      if (eng.advisory.length) rows2.push(['Review before sending', eng.advisory.map((a) => a.message).join(' ')]);
+      addRows('ENGINEERING DESIGN BASIS', rows2);
     }
     $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
     setHTML('v_tsTable', rows.join(''));
@@ -1058,6 +1153,72 @@
     if (chip) chip.title = 'Live quote — ' + cap + ' for ' + (s.custName || 'customer') + (root.Bess.included(s)||root.AdditionalSystems.included(s) ? ' — solar-only net ' : ' — net ') + F.fmtINR(f.netInvestment);
   }
 
+  /* A page is a fixed A4 box with overflow hidden, so content that runs past
+     the bottom prints as missing rather than warning anyone — and the footer
+     sits over the last of it either way. The design basis is the one block
+     whose height is not fixed, so the page takes the cheapest room back first
+     and stops as soon as it fits: tighter table cells, then a smaller system
+     diagram, then both at once. Each step is measured, never assumed.
+     Whatever still does not fit is reported where the builder will see it.
+     jsdom lays nothing out (scrollHeight is always 0), so this is inert in the
+     node suites and live in a real browser, where the answer matters. */
+  /* Type and cell padding give room before the drawing does: a figure at 9 px
+     is still a figure, and the sheet should look the same on the days it fits.
+     The drawing only ever shrinks for the pages that carry everything at once. */
+  const SPEC_FIT_STEPS = [
+    [],
+    ['is-tight-spec'],
+    ['is-tighter-spec'],
+    ['is-tighter-spec', 'is-table-min'],
+    ['is-tighter-spec', 'is-table-min', 'is-diagram-spec'],
+    ['is-tighter-spec', 'is-table-min', 'is-diagram-tighter'],
+    ['is-tighter-spec', 'is-table-min', 'is-diagram-tiny'],
+    ['is-tighter-spec', 'is-table-min', 'is-diagram-min']
+  ];
+  const SPEC_FIT_CLASSES = ['is-tight-spec', 'is-tighter-spec', 'is-diagram-spec',
+    'is-diagram-tighter', 'is-diagram-tiny', 'is-diagram-min', 'is-table-min'];
+  let lastSpecFit = null;
+  function fitPages() {
+    if (typeof document === 'undefined' || !document.getElementById) return [];
+    const spec = document.getElementById('pageTechSpec');
+    const box = (spec && spec.clientHeight) || 1123, SLACK = 2;
+    if (spec) {
+      /* Fitting the box is not enough on its own: the footer is painted over
+         the last 34 px of the page, so content may only end above it. Both
+         conditions are measured; without a layout engine (jsdom) the footer
+         limit is Infinity and only the box is judged. */
+      const rect = spec.getBoundingClientRect(), foot = spec.querySelector('.pg-foot');
+      const limit = rect.height ? rect.bottom - (foot ? foot.getBoundingClientRect().height : 34) - 1 : Infinity;
+      const lowest = () => {
+        const body = spec.querySelector('.pg-body');
+        let max = 0;
+        if (body) for (const kid of body.children) { const r = kid.getBoundingClientRect(); if (r.bottom > max) max = r.bottom; }
+        return max;
+      };
+      const fits = () => spec.scrollHeight <= box + SLACK && lowest() <= limit;
+      SPEC_FIT_CLASSES.forEach((c) => spec.classList.remove(c));
+      for (const step of SPEC_FIT_STEPS) {
+        SPEC_FIT_CLASSES.forEach((c) => spec.classList.toggle(c, step.indexOf(c) >= 0));
+        if (fits()) break;
+      }
+      /* Resizing the drawing after it has been painted leaves Chromium's SVG
+         text painted at the old scale, which is why refreshDiagramScale()
+         exists at all. Re-laying it out whenever the fit level changes keeps
+         the drawing and its labels in step. */
+      const applied = SPEC_FIT_CLASSES.filter((c) => spec.classList.contains(c)).join(' ');
+      if (applied !== lastSpecFit) { lastSpecFit = applied; refreshDiagramScale(); }
+    }
+    /* Measured after the ladder, so what is reported is what is still true:
+       the specification page appears here only if every step was not enough. */
+    const over = [];
+    (lastVisible.length ? lastVisible : PAGES).forEach((p) => {
+      const el = document.getElementById(p.id);
+      if (el && el.scrollHeight > box + SLACK) over.push(p.id);
+    });
+    root.__qsPageOverflow = over;
+    return over;
+  }
+
   /* ================================================================== */
   let lastState = null;
   function renderAll(stateOverride) {
@@ -1083,12 +1244,31 @@
       set('v_tmSub','Solar EPC terms • additional system scope, price and payment terms require separate agreement.');
     }
     updateLiveChip(s, f);
+    fitPages();
     drawCharts(f);
     if (typeof document !== 'undefined' && document.dispatchEvent) {
       try { document.dispatchEvent(new CustomEvent('qs:rendered')); } catch (e) { /* noop */ }
     }
     return { s, f };
   }
+
+
+  /* The engineering design-basis inputs, read in one place. readState() is a
+     hand-written list (collectForm() is the generic one used for saving), so a
+     new input has to be named here or the engine never sees it. */
+  const ENGINEERING_IDS = [
+    'tiltDeg', 'latitudeDeg', 'shadeHalfWindowHours', 'roofSetbackM',
+    'windSpeed', 'terrainCategory', 'buildingHeightM', 'windK1', 'windK3', 'windK4',
+    'netUpliftCp', 'roofZone', 'anchorsPerModule', 'moduleLoadClassPa',
+    'moduleVoc', 'moduleVmp', 'moduleIsc', 'moduleImp',
+    'moduleVocBetaPct', 'moduleVmpBetaPct',
+    'inverterVmaxDc', 'mpptMinV', 'mpptMaxV', 'inverterMaxCurrentA',
+    'minAmbientC', 'maxCellC', 'dcCableLengthM', 'dcCableSizeMm2',
+    'acCableLengthM', 'acCableSizeMm2',
+    'soilResistivity', 'earthTargetOhm', 'electrodeLengthM', 'electrodeDiaM',
+    'electrodeEfficiency', 'thunderstormDays', 'lpsClass', 'buildingLengthM', 'buildingWidthM',
+    'moduleWeightKg', 'rackKgPerM2', 'roofLoadBenchmarkKgM2'
+  ];
 
   function readState() {
     const g = (id) => { const el = $(id); return el ? el.value : ''; };
@@ -1110,6 +1290,7 @@
       mountMake: g('mountMake'), cableMake: g('cableMake'),
       roofType: g('roofType'), availableArea: g('availableArea'),
       roofClearanceFactor: g('roofClearanceFactor'),
+      ...Object.fromEntries(ENGINEERING_IDS.map((id) => [id, g(id)])),
       pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'),
       /* The form collects ₹/Wp; the engine and every stored field work in
          ₹/kWp, so the conversion happens here at the single boundary. */
@@ -1136,7 +1317,7 @@
     if (svg) svg.replaceWith(svg.cloneNode(true));
   }
 
-  root.Render = { safeHttpUrl, renderAll, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
+  root.Render = { safeHttpUrl, renderAll, fitPages, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
     get lastState() { return lastState; },
     get lastVisible() { return lastVisible; } };
 })(typeof self !== 'undefined' ? self : this);
