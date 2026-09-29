@@ -1535,6 +1535,13 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageWhySolar .photo-top, #pageSolution .photo-top, #pageWhyKtm .photo-top { width:324px; height:230px; }
 #pageWhySolar .intro-col, #pageSolution .intro-col, #pageWhyKtm .intro-col { max-width:374px; min-height:244px; }
 #pageProjects .intro-col { max-width:none; min-height:0; }
+.proj-gallery-cta{
+  position:absolute;top:66px;right:var(--page-pad);z-index:4;
+  display:inline-flex;align-items:center;gap:6px;padding:7px 13px;
+  border:1.5px solid #D96A0E;border-radius:999px;background:#fff;
+  color:#D96A0E;font:600 10.5px/1 'Inter',sans-serif;letter-spacing:.02em;text-decoration:none;
+}
+@media print { .proj-gallery-cta{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
 #pageProjects .proj-card img { height:132px; }
 .photo-top { top:76px; }
 .photo-top img { object-position:50% 50%; }

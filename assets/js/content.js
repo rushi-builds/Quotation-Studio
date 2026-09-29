@@ -430,7 +430,6 @@ const CONTENT = {
       { icon: 'doc',    title: 'Subsidy & Net-Metering Support', desc: 'We handle the complete PM Surya Ghar and DISCOM paperwork for you.' },
       { icon: 'calendar', title: 'Limited Installation Slots', desc: 'Crews are scheduled in order of confirmation — early sign-up secures your slot.' }
     ],
-    cta: 'An engineering request is not an installation order. Scope, fees and schedule require written confirmation.',
     acceptLabel: 'ACCEPTANCE & AUTHORISATION',
     acceptIntro: 'Signing below indicates acceptance of this proposal and authorises {company} to proceed with the survey, engineering and installation on the terms stated herein.',
     signCustomer: 'Accepted by (Customer)',

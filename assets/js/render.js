@@ -978,6 +978,8 @@
   function renderProjects(s, f, v) {
     const P = CONTENT.pageProjects;
     set('v_prHeading', P.heading);
+    const projCta = $('projGalleryCta');
+    if (projCta) projCta.href = new root.URL('gallery.html', root.location.href).href;
     set('v_prSub', P.sub);
     /* traceable counts: projects listed on this page + overall track record stat */
     const categories = portfolioCategories(P);
@@ -1055,7 +1057,7 @@
       '<div class="next-item">' + I.chip(it.icon, 30) +
       '<div><div class="next-t">' + esc(tpl(it.title, v)) + '</div>' +
       '<div class="next-d">' + esc(tpl(it.desc, v)) + '</div></div></div>').join(''));
-    set('v_clCta', P.cta);
+
     const icoMap = { v_clIcoCompany: 'building', v_clIcoPin: 'pin', v_clIcoPhone: 'phone', v_clIcoMail: 'mail', v_clIcoWeb: 'globe' };
     Object.keys(icoMap).forEach((id) => setHTML(id, I.chip(icoMap[id], 26)));
     set('v_clCompanyName', s.companyName + (s.companyName.match(/Pvt\.?\s*Ltd\.?/i) ? '' : ' Pvt. Ltd.'));
