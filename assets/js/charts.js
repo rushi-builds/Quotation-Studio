@@ -279,59 +279,66 @@
       ctx.fillText(shortINR(v), pad.l + 2, y - 4);
     }
 
-    let runTop = 0;
+    const GUIDE = 'rgba(91,107,128,0.14)';
     steps.forEach((st, i) => {
       const x = pad.l + slot * i + (slot - bw) / 2;
-      let y0, y1;
-      if (st.total) {
-        y1 = pad.t + ih; y0 = y1 - (ih * st.v) / maxY;
-      } else if (i === 0) {
-        y0 = pad.t + ih - (ih * st.v) / maxY; y1 = pad.t + ih;
-      } else {
-        y0 = pad.t + ih - (ih * Math.max(st.start, st.start + st.v)) / maxY;
-        y1 = pad.t + ih - (ih * Math.min(st.start, st.start + st.v)) / maxY;
-        /* grounded guide: faint column from the baseline so the delta
-           never looks like it is floating */
-        ctx.fillStyle = 'rgba(91,107,128,0.10)';
-        roundRect(ctx, x, y1, bw, Math.max((pad.t + ih) - y1, 2), 4);
+      const base = pad.t + ih;
+      const yOf = (v) => base - (ih * v) / maxY;
+      const valueLabel = (text, y) => {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = NAVY;
+        ctx.font = '700 13px ' + FONT_DISPLAY;
+        ctx.fillText(text, x + bw / 2, y);
+      };
+
+      if (st.total || i === 0) {
+        /* full column: the amount itself, standing on the baseline */
+        const y0 = yOf(st.v);
+        const g = ctx.createLinearGradient(0, y0, 0, base);
+        g.addColorStop(0, st.color);
+        g.addColorStop(1, st.total ? ORANGE_DARK : shade(st.color));
+        ctx.fillStyle = g;
+        roundRect(ctx, x, y0, bw, base - y0, 4);
         ctx.fill();
+        valueLabel(shortINR(st.v), y0 - 9);
+      } else if (st.v >= 0) {
+        /* addition: grey context up to the previous total, coloured cap on top */
+        const yTop = yOf(st.start + st.v), yPrev = yOf(st.start);
+        ctx.fillStyle = GUIDE;
+        roundRect(ctx, x, yPrev, bw, base - yPrev, 4);
+        ctx.fill();
+        const g = ctx.createLinearGradient(0, yTop, 0, yPrev);
+        g.addColorStop(0, st.color);
+        g.addColorStop(1, shade(st.color));
+        ctx.fillStyle = g;
+        roundRect(ctx, x, yTop, bw, Math.max(yPrev - yTop, 2), 4);
+        ctx.fill();
+        valueLabel('+ ' + shortINR(st.v), yTop - 9);
+      } else {
+        /* subtraction: the coloured amount stands on the baseline,
+           grey context above it completes the gross column */
+        const amt = Math.abs(st.v);
+        const yAmt = yOf(amt), yGross = yOf(st.start);
+        ctx.fillStyle = GUIDE;
+        roundRect(ctx, x, yGross, bw, Math.max(yAmt - yGross, 2), 4);
+        ctx.fill();
+        const g = ctx.createLinearGradient(0, yAmt, 0, base);
+        g.addColorStop(0, st.color);
+        g.addColorStop(1, shade(st.color));
+        ctx.fillStyle = g;
+        roundRect(ctx, x, yAmt, bw, base - yAmt, 4);
+        ctx.fill();
+        valueLabel('\u2212 ' + shortINR(amt), yAmt - 9);
       }
-      const g = ctx.createLinearGradient(0, y0, 0, y1);
-      g.addColorStop(0, st.color);
-      g.addColorStop(1, st.total ? ORANGE_DARK : shade(st.color));
-      ctx.fillStyle = g;
-      roundRect(ctx, x, y0, bw, Math.max(y1 - y0, 2), 4);
-      ctx.fill();
 
-      /* connector to next bar */
-      if (i < steps.length - 1) {
-        runTop = i === 0 ? y0 : (st.v >= 0 ? y0 : y1);
-        ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = '#C4CBD4';
-        ctx.beginPath();
-        ctx.moveTo(x + bw, i === 0 ? y0 : (st.v >= 0 ? y0 : y1));
-        ctx.lineTo(x + slot + (slot - bw) / 2, i === 0 ? y0 : (st.v >= 0 ? y0 : y1));
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      /* value + labels */
+      /* step name + sub */
       ctx.textAlign = 'center';
-      ctx.fillStyle = NAVY;
-      ctx.font = '700 13px ' + FONT_DISPLAY;
-      const valText = (st.v < 0 ? '− ' : '') + shortINR(Math.abs(st.v));
-      ctx.fillText(valText, x + bw / 2, y0 - 9);
-      if (!st.total && i > 0) {
-        ctx.fillStyle = '#98A1AD';
-        ctx.font = '500 8.5px ' + FONT;
-        ctx.fillText(shortINR(st.start) + ' → ' + shortINR(st.start + st.v), x + bw / 2, y0 - 21);
-      }
       ctx.fillStyle = TEXT;
       ctx.font = '600 11.5px ' + FONT;
-      ctx.fillText(st.label, x + bw / 2, pad.t + ih + 17);
+      ctx.fillText(st.label, x + bw / 2, base + 17);
       ctx.font = '500 9.8px ' + FONT;
       ctx.fillStyle = '#8A93A0';
-      ctx.fillText(st.sub, x + bw / 2, pad.t + ih + 30);
+      ctx.fillText(st.sub, x + bw / 2, base + 30);
     });
   }
   function shade(hex) {
