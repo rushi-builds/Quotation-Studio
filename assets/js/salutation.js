@@ -259,13 +259,83 @@
   const V_ORDER = ['aa', 'ee', 'oo', 'ai', 'au', 'ri', 'a', 'i', 'u', 'e', 'o'];
   const V_MATRA = { aa: 'ा', i: 'ि', ee: 'ी', u: 'ु', oo: 'ू', ri: 'ृ', e: 'े', ai: 'ै', o: 'ो', au: 'ौ' };
   const V_IND = { aa: 'आ', a: 'अ', ee: 'ई', i: 'इ', oo: 'ऊ', u: 'उ', ri: 'ऋ', e: 'ए', ai: 'ऐ', o: 'ओ', au: 'औ' };
-  /* Names whose spoken schwas and vowel lengths no rule can place. The list
-     stays small on purpose: each entry is a verified exception, not a guess. */
-  const L2D_EXCEPTIONS = { kiran: 'किरण', kamal: 'कमल', komal: 'कोमल', sneha: 'स्नेहा',
-    snehal: 'स्नेहल', krishna: 'कृष्ण', suman: 'सुमन', vimal: 'विमल', bala: 'बाला',
-    raja: 'राजा', rani: 'रानी', ram: 'राम', mohan: 'मोहन', daya: 'दया',
-    tara: 'तारा', mala: 'माला', gopal: 'गोपाल', anand: 'आनंद', lal: 'लाल',
-    nath: 'नाथ', das: 'दास' };
+  /* Latin script does not write vowel length — "Radhika" is राधिका but
+     "Kavita" is कविता, same shape, different sound. That is lexical, not
+     rule-able, so the common names carry their own verified Devanagari,
+     matching what Google Translate and a Marathi speaker would write. The
+     rules below remain the fallback for names not listed here. */
+  const NAME_DEV = {
+    /* female */
+    aarti: 'आरती', amruta: 'अमृता', anita: 'अनिता', anjali: 'अंजली', anushka: 'अनुष्का',
+    archana: 'अर्चना', asha: 'आशा', avani: 'अवनी', bhagyashree: 'भाग्यश्री',
+    bhairavi: 'भैरवी', bhavana: 'भावना', chaitali: 'चैताली', darshana: 'दर्शना',
+    deepa: 'दीपा', deepti: 'दीप्ती', devika: 'देविका', dhanashree: 'धनश्री',
+    dipali: 'दिपाली', durga: 'दुर्गा', gauri: 'गौरी', gayatri: 'गायत्री', geeta: 'गीता',
+    harshada: 'हर्षदा', hema: 'हेमा', himani: 'हिमानी', indira: 'इंदिरा', jyoti: 'ज्योति',
+    kajal: 'काजल', kalpana: 'कल्पना', kalyani: 'कल्याणी', kamla: 'कमला', kanika: 'कनिका',
+    karishma: 'करिश्मा', kavita: 'कविता', kavya: 'काव्या', kirti: 'कीर्ती', komal: 'कोमल',
+    kusum: 'कुसुम', lakshmi: 'लक्ष्मी', lalita: 'ललिता', lata: 'लता', madhuri: 'माधुरी',
+    mahima: 'महिमा', mala: 'माला', mallika: 'मल्लिका', manasi: 'मानसी', manisha: 'मनीषा',
+    manju: 'मंजू', meena: 'मीना', meera: 'मीरा', megha: 'मेघा', meghana: 'मेघना',
+    monika: 'मोनिका', mridula: 'मृदुला', mrunal: 'मृणाल', mukti: 'मुक्ती', naina: 'नैना',
+    namrata: 'नम्रता', nandini: 'नंदिनी', neelam: 'नीलम', neha: 'नेहा', nilima: 'नीलिमा',
+    nisha: 'निशा', nita: 'नीता', padma: 'पद्मा', pallavi: 'पल्लवी', pooja: 'पूजा',
+    poonam: 'पूनम', prachi: 'प्राची', pragati: 'प्रगती', pragya: 'प्रज्ञा',
+    prajakta: 'प्राजक्ता', pranali: 'प्रणाली', prerna: 'प्रेरणा', priya: 'प्रिया',
+    priyanka: 'प्रियांका', purnima: 'पूर्णिमा', pushpa: 'पुष्पा', radha: 'राधा',
+    radhika: 'राधिका', ragini: 'रागिनी', ranjana: 'रंजना', rashmi: 'रश्मी', rekha: 'रेखा',
+    revati: 'रेवती', richa: 'ऋचा', ritu: 'ऋतू', rohini: 'रोहिणी', roopa: 'रूपा',
+    rukmini: 'रुक्मिणी', sakshi: 'साक्षी', sandhya: 'संध्या', sarita: 'सरीता',
+    savita: 'सविता', seema: 'सीमा', shalini: 'शालिनी', shanta: 'शांता', shanti: 'शांती',
+    sharada: 'शारदा', sheetal: 'शीतल', shilpa: 'शिल्पा', shraddha: 'श्रद्धा',
+    shreya: 'श्रेया', shweta: 'श्वेता', shobha: 'शोभा', siddhi: 'सिद्धी', simran: 'सिमरन',
+    smita: 'स्मिता', sneha: 'स्नेहा', snehal: 'स्नेहल', sonali: 'सोनाली', sonia: 'सोनिया',
+    sunita: 'सुनीता', sushma: 'सुषमा', swara: 'स्वरा', swapna: 'स्वप्ना', swati: 'स्वाती',
+    tanvi: 'तन्वी', tejal: 'तेजल', tulsi: 'तुलसी', uma: 'उमा', urmila: 'उर्मिला',
+    ujjwala: 'उज्ज्वला', vaishali: 'वैशाली', vandana: 'वंदना', varsha: 'वर्षा',
+    vasudha: 'वसुधा', vedika: 'वेदिका', vibha: 'विभा', vidya: 'विद्या', vijaya: 'विजया',
+    vrunda: 'वृंदा', yamini: 'यामिनी', yashashree: 'यशश्री', yashoda: 'यशोदा',
+    /* unisex */
+    kiran: 'किरण', kamal: 'कमल', suman: 'सुमन', vimal: 'विमल', bala: 'बाला',
+    kanchan: 'कंचन', prem: 'प्रेम', shashi: 'शशी', chanda: 'चंदा', sonu: 'सोनू',
+    /* male */
+    abhijit: 'अभिजित', abhishek: 'अभिषेक', aditya: 'आदित्य', aakash: 'आकाश',
+    akshay: 'अक्षय', alok: 'आलोक', amar: 'अमर', amit: 'अमित', amol: 'अमोल',
+    anand: 'आनंद', anil: 'अनिल', ankit: 'अंकित', ankur: 'अंकुर', anushay: 'अनुशय',
+    arjun: 'अर्जुन', arvind: 'अरविंद', ashish: 'आशिष', ashok: 'अशोक', ashwin: 'अश्विन',
+    avinash: 'अविनाश', balaji: 'बालाजी', bhaushan: 'भूषण', bhushan: 'भूषण',
+    chetan: 'चेतन', datta: 'दत्ता', dayanand: 'दयानंद', deepak: 'दीपक',
+    devendra: 'देवेंद्र', dhananjay: 'धनंजय', dhiraj: 'धीरज', dhruv: 'ध्रुव',
+    dilip: 'दिलीप', dinesh: 'दिनेश', ganesh: 'गणेश', ganpat: 'गणपत', gaurav: 'गौरव',
+    girish: 'गिरीश', gopal: 'गोपाल', govind: 'गोविंद', hari: 'हरी', harish: 'हरीश',
+    hemant: 'हेमंत', hrishikesh: 'हृषिकेश', jayant: 'जयंत', jayesh: 'जयेश',
+    jeevan: 'जीवन', jignesh: 'जिग्नेश', jitesh: 'जितेश', kailash: 'कैलाश',
+    kailas: 'कैलास', kalyan: 'कल्याण', kamlesh: 'कमलेश', karan: 'करण', kartik: 'कार्तिक',
+    ketan: 'केतन', kishan: 'किशन', kishore: 'किशोर', krishna: 'कृष्ण', kunal: 'कुणाल',
+    laxman: 'लक्ष्मण', lokesh: 'लोकेश', mahadev: 'महादेव', mahendra: 'महेंद्र',
+    mahesh: 'महेश', madhav: 'माधव', madhukar: 'मधुकर', manish: 'मनीष', manoj: 'मनोज',
+    manohar: 'मनोहर', mayur: 'मयूर', milind: 'मिलिंद', mohan: 'मोहन', mohit: 'मोहित',
+    mukesh: 'मुकेश', mukund: 'मुकुंद', murali: 'मुरली', nagesh: 'नागेश', naresh: 'नरेश',
+    navin: 'नवीन', naveen: 'नवीन', nikhil: 'निखिल', nilesh: 'निलेश', nitin: 'नितीन',
+    pandurang: 'पांडुरंग', pankaj: 'पंकज', parth: 'पार्थ', prabhakar: 'प्रभाकर',
+    pradeep: 'प्रदीप', prakash: 'प्रकाश', pramod: 'प्रमोद', pranav: 'प्रणव',
+    prashant: 'प्रशांत', pratap: 'प्रताप', pravin: 'प्रवीण', praveen: 'प्रवीण',
+    prateek: 'प्रतीक', pavan: 'पवन', pawan: 'पवन', raghav: 'राघव', rahul: 'राहुल',
+    raj: 'राज', raja: 'राजा', rajan: 'राजन', rajesh: 'राजेश', rajendra: 'राजेंद्र',
+    rajiv: 'राजीव', rakesh: 'राकेश', ram: 'राम', raman: 'रमन', ramesh: 'रमेश',
+    ravi: 'रवि', ravindra: 'रवींद्र', ritesh: 'रितेश', rohan: 'रोहन', rohit: 'रोहित',
+    rudra: 'रुद्र', rushikesh: 'रुशिकेश', sachin: 'सचिन', sagar: 'सागर', sameer: 'समीर',
+    samir: 'समीर', sandeep: 'संदीप', sandip: 'संदीप', sangram: 'संग्राम', sanjay: 'संजय',
+    sanket: 'संकेत', santosh: 'संतोष', satish: 'सतीश', saurabh: 'सौरभ', shankar: 'शंकर',
+    sharad: 'शरद', shashank: 'शशांक', shekhar: 'शेखर', shivaji: 'शिवाजी',
+    shriram: 'श्रीराम', shyam: 'श्याम', sidharth: 'सिद्धार्थ', siddhartha: 'सिद्धार्थ',
+    somnath: 'सोमनाथ', srikant: 'श्रीकांत', subhash: 'सुभाष', sudhir: 'सुधीर',
+    suhas: 'सुहास', suresh: 'सुरेश', suraj: 'सुरज', sunil: 'सुनील', swapnil: 'स्वप्निल', tanaji: 'तानाजी',
+    tejas: 'तेजस', uday: 'उदय', ulhas: 'उल्हास', umesh: 'उमेश', uttam: 'उत्तम',
+    vaibhav: 'वैभव', vikas: 'विकास', vikram: 'विक्रम', vinay: 'विनय', vinod: 'विनोद',
+    vishal: 'विशाल', vishnu: 'विष्णु', vivek: 'विवेक', yash: 'यश', yashwant: 'यशवंत',
+    yogesh: 'योगेश'
+  };
 
   function tokenizeWord(word) {
     const toks = [];
@@ -322,7 +392,7 @@
   function toDevanagari(latin) {
     return String(latin || '').trim().split(/\s+/).map(word => {
       const lower = word.toLowerCase().replace(/[.,!?;:]+$/, '');
-      if (L2D_EXCEPTIONS[lower]) return L2D_EXCEPTIONS[lower];
+      if (NAME_DEV[lower]) return NAME_DEV[lower];
       const toks = tokenizeWord(lower);
       if (!toks || !toks.length) return word;
       return buildWord(toks);

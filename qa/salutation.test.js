@@ -268,13 +268,35 @@ check('Latin is Devanagarised for the Hindi/Marathi greeting', () => {
   assert.equal(Salutation.toDevanagari('Anita'), 'अनिता');
   assert.equal(Salutation.toDevanagari('Kavita'), 'कविता');
   assert.equal(Salutation.toDevanagari('Deepak'), 'दीपक');
-  assert.equal(Salutation.toDevanagari('Sunil'), 'सुनिल');
+  assert.equal(Salutation.toDevanagari('Sunil'), 'सुनील');
 });
 check('exception names keep their spoken schwas', () => {
   assert.equal(Salutation.toDevanagari('Kiran'), 'किरण');
   assert.equal(Salutation.toDevanagari('Sneha'), 'स्नेहा');
   assert.equal(Salutation.toDevanagari('Krishna'), 'कृष्ण');
   assert.equal(Salutation.toDevanagari('Komal'), 'कोमल');
+});
+check('common names match the spelling a Marathi speaker would write', () => {
+  /* The exact point Google Translate was checked against: vowel lengths are
+     lexical, so the verified dictionary carries these, not the rules. */
+  assert.equal(Salutation.toDevanagari('Radhika'), 'राधिका');
+  assert.equal(Salutation.toDevanagari('Rakesh'), 'राकेश');
+  assert.equal(Salutation.toDevanagari('Rajesh'), 'राजेश');
+  assert.equal(Salutation.toDevanagari('Sunil'), 'सुनील');
+  assert.equal(Salutation.toDevanagari('Sudhir'), 'सुधीर');
+  assert.equal(Salutation.toDevanagari('Sunita'), 'सुनीता');
+  assert.equal(Salutation.toDevanagari('Madhuri'), 'माधुरी');
+  assert.equal(Salutation.toDevanagari('Shivaji'), 'शिवाजी');
+  assert.equal(Salutation.toDevanagari('Prakash'), 'प्रकाश');
+  assert.equal(Salutation.toDevanagari('Kailash'), 'कैलाश');
+  assert.equal(Salutation.toDevanagari('Vaishali'), 'वैशाली');
+  assert.equal(Salutation.toDevanagari('Kiran'), 'किरण');
+});
+check('the greeting now matches Google for the same name', () => {
+  const s = { companyName: 'KTM Energy Experts', custName: 'Radhika', custSalutation: 'auto' };
+  assert.ok(Salutation.composeGreeting('mr', s).startsWith('नमस्कार राधिका मॅडम.'));
+  assert.ok(Salutation.composeGreeting('hi', s).startsWith('नमस्कार राधिका जी।'));
+  assert.ok(Salutation.composeGreeting('en', s).startsWith('Welcome, Radhika ma\u2019am,'));
 });
 check('anusvara, inherent schwas and explicit final "a" land correctly', () => {
   assert.equal(Salutation.toDevanagari('Sanjay'), 'संजय');
