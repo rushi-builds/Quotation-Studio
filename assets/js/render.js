@@ -1280,7 +1280,7 @@
       companyAddress: g('companyAddress'), companyWebsite: g('companyWebsite'),
       statYears: g('statYears'), statProjects: g('statProjects'), statCapacity: g('statCapacity'),
       prepName: g('prepName'),
-      customerType: g('customerType'), custName: g('custName'), custAddress: g('custAddress'),
+      customerType: g('customerType'), custName: g('custName'), custSalutation: g('custSalutation'), custAddress: g('custAddress'),
       propDate: g('propDate'), propRef: g('propRef'), propVersion: g('propVersion'),
       validityDays: g('validityDays'), monthlyBill: g('monthlyBill'),
       capacity: g('capacity'), genFactor: g('genFactor'),

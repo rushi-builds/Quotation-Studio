@@ -74,7 +74,16 @@ not shown. Nothing is invented.
 
 **Customer & System**
 
-- **Customer name** — as it should appear on the offer.
+- **Customer name** — as it should appear on the offer. The audio briefing
+  speaks its first name in the greeting, so keep a real name here for demos.
+- **Address customer as (audio greeting)** — optional. The briefing opens
+  personally — "Welcome, Rushikesh sir", "नमस्कार प्रिया जी", "नमस्कार सर" —
+  and by default the app detects sir/ma'am from the name: explicit titles
+  (Mr./Shri, Mrs./Smt./Kumari) prove it, known names answer from a dictionary,
+  unisex or unknown names take the neutral "ji", and company names never get a
+  title. If the guess is ever wrong, pick Sir / Ma'am / Ji here — one click;
+  "Name only" speaks the name bare. Hindi greets every gender with "जी".
+  Every briefing ends with thanks in its own language.
 - **Customer address** — the site, not the billing address. It is what makes the
   roof-fit and site statements meaningful.
 - **Capacity (kWp)** — the contracted DC size you are quoting. Type `1`, `7`,

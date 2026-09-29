@@ -42,7 +42,8 @@ async function installSpeech(page) {
   await edit({galleryUrl:''});
   check('removing the URL clears the QR in both document formats',await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),ok=document.getElementById('closingGallery').hidden&&!h.querySelector('.power-gallery');h.remove();return ok;}));
   await page.$eval('#proposalBriefing',e=>{e.open=true;e.scrollIntoView({behavior:'instant'});});
-  check('initial English transcript uses exact finance figures without personal customer fields',await page.evaluate(()=>{const f=Finance.compute(Render.lastState),t=document.getElementById('briefingText').textContent;return t.includes(Math.round(f.netInvestment)+' rupees')&&t.includes(Math.round(f.annualGen)+' kilowatt hours')&&t.includes('potential subsidy')&&!t.includes(Render.lastState.custName)&&!t.includes(Render.lastState.custAddress);}));
+  check('initial English transcript uses exact finance figures; the greeting speaks the first name only, never the full name or the address',await page.evaluate(()=>{const f=Finance.compute(Render.lastState),t=document.getElementById('briefingText').textContent;return t.includes(Math.round(f.netInvestment)+' rupees')&&t.includes(Math.round(f.annualGen)+' kilowatt hours')&&t.includes('potential subsidy')&&t.startsWith('Welcome, QA ji,')&&!t.includes(Render.lastState.custName)&&!t.includes(Render.lastState.custAddress);}));
+  check('every briefing ends with thanks in its own language',await page.evaluate(()=>{const en=Briefing.scriptFor(Render.lastState,'en'),hi=Briefing.scriptFor(Render.lastState,'hi'),mr=Briefing.scriptFor(Render.lastState,'mr');return en[en.length-1]==='Thank you for your time.'&&hi[hi.length-1]==='आपके समय के लिए धन्यवाद।'&&mr[mr.length-1]==='आपल्या वेळेसाठी धन्यवाद.';}));
   await page.click('#briefingPlay');
   check('English Play explicitly selects the matching voice and locale',await page.evaluate(()=>__speech.spoken.at(-1).lang==='en-IN'&&__speech.spoken.at(-1).voice.lang==='en-IN'));
   await page.click('#briefingPause');
@@ -91,7 +92,8 @@ async function installSpeech(page) {
   await page.click('#briefingPlay');await page.evaluate(()=>__speech.spoken.at(-1).onerror({error:'network'}));
   check('speech-provider errors leave a usable transcript and retry controls',await page.evaluate(()=>document.getElementById('briefingStatus').textContent.includes('could not play')&&!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
   await page.click('[data-briefing-language="en"]');await page.click('#briefingPlay');
-  await page.evaluate(async()=>{for(let i=0;i<8;i++){__speech.spoken.at(-1).onend();await Promise.resolve();}});
+  /* 9 spoken chunks: the personal greeting, seven figure sections, the thanks. */
+  await page.evaluate(async()=>{for(let i=0;i<9;i++){__speech.spoken.at(-1).onend();await Promise.resolve();}});
   check('all briefing sections complete and controls return to idle',await page.$eval('#briefingStatus',e=>e.textContent.includes('Briefing complete')));
   await edit({customerType:'commercial'});
   check('commercial/no-subsidy narration does not imply an approved benefit',await page.$eval('#briefingText',e=>e.textContent.includes('No subsidy is included')&&!e.textContent.includes('potential subsidy')));

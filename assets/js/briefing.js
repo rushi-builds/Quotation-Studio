@@ -20,36 +20,42 @@
     const n=(value,digits=0)=>new Intl.NumberFormat(locales[lang],{useGrouping:false,maximumFractionDigits:digits}).format(Number.isFinite(Number(value))?Number(value):0);
     const kw=n(f.capacity,2), count=n(f.moduleCount), watts=n(f.moduleWattage), generation=n(f.annualGen);
     const gross=n(f.grossTotal), net=n(f.netInvestment), subsidy=n(f.subsidy), saving=n(f.lifetimeSaving), years=n(f.payback,1);
-    const company=String(s.companyName||'').trim();
+    /* The greeting is personal (name + honourific) and the briefing ends with
+       thanks; both live in salutation.js so one module owns what is spoken
+       before and after the numbers. */
+    const opening=root.Salutation.composeGreeting(lang,s), closing=root.Salutation.composeClosing(lang);
     if(lang==='hi') return [
-      company?'नमस्कार। '+company+' की ओर से आपके रूफटॉप सौर ऊर्जा प्रस्ताव का यह संक्षिप्त परिचय है।':'नमस्कार। आपके रूफटॉप सौर ऊर्जा प्रस्ताव का यह संक्षिप्त परिचय है।',
+      opening,
       'प्रस्तावित प्रणाली की क्षमता '+kw+' किलोवाट पीक है। इसमें '+count+' सौर मॉड्यूल हैं, जिनमें से प्रत्येक की क्षमता '+watts+' वाट पीक है।',
       'पहले वर्ष में अनुमानित बिजली उत्पादन '+generation+' किलोवाट घंटे है।',
       'जीएसटी सहित कुल कीमत '+gross+' रुपये है। अनुमानित शुद्ध निवेश '+net+' रुपये है।',
       f.subsidy>0?'इस अनुमान में '+subsidy+' रुपये की संभावित सब्सिडी शामिल है, जो पात्रता और स्वीकृति पर निर्भर है।':'इस अनुमान में कोई सब्सिडी शामिल नहीं है।',
       'प्रस्ताव की बिजली दर और मान्यताओं के आधार पर पच्चीस वर्षों की अनुमानित कुल बचत '+saving+' रुपये है।',
       Number.isFinite(f.payback)?'अनुमानित निवेश वसूली अवधि '+years+' वर्ष है।':'वर्तमान गणना के अनुसार पच्चीस वर्षों के भीतर निवेश की वसूली नहीं होती है।',
-      'ये अनुमान हैं। बिजली उत्पादन, बिल में बचत या सब्सिडी की स्वीकृति की गारंटी नहीं है। आगे बढ़ने से पहले लिखित प्रस्ताव पढ़ें और स्थल का आकलन करवाएँ।'
+      'ये अनुमान हैं। बिजली उत्पादन, बिल में बचत या सब्सिडी की स्वीकृति की गारंटी नहीं है। आगे बढ़ने से पहले लिखित प्रस्ताव पढ़ें और स्थल का आकलन करवाएँ।',
+      closing
     ];
     if(lang==='mr') return [
-      company?'नमस्कार. '+company+' तर्फे आपल्या रूफटॉप सौर ऊर्जा प्रस्तावाचा हा संक्षिप्त आढावा आहे.':'नमस्कार. आपल्या रूफटॉप सौर ऊर्जा प्रस्तावाचा हा संक्षिप्त आढावा आहे.',
+      opening,
       'प्रस्तावित यंत्रणेची क्षमता '+kw+' किलोवॅट पीक आहे. यामध्ये प्रत्येकी '+watts+' वॅट पीक क्षमतेची '+count+' सौर मॉड्यूल्स आहेत.',
       'पहिल्या वर्षातील अंदाजित वीजनिर्मिती '+generation+' किलोवॅट तास आहे.',
       'जीएसटीसह एकूण किंमत '+gross+' रुपये आहे. अंदाजित निव्वळ गुंतवणूक '+net+' रुपये आहे.',
       f.subsidy>0?'या अंदाजात '+subsidy+' रुपयांच्या संभाव्य अनुदानाचा समावेश आहे. अनुदान पात्रता आणि मंजुरीच्या अधीन आहे.':'या अंदाजात कोणत्याही अनुदानाचा समावेश नाही.',
       'प्रस्तावातील वीजदर आणि गृहीतकांनुसार पंचवीस वर्षांतील अंदाजित एकूण बचत '+saving+' रुपये आहे.',
       Number.isFinite(f.payback)?'अंदाजित गुंतवणूक वसुलीचा कालावधी '+years+' वर्षे आहे.':'सध्याच्या गणनेनुसार पंचवीस वर्षांत गुंतवणुकीची वसुली होत नाही.',
-      'हे केवळ अंदाज आहेत. वीजनिर्मिती, वीजबिलातील बचत किंवा अनुदान मंजुरीची हमी नाही. पुढे जाण्यापूर्वी लेखी प्रस्ताव वाचा आणि जागेचे मूल्यांकन करून घ्या.'
+      'हे केवळ अंदाज आहेत. वीजनिर्मिती, वीजबिलातील बचत किंवा अनुदान मंजुरीची हमी नाही. पुढे जाण्यापूर्वी लेखी प्रस्ताव वाचा आणि जागेचे मूल्यांकन करून घ्या.',
+      closing
     ];
     return [
-      company?'Welcome to your rooftop solar proposal from '+company+'.':'Welcome to your rooftop solar proposal.',
+      opening,
       'The proposed system capacity is '+kw+' kilowatts peak, using '+count+' modules rated at '+watts+' watts peak each.',
       'The estimated first-year generation is '+generation+' kilowatt hours.',
       'The total price including GST is '+gross+' rupees. The estimated net investment is '+net+' rupees.',
       f.subsidy>0?'This estimate includes a potential subsidy of '+subsidy+' rupees, subject to eligibility and approval.':'No subsidy is included in this estimate.',
       'The estimated cumulative savings over twenty-five years are '+saving+' rupees, based on the quoted tariff and assumptions.',
       Number.isFinite(f.payback)?'Estimated payback is '+years+' years.':'The current model does not reach payback within twenty-five years.',
-      'These are estimates, not guaranteed generation, bill savings or subsidy approval. Review the written proposal and arrange a site assessment before proceeding.'
+      'These are estimates, not guaranteed generation, bill savings or subsidy approval. Review the written proposal and arrange a site assessment before proceeding.',
+      closing
     ];
   }
   function scriptFor(s, language='en') {

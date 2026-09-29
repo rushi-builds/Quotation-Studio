@@ -28,6 +28,9 @@
     /* ---- Customer & proposal ---- */
     customerType: 'residential',
     custName: '',
+    /* Audio greeting honourific: auto-detect from the name (salutation.js),
+       or a fixed sir / ma'am / ji / none. */
+    custSalutation: 'auto',
     custAddress: '',
     propDate: '',
     propRef: 'KTM/2026/Solar/013',

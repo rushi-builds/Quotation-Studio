@@ -113,6 +113,15 @@
           <input type="text" id="prepName" placeholder="Enter preparer name">
         </div>
         <div class="field"><label>Customer name</label><input type="text" id="custName" value="" placeholder="Enter customer name"></div>
+        <div class="field"><label>Address customer as (audio greeting)</label>
+          <select id="custSalutation">
+            <option value="auto" selected>Auto-detect from name</option>
+            <option value="male">Sir</option>
+            <option value="female">Ma'am</option>
+            <option value="neutral">Ji (neutral)</option>
+            <option value="none">Name only, no title</option>
+          </select>
+        </div>
         <div class="field"><label>Customer address</label><input type="text" id="custAddress" value="" placeholder="Enter site address"></div>
         <div class="row3">
           <div class="field"><label>Proposal date</label><input type="date" id="propDate"></div>
@@ -653,7 +662,7 @@
           <div class="briefing-controls"><button type="button" id="briefingRefresh">Check voices again</button><button type="button" id="briefingUseEnglish" hidden>Use English audio</button></div>
         </div>
         <details class="briefing-transcript"><summary>Read the briefing</summary><p id="briefingText"></p></details>
-        <p class="briefing-privacy">Uses your selected device/browser voice. Some voices use an online speech provider. Customer name and address are not included. The briefing follows the quotation, not the savings slider.</p>
+        <p class="briefing-privacy">Uses your selected device/browser voice. Some voices use an online speech provider. The greeting may speak the customer's first name with an honourific; the address is never spoken. The briefing follows the quotation, not the savings slider.</p>
       </div>
     </details>
 
@@ -1357,6 +1366,7 @@
 <script src="assets/js/render.js"></script>
 <script src="assets/js/editor.js"></script>
 <script src="assets/js/experience.js"></script>
+<script src="assets/js/salutation.js"></script>
 <script src="assets/js/briefing.js"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/workspace-prefs.js"></script>

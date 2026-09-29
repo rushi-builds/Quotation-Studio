@@ -28,6 +28,7 @@ function boot(voices) {
     }
   });
   const w = dom.window;
+  w.eval(fs.readFileSync(path.join(ROOT, 'assets/js/salutation.js'), 'utf8'));
   w.eval(fs.readFileSync(path.join(ROOT, 'assets/js/briefing.js'), 'utf8'));
   return w;
 }

@@ -74,7 +74,7 @@ function bootApp() {
   /* the order matches quotation.html, so page wiring behaves as it does live */
   const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js',
     'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js', 'equipment.js',
-    'render.js', 'editor.js', 'experience.js', 'briefing.js', 'export.js', 'workspace-prefs.js',
+    'render.js', 'editor.js', 'experience.js', 'salutation.js', 'briefing.js', 'export.js', 'workspace-prefs.js',
     'app.js', 'control-panel.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
