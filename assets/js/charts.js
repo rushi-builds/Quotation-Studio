@@ -250,7 +250,7 @@
   /* ------------------------------------------------------------------ */
   function bridge(canvas, f) {
     if (!canvas) return;
-    const W = canvas.clientWidth || 700, H = canvas.clientHeight || 230;
+    const W = canvas.clientWidth || 700, H = Number(canvas.dataset.h) || canvas.clientHeight || 230;
     const ctx = setup(canvas, W, H);
     if (f.projectCost <= 0) {
       emptyNote(ctx, 'Enter the project cost inputs to see the cost build-up.');
