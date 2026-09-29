@@ -203,14 +203,14 @@ const hi = (name, sal) => Salutation.composeGreeting('hi', { companyName: 'KTM E
 const mr = (name, sal) => Salutation.composeGreeting('mr', { companyName: 'KTM Energy Experts', custName: name, custSalutation: sal });
 const en = (name, sal) => Salutation.composeGreeting('en', { companyName: 'KTM Energy Experts', custName: name, custSalutation: sal });
 
-check('Hindi greets every gender with ji', () => {
-  assert.ok(hi('Rushikesh Joshi', 'auto').startsWith('नमस्कार Rushikesh जी।'));
-  assert.ok(hi('Priya Shah', 'auto').startsWith('नमस्कार Priya जी।'));
-  assert.ok(hi('Kiran Rao', 'auto').startsWith('नमस्कार Kiran जी।'));
+check('Hindi greets every gender with ji, names in Devanagari', () => {
+  assert.ok(hi('Rushikesh Joshi', 'auto').startsWith('नमस्कार रुशिकेश जी।'));
+  assert.ok(hi('Priya Shah', 'auto').startsWith('नमस्कार प्रिया जी।'));
+  assert.ok(hi('Kiran Rao', 'auto').startsWith('नमस्कार किरण जी।'));
   assert.ok(hi('Rushikesh Joshi', 'auto').includes('KTM Energy Experts की ओर से'));
 });
 check('Hindi with no title speaks the name bare', () => {
-  assert.ok(hi('Rushikesh Joshi', 'none').startsWith('नमस्कार Rushikesh।'));
+  assert.ok(hi('Rushikesh Joshi', 'none').startsWith('नमस्कार रुशिकेश।'));
   assert.ok(!hi('Rushikesh Joshi', 'none').includes('जी'));
 });
 check('Hindi without a name keeps the legacy line exactly', () => {
@@ -219,14 +219,14 @@ check('Hindi without a name keeps the legacy line exactly', () => {
   assert.equal(Salutation.composeGreeting('hi', { companyName: 'KTM Energy Experts', custName: '', custSalutation: 'auto' }),
     'नमस्कार। KTM Energy Experts की ओर से आपके रूफटॉप सौर ऊर्जा प्रस्ताव का यह संक्षिप्त परिचय है।');
 });
-check('Marathi splits sir / madam and falls back to ji', () => {
-  assert.ok(mr('Rushikesh Joshi', 'auto').startsWith('नमस्कार Rushikesh सर.'));
-  assert.ok(mr('Priya Shah', 'auto').startsWith('नमस्कार Priya मॅडम.'));
-  assert.ok(mr('Kiran Rao', 'auto').startsWith('नमस्कार Kiran जी.'));
+check('Marathi splits sir / madam and falls back to ji, names in Devanagari', () => {
+  assert.ok(mr('Rushikesh Joshi', 'auto').startsWith('नमस्कार रुशिकेश सर.'));
+  assert.ok(mr('Priya Shah', 'auto').startsWith('नमस्कार प्रिया मॅडम.'));
+  assert.ok(mr('Kiran Rao', 'auto').startsWith('नमस्कार किरण जी.'));
   assert.ok(mr('Rushikesh Joshi', 'auto').includes('KTM Energy Experts तर्फे'));
 });
 check('Marathi with no title speaks the name bare', () => {
-  assert.ok(mr('Rushikesh Joshi', 'none').startsWith('नमस्कार Rushikesh.'));
+  assert.ok(mr('Rushikesh Joshi', 'none').startsWith('नमस्कार रुशिकेश.'));
   assert.ok(!mr('Rushikesh Joshi', 'none').includes('सर'));
 });
 check('Marathi without a name keeps the legacy line exactly', () => {
@@ -249,13 +249,68 @@ check('English without a name keeps the legacy line exactly', () => {
     'Welcome to your rooftop solar proposal from KTM Energy Experts.');
 });
 
+console.log('\n— salutation: script matching — every voice reads its own script —');
+
+check('Devanagari is Latinised for the English greeting', () => {
+  assert.equal(Salutation.toLatin('रुशिकेश'), 'Rushikesh');
+  assert.equal(Salutation.toLatin('रमेश'), 'Ramesh');
+  assert.equal(Salutation.toLatin('स्नेहा'), 'Sneha');
+  assert.equal(Salutation.toLatin('अनिता'), 'Anita');
+  assert.equal(Salutation.toLatin('प्रिया'), 'Priya');
+  assert.equal(Salutation.toLatin('पूर्णिमा'), 'Purnima');
+  assert.equal(Salutation.toLatin('जोशी'), 'Joshi');
+  assert.equal(Salutation.toLatin('कविता'), 'Kavita');
+});
+check('Latin is Devanagarised for the Hindi/Marathi greeting', () => {
+  assert.equal(Salutation.toDevanagari('Rushikesh'), 'रुशिकेश');
+  assert.equal(Salutation.toDevanagari('Ramesh'), 'रमेश');
+  assert.equal(Salutation.toDevanagari('Priya'), 'प्रिया');
+  assert.equal(Salutation.toDevanagari('Anita'), 'अनिता');
+  assert.equal(Salutation.toDevanagari('Kavita'), 'कविता');
+  assert.equal(Salutation.toDevanagari('Deepak'), 'दीपक');
+  assert.equal(Salutation.toDevanagari('Sunil'), 'सुनिल');
+});
+check('exception names keep their spoken schwas', () => {
+  assert.equal(Salutation.toDevanagari('Kiran'), 'किरण');
+  assert.equal(Salutation.toDevanagari('Sneha'), 'स्नेहा');
+  assert.equal(Salutation.toDevanagari('Krishna'), 'कृष्ण');
+  assert.equal(Salutation.toDevanagari('Komal'), 'कोमल');
+});
+check('anusvara, inherent schwas and explicit final "a" land correctly', () => {
+  assert.equal(Salutation.toDevanagari('Sanjay'), 'संजय');
+  assert.equal(Salutation.toDevanagari('Mahendra'), 'महेंद्र');
+  assert.equal(Salutation.toDevanagari('Raja'), 'राजा');
+});
+check('unknown letters refuse transliteration instead of guessing', () => {
+  assert.equal(Salutation.toDevanagari('Zylox Fern'), 'Zylox Fern');
+});
+check('a Devanagari name plays out loud in English because it is Latinised', () => {
+  const s = { companyName: 'KTM Energy Experts', custName: 'Rushikesh Joshi', custSpokenName: 'रुशिकेश', custSalutation: 'male' };
+  assert.ok(Salutation.composeGreeting('en', s).startsWith('Welcome, Rushikesh sir,'));
+});
+check('a Latin name speaks Devanagari in Hindi and Marathi', () => {
+  const s = { companyName: 'KTM Energy Experts', custName: 'Priya Shah', custSalutation: 'auto' };
+  assert.ok(Salutation.composeGreeting('mr', s).startsWith('नमस्कार प्रिया मॅडम.'));
+  assert.ok(Salutation.composeGreeting('hi', s).startsWith('नमस्कार प्रिया जी।'));
+});
+check('already-matching scripts pass through untouched', () => {
+  const s = { companyName: '', custName: 'रुशिकेश जोशी', custSalutation: 'neutral' };
+  assert.ok(Salutation.composeGreeting('mr', s).startsWith('नमस्कार रुशिकेश जी.'));
+  assert.ok(Salutation.composeGreeting('en', s).startsWith('Welcome, Rushikesh ji,'));
+});
+check('organisations keep their typed name and never get a title', () => {
+  const s = { companyName: '', custName: 'Tata Power', custSalutation: 'auto' };
+  assert.equal(Salutation.composeGreeting('en', s), 'Welcome, Tata Power, to your rooftop solar proposal.');
+  assert.equal(Salutation.composeGreeting('mr', s), 'नमस्कार Tata Power. आपल्या रूफटॉप सौर ऊर्जा प्रस्तावाचा हा संक्षिप्त आढावा आहे.');
+});
+
 console.log('\n— salutation: the dealer\u2019s phonetic spelling —');
 
-check('a typed "say the name as" is spoken verbatim in Devanagari', () => {
+check('a typed "say the name as" is honoured in every language', () => {
   const s = { companyName: 'KTM Energy Experts', custName: 'Rushikesh Joshi', custSpokenName: 'रुशिकेश', custSalutation: 'male' };
   assert.ok(Salutation.composeGreeting('mr', s).startsWith('नमस्कार रुशिकेश सर.'));
   assert.ok(Salutation.composeGreeting('hi', s).startsWith('नमस्कार रुशिकेश जी।'));
-  assert.ok(Salutation.composeGreeting('en', s).startsWith('Welcome, रुशिकेश sir,'));
+  assert.ok(Salutation.composeGreeting('en', s).startsWith('Welcome, Rushikesh sir,'));
 });
 check('auto detection runs on the spoken name when it is the only name', () => {
   const s = { companyName: '', custName: 'R. Sharma', custSpokenName: 'Priya', custSalutation: 'auto' };
@@ -285,8 +340,8 @@ check('the briefing opens with the personal greeting and ends with thanks', () =
   const s = { companyName: 'KTM Energy Experts', custName: 'Rushikesh Joshi', custSalutation: 'auto', capacity: '7' };
   for (const [lang, open, close] of [
     ['en', 'Welcome, Rushikesh sir, to your rooftop solar proposal from KTM Energy Experts.', 'Thank you for your time.'],
-    ['hi', 'नमस्कार Rushikesh जी। KTM Energy Experts की ओर से आपके रूफटॉप सौर ऊर्जा प्रस्ताव का यह संक्षिप्त परिचय है।', 'आपके समय के लिए धन्यवाद।'],
-    ['mr', 'नमस्कार Rushikesh सर. KTM Energy Experts तर्फे आपल्या रूफटॉप सौर ऊर्जा प्रस्तावाचा हा संक्षिप्त आढावा आहे.', 'आपल्या वेळेसाठी धन्यवाद.']
+    ['hi', 'नमस्कार रुशिकेश जी। KTM Energy Experts की ओर से आपके रूफटॉप सौर ऊर्जा प्रस्ताव का यह संक्षिप्त परिचय है।', 'आपके समय के लिए धन्यवाद।'],
+    ['mr', 'नमस्कार रुशिकेश सर. KTM Energy Experts तर्फे आपल्या रूफटॉप सौर ऊर्जा प्रस्तावाचा हा संक्षिप्त आढावा आहे.', 'आपल्या वेळेसाठी धन्यवाद.']
   ]) {
     const script = Briefing.scriptFor(s, lang);
     assert.equal(script[0], open, lang + ' opening');
@@ -297,7 +352,7 @@ check('a female customer flips sir to ma\u2019am / madam', () => {
   const { Briefing } = bootBriefing();
   const s = { companyName: 'KTM Energy Experts', custName: 'Priya Shah', custSalutation: 'auto', capacity: '7' };
   assert.ok(Briefing.scriptFor(s, 'en')[0].startsWith('Welcome, Priya ma\u2019am,'));
-  assert.ok(Briefing.scriptFor(s, 'mr')[0].startsWith('नमस्कार Priya मॅडम.'));
+  assert.ok(Briefing.scriptFor(s, 'mr')[0].startsWith('नमस्कार प्रिया मॅडम.'));
 });
 check('no name means the legacy greeting survives unchanged', () => {
   const { Briefing } = bootBriefing();

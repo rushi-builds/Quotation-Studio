@@ -86,9 +86,10 @@
     for(const family of VOICE_CHAIN[wanted]) {
       const pool=voices.filter(v=>normalize(v).split('-')[0]===family);
       if(!pool.length) continue;
-      /* Within the family, prefer the Indian locale and a locally installed
-         voice over a region-less or network-only one. */
-      const score=v=>Number(normalize(v)===locales[family].toLowerCase())*2+Number(!!v.localService);
+      /* Within the family, prefer the Indian locale, then the most natural
+         voice: OS "Natural" voices (Microsoft Swar/Kalpana Natural, Google)
+         sound close to a person, so they outrank a plain local voice. */
+      const score=v=>Number(normalize(v)===locales[family].toLowerCase())*4+Number(/natural/i.test(String(v.name||'')))*2+Number(!!v.localService);
       const best=pool.slice().sort((a,b)=>score(b)-score(a))[0];
       return {voice:best,exact:family===wanted,family};
     }

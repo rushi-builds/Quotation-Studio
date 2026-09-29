@@ -193,10 +193,12 @@
   }
 
   /* The form's choice is the source of truth; detection is only the default.
-     'none' means the dealer wants the name spoken bare, no honourific. */
+     'none' means the dealer wants the name spoken bare, no honourific; an
+     organisation never gets one either. */
   const MODES = ['male', 'female', 'neutral', 'none'];
   function honorMode(rawName, override) {
     if (MODES.includes(override)) return override;
+    if (isOrganisation(rawName)) return 'none';
     return detectGender(rawName) || 'neutral';
   }
 
@@ -209,16 +211,150 @@
     mr: { male: 'सर', female: 'मॅडम', neutral: 'जी' }
   };
 
+  /* ---- script matching ----------------------------------------------------
+     Voices only read their own script: an English voice falls silent on
+     Devanagari, and an Indic voice stumbles over Latin-spelled Indian names.
+     So the greeting always meets the voice in its own script — Devanagari is
+     Latinised for English ("रुशिकेश" → "Rushikesh") and Latin is Devanagari-
+     sed for Hindi/Marathi ("Rushikesh" → "रुशिकेश"). Both directions are
+     plain letter arithmetic with a small exception list for the few names
+     whose spoken form no rule captures (Krishna, Kiran, Sneha…). */
+  const D_CONS = { 'क': 'k', 'ख': 'kh', 'ग': 'g', 'घ': 'gh', 'च': 'ch', 'छ': 'chh',
+    'ज': 'j', 'झ': 'jh', 'ट': 't', 'ठ': 'th', 'ड': 'd', 'ढ': 'dh', 'ण': 'n',
+    'त': 't', 'थ': 'th', 'द': 'd', 'ध': 'dh', 'न': 'n', 'प': 'p', 'फ': 'ph',
+    'ब': 'b', 'भ': 'bh', 'म': 'm', 'य': 'y', 'र': 'r', 'ल': 'l', 'व': 'v',
+    'श': 'sh', 'ष': 'sh', 'स': 's', 'ह': 'h', 'ळ': 'l', 'ञ': 'n', 'ङ': 'n' };
+  const D_MATRA = { 'ा': 'a', 'ि': 'i', 'ी': 'i', 'ु': 'u', 'ू': 'u', 'ृ': 'ri',
+    'े': 'e', 'ै': 'ai', 'ो': 'o', 'ौ': 'au' };
+  const D_VOWEL = { 'अ': 'a', 'आ': 'a', 'इ': 'i', 'ई': 'i', 'उ': 'u', 'ऊ': 'u',
+    'ऋ': 'ri', 'ए': 'e', 'ऐ': 'ai', 'ओ': 'o', 'औ': 'au' };
+
+  function toLatin(dev) {
+    const chars = [...String(dev || '')];
+    let out = '';
+    for (let i = 0; i < chars.length; i++) {
+      const c = chars[i], nx = chars[i + 1];
+      if (D_CONS[c]) {
+        if (nx === '्') { out += D_CONS[c]; i++; continue; }            // conjunct, no vowel
+        if (nx && D_MATRA[nx]) { out += D_CONS[c] + D_MATRA[nx]; i++; continue; }
+        if (nx && (D_CONS[nx] || D_VOWEL[nx] || nx === 'ं' || nx === 'ँ')) { out += D_CONS[c] + 'a'; continue; }
+        out += D_CONS[c];                                              // word-final: no trailing schwa
+        continue;
+      }
+      if (D_VOWEL[c]) { out += D_VOWEL[c]; continue; }
+      if (c === 'ं' || c === 'ँ') { out += 'n'; continue; }
+      if (c === 'ः') { out += 'h'; continue; }
+      if (c === '्') continue;
+      if (/\s/.test(c)) { out += ' '; continue; }
+      if (/[A-Za-z0-9.,'-]/.test(c)) { out += c; continue; }
+    }
+    return out.replace(/\s+/g, ' ').trim()
+      /* Names come back capitalised: "joshi" would read like a word, not a person. */
+      .replace(/(^|\s)([a-z])/g, (_, sp, c) => sp + c.toUpperCase());
+  }
+
+  /* Longest-match first, so "chh" wins over "ch", "aa" over "a". */
+  const C_ORDER = ['chh', 'sh', 'kh', 'gh', 'jh', 'th', 'dh', 'ph', 'bh', 'gy',
+    'ch', 'k', 'g', 'j', 't', 'd', 'n', 'p', 'b', 'm', 'y', 'r', 'l', 'v', 'w', 's', 'h'];
+  const V_ORDER = ['aa', 'ee', 'oo', 'ai', 'au', 'ri', 'a', 'i', 'u', 'e', 'o'];
+  const V_MATRA = { aa: 'ा', i: 'ि', ee: 'ी', u: 'ु', oo: 'ू', ri: 'ृ', e: 'े', ai: 'ै', o: 'ो', au: 'ौ' };
+  const V_IND = { aa: 'आ', a: 'अ', ee: 'ई', i: 'इ', oo: 'ऊ', u: 'उ', ri: 'ऋ', e: 'ए', ai: 'ऐ', o: 'ओ', au: 'औ' };
+  /* Names whose spoken schwas and vowel lengths no rule can place. The list
+     stays small on purpose: each entry is a verified exception, not a guess. */
+  const L2D_EXCEPTIONS = { kiran: 'किरण', kamal: 'कमल', komal: 'कोमल', sneha: 'स्नेहा',
+    snehal: 'स्नेहल', krishna: 'कृष्ण', suman: 'सुमन', vimal: 'विमल', bala: 'बाला',
+    raja: 'राजा', rani: 'रानी', ram: 'राम', mohan: 'मोहन', daya: 'दया',
+    tara: 'तारा', mala: 'माला', gopal: 'गोपाल', anand: 'आनंद', lal: 'लाल',
+    nath: 'नाथ', das: 'दास' };
+
+  function tokenizeWord(word) {
+    const toks = [];
+    let i = 0;
+    while (i < word.length) {
+      let hit = null;
+      for (const c of C_ORDER) { if (word.startsWith(c, i)) { hit = { t: 'c', v: c }; break; } }
+      if (!hit) for (const v of V_ORDER) { if (word.startsWith(v, i)) { hit = { t: 'v', v }; break; } }
+      if (!hit) return null;                       // unknown letter → refuse, caller keeps the original
+      toks.push(hit);
+      i += hit.v.length;
+    }
+    return toks;
+  }
+  function buildWord(toks) {
+    let out = '';
+    for (let j = 0; j < toks.length; j++) {
+      const tok = toks[j], nx = toks[j + 1];
+      if (tok.t === 'v') {
+        /* A vowel only stands alone at the start of the word; everywhere
+           else it is a matra owned by the consonant before it. */
+        out += j === 0 ? V_IND[tok.v] : V_MATRA[tok.v];
+        continue;
+      }
+      const base = { chh: 'छ', sh: 'श', kh: 'ख', gh: 'घ', jh: 'झ', th: 'थ', dh: 'ध',
+        ph: 'फ', bh: 'भ', gy: 'ज्ञ', ch: 'च', k: 'क', g: 'ग', j: 'ज', t: 'त', d: 'द',
+        n: 'न', p: 'प', b: 'ब', m: 'म', y: 'य', r: 'र', l: 'ल', v: 'व', w: 'व',
+        s: 'स', h: 'ह' }[tok.v];
+      if (nx && nx.t === 'v') {
+        if (nx.v === 'a') {
+          const after = toks[j + 2];
+          if (!after) {
+            /* Explicit final "a" sounds "aa" (Sneha → स्नेहा, Raja → राजा) —
+               unless the name closes on a conjunct, where Hindi/Marathi drop
+               the schwa (Mahendra → महेंद्र). */
+            const prev = out[out.length - 1];
+            if (prev === '्' || prev === 'ं') { out += base; j++; continue; }
+            out += base + 'ा'; j++; continue;
+          }
+          out += base; j++; continue;                          // inherent schwa
+        }
+        out += base + V_MATRA[nx.v]; j++; continue;
+      }
+      if (nx && nx.t === 'c') {
+        /* A nasal before a consonant is written as anusvara in ordinary
+           Hindi/Marathi (Sanjay → संजय, Chandra → चंद्र). */
+        out += (tok.v === 'n' || tok.v === 'm') ? 'ं' : base + '्';
+        continue;
+      }
+      out += base;                                               // word-final: no halant; schwa deletion reads it bare
+    }
+    return out;
+  }
+  function toDevanagari(latin) {
+    return String(latin || '').trim().split(/\s+/).map(word => {
+      const lower = word.toLowerCase().replace(/[.,!?;:]+$/, '');
+      if (L2D_EXCEPTIONS[lower]) return L2D_EXCEPTIONS[lower];
+      const toks = tokenizeWord(lower);
+      if (!toks || !toks.length) return word;
+      return buildWord(toks);
+    }).join(' ');
+  }
+
+  /* A name meets the voice in the voice's own script. */
+  function nameInScript(rawName, lang) {
+    const name = String(rawName || '');
+    if (!name) return '';
+    if (lang === 'en') return DEVANAGARI.test(name) ? (toLatin(name) || name) : name;
+    return DEVANAGARI.test(name) ? name : (toDevanagari(name) || name);
+  }
+
+  function isOrganisation(rawName) {
+    const toks = tokensOf(rawName);
+    return toks.length > 0 && toks.some(t => COMPANY_TOKENS.has(t));
+  }
+
   function composeGreeting(lang, s) {
     const company = String((s && s.companyName) || '').trim();
-    /* "Say the name as" is the dealer's phonetic spelling: OS voices mangle
-       Latin-spelled Indian names, so whatever is typed here is spoken
-       verbatim — type it in Devanagari and an Indic voice reads it exactly
-       the way a person would. Empty falls back to the detected first name. */
+    /* "Say the name as" is the dealer's phonetic spelling: whatever is typed
+       there is the name, verbatim; empty falls back to the detected first
+       name. Script matching hands each voice a name it can actually read;
+       organisations keep their typed name and never get a title. */
     const spoken = String((s && s.custSpokenName) || '').trim();
-    const name = spoken || displayName(s && s.custName);
-    const mode = honorMode(spoken || (s && s.custName), s && s.custSalutation);
-    const honor = name && mode !== 'none' ? HONORS[lang][mode] : '';
+    const fullName = spoken || String((s && s.custName) || '').trim();
+    const org = isOrganisation(fullName);
+    const source = org ? fullName : (spoken || displayName(s && s.custName));
+    const name = !source ? '' : org ? source : nameInScript(source, lang);
+    const mode = honorMode(source, s && s.custSalutation);
+    const honor = name && mode !== 'none' && !org ? HONORS[lang][mode] : '';
     if (lang === 'hi') {
       const lead = name ? 'नमस्कार ' + name + (honor ? ' ' + honor : '') + '।' : 'नमस्कार।';
       return lead + ' ' + (company
@@ -242,5 +378,6 @@
     return 'Thank you for your time.';
   }
 
-  root.Salutation = { displayName, detectGender, honorMode, composeGreeting, composeClosing };
+  root.Salutation = { displayName, detectGender, honorMode, isOrganisation,
+    toLatin, toDevanagari, nameInScript, composeGreeting, composeClosing };
 })(typeof self !== 'undefined' ? self : this);

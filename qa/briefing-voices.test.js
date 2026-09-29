@@ -66,6 +66,22 @@ check('English text is never handed to an Indic voice', () => {
   assert.equal(Briefing.voicePlan('mr').exact, true);
 });
 
+check('a "Natural" voice outranks a plain local one in the same language', () => {
+  const natural = { name: 'Microsoft Swar Online (Natural) - Hindi', lang: 'hi-IN', localService: false };
+  const plain = voice('hi-IN', true);
+  const { Briefing } = boot([plain, natural]);
+  const plan = Briefing.voicePlan('hi');
+  assert.equal(plan.exact, true);
+  assert.equal(plan.voice.name, natural.name);
+});
+
+check('a local voice still wins over a non-natural network voice', () => {
+  const network = { name: 'Some network Hindi voice', lang: 'hi-IN', localService: false };
+  const local = voice('hi-IN', true);
+  const { Briefing } = boot([network, local]);
+  assert.equal(Briefing.voicePlan('hi').voice.name, local.name);
+});
+
 check('no English substitution for Marathi either — that would be gibberish', () => {
   const { Briefing } = boot([voice('en-IN', true)]);
   assert.equal(Briefing.voicePlan('mr').voice, null);
