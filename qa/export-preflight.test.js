@@ -123,6 +123,7 @@ const cleanSheet = () => { reset(); setInput('custName', 'QA Customer'); };
    pass, so the pre-flight has nothing to say and the download runs direct. */
 const fullSheet = () => {
   cleanSheet();
+  setInput('propRef', 'KTM/2026/Solar/777');
   [['moduleVoc', '49.70'], ['moduleVmp', '41.50'], ['moduleIsc', '13.90'], ['moduleImp', '13.00'],
     ['inverterVmaxDc', '600'], ['mpptMinV', '80'], ['inverterMaxCurrentA', '40'],
     ['dcCableLengthM', '10'], ['dcCableSizeMm2', '10'], ['acCableLengthM', '10'], ['acCableSizeMm2', '16'],
@@ -145,33 +146,36 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
 
 (async () => {
   console.log('— Export pre-flight: the reference-number guard —');
-  check('the guard is visible while the template sample reference is in place', () => {
+  const refAdvisories = () => w.__qsPreflight.run().advisory.filter((i) => i.id === 'propRef');
+  check('the sample reference stays off the panel but is flagged pre-flight', () => {
     w.Render.renderAll();
     assert.equal(val('propRef'), 'KTM/2026/Solar/013', 'the template sample is the shipped default');
-    assert.equal(d.getElementById('refWarning').hidden, false, 'the sample reference must be flagged');
-    assert.ok(/template sample reference/.test(txt('refWarning')), txt('refWarning'));
+    assert.equal(d.getElementById('refWarning').hidden, true, 'the panel stays silent');
+    assert.ok(refAdvisories().some((i) => /template sample reference/.test(i.message)),
+      JSON.stringify(refAdvisories()));
   });
   check('the guard lives in the builder, never inside the customer markup', () => {
     assert.equal(d.querySelector('.preview-panel #refWarning'), null,
       'share.html builds its pages from .preview-panel, so the guard must stay outside it');
   });
-  check('its own number clears the guard', () => {
+  check('its own number clears the flag', () => {
     setInput('propRef', 'KTM/2026/Solar/101');
-    assert.equal(d.getElementById('refWarning').hidden, true, txt('refWarning'));
+    assert.equal(refAdvisories().length, 0, JSON.stringify(refAdvisories()));
   });
   check('an empty reference is reported', () => {
     setInput('propRef', '');
-    assert.ok(/no reference number/.test(txt('refWarning')), txt('refWarning'));
+    assert.ok(refAdvisories().some((i) => /no reference number/.test(i.message)), JSON.stringify(refAdvisories()));
   });
   check('a reference another proposal already uses is reported', () => {
     w.Proposals.create(Object.assign({}, w.StateStore.DEFAULTS, { custName: 'Another customer', propRef: 'DUP/9' }));
     setInput('propRef', 'DUP/9');
-    assert.ok(/already used by another proposal/.test(txt('refWarning')), txt('refWarning'));
-    assert.ok(/DUP\/9/.test(txt('refWarning')), 'the message must name the number');
+    const found = refAdvisories();
+    assert.ok(found.some((i) => /already used by another proposal/.test(i.message)), JSON.stringify(found));
+    assert.ok(found.some((i) => /DUP\/9/.test(i.message)), 'the message must name the number');
   });
   check('the clash is reported whatever the capitalisation', () => {
     setInput('propRef', 'dup/9');
-    assert.ok(/already used by another proposal/.test(txt('refWarning')), txt('refWarning'));
+    assert.ok(refAdvisories().some((i) => /already used by another proposal/.test(i.message)), JSON.stringify(refAdvisories()));
   });
 
   console.log('— Export pre-flight: what counts as blocking —');

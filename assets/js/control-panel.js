@@ -74,9 +74,7 @@
     });
 
     const customerFields = $('custName').closest('fieldset');
-    const customerHint = customerFields.querySelector('.hint');
-    customerHint.textContent = 'Start with the customer and system size. Your proposal updates as you type.';
-    customerHint.after($('custName').closest('.field'), $('custAddress').closest('.field'));
+    customerFields.querySelector('legend').after($('custName').closest('.field'), $('custAddress').closest('.field'));
     customerFields.append($('prepName').closest('.field'));
 
     const configs = [
@@ -229,9 +227,9 @@
       if(bessSection) bessSection.textContent=window.Bess.enabled(state) ? (window.Bess.included(state)?'Included':'Standalone')+' · '+(state.bessCapacity||'—')+' kWh' : 'Not included · solar-only proposal';
       const sysSummary=document.querySelector('[data-section="systemEnabled"] summary small');
       if(sysSummary)sysSummary.textContent=window.AdditionalSystems.enabled(state)?(state.systemName||'Custom system')+' · '+(window.AdditionalSystems.included(state)?'included':'standalone'):'Optional controls, charging or a custom system';
-      const refIssue = referenceIssue(state);
-      refWarning.hidden = !refIssue;
-      if (refIssue) refWarning.textContent = refIssue;
+      /* The panel stays silent about the reference too — the pre-flight
+         raises it before a PDF exists. */
+      refWarning.hidden = true;
       validateWithEngineering(f, state);
       if (searchInput.value.trim()) find();
     }
@@ -256,6 +254,10 @@
       const invalidLoan = hasLoan && (!loan.every(id => $(id).value !== '') || !($('loanAmt').value > 0) || !(Number($('loanRate').value) > 0) || !($('loanYears').value >= 1 && $('loanYears').value <= 30));
       loan.forEach(id => $(id).setAttribute('aria-invalid', String(invalidLoan)));
       if (invalidLoan) blocking.push({id: 'loanAmt', message: 'Enter a positive loan amount and interest rate, with a tenure of 1–30 years.'});
+      /* Reference problems (sample number, duplicate, none) never clutter the
+         panel; they surface once, in the export pre-flight. */
+      const refIssue = referenceIssue(window.Render.lastState || window.Render.readState());
+      if (refIssue) advisory.push({ id: 'propRef', message: refIssue });
       const handled = new Set(['capacity','costPerWp',...pay,...loan]);
       form.querySelectorAll('input[type="number"]').forEach(input => {
         if (handled.has(input.id)) return;
@@ -385,10 +387,6 @@
     }
     searchInput.addEventListener('input', find); clear.addEventListener('click', () => { clearSearch(); searchInput.focus(); });
     searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') { clearSearch(); e.stopPropagation(); } });
-    function modeHint() {
-      mode.querySelector('.fm-hint').textContent = form.classList.contains('qs-mode-essentials') ? 'Everyday quotation fields, without the extra setup.' : 'Full access to branding, equipment, reports and customer settings.';
-    }
-    document.addEventListener('qs:mode', modeHint); modeHint();
     document.addEventListener('qs:rendered', update); update();
   }
   document.addEventListener('DOMContentLoaded', boot);
