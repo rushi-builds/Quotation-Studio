@@ -79,10 +79,12 @@
             <option value="female">Ma'am</option>
             <option value="neutral">Ji (neutral)</option>
             <option value="none">Name only, no title</option>
+            <option value="custom">Custom…</option>
           </select>
         </div>
+        <div class="field" id="custSalutationCustomField" hidden><label>Custom address (spoken as typed)</label><input type="text" id="custSalutationCustom" value="" placeholder="e.g. Saheb, Patil, Dr. Sharma ji"></div>
                 <label class="briefing-setting"><input type="checkbox" id="briefingEnabled" checked> Enable the optional proposal audio briefing</label>
-        <div class="hint">Playback uses available device/browser voices, not a prerecorded file. No autoplay; audio controls never appear in the PDFs.</div>
+        
         </details>
         <div class="field"><label>Customer address</label><input type="text" id="custAddress" value="" placeholder="Enter site address"></div>
         <div class="row3">
@@ -234,15 +236,15 @@
 
       <fieldset id="customerExperienceSettings">
         <legend>QR &amp; links</legend>
-        <div class="qr-setup-note"><strong>QR setup is ready</strong><span>Choose what opens when scanned. You can add the link later.</span></div>
+        
         <div class="field">
           <label for="qrDestinationType">What should the QR open?</label>
-          <select id="qrDestinationType"><option value="gallery">Project gallery</option><option value="video">Video or playlist</option><option value="website">Company website</option></select>
+          <select id="qrDestinationType"><option value="gallery">Project gallery</option><option value="video">Video or playlist</option><option value="website">Company website</option><option value="custom">Custom link</option></select>
         </div>
         <div class="field">
           <label for="galleryUrl">Public destination URL (add later)</label>
           <input type="url" id="galleryUrl" maxlength="250" placeholder="https://your-website.com/gallery">
-          <div class="hint">The closing-page and PDF QR stays hidden until you add a valid public HTTPS link. Test it on a signed-out phone before issuing a proposal.</div>
+          
           <a href="gallery.html" target="_blank" rel="noopener noreferrer">Preview the project gallery ↗</a>
           <div class="hint" id="galleryStatus" role="status"></div>
         </div>

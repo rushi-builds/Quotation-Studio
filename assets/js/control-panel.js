@@ -230,6 +230,8 @@
       /* The panel stays silent about the reference too — the pre-flight
          raises it before a PDF exists. */
       refWarning.hidden = true;
+      const salCustomField = $('custSalutationCustomField');
+      if (salCustomField) salCustomField.hidden = $('custSalutation').value !== 'custom';
       validateWithEngineering(f, state);
       if (searchInput.value.trim()) find();
     }

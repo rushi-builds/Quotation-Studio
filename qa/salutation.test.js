@@ -197,6 +197,17 @@ check('auto and unknown values fall back to detection', () => {
   assert.equal(Salutation.honorMode('', 'auto'), 'neutral');
 });
 
+check('a custom address is spoken verbatim in every language', () => {
+  const st = { companyName: 'KTM Energy Experts', custName: 'Rahul Sharma', custSalutation: 'custom', custSalutationCustom: 'Saheb' };
+  assert.ok(Salutation.composeGreeting('en', st).includes('Rahul Saheb,'), Salutation.composeGreeting('en', st));
+  const stDev = { ...st, custSalutationCustom: 'साहेब' };
+  assert.ok(Salutation.composeGreeting('en', stDev).includes('Saheb'), 'Devanagari custom is Latinised for English voices');
+  assert.ok(Salutation.composeGreeting('mr', { ...st, custSalutationCustom: 'साहेब' }).includes('साहेब'), 'Devanagari custom passes through verbatim for Marathi');
+});
+check('blank custom falls back to the neutral honourific', () => {
+  const g = Salutation.composeGreeting('en', { custName: 'Rahul Sharma', custSalutation: 'custom', custSalutationCustom: '  ' });
+  assert.ok(g.includes('Rahul ji,'), g);
+});
 console.log('\n— salutation: composed greetings —');
 
 const hi = (name, sal) => Salutation.composeGreeting('hi', { companyName: 'KTM Energy Experts', custName: name, custSalutation: sal });

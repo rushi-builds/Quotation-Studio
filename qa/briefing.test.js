@@ -33,7 +33,7 @@ async function installSpeech(page) {
   await page.click('#modeAll');
   await page.click('[data-section="galleryUrl"] > summary');
   check('QR links stay in QR & links; the audio toggle lives with the audio settings',await page.evaluate(()=>{const q=document.getElementById('customerExperienceSettings');const a=document.querySelector('.studio-advanced');return q.checkVisibility()&&!!q.querySelector('#galleryUrl')&&!q.querySelector('#briefingEnabled')&&!!a&&!!a.querySelector('#briefingEnabled');}));
-  check('blank destination shows setup guidance but no customer QR',await page.evaluate(()=>document.getElementById('closingGallery').hidden&&document.getElementById('galleryStatus').textContent.includes('Add a public HTTPS')));
+  check('blank destination stays silent and prints no customer QR',await page.evaluate(()=>document.getElementById('closingGallery').hidden&&document.getElementById('galleryStatus').textContent===''));
   await edit({qrDestinationType:'video',galleryUrl:'https://example.com/project-videos'});
   check('video destination updates closing card label, accessibility name and exact link',await page.$eval('#closingGallery',e=>e.href==='https://example.com/project-videos'&&e.textContent.includes('Open video / playlist')&&e.getAttribute('aria-label').includes('video')));
   check('short PDF uses the same destination type and link',await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),a=h.querySelector('.power-gallery');const ok=a.href==='https://example.com/project-videos'&&a.textContent.includes('Open video / playlist');h.remove();return ok;}));

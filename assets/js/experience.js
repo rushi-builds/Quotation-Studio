@@ -27,7 +27,8 @@
     const copy = {
       gallery: {heading:'EXPLORE OUR PROJECTS', action:'Explore our projects ↗', detail:'Project photographs & available media', name:'project gallery'},
       video: {heading:'WATCH OUR PROJECTS', action:'Open video / playlist ↗', detail:'Watch on the linked video platform', name:'video or playlist'},
-      website: {heading:'VISIT OUR WEBSITE', action:'Visit our website ↗', detail:'Explore the linked company website', name:'company website'}
+      website: {heading:'VISIT OUR WEBSITE', action:'Visit our website ↗', detail:'Explore the linked company website', name:'company website'},
+      custom: {heading:'OPEN YOUR LINK', action:'Open the link ↗', detail:'Opens your linked destination', name:'linked destination'}
     };
     return copy[s.qrDestinationType] || copy.gallery;
   }
@@ -40,7 +41,7 @@
     card.querySelector('strong').textContent=copy.action;
     card.querySelector('small').textContent=copy.detail;
     card.setAttribute('aria-label','Open '+copy.name);
-    if (status) status.textContent = url ? 'QR opens '+copy.name+': '+url : 'QR setup ready. Add a public HTTPS destination later; no placeholder is printed.';
+    if (status) status.textContent = url ? 'QR opens '+copy.name+': '+url : '';
     if (card.dataset.destination === url && !card.hidden) return;
     const revision = ++qrRevision;
     card.hidden = true; card.removeAttribute('href'); card.dataset.destination = url;

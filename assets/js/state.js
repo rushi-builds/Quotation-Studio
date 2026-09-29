@@ -30,7 +30,7 @@
     custName: '',
     /* Audio greeting honourific: auto-detect from the name (salutation.js),
        or a fixed sir / ma'am / ji / none. */
-    custSalutation: 'auto',
+    custSalutation: 'auto', custSalutationCustom: '',
     /* Optional: exactly how the audio greeting should say the name. OS voices
        often stumble over Latin-spelled Indian names, so the dealer can type
        the name in its own script (e.g. रुशिकेश) once and it reads naturally. */

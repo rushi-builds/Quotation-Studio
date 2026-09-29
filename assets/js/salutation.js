@@ -197,6 +197,7 @@
      organisation never gets one either. */
   const MODES = ['male', 'female', 'neutral', 'none'];
   function honorMode(rawName, override) {
+    if (override === 'custom') return 'custom';
     if (MODES.includes(override)) return override;
     if (isOrganisation(rawName)) return 'none';
     return detectGender(rawName) || 'neutral';
@@ -424,7 +425,12 @@
     const source = org ? fullName : (spoken || displayName(s && s.custName));
     const name = !source ? '' : org ? source : nameInScript(source, lang);
     const mode = honorMode(source, s && s.custSalutation);
-    const honor = name && mode !== 'none' && !org ? HONORS[lang][mode] : '';
+    /* "Custom" is the dealer's own address, spoken verbatim (script-matched
+       so every voice can read it); blank falls back to the safe neutral. */
+    const customHonor = mode === 'custom'
+      ? (nameInScript(String((s && s.custSalutationCustom) || '').trim(), lang) || HONORS[lang].neutral)
+      : HONORS[lang][mode];
+    const honor = name && mode !== 'none' && !org ? customHonor : '';
     if (lang === 'hi') {
       const lead = name ? 'नमस्कार ' + name + (honor ? ' ' + honor : '') + '।' : 'नमस्कार।';
       return lead + ' ' + (company
