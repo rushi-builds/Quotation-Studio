@@ -516,13 +516,50 @@ const MIME = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
+  '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
   '.pdf': 'application/pdf',
   '.ico': 'image/x-icon',
   '.map': 'application/json'
 };
+
+/* Dev-only bag animation reference drops (local preview). Not for production auth. */
+const BAG_REF_DIR = path.join(ROOT, 'tmp', 'bag-reference');
+const BAG_REF_MAX = 80 * 1024 * 1024;
+const BAG_REF_EXT = new Set(['.mp4', '.webm', '.mov', '.png', '.jpg', '.jpeg', '.webp', '.gif']);
+
+function ensureBagRefDir() {
+  fs.mkdirSync(BAG_REF_DIR, { recursive: true });
+}
+function safeBagRefName(name) {
+  const base = path.basename(String(name || 'upload.bin')).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const ext = path.extname(base).toLowerCase();
+  if (!BAG_REF_EXT.has(ext)) return null;
+  const stem = path.basename(base, ext).slice(0, 80) || 'ref';
+  return stem + ext;
+}
+function readRawBody(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > maxBytes) {
+        reject(Object.assign(new Error('Body too large (max 80 MB)'), { status: 413 }));
+        req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
 
 function send(res, status, body, headers) {
   const h = Object.assign({
@@ -720,6 +757,45 @@ async function handleApi(req, res, url) {
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
 
   try {
+    /* DEV: bag login animation reference upload (local only, no auth) */
+    if (parts[0] === 'dev' && parts[1] === 'bag-ref-list' && method === 'GET') {
+      ensureBagRefDir();
+      const names = fs.readdirSync(BAG_REF_DIR).filter((n) => BAG_REF_EXT.has(path.extname(n).toLowerCase()));
+      const files = names.map((name) => {
+        const st = fs.statSync(path.join(BAG_REF_DIR, name));
+        return {
+          name,
+          size: st.size,
+          mtime: st.mtime.toISOString(),
+          url: '/tmp/bag-reference/' + encodeURIComponent(name)
+        };
+      }).sort((a, b) => String(b.mtime).localeCompare(String(a.mtime)));
+      return sendJson(res, 200, { ok: true, files });
+    }
+    if (parts[0] === 'dev' && parts[1] === 'bag-ref-upload' && method === 'POST') {
+      ensureBagRefDir();
+      const rawName = req.headers['x-filename'] || req.headers['x-file-name'] || 'upload.bin';
+      const safe = safeBagRefName(rawName);
+      if (!safe) {
+        return sendJson(res, 400, {
+          error: 'Allowed types: mp4, webm, mov, png, jpg, webp, gif'
+        });
+      }
+      const buf = await readRawBody(req, BAG_REF_MAX);
+      if (!buf.length) return sendJson(res, 400, { error: 'Empty body' });
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const finalName = stamp + '_' + safe;
+      const dest = path.join(BAG_REF_DIR, finalName);
+      fs.writeFileSync(dest, buf);
+      return sendJson(res, 201, {
+        ok: true,
+        name: finalName,
+        size: buf.length,
+        url: '/tmp/bag-reference/' + encodeURIComponent(finalName),
+        path: 'tmp/bag-reference/' + finalName
+      });
+    }
+
     /* AUTH */
     if (parts[0] === 'auth' && parts[1] === 'register' && method === 'POST') {
       const body = await readBody(req);
@@ -1983,5 +2059,6 @@ server.listen(PORT, HOST, () => {
   console.log('  Dash:   http://' + HOST + ':' + PORT + '/dashboard.html');
   console.log('  Portal: http://' + HOST + ':' + PORT + '/portal.html?t=<token>');
   console.log('  API:    http://' + HOST + ':' + PORT + '/api/health');
+  console.log('  Drop:   http://' + HOST + ':' + PORT + '/drop-bag-ref.html');
   console.log('  Data:   ' + DB_PATH);
 });

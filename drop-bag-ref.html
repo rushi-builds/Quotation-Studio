@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Drop bag reference — temp</title>
+  <style>
+    :root {
+      --orange: #F2811D;
+      --navy: #1C2B3F;
+      --line: #E4E8EE;
+      --bg: #EEF1F5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--navy);
+      padding: 20px;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 0 0 6px; font-family: Poppins, Inter, sans-serif; }
+    .sub { color: #5B6472; font-size: 14px; line-height: 1.5; margin: 0 0 18px; }
+    .warn {
+      background: #FFF3E4; border: 1px solid #F5D9B5; color: #8A4B00;
+      border-radius: 12px; padding: 12px 14px; font-size: 13px; margin-bottom: 16px; line-height: 1.45;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 8px 24px rgba(28,43,63,.06);
+    }
+    .drop {
+      border: 2px dashed #C5CDD8;
+      border-radius: 14px;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 24px;
+      text-align: center;
+      background: #FAFBFC;
+      transition: border-color .15s, background .15s, transform .1s;
+      cursor: pointer;
+    }
+    .drop.over {
+      border-color: var(--orange);
+      background: #FFF8F0;
+      transform: scale(1.01);
+    }
+    .drop strong { font-size: 15px; }
+    .drop span { font-size: 13px; color: #8A93A0; max-width: 280px; line-height: 1.4; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--orange); color: #fff; border: 0; border-radius: 10px;
+      padding: 10px 14px; font-weight: 600; font-size: 13.5px; cursor: pointer;
+      font-family: inherit;
+    }
+    .btn:hover { background: #D96A0E; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-ghost {
+      background: #F4F6F8; color: var(--navy); border: 1px solid var(--line);
+    }
+    .btn-ghost:hover { border-color: var(--orange); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .status {
+      font-size: 13px; margin-top: 12px; min-height: 1.3em; color: #5B6472;
+    }
+    .status.err { color: #C0392B; }
+    .status.ok { color: #1F6B3A; }
+    .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .list li {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 10px 12px; border-radius: 10px; background: #F7F8FA; border: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .list a { color: #D96A0E; font-weight: 600; text-decoration: none; }
+    .list a:hover { text-decoration: underline; }
+    .meta { color: #8A93A0; font-size: 12px; }
+    .preview-box {
+      min-height: 240px;
+      background: #0f1419;
+      border-radius: 12px;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      color: #8A93A0;
+      font-size: 13px;
+    }
+    .preview-box video, .preview-box img {
+      width: 100%;
+      max-height: 420px;
+      display: block;
+      background: #000;
+    }
+    .links { margin-top: 14px; font-size: 13px; }
+    .links a { color: #D96A0E; font-weight: 600; }
+    input[type=file] { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>📦 Bag reference drop box</h1>
+    <p class="sub">
+      Temporary page for the agent. Drop a <strong>video</strong> or <strong>screenshot</strong> of the
+      Coding Stella / Visme bag login animation. Files save under
+      <code>tmp/bag-reference/</code> so I can open and match the UI.
+    </p>
+    <div class="warn">
+      Dev-only · local server · max ~80&nbsp;MB per file ·
+      mp4 / webm / mov / png / jpg / webp / gif · not for production · not committed to git
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Drop reference file here">
+          <strong>Drop video or image here</strong>
+          <span>or click to choose a file from your device</span>
+          <button type="button" class="btn" id="btnPick">Choose file</button>
+        </div>
+        <input type="file" id="file" accept="video/*,image/*,.mp4,.webm,.mov,.png,.jpg,.jpeg,.webp,.gif" />
+        <div class="row">
+          <button type="button" class="btn btn-ghost" id="btnRefresh">Refresh list</button>
+          <a class="btn btn-ghost" href="dashboard.html" style="text-decoration:none">Open dashboard</a>
+        </div>
+        <div class="status" id="status">Waiting for a file…</div>
+        <h3 style="font-size:14px;margin:18px 0 8px">Saved on server</h3>
+        <ul class="list" id="list"><li class="meta">No files yet</li></ul>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:14px;margin:0 0 10px">Right-side preview</h3>
+        <div class="preview-box" id="preview">Nothing selected yet</div>
+        <p class="links" id="previewMeta"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const drop = document.getElementById('drop');
+      const fileInput = document.getElementById('file');
+      const status = document.getElementById('status');
+      const listEl = document.getElementById('list');
+      const preview = document.getElementById('preview');
+      const previewMeta = document.getElementById('previewMeta');
+      const btnPick = document.getElementById('btnPick');
+      const btnRefresh = document.getElementById('btnRefresh');
+
+      const ALLOW = /\.(mp4|webm|mov|png|jpe?g|webp|gif)$/i;
+      const MAX = 80 * 1024 * 1024;
+
+      function setStatus(msg, kind) {
+        status.textContent = msg || '';
+        status.className = 'status' + (kind ? ' ' + kind : '');
+      }
+
+      function fmtSize(n) {
+        if (n < 1024) return n + ' B';
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+        return (n / (1024 * 1024)).toFixed(1) + ' MB';
+      }
+
+      function showPreview(url, name) {
+        preview.innerHTML = '';
+        previewMeta.innerHTML = '';
+        if (!url) {
+          preview.textContent = 'Nothing selected yet';
+          return;
+        }
+        const lower = name.toLowerCase();
+        if (/\.(mp4|webm|mov)$/.test(lower)) {
+          const v = document.createElement('video');
+          v.src = url + '?t=' + Date.now();
+          v.controls = true;
+          v.autoplay = true;
+          v.muted = true;
+          v.playsInline = true;
+          v.loop = true;
+          preview.appendChild(v);
+        } else {
+          const img = document.createElement('img');
+          img.src = url + '?t=' + Date.now();
+          img.alt = name;
+          preview.appendChild(img);
+        }
+        previewMeta.innerHTML = '<a href="' + url + '" target="_blank" rel="noopener">Open full file</a> · ' + name;
+      }
+
+      async function refreshList() {
+        try {
+          const r = await fetch('/api/dev/bag-ref-list');
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || 'List failed');
+          const files = data.files || [];
+          if (!files.length) {
+            listEl.innerHTML = '<li class="meta">No files yet</li>';
+            return;
+          }
+          listEl.innerHTML = files.map(function (f) {
+            return '<li><div><a href="#" data-url="' + f.url + '" data-name="' + f.name + '">' +
+              f.name + '</a><div class="meta">' + fmtSize(f.size) + '</div></div>' +
+              '<a href="' + f.url + '" download="' + f.name + '">Download</a></li>';
+          }).join('');
+          listEl.querySelectorAll('a[data-url]').forEach(function (a) {
+            a.addEventListener('click', function (ev) {
+              ev.preventDefault();
+              showPreview(a.getAttribute('data-url'), a.getAttribute('data-name'));
+            });
+          });
+          /* auto-preview newest */
+          showPreview(files[0].url, files[0].name);
+        } catch (err) {
+          setStatus(err.message || 'Could not list files', 'err');
+        }
+      }
+
+      async function uploadFile(file) {
+        if (!file) return;
+        if (!ALLOW.test(file.name)) {
+          setStatus('Use mp4, webm, mov, png, jpg, webp, or gif.', 'err');
+          return;
+        }
+        if (file.size > MAX) {
+          setStatus('File too large (max 80 MB). Try a shorter clip or compress.', 'err');
+          return;
+        }
+        setStatus('Uploading ' + file.name + ' (' + fmtSize(file.size) + ')…');
+        btnPick.disabled = true;
+        try {
+          const r = await fetch('/api/dev/bag-ref-upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': file.type || 'application/octet-stream',
+              'X-Filename': file.name
+            },
+            body: file
+          });
+          const data = await r.json().catch(function () { return {}; });
+          if (!r.ok) throw new Error(data.error || ('Upload failed (' + r.status + ')'));
+          setStatus('Saved: ' + data.name + ' — I can open this from the workspace now.', 'ok');
+          await refreshList();
+          if (data.url) showPreview(data.url, data.name);
+        } catch (err) {
+          setStatus(err.message || 'Upload failed', 'err');
+        } finally {
+          btnPick.disabled = false;
+        }
+      }
+
+      btnPick.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        fileInput.click();
+      });
+      drop.addEventListener('click', function () { fileInput.click(); });
+      drop.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); fileInput.click(); }
+      });
+      fileInput.addEventListener('change', function () {
+        if (fileInput.files && fileInput.files[0]) uploadFile(fileInput.files[0]);
+        fileInput.value = '';
+      });
+
+      ;['dragenter', 'dragover'].forEach(function (evName) {
+        drop.addEventListener(evName, function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          drop.classList.add('over');
+        });
+      });
+      ;['dragleave', 'drop'].forEach(function (evName) {
+        drop.addEventListener(evName, function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          drop.classList.remove('over');
+        });
+      });
+      drop.addEventListener('drop', function (ev) {
+        const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+        if (f) uploadFile(f);
+      });
+
+      btnRefresh.addEventListener('click', refreshList);
+      refreshList();
+    })();
+  </script>
+</body>
+</html>
