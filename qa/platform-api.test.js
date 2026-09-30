@@ -572,14 +572,19 @@ async function main() {
 
     r = await req('POST', '/api/auth/register', {
       name: 'Custom Chris', email: 'custom-role@example.com', password: 'password123',
-      role: 'custom', roleCustom: 'Project lead'
+      role: 'Project lead'
     });
-    t('register custom role', r.status === 201 && r.json.user.role === 'custom' && r.json.user.roleLabel === 'Project lead', r.status);
+    t('register free-text custom role', r.status === 201 && r.json.user.role === 'custom' && r.json.user.roleLabel === 'Project lead', r.status);
 
     r = await req('POST', '/api/auth/register', {
-      name: 'Bad Custom', email: 'bad-custom@example.com', password: 'password123', role: 'custom'
+      name: 'Bad Custom', email: 'bad-custom@example.com', password: 'password123', role: ''
     });
-    t('custom role requires title', r.status === 400, r.status);
+    t('empty role rejected', r.status === 400, r.status);
+
+    r = await req('POST', '/api/auth/register', {
+      name: 'Owner Typed', email: 'owner-typed@example.com', password: 'password123', role: 'Owner'
+    });
+    t('typed Owner maps to owner', r.status === 201 && r.json.user.role === 'owner', r.status);
 
     r = await req('POST', '/api/auth/login', {
       email: 'custom-role@example.com', password: 'password123'

@@ -144,6 +144,16 @@ function passwordPolicyError(password) {
   return null;
 }
 
+function parseSignupRole(raw) {
+  const typed = String(raw || '').trim().replace(/\s+/g, ' ');
+  if (!typed) return { error: 'Enter your role (for example Owner, Sales, Viewer, or Project lead).' };
+  if (typed.length > 60) return { error: 'Role must be at most 60 characters.' };
+  const key = typed.toLowerCase();
+  if (key === 'owner') return { role: 'owner', roleCustom: null, roleLabel: 'Owner' };
+  if (key === 'sales') return { role: 'sales', roleCustom: null, roleLabel: 'Sales' };
+  if (key === 'viewer') return { role: 'viewer', roleCustom: null, roleLabel: 'Viewer' };
+  return { role: 'custom', roleCustom: typed, roleLabel: typed };
+}
 function roleDisplay(u) {
   if (!u) return '';
   const r = String(u.role || '').toLowerCase();
@@ -552,22 +562,15 @@ async function handleApi(request, env, url) {
           error: 'An account with this email already exists. Sign in instead, or use Forgot password if you cannot access it.'
         }, 409);
       }
-      let role = String(body.role || 'sales').trim().toLowerCase();
-      let roleCustom = null;
-      if (role === 'custom') {
-        roleCustom = String(body.roleCustom || body.customRole || '').trim().slice(0, 60);
-        if (!roleCustom) return json({ error: 'Enter a custom role title (for example Project lead).' }, 400);
-        role = 'custom';
-      } else if (!['owner', 'sales', 'viewer'].includes(role)) {
-        return json({ error: 'Choose a role: Owner, Sales, Viewer, or Custom.' }, 400);
-      }
+      const parsed = parseSignupRole(body.role != null ? body.role : body.roleCustom);
+      if (parsed.error) return json({ error: parsed.error }, 400);
       const user = {
         id: uid('usr'),
         email,
         name: name.slice(0, 120),
         password_hash: hashPassword(password),
-        role,
-        role_custom: roleCustom,
+        role: parsed.role,
+        role_custom: parsed.roleCustom,
         created_at: nowISO(),
         updated_at: nowISO()
       };

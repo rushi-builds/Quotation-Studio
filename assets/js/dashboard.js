@@ -113,10 +113,6 @@
     if ($('tabRegister')) $('tabRegister').classList.toggle('on', isRegister);
     if ($('nameField')) $('nameField').hidden = !isRegister;
     if ($('roleField')) $('roleField').hidden = !isRegister;
-    if ($('customRoleField')) {
-      const showCustom = isRegister && $('authRole') && $('authRole').value === 'custom';
-      $('customRoleField').hidden = !showCustom;
-    }
     if ($('passwordField')) $('passwordField').hidden = isForgot;
     if ($('resetCodeField')) $('resetCodeField').hidden = !isReset;
     if ($('newPasswordField')) $('newPasswordField').hidden = !isReset;
@@ -135,7 +131,7 @@
       $('authSubmit').textContent = 'Sign in';
     } else if (isRegister) {
       $('authHeading').textContent = 'Create account';
-      $('authSub').textContent = 'Pick your role when you create the account. Each email can register only once.';
+      $('authSub').textContent = 'Type your role when you create the account. Each email can register only once.';
       $('authSubmit').textContent = 'Create account';
     } else if (isForgot) {
       $('authHeading').textContent = 'Forgot password';
@@ -1078,13 +1074,6 @@
   async function boot() {
     $('tabLogin').addEventListener('click', () => setAuthMode('login'));
     $('tabRegister').addEventListener('click', () => setAuthMode('register'));
-    if ($('authRole')) {
-      $('authRole').addEventListener('change', () => {
-        if ($('customRoleField')) {
-          $('customRoleField').hidden = $('authRole').value !== 'custom' || mode !== 'register';
-        }
-      });
-    }
     if ($('btnForgot')) {
       $('btnForgot').addEventListener('click', () => setAuthMode('forgot'));
     }
@@ -1110,12 +1099,9 @@
           toast('Signed in');
         } else if (mode === 'register') {
           if (!name) throw new Error('Please enter your name.');
-          const role = ($('authRole') && $('authRole').value) || 'sales';
-          const roleCustom = ($('authRoleCustom') && $('authRoleCustom').value || '').trim();
-          if (role === 'custom' && !roleCustom) {
-            throw new Error('Enter a custom role title, or pick Owner, Sales, or Viewer.');
-          }
-          const r = await api.register(name, email, password, role, roleCustom);
+          const roleTyped = ($('authRole') && $('authRole').value || '').trim();
+          if (!roleTyped) throw new Error('Enter your role (for example Owner, Sales, Viewer, or Project lead).');
+          const r = await api.register(name, email, password, roleTyped);
           keepSession(r);
           user = r.user;
           showApp();

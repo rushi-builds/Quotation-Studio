@@ -587,6 +587,19 @@ function sessionCookie(token, maxAgeSec, req) {
   if (isHttps) parts.push('Secure');
   return parts.join('; ');
 }
+/** Free-text role from Create account.
+ *  Exact Owner / Sales / Viewer (any case) → built-in access.
+ *  Anything else → custom title (sales-level write access, not team admin). */
+function parseSignupRole(raw) {
+  const typed = String(raw || '').trim().replace(/\s+/g, ' ');
+  if (!typed) return { error: 'Enter your role (for example Owner, Sales, Viewer, or Project lead).' };
+  if (typed.length > 60) return { error: 'Role must be at most 60 characters.' };
+  const key = typed.toLowerCase();
+  if (key === 'owner') return { role: 'owner', roleCustom: null, roleLabel: 'Owner' };
+  if (key === 'sales') return { role: 'sales', roleCustom: null, roleLabel: 'Sales' };
+  if (key === 'viewer') return { role: 'viewer', roleCustom: null, roleLabel: 'Viewer' };
+  return { role: 'custom', roleCustom: typed, roleLabel: typed };
+}
 function roleDisplay(u) {
   if (!u) return '';
   const r = String(u.role || '').toLowerCase();
@@ -732,27 +745,19 @@ async function handleApi(req, res, url) {
           error: 'An account with this email already exists. Sign in instead, or use Forgot password if you cannot access it.'
         });
       }
-      /* Role chosen on Create account: owner | sales | viewer | custom. */
-      let role = String(body.role || 'sales').trim().toLowerCase();
-      let roleCustom = null;
-      if (role === 'custom') {
-        roleCustom = String(body.roleCustom || body.customRole || '').trim().slice(0, 60);
-        if (!roleCustom) {
-          authThrottleFail(req, email);
-          return sendJson(res, 400, { error: 'Enter a custom role title (for example Project lead).' });
-        }
-        role = 'custom';
-      } else if (!['owner', 'sales', 'viewer'].includes(role)) {
+      /* Role is free text on Create account (no dropdown). */
+      const parsed = parseSignupRole(body.role != null ? body.role : body.roleCustom);
+      if (parsed.error) {
         authThrottleFail(req, email);
-        return sendJson(res, 400, { error: 'Choose a role: Owner, Sales, Viewer, or Custom.' });
+        return sendJson(res, 400, { error: parsed.error });
       }
       const user = {
         id: uid('usr'),
         email,
         name: name.slice(0, 120),
         password_hash: hashPassword(password),
-        role,
-        role_custom: roleCustom,
+        role: parsed.role,
+        role_custom: parsed.roleCustom,
         created_at: nowISO(),
         updated_at: nowISO()
       };

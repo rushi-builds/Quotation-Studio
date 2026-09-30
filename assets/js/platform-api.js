@@ -104,10 +104,11 @@
       catch (_) { return null; }
     },
     me() { return request('GET', '/api/auth/me'); },
-    register(name, email, password, role, roleCustom) {
-      const body = { name, email, password, role: role || 'sales' };
-      if (role === 'custom' && roleCustom) body.roleCustom = roleCustom;
-      return request('POST', '/api/auth/register', body);
+    register(name, email, password, role) {
+      /* role is free text from Create account — server maps Owner/Sales/Viewer or stores custom. */
+      return request('POST', '/api/auth/register', {
+        name, email, password, role: role || ''
+      });
     },
     login(email, password) {
       return request('POST', '/api/auth/login', { email, password });
