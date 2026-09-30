@@ -1,9 +1,7 @@
 /**
- * Login scene UI — character + briefcase + green card poses.
- * Recreates the Visme reference choreography without Visme runtime.
- * No authentication / no network.
- *
- * Poses: walk → place → present → think | loading | success | shy
+ * Login scene UI — character + briefcase + green card.
+ * Video choreography (no Visme): walk → place bag → card pops → think/success/shy
+ * Presentation only — no auth / no network.
  */
 (function (global) {
   'use strict';
@@ -31,13 +29,6 @@
     }
   }
 
-  /**
-   * @param {object} opts
-   * @param {HTMLElement} [opts.root] #authScreen
-   * @param {HTMLElement} [opts.scene] #loginBagScene
-   * @param {HTMLElement} [opts.form] #authForm
-   * @param {boolean} [opts.intro=true] play walk → place → present on mount
-   */
   function mount(opts) {
     opts = opts || {};
     var root = opts.root || document.getElementById('authScreen');
@@ -48,18 +39,17 @@
       (root && root.querySelector('#authForm')) ||
       document.getElementById('authForm');
 
-    if (!scene) {
-      return {
-        setMood: function () {},
-        setPose: function () {},
-        setLoading: function () {},
-        happy: function () {},
-        shy: function () {},
-        onPasswordVisible: function () {},
-        destroy: function () {},
-        el: null
-      };
-    }
+    var noop = {
+      setMood: function () {},
+      setPose: function () {},
+      setLoading: function () {},
+      happy: function () {},
+      shy: function () {},
+      onPasswordVisible: function () {},
+      destroy: function () {},
+      el: null
+    };
+    if (!scene) return noop;
 
     var destroyed = false;
     var loading = false;
@@ -81,14 +71,13 @@
         introDone = true;
         return;
       }
+      /* Match video timing roughly: walk in → set bag down → form flies out */
       setPose(scene, 'walk');
-      later(function () {
-        setPose(scene, 'place');
-      }, 900);
+      later(function () { setPose(scene, 'place'); }, 1100);
       later(function () {
         setPose(scene, 'present');
         introDone = true;
-      }, 1600);
+      }, 1850);
     }
 
     function applyThink() {
@@ -130,8 +119,7 @@
       el: scene,
       root: root,
       setPose: function (pose) {
-        if (destroyed) return;
-        setPose(scene, pose);
+        if (!destroyed) setPose(scene, pose);
       },
       setMood: function (mood) {
         if (destroyed) return;
@@ -156,8 +144,7 @@
         }, 700);
       },
       onPasswordVisible: function () {
-        if (destroyed || loading) return;
-        applyThink();
+        if (!destroyed && !loading) applyThink();
       },
       destroy: function () {
         destroyed = true;
@@ -169,13 +156,9 @@
     };
   }
 
-  function bagMarkup() {
-    return '<!-- scene markup lives in dashboard.html -->';
-  }
-
   global.QSLoginBagUI = {
     mount: mount,
-    bagMarkup: bagMarkup,
+    bagMarkup: function () { return ''; },
     POSES: POSES.slice()
   };
 })(typeof window !== 'undefined' ? window : globalThis);
