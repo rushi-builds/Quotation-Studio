@@ -135,11 +135,11 @@
     if (tabs) tabs.style.display = (isForgot || isReset) ? 'none' : '';
 
     if (isLogin) {
-      $('authHeading').textContent = 'Sign in to your account';
-      $('authSub').textContent = 'Enter your work credentials to open the staff dashboard.';
+      $('authHeading').textContent = 'Sign in';
+      $('authSub').textContent = 'Open the bag — enter work email & password.';
       setAuthSubmitLabel('Sign in');
     } else if (isRegister) {
-      $('authHeading').textContent = 'Create your account';
+      $('authHeading').textContent = 'Create account';
       $('authSub').textContent = 'Type your role when you register. Each work email can sign up once.';
       setAuthSubmitLabel('Create account');
     } else if (isForgot) {
@@ -1096,8 +1096,89 @@
         inp.type = show ? 'text' : 'password';
         $('btnTogglePwd').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
         $('btnTogglePwd').title = show ? 'Hide password' : 'Show password';
+        /* bag peeks when password is revealed */
+        const bag = $('loginBag');
+        if (bag) {
+          if (show) {
+            bag.classList.remove('is-cover');
+            bag.classList.add('is-open', 'is-peek', 'is-happy');
+          } else if (document.activeElement === inp) {
+            bag.classList.add('is-cover', 'is-open');
+            bag.classList.remove('is-happy', 'is-peek');
+          }
+        }
       });
     }
+
+    /* Interactive login bag — flap / eyes react to fields (no third-party embed) */
+    (function wireLoginBag() {
+      const bag = $('loginBag');
+      if (!bag) return;
+      const pupils = bag.querySelectorAll('.bag-eye i');
+      const form = $('authForm');
+      if (!form) return;
+
+      function clearBagMood() {
+        bag.classList.remove('is-open', 'is-peek', 'is-cover', 'is-happy', 'is-shy', 'is-success');
+      }
+
+      function setBagFromTarget(el) {
+        if (!el || !bag) return;
+        const kind = el.getAttribute('data-bag') || '';
+        const type = (el.type || '').toLowerCase();
+        clearBagMood();
+        bag.classList.add('is-open');
+        if (kind === 'password' || type === 'password') {
+          if (type === 'password') bag.classList.add('is-cover');
+          else bag.classList.add('is-happy', 'is-peek');
+        } else if (kind === 'email' || type === 'email' || type === 'text') {
+          bag.classList.add('is-peek');
+        }
+      }
+
+      form.querySelectorAll('input').forEach((inp) => {
+        inp.addEventListener('focus', () => setBagFromTarget(inp));
+        inp.addEventListener('blur', () => {
+          setTimeout(() => {
+            const a = document.activeElement;
+            if (!form.contains(a)) clearBagMood();
+            else setBagFromTarget(a);
+          }, 30);
+        });
+        inp.addEventListener('input', () => {
+          if (!pupils.length) return;
+          const len = (inp.value || '').length;
+          const x = Math.min(4, Math.max(-4, (len % 9) - 4));
+          pupils.forEach((p) => { p.style.transform = 'translate(' + x + 'px, 2px)'; });
+          if (inp.getAttribute('data-bag') === 'email' || inp.type === 'email') {
+            bag.classList.add('is-open', 'is-peek');
+            bag.classList.remove('is-cover');
+          }
+        });
+      });
+
+      /* eyes follow pointer a little while bag is idle/open */
+      document.addEventListener('mousemove', (ev) => {
+        if (!pupils.length || bag.classList.contains('is-cover')) return;
+        if ($('authScreen') && $('authScreen').style.display === 'none') return;
+        const rect = bag.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 3;
+        const dx = Math.max(-5, Math.min(5, (ev.clientX - cx) / 28));
+        const dy = Math.max(-3, Math.min(4, (ev.clientY - cy) / 36));
+        pupils.forEach((p) => { p.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; });
+      });
+
+      window.__qsBagHappy = function () {
+        clearBagMood();
+        bag.classList.add('is-open', 'is-happy', 'is-success');
+      };
+      window.__qsBagShy = function () {
+        bag.classList.remove('is-success', 'is-happy');
+        bag.classList.add('is-open', 'is-shy', 'is-cover');
+        setTimeout(() => bag.classList.remove('is-shy'), 600);
+      };
+    })();
     $('authForm').addEventListener('submit', async (ev) => {
       ev.preventDefault();
       clearAuthMessages();
@@ -1114,6 +1195,7 @@
           user = r.user;
           showApp();
           await refreshAll();
+          if (window.__qsBagHappy) window.__qsBagHappy();
           toast('Signed in');
         } else if (mode === 'register') {
           if (!name) throw new Error('Please enter your name.');
@@ -1124,6 +1206,7 @@
           user = r.user;
           showApp();
           await refreshAll();
+          if (window.__qsBagHappy) window.__qsBagHappy();
           toast('Account created');
         } else if (mode === 'forgot') {
           const r = await api.forgotPassword(email);
@@ -1153,6 +1236,7 @@
           toast(r.message || 'Password updated');
         }
       } catch (err) {
+        if (window.__qsBagShy) window.__qsBagShy();
         showAuthError(err.message || 'Authentication failed');
       } finally {
         $('authSubmit').disabled = false;
