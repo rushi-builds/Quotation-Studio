@@ -5,68 +5,153 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex,nofollow" />
   <title>Dashboard — KTM Quotation Studio</title>
-  <link rel="stylesheet" href="assets/css/dashboard.css?v=auth7" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=auth-split1" />
 </head>
 <body>
-  <!-- ========== Auth ========== -->
+  <!-- ========== Auth (split panel — KTM branded) ========== -->
   <div id="authScreen" class="auth-screen">
-    <div class="auth-card">
-      <div class="auth-brand">
-        <div class="auth-brand-mark">KTM</div>
-        <div>
-          <strong style="font-size:14px">Quotation Studio</strong><br />
-          <span style="font-size:11.5px;color:#8A93A0">Staff dashboard</span>
+    <div class="auth-shell" role="presentation">
+      <!-- Left visual panel -->
+      <aside class="auth-hero" aria-hidden="true">
+        <div class="auth-hero-glow"></div>
+        <div class="auth-hero-top">
+          <div class="auth-hero-logo">
+            <span class="auth-hero-mark">KTM</span>
+            <span class="auth-hero-name">Quotation Studio</span>
+          </div>
         </div>
+        <div class="auth-hero-center">
+          <div class="auth-shield">
+            <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 9.5C8 19.2 5 15.5 5 11V6l7-3z" />
+              <path d="M9.5 12.2l1.8 1.8 3.4-3.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div class="auth-float auth-float-a">PDF</div>
+          <div class="auth-float auth-float-b">₹</div>
+          <div class="auth-float auth-float-c">kWp</div>
+        </div>
+        <blockquote class="auth-quote">
+          <div class="auth-stars" aria-hidden="true">★★★★★</div>
+          <p>“Draft, version and share solar EPC proposals from one staff workspace — built for KTM sales.”</p>
+          <footer>
+            <strong>Staff dashboard</strong>
+            <span>Cloud proposals · links · follow-ups</span>
+          </footer>
+        </blockquote>
+      </aside>
+
+      <!-- Right form panel -->
+      <div class="auth-card">
+        <div class="auth-brand auth-brand-mobile">
+          <div class="auth-brand-mark">KTM</div>
+          <div>
+            <strong style="font-size:14px">Quotation Studio</strong><br />
+            <span style="font-size:11.5px;color:#8A93A0">Staff dashboard</span>
+          </div>
+        </div>
+
+        <h1 id="authHeading">Sign in to your account</h1>
+        <p class="sub" id="authSub">Enter your work credentials to open the staff dashboard.</p>
+
+        <div class="auth-tabs" role="tablist">
+          <button type="button" class="on" id="tabLogin" data-mode="login">Sign in</button>
+          <button type="button" id="tabRegister" data-mode="register">Create account</button>
+        </div>
+
+        <div id="authError" class="auth-error" role="alert"></div>
+        <div id="authOk" class="banner ok" style="display:none;margin-bottom:10px" role="status"></div>
+
+        <form id="authForm" autocomplete="on">
+          <div class="field" id="nameField" hidden>
+            <label for="authName">Your name</label>
+            <div class="input-wrap">
+              <span class="input-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.5"/><path d="M5 19c1.8-3.2 4.2-4.5 7-4.5s5.2 1.3 7 4.5" stroke-linecap="round"/></svg>
+              </span>
+              <input id="authName" name="name" type="text" placeholder="Your full name" autocomplete="name" />
+            </div>
+          </div>
+
+          <div class="field" id="roleField" hidden>
+            <label for="authRole">Role</label>
+            <div class="input-wrap">
+              <span class="input-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h7" stroke-linecap="round"/></svg>
+              </span>
+              <input id="authRole" name="role" type="text" maxlength="60"
+                placeholder="Type your role, then Create account"
+                autocomplete="organization-title" />
+            </div>
+            <p class="muted" id="roleHint">
+              Type any title (Owner, Sales, Viewer, or Project lead). No dropdown — enter it yourself.
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="authEmail">Work email</label>
+            <div class="input-wrap">
+              <span class="input-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6" stroke-linecap="round"/></svg>
+              </span>
+              <input id="authEmail" name="email" type="email" required placeholder="you@company.com" autocomplete="username" />
+            </div>
+          </div>
+
+          <div class="field" id="passwordField">
+            <div class="field-row">
+              <label for="authPassword">Password</label>
+              <button type="button" class="link-btn" id="btnForgot">Forgot?</button>
+            </div>
+            <div class="input-wrap">
+              <span class="input-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3" stroke-linecap="round"/></svg>
+              </span>
+              <input id="authPassword" name="password" type="password" required minlength="8" maxlength="128" placeholder="At least 8 characters, no spaces" autocomplete="current-password" />
+              <button type="button" class="input-action" id="btnTogglePwd" aria-label="Show password" title="Show password">
+                <svg class="ico-eye" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="field" id="resetCodeField" hidden>
+            <label for="authResetCode">Recovery code</label>
+            <div class="input-wrap">
+              <span class="input-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h10v4H7zM9 11v6M15 11v6M5 17h14" stroke-linecap="round"/></svg>
+              </span>
+              <input id="authResetCode" name="code" type="text" maxlength="40" placeholder="Shown once after Forgot password" autocomplete="one-time-code" />
+            </div>
+          </div>
+
+          <div class="field" id="newPasswordField" hidden>
+            <label for="authNewPassword">New password</label>
+            <div class="input-wrap">
+              <span class="input-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3" stroke-linecap="round"/></svg>
+              </span>
+              <input id="authNewPassword" name="newPassword" type="password" minlength="8" maxlength="128" placeholder="At least 8 characters, no spaces" autocomplete="new-password" />
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-auth" id="authSubmit" type="submit">
+            <span id="authSubmitLabel">Sign in</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h12M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </form>
+
+        <div class="auth-foot-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="btnBackSignIn" hidden>← Back to sign in</button>
+        </div>
+
+        <p class="auth-note" id="authNote">
+          Use a work email you control. Each email registers once.
+          Offline <a href="quotation.html">Studio</a> works without an account.
+        </p>
       </div>
-      <h1 id="authHeading">Sign in</h1>
-      <p class="sub" id="authSub">Cloud proposals, status and the path to customer links — Phase A.</p>
-      <div class="auth-tabs" role="tablist">
-        <button type="button" class="on" id="tabLogin" data-mode="login">Sign in</button>
-        <button type="button" id="tabRegister" data-mode="register">Create account</button>
-      </div>
-      <div id="authError" class="auth-error" role="alert"></div>
-      <div id="authOk" class="banner ok" style="display:none;margin-bottom:10px" role="status"></div>
-      <form id="authForm" autocomplete="on">
-        <div class="field" id="nameField" hidden>
-          <label for="authName">Your name</label>
-          <input id="authName" name="name" type="text" placeholder="Your full name" autocomplete="name" />
-        </div>
-        <div class="field" id="roleField" hidden>
-          <label for="authRole">Role</label>
-          <input id="authRole" name="role" type="text" maxlength="60"
-            placeholder="Type your role and press Create account"
-            autocomplete="organization-title" />
-          <p class="muted" id="roleHint" style="font-size:11.5px;margin:6px 0 0;line-height:1.45">
-            Type any title (for example Owner, Sales, Viewer, or Project lead). No dropdown — enter it yourself.
-          </p>
-        </div>
-        <div class="field">
-          <label for="authEmail">Work email</label>
-          <input id="authEmail" name="email" type="email" required placeholder="you@company.com" autocomplete="username" />
-        </div>
-        <div class="field" id="passwordField">
-          <label for="authPassword">Password</label>
-          <input id="authPassword" name="password" type="password" required minlength="8" maxlength="128" placeholder="At least 8 characters, no spaces" autocomplete="current-password" />
-        </div>
-        <div class="field" id="resetCodeField" hidden>
-          <label for="authResetCode">Recovery code</label>
-          <input id="authResetCode" name="code" type="text" maxlength="40" placeholder="Shown once after Forgot password" autocomplete="one-time-code" />
-        </div>
-        <div class="field" id="newPasswordField" hidden>
-          <label for="authNewPassword">New password</label>
-          <input id="authNewPassword" name="newPassword" type="password" minlength="8" maxlength="128" placeholder="At least 8 characters, no spaces" autocomplete="new-password" />
-        </div>
-        <button class="btn btn-primary" id="authSubmit" type="submit">Sign in</button>
-      </form>
-      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center">
-        <button type="button" class="btn btn-ghost btn-sm" id="btnForgot" style="padding-left:0">Forgot password?</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="btnBackSignIn" hidden>Back to sign in</button>
-      </div>
-      <p class="auth-note" id="authNote">
-        Use a real work email you control. Each email can register only once.
-        Password reset uses a one-time recovery code on this server (email delivery is not configured yet).
-        Offline Studio still works without an account.
-      </p>
     </div>
   </div>
 
@@ -582,6 +667,6 @@
   <div id="toast" class="toast" role="status"></div>
 
   <script src="assets/js/platform-api.js?v=role-enter1"></script>
-  <script src="assets/js/dashboard.js?v=role-enter1"></script>
+  <script src="assets/js/dashboard.js?v=auth-split1"></script>
 </body>
 </html>

@@ -103,6 +103,12 @@
     el.textContent = msg || '';
   }
 
+  function setAuthSubmitLabel(text) {
+    const label = $('authSubmitLabel');
+    if (label) label.textContent = text;
+    else if ($('authSubmit')) $('authSubmit').textContent = text;
+  }
+
   function setAuthMode(next) {
     mode = next;
     const isLogin = mode === 'login';
@@ -124,23 +130,26 @@
     if ($('authNewPassword')) $('authNewPassword').required = isReset;
     if ($('btnForgot')) $('btnForgot').hidden = !(isLogin || isForgot);
     if ($('btnBackSignIn')) $('btnBackSignIn').hidden = isLogin || isRegister;
+    /* hide tabs on forgot/reset so the flow stays clear */
+    const tabs = document.querySelector('.auth-tabs');
+    if (tabs) tabs.style.display = (isForgot || isReset) ? 'none' : '';
 
     if (isLogin) {
-      $('authHeading').textContent = 'Sign in';
-      $('authSub').textContent = 'Access your cloud proposals, customer links and follow-ups.';
-      $('authSubmit').textContent = 'Sign in';
+      $('authHeading').textContent = 'Sign in to your account';
+      $('authSub').textContent = 'Enter your work credentials to open the staff dashboard.';
+      setAuthSubmitLabel('Sign in');
     } else if (isRegister) {
-      $('authHeading').textContent = 'Create account';
-      $('authSub').textContent = 'Type your role when you create the account. Each email can register only once.';
-      $('authSubmit').textContent = 'Create account';
+      $('authHeading').textContent = 'Create your account';
+      $('authSub').textContent = 'Type your role when you register. Each work email can sign up once.';
+      setAuthSubmitLabel('Create account');
     } else if (isForgot) {
       $('authHeading').textContent = 'Forgot password';
-      $('authSub').textContent = 'Enter the email for your account. If it exists, a one-time recovery code will be shown (email delivery is not configured on this server yet).';
-      $('authSubmit').textContent = 'Get recovery code';
+      $('authSub').textContent = 'Enter the email for your account. If it exists, a one-time recovery code will be shown (email delivery is not configured yet).';
+      setAuthSubmitLabel('Get recovery code');
     } else if (isReset) {
       $('authHeading').textContent = 'Set new password';
       $('authSub').textContent = 'Enter the recovery code and choose a new password (minimum 8 characters, no spaces).';
-      $('authSubmit').textContent = 'Update password & sign in';
+      setAuthSubmitLabel('Update password & sign in');
     }
     clearAuthMessages();
   }
@@ -1079,6 +1088,15 @@
     }
     if ($('btnBackSignIn')) {
       $('btnBackSignIn').addEventListener('click', () => setAuthMode('login'));
+    }
+    if ($('btnTogglePwd') && $('authPassword')) {
+      $('btnTogglePwd').addEventListener('click', () => {
+        const inp = $('authPassword');
+        const show = inp.type === 'password';
+        inp.type = show ? 'text' : 'password';
+        $('btnTogglePwd').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        $('btnTogglePwd').title = show ? 'Hide password' : 'Show password';
+      });
     }
     $('authForm').addEventListener('submit', async (ev) => {
       ev.preventDefault();
