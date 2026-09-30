@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Preview — Solar 3D-feel login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --orange: #F2811D;
+      --orange-d: #D96A0E;
+      --navy: #1C2B3F;
+      --navy-2: #243B57;
+      --sky1: #1a2744;
+      --sky2: #3d5a80;
+      --sky3: #F4A261;
+      --cream: #FFF8F0;
+      --line: rgba(255,255,255,.14);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      color: var(--navy);
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* ===== Scene shell ===== */
+    .scene {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 28px 16px 40px;
+      position: relative;
+      overflow: hidden;
+      perspective: 1200px;
+      background: linear-gradient(165deg, var(--sky1) 0%, var(--sky2) 42%, #7B9BB8 72%, var(--sky3) 100%);
+    }
+
+    /* sun */
+    .sun {
+      position: absolute;
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      right: 12%;
+      top: 14%;
+      background: radial-gradient(circle at 35% 35%, #FFE9A8 0%, #FFB347 40%, #F2811D 70%, transparent 72%);
+      box-shadow:
+        0 0 60px 20px rgba(242,129,29,.45),
+        0 0 120px 40px rgba(242,129,29,.2);
+      animation: sunRise 2.2s cubic-bezier(.34,1.2,.64,1) both, sunPulse 4s ease-in-out 2.2s infinite;
+      z-index: 1;
+    }
+    @keyframes sunRise {
+      from { transform: translateY(80px) scale(.6); opacity: .3; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    @keyframes sunPulse {
+      0%, 100% { box-shadow: 0 0 60px 20px rgba(242,129,29,.45), 0 0 120px 40px rgba(242,129,29,.2); }
+      50% { box-shadow: 0 0 80px 28px rgba(242,129,29,.55), 0 0 140px 50px rgba(242,129,29,.28); }
+    }
+
+    /* floating energy dots */
+    .spark {
+      position: absolute;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #FFE08A;
+      opacity: .7;
+      z-index: 2;
+      animation: floatY 5s ease-in-out infinite;
+    }
+    .spark:nth-child(1) { left: 18%; top: 30%; animation-delay: 0s; }
+    .spark:nth-child(2) { left: 72%; top: 42%; animation-delay: .8s; width: 4px; height: 4px; }
+    .spark:nth-child(3) { left: 40%; top: 18%; animation-delay: 1.4s; }
+    .spark:nth-child(4) { left: 85%; top: 65%; animation-delay: .4s; width: 5px; height: 5px; }
+    @keyframes floatY {
+      0%, 100% { transform: translateY(0); opacity: .4; }
+      50% { transform: translateY(-14px); opacity: .9; }
+    }
+
+    /* rooftop block behind card */
+    .roof-wrap {
+      position: absolute;
+      left: 50%;
+      bottom: 6%;
+      width: min(520px, 92vw);
+      height: 160px;
+      transform: translateX(-50%);
+      z-index: 2;
+      pointer-events: none;
+      opacity: .55;
+    }
+    .house {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      width: 280px;
+      height: 90px;
+      margin-left: -140px;
+      background: linear-gradient(180deg, #2a3d55, #1C2B3F);
+      border-radius: 6px 6px 0 0;
+      box-shadow: 0 20px 40px rgba(0,0,0,.25);
+    }
+    .roof {
+      position: absolute;
+      left: 50%;
+      bottom: 78px;
+      width: 320px;
+      height: 70px;
+      margin-left: -160px;
+      background: linear-gradient(160deg, #3d526e, #243B57);
+      clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+    }
+    .panels {
+      position: absolute;
+      left: 50%;
+      bottom: 88px;
+      width: 200px;
+      height: 48px;
+      margin-left: -100px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 3px;
+      transform: perspective(400px) rotateX(48deg) rotateZ(-2deg);
+      transform-style: preserve-3d;
+      animation: panelWake 2.4s ease both;
+    }
+    .panels span {
+      background: linear-gradient(135deg, #1B4F72 0%, #2E86AB 40%, #1B4F72 100%);
+      border-radius: 2px;
+      border: 1px solid rgba(255,255,255,.15);
+      box-shadow: inset 0 0 8px rgba(0,200,255,.15);
+      animation: panelGlow 3s ease-in-out infinite;
+    }
+    .panels span:nth-child(odd) { animation-delay: .3s; }
+    .panels span:nth-child(3n) { animation-delay: .6s; }
+    @keyframes panelWake {
+      from { opacity: 0; transform: perspective(400px) rotateX(70deg) translateY(20px); }
+      to { opacity: 1; transform: perspective(400px) rotateX(48deg) rotateZ(-2deg); }
+    }
+    @keyframes panelGlow {
+      0%, 100% { filter: brightness(1); box-shadow: inset 0 0 8px rgba(0,200,255,.15); }
+      50% { filter: brightness(1.25); box-shadow: inset 0 0 12px rgba(255,180,50,.35); }
+    }
+
+    /* banner */
+    .badge {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      background: rgba(28,43,63,.75);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.12);
+      white-space: nowrap;
+    }
+    .badge a { color: #FFB347; margin-left: 8px; }
+
+    /* ===== 3D card ===== */
+    .stage {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 400px;
+      transform-style: preserve-3d;
+      transition: transform .15s ease-out;
+    }
+
+    .card {
+      background: rgba(255,255,255,.94);
+      border-radius: 22px;
+      padding: 28px 26px 22px;
+      border: 1px solid rgba(255,255,255,.5);
+      box-shadow:
+        0 2px 4px rgba(28,43,63,.06),
+        0 28px 56px rgba(28,43,63,.28),
+        0 0 0 1px rgba(242,129,29,.08);
+      backdrop-filter: blur(12px);
+      transform: translateZ(40px);
+      animation: cardIn 0.9s cubic-bezier(.34,1.2,.64,1) both;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--orange), #FFB347, var(--orange-d));
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateZ(40px) translateY(36px) rotateX(12deg); }
+      to { opacity: 1; transform: translateZ(40px) translateY(0) rotateX(0); }
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .mark {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--orange), var(--orange-d));
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      display: grid;
+      place-items: center;
+      font-family: Poppins, sans-serif;
+      box-shadow: 0 8px 18px rgba(242,129,29,.4);
+      position: relative;
+    }
+    .mark::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 14px;
+      border: 2px solid rgba(242,129,29,.25);
+      animation: ring 2.5s ease-out infinite;
+    }
+    @keyframes ring {
+      0% { transform: scale(.9); opacity: .8; }
+      100% { transform: scale(1.35); opacity: 0; }
+    }
+    .brand strong { display: block; font-size: 14.5px; color: var(--navy); }
+    .brand span { font-size: 12px; color: #8A93A0; }
+
+    h1 {
+      font-family: Poppins, Inter, sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+    .sub {
+      font-size: 13.5px;
+      color: #5B6472;
+      line-height: 1.45;
+      margin-bottom: 20px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      background: #F0F3F7;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 18px;
+    }
+    .tabs button {
+      flex: 1;
+      border: 0;
+      background: transparent;
+      padding: 9px;
+      border-radius: 9px;
+      font: inherit;
+      font-weight: 600;
+      font-size: 13px;
+      color: #5B6472;
+      cursor: pointer;
+      transition: .15s;
+    }
+    .tabs button.on {
+      background: #fff;
+      color: var(--navy);
+      box-shadow: 0 2px 6px rgba(28,43,63,.1);
+    }
+
+    label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #6B5A48;
+      margin-bottom: 6px;
+    }
+    .field { margin-bottom: 14px; }
+    .field-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .field-row label { margin: 0; }
+    .link {
+      border: 0;
+      background: none;
+      color: var(--orange-d);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .input-wrap .ico {
+      position: absolute;
+      left: 12px;
+      color: #A89B8C;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      transition: color .15s;
+    }
+    .input-wrap input {
+      width: 100%;
+      padding: 13px 14px 13px 40px;
+      border-radius: 12px;
+      border: 1.5px solid #E5E0D6;
+      background: #FAF8F5;
+      font: inherit;
+      font-size: 14.5px;
+      color: var(--navy);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s, background .15s, transform .15s;
+    }
+    .input-wrap input:hover { border-color: #D5CFC4; }
+    .input-wrap input:focus {
+      border-color: var(--orange);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(242,129,29,.18);
+      transform: translateY(-1px);
+    }
+    .input-wrap:focus-within .ico { color: var(--orange); }
+
+    /* charge meter under password */
+    .charge {
+      margin-top: 8px;
+      height: 5px;
+      border-radius: 99px;
+      background: #E8E0D4;
+      overflow: hidden;
+    }
+    .charge i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--orange), #FFB347);
+      box-shadow: 0 0 10px rgba(242,129,29,.5);
+      transition: width .2s ease;
+    }
+    .charge-label {
+      font-size: 11px;
+      color: #8A93A0;
+      margin-top: 5px;
+    }
+
+    .btn {
+      width: 100%;
+      margin-top: 8px;
+      padding: 14px;
+      border: 0;
+      border-radius: 12px;
+      font: inherit;
+      font-weight: 700;
+      font-size: 15px;
+      color: #fff;
+      cursor: pointer;
+      background: linear-gradient(90deg, #F5A04A, var(--orange) 50%, var(--orange-d));
+      box-shadow: 0 10px 24px rgba(242,129,29,.35);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform .12s, filter .15s, box-shadow .15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(242,129,29,.42);
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn.loading { pointer-events: none; opacity: .85; }
+    .btn.loading::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.25), transparent);
+      animation: sheen 1s linear infinite;
+    }
+    @keyframes sheen {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(100%); }
+    }
+
+    .note {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #8A93A0;
+      text-align: center;
+      line-height: 1.45;
+    }
+    .note strong { color: var(--orange-d); }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid #EDE8E0;
+    }
+    .stat {
+      text-align: center;
+      padding: 8px 4px;
+      border-radius: 10px;
+      background: #F7F4EF;
+    }
+    .stat b {
+      display: block;
+      font-family: Poppins, sans-serif;
+      font-size: 14px;
+      color: var(--navy);
+    }
+    .stat span {
+      font-size: 10.5px;
+      color: #8A93A0;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    /* success flash */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--navy);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: .3s;
+      z-index: 50;
+      box-shadow: 0 12px 28px rgba(0,0,0,.25);
+    }
+    .toast.on {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .hint-bar {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 15;
+      font-size: 12px;
+      color: rgba(255,255,255,.85);
+      text-align: center;
+      max-width: 90vw;
+      text-shadow: 0 1px 4px rgba(0,0,0,.3);
+    }
+
+    @media (max-width: 520px) {
+      .sun { width: 90px; height: 90px; right: 6%; top: 10%; }
+      .roof-wrap { opacity: .35; height: 120px; }
+      h1 { font-size: 20px; }
+      .card { padding: 22px 18px 18px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .sun, .panels, .panels span, .spark, .card, .mark::after {
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="scene" id="scene">
+    <div class="badge">
+      PREVIEW ONLY — not real login
+      <a href="dashboard.html">Real dashboard →</a>
+    </div>
+
+    <div class="sun" aria-hidden="true"></div>
+    <span class="spark"></span>
+    <span class="spark"></span>
+    <span class="spark"></span>
+    <span class="spark"></span>
+
+    <div class="roof-wrap" aria-hidden="true">
+      <div class="roof"></div>
+      <div class="panels">
+        <span></span><span></span><span></span>
+        <span></span><span></span><span></span>
+      </div>
+      <div class="house"></div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="card" id="card">
+        <div class="brand">
+          <div class="mark">KTM</div>
+          <div>
+            <strong>Quotation Studio</strong>
+            <span>Staff sign-in · solar themed</span>
+          </div>
+        </div>
+
+        <h1>Power up your workspace</h1>
+        <p class="sub">3D-feel solar login preview — mouse tilt, sun rise, panel glow, charge meter.</p>
+
+        <div class="tabs">
+          <button type="button" class="on" id="tabIn">Sign in</button>
+          <button type="button" id="tabUp">Create account</button>
+        </div>
+
+        <form id="demoForm" autocomplete="off">
+          <div class="field">
+            <label for="em">Work email</label>
+            <div class="input-wrap">
+              <span class="ico">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="12" height="10" rx="2"/><path d="M2 6l6 4 6-4"/></svg>
+              </span>
+              <input id="em" type="email" placeholder="you@company.com" />
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="pw">Password</label>
+              <button type="button" class="link">Forgot?</button>
+            </div>
+            <div class="input-wrap">
+              <span class="ico">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="10" height="8" rx="2"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
+              </span>
+              <input id="pw" type="password" placeholder="At least 8 characters" />
+            </div>
+            <div class="charge" aria-hidden="true"><i id="chargeBar"></i></div>
+            <div class="charge-label" id="chargeLabel">Battery · type password to charge</div>
+          </div>
+
+          <button class="btn" id="btn" type="submit">
+            <span id="btnText">Sign in</span>
+          </button>
+        </form>
+
+        <div class="stats" aria-hidden="true">
+          <div class="stat"><b id="s1">0.0</b><span>kWp</span></div>
+          <div class="stat"><b id="s2">0</b><span>kWh/yr</span></div>
+          <div class="stat"><b id="s3">—</b><span>status</span></div>
+        </div>
+
+        <p class="note">Demo UI only. Real auth is on <strong>dashboard.html</strong>.</p>
+      </div>
+    </div>
+
+    <p class="hint-bar">Move mouse over the card · type password · press Sign in</p>
+  </div>
+
+  <div class="toast" id="toast">System online · welcome back</div>
+
+  <script>
+    (function () {
+      var stage = document.getElementById('stage');
+      var scene = document.getElementById('scene');
+      var pw = document.getElementById('pw');
+      var bar = document.getElementById('chargeBar');
+      var lab = document.getElementById('chargeLabel');
+      var form = document.getElementById('demoForm');
+      var btn = document.getElementById('btn');
+      var btnText = document.getElementById('btnText');
+      var toast = document.getElementById('toast');
+      var s1 = document.getElementById('s1');
+      var s2 = document.getElementById('s2');
+      var s3 = document.getElementById('s3');
+
+      /* parallax tilt — 3D feel */
+      scene.addEventListener('mousemove', function (e) {
+        var r = stage.getBoundingClientRect();
+        var cx = r.left + r.width / 2;
+        var cy = r.top + r.height / 2;
+        var dx = (e.clientX - cx) / (r.width / 2);
+        var dy = (e.clientY - cy) / (r.height / 2);
+        dx = Math.max(-1, Math.min(1, dx));
+        dy = Math.max(-1, Math.min(1, dy));
+        stage.style.transform =
+          'rotateY(' + (dx * 8) + 'deg) rotateX(' + (-dy * 6) + 'deg)';
+      });
+      scene.addEventListener('mouseleave', function () {
+        stage.style.transform = 'rotateY(0) rotateX(0)';
+      });
+
+      /* password → charge meter */
+      function updateCharge() {
+        var n = (pw.value || '').length;
+        var pct = Math.min(100, Math.round((n / 8) * 100));
+        bar.style.width = pct + '%';
+        if (pct === 0) lab.textContent = 'Battery · type password to charge';
+        else if (pct < 100) lab.textContent = 'Charging · ' + pct + '%';
+        else lab.textContent = 'Full charge · ready to sign in';
+      }
+      pw.addEventListener('input', updateCharge);
+
+      /* decorative meters tick up */
+      var t0 = Date.now();
+      function tickMeters() {
+        var t = Math.min(1, (Date.now() - t0) / 1800);
+        var ease = 1 - Math.pow(1 - t, 3);
+        s1.textContent = (7 * ease).toFixed(1);
+        s2.textContent = Math.round(10344 * ease).toLocaleString('en-IN');
+        s3.textContent = t < 1 ? 'sync…' : 'online';
+        if (t < 1) requestAnimationFrame(tickMeters);
+      }
+      requestAnimationFrame(tickMeters);
+
+      document.getElementById('tabIn').addEventListener('click', function () {
+        this.classList.add('on');
+        document.getElementById('tabUp').classList.remove('on');
+        btnText.textContent = 'Sign in';
+      });
+      document.getElementById('tabUp').addEventListener('click', function () {
+        this.classList.add('on');
+        document.getElementById('tabIn').classList.remove('on');
+        btnText.textContent = 'Create account';
+      });
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        btn.classList.add('loading');
+        btnText.textContent = 'Connecting to grid…';
+        setTimeout(function () {
+          btn.classList.remove('loading');
+          btnText.textContent = 'Sign in';
+          toast.classList.add('on');
+          s3.textContent = 'online';
+          document.querySelector('.sun').style.transform = 'scale(1.15)';
+          setTimeout(function () {
+            toast.classList.remove('on');
+            document.querySelector('.sun').style.transform = '';
+          }, 2200);
+        }, 1100);
+      });
+    })();
+  </script>
+</body>
+</html>
