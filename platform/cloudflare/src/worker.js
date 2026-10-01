@@ -1751,14 +1751,32 @@ export default {
       return handleApi(request, env, url);
     }
 
-    /* Static assets from Workers Assets (./public via wrangler [assets]) */
+    /* Static assets from Workers Assets (./public via wrangler [assets]).
+       Pass-through (no path rewrite): Assets resolves '/' to index.html
+       itself. Rewriting '/' -> '/index.html' causes ERR_TOO_MANY_REDIRECTS
+       because Assets canonicalizes /index.html back to '/'. Same-origin
+       asset redirects are followed server-side so browsers never loop. */
     const assets = getAssets(env);
     if (assets) {
+      const get = (pathname) => (pathname === url.pathname)
+        ? assets.fetch(request)
+        : assets.fetch(new Request(new URL(pathname, url.origin).toString(), { headers: request.headers }));
+      const follow = async (res) => {
+        for (let i = 0; i < 3 && res && res.status >= 300 && res.status < 400; i++) {
+          const loc = res.headers.get('Location');
+          if (!loc) break;
+          const next = new URL(loc, url.origin);
+          if (next.origin !== url.origin) break;
+          res = await assets.fetch(new Request(next.toString(), { headers: request.headers }));
+        }
+        return res;
+      };
       let path = url.pathname;
-      if (path === '/') path = '/index.html';
       if (path === '/dashboard') path = '/dashboard.html';
-      const assetUrl = new URL(path, url.origin);
-      const res = await assets.fetch(new Request(assetUrl.toString(), request));
+      let res = await follow(await get(path));
+      if (res.status === 404 && path === '/') {
+        res = await follow(await get('/index.html'));
+      }
       if (res.status === 404) {
         return new Response(
           '<!DOCTYPE html><html><body style="font-family:system-ui;padding:2rem;background:#111;color:#eee">' +
