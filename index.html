@@ -1,565 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="robots" content="noindex" />
-  <title>Quotation Studio · KTM Energy Experts</title>
-  <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png" />
-  <style>
-    :root {
-      --navy:    #0E2339;
-      --navy-2:  #102A44;
-      --navy-3:  #0B1F34;
-      --navy-4:  #1C4368;
-      --orange:  #F2811D;
-      --orange-l:#FFB347;
-      --orange-d:#D96A0E;
-      --ink:     #10233A;
-      --muted:   #5D6B7C;
-      --muted-2: #8A97A6;
-      --line:    #E3E9F0;
-      --field:   #F6F9FC;
-      --r:       14px;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; }
-    body {
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: var(--ink);
-      background: var(--navy);
-      overflow: hidden;
-      -webkit-font-smoothing: antialiased;
-    }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Sign in | KTM Quotation Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#080b12; --deep:#0e1422; --amber:#f5a12a; --ember:#e8661c;
+  --text:#f4efe7; --muted:#9aa3b4; --line:rgba(255,255,255,.11); --err:#ff7a6b;
+  --head:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"DM Sans","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font-family:var(--body);color:var(--text);background:var(--night);overflow-x:hidden;-webkit-font-smoothing:antialiased}
 
-    /* ================================================================
-       LIVE BACKGROUND — the 0fe402d navy solar scene, full screen
-       ================================================================ */
-    .scene {
-      position: fixed; inset: 0; z-index: 0; overflow: hidden;
-      background:
-        radial-gradient(120% 90% at 12% 8%, var(--navy-4) 0%, transparent 55%),
-        radial-gradient(90% 70% at 100% 100%, rgba(242,129,29,.28) 0%, transparent 60%),
-        linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 55%, var(--navy-3) 100%);
-    }
+/* ---------- live background ---------- */
+.bg{position:fixed;inset:0;overflow:hidden;z-index:0;
+  background:radial-gradient(120% 90% at 20% 110%,#2a1507 0%,transparent 55%),
+             linear-gradient(180deg,var(--night) 0%,var(--deep) 100%)}
+.sun{position:absolute;width:75vmax;height:75vmax;left:-24vmax;bottom:-44vmax;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,176,70,.6) 0%,rgba(232,102,28,.28) 38%,transparent 68%);
+  animation:breathe 10s ease-in-out infinite}
+.floor{position:absolute;left:-30%;right:-30%;bottom:-8%;height:60%;
+  transform:perspective(620px) rotateX(60deg);transform-origin:50% 100%;
+  background:
+    linear-gradient(rgba(245,161,42,.26) 1px,transparent 1px) 0 0/100% 76px,
+    linear-gradient(90deg,rgba(245,161,42,.2) 1px,transparent 1px) 0 0/116px 100%,
+    linear-gradient(180deg,rgba(38,60,118,.05),rgba(32,52,104,.5));
+  -webkit-mask-image:linear-gradient(to top,#000 25%,transparent 96%);
+  mask-image:linear-gradient(to top,#000 25%,transparent 96%);
+  animation:flow 14s linear infinite}
+.floor::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(105deg,transparent 42%,rgba(255,218,160,.3) 50%,transparent 58%) 120% 0/260% 100% no-repeat;
+  animation:glint 9s ease-in-out infinite}
+#sparks{position:absolute;inset:0;width:100%;height:100%;display:block}
+@keyframes breathe{50%{transform:scale(1.08);opacity:.82}}
+@keyframes flow{to{background-position:0 76px,0 0,0 0}}
+@keyframes glint{to{background-position:-30% 0}}
 
-    /* faint engineering grid */
-    .scene::before {
-      content: ''; position: absolute; inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
-      background-size: 46px 46px;
-      mask-image: radial-gradient(85% 75% at 50% 42%, #000 0%, transparent 82%);
-      -webkit-mask-image: radial-gradient(85% 75% at 50% 42%, #000 0%, transparent 82%);
-      pointer-events: none;
-    }
+/* ---------- layout ---------- */
+.page{position:relative;z-index:1;min-height:100dvh;display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,80px);
+  align-items:center;max-width:1200px;margin:0 auto;padding:clamp(24px,5vw,56px)}
+.brand img{height:88px;width:auto;display:block;margin-bottom:36px}
+.brand h1{font-family:var(--head);font-weight:700;font-size:clamp(34px,4.6vw,58px);line-height:1.04;letter-spacing:-.02em;max-width:13ch}
+.brand p{margin-top:20px;color:var(--muted);font-size:17px;line-height:1.6;max-width:44ch}
+.brand ul{list-style:none;padding:0;margin-top:30px;display:grid;gap:12px;color:#d8d3c9;font-size:15px}
+.brand li{display:flex;gap:12px;align-items:center}
+.brand li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 12px var(--amber);flex:none}
 
-    /* ---- sun ---- */
-    .sun {
-      position: absolute; z-index: 1;
-      width: clamp(170px, 21vw, 290px); aspect-ratio: 1; border-radius: 50%;
-      right: -5%; top: -8%;
-      background: radial-gradient(circle at 38% 38%, #FFE9A8 0%, #FFC169 32%, var(--orange) 58%, rgba(242,129,29,0) 70%);
-      box-shadow: 0 0 70px 26px rgba(242,129,29,.32);
-      animation: sunRise 1.6s cubic-bezier(.22,1,.36,1) both, sunPulse 5s ease-in-out 1.6s infinite;
-    }
-    @keyframes sunRise { from { transform: scale(.5) translateY(26px); opacity: 0 } to { transform: scale(1) translateY(0); opacity: 1 } }
-    @keyframes sunPulse {
-      0%,100% { box-shadow: 0 0 70px 26px rgba(242,129,29,.32) }
-      50%     { box-shadow: 0 0 96px 38px rgba(242,129,29,.44) }
-    }
+/* ---------- card ---------- */
+.card{width:100%;max-width:440px;justify-self:end;padding:30px;border-radius:20px;
+  background:rgba(16,21,34,.62);border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(20px) saturate(140%);backdrop-filter:blur(20px) saturate(140%);
+  box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.07);
+  animation:rise .8s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}}
+.tabs{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:12px;background:rgba(255,255,255,.06);margin-bottom:26px}
+.tabs button{position:relative;z-index:1;background:none;border:0;color:var(--muted);font:600 14px var(--body);padding:11px 0;cursor:pointer;transition:color .25s;border-radius:9px}
+.tabs button[aria-selected=t]{color:#1c1002}
+.ind{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:9px;
+  background:linear-gradient(135deg,var(--amber),var(--ember));transition:transform .35s cubic-bezier(.3,.8,.3,1)}
+.tabs[data-mode=up] .ind{transform:translateX(100%)}
+h2{font-family:var(--head);font-size:26px;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:14.5px;margin:6px 0 22px}
+form{display:grid;gap:16px;animation:fade .35s ease both}
+form[hidden]{display:none}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}}
+.field label{display:block;font-size:13.5px;font-weight:500;color:#cfd3dc;margin-bottom:7px}
+.input{position:relative}
+.input input{width:100%;height:48px;padding:0 14px;border-radius:11px;border:1px solid var(--line);
+  background:rgba(8,11,18,.55);color:var(--text);font:400 15px var(--body);transition:border-color .2s,box-shadow .2s}
+.input input::placeholder{color:#5f6879}
+.input input:hover{border-color:rgba(255,255,255,.2)}
+.input input:focus{outline:0;border-color:var(--amber);box-shadow:0 0 0 3px rgba(245,161,42,.2)}
+.input input[aria-invalid=true]{border-color:var(--err)}
+.eye{position:absolute;right:6px;top:6px;height:36px;padding:0 10px;border:0;background:none;color:var(--muted);font:500 13px var(--body);cursor:pointer;border-radius:8px}
+.eye:hover{color:var(--text)}
+.err{color:var(--err);font-size:12.5px;margin-top:6px;min-height:0}
+.row{display:flex;justify-content:space-between;align-items:center;font-size:13.5px}
+.check{display:flex;gap:9px;align-items:center;color:#cfd3dc;cursor:pointer}
+.check input{accent-color:var(--amber);width:16px;height:16px}
+a{color:var(--amber);text-decoration:none}
+a:hover{text-decoration:underline}
+.btn{height:50px;border:0;border-radius:12px;cursor:pointer;font:600 15.5px var(--body);color:#1c1002;margin-top:4px;
+  background:linear-gradient(135deg,var(--amber),var(--ember));box-shadow:0 10px 28px rgba(232,102,28,.35);
+  transition:transform .2s,box-shadow .2s,filter .2s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 14px 34px rgba(232,102,28,.45);filter:brightness(1.05)}
+.btn:active{transform:none}
+.btn[disabled]{opacity:.7;cursor:progress}
+.status{font-size:13.5px;text-align:center;min-height:18px;color:var(--amber)}
+.status.bad{color:var(--err)}
+.foot{margin-top:18px;text-align:center;font-size:12.5px;color:#6f788a}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 
-    /* ---- rotating ray sweep ---- */
-    .rays {
-      position: absolute; z-index: 1;
-      right: -13%; top: -16%;
-      width: clamp(420px, 58vw, 760px); aspect-ratio: 1; border-radius: 50%;
-      background: conic-gradient(from 0deg,
-        rgba(255,179,71,.16) 0deg, transparent 26deg,
-        rgba(255,179,71,.10) 52deg, transparent 78deg,
-        rgba(255,179,71,.14) 104deg, transparent 130deg,
-        rgba(255,179,71,.08) 156deg, transparent 182deg,
-        rgba(255,179,71,.12) 208deg, transparent 234deg,
-        rgba(255,179,71,.10) 260deg, transparent 286deg,
-        rgba(255,179,71,.14) 312deg, transparent 338deg);
-      mask-image: radial-gradient(circle, #000 30%, transparent 70%);
-      -webkit-mask-image: radial-gradient(circle, #000 30%, transparent 70%);
-      animation: spin 44s linear infinite;
-      pointer-events: none;
-    }
-    @keyframes spin { to { transform: rotate(360deg) } }
-
-    /* ---- rooftops + solar panels ---- */
-    .roof { position: absolute; z-index: 1; bottom: 0; height: 210px; pointer-events: none; }
-    .roof.left  { left: 0;  width: 46%; }
-    .roof.right { right: 0; width: 40%; }
-    .roof .hill {
-      position: absolute; left: -30%; right: -30%; bottom: -70px; height: 210px;
-      background: linear-gradient(180deg, rgba(11,31,52,0) 0%, rgba(11,31,52,.75) 60%);
-    }
-    .panel-grid {
-      position: absolute; bottom: 44px;
-      display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px;
-      transform: perspective(520px) rotateX(52deg) rotateZ(-3deg);
-      transform-style: preserve-3d;
-      animation: panelIn 1.5s cubic-bezier(.22,1,.36,1) .3s both;
-    }
-    .roof.left  .panel-grid { left: 9%;  width: min(340px, 78%); }
-    .roof.right .panel-grid { right: 12%; width: min(280px, 72%); }
-    .panel-grid span {
-      aspect-ratio: 1 / 1.05; border-radius: 2px;
-      background: linear-gradient(135deg, #1B4F72 0%, #2E86AB 45%, #1B4F72 100%);
-      border: 1px solid rgba(255,255,255,.18);
-      box-shadow: inset 0 0 10px rgba(120,220,255,.16);
-      animation: panelGlow 3.4s ease-in-out infinite;
-    }
-    .panel-grid span:nth-child(odd) { animation-delay: .25s }
-    .panel-grid span:nth-child(3n)  { animation-delay: .6s }
-    .panel-grid span:nth-child(4n)  { animation-delay: 1s }
-    .panel-grid span:nth-child(5n)  { animation-delay: 1.4s }
-    @keyframes panelIn {
-      from { opacity: 0; transform: perspective(520px) rotateX(76deg) translateY(26px) }
-      to   { opacity: 1; transform: perspective(520px) rotateX(52deg) rotateZ(-3deg) }
-    }
-    @keyframes panelGlow {
-      0%,100% { filter: brightness(1);   box-shadow: inset 0 0 10px rgba(120,220,255,.16) }
-      50%     { filter: brightness(1.3); box-shadow: inset 0 0 14px rgba(255,190,90,.4) }
-    }
-
-    /* ---- current-flow sparks ---- */
-    .sparks { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-    .sparks i {
-      position: absolute; width: 5px; height: 5px; border-radius: 50%;
-      background: #FFD98A; box-shadow: 0 0 10px 2px rgba(255,179,71,.75);
-      animation: floatY 5.5s ease-in-out infinite;
-    }
-    .sparks i:nth-child(1) { left: 12%; bottom: 26%; animation-delay: 0s }
-    .sparks i:nth-child(2) { left: 22%; bottom: 14%; animation-delay: .9s;  width: 4px; height: 4px }
-    .sparks i:nth-child(3) { left: 34%; bottom: 34%; animation-delay: 1.8s }
-    .sparks i:nth-child(4) { left: 44%; bottom: 18%; animation-delay: 2.6s; width: 4px; height: 4px }
-    .sparks i:nth-child(5) { left: 56%; bottom: 30%; animation-delay: 3.4s }
-    .sparks i:nth-child(6) { left: 68%; bottom: 16%; animation-delay: 1.3s; width: 3px; height: 3px }
-    .sparks i:nth-child(7) { left: 79%; bottom: 28%; animation-delay: 2.1s }
-    .sparks i:nth-child(8) { left: 90%; bottom: 20%; animation-delay: 4s;   width: 4px; height: 4px }
-    @keyframes floatY { 0%,100% { transform: translateY(0); opacity: .35 } 50% { transform: translateY(-16px); opacity: .95 } }
-
-    /* ---- readability veil behind the card ---- */
-    .veil {
-      position: absolute; inset: 0; z-index: 3;
-      background: radial-gradient(52% 46% at 50% 48%, rgba(8,24,40,.62) 0%, rgba(8,24,40,.30) 58%, transparent 100%);
-      pointer-events: none;
-    }
-
-    /* ---- brand mark, top-left ---- */
-    .brandmark {
-      position: absolute; z-index: 4; left: 40px; top: 34px;
-      animation: fadeIn 1s ease .5s both;
-    }
-    .brandmark img { width: 178px; height: auto; display: block; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px) } to { opacity: 1; transform: none } }
-
-    /* ================================================================
-       LOGIN CARD — in front of the scene
-       ================================================================ */
-    .wrap {
-      position: relative; z-index: 5;
-      min-height: 100vh; min-height: 100dvh;
-      display: grid; place-items: center;
-      padding: 24px 16px;
-      overflow-y: auto;
-    }
-
-    .card {
-      width: 100%; max-width: 386px;
-      background: rgba(255,255,255,.97);
-      border: 1px solid rgba(255,255,255,.62);
-      border-radius: 20px;
-      padding: 30px 28px 24px;
-      box-shadow:
-        0 2px 6px rgba(4,16,28,.18),
-        0 30px 70px rgba(4,16,28,.46),
-        0 0 0 1px rgba(242,129,29,.06);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      animation: cardIn .8s cubic-bezier(.22,1,.36,1) both;
-      position: relative;
-    }
-    .card::before {
-      content: ''; position: absolute; top: 0; left: 22px; right: 22px; height: 3px;
-      border-radius: 0 0 4px 4px;
-      background: linear-gradient(90deg, var(--orange-d), var(--orange), var(--orange-l));
-    }
-    @keyframes cardIn {
-      from { opacity: 0; transform: translateY(20px) scale(.985) }
-      to   { opacity: 1; transform: none }
-    }
-
-    .logo { display: flex; justify-content: center; margin-bottom: 20px; }
-    /* ktm-logo-light.png = dark-navy lettering, for light surfaces.
-       (ktm-logo-dark.png is the WHITE version used on the dark scene.) */
-    .logo img { width: 168px; height: auto; display: block; }
-
-    .tabs {
-      display: flex; gap: 4px; padding: 4px;
-      background: #EFF3F8; border-radius: 12px; margin-bottom: 20px;
-    }
-    .tabs button {
-      flex: 1; border: 0; background: transparent; cursor: pointer;
-      padding: 10px 8px; border-radius: 9px;
-      font: inherit; font-size: 13.5px; font-weight: 600; color: var(--muted);
-      transition: color .16s, background .16s, box-shadow .16s;
-    }
-    .tabs button[aria-selected="true"] {
-      background: #fff; color: var(--ink);
-      box-shadow: 0 1px 3px rgba(16,35,58,.14), 0 0 0 1px rgba(16,35,58,.04);
-    }
-
-    .field { margin-bottom: 15px; }
-    .field > label {
-      display: block; font-size: 11.5px; font-weight: 700;
-      letter-spacing: .06em; text-transform: uppercase; color: #46586B;
-      margin-bottom: 6px;
-    }
-    .field-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
-    .field-row label { margin: 0; }
-
-    .iw { position: relative; display: flex; align-items: center; }
-    .iw > .ico {
-      position: absolute; left: 13px; display: grid; place-items: center;
-      color: #9AA8B7; pointer-events: none; transition: color .16s;
-    }
-    .iw input {
-      width: 100%; font: inherit; font-size: 15px; color: var(--ink);
-      padding: 13px 14px 13px 40px;
-      border: 1.5px solid var(--line); border-radius: var(--r);
-      background: var(--field); outline: none;
-      transition: border-color .16s, box-shadow .16s, background .16s;
-    }
-    .iw input::placeholder { color: #A7B3C0; }
-    .iw input:hover { border-color: #CFDAE6; }
-    .iw input:focus { border-color: var(--orange); background: #fff; box-shadow: 0 0 0 4px rgba(242,129,29,.16); }
-    .iw:focus-within .ico { color: var(--orange); }
-    .iw input[aria-invalid="true"] { border-color: #E5484D; }
-
-    .peek {
-      position: absolute; right: 8px; border: 0; background: transparent;
-      color: var(--muted-2); cursor: pointer; padding: 6px; border-radius: 8px;
-      display: grid; place-items: center;
-    }
-    .peek:hover { color: var(--orange-d); background: #FFF4E8; }
-
-    .hint { margin-top: 6px; font-size: 11.5px; color: var(--muted-2); line-height: 1.45; }
-
-    .charge { margin-top: 9px; height: 6px; border-radius: 99px; background: #EAF0F6; overflow: hidden; }
-    .charge i {
-      display: block; height: 100%; width: 0; border-radius: 99px;
-      background: linear-gradient(90deg, var(--orange-l), var(--orange));
-      box-shadow: 0 0 10px rgba(242,129,29,.45);
-      transition: width .22s ease, background .22s ease;
-    }
-    .charge.strong i { background: linear-gradient(90deg, #37C978, #1FA85C); box-shadow: 0 0 10px rgba(31,168,92,.4); }
-    .charge-label { margin-top: 6px; font-size: 11px; color: var(--muted-2); }
-
-    .link-btn { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--orange-d); cursor: pointer; padding: 0; }
-    .link-btn:hover { text-decoration: underline; }
-
-    .check { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); cursor: pointer; user-select: none; }
-    .check input { width: 15px; height: 15px; accent-color: var(--orange); cursor: pointer; }
-
-    .btn {
-      width: 100%; margin-top: 6px; padding: 14px 16px; border: 0; border-radius: var(--r);
-      font: inherit; font-size: 15px; font-weight: 700; color: #fff; cursor: pointer;
-      background: linear-gradient(95deg, #F5A04A, var(--orange) 52%, var(--orange-d));
-      box-shadow: 0 10px 24px rgba(242,129,29,.34);
-      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-      position: relative; overflow: hidden;
-      transition: transform .12s, box-shadow .16s, filter .16s;
-    }
-    .btn:hover { filter: brightness(1.04); transform: translateY(-1px); box-shadow: 0 14px 28px rgba(242,129,29,.40); }
-    .btn:active { transform: translateY(1px); }
-    .btn[disabled] { pointer-events: none; opacity: .85; }
-    .btn[disabled]::after {
-      content: ''; position: absolute; inset: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,.32), transparent);
-      animation: sheen 1.05s linear infinite;
-    }
-    @keyframes sheen { from { transform: translateX(-100%) } to { transform: translateX(100%) } }
-
-    .err {
-      display: none; margin-bottom: 14px; padding: 10px 12px;
-      border-radius: 11px; font-size: 12.5px; line-height: 1.45;
-      background: #FEF2F2; border: 1px solid #FBD5D5; color: #B42318;
-    }
-    .err.on { display: block; }
-
-    .tag {
-      position: fixed; z-index: 6; left: 50%; bottom: 16px; transform: translateX(-50%);
-      font-size: 11px; letter-spacing: .09em; text-transform: uppercase; font-weight: 600;
-      color: rgba(255,255,255,.42); white-space: nowrap;
-    }
-    .tag a { color: rgba(255,179,71,.85); text-decoration: none; }
-    .tag a:hover { text-decoration: underline; }
-
-    @media (max-width: 900px) {
-      .brandmark { left: 22px; top: 22px; }
-      .brandmark img { width: 138px; }
-      .roof.left  { width: 70%; }
-      .roof.right { width: 62%; }
-      .roof { height: 160px; }
-      .panel-grid { bottom: 30px; }
-    }
-    @media (max-width: 420px) {
-      .card { padding: 24px 20px 20px; border-radius: 18px; }
-      .logo img { width: 148px; }
-      .roof { height: 120px; }
-      .panel-grid { bottom: 22px; gap: 2px; }
-      .tag { font-size: 10px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .sun, .rays, .panel-grid, .panel-grid span, .sparks i, .card, .brandmark {
-        animation: none !important;
-      }
-    }
-  </style>
+@media (max-width:900px){
+  .page{grid-template-columns:1fr;align-content:start;gap:28px}
+  .brand img{height:64px;margin-bottom:22px}
+  .brand ul{display:none}
+  .card{justify-self:center}
+}
+@media (prefers-reduced-motion:reduce){
+  .sun,.floor,.floor::after,.card,form{animation:none}
+}
+</style>
 </head>
 <body>
+<div class="bg" aria-hidden="true">
+  <div class="sun"></div>
+  <div class="floor"></div>
+  <canvas id="sparks"></canvas>
+</div>
 
-  <!-- ================= LIVE BACKGROUND ================= -->
-  <div class="scene" id="scene" aria-hidden="true">
-    <div class="sun"    data-depth="10"></div>
-    <div class="rays"   data-depth="18"></div>
+<main class="page">
+  <section class="brand">
+    <img src="assets/images/ktm-logo-dark.png" alt="KTM Energy Experts">
+    <h1>Solar quotations, ready in minutes.</h1>
+    <p>Enter the site details, review the savings and subsidy numbers, and send your customer a finished proposal PDF.</p>
+    <ul>
+      <li>Automatic cost, GST and subsidy calculation</li>
+      <li>Payback and lifetime savings worked out for you</li>
+      <li>Branded proposal, one click to download</li>
+    </ul>
+  </section>
 
-    <div class="roof left" data-depth="6">
-      <div class="hill"></div>
-      <div class="panel-grid" id="panelsL"></div>
+  <section class="card" aria-label="Account access">
+    <div class="tabs" id="tabs" data-mode="in" role="tablist">
+      <span class="ind"></span>
+      <button role="tab" id="tab-in" aria-selected="true" aria-controls="f-in" type="button">Sign in</button>
+      <button role="tab" id="tab-up" aria-selected="false" aria-controls="f-up" type="button">Create account</button>
     </div>
-    <div class="roof right" data-depth="6">
-      <div class="hill"></div>
-      <div class="panel-grid" id="panelsR"></div>
-    </div>
 
-    <div class="sparks">
-      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-    </div>
+    <form id="f-in" data-mode="in" novalidate aria-labelledby="tab-in">
+      <div><h2>Welcome back</h2><p class="sub">Sign in to continue to your quotations.</p></div>
+      <div class="field"><label for="in-email">Email</label>
+        <div class="input"><input id="in-email" name="email" type="email" autocomplete="email" placeholder="you@company.com"></div><div class="err"></div></div>
+      <div class="field"><label for="in-pass">Password</label>
+        <div class="input"><input id="in-pass" name="password" type="password" autocomplete="current-password" placeholder="Enter your password"><button class="eye" type="button" aria-label="Show password">Show</button></div><div class="err"></div></div>
+      <div class="row"><label class="check"><input type="checkbox" name="remember"> Keep me signed in</label><a href="#" id="forgot">Forgot password?</a></div>
+      <button class="btn" type="submit">Sign in</button>
+      <div class="status" role="status" aria-live="polite"></div>
+    </form>
 
-    <div class="veil"></div>
-  </div>
+    <form id="f-up" data-mode="up" novalidate hidden aria-labelledby="tab-up">
+      <div><h2>Create your account</h2><p class="sub">Set up access to generate and manage quotations.</p></div>
+      <div class="field"><label for="up-name">Full name</label>
+        <div class="input"><input id="up-name" name="name" type="text" autocomplete="name" placeholder="Your name"></div><div class="err"></div></div>
+      <div class="field"><label for="up-email">Work email</label>
+        <div class="input"><input id="up-email" name="email" type="email" autocomplete="email" placeholder="you@company.com"></div><div class="err"></div></div>
+      <!-- free-text role: type + submit, no dropdown -->
+      <div class="field"><label for="up-role">Your role</label>
+        <div class="input"><input id="up-role" name="role" type="text" autocomplete="off" placeholder="Type your role, e.g. Sales Engineer"></div><div class="err"></div>
+        <p class="err" style="margin-top:6px;color:#6f788a">Type it yourself — no dropdown. Owner, Sales, Engineer, Accounts, Viewer or your own title.</p></div>
+      <div class="field"><label for="up-pass">Password</label>
+        <div class="input"><input id="up-pass" name="password" type="password" autocomplete="new-password" placeholder="At least 8 characters"><button class="eye" type="button" aria-label="Show password">Show</button></div><div class="err"></div></div>
+      <button class="btn" type="submit">Create account</button>
+      <div class="status" role="status" aria-live="polite"></div>
+    </form>
 
-  <div class="brandmark">
-    <!-- white-lettering variant, for the dark scene -->
-    <img src="assets/images/ktm-logo-dark.png" alt="KTM Energy Experts" width="178" height="105" />
-  </div>
+    <p class="foot">KTM Energy Experts &middot; Solar EPC</p>
+  </section>
+</main>
 
-  <!-- ================= LOGIN ================= -->
-  <div class="wrap">
-    <div class="card">
-      <div class="logo">
-        <img src="assets/images/ktm-logo-light.png" alt="KTM Energy Experts" width="168" height="99" />
-      </div>
+<script>
+/* ---- tabs ---- */
+const tabs=document.getElementById('tabs'),forms={in:document.getElementById('f-in'),up:document.getElementById('f-up')};
+function setMode(m){
+  tabs.dataset.mode=m;
+  document.getElementById('tab-in').setAttribute('aria-selected',m==='in');
+  document.getElementById('tab-up').setAttribute('aria-selected',m==='up');
+  forms.in.hidden=m!=='in';forms.up.hidden=m!=='up';
+}
+document.getElementById('tab-in').onclick=()=>setMode('in');
+document.getElementById('tab-up').onclick=()=>setMode('up');
 
-      <div class="tabs" role="tablist" aria-label="Account">
-        <button type="button" role="tab" id="tabIn" aria-selected="true" aria-controls="acctForm">Sign in</button>
-        <button type="button" role="tab" id="tabUp" aria-selected="false" aria-controls="acctForm">Create account</button>
-      </div>
+/* ---- show / hide password ---- */
+document.querySelectorAll('.eye').forEach(b=>b.onclick=()=>{
+  const i=b.parentElement.querySelector('input'),show=i.type==='password';
+  i.type=show?'text':'password';b.textContent=show?'Hide':'Show';b.setAttribute('aria-label',(show?'Hide':'Show')+' password');
+});
 
-      <div class="err" id="err" role="alert"></div>
+/* ---- forgot password ---- */
+document.getElementById('forgot').onclick=e=>{
+  e.preventDefault();
+  const st=forms.in.querySelector('.status');
+  st.classList.remove('bad');
+  st.textContent='Password reset is handled by your KTM admin.';
+};
 
-      <form id="acctForm" autocomplete="off" novalidate>
-        <div class="field" id="fName" hidden>
-          <label for="name">Full name</label>
-          <div class="iw">
-            <span class="ico">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.2-3.6 4-5.4 7.5-5.4S18.3 16.4 19.5 20"/></svg>
-            </span>
-            <input id="name" type="text" placeholder="Your full name" autocomplete="name" />
-          </div>
-        </div>
+/* ---- validation ---- */
+const emailRx=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+function check(form){
+  const mode=form.dataset.mode;let ok=true;
+  form.querySelectorAll('.field').forEach(f=>{
+    const i=f.querySelector('input'),e=f.querySelector('.err');let msg='';
+    if(i.name==='name'&&!i.value.trim())msg='Enter your full name.';
+    if(i.name==='role'&&!i.value.trim())msg='Type your role — it decides what you can edit.';
+    if(i.name==='email'&&!emailRx.test(i.value.trim()))msg='Enter a valid email address.';
+    if(i.name==='password'){
+      if(!i.value)msg='Enter your password.';
+      else if(mode==='up'&&i.value.length<8)msg='Use at least 8 characters.';
+    }
+    e.textContent=msg;i.setAttribute('aria-invalid',!!msg);
+    if(msg)ok=false;
+  });
+  return ok;
+}
+document.querySelectorAll('input').forEach(i=>i.addEventListener('input',()=>{
+  i.setAttribute('aria-invalid','false');const e=i.closest('.field');if(e)e.querySelector('.err').textContent='';
+}));
 
-        <div class="field">
-          <label for="email">Work email</label>
-          <div class="iw">
-            <span class="ico">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/></svg>
-            </span>
-            <input id="email" type="email" placeholder="you@ktmenergy.in" autocomplete="username" required />
-          </div>
-        </div>
+/* ---- submit: connect your real auth here ---- */
+async function submitAuth(mode,data){
+  await new Promise(r=>setTimeout(r,900));           // placeholder for the real request
+  return {ok:true};
+}
+Object.values(forms).forEach(f=>f.addEventListener('submit',async ev=>{
+  ev.preventDefault();
+  const st=f.querySelector('.status'),btn=f.querySelector('.btn'),label=btn.textContent;
+  st.textContent='';st.classList.remove('bad');       // reset colour every attempt
+  if(!check(f)){f.querySelector('[aria-invalid=true]')?.focus();return;}
+  btn.disabled=true;btn.textContent=f.dataset.mode==='in'?'Signing in…':'Creating account…';
+  try{
+    const res=await submitAuth(f.dataset.mode,Object.fromEntries(new FormData(f)));
+    if(!res.ok)throw new Error();
+    st.textContent=f.dataset.mode==='in'?'Signed in. Opening your workspace…':'Account created. Opening your workspace…';
+    // window.location.href='dashboard.html';
+  }catch(_){st.classList.add('bad');st.textContent='Something went wrong. Check your details and try again.';}
+  btn.disabled=false;btn.textContent=label;
+}));
 
-        <div class="field">
-          <div class="field-row">
-            <label for="password">Password</label>
-            <button type="button" class="link-btn" id="forgot">Forgot?</button>
-          </div>
-          <div class="iw">
-            <span class="ico">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V7a4 4 0 018 0v3.5"/></svg>
-            </span>
-            <input id="password" type="password" placeholder="At least 8 characters" autocomplete="current-password" required />
-            <button type="button" class="peek" id="peek" aria-label="Show password">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
-            </button>
-          </div>
-          <div class="charge" id="charge"><i id="chargeBar"></i></div>
-          <div class="charge-label" id="chargeLabel">Password strength</div>
-        </div>
+/* ---- floating light motes (cached sprites + dpr aware) ---- */
+(function(){
+  const c=document.getElementById('sparks');if(!c)return;
+  const x=c.getContext('2d');
+  let W=0,H=0,dpr=1,P=[],t=0,raf=0,running=false;
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        <div class="field" id="fRole" hidden>
-          <label for="role">Your role</label>
-          <div class="iw">
-            <span class="ico">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 9.4l5.9-.9z"/></svg>
-            </span>
-            <input id="role" type="text" placeholder="Type your role, e.g. Sales Engineer" />
-          </div>
-          <p class="hint">Type it yourself — no dropdown.</p>
-        </div>
-
-        <div class="field" id="fTerms" hidden>
-          <label class="check" for="terms">
-            <input type="checkbox" id="terms" />
-            <span>This is internal company data</span>
-          </label>
-        </div>
-
-        <button class="btn" type="submit" id="submitBtn">
-          <span id="btnText">Sign in</span>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
-        </button>
-      </form>
-    </div>
-  </div>
-
-  <p class="tag">Preview only · <a href="dashboard.html">real dashboard →</a></p>
-
-  <script>
-    (function () {
-      'use strict';
-
-      /* ---- build panel cells ---- */
-      function fill(id, n) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        for (var i = 0; i < n; i++) el.appendChild(document.createElement('span'));
-      }
-      fill('panelsL', 24);
-      fill('panelsR', 18);
-
-      /* ---- subtle pointer parallax for depth ---- */
-      var layers = document.querySelectorAll('[data-depth]');
-      var raf = null, tx = 0, ty = 0;
-      function apply() {
-        raf = null;
-        for (var k = 0; k < layers.length; k++) {
-          var d = parseFloat(layers[k].getAttribute('data-depth')) || 0;
-          layers[k].style.transform = 'translate3d(' + (tx * d) + 'px,' + (ty * d) + 'px,0)';
-        }
-      }
-      window.addEventListener('mousemove', function (e) {
-        tx = (e.clientX / window.innerWidth - .5) * 2;
-        ty = (e.clientY / window.innerHeight - .5) * 2;
-        if (!raf) raf = requestAnimationFrame(apply);
-      }, { passive: true });
-
-      /* ---- account form ---- */
-      var tabIn = document.getElementById('tabIn');
-      var tabUp = document.getElementById('tabUp');
-      var form = document.getElementById('acctForm');
-      var btn = document.getElementById('submitBtn');
-      var btnText = document.getElementById('btnText');
-      var err = document.getElementById('err');
-      var email = document.getElementById('email');
-      var password = document.getElementById('password');
-      var nameF = document.getElementById('name');
-      var roleF = document.getElementById('role');
-      var terms = document.getElementById('terms');
-      var fName = document.getElementById('fName');
-      var fRole = document.getElementById('fRole');
-      var fTerms = document.getElementById('fTerms');
-      var charge = document.getElementById('charge');
-      var chargeBar = document.getElementById('chargeBar');
-      var chargeLabel = document.getElementById('chargeLabel');
-      var mode = 'signin';
-
-      function fail(msg, el) {
-        err.textContent = msg;
-        err.classList.add('on');
-        if (el) el.focus();
-      }
-      function clearErr() { err.textContent = ''; err.classList.remove('on'); }
-
-      function setMode(next) {
-        mode = next;
-        var isUp = next === 'signup';
-        tabIn.setAttribute('aria-selected', String(!isUp));
-        tabUp.setAttribute('aria-selected', String(isUp));
-        fName.hidden = !isUp;
-        fRole.hidden = !isUp;
-        fTerms.hidden = !isUp;
-        btnText.textContent = isUp ? 'Create account' : 'Sign in';
-        password.setAttribute('autocomplete', isUp ? 'new-password' : 'current-password');
-        clearErr();
-      }
-      tabIn.addEventListener('click', function () { setMode('signin'); });
-      tabUp.addEventListener('click', function () { setMode('signup'); });
-
-      document.getElementById('peek').addEventListener('click', function () {
-        var shown = password.type === 'text';
-        password.type = shown ? 'password' : 'text';
-        this.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
-      });
-
-      document.getElementById('forgot').addEventListener('click', function () {
-        fail('Password reset is handled by your KTM admin.');
-      });
-
-      function score(v) {
-        var n = 0;
-        if (v.length >= 8) n++;
-        if (v.length >= 12) n++;
-        if (/[A-Z]/.test(v) && /[a-z]/.test(v)) n++;
-        if (/[0-9]/.test(v)) n++;
-        if (/[^A-Za-z0-9]/.test(v)) n++;
-        return n;
-      }
-      var LABELS = ['Password strength', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'];
-      password.addEventListener('input', function () {
-        var v = password.value;
-        chargeBar.style.width = Math.min(100, Math.round((v.length / 12) * 100)) + '%';
-        charge.classList.toggle('strong', score(v) >= 4);
-        chargeLabel.textContent = v ? LABELS[score(v)] : LABELS[0];
-      });
-
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        clearErr();
-        var isUp = mode === 'signup';
-        var em = email.value.trim();
-        var pw = password.value;
-
-        if (!em) return fail('Enter your work email.', email);
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return fail('That email does not look right.', email);
-        if (pw.length < 8) return fail('Password must be at least 8 characters.', password);
-        if (isUp) {
-          if (!nameF.value.trim()) return fail('Enter your full name.', nameF);
-          if (!roleF.value.trim()) return fail('Type your role — it decides your access.', roleF);
-          if (!terms.checked) return fail('Confirm that this is internal company data.');
-        }
-
-        btn.disabled = true;
-        btnText.textContent = isUp ? 'Creating…' : 'Signing in…';
-        setTimeout(function () {
-          btn.disabled = false;
-          btnText.textContent = isUp ? 'Create account' : 'Sign in';
-          fail(isUp
-            ? 'Preview only — no account created yet. Next: wire to PlatformAPI.'
-            : 'Preview only — real sign-in lives on dashboard.html.');
-        }, 900);
-      });
-
-      setMode('signin');
-    })();
-  </script>
+  /* pre-render one glow sprite per 10deg hue bucket — no per-frame gradients */
+  const SPRITES={};
+  function sprite(hue){
+    const key=Math.round(hue/10)*10;
+    if(SPRITES[key])return SPRITES[key];
+    const R=32,s=document.createElement('canvas');s.width=s.height=R*2;
+    const g=s.getContext('2d');
+    const grd=g.createRadialGradient(R,R,0,R,R,R);
+    grd.addColorStop(0,`hsla(${key},100%,72%,1)`);
+    grd.addColorStop(.35,`hsla(${key},100%,60%,.45)`);
+    grd.addColorStop(1,`hsla(${key},100%,50%,0)`);
+    g.fillStyle=grd;g.fillRect(0,0,R*2,R*2);
+    return(SPRITES[key]=s);
+  }
+  function spawn(init){
+    return{x:Math.random()*W,y:init?Math.random()*H:H+10,
+      r:1+Math.random()*1.6,v:.15+Math.random()*.45,d:(Math.random()-.5)*.25,
+      p:Math.random()*6.28,a:.35+Math.random()*.5,hue:22+Math.random()*26};
+  }
+  function size(){
+    dpr=Math.min(2,window.devicePixelRatio||1);
+    W=c.clientWidth;H=c.clientHeight;
+    c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);
+    x.setTransform(dpr,0,0,dpr,0,0);
+    if(!P.length)for(let i=0;i<44;i++)P.push(spawn(true));
+  }
+  function draw(){
+    x.clearRect(0,0,W,H);x.globalCompositeOperation='lighter';
+    for(const p of P){
+      if(running){p.y-=p.v;p.x+=p.d+Math.sin(t/1800+p.p)*.12;if(p.y<-10)Object.assign(p,spawn(false));}
+      const k=(.5+.5*Math.sin(t/900+p.p))*p.a*(p.y/H*.6+.4);
+      const s=p.r*10;
+      x.globalAlpha=Math.max(0,Math.min(1,k));
+      x.drawImage(sprite(p.hue),p.x-s,p.y-s,s*2,s*2);
+    }
+    x.globalAlpha=1;x.globalCompositeOperation='source-over';
+    if(running)raf=requestAnimationFrame(draw);
+  }
+  function start(){if(running||reduced)return;running=true;t=0;raf=requestAnimationFrame(draw);}
+  function stop(){running=false;cancelAnimationFrame(raf);}
+  addEventListener('resize',()=>{size();if(!running)x.clearRect(0,0,W,H);});
+  document.addEventListener('visibilitychange',()=>document.hidden?stop():start());
+  size();
+  if(reduced){x.clearRect(0,0,W,H);}else{start();}
+})();
+</script>
 </body>
 </html>
