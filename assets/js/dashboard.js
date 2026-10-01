@@ -142,7 +142,7 @@
     if ($('newPassword2')) $('newPassword2').value = '';
     if ($('passwordChangeMsg')) $('passwordChangeMsg').textContent = '';
     const hour = new Date().getHours();
-    const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    const greet = hour < 5 ? 'Good night' : hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : hour < 21 ? 'Good evening' : 'Good night';
     $('homeGreeting').textContent = greet + ', ' + (user.name || 'there').split(' ')[0];
   }
 
