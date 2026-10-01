@@ -137,14 +137,9 @@
   }
 
   function showAuth() {
-    $('dash').classList.remove('on');
-    if (loginAuth) loginAuth.show();
-    else {
-      $('authScreen').style.display = '';
-      $('authScreen').classList.remove('is-hidden');
-    }
+    /* No session — back to the sign-in page. */
     user = null;
-    if (loginAuth) loginAuth.setMode('login');
+    location.href = 'index.html';
   }
 
   /* ---------- navigation ---------- */
@@ -1041,39 +1036,15 @@
 
   /* ---------- boot ---------- */
   async function boot() {
-    if (!window.QSLoginAuth) {
-      console.error('QSLoginAuth missing — load assets/js/login-auth.js');
-    }
-    const bagUi = window.QSLoginBagUI
-      ? window.QSLoginBagUI.mount({ root: $('authScreen') })
-      : null;
-
-    if (window.QSLoginAuth) {
-      loginAuth = window.QSLoginAuth.mount({
-        root: $('authScreen'),
-        bagUi: bagUi,
-        api: api,
-        onToast: (msg) => toast(msg),
-        onAuthenticated: async ({ user: u }) => {
-          user = u;
-          showApp();
-          await refreshAll();
-        }
-      });
-    }
-
-    /* Bridge legacy helpers used elsewhere */
-    window.__qsBagHappy = function () { if (bagUi) bagUi.happy(); };
-    window.__qsBagShy = function () { if (bagUi) bagUi.shy(); };
+    /* Sign-in lives on index.html now — this page only gates on a live session. */
+    loginAuth = null;
 
     async function doLogout() {
       try { await api.logout(); } catch (_) {}
-      showAuth();
-      setAuthMode('login');
-      toast('Signed out');
+      location.href = 'index.html';
     }
-    $('btnLogout').addEventListener('click', doLogout);
-    $('btnLogout2').addEventListener('click', doLogout);
+    if ($('btnLogout')) $('btnLogout').addEventListener('click', doLogout);
+    if ($('btnLogout2')) $('btnLogout2').addEventListener('click', doLogout);
 
     if ($('btnChangePassword')) {
       $('btnChangePassword').addEventListener('click', async () => {
