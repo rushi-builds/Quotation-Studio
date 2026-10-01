@@ -774,6 +774,65 @@ async function handleApi(request, env, url) {
     }
 
     /* Public customer portal (token only) */
+    /* GET snapshot for portal.js — same contract as the local server. */
+    if (parts[0] === 'portal' && parts[1] === 'proposal' && method === 'GET') {
+      const raw = String(url.searchParams.get('t') || '').trim();
+      const tok = await one(db, 'SELECT * FROM access_tokens WHERE token_hash = ?', hashToken(raw));
+      if (!raw || !tok || !tokenIsActive(tok)) {
+        return json({ error: 'This proposal link is invalid, expired, or has been revoked. Please contact the sender for a new link or the PDF.' }, 404);
+      }
+      const version = await one(db, 'SELECT * FROM proposal_versions WHERE id = ?', tok.version_id);
+      if (!version) return json({ error: 'The published proposal version is no longer available.' }, 404);
+      let snapshot;
+      try { snapshot = JSON.parse(version.snapshot_json); }
+      catch (_) { return json({ error: 'Published proposal data could not be read.' }, 500); }
+      const ua = (request.headers.get('user-agent') || '').slice(0, 180);
+      const isPrefetch = /bot|crawl|spider|preview|whatsapp|facebookexternalhit|slackbot|twitterbot|linkedinbot|discordbot|embedly|quora/i.test(ua)
+        || String(request.headers.get('purpose') || '').toLowerCase() === 'prefetch'
+        || String(request.headers.get('sec-purpose') || '').toLowerCase().includes('prefetch');
+      const now = nowISO();
+      if (isPrefetch) {
+        const ev = await recordEvent(db, {
+          token_id: tok.id,
+          version_id: version.id,
+          proposal_id: tok.proposal_id,
+          owner_id: tok.owner_id,
+          event_type: 'suspected_prefetch',
+          meta: { ua }
+        });
+        await notifyFromPortalEvent(db, ev);
+      } else {
+        await run(
+          db,
+          `UPDATE access_tokens SET
+             open_count = open_count + 1,
+             first_opened_at = COALESCE(first_opened_at, ?),
+             last_opened_at = ?
+           WHERE id = ?`,
+          now, now, tok.id
+        );
+        tok.open_count = (tok.open_count || 0) + 1;
+        const ev = await recordEvent(db, {
+          token_id: tok.id,
+          version_id: version.id,
+          proposal_id: tok.proposal_id,
+          owner_id: tok.owner_id,
+          event_type: 'link_opened',
+          meta: { ua, openCount: tok.open_count }
+        });
+        await notifyFromPortalEvent(db, ev);
+      }
+      return json({
+        version: publicVersion(version),
+        snapshot,
+        access: {
+          expiresAt: tok.expires_at || null,
+          openCount: tok.open_count || 0,
+          privacyNote: 'Opening this link may be recorded so the sender can follow up. No payment data is collected here.'
+        }
+      });
+    }
+
     if (parts[0] === 'portal' && parts[1] === 'open' && method === 'POST') {
       const body = await readBody(request);
       const raw = String(body.token || body.t || '').trim();

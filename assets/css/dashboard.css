@@ -69,7 +69,7 @@ code {
   padding: 24px;
   background:
     linear-gradient(rgba(6, 12, 24, 0.62), rgba(6, 12, 24, 0.78)),
-    url('../images/login-bg.jpg') center / cover no-repeat,
+    url('../images/dash-hero-bg.jpg') center / cover no-repeat,
     var(--bg);
 }
 .splash-card {
@@ -173,7 +173,7 @@ code {
   border: 1px solid var(--line);
   background:
     linear-gradient(100deg, rgba(6, 12, 24, 0.88) 20%, rgba(6, 12, 24, 0.45) 60%, rgba(6, 12, 24, 0.25)),
-    url('../images/login-bg.jpg') center 65% / cover no-repeat;
+    url('../images/dash-hero-bg.jpg') center 65% / cover no-repeat;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
 .hero .sub { color: #C7D2E4; }
