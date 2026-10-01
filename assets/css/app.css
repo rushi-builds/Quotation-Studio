@@ -89,28 +89,7 @@ img{max-width:100%;}
 }
 .save-flag.on{opacity:1;}
 .app-title{font-size:15px;font-weight:700;color:var(--navy);}
-.app-sub{font-size:11.5px;color:var(--gray);margin:4px 0 10px;line-height:1.5;}
-.studio-cloud-bar{
-  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-  margin:0 0 12px;padding:8px 10px;border-radius:10px;
-  background:#F7F9FC;border:1px solid var(--line-cool);
-}
-.studio-cloud-bar[hidden]{display:none!important;}
-.cloud-dash-link{
-  font-size:11.5px;font-weight:700;color:var(--navy);
-  text-decoration:none;padding:4px 8px;border-radius:6px;background:#fff;
-  border:1px solid #DFE3E8;
-}
-.cloud-dash-link:hover{border-color:var(--orange);color:var(--orange-dark);}
-.cloud-chip{
-  font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:999px;
-  background:#EEF1F5;color:var(--navy-soft);
-}
-.cloud-chip[data-state="on"]{background:#EAF6EF;color:#1F6B3A;}
-.cloud-chip[data-state="sync"]{background:#E8F0FE;color:#1A56A8;}
-.cloud-chip[data-state="err"]{background:#FDECEA;color:#9B1C1C;}
-.cloud-chip[data-state="off"]{background:#EEF1F5;color:#5B6B80;}
-.studio-cloud-bar .link-btn{flex:0 0 auto;padding:5px 10px;font-size:11px;}
+.app-sub{font-size:11.5px;color:var(--gray);margin:4px 0 14px;line-height:1.5;}
 
 .preview-panel{
   flex:1;padding:22px 28px 40px;overflow-y:auto;overflow-x:hidden;height:100vh;
@@ -851,6 +830,21 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 .ktm-cover__date { left: 22.925%; top: 77.089%; width: 23%; height: 1.7%; }
 .ktm-cover__capacity-kpi { left: 23.3%; top: 86.927%; width: 21%; height: 3.64%; font-weight: 700; white-space: nowrap; }
 .ktm-cover__savings-kpi { left: 67.925%; top: 86.927%; width: 28%; height: 3.64%; font-weight: 700; white-space: nowrap; color: #ff890b; }
+/* The cover artwork ships with a savings glyph and label baked in; these two
+   overlays replace them with the project-cost pairing so the cover's money
+   figure is the cost of the project, not a projection. */
+.ktm-cover__cost-icon {
+  position: absolute; left: 53.8%; top: 84.29%; width: 9.27%; height: 6.54%;
+  border-radius: 50%; background: #fff; color: #0b1c30;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Poppins', 'Inter', Arial, sans-serif; font-weight: 700; font-size: 40px; line-height: 1;
+}
+.ktm-cover__cost-label {
+  position: absolute; left: 67.9%; top: 84.85%; width: 25.7%; height: 2.1%;
+  background: #061729; color: #fff;
+  font-family: 'Inter', Arial, sans-serif; font-weight: 400; font-size: 19px; line-height: 1.2;
+  display: flex; align-items: center;
+}
 @media print { .ktm-cover { page-break-after: always; } }
 
 /* ---------- 9. Executive summary ---------- */
@@ -999,9 +993,10 @@ details.page-group > summary::-webkit-details-marker{display:none;}
   font-size:9px;color:#8A5A00;background:#FFF6E6;border-radius:6px;
   padding:6px 9px;margin-top:8px;line-height:1.5;
 }
-.includes-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 14px;}
-.includes-grid .inc-item{padding:4px 0;}
+.includes-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 10px;}
+.includes-grid .inc-item{padding:7px 9px;background:#FBF7EF;border:1px solid #EFE3CF;border-radius:9px;align-items:center;}
 .includes-grid .inc-t{font-size:10.2px;}
+.includes-grid .inc-img{width:34px;height:34px;object-fit:cover;border-radius:8px;flex:0 0 34px;}
 .pay-terms{display:flex;gap:10px;margin-top:2px;}
 .pay-chip{
   flex:1;background:linear-gradient(150deg,#243B57,#1C2B3F);border-radius:10px;
@@ -1541,6 +1536,22 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageWhySolar .photo-top, #pageSolution .photo-top, #pageWhyKtm .photo-top { width:324px; height:230px; }
 #pageWhySolar .intro-col, #pageSolution .intro-col, #pageWhyKtm .intro-col { max-width:374px; min-height:244px; }
 #pageProjects .intro-col { max-width:none; min-height:0; }
+.proj-cta-row{display:flex;justify-content:flex-end;margin:0 0 12px;}
+.proj-gallery-cta{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 13px;
+  border:1.5px solid #D96A0E;border-radius:999px;background:#fff;
+  color:#D96A0E;font:600 10.5px/1 'Inter',sans-serif;letter-spacing:.02em;text-decoration:none;
+}
+/* Bottom-pinned closers: the acceptance block and the investment disclaimer
+   sit at the foot of their pages instead of floating above dead space. */
+#pageClosing .accept-block{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:175px;margin:0;}
+#pageClosing .disclaimer-box{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:113px;margin:0;}
+#pageClosing .pg-body{padding-bottom:380px;}
+#pageClosing .engineering-overview{margin-top:26px;}
+#pageInvestment .disclaimer-line{position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:44px;margin:0;}
+#pageInvestment .pg-body{padding-bottom:110px;}
+#pageInvestment .spacer{flex:0 0 61px;}
+#pageInvestment.has-bom .spacer{flex:0 0 16px;}
 #pageProjects .proj-card img { height:132px; }
 .photo-top { top:76px; }
 .photo-top img { object-position:50% 50%; }
@@ -1656,13 +1667,47 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 /* Compact only the optional dense cases. No text, disclaimers or numbers are
    removed, and chart canvases redraw at these sizes rather than being squashed. */
 #pageTechSpec.has-site-area:has(#v_tsRefsWrap:not([style*="display: none"])) .spec-table td{padding-top:3.5px;padding-bottom:3.5px;}
-#chartBridge{width:718px!important;height:252px!important;}
+/* The engineering design basis is long by nature — it is the arithmetic behind
+   every other number on the page. It reads at a slightly smaller size so the
+   page keeps its shape, and if the whole table still runs past the A4 box the
+   render pass adds is-tight-spec, then is-tighter-spec, until it fits. On a
+   fixed-height page with overflow hidden, unnoticed overflow prints as missing
+   text, so the fit is measured rather than assumed. */
+#pageTechSpec .spec-table tr.is-eng td{font-size:9.9px;padding:3px 10px;}
+#pageTechSpec .spec-table tr.is-eng td.spec-k{width:30%;}
+#pageTechSpec.is-tight-spec .spec-table td{padding-top:3px;padding-bottom:3px;}
+#pageTechSpec.is-tighter-spec .spec-table td{padding-top:2px;padding-bottom:2px;font-size:10px;}
+#pageTechSpec.is-tighter-spec .spec-table tr.is-eng td{font-size:9.4px;padding:2px 10px;}
+/* The system diagram is the only block on this page that can give up height
+   without giving up a number: the specification table below it cannot. It is
+   drawn on a viewBox, so capping its width scales it down cleanly instead of
+   squashing it, and the note under it still explains it. */
+#pageTechSpec.is-diagram-spec #v_tsDiagram svg{max-width:90%;margin-left:auto;margin-right:auto;}
+#pageTechSpec.is-diagram-tighter #v_tsDiagram svg{max-width:72%;margin-left:auto;margin-right:auto;}
+/* Two further steps exist for the one page that carries everything at once:
+   site-area rows, reference pills and the full design basis. They scale the
+   drawing, never a figure; every number and every clause citation stays at
+   full size, and the ladder stops at the first step that fits. */
+#pageTechSpec.is-diagram-tiny #v_tsDiagram svg{max-width:55%;margin-left:auto;margin-right:auto;}
+#pageTechSpec.is-diagram-min #v_tsDiagram svg{max-width:42%;margin-left:auto;margin-right:auto;}
+/* The last resort, and the only step that touches type: cell padding to its
+   floor and the table to 9 px, which is still above every legibility floor the
+   browser tests hold it to. Figures, units, clause citations and the honesty
+   note are never removed or shortened — a page that cannot hold its content
+   says so through the overflow report instead of quietly dropping a row. */
+#pageTechSpec.is-table-min .spec-table{font-size:9.6px;}
+#pageTechSpec.is-table-min .spec-table td{padding-top:1.5px;padding-bottom:1.5px;}
+#pageTechSpec.is-table-min .spec-table tr.is-eng td{font-size:9px;padding:1.5px 10px;}
+#pageTechSpec.is-table-min .spec-table .spec-k{width:30%;}
+#pageTechSpec.is-table-min #v_tsRefsWrap{margin-top:0;}
+#pageTechSpec.is-table-min .note-box{margin-top:4px;}
+#chartBridge{width:718px!important;height:340px!important;}
 #chartDonut{width:230px!important;height:230px!important;}
-#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #chartBridge{height:180px!important;}
-#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #chartDonut{width:150px!important;height:150px!important;flex-shrink:0;}
-#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .spacer{max-height:16px;}
-#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .bom-row{padding:3.5px 0;}
-#pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .bom-intro{margin-bottom:6px;}
+#pageInvestment.has-bom #chartBridge{height:200px!important;}
+#pageInvestment.has-bom #chartDonut{width:150px!important;height:150px!important;flex-shrink:0;}
+#pageInvestment.has-bom .spacer{max-height:16px;}
+#pageInvestment.has-bom .bom-row{padding:3.5px 0;}
+#pageInvestment.has-bom .bom-intro{margin-bottom:6px;}
 #pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .sec-label{margin-bottom:8px;}
 #pageInvestment:has(#v_inBomSection:not([style*="display: none"])) .rule-orange{margin:9px 0;}
 #pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #v_inDesc{margin:8px 0;}
@@ -1688,3 +1733,26 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageExec .inc-d{font-size:10px;}
 #pageExec .trace-note{margin-top:15px;padding-top:9px;}
 #pageExec .exec-artwork{margin:14px 0 0;}
+
+/* Cloud bridge bar (platform logic — not part of backup design). */
+.studio-cloud-bar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin:0 0 12px;padding:8px 10px;border-radius:10px;
+  background:#F7F9FC;border:1px solid var(--line-cool);
+}
+.studio-cloud-bar[hidden]{display:none!important;}
+.cloud-dash-link{
+  font-size:11.5px;font-weight:700;color:var(--navy);
+  text-decoration:none;padding:4px 8px;border-radius:6px;background:#fff;
+  border:1px solid #DFE3E8;
+}
+.cloud-dash-link:hover{border-color:var(--orange);color:var(--orange-dark);}
+.cloud-chip{
+  font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:999px;
+  background:#EEF1F5;color:var(--navy-soft);
+}
+.cloud-chip[data-state="on"]{background:#EAF6EF;color:#1F6B3A;}
+.cloud-chip[data-state="sync"]{background:#E8F0FE;color:#1A56A8;}
+.cloud-chip[data-state="err"]{background:#FDECEA;color:#9B1C1C;}
+.cloud-chip[data-state="off"]{background:#EEF1F5;color:#5B6B80;}
+.studio-cloud-bar .link-btn{flex:0 0 auto;padding:5px 10px;font-size:11px;}

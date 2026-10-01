@@ -1,23 +1,23 @@
 /* ==========================================================================
-   Quotation Studio — Proposal Data Model & Store  (Phase 1 foundation)
+   Quotation Studio - Proposal Data Model & Store  (Phase 1 foundation)
    --------------------------------------------------------------------------
    The Proposal is the platform's central object (see docs/ROADMAP.md):
 
      Proposal {
        id, ref, version, status, title,
        createdAt, updatedAt, sentAt?, acceptedAt?,
-       prevId?                       — version chain (never overwrite history)
-       form          — all proposal inputs (customer, site, system, financial…)
-       content       — brochure text overrides (proposal-specific wording)
-       projectImages — project thumbnail overrides (dataURLs where quota allows)
-       pageImages    — page photograph overrides, keyed by image element ID
+       prevId?                       - version chain (never overwrite history)
+       form          - all proposal inputs (customer, site, system, financial…)
+       content       - brochure text overrides (proposal-specific wording)
+       projectImages - project thumbnail overrides (dataURLs where quota allows)
+       pageImages    - page photograph overrides, keyed by image element ID
      }
 
    Storage (localStorage in Phase 1; the API is backend-ready):
-     qstudio.proposals.index   — lightweight index of all proposals
-     qstudio.proposal.<id>     — full proposal blob
-     qstudio.activeId          — id currently open in the builder
-     qstudio.proposal.v2       — legacy single-proposal key (migrated on init)
+     qstudio.proposals.index   - lightweight index of all proposals
+     qstudio.proposal.<id>     - full proposal blob
+     qstudio.activeId          - id currently open in the builder
+     qstudio.proposal.v2       - legacy single-proposal key (migrated on init)
 
    Rules honoured from the product blueprint:
      - versions are immutable: "New version" clones and bumps, never overwrites
@@ -101,7 +101,7 @@
       id: blob.id,
       ref: f.propRef || '',
       version: f.propVersion || '1.0',
-      title: (f.custName || 'Untitled customer') + ' — ' + (f.capacity || '0') + ' kWp',
+      title: (f.custName || 'Untitled customer') + ' - ' + (f.capacity || '0') + ' kWp',
       status: blob.status || 'draft',
       customer: f.custName || '',
       capacity: f.capacity || '',

@@ -5,9 +5,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
 const base={capacity:7,genFactor:1460,tariff:15,costPerKwp:90000,gstPercent:8.9,escalation:6,degradation:.5,customerType:'residential',moduleWattage:545,payAdvance:50,payDispatch:40,payCompletion:10};
 const f=F.compute(base);
 check('independent cost/GST/subsidy reconciliation',f.projectCost===630000&&Math.abs(f.gstAmount-56070)<1e-8&&f.grossTotal===686070&&f.subsidy===78000&&f.netInvestment===608070);
-check('independent generation, savings and module count',f.annualGen===10220&&f.annualSaving===153300&&f.moduleCount===13);
+check('independent generation, savings and module count',f.annualGen===10344.1&&f.annualSaving===155161.5&&f.moduleCount===13);
+check('generation is derived from the installed array, not the contract',f.annualGen===f.installedKwp*1460&&f.installedKwp===7.085&&f.contractedKwp===7);
 check('payment amounts reconcile against gross, not net investment',Math.abs(f.pay.advance.amount+f.pay.dispatch.amount+f.pay.completion.amount-f.grossTotal)<1e-8);
-let saving=0;for(let y=0;y<25;y++)saving+=10220*Math.pow(.995,y)*15*Math.pow(1.06,y);
+let saving=0;for(let y=0;y<25;y++)saving+=10344.1*Math.pow(.995,y)*15*Math.pow(1.06,y);
 check('25-year savings match an independent geometric projection',Math.abs(f.lifetimeSaving-saving)<.001);
 const year=Math.floor(f.payback),cum=year?f.series.cumSaving[year-1]:0;
 check('payback interpolates the same cumulative-savings series',Math.abs(cum+(f.payback-year)*f.series.saving[year]-f.netInvestment)<1e-6);
@@ -79,7 +80,7 @@ check('EMI independently reconciles to reducing-balance formula',Math.abs(loan.e
   check('delayed uploads cannot cross proposal boundaries',await page.$eval('#img_closing',(e,src)=>e.getAttribute('src')===src,closing));
   await page.evaluate(()=>window.FileReader=window.__Reader);
   await page.evaluate(()=>{document.getElementById('capacity').value='0';Render.renderAll();});
-  check('undefined IRR renders as a dash, not NaN or a fabricated percentage',await page.$eval('#v_exKpis',e=>!e.textContent.includes('NaN')&&!e.textContent.includes('452.5%')&&e.textContent.includes('—')));
+  check('undefined IRR renders as a dash, not NaN or a fabricated percentage',await page.$eval('#v_exKpis',e=>!e.textContent.includes('NaN')&&!e.textContent.includes('452.5%')&&e.textContent.includes('-')));
   await page.evaluate(()=>window.__qsSaveNow());
   const quota=await page.evaluate(()=>{
     const originalId=Proposals.activeId(),index=Proposals.list().map(p=>p.id).sort().join(','),set=Storage.prototype.setItem;

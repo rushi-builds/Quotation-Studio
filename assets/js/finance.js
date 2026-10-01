@@ -1,8 +1,8 @@
 /* ==========================================================================
-   Quotation Studio — Financial & Engineering Engine
+   Quotation Studio - Financial & Engineering Engine
    --------------------------------------------------------------------------
    Pure calculation layer. No DOM access. Every value returned is derived
-   ONLY from the state passed in (form inputs) — nothing is invented here.
+   ONLY from the state passed in (form inputs) - nothing is invented here.
 
    State fields consumed (all optional-safe):
      capacity, genFactor, costPerKwp, gstPercent, tariff, escalation,
@@ -18,17 +18,23 @@
   else { root.Finance = factory(); }
 }(typeof self !== 'undefined' ? self : this, function () {
 
+  /* The UMD wrapper hands the export target to the caller, not to this body,
+     so the global is looked up here. engineering.js is a soft dependency: if
+     it is absent the roof clearance falls back to the old 1.4 factor. */
+  const GLOBAL = typeof self !== 'undefined' ? self
+    : (typeof globalThis !== 'undefined' ? globalThis : this);
+
   const YEARS = 25;
   const PROJECTION_YEARS = 25; // horizon used for cash-flow projections
 
   /* ---------- number formatting helpers ---------- */
   function fmtINR(n) {
-    if (!isFinite(n)) return '—';
+    if (!isFinite(n)) return '-';
     return '₹' + Math.round(n).toLocaleString('en-IN');
   }
   /** Compact Indian format for tight tiles: ₹6.7L / ₹1.24Cr / ₹8,450 */
   function fmtINRshort(n) {
-    if (!isFinite(n)) return '—';
+    if (!isFinite(n)) return '-';
     const abs = Math.abs(n);
     if (abs >= 1e7) return '₹' + trimDec(n / 1e7) + ' Cr';
     if (abs >= 1e5) return '₹' + trimDec(n / 1e5) + ' L';
@@ -36,7 +42,7 @@
   }
   function trimDec(v) { v = Math.round(v * 100) / 100; return String(v); }
   function fmtNum(n) {
-    if (!isFinite(n)) return '—';
+    if (!isFinite(n)) return '-';
     return Math.round(n).toLocaleString('en-IN');
   }
   function fmtDate(dstr) {
@@ -118,7 +124,20 @@
     const escalation = num(s.escalation) / 100;
     const degradation = num(s.degradation) / 100;
 
-    /* ----- system engineering (derived, traceable) ----- */
+    /* ----- system engineering (derived, traceable) -----
+       Two distinct capacities, both kept explicit so the document cannot
+       contradict itself:
+
+         contractedKwp - the kWp written on the quotation / agreed with the
+                         customer. The quoted investment follows this.
+         installedKwp  - the array that physically gets built. Modules come in
+                         whole units, so ceil() normally lands a little ABOVE
+                         the contracted figure. All physics follows this one:
+                         generation, subsidy, area, DC/AC ratio, CO2.
+
+       Never mix the two: a 7 kWp contract at 545 Wp is 13 modules = 7.085 kWp,
+       and generation must use 7.085 (7.085 x 1460 = 10,344 kWh, not 10,220). */
+    const contractedKwp = capacity;
     const moduleWattage = num(s.moduleWattage) || 0;
     const requiredModules = (moduleWattage > 0 && capacity > 0)
       ? (capacity * 1000) / moduleWattage : 0;
@@ -130,10 +149,33 @@
       ? (moduleCount * moduleWattage) / 1000 : capacity;
     const moduleAreaEach = (num(s.moduleLengthMm) / 1000) * (num(s.moduleWidthMm) / 1000);
     const arrayArea = (moduleCount > 0 && moduleAreaEach > 0) ? moduleCount * moduleAreaEach : 0;
+    /* Module area is NOT roof area. Walkways, parapet setback and inter-row
+       shadow spacing need extra space, so a raw module-area comparison reports
+       "fits" for roofs that cannot actually take the array. The clearance
+       factor is user-editable (default 1.4) and printed on the page instead of
+       being hidden inside the verdict. */
+    /* Roof area. Module area is not roof area: on a roof carrying more than one
+       row, each row takes its own depth plus the shadow the row in front throws
+       at the worst hour of the design day. engineering.js works that pitch out
+       from the tilt, the latitude and the winter-solstice sun angle, so the
+       factor is a result here rather than a hidden assumption. A figure typed
+       into the field still wins - the page then labels it a manual factor. */
+    const manualClearance = num(s.roofClearanceFactor, 0);
+    const engLayout = (GLOBAL.Engineering && GLOBAL.Engineering.layout)
+      ? GLOBAL.Engineering.layout(s, moduleCount) : null;
+    const derived = engLayout && engLayout.ok;
+    const roofClearanceFactor = manualClearance > 0 ? Math.max(1, manualClearance)
+      : (derived ? engLayout.clearanceRatio : 1.4);
+    const requiredArea = (derived && !(manualClearance > 0))
+      ? engLayout.requiredArea : arrayArea * roofClearanceFactor;
+    const clearanceSource = manualClearance > 0 ? 'manual' : (derived ? 'derived' : 'fallback');
     const inverterKw = num(s.inverterKw) || (capacity > 0 ? capacity : 0);
     const dcAcRatio = (installedKwp > 0 && inverterKw > 0) ? installedKwp / inverterKw : 0;
 
-    /* ----- costs ----- */
+    /* ----- costs -----
+       Quoted on the CONTRACTED capacity: the ₹/kWp rate is the number agreed
+       with the customer, so choosing a different module wattage must not move
+       the price. Delivered ₹/Wp is reported separately below. */
     const projectCost = capacity * costPerKwp;               // ex-GST
     const gstAmount = projectCost * gstPercent / 100;
     const grossTotal = projectCost + gstAmount;              // incl. GST
@@ -146,28 +188,45 @@
       { key: 'modules',  label: 'Solar Modules',            value: num(bom.modules) },
       { key: 'inverter', label: 'Inverter(s)',              value: num(bom.inverter) },
       { key: 'structure', label: 'Mounting Structure',      value: num(bom.structure) },
-      { key: 'bos',      label: 'BOS — Cables & Protection', value: num(bom.bos) },
+      { key: 'bos',      label: 'BOS - Cables & Protection', value: num(bom.bos) },
       { key: 'install',  label: 'Installation & Commissioning', value: num(bom.install) },
       { key: 'liaison',  label: 'Net-Metering & Liaisoning', value: num(bom.liaison) }
     ].filter((it) => it.value > 0);
     const bomSum = bomItems.reduce((t, it) => t + it.value, 0);
     const bomDelta = projectCost - bomSum; // >0 means BOM does not yet cover the base cost
 
-    /* ----- subsidy ----- */
+    /* ----- subsidy -----
+       PM Surya Ghar CFA is assessed on the DC capacity actually installed and
+       registered with the DISCOM, so it follows installedKwp - not the
+       contracted figure. The difference only shows below the 3 kW cap:
+       2.5 kWp contracted at 545 Wp is 5 modules = 2.725 kWp → ₹73,050, not
+       the ₹69,000 a contracted-basis calculation would report. */
     const customerType = s.customerType || 'residential';
+    /* Maharashtra state top-up: published only as a range - ₹25,000–₹60,000
+       by capacity, maxing at 3 kW (SMART households below 100 units/month add
+       ₹17,500 BPL / ₹15,000 SC-ST / ₹10,000 others on the 1 kW benchmark).
+       No per-kW slab is public, so the app never invents one: the dealer
+       enters the figure that applies to this customer and the sheet states it
+       is potential, subject to eligibility and approval. */
+    const topUpRaw = parseFloat(s.stateTopUp);
+    const stateTopUp = (customerType === 'residential' && isFinite(topUpRaw) && topUpRaw > 0) ? topUpRaw : 0;
     let subsidy;
     const overrideRaw = (s.subsidyOverride === '' || s.subsidyOverride === null ||
       s.subsidyOverride === undefined) ? NaN : parseFloat(s.subsidyOverride);
     if (isFinite(overrideRaw)) {
       subsidy = overrideRaw;                                   // explicit override wins
-    } else if (customerType === 'residential') {
-      subsidy = calcSubsidy(capacity);
     } else {
-      subsidy = 0;                                             // PM Surya Ghar is residential
+      subsidy = (customerType === 'residential' ? calcSubsidy(installedKwp) : 0) + stateTopUp;
     }
     const subsidyAuto = (customerType === 'residential' && !isFinite(overrideRaw));
     const netInvestment = grossTotal - subsidy;
+    /* costPerWp is the quoted rate (contracted basis). costPerWpDelivered is
+       what the customer actually receives per watt of installed DC. */
     const costPerWp = capacity > 0 ? projectCost / (capacity * 1000) : 0;
+    const costPerWpDelivered = installedKwp > 0 ? projectCost / (installedKwp * 1000) : 0;
+    /* True only when whole modules land exactly on the contracted capacity. */
+    const capacityExact = (installedKwp > 0 && capacity > 0) &&
+      Math.abs(installedKwp - capacity) < 1e-9;
 
     /* Optional illustration only: eligibility, asset basis and first-year
        allowance must be confirmed by the customer's tax adviser. Never net
@@ -179,8 +238,13 @@
     const taxDepreciationYear1 = isCommercialOrInd ? Math.round(Math.max(0, projectCost) * depreciationRatePct / 100) : 0;
     const taxShield = Math.round(taxDepreciationYear1 * corpTaxRatePct / 100);
 
-    /* ----- generation & savings projection ----- */
-    const annualGen = capacity * genFactor;                    // year-1 kWh
+    /* ----- generation & savings projection -----
+       Year-1 energy follows the INSTALLED array (see note above), so the
+       generation figure always reconciles with the module table on page 6. */
+    const annualGen = installedKwp * genFactor;                // year-1 kWh
+    /* Transparency helpers for the assumptions strip - derived, never typed. */
+    const unitsPerKwpDay = genFactor > 0 ? genFactor / 365 : 0;
+    const cufPercent = genFactor > 0 ? (genFactor / 8760) * 100 : 0;
     let gen = annualGen, t = tariff;
     const series = {
       years: [], gen: [], tariff: [], saving: [], cumSaving: [], netPosition: []
@@ -233,9 +297,14 @@
     /* effective solar cost per unit over the 25-year life */
     const effectivePerUnit = lifetimeGen > 0 ? netInvestment / lifetimeGen : 0;
 
-    /* ----- environmental equivalents (editable factors, stated on page) ----- */
-    const co2Factor = Math.max(0, num(s.co2Factor, 0.79));          // kg CO₂ / kWh (grid)
-    const treeFactor = Math.max(0, num(s.treeFactor, 58.4));        // kg CO₂ absorbed / tree / yr
+    /* ----- environmental equivalents (editable factors, stated on page) -----
+       Default grid factor = CEA CO2 Baseline Database v21.0 (Nov 2025),
+       FY2024-25 all-India weighted average = 0.710 tCO2/MWh. The older 0.79
+       figure was retired years ago and overstated CO2 by roughly 11%.
+       Default tree absorption = 20-25 kg CO2/tree/year (the widely used
+       EPA-derived figure for a mature tree); 58.4 overstated tree counts. */
+    const co2Factor = Math.max(0, num(s.co2Factor, 0.71));          // kg CO₂ / kWh (grid)
+    const treeFactor = Math.max(0, num(s.treeFactor, 22));          // kg CO₂ absorbed / tree / yr
     const co2Annual = (annualGen * co2Factor) / 1000;          // tonnes
     const co2Lifetime = (lifetimeGen * co2Factor) / 1000;
     const treesAnnual = treeFactor > 0 ? (co2Annual * 1000) / treeFactor : NaN;
@@ -249,7 +318,7 @@
     };
     pay.sumPct = pay.advance.pct + pay.dispatch.pct + pay.completion.pct;
 
-    /* ----- financing (EMI) — only when all three loan inputs are entered;
+    /* ----- financing (EMI) - only when all three loan inputs are entered;
        standard reducing-balance formula, nothing else assumed ----- */
     const loanAmt = num(s.loanAmt);
     const loanRate = num(s.loanRate);
@@ -282,15 +351,17 @@
 
     return {
       // engineering
-      capacity, moduleWattage, moduleCount, installedKwp, arrayArea,
+      capacity, contractedKwp, moduleWattage, moduleCount, installedKwp, arrayArea,
+      roofClearanceFactor, requiredArea, clearanceSource, layout: engLayout, capacityExact,
       inverterKw, dcAcRatio,
       // costs
-      projectCost, gstAmount, grossTotal, subsidy, subsidyAuto, netInvestment,
-      costPerWp, bomItems, bomSum, bomDelta, gstPercent,
+      projectCost, gstAmount, grossTotal, subsidy, stateTopUp, subsidyAuto, netInvestment,
+      costPerWp, costPerWpDelivered, bomItems, bomSum, bomDelta, gstPercent,
       taxDepreciationYear1, taxShield, corpTaxRatePct, depreciationRatePct, isCommercialOrInd,
       monthlyBillSaving, monthlyBillAfter,
       // performance
       annualGen, annualSaving, series, lifetimeSaving, lifetimeGen,
+      unitsPerKwpDay, cufPercent,
       payback, irr, effectivePerUnit,
       // environment
       co2Factor, treeFactor, co2Annual, co2Lifetime, treesAnnual, treesLifetime,

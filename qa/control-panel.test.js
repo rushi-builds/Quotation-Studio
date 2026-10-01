@@ -42,13 +42,13 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.evaluate(()=>document.getElementById('advancedPanel').open=false);
   await page.click('#advToggle');check('content disclosure opens with one click',await page.$eval('#advancedPanel',e=>e.open));
   await page.click('#advToggle');check('content disclosure closes with one click',await page.$eval('#advancedPanel',e=>!e.open));
-  await edit('payAdvance','60');check('payment validation appears without changing financial inputs',await page.evaluate(()=>!document.querySelector('.studio-feedback').hidden&&document.querySelector('.studio-feedback').textContent.includes('100%')&&document.getElementById('payAdvance').value==='60'));
-  await page.click('.studio-feedback button');check('validation action opens and focuses the relevant field',await page.evaluate(()=>document.activeElement.id==='payAdvance'&&document.querySelector('[data-section="payAdvance"]').open));
-  await edit('payAdvance','50');await edit('loanAmt','300000');check('incomplete financing gets a clear warning',await page.$eval('.studio-feedback',e=>!e.hidden&&e.textContent.includes('interest rate')));
+  await edit('payAdvance','60');check('invalid milestones flag the field, no strip',await page.evaluate(()=>document.getElementById('payAdvance').getAttribute('aria-invalid')==='true'&&document.querySelector('.studio-feedback').hidden&&document.getElementById('payAdvance').value==='60'));
+  check('the pre-flight names the blocker',await page.evaluate(()=>__qsPreflight.issues().blocking.some(i=>/total 100%/.test(i.message))));
+  await edit('payAdvance','50');await edit('loanAmt','300000');check('incomplete financing flags the field',await page.evaluate(()=>document.getElementById('loanAmt').getAttribute('aria-invalid')==='true'));
   await edit('loanRate','9');await edit('loanYears','5');
   check('financing summary and page count use the current engine and visible pages',await page.evaluate(()=>document.querySelector('[data-section="payAdvance"] summary small').textContent.includes('Financing included')&&document.querySelector('.studio-page-count').textContent===Render.lastVisible.length+' pages'&&Render.lastVisible.some(p=>p.id==='pageFinance')));
   await edit('loanAmt','');await edit('loanRate','');await edit('loanYears','');
-  check('warnings clear after corrections',await page.$eval('.studio-feedback',e=>e.hidden));
+  check('flags clear after corrections',await page.evaluate(()=>document.getElementById('loanAmt').getAttribute('aria-invalid')==='false'&&document.querySelector('.studio-feedback').hidden));
   await page.evaluate(()=>document.querySelector('[data-section="moduleMake"]').open=true);
   await page.click('[data-section="moduleMake"] .studio-view-page');
   check('related-page action navigates to Technical Specification',await page.$eval('#pageTechSpec',e=>e.getBoundingClientRect().top<innerHeight&&e.getBoundingClientRect().bottom>0));

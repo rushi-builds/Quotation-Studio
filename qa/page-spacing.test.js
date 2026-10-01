@@ -36,7 +36,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   }
   await geometry('Default 7 kWp');
   check('summary ends with the supplied carport render, not another text block',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork'),img=e.querySelector('img');return img.complete&&img.naturalWidth>=1436&&e.offsetHeight>120&&img.getAttribute('src').includes('summary-carport-ev')&&!e.querySelector('figcaption');}));
-  await page.evaluate(()=>{StateStore.applyForm({custName:'Customer with a moderately long organisation name',custAddress:'Industrial Area, Pune, Maharashtra — project site under review'});Render.renderAll();});
+  await page.evaluate(()=>{StateStore.applyForm({custName:'Customer with a moderately long organisation name',custAddress:'Industrial Area, Pune, Maharashtra - project site under review'});Render.renderAll();});
   await geometry('Summary with customer and site details');
   check('summary artwork yields space to customer content and stays above the footer',await page.evaluate(()=>{const e=document.querySelector('#pageExec .exec-artwork');return e.offsetHeight>60&&e.getBoundingClientRect().bottom<pageExec.querySelector('footer').getBoundingClientRect().top;}));
   await page.evaluate(f=>{StateStore.applyForm(f);Render.renderAll();},originals.form);
@@ -93,7 +93,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('actual PDF keeps white pictograms visible above orange icon backgrounds',await page.evaluate(()=>__layoutIconInk>=5));
   check('17-page stress-case PDF downloaded',!!pdf&&(fs.readFileSync(path.join(output,pdf),'latin1').match(/\/Type \/Page\b/g)||[]).length===17);
   const proofs=await page.evaluate(()=>__layoutProofs);for(const [id,data] of Object.entries(proofs))fs.writeFileSync(path.join(output,id+'.png'),Buffer.from(data.split(',')[1],'base64'));
-  await page.evaluate(form=>{StateStore.applyForm({...form,moduleMake:'Custom high-efficiency photovoltaic modules — reviewed equipment make',inverterMake:'Custom three-phase grid-connected inverter'});window.__qsOptions=[];Render.renderAll();},originals.form);
+  await page.evaluate(form=>{StateStore.applyForm({...form,moduleMake:'Custom high-efficiency photovoltaic modules - reviewed equipment make',inverterMake:'Custom three-phase grid-connected inverter'});window.__qsOptions=[];Render.renderAll();},originals.form);
   await geometry('Long custom equipment names');
   await page.evaluate(form=>{StateStore.applyForm(form);Render.renderAll();window.__qsSaveNow();},originals.form);
   check('clearing BOM restores the original full-size cost chart',await page.evaluate(()=>chartBridge.clientWidth===718&&chartBridge.clientHeight===252&&!document.getElementById('pageTechSpec').classList.contains('has-site-area')));

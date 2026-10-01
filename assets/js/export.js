@@ -13,7 +13,7 @@
     const s=root.Render.lastState||{},select=$('pdfFormat'),reports=formatsFor(s);
     // Remove unavailable entries, rather than merely disabling them: native
     // select popups (especially on mobile) can still display disabled options.
-    const available=[['full','Detailed Proposal — all applicable pages'],['power','Power Proposal — 2-page summary']];
+    const available=[['full','Detailed Proposal - all applicable pages'],['power','Power Proposal - 2-page summary']];
     for(const [value,report] of Object.entries(reports)) {
       if(value==='bess'?root.Bess.enabled(s):root.AdditionalSystems.enabled(s))
         available.push([value,report.title+' · '+report.ids.length+(report.ids.length===1?' page':' pages')]);
@@ -116,18 +116,130 @@
         });
       }
       const cust=(s.custName||'Customer').replace(/[^a-z0-9]+/gi,'_'),ref=(s.propRef||'').replace(/[^a-z0-9]+/gi,'-');
-      pdf.setProperties({title:(reports[format]?.title||(format==='power'?'Power Proposal':'Solar Proposal'))+' — '+s.custName+' ('+s.capacity+' kWp)',subject:'Rooftop solar EPC proposal '+ref+' v'+s.propVersion,author:s.companyName,creator:s.companyName+' — Quotation Studio'});
+      pdf.setProperties({title:(reports[format]?.title||(format==='power'?'Power Proposal':'Solar Proposal'))+' - '+s.custName+' ('+s.capacity+' kWp)',subject:'Rooftop solar EPC proposal '+ref+' v'+s.propVersion,author:s.companyName,creator:s.companyName+' - Quotation Studio'});
       pdf.save((reports[format]?reports[format].title.replace(/[^a-z0-9_-]+/gi,'_')+'_':format==='power'?'Power_Proposal_':'Proposal_')+cust+'_'+s.capacity+'kWp_'+ref+'.pdf');
       set('Downloaded ✓ ('+pages.length+' pages)');
     } finally {snapshot?.remove();busy=false;}
   }
+  /* ---------- export pre-flight ----------
+     The builder's own validation is the single source of truth for what is
+     wrong, so the panel and the download can never disagree. Blocking issues
+     would print a wrong document, so no PDF is produced until they are fixed;
+     advisories are suspicions, so the download is offered anyway. With nothing
+     to report the check stays silent apart from a short notice that fades on
+     its own. Built here rather than in the markup: the customer view shares the
+     page's markup, and nothing about this belongs in a customer's copy. */
+  let chrome = null, noticeTimer = 0;
+  function ensureChrome() {
+    if (chrome) return chrome;
+    const dialog = document.createElement('dialog');
+    dialog.id = 'exportCheckDialog'; dialog.className = 'qs-dialog';
+    dialog.setAttribute('data-builder-only', ''); dialog.setAttribute('aria-labelledby', 'exportCheckTitle');
+    dialog.innerHTML = '<h2 class="qs-dialog-title" id="exportCheckTitle"></h2><p class="qs-dialog-note"></p>'
+      + '<ul class="qs-dialog-list"></ul><div class="qs-dialog-actions"></div>';
+    const toast = document.createElement('div');
+    toast.id = 'exportToast'; toast.className = 'qs-toast';
+    toast.setAttribute('role', 'status'); toast.setAttribute('aria-live', 'polite');
+    toast.setAttribute('data-builder-only', '');
+    document.body.append(dialog, toast);
+    chrome = {
+      dialog, toast,
+      title: dialog.querySelector('.qs-dialog-title'),
+      note: dialog.querySelector('.qs-dialog-note'),
+      list: dialog.querySelector('.qs-dialog-list'),
+      actions: dialog.querySelector('.qs-dialog-actions')
+    };
+    return chrome;
+  }
+  function notice(text, kind) {
+    const c = ensureChrome();
+    c.toast.textContent = text;
+    c.toast.setAttribute('data-kind', kind || 'ok');
+    c.toast.classList.add('is-visible');
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => c.toast.classList.remove('is-visible'), 3400);
+  }
+  function ask(found) {
+    const c = ensureChrome();
+    const blocking = found.blocking || [], advisory = found.advisory || [], stop = blocking.length > 0;
+    if (c.dialog.open) return Promise.resolve('cancel');
+    c.title.textContent = stop ? 'This quotation is not ready to send' : 'Check these before you download';
+    c.note.textContent = stop
+      ? 'These inputs would print a wrong offer. Fix them and the PDF is generated - the button will work again straight away.'
+      : 'These look unusual but may be deliberate. The PDF can still be produced exactly as it stands.';
+    c.list.replaceChildren();
+    let settle = () => {};
+    const row = (item, kind) => {
+      const li = document.createElement('li');
+      li.className = 'qs-dialog-item is-' + kind;
+      const text = document.createElement('span');
+      text.textContent = item.message;
+      const fix = document.createElement('button');
+      fix.type = 'button'; fix.textContent = 'Fix this →';
+      fix.addEventListener('click', () => { settle('cancel'); root.__qsPreflight?.reveal?.(item.id); });
+      li.append(text, fix);
+      c.list.append(li);
+    };
+    blocking.forEach(item => row(item, 'blocking'));
+    advisory.forEach(item => row(item, 'advisory'));
+    c.actions.replaceChildren();
+    const action = (label, value, primary) => {
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'qs-btn' + (primary ? ' is-primary' : '');
+      button.textContent = label;
+      button.addEventListener('click', () => settle(value));
+      c.actions.append(button);
+    };
+    if (stop) action('Fix the first issue', 'jump', true);
+    else action('Download anyway', 'proceed', true);
+    action('Close', 'cancel');
+    return new Promise((resolve) => {
+      let done = false;
+      const onClose = () => settle('cancel');
+      settle = (value) => {
+        if (done) return;
+        done = true;
+        c.dialog.removeEventListener('close', onClose);
+        if (c.dialog.open) c.dialog.close();
+        if (value === 'jump') root.__qsPreflight?.reveal?.((blocking[0] || advisory[0] || {}).id);
+        resolve(value === 'proceed' ? 'proceed' : 'cancel');
+      };
+      c.dialog.addEventListener('close', onClose, { once: true });
+      /* A real modal where the browser can show one. Environments without
+         dialog support (and any browser that refuses to open it) fall back to
+         the plain confirm, so the check is never silently skipped. */
+      let opened = false;
+      try {
+        if (typeof c.dialog.showModal === 'function') { c.dialog.showModal(); opened = c.dialog.open; }
+      } catch (e) { opened = false; }
+      if (!opened) settle(root.confirm(c.title.textContent + '\n\n' +
+        blocking.concat(advisory).map(item => '· ' + item.message).join('\n')) ? 'proceed' : 'cancel');
+    });
+  }
+  async function preflight() {
+    const api = root.__qsPreflight;
+    if (!api || typeof api.run !== 'function') return 'proceed';
+    let found;
+    try { found = api.run() || {}; } catch (e) { return 'proceed'; }
+    if (!(found.blocking || []).length && !(found.advisory || []).length) {
+      notice('All checks passed - your download has started.', 'ok');
+      return 'proceed';
+    }
+    return ask(found);
+  }
   function wire() {
     const btn=$('downloadBtn'),status=$('statusMsg');
+    /* A fresh message cancels the previous export's fade-out, so an old timer
+       can never wipe a newer status line. */
+    let statusTimer=0;
     if(btn) btn.addEventListener('click',async()=>{
+      /* Nothing is generated until the sheet passes its own checks. */
+      if (await preflight() !== 'proceed') return;
       btn.disabled=true;btn.classList.add('busy');
-      try {await exportPdf(m=>{status.textContent=m;},{format:$('pdfFormat')?.value});}
-      catch(err){console.error(err);status.textContent=err.message || 'PDF generation failed. Please try again.';}
-      finally {btn.disabled=false;btn.classList.remove('busy');setTimeout(()=>{status.textContent='';},8000);}
+      try {clearTimeout(statusTimer);await exportPdf(m=>{status.textContent=m;},{format:$('pdfFormat')?.value});}
+      catch(err){console.error(err);clearTimeout(statusTimer);status.textContent=err.message || 'PDF generation failed. Please try again.';
+        notice(err.message || 'PDF generation failed. Please try again.','error');}
+      finally {btn.disabled=false;btn.classList.remove('busy');clearTimeout(statusTimer);statusTimer=setTimeout(()=>{status.textContent='';},8000);}
     });
     document.querySelectorAll('[data-export-format]').forEach(button=>button.addEventListener('click',async()=>{
       const old=button.textContent;button.disabled=true;

@@ -1,9 +1,9 @@
 /* ==========================================================================
-   Quotation Studio — Customer Share View
+   Quotation Studio - Customer Share View
    --------------------------------------------------------------------------
    Read-only render of one proposal for the customer:
        share.html?p=<proposalId>
-   Uses the SAME renderers and finance engine as the builder — the customer
+   Uses the SAME renderers and finance engine as the builder - the customer
    sees exactly what the PDF contains, from the same data. No form, no editor.
 
    Works when served over HTTP (hosted statically, or the future platform).
@@ -71,8 +71,8 @@
     /* company branding + OG tags dynamic */
     const f = blob.form || {};
     if (f.companyName) {
-      $('shareTitle').textContent = f.companyName + ' — Solar Proposal';
-      document.title = 'Solar Proposal — ' + (f.custName || 'Customer') + ' (' + f.capacity + ' kWp)';
+      $('shareTitle').textContent = f.companyName + ' - Solar Proposal';
+      document.title = 'Solar Proposal - ' + (f.custName || 'Customer') + ' (' + f.capacity + ' kWp)';
     }
     try {
       const setMeta = (prop, content) => {
@@ -84,8 +84,8 @@
         }
         el.setAttribute('content', content);
       };
-      const ogTitle = (f.custName ? f.custName + ' — ' : '') + (f.capacity || '') + ' kWp Solar Proposal — ' + (f.companyName || 'KTM');
-      const ogDesc = 'Personalised ' + (f.capacity || '') + ' kWp rooftop solar proposal for ' + (f.custName || 'customer') + ' — generation, savings, investment and EMI analysis by ' + (f.companyName || 'KTM Energy Experts');
+      const ogTitle = (f.custName ? f.custName + ' - ' : '') + (f.capacity || '') + ' kWp Solar Proposal - ' + (f.companyName || 'KTM');
+      const ogDesc = 'Personalised ' + (f.capacity || '') + ' kWp rooftop solar proposal for ' + (f.custName || 'customer') + ' - generation, savings, investment and EMI analysis by ' + (f.companyName || 'KTM Energy Experts');
       setMeta('og:title', ogTitle);
       setMeta('og:description', ogDesc);
       const twTitle = document.querySelector('meta[name=\"twitter:title\"]');
@@ -96,8 +96,8 @@
     $('shareSub').textContent = 'Ref ' + (f.propRef || '') + ' · v' + (f.propVersion || '1.0') +
       ' · ' + (window.Finance.fmtDate(f.propDate) || '');
     $('shareStatus').textContent = window.Proposals.statusLabel(blob.status);
-    $('shareCustomer').textContent = f.custName || '—';
-    $('shareCapacity').textContent = (f.capacity || '—') + ' kWp rooftop solar system' +
+    $('shareCustomer').textContent = f.custName || '-';
+    $('shareCapacity').textContent = (f.capacity || '-') + ' kWp rooftop solar system' +
       (f.custAddress ? ' · ' + f.custAddress : '');
     $('shareFooter').textContent = [f.companyName, f.companyPhone, f.companyEmail, f.companyWebsite].filter(Boolean).join(' • ');
 
@@ -195,11 +195,11 @@
         return;
       }
       const message = [
-        'ENGINEERING REVIEW REQUEST — not an installation order',
+        'ENGINEERING REVIEW REQUEST - not an installation order',
         'Hello ' + (f.companyName || 'KTM Energy Experts') + ',',
-        'I have reviewed proposal ' + (f.propRef || '—') + ' v' + (f.propVersion || '1.0') +
-          ' prepared for ' + (f.custName || 'the customer') + ' (' + (f.capacity || '—') + ' kWp).',
-        'Interest: ' + (stage.value === 'ready' ? 'Ready to discuss the final scope' : 'Interested — please discuss the site'),
+        'I have reviewed proposal ' + (f.propRef || '-') + ' v' + (f.propVersion || '1.0') +
+          ' prepared for ' + (f.custName || 'the customer') + ' (' + (f.capacity || '-') + ' kWp).',
+        'Interest: ' + (stage.value === 'ready' ? 'Ready to discuss the final scope' : 'Interested - please discuss the site'),
         'Requested: ' + services.join('; '),
         'Site: ' + location,
         timing ? 'Preferred timing (not confirmed): ' + timing : 'Timing: please coordinate with me',
@@ -213,7 +213,7 @@
       link.hidden = !wa;
       if (wa) link.href = wa;
       deliveryNote.textContent = wa
-        ? 'Prepared only—not sent or booked. Open WhatsApp, attach the site documents and send the message. The team confirms the next steps.'
+        ? 'Prepared only-not sent or booked. Open WhatsApp, attach the site documents and send the message. The team confirms the next steps.'
         : 'No valid WhatsApp number is configured. Copy this message and contact the proposal sender directly. Nothing has been sent.';
       preview.hidden = false;
       preview.scrollIntoView({behavior:'smooth', block:'nearest'});
@@ -224,7 +224,7 @@
       try {
         if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('Clipboard unavailable');
         await navigator.clipboard.writeText(message);
-        deliveryNote.textContent = 'Message copied—not sent. Paste it into your conversation with the team.';
+        deliveryNote.textContent = 'Message copied-not sent. Paste it into your conversation with the team.';
       } catch (e) {
         $('requestMessage').focus();
         $('requestMessage').select();
@@ -355,7 +355,7 @@
         console.error(e);
         $('shareAcceptWrap').style.display = 'none';
         $('sharePrint').disabled = true;
-        $('shareSub').textContent = 'Could not load the proposal view — please serve this folder over HTTP.';
+        $('shareSub').textContent = 'Could not load the proposal view - please serve this folder over HTTP.';
       });
   }
 

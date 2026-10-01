@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Quotation Studio — Application Bootstrap
+   Quotation Studio - Application Bootstrap
    --------------------------------------------------------------------------
    Orchestrates: proposal store (model.js), form state (state.js), equipment
    catalog (equipment.js), rendering, autosave, preview navigation/scaling,
@@ -37,7 +37,7 @@
     const time = String(at.getHours()).padStart(2, '0') + ':' + String(at.getMinutes()).padStart(2, '0');
     el.textContent = {saving: 'Saving…', saved: 'Saved in this browser · ' + time, error: 'Not saved'}[state];
     el.title = state === 'error'
-      ? 'Browser storage could not save your changes. Your work is still open here — use Save now, or Export backup before closing this tab.'
+      ? 'Browser storage could not save your changes. Your work is still open here - use Save now, or Export backup before closing this tab.'
       : 'Saved in this browser only, at ' + time + '. Export a backup to keep a portable copy.';
     el.classList.add('on');
   }
@@ -51,7 +51,7 @@
 
   /* ---------- system options (Good / Better / Best) ---------- */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
-    'inverterMake', 'inverterKw', 'costPerKwp', 'gstPercent', 'tariff', 'escalation',
+    'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
     'degradation', 'subsidyOverride'];
 
   function optionsList() { return window.__qsOptions || (window.__qsOptions = []); }
@@ -66,14 +66,14 @@
     if (!list) return;
     const opts = optionsList();
     if (!opts.length) {
-      list.innerHTML = '<div class="hint">No saved options yet. Design a system above, then save it with a name — e.g. “Good — 5 kWp”.</div>';
+      list.innerHTML = '<div class="hint">No saved options yet. Design a system above, then save it with a name - e.g. “Good - 5 kWp”.</div>';
       return;
     }
     list.innerHTML = opts.map((o, i) => {
       const fin = window.Finance.compute(Object.assign(
         {}, window.StateStore.collectForm(), o.fields, { options: [] }));
       const summary = o.fields.capacity + ' kWp · ' +
-        (isFinite(fin.payback) ? fin.payback.toFixed(1) + ' yr payback' : 'payback —') + ' · ' +
+        (isFinite(fin.payback) ? fin.payback.toFixed(1) + ' yr payback' : 'payback -') + ' · ' +
         window.Finance.fmtINRshort(fin.netInvestment);
       return '<div class="opt-row' + (o.recommended ? ' recommended' : '') + '" data-i="' + i + '">' +
         '<div class="opt-info"><div class="opt-name">' +
@@ -129,7 +129,7 @@
       let name = (nameEl.value || '').trim();
       if (!name) {
         const cap = window.StateStore.collectForm().capacity;
-        name = 'Option ' + (optionsList().length + 1) + ' — ' + cap + ' kWp';
+        name = 'Option ' + (optionsList().length + 1) + ' - ' + cap + ' kWp';
       }
       optionsList().push({ id: 'o_' + Date.now().toString(36), name, fields: captureOption(), recommended: false });
       nameEl.value = '';
@@ -149,7 +149,7 @@
         'Here is your personalised rooftop solar proposal from ' + s.companyName + ' (' +
         s.capacity + ' kWp).\n' +
         (link ? '\nExplore it here: ' + link + '\n' : '') +
-        '\n— ' + s.companyName + ' | ' + s.companyPhone;
+        '\n- ' + s.companyName + ' | ' + s.companyPhone;
       const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
       window.open(url, '_blank');
     });
@@ -180,7 +180,7 @@
       const items = window.Proposals.list();
       sel.innerHTML = items.map((p) => {
         const label = '#' + (p.ref || p.id.slice(-4)) + ' · ' + p.title +
-          ' — ' + window.Proposals.statusLabel(p.status) + ' · v' + p.version;
+          ' - ' + window.Proposals.statusLabel(p.status) + ' · v' + p.version;
         return '<option value="' + p.id + '">' +
           label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
       }).join('');
@@ -229,7 +229,7 @@
         const state = st.at ? 'done' : (i === lastDone + 1 ? 'next' : '');
         return '<div class="pm-tl-step ' + state + '"><div class="pm-tl-dot"></div>' +
           '<div class="pm-tl-label">' + st.label + '</div>' +
-          '<div class="pm-tl-date">' + (fmt(st.at) || (state === 'next' ? 'pending' : '—')) + '</div></div>';
+          '<div class="pm-tl-date">' + (fmt(st.at) || (state === 'next' ? 'pending' : '-')) + '</div></div>';
       }).join('');
     }
   }
@@ -237,7 +237,6 @@
   function loadActiveIntoUI() {
     const blob = window.Proposals.active();
     if (!blob) return;
-    /* exposed for CloudBridge after pulling a cloud proposal */
     window.StateStore.applyForm(Object.assign({}, window.StateStore.DEFAULTS, blob.form || {}));
     if (blob.form && !blob.form.propDate) $('propDate').value = today();
     window.__qsOptions = Array.isArray(blob.options) ? blob.options : [];
@@ -376,14 +375,6 @@
       return ok ? blob : null;
     } catch (error) { showSaveState('error'); return null; }
   }
-
-  /* Cloud bridge hooks (Phase A) — optional; safe if platform is offline. */
-  window.__qsSaveNow = saveNow;
-  window.__qsLoadActive = function reloadFromActive() {
-    loadActiveIntoUI();
-    if (window.Render && window.Render.renderAll) window.Render.renderAll();
-    if (typeof refreshManager === 'function') refreshManager();
-  };
 
   function creationSaved(blob) {
     if (blob && window.Proposals.get(blob.id) && window.Proposals.list().some(p => p.id === blob.id)) return true;
@@ -548,7 +539,7 @@
           + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           + '. Export a backup for a portable copy.';
       } else {
-        $('statusMsg').textContent = 'Could not save to this browser\u2019s storage. Your work is still open — use Export backup now.';
+        $('statusMsg').textContent = 'Could not save to this browser\u2019s storage. Your work is still open - use Export backup now.';
       }
       refreshManager(false);
     }
@@ -634,7 +625,7 @@
       let ok = false;
       try { localStorage.setItem(COMPANY_KEY, JSON.stringify(values)); ok = true; } catch (e) { ok = false; }
       $('companyDefaultStatus').textContent = ok
-        ? 'Saved. New proposals in this browser start with these company details (this browser only — it is not shared with other devices or people).'
+        ? 'Saved. New proposals in this browser start with these company details (this browser only - it is not shared with other devices or people).'
         : 'Could not save these defaults: browser storage is full. They are still used for this proposal.';
     });
     if ($('companyDefaultClear')) $('companyDefaultClear').addEventListener('click', () => {
@@ -647,7 +638,7 @@
       window.StateStore.exportFile();   /* exports live values, so nothing is lost here */
       $('statusMsg').textContent = saved
         ? 'Backup file for this proposal downloaded. It contains what is on screen right now, including anything that failed to autosave.'
-        : 'Autosave could not write to this browser, so the backup file contains what is on screen right now — keep that file.';
+        : 'Autosave could not write to this browser, so the backup file contains what is on screen right now - keep that file.';
     });
     $('importFile').addEventListener('change', async function () {
       const input = this;
@@ -666,7 +657,7 @@
       } catch (err) {
         const message = String((err && err.message) || '');
         if (message === 'storage' || /storage/i.test(message)) {
-          $('statusMsg').textContent = 'Import failed: this browser is out of storage for another proposal. Your current proposal is unchanged — free some space or export a backup first.';
+          $('statusMsg').textContent = 'Import failed: this browser is out of storage for another proposal. Your current proposal is unchanged - free some space or export a backup first.';
         } else if (/JSON|Unexpected|proposal file|Not a proposal/i.test(message)) {
           $('statusMsg').textContent = 'That file is not a Quotation Studio backup (.json). Nothing was imported and your current proposal is unchanged.';
         } else {
@@ -680,7 +671,7 @@
 
   /* ---------- boot ---------- */
   function boot() {
-    if (window.__qsBooted) return; /* idempotent — harnesses may fire DOMContentLoaded twice */
+    if (window.__qsBooted) return; /* idempotent - harnesses may fire DOMContentLoaded twice */
     window.__qsBooted = true;
     templatePageImages = Object.fromEntries([...document.querySelectorAll('input[data-photo]')]
       .map(input => [input.dataset.photo, $(input.dataset.photo)?.getAttribute('src') || '']));
@@ -746,22 +737,22 @@
     /* 1-Click Quick Presets for Rapid Solar Quotations */
     const PRESETS = {
       '3kw': {
-        capacity: '3', customerType: 'residential', costPerKwp: '62000',
+        capacity: '3', customerType: 'residential', costPerWp: '62',
         tariff: '8.5', moduleWattage: '545', moduleMake: 'Premier Energies',
         moduleTech: 'Mono PERC DCR', inverterKw: '3', inverterMake: 'Growatt'
       },
       '5kw': {
-        capacity: '5', customerType: 'residential', costPerKwp: '58000',
+        capacity: '5', customerType: 'residential', costPerWp: '58',
         tariff: '9.2', moduleWattage: '550', moduleMake: 'Waaree Energies',
         moduleTech: 'Bifacial TopCon', inverterKw: '5', inverterMake: 'Deye'
       },
       '25kw': {
-        capacity: '25', customerType: 'commercial', costPerKwp: '48000',
+        capacity: '25', customerType: 'commercial', costPerWp: '48',
         tariff: '12.5', moduleWattage: '550', moduleMake: 'Adani Solar',
         moduleTech: 'Bifacial Mono PERC', inverterKw: '25', inverterMake: 'Sungrow'
       },
       '100kw': {
-        capacity: '100', customerType: 'industrial', costPerKwp: '42000',
+        capacity: '100', customerType: 'industrial', costPerWp: '42',
         tariff: '14.0', moduleWattage: '550', moduleMake: 'Goldi Solar',
         moduleTech: 'TopCon Bifacial', inverterKw: '100', inverterMake: 'Sungrow'
       }
@@ -772,7 +763,7 @@
         if (!p) return;
         if (!confirm('Apply this indicative preset? It replaces system/pricing assumptions and clears previous BOM, financing, subsidy override and design report links. Customer details and saved options are kept. Verify equipment and prices before sending.')) return;
         const resetDesign = {
-          genFactor: '1460', gstPercent: '8.9', escalation: '6', degradation: '0.5',
+          genFactor: '1460', gstPercent: '8.9', escalation: '4', degradation: '0.5',
           subsidyOverride: '', arkaUrl: '', pvsystUrl: '',
           bomModules: '', bomInverter: '', bomStructure: '', bomBos: '', bomInstall: '', bomLiaison: '',
           loanAmt: '', loanRate: '', loanYears: '', moduleLengthMm: '', moduleWidthMm: ''
@@ -789,7 +780,7 @@
     window.Exporter.wire();
     buildNav();
     fitPages();
-    saveNow(); /* snapshot the working state immediately — no lost first edits */
+    saveNow(); /* snapshot the working state immediately - no lost first edits */
     document.addEventListener('qs:rendered', buildNav);
 
     /* Resume the reading position, but never yank the viewport once the user
@@ -841,7 +832,7 @@
       if (document.visibilityState === 'hidden') flushBeforeHide();
     });
 
-    /* presentation mode — hide the editor, refit pages to full width */
+    /* presentation mode - hide the editor, refit pages to full width */
     const enterPresent = () => {
       document.body.classList.add('presenting');
       fitPages();

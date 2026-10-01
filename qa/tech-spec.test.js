@@ -93,15 +93,90 @@ const t = (name, condition) => {
     t('clearing links restores original note position', cleared.refsHidden &&
       cleared.noteTop === results['no-links'].noteTop && cleared.noteBottom === results['no-links'].noteBottom);
 
-    t('7 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹6,08,070'));
+    t('7 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹4,06,823'));
     await page.$eval('#capacity', (el) => {
       el.value = '20';
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    t('20 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹18,82,200'));
-    t('20 kWp lifetime savings unchanged', await page.$eval('#v_coverBadgeGen', (el) => el.textContent.includes('₹2.23')));
-    t('20 kWp installed array displays a finite 20.165 kWp', await page.$eval('#v_tsTable', el => [...el.querySelectorAll('tr')].some(row => row.querySelector('.spec-k')?.textContent === 'Installed Array Size' && row.querySelector('.spec-v')?.textContent === '20.165 kWp')));
+    t('20 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹13,07,208'));
+    t('20 kWp cover badge shows the project cost, not the savings', await page.evaluate(() =>
+      document.getElementById('v_coverBadgeGen').textContent ===
+      Finance.fmtINRshort(Finance.compute(Render.lastState).grossTotal)));
+    t('20 kWp installed array shows 20.165 kWp beside the contracted 20 kWp', await page.$eval('#v_tsTable', el => [...el.querySelectorAll('tr')].some(row => row.querySelector('.spec-k')?.textContent === 'Installed Array Size' && row.querySelector('.spec-v')?.textContent === '20.165 kWp (contracted 20 kWp)')));
     t('20 kWp module count unchanged', await page.$eval('#v_tsTable', (el) => el.textContent.includes('37 modules')));
+    /* The page is a fixed A4 box with overflow hidden, so an engineering basis
+       that runs past the bottom prints as missing text rather than warning
+       anyone. Only a real engine can answer whether it fits - jsdom reports
+       scrollHeight as 0 - so it is answered here, with the design-basis inputs
+       both complete and empty (a DATA REQUIRED line is the longest form). */
+    const fit = await page.evaluate(() => {
+      const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) { el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); }
+      };
+      const filled = {
+        moduleVoc: '49.70', moduleVmp: '41.50', moduleIsc: '13.90', moduleImp: '13.00',
+        inverterMaxCurrentA: '26', dcCableLengthM: '25', dcCableSizeMm2: '4',
+        acCableLengthM: '15', acCableSizeMm2: '6', soilResistivity: '50',
+        buildingLengthM: '12', buildingWidthM: '9', availableArea: '120'
+      };
+      const measure = (values) => {
+        Object.entries(values).forEach(([id, value]) => set(id, value));
+        Render.renderAll();
+        const el = document.getElementById('pageTechSpec');
+        const rows = [...el.querySelectorAll('#v_tsTable tr.is-eng')];
+        const last = rows[rows.length - 1];
+        return {
+          overflow: Math.round(el.scrollHeight - el.clientHeight),
+          classes: el.className,
+          rows: rows.length,
+          fontPx: last ? parseFloat(getComputedStyle(last.querySelector('td')).fontSize) : 0,
+          inside: last ? last.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 0.5 : false
+        };
+      };
+      const complete = measure(filled);
+      const blank = measure(Object.fromEntries(Object.keys(filled).map((k) => [k, ''])));
+      return { complete, blank, reported: (window.__qsPageOverflow || []).slice() };
+    });
+    t('the design basis fits its A4 page with inputs complete (' + fit.complete.overflow + ' px spare)',
+      fit.complete.overflow <= 2 && fit.complete.inside);
+    t('the design basis fits its A4 page with inputs blank (' + fit.blank.overflow + ' px spare)',
+      fit.blank.overflow <= 2 && fit.blank.inside);
+    t('every design-basis row is tagged for compaction', fit.complete.rows >= 5 && fit.blank.rows >= 5);
+    t('fitting the page never shrinks the design basis below 9 px',
+      fit.complete.fontPx >= 9 && fit.blank.fontPx >= 9);
+    t('no page is reported as overflowing after the fit', fit.reported.length === 0);
+
+    /* One combination genuinely cannot fit on a single sheet: roof-area rows,
+       reference pills and the full design basis together. It must be reported
+       - never clipped in silence - and every row must still be in the page. */
+    await setLinks('https://www.example.com/reports/site-pvsyst.pdf', '');
+    const dense = await page.evaluate(() => {
+      const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) { el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); }
+      };
+      set('availableArea', '120');
+      Render.renderAll();
+      const el = document.getElementById('pageTechSpec');
+      return {
+        reported: (window.__qsPageOverflow || []).includes('pageTechSpec'),
+        rows: el.querySelectorAll('#v_tsTable tr').length,
+        lastRow: el.querySelector('#v_tsTable tr:last-child td')?.textContent || '',
+        engFont: parseFloat(getComputedStyle(el.querySelector('#v_tsTable tr.is-eng td')).fontSize)
+      };
+    });
+    t('the one sheet that cannot fit everything is reported, not silently clipped', dense.reported);
+    t('and it still prints every row it holds, down to the honesty row', dense.rows >= 25 && dense.lastRow.includes('Data still required'));
+    t('the design basis never drops below 9 px to achieve that', dense.engFont >= 9);
+    await setLinks('', '');
+    await page.evaluate(() => {
+      const el = document.getElementById('availableArea');
+      if (el) { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); }
+      Render.renderAll();
+    });
+    t('clearing either optional block fits the page again', await page.evaluate(() => (window.__qsPageOverflow || []).length === 0));
+
     t('no browser runtime errors', errors.length === 0);
     fs.writeFileSync(path.join(OUT, 'tech-spec-metrics.json'), JSON.stringify(results, null, 2) + '\n');
     console.log(JSON.stringify(results, null, 2));

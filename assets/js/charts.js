@@ -1,18 +1,18 @@
 /* ==========================================================================
-   Quotation Studio — Chart Engine (dependency-free, canvas-based)
+   Quotation Studio - Chart Engine (dependency-free, canvas-based)
    --------------------------------------------------------------------------
    Charts are drawn on <canvas> because html2canvas rasterises canvas
    bitmaps with perfect fidelity during PDF export (unlike SVG/CSS tricks).
 
-   Every chart is computed ONLY from the finance object passed in — the
+   Every chart is computed ONLY from the finance object passed in - the
    same object rendered as text elsewhere in the proposal, so charts can
    never disagree with the numbers.
 
    Charts:
-     Charts.cumulative(canvas, f)  — cumulative savings vs net investment
-     Charts.annual(canvas, f)      — annual savings bars over 25 years
-     Charts.bridge(canvas, f)      — cost build-up (base → GST → subsidy → net)
-     Charts.donut(canvas, f)       — BOM composition (only when BOM is entered)
+     Charts.cumulative(canvas, f)  - cumulative savings vs net investment
+     Charts.annual(canvas, f)      - annual savings bars over 25 years
+     Charts.bridge(canvas, f)      - cost build-up (base → GST → subsidy → net)
+     Charts.donut(canvas, f)       - BOM composition (only when BOM is entered)
    ========================================================================== */
 'use strict';
 
@@ -31,7 +31,7 @@
   const FONT_DISPLAY = "'Poppins', 'Inter', Arial, sans-serif";
 
   function shortINR(n) {
-    if (!isFinite(n)) return '—';
+    if (!isFinite(n)) return '-';
     const abs = Math.abs(n);
     if (abs >= 1e7) return '₹' + trim((n / 1e7)) + 'Cr';
     if (abs >= 1e5) return '₹' + trim((n / 1e5)) + 'L';
@@ -156,8 +156,8 @@
       ctx.fillStyle = '#FFFFFF';
       ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = ORANGE_DARK; ctx.lineWidth = 2.4; ctx.stroke();
-      /* marker label — flip above the point when it sits near the x-axis */
-      const label = 'Payback — Year ' + f.payback.toFixed(1);
+      /* marker label - flip above the point when it sits near the x-axis */
+      const label = 'Payback - Year ' + f.payback.toFixed(1);
       ctx.font = '700 10.5px ' + FONT_DISPLAY;
       const tw = ctx.measureText(label).width;
       const lx = Math.min(Math.max(px - tw / 2, pad.l), W - pad.r - tw);
@@ -250,7 +250,7 @@
   /* ------------------------------------------------------------------ */
   function bridge(canvas, f) {
     if (!canvas) return;
-    const W = canvas.clientWidth || 700, H = canvas.clientHeight || 230;
+    const W = canvas.clientWidth || 700, H = Number(canvas.dataset.h) || canvas.clientHeight || 230;
     const ctx = setup(canvas, W, H);
     if (f.projectCost <= 0) {
       emptyNote(ctx, 'Enter the project cost inputs to see the cost build-up.');
@@ -259,16 +259,16 @@
     const steps = [
       { label: 'Project Cost', v: f.projectCost, color: NAVY, sub: 'excl. GST' },
       { label: '+ GST', v: f.gstAmount, color: NAVY_SOFT, sub: f.gstPercent + '%', start: f.projectCost },
-      { label: '− Subsidy', v: -f.subsidy, color: GREEN, sub: f.subsidy > 0 ? 'PM Surya Ghar' : '—', start: f.grossTotal },
+      { label: '− Subsidy', v: -f.subsidy, color: GREEN, sub: f.subsidy > 0 ? 'PM Surya Ghar' : '-', start: f.grossTotal },
       { label: 'Net Payable', v: f.netInvestment, color: ORANGE, sub: 'your investment', total: true }
     ];
-    const pad = { l: 16, r: 16, t: 30, b: 34 };
+    const pad = { l: 16, r: 16, t: 34, b: 42 };
     const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
     const maxY = niceCeil(f.grossTotal * 1.08);
     const slot = iw / steps.length;
-    const bw = Math.min(slot * 0.5, 86);
+    const bw = Math.min(slot * 0.55, 104);
 
-    ctx.font = '500 10px ' + FONT;
+    ctx.font = '500 10.5px ' + FONT;
     const ticks = 3;
     for (let i = 0; i <= ticks; i++) {
       const v = (maxY / ticks) * i;
@@ -279,49 +279,66 @@
       ctx.fillText(shortINR(v), pad.l + 2, y - 4);
     }
 
-    let runTop = 0;
+    const GUIDE = 'rgba(91,107,128,0.14)';
     steps.forEach((st, i) => {
       const x = pad.l + slot * i + (slot - bw) / 2;
-      let y0, y1;
-      if (st.total) {
-        y1 = pad.t + ih; y0 = y1 - (ih * st.v) / maxY;
-      } else if (i === 0) {
-        y0 = pad.t + ih - (ih * st.v) / maxY; y1 = pad.t + ih;
+      const base = pad.t + ih;
+      const yOf = (v) => base - (ih * v) / maxY;
+      const valueLabel = (text, y) => {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = NAVY;
+        ctx.font = '700 13px ' + FONT_DISPLAY;
+        ctx.fillText(text, x + bw / 2, y);
+      };
+
+      if (st.total || i === 0) {
+        /* full column: the amount itself, standing on the baseline */
+        const y0 = yOf(st.v);
+        const g = ctx.createLinearGradient(0, y0, 0, base);
+        g.addColorStop(0, st.color);
+        g.addColorStop(1, st.total ? ORANGE_DARK : shade(st.color));
+        ctx.fillStyle = g;
+        roundRect(ctx, x, y0, bw, base - y0, 4);
+        ctx.fill();
+        valueLabel(shortINR(st.v), y0 - 9);
+      } else if (st.v >= 0) {
+        /* addition: grey context up to the previous total, coloured cap on top */
+        const yTop = yOf(st.start + st.v), yPrev = yOf(st.start);
+        ctx.fillStyle = GUIDE;
+        roundRect(ctx, x, yPrev, bw, base - yPrev, 4);
+        ctx.fill();
+        const g = ctx.createLinearGradient(0, yTop, 0, yPrev);
+        g.addColorStop(0, st.color);
+        g.addColorStop(1, shade(st.color));
+        ctx.fillStyle = g;
+        roundRect(ctx, x, yTop, bw, Math.max(yPrev - yTop, 2), 4);
+        ctx.fill();
+        valueLabel('+ ' + shortINR(st.v), yTop - 9);
       } else {
-        y0 = pad.t + ih - (ih * (st.start + st.v)) / maxY;
-        y1 = pad.t + ih - (ih * st.start) / maxY;
-      }
-      const g = ctx.createLinearGradient(0, y0, 0, y1);
-      g.addColorStop(0, st.color);
-      g.addColorStop(1, st.total ? ORANGE_DARK : shade(st.color));
-      ctx.fillStyle = g;
-      roundRect(ctx, x, y0, bw, Math.max(y1 - y0, 2), 4);
-      ctx.fill();
-
-      /* connector to next bar */
-      if (i < steps.length - 1) {
-        runTop = i === 0 ? y0 : (st.v >= 0 ? y0 : y1);
-        ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = '#C4CBD4';
-        ctx.beginPath();
-        ctx.moveTo(x + bw, i === 0 ? y0 : (st.v >= 0 ? y0 : y1));
-        ctx.lineTo(x + slot + (slot - bw) / 2, i === 0 ? y0 : (st.v >= 0 ? y0 : y1));
-        ctx.stroke();
-        ctx.setLineDash([]);
+        /* subtraction: the coloured amount stands on the baseline,
+           grey context above it completes the gross column */
+        const amt = Math.abs(st.v);
+        const yAmt = yOf(amt), yGross = yOf(st.start);
+        ctx.fillStyle = GUIDE;
+        roundRect(ctx, x, yGross, bw, Math.max(yAmt - yGross, 2), 4);
+        ctx.fill();
+        const g = ctx.createLinearGradient(0, yAmt, 0, base);
+        g.addColorStop(0, st.color);
+        g.addColorStop(1, shade(st.color));
+        ctx.fillStyle = g;
+        roundRect(ctx, x, yAmt, bw, base - yAmt, 4);
+        ctx.fill();
+        valueLabel('\u2212 ' + shortINR(amt), yAmt - 9);
       }
 
-      /* value + labels */
+      /* step name + sub */
       ctx.textAlign = 'center';
-      ctx.fillStyle = NAVY;
-      ctx.font = '700 11px ' + FONT_DISPLAY;
-      const valText = (st.v < 0 ? '− ' : '') + shortINR(Math.abs(st.v));
-      ctx.fillText(valText, x + bw / 2, y0 - 7);
       ctx.fillStyle = TEXT;
-      ctx.font = '600 10.5px ' + FONT;
-      ctx.fillText(st.label, x + bw / 2, pad.t + ih + 15);
-      ctx.font = '500 9px ' + FONT;
+      ctx.font = '600 11.5px ' + FONT;
+      ctx.fillText(st.label, x + bw / 2, base + 17);
+      ctx.font = '500 9.8px ' + FONT;
       ctx.fillStyle = '#8A93A0';
-      ctx.fillText(st.sub, x + bw / 2, pad.t + ih + 27);
+      ctx.fillText(st.sub, x + bw / 2, base + 30);
     });
   }
   function shade(hex) {
@@ -371,12 +388,12 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* 5. Financing — monthly savings vs EMI over the loan tenure          */
+  /* 5. Financing - monthly savings vs EMI over the loan tenure          */
   /* ------------------------------------------------------------------ */
   function emi(canvas, f) {
     if (!canvas) return;
     /* measure once: clientWidth/Height are 0 while the page is hidden, and
-       setup() rewrites the width/height attributes on every draw — so cache
+       setup() rewrites the width/height attributes on every draw - so cache
        the first reliable reading (falls back to the pristine attributes). */
     if (!canvas.__qsW) {
       canvas.__qsW = canvas.clientWidth || Number(canvas.getAttribute('width')) || 700;

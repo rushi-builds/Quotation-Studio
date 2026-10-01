@@ -229,7 +229,7 @@ async function main() {
       }).on('error', reject);
     });
     t('dashboard html served', html.status === 200);
-    t('dashboard has auth form', html.body.includes('authForm'));
+    t('dashboard has session gate', html.body.includes('authScreen') && html.body.includes('index.html'));
     t('dashboard loads platform-api', html.body.includes('platform-api.js'));
 
     r = await req('GET', '/api/proposals', null, cookie2);

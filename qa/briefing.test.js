@@ -32,8 +32,8 @@ async function installSpeech(page) {
   await edit({custName:'QA Customer',custAddress:'QA Site'}); // Explicit privacy-test fixture, not an application default.
   await page.click('#modeAll');
   await page.click('[data-section="galleryUrl"] > summary');
-  check('QR destination and audio toggle are available in Advanced / All settings',await page.$eval('#customerExperienceSettings',e=>e.checkVisibility()&&!!e.querySelector('#galleryUrl')&&!!e.querySelector('#briefingEnabled')));
-  check('blank destination shows setup guidance but no customer QR',await page.evaluate(()=>document.getElementById('closingGallery').hidden&&document.getElementById('galleryStatus').textContent.includes('Add a public HTTPS')));
+  check('QR links stay in QR & links; the audio toggle lives with the audio settings',await page.evaluate(()=>{const q=document.getElementById('customerExperienceSettings');const a=document.querySelector('.studio-advanced');return q.checkVisibility()&&!!q.querySelector('#galleryUrl')&&!q.querySelector('#briefingEnabled')&&!!a&&!!a.querySelector('#briefingEnabled');}));
+  check('blank destination stays silent and prints no customer QR',await page.evaluate(()=>document.getElementById('closingGallery').hidden&&document.getElementById('galleryStatus').textContent===''));
   await edit({qrDestinationType:'video',galleryUrl:'https://example.com/project-videos'});
   check('video destination updates closing card label, accessibility name and exact link',await page.$eval('#closingGallery',e=>e.href==='https://example.com/project-videos'&&e.textContent.includes('Open video / playlist')&&e.getAttribute('aria-label').includes('video')));
   check('short PDF uses the same destination type and link',await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),a=h.querySelector('.power-gallery');const ok=a.href==='https://example.com/project-videos'&&a.textContent.includes('Open video / playlist');h.remove();return ok;}));
@@ -42,7 +42,8 @@ async function installSpeech(page) {
   await edit({galleryUrl:''});
   check('removing the URL clears the QR in both document formats',await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),ok=document.getElementById('closingGallery').hidden&&!h.querySelector('.power-gallery');h.remove();return ok;}));
   await page.$eval('#proposalBriefing',e=>{e.open=true;e.scrollIntoView({behavior:'instant'});});
-  check('initial English transcript uses exact finance figures without personal customer fields',await page.evaluate(()=>{const f=Finance.compute(Render.lastState),t=document.getElementById('briefingText').textContent;return t.includes(Math.round(f.netInvestment)+' rupees')&&t.includes(Math.round(f.annualGen)+' kilowatt hours')&&t.includes('potential subsidy')&&!t.includes(Render.lastState.custName)&&!t.includes(Render.lastState.custAddress);}));
+  check('initial English transcript uses exact finance figures; the greeting speaks the first name only, never the full name or the address',await page.evaluate(()=>{const f=Finance.compute(Render.lastState),t=document.getElementById('briefingText').textContent;return t.includes(Math.round(f.netInvestment)+' rupees')&&t.includes(Math.round(f.annualGen)+' kilowatt hours')&&t.includes('potential subsidy')&&t.startsWith('Welcome, QA ji,')&&!t.includes(Render.lastState.custName)&&!t.includes(Render.lastState.custAddress);}));
+  check('every briefing ends with thanks in its own language',await page.evaluate(()=>{const en=Briefing.scriptFor(Render.lastState,'en'),hi=Briefing.scriptFor(Render.lastState,'hi'),mr=Briefing.scriptFor(Render.lastState,'mr');return en[en.length-1]==='Thank you for your time.'&&hi[hi.length-1]==='आपके समय के लिए धन्यवाद।'&&mr[mr.length-1]==='आपल्या वेळेसाठी धन्यवाद.';}));
   await page.click('#briefingPlay');
   check('English Play explicitly selects the matching voice and locale',await page.evaluate(()=>__speech.spoken.at(-1).lang==='en-IN'&&__speech.spoken.at(-1).voice.lang==='en-IN'));
   await page.click('#briefingPause');
@@ -73,10 +74,26 @@ async function installSpeech(page) {
   await page.evaluate(()=>{__speech.voices=__speech.voices.filter(v=>v.lang==='en-IN');__speech.dispatchEvent(new Event('voiceschanged'));});
   await page.evaluate(()=>{__speech.voices.push({name:'Marathi added later',lang:'mr-IN',localService:true});__speech.dispatchEvent(new Event('voiceschanged'));});
   check('asynchronously added voices enable Play without autoplay',await page.evaluate(()=>!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
+  /* The Marathi case that actually happens: Chrome desktop ships no Marathi
+     voice at all, so the honest options are Hindi (same script) or silence. */
+  await page.evaluate(()=>{__speech.voices=[{name:'English test voice',lang:'en-IN',localService:true},{name:'Hindi test voice',lang:'hi-IN',localService:true}];__speech.dispatchEvent(new Event('voiceschanged'));});
+  check('Marathi without a Marathi voice plays with the Hindi voice, and is never silently substituted',await page.evaluate(()=>{const s=document.getElementById('briefingStatus').textContent;return !document.getElementById('briefingPlay').disabled&&s.includes('No Marathi voice is installed')&&s.includes('Hindi test voice')&&document.getElementById('briefingText').lang==='mr';}));
+  check('the Marathi text itself is unchanged by the substitute voice',await page.evaluate(()=>/\u0900-\u097F/.test('')===false&&/[\u0900-\u097F]/.test(document.getElementById('briefingText').textContent)&&document.getElementById('briefingText').textContent.includes('अंदाजित')));
+  check('the recovery button offers the Hindi briefing as native audio',await page.evaluate(()=>!document.getElementById('briefingUseEnglish').hidden&&document.getElementById('briefingUseEnglish').textContent==='Switch to Hindi audio'));
+  await page.click('#briefingPlay');
+  check('Marathi text is spoken by the Hindi voice, never by the English one',await page.evaluate(()=>{const u=__speech.spoken.at(-1);return u.voice.lang==='hi-IN'&&u.lang==='hi-IN'&&/[\u0900-\u097F]/.test(u.text);}));
+  check('the playing status repeats which voice is speaking',await page.evaluate(()=>document.getElementById('briefingStatus').textContent.includes('with a Hindi voice')));
+  await page.click('#briefingStop');
+  await page.click('#briefingUseEnglish');
+  check('switching to the Hindi briefing is still an explicit choice and does not autoplay',await page.evaluate(()=>document.querySelector('[data-briefing-language="hi"]').getAttribute('aria-pressed')==='true'&&document.getElementById('briefingStop').disabled&&document.getElementById('briefingText').lang==='hi'));
+  await page.click('[data-briefing-language="mr"]');
+  await page.evaluate(()=>{__speech.voices.push({name:'Marathi test voice',lang:'mr-IN',localService:true});__speech.dispatchEvent(new Event('voiceschanged'));});
+  check('a real Marathi voice, once installed, takes over and the substitute notice goes away',await page.evaluate(()=>document.getElementById('briefingStatus').textContent.includes('Ready in Marathi')&&document.getElementById('briefingUseEnglish').hidden&&!document.getElementById('briefingPlay').disabled));
   await page.click('#briefingPlay');await page.evaluate(()=>__speech.spoken.at(-1).onerror({error:'network'}));
   check('speech-provider errors leave a usable transcript and retry controls',await page.evaluate(()=>document.getElementById('briefingStatus').textContent.includes('could not play')&&!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
   await page.click('[data-briefing-language="en"]');await page.click('#briefingPlay');
-  await page.evaluate(async()=>{for(let i=0;i<8;i++){__speech.spoken.at(-1).onend();await Promise.resolve();}});
+  /* 9 spoken chunks: the personal greeting, seven figure sections, the thanks. */
+  await page.evaluate(async()=>{for(let i=0;i<9;i++){__speech.spoken.at(-1).onend();await Promise.resolve();}});
   check('all briefing sections complete and controls return to idle',await page.$eval('#briefingStatus',e=>e.textContent.includes('Briefing complete')));
   await edit({customerType:'commercial'});
   check('commercial/no-subsidy narration does not imply an approved benefit',await page.$eval('#briefingText',e=>e.textContent.includes('No subsidy is included')&&!e.textContent.includes('potential subsidy')));
@@ -107,6 +124,28 @@ async function installSpeech(page) {
   await customer.emulateMediaType('print');
   check('audio interface stays out of browser print and both PDF page trees',await customer.evaluate(()=>!document.getElementById('proposalBriefing').checkVisibility()&&![...document.querySelectorAll('.page')].some(e=>e.querySelector('#proposalBriefing'))));
   await customer.emulateMediaType('screen');
+  /* Chrome hands back an empty voice list until the platform has finished
+     enumerating them, and a few builds never fire voiceschanged at all. Saying
+     "Marathi voice unavailable" at that moment is simply wrong. */
+  const late=await browser.newPage();
+  await late.evaluateOnNewDocument(()=>{
+    const speech=new EventTarget();
+    let voices=[];
+    speech.getVoices=()=>voices;speech.cancel=()=>{};speech.pause=()=>{};speech.resume=()=>{};speech.speak=()=>{};
+    Object.defineProperty(window,'speechSynthesis',{value:speech,configurable:true});
+    Object.defineProperty(window,'SpeechSynthesisUtterance',{value:class{constructor(t){this.text=t;}},configurable:true});
+    window.__arrive=()=>{voices=[{name:'Late Marathi voice',lang:'mr-IN',localService:true}];};
+  });
+  await late.setViewport({width:1440,height:1100});
+  await late.goto(base+'/quotation.html',{waitUntil:'networkidle0'});
+  await late.evaluate(()=>Experience.whenReady());
+  await late.$eval('#proposalBriefing',e=>{e.open=true;e.scrollIntoView({behavior:'instant'});});
+  await late.click('[data-briefing-language="mr"]');
+  check('voices still being enumerated say so, instead of claiming Marathi is missing',await late.evaluate(()=>{const s=document.getElementById('briefingStatus').textContent;return s.includes('Checking the voices')&&!s.includes('unavailable')&&document.getElementById('briefingPlay').disabled;}));
+  await late.evaluate(()=>window.__arrive());
+  await late.waitForFunction(()=>!document.getElementById('briefingPlay').disabled,{timeout:5000});
+  check('a voice that arrives late enables Marathi on its own, without a manual refresh',await late.evaluate(()=>!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
+  await late.close();
   const fallback=await browser.newPage();await fallback.evaluateOnNewDocument(()=>{Object.defineProperty(window,'speechSynthesis',{value:undefined});});
   await fallback.goto(base+'/quotation.html',{waitUntil:'networkidle0'});
   check('unsupported browsers clearly offer the written briefing instead',await fallback.evaluate(()=>document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStatus').textContent.includes('not supported')&&!!document.getElementById('briefingText').textContent));

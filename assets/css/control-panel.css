@@ -10,7 +10,11 @@
 .studio-heading .app-title{font-size:23px;letter-spacing:-.9px;font-weight:700;display:flex;align-items:center;gap:12px;}
 .studio-edition{font-size:8px;letter-spacing:1.6px;font-weight:600;color:#8390a2;padding-top:4px;}
 .studio-heading .app-sub{font-size:11px;color:#728095;margin:6px 0 0;}
-.studio-overview{flex-shrink:0;background:linear-gradient(118deg,#172b40,#243e55);border:1px solid #30485c;border-radius:13px;padding:15px 16px 17px;color:#fff;box-shadow:0 6px 16px #142c4310;margin-bottom:18px;}
+/* The live summary pins to the top of the scrolling form panel, so the effect
+   of an input is visible while the field itself is being edited further down.
+   The wrapper supplies the white backdrop the card needs once it is stuck. */
+.studio-overview-bar{position:sticky;top:0;z-index:30;background:#fff;margin-left:-22px;margin-right:-22px;padding-left:22px;padding-right:22px;padding-bottom:18px;}
+.studio-overview{flex-shrink:0;background:linear-gradient(118deg,#172b40,#243e55);border:1px solid #30485c;border-radius:13px;padding:15px 16px 17px;color:#fff;box-shadow:0 6px 16px #142c4310;}
 .studio-overview-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;font-size:8px;letter-spacing:1.2px;color:#c7d6e4;}
 .studio-overview-top i{display:inline-block;width:5px;height:5px;background:#80c9ad;border-radius:50%;margin-right:6px;vertical-align:1px;}
 .studio-page-count{letter-spacing:0;color:#c0cedb;font-size:10px;}
@@ -78,9 +82,32 @@
 .studio-ready .row3 input{padding-left:7px;padding-right:7px;}
 .studio-ready .studio-payment-label{font-size:9px;}
 .studio-view-page{display:block;width:100%;margin:8px 0 0;padding:10px;border:0;border-top:1px solid #edf0f4;background:transparent;text-align:right;font:500 10px 'Inter',sans-serif;color:#9b5d29;cursor:pointer;}
-.studio-feedback{background:#fff7ef;border:1px solid #f0d7ba;padding:12px;border-radius:9px;margin:0 0 13px;}
-.studio-feedback strong{display:block;color:#8c531e;font-size:11px;margin-bottom:5px;}
-.studio-feedback button{display:block;text-align:left;border:0;background:transparent;padding:5px 0;font:10px/1.5 'Inter',sans-serif;color:#97622f;cursor:pointer;}
+.studio-feedback{background:#fff7ef;border:1px solid #f0d7ba;padding:10px 12px;border-radius:9px;margin:0 0 13px;}
+.studio-feedback strong{display:block;color:#8c531e;font-size:11px;margin-bottom:7px;letter-spacing:.02em;}
+.studio-feedback button{display:inline-block;text-align:left;border:1px solid #e8c9a4;background:#fff;border-radius:999px;padding:4px 10px;margin:0 6px 6px 0;font:600 10.5px/1.4 'Inter',sans-serif;color:#97622f;cursor:pointer;}
+.studio-feedback button:hover{border-color:#c98a4b;color:#7a4416;}
+.studio-feedback button.is-blocking{background:#8c531e;border-color:#8c531e;color:#fff;}
+/* Audio personalisation is a nicety, not the pitch: it lives folded away. */
+.studio-advanced{margin:2px 0 10px;border:1px dashed #d8c6ae;border-radius:8px;padding:6px 10px 8px;}
+.studio-advanced summary{cursor:pointer;font:600 10.5px/1.6 'Inter',sans-serif;color:#7c6a52;letter-spacing:.04em;text-transform:uppercase;}
+.studio-advanced summary::before{content:'▸ ';}
+.studio-advanced[open] summary::before{content:'▾ ';}
+/* The whole expert shelf folds into one drawer; opening it in Essentials
+   must still show its (data-adv) sections. */
+.studio-advanced-wrap{margin:14px 0;border:1px solid #e5dccb;border-radius:12px;background:#fff;box-shadow:0 1px 3px rgba(23,42,64,.07);overflow:hidden;}
+.studio-advanced-wrap>summary{cursor:pointer;display:flex;align-items:center;gap:11px;padding:11px 12px;list-style:none;background:linear-gradient(135deg,#fdfbf7,#f7efe1);transition:background .15s;}
+.studio-advanced-wrap>summary:hover{background:linear-gradient(135deg,#faf5ec,#f3e8d3);}
+.studio-advanced-wrap>summary::-webkit-details-marker{display:none;}
+.studio-advanced-wrap .wrap-icon{flex:none;width:34px;height:34px;border-radius:9px;background:#14273c;color:#ff890b;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 -2px 0 rgba(255,137,11,.35);}
+.studio-advanced-wrap .wrap-copy{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;}
+.studio-advanced-wrap .wrap-copy strong{font:700 12.5px/1.3 'Inter',sans-serif;color:#22334a;letter-spacing:.01em;}
+.studio-advanced-wrap .wrap-copy small{font:500 10px/1.45 'Inter',sans-serif;color:#8b94a3;}
+.studio-advanced-wrap .wrap-chev{flex:none;width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid #e5dccb;color:#8b94a3;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;transition:transform .18s;}
+.studio-advanced-wrap[open] .wrap-chev{transform:rotate(180deg);}
+.studio-advanced-wrap[open]>summary{border-bottom:1px solid #efe7d8;}
+.studio-advanced-wrap[open]{padding:0 10px 10px;}
+.studio-advanced-wrap[open]>summary{margin:0 -10px 10px;}
+form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
 .studio-ready details.advanced{background:#f1f4f8;border:1px solid #dce4ed;border-radius:10px;margin-bottom:10px;}
 .studio-ready details.advanced>summary{padding:14px;font:600 11px 'Inter',sans-serif;color:#52677e;}
 .studio-ready .form-actions{flex-shrink:0;margin:18px -22px 0;padding:14px 22px 12px;background:#fffffffa;border-top:1px solid #dfe5ed;box-shadow:0 -8px 22px #263a5106;backdrop-filter:blur(12px);z-index:50;}
@@ -103,10 +130,39 @@
 .studio-ready [hidden]{display:none!important;}
 .preview-panel .page-wrap{scroll-margin-top:145px;}
 @media(min-width:1101px){.studio-ready+.preview-panel{background:#eaf0f5;padding-top:22px;}}
-@media(max-width:1100px){.form-panel.studio-ready{width:100%;height:auto;padding:20px 22px 0;}.studio-ready .form-actions{position:relative;bottom:auto;}.studio-heading .brand-row{margin-bottom:9px;}.studio-overview{max-width:100%;}.studio-metrics strong{font-size:19px;}.studio-section-copy small{white-space:normal;}.studio-search{z-index:51;}}
+@media(max-width:1100px){.form-panel.studio-ready{width:100%;height:auto;padding:20px 22px 0;}.studio-ready .form-actions{position:relative;bottom:auto;}.studio-heading .brand-row{margin-bottom:9px;}.studio-overview{max-width:100%;}.studio-metrics strong{font-size:19px;}.studio-section-copy small{white-space:normal;}.studio-search{z-index:51;}
+/* On narrow screens the whole page scrolls, so a pinned card would cover the
+   fields beneath it. Drop back to the ordinary flow. */
+.studio-overview-bar{position:static;margin-left:0;margin-right:0;padding-left:0;padding-right:0;}}
 @media(max-width:560px){.form-panel.studio-ready{padding:18px 16px 0;}.studio-ready .form-actions{margin-left:-16px;margin-right:-16px;padding:13px 16px;}.studio-heading .app-title{font-size:22px;}.studio-edition{font-size:7px;letter-spacing:1px;}.studio-metrics strong{font-size:15px;}.studio-metrics div+div{padding-left:10px;}.studio-ready .row2{grid-template-columns:1fr 1fr;}.studio-ready .row3{grid-template-columns:1fr;}.studio-ready .row3:has(#payAdvance){grid-template-columns:repeat(3,1fr);}.studio-ready .field input,.studio-ready .field select,.studio-ready .field textarea{font-size:12px;min-height:40px;}.studio-section>summary{padding:14px 12px;}}
 @media(prefers-reduced-motion:reduce){.studio-ready *{scroll-behavior:auto!important;transition:none!important;}}
 @media print{.form-panel.studio-ready{display:none!important;}}
+
+/* Export pre-flight dialog and the notice that replaces it when nothing is
+   wrong. Both are created by export.js on the builder page only; the customer
+   view never calls that code. */
+#exportCheckDialog{border:0;border-radius:15px;padding:22px 24px 18px;max-width:min(560px,92vw);color:#1c2b3f;background:#fff;box-shadow:0 28px 70px #0d1f3338;font-family:'Inter',sans-serif;}
+#exportCheckDialog::backdrop{background:#0b1c2e59;}
+.qs-dialog-title{margin:0;font-size:17px;letter-spacing:-.3px;}
+.qs-dialog-note{margin:7px 0 15px;font-size:11.5px;line-height:1.6;color:#5c6b7e;}
+.qs-dialog-list{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto;}
+.qs-dialog-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;font-size:11.5px;line-height:1.55;background:#fdf4f4;border:1px solid #f1d4d4;border-left:3px solid #cf4a4a;border-radius:9px;padding:9px 11px;color:#7c3030;}
+.qs-dialog-item.is-advisory{background:#fffaef;border-color:#f0e1c5;border-left-color:#d99327;color:#7a5a1f;}
+.qs-dialog-item button{flex-shrink:0;border:0;background:#ffffffd0;border-radius:6px;padding:5px 9px;font:600 10.5px 'Inter',sans-serif;color:inherit;cursor:pointer;}
+.qs-dialog-item button:hover{background:#fff;}
+.qs-dialog-actions{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap;}
+.qs-btn{border:1px solid #d7dee8;background:#fff;border-radius:8px;padding:10px 15px;font:600 11.5px 'Inter',sans-serif;color:#3c4c60;cursor:pointer;}
+.qs-btn:hover{border-color:#bfc9d6;}
+.qs-btn.is-primary{background:#e98330;border-color:#e98330;color:#fff;}
+.qs-toast{position:fixed;left:50%;top:20px;z-index:9999;transform:translate(-50%,-16px);opacity:0;pointer-events:none;max-width:min(92vw,520px);text-align:center;background:#166534;color:#fff;font:600 12px 'Inter',sans-serif;padding:11px 17px;border-radius:999px;box-shadow:0 14px 34px #0d1f3338;transition:opacity .3s ease,transform .3s ease;}
+.qs-toast.is-visible{opacity:1;transform:translate(-50%,0);}
+.qs-toast[data-kind=error]{background:#a23333;}
+@media(prefers-reduced-motion:reduce){.qs-toast{transition:none;}}
+/* html2canvas clones the document for the capture; keep both out of the PDF. */
+.qs-pdf-capture .qs-toast,.qs-pdf-capture #exportCheckDialog{display:none!important;}
+/* Reference-number guard, shown under the Proposals select. */
+.studio-ref-warning{margin:9px 0 0;font-size:10.5px;line-height:1.55;background:#fff6e6;border:1px solid #f0dcb8;border-left:3px solid #d99327;border-radius:8px;padding:8px 10px;color:#7a5a1f;}
+.studio-ref-warning[hidden]{display:none;}
 
 /* Hints are intentionally muted and never stored as proposal values. */
 .studio-ready .field input::placeholder{color:#98a3b3;opacity:1;}

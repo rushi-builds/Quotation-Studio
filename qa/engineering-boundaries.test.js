@@ -34,11 +34,52 @@ check('zero capacity is safe and has no defined ratio',()=>{
  const f=F.compute({capacity:0,moduleWattage:545});
  assert.equal(f.moduleCount,0);assert.equal(f.installedKwp,0);assert.equal(f.dcAcRatio,0);
 });
-check('module and inverter edits do not change quoted-capacity financial projections',()=>{
+check('module choice never moves the quoted investment',()=>{
+ /* The ₹/kWp rate is the agreed price, so the quotation must stay put when a
+    different module is selected. Only physics may follow the real array. */
  const state={capacity:10,costPerKwp:90000,gstPercent:8.9,genFactor:1460,tariff:15,escalation:6,degradation:.5};
- const financial=f=>Object.fromEntries(Object.entries(f).filter(([key])=>!['moduleWattage','moduleCount','installedKwp','arrayArea','inverterKw','dcAcRatio'].includes(key)));
- const baseline=financial(F.compute({...state,moduleWattage:545}));
- assert.equal(baseline.netInvestment,902100);assert.equal(baseline.annualGen,14600);assert.equal(baseline.annualSaving,219000);
- for(const watts of [500,550,620])assert.deepEqual(financial(F.compute({...state,moduleWattage:watts,inverterKw:8})),baseline);
+ const price=f=>({projectCost:f.projectCost,gstAmount:f.gstAmount,grossTotal:f.grossTotal,subsidy:f.subsidy,netInvestment:f.netInvestment,costPerWp:f.costPerWp});
+ const baseline=price(F.compute({...state,moduleWattage:545}));
+ assert.equal(baseline.netInvestment,902100);assert.equal(baseline.costPerWp,90);
+ for(const watts of [500,545,550,620])assert.deepEqual(price(F.compute({...state,moduleWattage:watts,inverterKw:8})),baseline);
+});
+check('generation follows the installed array, not the contracted figure',()=>{
+ const state={capacity:10,costPerKwp:90000,gstPercent:8.9,genFactor:1460,tariff:15,escalation:6,degradation:.5};
+ for(const watts of [500,545,550,620]){
+  const f=F.compute({...state,moduleWattage:watts});
+  assert(f.installedKwp>=10,JSON.stringify({watts,installedKwp:f.installedKwp}));
+  assert.equal(f.annualGen,f.installedKwp*1460);
+  assert.equal(f.annualSaving,f.annualGen*15);
+ }
+ assert.equal(F.compute({...state,moduleWattage:545}).annualGen,10.355*1460);
+ assert.equal(F.compute({...state,moduleWattage:500}).annualGen,10*1460);
+});
+check('subsidy is assessed on installed DC capacity at the slab boundary',()=>{
+ /* 2 kWp contracted at 545 Wp is 4 modules = 2.18 kWp, which earns ₹63,240 -
+    the ₹60,000 a contracted-basis calculation would have reported. */
+ assert.equal(F.compute({capacity:2,moduleWattage:545}).subsidy,63240);
+ assert.equal(F.compute({capacity:2.5,moduleWattage:545}).subsidy,73050);
+ /* At and above the 3 kW slab the cap absorbs the difference either way. */
+ assert.equal(F.compute({capacity:3,moduleWattage:545}).subsidy,78000);
+ assert.equal(F.compute({capacity:10,moduleWattage:545}).subsidy,78000);
+});
+check('roof clearance is applied and clamped at bare module area',()=>{
+ const dims={moduleLengthMm:2278,moduleWidthMm:1134};
+ const a=F.compute({capacity:10,moduleWattage:545,...dims,roofClearanceFactor:1.4});
+ assert(Math.abs(a.requiredArea-a.arrayArea*1.4)<1e-9);
+ assert.equal(a.clearanceSource,'manual');
+ /* A typed factor below 1 is clamped: an array can never need less roof than
+    the modules themselves cover. */
+ const b=F.compute({capacity:10,moduleWattage:545,...dims,roofClearanceFactor:0.5});
+ assert(Math.abs(b.requiredArea-b.arrayArea)<1e-9);
+ /* Nothing typed and no geometry available in this process: the 1.4 estimate. */
+ const c=F.compute({capacity:10,moduleWattage:545,...dims});
+ assert.equal(c.roofClearanceFactor,1.4);
+ assert.equal(c.clearanceSource,'fallback');
+});
+check('environmental defaults are the current published figures',()=>{
+ const f=F.compute({capacity:7,genFactor:1460,moduleWattage:545});
+ assert.equal(f.co2Factor,0.71); /* CEA v21.0, FY2024-25 weighted average */
+ assert.equal(f.treeFactor,22);  /* mature tree, 20-25 kg CO2/yr */
 });
 console.log(`\n${passed} passed, 0 failed (including 54,600 sizing scenarios)`);
