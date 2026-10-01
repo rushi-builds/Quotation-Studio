@@ -1,0 +1,6 @@
+scripts:
+  - name: Run
+    command: node scripts/serve.js
+
+server_ready_pattern: 'Quotation Studio preview: (https?://\S+)'
+auto_open_in_browser: true

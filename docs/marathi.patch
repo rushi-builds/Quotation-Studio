@@ -1,0 +1,3198 @@
+diff --git a/assets/css/app.css b/assets/css/app.css
+index f640e95..f810975 100644
+--- a/assets/css/app.css
++++ b/assets/css/app.css
+@@ -1635,6 +1635,40 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
+ /* Compact only the optional dense cases. No text, disclaimers or numbers are
+    removed, and chart canvases redraw at these sizes rather than being squashed. */
+ #pageTechSpec.has-site-area:has(#v_tsRefsWrap:not([style*="display: none"])) .spec-table td{padding-top:3.5px;padding-bottom:3.5px;}
++/* The engineering design basis is long by nature — it is the arithmetic behind
++   every other number on the page. It reads at a slightly smaller size so the
++   page keeps its shape, and if the whole table still runs past the A4 box the
++   render pass adds is-tight-spec, then is-tighter-spec, until it fits. On a
++   fixed-height page with overflow hidden, unnoticed overflow prints as missing
++   text, so the fit is measured rather than assumed. */
++#pageTechSpec .spec-table tr.is-eng td{font-size:9.9px;padding:3px 10px;}
++#pageTechSpec .spec-table tr.is-eng td.spec-k{width:30%;}
++#pageTechSpec.is-tight-spec .spec-table td{padding-top:3px;padding-bottom:3px;}
++#pageTechSpec.is-tighter-spec .spec-table td{padding-top:2px;padding-bottom:2px;font-size:10px;}
++#pageTechSpec.is-tighter-spec .spec-table tr.is-eng td{font-size:9.4px;padding:2px 10px;}
++/* The system diagram is the only block on this page that can give up height
++   without giving up a number: the specification table below it cannot. It is
++   drawn on a viewBox, so capping its width scales it down cleanly instead of
++   squashing it, and the note under it still explains it. */
++#pageTechSpec.is-diagram-spec #v_tsDiagram svg{max-width:90%;margin-left:auto;margin-right:auto;}
++#pageTechSpec.is-diagram-tighter #v_tsDiagram svg{max-width:72%;margin-left:auto;margin-right:auto;}
++/* Two further steps exist for the one page that carries everything at once:
++   site-area rows, reference pills and the full design basis. They scale the
++   drawing, never a figure; every number and every clause citation stays at
++   full size, and the ladder stops at the first step that fits. */
++#pageTechSpec.is-diagram-tiny #v_tsDiagram svg{max-width:55%;margin-left:auto;margin-right:auto;}
++#pageTechSpec.is-diagram-min #v_tsDiagram svg{max-width:42%;margin-left:auto;margin-right:auto;}
++/* The last resort, and the only step that touches type: cell padding to its
++   floor and the table to 9 px, which is still above every legibility floor the
++   browser tests hold it to. Figures, units, clause citations and the honesty
++   note are never removed or shortened — a page that cannot hold its content
++   says so through the overflow report instead of quietly dropping a row. */
++#pageTechSpec.is-table-min .spec-table{font-size:9.6px;}
++#pageTechSpec.is-table-min .spec-table td{padding-top:1.5px;padding-bottom:1.5px;}
++#pageTechSpec.is-table-min .spec-table tr.is-eng td{font-size:9px;padding:1.5px 10px;}
++#pageTechSpec.is-table-min .spec-table .spec-k{width:30%;}
++#pageTechSpec.is-table-min #v_tsRefsWrap{margin-top:0;}
++#pageTechSpec.is-table-min .note-box{margin-top:4px;}
+ #chartBridge{width:718px!important;height:252px!important;}
+ #chartDonut{width:230px!important;height:230px!important;}
+ #pageInvestment:has(#v_inBomSection:not([style*="display: none"])) #chartBridge{height:180px!important;}
+diff --git a/assets/js/briefing.js b/assets/js/briefing.js
+index f29dbd9..45ff7ce 100644
+--- a/assets/js/briefing.js
++++ b/assets/js/briefing.js
+@@ -1,6 +1,15 @@
+ /* On-demand proposal narration. Deterministic, localized scripts use the same
+    Finance state as the PDF, never an exploratory slider or an external LLM.
+-   Web Speech voices are device/provider-dependent; never substitute a language. */
++
++   Web Speech voices are device/provider-dependent, and a Marathi (mr) voice
++   exists on almost no desktop: Chrome desktop ships none, and Windows only
++   installs one when the Marathi language pack is added. Refusing to play in
++   that situation leaves the reader with silence; reading Devanagari with an
++   English voice would be gibberish. So playback follows a stated chain -
++   Marathi, else Hindi (same script, closest installed), and the same in
++   reverse - and the status line always names the voice that is actually
++   speaking, so a substitute is never passed off as the real thing. English
++   text is only ever read by an English voice. */
+ 'use strict';
+ (function(root) {
+   const $ = id => document.getElementById(id);
+@@ -56,30 +65,97 @@
+   let chunks=[], chunkIndex=0, pendingNext=false, currentUtterance=null;
+   const synthesis=()=>root.speechSynthesis;
+   const supported=()=>!!(synthesis() && root.SpeechSynthesisUtterance);
+-  function voiceFor(lang) {
+-    if(!supported()) return null;
+-    // Prefer an Indian/local voice, but require the exact language family.
+-    return synthesis().getVoices().filter(v=>v.lang?.toLowerCase().replace(/_/g,'-').split('-')[0]===lang)
+-      .sort((a,b)=>(Number(b.lang.toLowerCase()===locales[lang].toLowerCase())*2+Number(b.localService))-(Number(a.lang.toLowerCase()===locales[lang].toLowerCase())*2+Number(a.localService)))[0] || null;
++  /* Which voice families may read which language. Devanagari scripts are
++     mutually legible to a TTS engine at the grapheme level, so Marathi and
++     Hindi may stand in for each other - with the substitution stated on
++     screen. Latin-script English is never read by, or used for, an Indic
++     voice. */
++  const VOICE_CHAIN={en:['en'],hi:['hi','mr'],mr:['mr','hi']};
++  const normalize=v=>String(v?.lang||'').toLowerCase().replace(/_/g,'-');
++  function voiceList(){ if(!supported()) return []; try{ return synthesis().getVoices()||[]; }catch(_){ return []; } }
++  function voicePlan(lang) {
++    const wanted=locales[lang]?lang:'en';
++    if(!supported()) return {voice:null,exact:false,family:null};
++    const voices=voiceList();
++    for(const family of VOICE_CHAIN[wanted]) {
++      const pool=voices.filter(v=>normalize(v).split('-')[0]===family);
++      if(!pool.length) continue;
++      /* Within the family, prefer the Indian locale and a locally installed
++         voice over a region-less or network-only one. */
++      const score=v=>Number(normalize(v)===locales[family].toLowerCase())*2+Number(!!v.localService);
++      const best=pool.slice().sort((a,b)=>score(b)-score(a))[0];
++      return {voice:best,exact:family===wanted,family};
++    }
++    return {voice:null,exact:false,family:null};
++  }
++  function voiceFor(lang) { return voicePlan(lang).voice; }
++  function fallbackLanguage() {
++    const order=language==='mr'?['hi','en']:language==='hi'?['mr','en']:[];
++    for(const l of order) { if(voicePlan(l).exact) return l; }
++    return null;
++  }
++  /* Some engines answer getVoices() with an empty list until the platform has
++     finished enumerating them, and a few never fire voiceschanged at all. Say
++     that voices are still being checked instead of reporting a missing voice
++     that is merely late. */
++  let voicesLoaded=false, voicesPoll=null, voicesGaveUp=false;
++  function markVoices(){
++    if(voicesLoaded) return true;
++    if(voiceList().length){voicesLoaded=true;clearInterval(voicesPoll);voicesPoll=null;}
++    return voicesLoaded;
++  }
++  /* Settled means the platform has answered: either a list arrived, or the
++     wait is over and the honest answer is "this device has none". */
++  function voicesSettled(){ return markVoices() || voicesGaveUp; }
++  function watchVoices(){
++    if(!supported()||voicesPoll) return;
++    const deadline=Date.now()+10000;
++    voicesPoll=setInterval(()=>{
++      if(markVoices()||Date.now()>deadline){
++        if(!voicesLoaded) voicesGaveUp=true;
++        clearInterval(voicesPoll);voicesPoll=null;
++        if(mode==='idle'){controls(availability());revealFallback();}
++      }
++    },250);
+   }
+   function availability() {
+     if(!supported()) return 'Audio playback is not supported in this browser. You can read the briefing below.';
+-    const voice=voiceFor(language);
+-    return voice?'Ready in '+names[language]+' · '+voice.name+'. Press Play to begin.':names[language]+' voice unavailable in this browser on this device. Read the '+names[language]+' briefing below, or choose an available audio language.';
++    markVoices();
++    const plan=voicePlan(language);
++    if(plan.voice && plan.exact) return 'Ready in '+names[language]+' · '+plan.voice.name+'. Press Play to begin.';
++    if(plan.voice) return 'No '+names[language]+' voice is installed on this device — playback will use '+plan.voice.name+
++      ' (a '+names[plan.family]+' voice, the closest available). The written '+names[language]+' briefing is below.';
++    if(!voicesSettled()) return 'Checking the voices installed on this device… If nothing appears in a few seconds, press Check voices again.';
++    const neither=language==='mr'?' — neither a Marathi nor a Hindi voice is installed':
++                  language==='hi'?' — neither a Hindi nor a Marathi voice is installed':'';
++    return names[language]+' voice unavailable in this browser on this device'+neither+
++      '. Install a voice in the operating system (Windows: Settings → Time & language → Speech → Add voices), press Check voices again, or read the '+names[language]+' briefing below.';
++  }
++  function playingNote() {
++    const plan=voicePlan(language);
++    return plan.voice && !plan.exact
++      ? 'Playing the '+names[language]+' text with a '+names[plan.family]+' voice · quotation values.'
++      : 'Playing in '+names[language]+' · quotation values.';
+   }
+   function controls(message) {
+     if(!host) return;
+-    $('briefingPlay').disabled=mode!=='idle' || !voiceFor(language);
++    const plan=voicePlan(language), alternate=fallbackLanguage();
++    $('briefingPlay').disabled=mode!=='idle' || !plan.voice;
+     $('briefingPause').disabled=!['playing','paused'].includes(mode);
+     $('briefingPause').textContent=mode==='paused'?'Resume':'Pause';
+     $('briefingStop').disabled=mode==='idle';
+-    const missing = !voiceFor(language);
+-    if ($('briefingVoiceHelp')) $('briefingVoiceHelp').hidden = !missing;
++    /* The help block explains a substitute voice as well as a missing one. */
++    if ($('briefingVoiceHelp')) $('briefingVoiceHelp').hidden = !!plan.exact;
+     if ($('briefingRefresh')) $('briefingRefresh').disabled = !supported();
+-    if ($('briefingUseEnglish')) $('briefingUseEnglish').hidden = !missing || language === 'en' || !voiceFor('en');
++    if ($('briefingUseEnglish')) {
++      $('briefingUseEnglish').hidden = plan.exact || !alternate;
++      if (alternate) $('briefingUseEnglish').textContent = 'Switch to '+names[alternate]+' audio';
++    }
+     host.querySelectorAll('[data-briefing-language]').forEach(button => {
+-      const available = !!voiceFor(button.dataset.briefingLanguage);
+-      button.title = names[button.dataset.briefingLanguage] + (available ? ': audio and written briefing available' : ': written briefing available; no matching browser voice');
++      const p=voicePlan(button.dataset.briefingLanguage);
++      button.title = names[button.dataset.briefingLanguage] + (p.exact ? ': audio and written briefing available'
++        : p.voice ? ': audio will use the closest installed voice ('+p.voice.name+'); written briefing available'
++        : ': written briefing available; no matching browser voice');
+     });
+     if(message && $('briefingStatus').textContent!==message) $('briefingStatus').textContent=message;
+   }
+@@ -101,8 +177,10 @@
+     if(chunkIndex>=chunks.length) {mode='idle';currentUtterance=null;controls('Briefing complete. You can play it again or read the written proposal.');return;}
+     const utterance=new root.SpeechSynthesisUtterance(chunks[chunkIndex]);
+     currentUtterance=utterance; // retain a reference while some engines speak
+-    utterance.lang=locales[language]; utterance.voice=voice; utterance.rate=0.95;
+-    utterance.onstart=()=>{if(token!==revision)return;clearTimeout(timer);mode='playing';controls('Playing in '+names[language]+' · quotation values.');};
++    /* The voice decides the phonetic model, so a substitute speaks with its own
++       locale rather than a locale whose voice the engine cannot find. */
++    utterance.lang=voice.lang||locales[language]; utterance.voice=voice; utterance.rate=0.95;
++    utterance.onstart=()=>{if(token!==revision)return;clearTimeout(timer);mode='playing';controls(playingNote());};
+     utterance.onend=()=>{
+       if(token!==revision)return;clearTimeout(timer);chunkIndex++;
+       if(mode==='paused') {pendingNext=true;return;}
+@@ -115,7 +193,7 @@
+   }
+   function play() {
+     if(!state || mode!=='idle') return;
+-    const voice=voiceFor(language); if(!voice) {controls(availability());return;}
++    const voice=voicePlan(language).voice; if(!voice) {controls(availability());return;}
+     // Short utterances avoid long-text stalls in mobile speech engines.
+     chunks=scriptFor(state,language); chunkIndex=0; pendingNext=false;
+     synthesis().cancel(); synthesis().resume();
+@@ -128,16 +206,22 @@
+       stop(); language=button.dataset.briefingLanguage; updateTranscript(); revealFallback();
+     }));
+     $('briefingPlay').addEventListener('click',play);
+-    $('briefingRefresh')?.addEventListener('click',()=>{ controls(availability()); revealFallback(); });
++    $('briefingRefresh')?.addEventListener('click',()=>{ markVoices(); controls(availability()); revealFallback(); });
++    /* A manual re-check restarts the wait, so a slow platform can still answer. */
++    $('briefingRefresh')?.addEventListener('click',()=>{ if(!voiceList().length){voicesGaveUp=false;watchVoices();} });
++    /* The recovery button (legacy id) switches to whichever language can
++       actually be spoken here — Hindi for a Marathi reader when that is what
++       the device has, English otherwise. Language choice never autoplays. */
+     $('briefingUseEnglish')?.addEventListener('click',()=>{
+-      stop(); language='en'; updateTranscript(); // Language choice never autoplays.
++      const target=fallbackLanguage()||'en';
++      stop(); language=target; updateTranscript();
+     });
+     $('briefingStop').addEventListener('click',()=>stop('Stopped. Press Play to restart from the beginning.'));
+     $('briefingPause').addEventListener('click',()=>{
+       if(mode==='playing') {synthesis().pause();mode='paused';controls('Paused. Resume or stop the briefing.');}
+       else if(mode==='paused') {
+-        mode='playing'; synthesis().resume();controls('Playing in '+names[language]+' · quotation values.');
+-        if(pendingNext) {pendingNext=false;speakChunk(revision,voiceFor(language));}
++        mode='playing'; synthesis().resume();controls(playingNote());
++        if(pendingNext) {pendingNext=false;speakChunk(revision,voicePlan(language).voice);}
+       }
+     });
+     // Closing the player must not leave hidden narration running.
+@@ -147,7 +231,7 @@
+     });
+   }
+   function revealFallback() {
+-    if (host?.open && !voiceFor(language)) host.querySelector('.briefing-transcript').open = true;
++    if (host?.open && !voicePlan(language).exact) host.querySelector('.briefing-transcript').open = true;
+   }
+   function sync() {
+     const el=$('proposalBriefing'), next=root.Render?.lastState; if(!el || !next)return;
+@@ -159,13 +243,17 @@
+     else if(changed && active) controls('Proposal updated. Press Play to hear the latest quotation values.');
+   }
+   if(supported()) synthesis().addEventListener?.('voiceschanged',()=>{
+-    if(mode!=='idle' && !voiceFor(language))stop('The selected voice is no longer available. Read the briefing or select another language.');
++    markVoices();
++    /* A substitute keeps the narration alive; only losing every usable voice
++       stops it. */
++    if(mode!=='idle' && !voicePlan(language).voice)stop('The selected voice is no longer available. Read the briefing or select another language.');
+     else if(mode==='idle'){controls(availability());revealFallback();}
+   });
++  watchVoices();
+   root.addEventListener('focus',()=>{if(mode==='idle')controls(availability());});
+   root.addEventListener('pagehide',()=>stop());
+   root.addEventListener('beforeprint',()=>stop());
+   document.addEventListener('visibilitychange',()=>{if(document.hidden && mode!=='idle')stop('Stopped while this page was in the background. Press Play to restart.');});
+   document.addEventListener('qs:rendered',sync);
+-  root.Briefing={scriptFor,voiceFor,stop};
++  root.Briefing={scriptFor,voiceFor,voicePlan,fallbackLanguage,stop};
+ })(window);
+diff --git a/assets/js/content.js b/assets/js/content.js
+index 3feb3da..5970ae1 100644
+--- a/assets/js/content.js
++++ b/assets/js/content.js
+@@ -117,7 +117,7 @@ const CONTENT = {
+     /* First spec cards (capacity, generation, modules) are generated automatically */
+     specs: [
+       { title: 'Inverter', desc: 'High-efficiency hybrid/string inverter with real-time Wi-Fi monitoring' },
+-      { title: 'Module Mounting Structure', desc: 'Hot-dip galvanized steel or aluminium — engineered for monsoon wind loads' },
++      { title: 'Module Mounting Structure', desc: 'Hot-dip galvanized steel or aluminium — designed for the site wind load to IS 875 (Part 3):2015; the calculation sheet is shared before execution' },
+       { title: 'Balance of System', desc: 'DC/AC protection, earthing and lightning arrestor included' },
+       { title: 'Net Metering & Government Subsidy', desc: 'DISCOM-approved, end-to-end liaisoning included' },
+       { title: 'Warranty', desc: '25 years module performance warranty' }
+@@ -208,8 +208,8 @@ const CONTENT = {
+     para: 'A solar system is only as good as the hands that install it. Every KTM installation follows a documented engineering standard — trained certified crews, torque-specified fastening, protected roof penetrations and dressing-level electrical work — so your system performs safely, day after day, for decades.',
+     standardsLabel: 'THE KTM INSTALLATION STANDARD',
+     standards: [
+-      { icon: 'gear',   title: 'Engineered Mounting', desc: 'Structures designed by in-house engineers and torqued to specification — built to withstand decades of monsoon wind loads.' },
+-      { icon: 'shield', title: 'Roof Protection', desc: 'Leakproof roof penetrations with sealed anchors and elevated structure design — your roof stays watertight.' },
++      { icon: 'gear',   title: 'Engineered Mounting', desc: 'Structures designed by in-house engineers to the site wind load (IS 875 Part 3), torqued to specification and logged at handover.' },
++      { icon: 'shield', title: 'Roof Protection', desc: 'Sealed, elevated roof penetrations — every one water-tested and the result recorded before handover.' },
+       { icon: 'cable',  title: 'Neat Electrical Work', desc: 'Dressed cable trays, labelled connections and organised DC/AC routing — clean enough to inspect anytime.' },
+       { icon: 'badge',  title: 'Safety First', desc: 'Certified crews with harnesses, helmets and PPE on every site — zero-compromise safety culture.' }
+     ],
+@@ -309,7 +309,7 @@ const CONTENT = {
+       { icon: 'gear',   title: 'In-House Structure Manufacturing', desc: 'Precision-engineered HDGI mounting structures, designed and manufactured in-house.' },
+       { icon: 'drone',  title: 'Drone Site Survey', desc: 'Precision aerial mapping for accurate shadow analysis, roof measurement and layout planning.' },
+       { icon: 'chart',  title: 'PVsyst Energy Simulation', desc: 'Yield assessment is prepared during the agreed engineering scope, using verified site and equipment inputs—not generated automatically by this quotation.' },
+-      { icon: 'shield', title: 'Quality & Safety First', desc: 'IS/IEC-compliant installations with rigorous internal quality audits at every stage.' },
++      { icon: 'shield', title: 'Quality & Safety First', desc: 'Installation, earthing and testing to IS 732, IS 3043, IS/IEC 60364-7-712 and the IEC 62446-1 schedule, with quality audits at every stage.' },
+       { icon: 'wrench', title: 'End-to-End EPC & After-Sales Support', desc: 'From design to commissioning to long-term AMC — we are with you for the life of the system.' },
+       { icon: 'star',   title: '4.8-Star Rated on Google', desc: '400+ verified customer reviews across Maharashtra.' }
+     ],
+@@ -515,6 +515,13 @@ const PROJECT_IMAGES = {
+    Both builder and customer view use this, so saved proposals get the same
+    corrected engineering sequence without changing their financial inputs. */
+ const CONTENT_COPY_UPDATES = Object.freeze({
++  /* Wind, water-tightness and blanket-compliance claims retired: a document
++     that does not compute the wind load cannot call a structure "engineered for
++     monsoon wind loads". Proposals saved before this get the honest wording. */
++  "Hot-dip galvanized steel or aluminium — engineered for monsoon wind loads": "Hot-dip galvanized steel or aluminium — designed for the site wind load to IS 875 (Part 3):2015; the calculation sheet is shared before execution",
++  "Structures designed by in-house engineers and torqued to specification — built to withstand decades of monsoon wind loads.": "Structures designed by in-house engineers to the site wind load (IS 875 Part 3), torqued to specification and logged at handover.",
++  "Leakproof roof penetrations with sealed anchors and elevated structure design — your roof stays watertight.": "Sealed, elevated roof penetrations — every one water-tested and the result recorded before handover.",
++  "IS/IEC-compliant installations with rigorous internal quality audits at every stage.": "Installation, earthing and testing to IS 732, IS 3043, IS/IEC 60364-7-712 and the IEC 62446-1 schedule, with quality audits at every stage.",
+   "Solar Array": "Rooftop Solar",
+   "DISCOM Grid": "MSEDCL (MSEB)",
+   "Surplus generation is exported to the grid and credited via net metering.": "Conceptual grid-tied layout, not a wiring plan. Protection and import/export are subject to site design and DISCOM approval.",
+diff --git a/assets/js/control-panel.js b/assets/js/control-panel.js
+index 148d018..8b283d6 100644
+--- a/assets/js/control-panel.js
++++ b/assets/js/control-panel.js
+@@ -203,13 +203,13 @@
+       const refIssue = referenceIssue(state);
+       refWarning.hidden = !refIssue;
+       if (refIssue) refWarning.textContent = refIssue;
+-      validate();
++      validateWithEngineering(f, state);
+       if (searchInput.value.trim()) find();
+     }
+     const feedback = element('div', 'studio-feedback'); feedback.setAttribute('role', 'status');
+     feedback.hidden = true; panel.insertBefore(feedback, form);
+     let lastIssues = {blocking: [], advisory: []};
+-    function validate() {
++    function collect() {
+       /* Two levels: blocking issues would print a wrong document, advisories
+          are suspicions worth a look. The panel shows both; the download only
+          refuses for the first kind. */
+@@ -237,25 +237,92 @@
+         input.setAttribute('aria-invalid', String(invalid));
+         if (invalid) advisory.push({id:input.id,message:'Check ' + (input.labels?.[0]?.textContent || input.id) + ': the value is outside the expected range.'});
+       });
+-      const messages = blocking.concat(advisory);
+-      feedback.replaceChildren(); feedback.hidden = !messages.length;
+-      if (messages.length) feedback.append(element('strong', '', 'Review your inputs'));
++      return {blocking, advisory, notes: []};
++    }
++
++    /* The strip shows everything wrong or still missing. The gate never sees
++       the notes: a page that says DATA REQUIRED is making no claim it cannot
++       support, so there is nothing to stop the download for. */
++    function renderFeedback(list) {
++      const messages = list.blocking.concat(list.advisory, list.notes || []);
++      const notesOnly = !list.blocking.length && !list.advisory.length;
++      /* A missing datasheet value is not something to review: it is a figure
++         nobody has supplied yet, and the specification page already prints it
++         as DATA REQUIRED. The strip appears for a real problem and, when it is
++         up, the missing inputs are listed beside it rather than left out. */
++      feedback.replaceChildren(); feedback.hidden = notesOnly || !messages.length;
++      if (!feedback.hidden) feedback.append(element('strong', '', 'Review your inputs'));
+       messages.forEach(({id, message}) => {
+         const button = element('button', '', message + ' →'); button.type = 'button';
++        /* An engineering advisory can name an input that is not in the panel
++           (a datasheet figure); reveal() tolerates a missing element. */
+         button.addEventListener('click', () => reveal($(id))); feedback.append(button);
+       });
+-      lastIssues = {blocking, advisory};
++    }
++
++    /* Kept for the plain "what does the form say" question. */
++    function validate() {
++      const list = collect();
++      renderFeedback(list);
++      lastIssues = { blocking: list.blocking, advisory: list.advisory };
++      return lastIssues;
++    }
++    /* ---- engineering design basis ----------------------------------------
++       The same two levels, from engineering.js: a figure that already proves
++       the design wrong stops the PDF, and an input nobody has supplied yet is
++       an advisory that the page prints as DATA REQUIRED. The panel and the
++       download read this one function, so they cannot disagree. */
++    function engineeringIssues(f, state) {
++      if (!window.Engineering || typeof window.Engineering.report !== 'function') return { blocking: [], advisory: [] };
++      state = state || window.Render.lastState || window.Render.readState();
++      f = f || window.Finance.compute(state);
++      const phases = f.isCommercialOrInd ? 3 : 1;
++      const acVoltageV = phases === 3 ? 415 : 230;
++      const acCurrentA = f.inverterKw > 0
++        ? (f.inverterKw * 1000) / (acVoltageV * (phases === 3 ? Math.sqrt(3) : 1)) : 0;
++      let out;
++      try {
++        out = window.Engineering.report(state, {
++          moduleCount: f.moduleCount, acCurrentA, acVoltageV, phases
++        }) || {};
++      } catch (e) { return { blocking: [], advisory: [] }; }
++      return { blocking: out.blocking || [], advisory: out.advisory || [], notes: out.notes || [] };
++    }
++    /* The Tech Spec page is a fixed A4 box. Its fit ladder shrinks the drawing
++       and the cell padding to make the design basis fit, and reports what is
++       left over — but only a real browser can measure that. An overfull page
++       would print with its last rows cut off, so it is named in the dialog
++       before the sheet reaches a customer. */
++    function overflowIssues() {
++      return (window.__qsPageOverflow || []).length ? [{
++        id: 'pageTechSpec',
++        message: 'The Technical Specification page is too full: with the roof-area figures and the reference links both shown, its last rows would be cut off. Remove a reference link (or leave the roof area blank) and it fits again.'
++      }] : [];
++    }
++    function validateWithEngineering(f, state) {
++      const merged = collect();
++      const eng = engineeringIssues(f, state);
++      const seen = new Set(merged.blocking.concat(merged.advisory, merged.notes).map((i) => i.id + '|' + i.message));
++      const add = (list, item) => { if (!seen.has(item.id + '|' + item.message)) list.push(item); };
++      eng.blocking.forEach((i) => add(merged.blocking, i));
++      eng.advisory.forEach((i) => add(merged.advisory, i));
++      eng.notes.forEach((i) => add(merged.notes, i));
++      overflowIssues().forEach((i) => add(merged.advisory, i));
++      renderFeedback(merged);
++      /* What the download sees: the two levels that change the document. */
++      lastIssues = { blocking: merged.blocking, advisory: merged.advisory };
+       return lastIssues;
+     }
+     /* The export pre-flight reads exactly this list, so the panel and the
+        download can never disagree about what is wrong. */
+     window.__qsPreflight = {
+-      run: validate,
++      run: validateWithEngineering,
+       issues: () => lastIssues,
+       reveal: (id) => { const el = $(id); if (el) reveal(el); }
+     };
+ 
+     function reveal(input) {
++      if (!input) return;
+       if(input.id==='systemEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-system-choice="yes"]');}
+       if(input.id==='bessEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-bess-choice="yes"]');}
+       if (input.closest('[data-adv]')) $('modeAll').click();
+diff --git a/assets/js/engineering.js b/assets/js/engineering.js
+new file mode 100644
+index 0000000..85c92ff
+--- /dev/null
++++ b/assets/js/engineering.js
+@@ -0,0 +1,556 @@
++'use strict';
++/* =====================================================================
++   ENGINEERING DESIGN BASIS
++   =====================================================================
++   Every number this file produces is either (a) arithmetic that a named
++   standard defines, or (b) a value the designer has to supply. Nothing is
++   invented. Where a site figure is missing the section comes back with
++   `ok:false` and a `missing` list, and the document prints DATA REQUIRED
++   instead of a number that merely looks plausible.
++
++   Sources, all named at the point of use:
++     IS 875 (Part 3):2015   wind load on the array and its attachments
++     IS 3043:2018           earthing — electrode resistance and targets
++     IS 732                 wiring — voltage drop limits on the AC side
++     IS/IEC 60364-7-712,
++     IEC 62548              PV array design — string voltage, currents
++     IEC 62109-1            inverter DC input limits (Vmax, MPPT window)
++     IEC 61215-2            module mechanical load (static load test)
++     IEC/IS 62305 (+IS 2309) lightning risk parameters
++     MNRE / UPNEDA rooftop
++     technical specification 150 km/h structure, 60 kg/m² roof load,
++                             roof-edge clearance, HDGI galvanising
++   The financial module (finance.js) keeps working without this file: it
++   falls back to its older clearance-factor estimate when Engineering is
++   absent. Load order matters — this file must precede finance.js.
++   ===================================================================== */
++(function (root) {
++  const DEG = Math.PI / 180;
++  const G = 9.80665;                     // standard gravity, m/s²
++
++  /* A blank input, not a zero. Zero is a real answer (0° tilt, 0 m cable);
++     blank means nobody has told us yet. */
++  const has = (v) => v !== '' && v !== null && v !== undefined && Number.isFinite(Number(v));
++  const num = (v, d) => (has(v) ? Number(v) : d);
++
++  /* =====================================================================
++     1. WIND — IS 875 (Part 3):2015
++     ===================================================================== */
++
++  /* Table 2, Class A (largest horizontal dimension under 20 m). Values are
++     read at the tabulated heights only; anything between them is linearly
++     interpolated, which is the note the table itself carries. Below 10 m the
++     10 m value applies. Class A is the conservative column set for a roof
++     whose plan dimension exceeds 20 m, so a bigger roof is not understated. */
++  const K2 = {
++    '1': { 10: 1.05, 15: 1.09 },
++    '2': { 10: 1.00, 15: 1.05 },
++    '3': { 10: 0.91, 0.5: 0.91, 15: 0.97 },
++    '4': { 10: 0.80, 15: 0.80 }
++  };
++
++  function k2For(category, heightM) {
++    const table = K2[String(category)] || K2['3'];
++    const h = Math.max(0, num(heightM, 10));
++    if (h <= 10) return { k2: table[10], beyond: false };
++    if (h >= 15) return { k2: table[15], beyond: h > 15 };
++    const f = (h - 10) / 5;
++    return { k2: table[10] + f * (table[15] - table[10]), beyond: false };
++  }
++
++  /* Vz = Vb · k1 · k2 · k3 · k4   (Cl. 6.3)
++     pz = 0.6 · Vz²                (Cl. 7.2, N/m²)
++     Kd, Ka and Kc (Cl. 7.2.1–7.2.3) all reduce the pressure, so they are
++     deliberately NOT applied — leaving them out is the conservative side of
++     the code. The basis line on the page says so, so nobody thinks they were
++     forgotten. */
++  function wind(s) {
++    const missing = [];
++    if (!has(s.windSpeed)) missing.push('basic wind speed (IS 875-3 Annex A)');
++    const vb = num(s.windSpeed, null);
++    const k1 = num(s.windK1, 1.0);
++    const k3 = num(s.windK3, 1.0);
++    const k4 = num(s.windK4, 1.0);
++    const heightM = num(s.buildingHeightM, 10);
++    const { k2, beyond } = k2For(s.terrainCategory, heightM);
++    const netCp = num(s.netUpliftCp, 1.2);
++    const zone = ZONE_FACTOR[s.roofZone] !== undefined ? ZONE_FACTOR[s.roofZone] : ZONE_FACTOR.edge;
++    const out = {
++      ok: missing.length === 0, missing,
++      vb, k1, k2, k3, k4, heightM, terrainCategory: String(s.terrainCategory || '3'),
++      k2BeyondTable: beyond, netCp, zoneFactor: zone, roofZone: s.roofZone || 'edge',
++      anchorsPerModule: Math.max(1, num(s.anchorsPerModule, 4))
++    };
++    if (!out.ok) return out;
++    const vz = vb * k1 * k2 * k3 * k4;
++    const pz = 0.6 * vz * vz;                       // N/m², characteristic
++    const uplift = pz * netCp * zone;               // N/m², characteristic
++    const factored = 1.5 * uplift;                  // IS 875-3 Cl. 8 wind alone
++    const areaEach = moduleAreaEach(s);
++    out.vz = vz; out.pz = pz; out.uplift = uplift; out.factoredUplift = factored;
++    out.pzKnm2 = pz / 1000; out.upliftKnm2 = uplift / 1000;
++    out.moduleAreaEach = areaEach;
++    out.perModuleN = areaEach > 0 ? uplift * areaEach : null;
++    out.perModuleFactoredN = areaEach > 0 ? factored * areaEach : null;
++    out.perAnchorN = out.perModuleFactoredN ? out.perModuleFactoredN / out.anchorsPerModule : null;
++    out.ballastKgPerM2 = uplift / G;
++    /* IEC 61215-2 static mechanical load test: a standard module is qualified
++       for 2400 Pa on either face, three cycles of one hour; 5400 Pa covers the
++       heavy-snow class. The test pressure already carries roughly a factor of
++       three over service load, so comparing our factored (design) pressure
++       against the rating is the like-for-like comparison. */
++    out.moduleRatingPa = num(s.moduleLoadClassPa, 2400);
++    out.moduleOverloaded = factored > out.moduleRatingPa;
++    return out;
++  }
++
++  /* Roof zones per ASCE-style practice adopted by Indian racking designers:
++     interior, edge and corner. The multiplier is a design assumption, so it
++     is an input and it is printed, never hidden. */
++  const ZONE_FACTOR = { interior: 1.0, edge: 1.5, corner: 2.0 };
++
++  function moduleAreaEach(s) {
++    const l = num(s.moduleLengthMm, 0) / 1000;
++    const w = num(s.moduleWidthMm, 0) / 1000;
++    return l > 0 && w > 0 ? l * w : 0;
++  }
++
++  /* =====================================================================
++     2. SHADOW GEOMETRY — the roof area an array actually needs
++     =====================================================================
++     Module surface area is not roof area. On any roof carrying more than one
++     row, each row occupies its own depth plus the shadow the row in front
++     throws at the worst hour of the design day. The criterion used here is
++     the one the industry designs to: no inter-row shading between 09:00 and
++     15:00 solar time on the winter solstice (21 December), when the sun is
++     at its lowest and the shadow at its longest.
++
++     sin(altitude) = sin φ sin δ + cos φ cos δ cos ω        (declination −23.45°)
++     row pitch     = L cos β + L sin β / tan(altitude)      (m)
++     area needed   = modules × pitch × W                    (m²)
++  */
++  const WINTER_DECLINATION = -23.45;
++
++  function solarAltitude(latitudeDeg, hourAngleDeg, declinationDeg) {
++    const p = latitudeDeg * DEG, d = declinationDeg * DEG, w = hourAngleDeg * DEG;
++    const s = Math.sin(p) * Math.sin(d) + Math.cos(p) * Math.cos(d) * Math.cos(w);
++    return Math.asin(Math.max(-1, Math.min(1, s))) / DEG;
++  }
++
++  function shadow(s) {
++    const missing = [];
++    if (!has(s.tiltDeg)) missing.push('module tilt');
++    if (!has(s.latitudeDeg)) missing.push('site latitude');
++    const tilt = num(s.tiltDeg, null), lat = num(s.latitudeDeg, null);
++    const hourAngle = num(s.shadeHalfWindowHours, 3) * 15;   // 3 h => 09:00–15:00 solar time
++    const lengthM = num(s.moduleLengthMm, 0) / 1000;
++    const widthM = num(s.moduleWidthMm, 0) / 1000;
++    const out = {
++      ok: missing.length === 0 && lengthM > 0 && widthM > 0,
++      missing: moduleAreaEach(s) > 0 ? missing : missing.concat('module dimensions'),
++      tiltDeg: tilt, latitudeDeg: lat, hourAngleDeg: hourAngle,
++      declinationDeg: WINTER_DECLINATION, lengthM, widthM
++    };
++    if (!out.ok) return out;
++    const altitude = solarAltitude(lat, hourAngle, WINTER_DECLINATION);
++    if (!(altitude > 0)) { out.ok = false; out.missing = ['a tilt and latitude that give a usable sun angle']; return out; }
++    const rise = lengthM * Math.sin(tilt * DEG);          // vertical height of a row
++    const footprint = lengthM * Math.cos(tilt * DEG);     // depth a row occupies
++    const throwM = rise / Math.tan(altitude * DEG);       // shadow on the deck
++    const pitch = footprint + throwM;
++    out.altitudeDeg = altitude;
++    out.riseM = rise; out.footprintM = footprint; out.shadowM = throwM; out.pitchM = pitch;
++    out.ratio = pitch / lengthM;                          // × module surface area
++    out.shadowFactor = throwM / footprint;                // × module footprint
++    return out;
++  }
++
++  function layout(s, count) {
++    const geo = shadow(s);
++    const out = { ok: geo.ok, missing: geo.missing.slice(), geo };
++    if (!geo.ok) return out;
++    const modules = Number.isFinite(count) ? count : num(s.moduleCount, 0);
++    out.moduleCount = modules;
++    out.clearanceRatio = geo.ratio;
++    out.arrayArea = modules * geo.lengthM * geo.widthM;
++    out.requiredArea = modules * geo.pitchM * geo.widthM;
++    out.planArea = out.requiredArea;
++    /* A clear band around the array is what MNRE/UPNEDA rooftop specifications
++       ask for (0.6 m from the roof edge). It is not part of the geometry, so
++       it is reported beside it rather than folded into the number. */
++    out.clearBandM = num(s.roofSetbackM, 0.6);
++    out.availableArea = has(s.availableArea) ? num(s.availableArea) : null;
++    if (out.availableArea === null) { out.verdict = 'unknown'; return out; }
++    /* 15 % headroom on the shaded block is the allowance for that band and for
++       walkways on a compact roof; below it the answer is honest about what is
++       not yet known instead of claiming a fit. */
++    const band = out.requiredArea * 0.15;
++    out.verdict = out.availableArea < out.requiredArea ? 'short'
++      : out.availableArea < out.requiredArea + band ? 'tight' : 'fits';
++    out.shortfallM2 = Math.max(0, out.requiredArea - out.availableArea);
++    return out;
++  }
++
++  /* =====================================================================
++     3. STRINGS — IS/IEC 60364-7-712 and IEC 62548, against IEC 62109 limits
++     =====================================================================
++     A string must clear two walls. At the coldest expected cell temperature
++     the open-circuit voltage is at its highest and must stay under the
++     inverter's maximum DC input voltage, a hard limit — exceeding it destroys
++     the input stage. At the hottest it must still sit above the MPPT floor,
++     or the machine stops tracking. Both use the module's own temperature
++     coefficients, which is why the datasheet numbers are inputs here and
++     never guesses.
++  */
++  function string(s, opts) {
++    const o = opts || {};
++    const need = [];
++    ['moduleVoc', 'moduleVmp', 'moduleIsc', 'moduleImp', 'inverterVmaxDc', 'mpptMinV']
++      .forEach((k) => { if (!has(s[k])) need.push(k); });
++    const out = { ok: need.length === 0, missing: need };
++    if (!out.ok) return out;
++    const modules = o.moduleCount || num(s.moduleCount, 0);
++    const voc = num(s.moduleVoc), vmp = num(s.moduleVmp), isc = num(s.moduleIsc), imp = num(s.moduleImp);
++    const bVocPct = num(s.moduleVocBetaPct, -0.27), bVmpPct = num(s.moduleVmpBetaPct, -0.36);
++    const vmax = num(s.inverterVmaxDc), mpptMin = num(s.mpptMinV);
++    const mpptMax = has(s.mpptMaxV) ? num(s.mpptMaxV) : null;
++    const tMin = num(s.minAmbientC, 0);            // cell ≈ ambient at dawn
++    const tMaxCell = num(s.maxCellC, 65);
++    /* The string voltage at STC that still fits under Vmax once the cold
++       correction is applied. Voc rises as temperature falls, hence the
++       negative coefficient making the divisor larger than 1. */
++    const vocPerModuleCold = voc * (1 + (bVocPct / 100) * (tMin - 25));
++    const vmpPerModuleHot = vmp * (1 + (bVmpPct / 100) * (tMaxCell - 25));
++    const vmpPerModuleCold = vmp * (1 + (bVmpPct / 100) * (tMin - 25));
++    const maxSeries = Math.floor(vmax / vocPerModuleCold);
++    const minSeries = Math.ceil(mpptMin / vmpPerModuleHot);
++    const maxSeriesMppt = mpptMax ? Math.floor(mpptMax / vmpPerModuleCold) : null;
++    out.modules = modules;
++    out.vocColdPerModule = vocPerModuleCold; out.vmpHotPerModule = vmpPerModuleHot;
++    out.maxSeriesByVoltage = maxSeries; out.minSeriesByMppt = minSeries;
++    out.maxSeriesByMppt = maxSeriesMppt;
++    const ceiling = maxSeriesMppt === null ? maxSeries : Math.min(maxSeries, maxSeriesMppt);
++    /* When not even one module clears the inverter's ceiling, no arrangement
++       exists: that is a wrong inverter for these modules, not a long string. */
++    out.impossible = !(ceiling >= 1) && modules > 0;
++    /* You cannot put more modules in a string than you have ordered, and
++       unequal strings on one MPPT drag each other down, so the modules are
++       shared out evenly: strings = ceil(N / ceiling), length = ceil(N/strings). */
++    out.strings = (!out.impossible && modules > 0) ? Math.max(1, Math.ceil(modules / ceiling)) : 0;
++    out.seriesPerString = out.strings > 0 ? Math.ceil(modules / out.strings) : 0;
++    out.balancedStrings = out.strings > 0 && modules % out.strings === 0;
++    out.vocColdString = out.seriesPerString * vocPerModuleCold;
++    out.vmpHotString = out.seriesPerString * vmpPerModuleHot;
++    out.overVoltage = out.impossible || out.vocColdString > vmax;
++    out.belowMppt = out.vmpHotString < mpptMin;
++    out.feasible = maxSeries >= minSeries && maxSeries >= 1;
++    out.vocMarginPct = ((vmax - out.vocColdString) / vmax) * 100;
++    /* IEC 62548 sizes the string cable and its protection for 1.25 × Isc. */
++    out.iscDesignPerString = 1.25 * isc;
++    out.designCurrent = out.iscDesignPerString * out.strings;
++    out.inverterMaxCurrentA = has(s.inverterMaxCurrentA) ? num(s.inverterMaxCurrentA) : null;
++    out.iscOverload = out.inverterMaxCurrentA !== null && out.designCurrent > out.inverterMaxCurrentA;
++    out.dcVoltageV = out.seriesPerString * vmp;     // nominal string voltage at STC
++    out.moduleImp = imp;
++    return out;
++  }
++
++  /* =====================================================================
++     4. CABLE — IS 732 limits, with the tighter DC target of IEC 62548
++     =====================================================================
++     ΔU = 2·ρ·L·I/A on a two-wire circuit, √3·ρ·L·I/A on three-phase.
++     ρ is copper at 70 °C (0.0202 Ω·mm²/m), the operating temperature IS 732
++     works at, not the 20 °C figure on a datasheet.
++  */
++  const RHO_CU_70 = 0.0172 * (1 + 0.00393 * 45);
++
++  function voltageDrop(currentA, lengthM, sizeMm2, voltageV, phases) {
++    const R = (RHO_CU_70 * lengthM) / sizeMm2;
++    const dropV = (phases === 3 ? Math.sqrt(3) : 2) * currentA * R;
++    return { dropV, percent: voltageV > 0 ? (dropV / voltageV) * 100 : 0 };
++  }
++
++  function cable(s, ctx) {
++    const c = ctx || {};
++    const out = { rho: RHO_CU_70, acLimitPct: 3, dcLimitPct: 2, limits: 'IS 732: 2.5 % lighting, 3 % power; DC strings designed to 2 % (IEC 62548 practice)' };
++    /* DC run: array to inverter. */
++    if (has(s.dcCableLengthM) && has(s.dcCableSizeMm2) && c.dcCurrentA > 0 && c.dcVoltageV > 0) {
++      const d = voltageDrop(c.dcCurrentA, num(s.dcCableLengthM), num(s.dcCableSizeMm2), c.dcVoltageV, 2);
++      out.dc = {
++        ok: true, lengthM: num(s.dcCableLengthM), sizeMm2: num(s.dcCableSizeMm2),
++        currentA: c.dcCurrentA, voltageV: c.dcVoltageV,
++        dropV: d.dropV, percent: d.percent, limitPct: out.dcLimitPct,
++        pass: d.percent <= out.dcLimitPct
++      };
++    } else {
++      out.dc = { ok: false, missing: ['DC cable length, cross-section, string current'] };
++    }
++    /* AC run: inverter to the metering point. */
++    const phases = c.phases === 3 ? 3 : 1;
++    if (has(s.acCableLengthM) && has(s.acCableSizeMm2) && c.acCurrentA > 0 && c.acVoltageV > 0) {
++      const d = voltageDrop(c.acCurrentA, num(s.acCableLengthM), num(s.acCableSizeMm2), c.acVoltageV, phases);
++      out.ac = {
++        ok: true, lengthM: num(s.acCableLengthM), sizeMm2: num(s.acCableSizeMm2),
++        currentA: c.acCurrentA, voltageV: c.acVoltageV, phases,
++        dropV: d.dropV, percent: d.percent, limitPct: out.acLimitPct,
++        pass: d.percent <= out.acLimitPct
++      };
++    } else {
++      out.ac = { ok: false, missing: ['AC cable length and cross-section'] };
++    }
++    out.ok = out.dc.ok && out.ac.ok;
++    return out;
++  }
++
++  /* =====================================================================
++     5. EARTHING — IS 3043:2018
++     =====================================================================
++     A 3 m pipe electrode 50 mm across in soil of resistivity ρ:
++        R = (ρ / 2πL) · [ ln(4L/d) − 1 ]
++     which is the formula the standard's own worked example uses. Targets:
++     ≤ 5 Ω for a general LV installation, ≤ 1 Ω where a system earth is
++     called for, ≤ 10 Ω for a lightning earth. CEA (Measures Relating to
++     Safety and Electric Supply) Regulations 2010 require two distinct earth
++     connections for systems between 250 V and 650 V.
++  */
++  function electrodeOhm(rho, lengthM, diaM) {
++    return (rho / (2 * Math.PI * lengthM)) * (Math.log((4 * lengthM) / diaM) - 1);
++  }
++
++  function earthing(s) {
++    const targetOhm = num(s.earthTargetOhm, 5);
++    const lengthM = num(s.electrodeLengthM, 3);
++    const diaM = num(s.electrodeDiaM, 0.05);
++    const out = {
++      targetOhm, lengthM, diaM,
++      twoConnections: true,
++      basis: 'IS 3043:2018 — R = (ρ/2πL)·[ln(4L/d) − 1]; two distinct earth connections for 250–650 V (CEA Safety Regulations 2010)'
++    };
++    if (!has(s.soilResistivity)) {
++      out.ok = false;
++      out.missing = ['soil resistivity (measured on site, IS 3043)'];
++      return out;
++    }
++    const rho = num(s.soilResistivity);
++    const single = electrodeOhm(rho, lengthM, diaM);
++    out.soilResistivity = rho;
++    out.singleOhm = single;
++    /* Electrodes in parallel do not simply halve: the field of one raises the
++       resistance of the next, so the group returns R1/(n·η) where η is the
++       field efficiency for electrodes spaced at least twice their length
++       apart (0.6–0.8 in IS 3043 practice, so 0.75 is the shipped assumption
++       and it is an input). A design that needs an implausible number of pits
++       is reported as needing a chemical or deeper electrode instead of a
++       number nobody would build. */
++    const eta = Math.min(0.95, Math.max(0.4, num(s.electrodeEfficiency, 0.75)));
++    out.efficiency = eta;
++    const maxPits = 12;
++    let count = 1;
++    while (count < maxPits && single / (count * eta) > targetOhm) count += 1;
++    out.electrodeCount = count;
++    out.parallelOhm = single / (count * eta);
++    out.pass = out.parallelOhm <= targetOhm;
++    out.chemicalRequired = !out.pass;
++    out.ok = true;
++    return out;
++  }
++
++  /* =====================================================================
++     6. LIGHTNING — IS/IEC 62305 (IS 2309)
++     =====================================================================
++     Ng ≈ 0.04 · Td^1.25 flashes/km²/year from the local thunderstorm-day
++     count, collection area Ad = LW + 2(L+W)H + πH², expected strikes per
++     year Nd = Ng·Ad·10⁻⁶. Whether an LPS is *required* is a risk decision
++     (IEC 62305-2) that belongs to the designer — so the numbers are shown
++     and the protection parameters for the chosen level are printed instead
++     of the app pretending to make that call.
++  */
++  const LPL = {
++    I: { sphere: 20, mesh: 5, down: 10, eff: '99 %' },
++    II: { sphere: 30, mesh: 10, down: 10, eff: '97 %' },
++    III: { sphere: 45, mesh: 15, down: 15, eff: '91 %' },
++    IV: { sphere: 60, mesh: 20, down: 20, eff: '84 %' }
++  };
++
++  function lightning(s) {
++    const level = LPL[s.lpsClass] ? s.lpsClass : 'IV';
++    const out = { lpsClass: level, params: LPL[level], earthOhm: 10 };
++    if (!has(s.thunderstormDays)) { out.ok = false; out.missing = ['thunderstorm days per year for the site']; return out; }
++    const td = num(s.thunderstormDays);
++    const L = num(s.buildingLengthM, 0), W = num(s.buildingWidthM, 0), H = num(s.buildingHeightM, num(s.roofHeightM, 10));
++    out.thunderstormDays = td;
++    out.ng = 0.04 * Math.pow(td, 1.25);
++    if (L > 0 && W > 0) {
++      out.collectionAreaM2 = L * W + 2 * (L + W) * H + Math.PI * H * H;
++      out.strikesPerYear = out.ng * out.collectionAreaM2 * 1e-6;
++    }
++    out.ok = true;
++    return out;
++  }
++
++  /* =====================================================================
++     7. ROOF LOAD — MNRE/UPNEDA rooftop specification
++     =====================================================================
++     "the total load of the structure including PV modules on the terrace is
++     less than 60 kg/m²". Modules plus racking over the area the array
++     occupies; the roof's own capacity is a structural question this cannot
++     answer, so the page says whose job that is.
++  */
++  function roofLoad(s, count, areaM2) {
++    const modules = Number.isFinite(count) ? count : 0;
++    const weight = num(s.moduleWeightKg, 28);
++    const rack = num(s.rackKgPerM2, 2.5);
++    const bench = num(s.roofLoadBenchmarkKgM2, 60);
++    const modulesKg = modules * weight;
++    const area = areaM2 > 0 ? areaM2 : 0;
++    const out = {
++      ok: modules > 0 && area > 0,
++      moduleCount: modules, moduleWeightKg: weight, rackKgPerM2: rack, benchmarkKgM2: bench,
++      modulesKg, rackKg: rack * area,
++      kgPerM2: area > 0 ? (modulesKg + rack * area) / area : 0
++    };
++    out.pass = out.kgPerM2 > 0 && out.kgPerM2 <= bench;
++    out.basis = 'MNRE / UPNEDA rooftop technical specification: structure including modules under 60 kg/m²';
++    return out;
++  }
++
++  /* =====================================================================
++     8. THE WHOLE BASIS — and what it means for the export gate
++     =====================================================================
++     Blocking issues are the ones where a number already proves the design
++     wrong: the roof cannot hold the array, a string would exceed the
++     inverter, the modules would see more pressure than they are qualified
++     for. Everything else that is unknown is advisory, printed as DATA
++     REQUIRED on the page so nobody mistakes silence for a clean sheet.
++  */
++  function report(s, ctx) {
++    const c = ctx || {};
++    const w = wind(s);
++    const l = layout(s, c.moduleCount);
++    const st = string(s, { moduleCount: c.moduleCount });
++    const cb = cable(s, {
++      dcCurrentA: st.ok ? st.designCurrent : 0,
++      dcVoltageV: st.ok ? st.dcVoltageV : 0,
++      acCurrentA: c.acCurrentA || 0,
++      acVoltageV: c.acVoltageV || 0,
++      phases: c.phases
++    });
++    const e = earthing(s);
++    const li = lightning(s);
++    const r = roofLoad(s, c.moduleCount, l.ok ? l.requiredArea : 0);
++    /* Three levels, because two were not enough to be honest without being
++       noisy.  blocking  — a number already proves the design wrong; no PDF.
++       advisory  — a real suspicion worth a look; the reader may proceed.
++       notes     — an input nobody has supplied yet, or a design statement that
++                   is simply informing. The page prints DATA REQUIRED for these
++                   and the panel lists them, but a document that makes no claim
++                   it cannot support has nothing to stop for. */
++    const blocking = [], advisory = [], notes = [];
++
++    if (l.ok && l.verdict === 'short') {
++      blocking.push({
++        id: 'availableArea',
++        message: 'The array needs ' + Math.ceil(l.requiredArea) + ' m² with no-shading row spacing (' +
++          l.tiltDeg + '° tilt, ' + Math.round(l.geo.altitudeDeg) + '° mid-morning sun, 21 December), but only ' +
++          l.availableArea + ' m² is available.'
++      });
++    } else if (l.ok && l.verdict === 'tight') {
++      advisory.push({
++        id: 'availableArea',
++        message: 'Roof area is ' + Math.ceil(l.requiredArea) + ' m² of shaded array in ' + l.availableArea +
++          ' m² — the 0.6 m clear band around it is not yet confirmed.'
++      });
++    }
++    if (st.ok) {
++      if (st.impossible) {
++        blocking.push({
++          id: 'inverterVmaxDc',
++          message: 'One module already reaches ' + Math.round(st.vocColdPerModule) +
++            ' V open-circuit at ' + num(s.minAmbientC, 0) + ' °C, above this inverter’s ' +
++            num(s.inverterVmaxDc) + ' V limit — no string of these modules can be built. (IEC 62548)'
++        });
++      } else if (st.overVoltage) {
++        blocking.push({
++          id: 'inverterVmaxDc',
++          message: 'A string of ' + st.seriesPerString + ' modules reaches ' + Math.round(st.vocColdString) +
++            ' V open-circuit at ' + num(s.minAmbientC, 0) + ' °C — above the inverter limit of ' + num(s.inverterVmaxDc) +
++            ' V. The input stage fails on the first cold morning.'
++        });
++      }
++      if (st.belowMppt) {
++        blocking.push({
++          id: 'mpptMinV',
++          message: 'At ' + num(s.maxCellC, 65) + ' °C cell temperature a string of ' + st.seriesPerString +
++            ' modules falls to ' + Math.round(st.vmpHotString) + ' V, below the ' + num(s.mpptMinV) +
++            ' V MPPT floor — the inverter would stop tracking.'
++        });
++      }
++      if (st.iscOverload) {
++        blocking.push({
++          id: 'inverterMaxCurrentA',
++          message: st.strings + ' strings carry ' + st.designCurrent.toFixed(1) + ' A at 1.25 × Isc (IEC 62548), ' +
++            'above the inverter’s ' + st.inverterMaxCurrentA + ' A DC input limit.'
++        });
++      }
++    } else {
++      notes.push({
++        id: 'moduleVoc',
++        message: 'DATA REQUIRED — string design cannot be checked: add the module Voc/Vmp/Isc/Imp and the inverter DC limits (' +
++          st.missing.join(', ') + ').'
++      });
++    }
++    if (w.ok && w.moduleOverloaded) {
++      blocking.push({
++        id: 'moduleLoadClassPa',
++        message: 'IS 875 wind uplift on the array is ' + Math.round(w.factoredUplift) + ' N/m² (' +
++          w.vb + ' m/s basic speed, ' + w.zoneFactor + '× ' + w.roofZone + ' zone), above the module’s ' +
++          w.moduleRatingPa + ' Pa IEC 61215 mechanical-load rating.'
++      });
++    }
++    if (!w.ok) notes.push({ id: 'windSpeed', message: 'DATA REQUIRED — wind load is not calculated: ' + w.missing.join(', ') + '.' });
++    else if (w.k2BeyondTable) {
++      notes.push({ id: 'buildingHeightM', message: 'Height is above the 15 m row of IS 875-3 Table 2 — k2 must be read from the table for this height.' });
++    }
++    if (cb.dc.ok && !cb.dc.pass) {
++      advisory.push({ id: 'dcCableSizeMm2', message: 'DC voltage drop is ' + cb.dc.percent.toFixed(2) + ' %, above the ' + cb.dc.limitPct + ' % design limit.' });
++    } else if (!cb.dc.ok) notes.push({ id: 'dcCableLengthM', message: 'DATA REQUIRED — DC voltage drop is not checked: ' + cb.dc.missing.join(', ') + '.' });
++    if (cb.ac.ok && !cb.ac.pass) {
++      advisory.push({ id: 'acCableSizeMm2', message: 'AC voltage drop is ' + cb.ac.percent.toFixed(2) + ' %, above the IS 732 limit of ' + cb.ac.limitPct + ' %.' });
++    } else if (!cb.ac.ok) notes.push({ id: 'acCableLengthM', message: 'DATA REQUIRED — AC voltage drop is not checked: ' + cb.ac.missing.join(', ') + '.' });
++    if (!e.ok) notes.push({ id: 'soilResistivity', message: 'DATA REQUIRED — earthing design needs ' + e.missing.join(', ') + '.' });
++    else if (e.chemicalRequired) notes.push({
++      id: 'soilResistivity',
++      message: 'Earthing: ' + e.singleOhm.toFixed(1) + ' Ω for one ' + e.lengthM + ' m pipe electrode at ' +
++        e.soilResistivity + ' Ω·m — the ' + e.targetOhm + ' Ω target is not reachable with pipe electrodes alone. ' +
++        'A chemical or deeper electrode design is required (IS 3043).'
++    });
++    else notes.push({
++      id: 'soilResistivity',
++      message: 'Earthing: ' + e.electrodeCount + ' × ' + e.lengthM + ' m pipe electrode at ' + e.soilResistivity +
++        ' Ω·m gives ≈' + e.parallelOhm.toFixed(1) + ' Ω against the ' + e.targetOhm + ' Ω target (IS 3043).'
++    });
++    if (li.ok && li.strikesPerYear) {
++      notes.push({
++        id: 'lpsClass',
++        message: 'Lightning: ≈' + li.strikesPerYear.toExponential(1) + ' strikes/yr expected on this collection area. ' +
++          'If an LPS is provided, LPL ' + li.lpsClass + ' means ' + li.params.mesh + ' m mesh, ' + li.params.sphere +
++          ' m rolling sphere, down conductors within ' + li.params.down + ' m, earth ≤ ' + li.earthOhm + ' Ω.'
++      });
++    }
++    if (!r.pass) notes.push({ id: 'moduleWeightKg', message: 'DATA REQUIRED — roof load is not checked: module weight and array area are needed.' });
++
++    return {
++      wind: w, layout: l, string: st, cable: cb, earthing: e, lightning: li, roofLoad: r,
++      blocking, advisory, notes
++    };
++  }
++
++  root.Engineering = {
++    report, wind, shadow, layout, string, cable, earthing, lightning, roofLoad,
++    voltageDrop, electrodeOhm, solarAltitude, moduleAreaEach,
++    K2, LPL, RHO_CU_70, WINTER_DECLINATION, ZONE_FACTOR,
++    k2For
++  };
++  if (typeof module !== 'undefined' && module.exports) module.exports = root.Engineering;
++})(typeof self !== 'undefined' ? self
++  : (typeof globalThis !== 'undefined' ? globalThis : this));
+diff --git a/assets/js/equipment.js b/assets/js/equipment.js
+index 6220802..5c48ede 100644
+--- a/assets/js/equipment.js
++++ b/assets/js/equipment.js
+@@ -10,7 +10,10 @@
+      - electrical detail fields (Voc/Isc/Vmp/Imp/efficiency/MPPT…) are left
+        BLANK until the team enters datasheet values — nothing is invented
+      - selecting a module fills its rating/dimensions/technology into the
+-       form; selecting an inverter fills its rating only when one is set
++       form, and its Voc/Isc/Vmp/Imp when the catalogue holds them
++     - selecting an inverter fills its rating, and its DC voltage/current
++       limits when the catalogue holds them, so the string check has real
++       numbers to work with instead of a blank
+    ========================================================================== */
+ 'use strict';
+ 
+@@ -117,7 +120,19 @@
+     if (entry.lengthMm) $('moduleLengthMm').value = entry.lengthMm;
+     if (entry.widthMm) $('moduleWidthMm').value = entry.widthMm;
+     if (entry.tech) setValue('moduleTech', entry.tech);
+-    ['moduleWattage', 'moduleLengthMm', 'moduleWidthMm', 'moduleTech'].forEach((id) => fire($(id)));
++    const touched = ['moduleWattage', 'moduleLengthMm', 'moduleWidthMm', 'moduleTech'];
++    /* Datasheet figures only. The catalogue ships them blank on purpose, so a
++       module with no electrical detail selected leaves the string check saying
++       DATA REQUIRED rather than passing on an invented voltage. */
++    [['voc', 'moduleVoc'], ['isc', 'moduleIsc'], ['vmp', 'moduleVmp'], ['imp', 'moduleImp']]
++      .forEach(([from, to]) => {
++        if (entry[from] === '' || entry[from] === undefined || entry[from] === null) return;
++        const el = $(to);
++        if (!el) return;
++        el.value = entry[from];
++        touched.push(to);
++      });
++    touched.forEach((id) => fire($(id)));
+   }
+ 
+   function applyInverterDefaults() {
+@@ -125,6 +140,16 @@
+     const entry = cat().inverters.find((i) => i.make === sel.value);
+     if (!entry) return;
+     if (entry.kw) { $('inverterKw').value = entry.kw; fire($('inverterKw')); }
++    /* The DC limits decide whether a string is safe, so they travel with the
++       inverter the moment the catalogue carries them. */
++    [['vmaxDc', 'inverterVmaxDc'], ['mpptMin', 'mpptMinV'], ['mpptMax', 'mpptMaxV'], ['maxCurrent', 'inverterMaxCurrentA']]
++      .forEach(([from, to]) => {
++        if (entry[from] === '' || entry[from] === undefined || entry[from] === null) return;
++        const el = $(to);
++        if (!el) return;
++        el.value = entry[from];
++        fire(el);
++      });
+   }
+ 
+   function wire() {
+diff --git a/assets/js/finance.js b/assets/js/finance.js
+index e9d1fce..a9e2a12 100644
+--- a/assets/js/finance.js
++++ b/assets/js/finance.js
+@@ -18,6 +18,12 @@
+   else { root.Finance = factory(); }
+ }(typeof self !== 'undefined' ? self : this, function () {
+ 
++  /* The UMD wrapper hands the export target to the caller, not to this body,
++     so the global is looked up here. engineering.js is a soft dependency: if
++     it is absent the roof clearance falls back to the old 1.4 factor. */
++  const GLOBAL = typeof self !== 'undefined' ? self
++    : (typeof globalThis !== 'undefined' ? globalThis : this);
++
+   const YEARS = 25;
+   const PROJECTION_YEARS = 25; // horizon used for cash-flow projections
+ 
+@@ -148,8 +154,21 @@
+        "fits" for roofs that cannot actually take the array. The clearance
+        factor is user-editable (default 1.4) and printed on the page instead of
+        being hidden inside the verdict. */
+-    const roofClearanceFactor = Math.max(1, num(s.roofClearanceFactor, 1.4));
+-    const requiredArea = arrayArea * roofClearanceFactor;
++    /* Roof area. Module area is not roof area: on a roof carrying more than one
++       row, each row takes its own depth plus the shadow the row in front throws
++       at the worst hour of the design day. engineering.js works that pitch out
++       from the tilt, the latitude and the winter-solstice sun angle, so the
++       factor is a result here rather than a hidden assumption. A figure typed
++       into the field still wins — the page then labels it a manual factor. */
++    const manualClearance = num(s.roofClearanceFactor, 0);
++    const engLayout = (GLOBAL.Engineering && GLOBAL.Engineering.layout)
++      ? GLOBAL.Engineering.layout(s, moduleCount) : null;
++    const derived = engLayout && engLayout.ok;
++    const roofClearanceFactor = manualClearance > 0 ? Math.max(1, manualClearance)
++      : (derived ? engLayout.clearanceRatio : 1.4);
++    const requiredArea = (derived && !(manualClearance > 0))
++      ? engLayout.requiredArea : arrayArea * roofClearanceFactor;
++    const clearanceSource = manualClearance > 0 ? 'manual' : (derived ? 'derived' : 'fallback');
+     const inverterKw = num(s.inverterKw) || (capacity > 0 ? capacity : 0);
+     const dcAcRatio = (installedKwp > 0 && inverterKw > 0) ? installedKwp / inverterKw : 0;
+ 
+@@ -327,7 +346,7 @@
+     return {
+       // engineering
+       capacity, contractedKwp, moduleWattage, moduleCount, installedKwp, arrayArea,
+-      roofClearanceFactor, requiredArea, capacityExact,
++      roofClearanceFactor, requiredArea, clearanceSource, layout: engLayout, capacityExact,
+       inverterKw, dcAcRatio,
+       // costs
+       projectCost, gstAmount, grossTotal, subsidy, subsidyAuto, netInvestment,
+diff --git a/assets/js/render.js b/assets/js/render.js
+index 90abddc..e2d0182 100644
+--- a/assets/js/render.js
++++ b/assets/js/render.js
+@@ -387,10 +387,15 @@
+ 
+     set('v_tsGroupsLabel', P.groupsLabel);
+     const rows = [];
++    /* `group` tags the engineering block so the CSS can compact it; it is the
++       longest group on the page and the only one whose length varies with what
++       the engine could actually calculate. */
+     const addRows = (group, list) => {
++      const eng = group.indexOf('ENGINEERING') === 0;
+       rows.push('<tr class="spec-group"><td colspan="2">' + esc(group) + '</td></tr>');
+       list.forEach(([k, val]) => {
+-        rows.push('<tr><td class="spec-k">' + esc(k) + '</td><td class="spec-v">' + esc(val) + '</td></tr>');
++        rows.push('<tr' + (eng ? ' class="is-eng"' : '') +
++          '><td class="spec-k">' + esc(k) + '</td><td class="spec-v">' + esc(val) + '</td></tr>');
+       });
+     };
+     addRows('SOLAR MODULES', [
+@@ -417,23 +422,113 @@
+         ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '—'],
+       ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
+     ]);
+-    addRows('MOUNTING & CABLing'.replace('CABLing', 'CABLING'), [
++    /* ---- engineering design basis ------------------------------------------
++       Everything below is either arithmetic a named standard defines or a
++       figure the designer supplied. Where an input is missing the row says
++       DATA REQUIRED and the design-basis block lists what to bring — the page
++       never fills that gap with a plausible-looking number. */
++    const phaseCount = f.isCommercialOrInd ? 3 : 1;
++    const acVoltageV = phaseCount === 3 ? 415 : 230;
++    const acCurrentA = f.inverterKw > 0
++      ? (f.inverterKw * 1000) / (acVoltageV * (phaseCount === 3 ? Math.sqrt(3) : 1)) : 0;
++    const eng = root.Engineering ? root.Engineering.report(s, {
++      moduleCount: f.moduleCount, acCurrentA, acVoltageV, phases: phaseCount
++    }) : null;
++    const REQ = 'DATA REQUIRED';
++    const round1 = (x) => Math.round(x * 10) / 10;
++    const round2 = (x) => Math.round(x * 100) / 100;
++
++    addRows('MOUNTING & CABLING', [
+       ['Structure Make', s.mountMake],
+       ['Roof Type', s.roofType || '—'],
+       ['Cabling & Protection', s.cableMake],
+-      ['Earthing & Lightning Protection', 'Included (as per EPC scope)']
++      /* Not "included as per EPC scope" — that claims a design without one.
++         Either the electrode design is here, or the row says what is missing. */
++      ['Earthing', (eng && eng.earthing.ok)
++        ? eng.earthing.electrodeCount + ' × ' + eng.earthing.lengthM + ' m pipe electrode at ' +
++          eng.earthing.soilResistivity + ' Ω·m ⇒ ' + round1(eng.earthing.parallelOhm) +
++          ' Ω against ' + eng.earthing.targetOhm + ' Ω (IS 3043) — two distinct earths (CEA 2010)'
++        : 'To be designed after the soil resistivity test — ' + REQ + ' (IS 3043)'],
++      ['Lightning Protection', (eng && eng.lightning.ok && eng.lightning.strikesPerYear)
++        ? 'LPL ' + eng.lightning.lpsClass + ': ' + eng.lightning.params.mesh + ' m mesh, ' +
++          eng.lightning.params.sphere + ' m rolling sphere, down conductors ≤ ' +
++          eng.lightning.params.down + ' m, earth ≤ ' + eng.lightning.earthOhm + ' Ω (IEC 62305) — risk assessment to confirm'
++        : 'Risk assessment not yet made — ' + REQ + ' (IS/IEC 62305)']
+     ]);
+     if (s.availableArea) {
+-      /* Module area alone is not enough roof: the required figure includes the
+-         clearance factor (walkways, parapet setback, inter-row spacing). */
++      /* Module area alone is not enough roof. Two rows tell the truth about
++         which figure it is: a factor worked out from the tilt and the
++         winter-solstice sun angle, or one the designer typed in. */
+       const need = Math.ceil(f.requiredArea || 0);
+-      const ok = parseFloat(s.availableArea) >= need;
++      const avail = parseFloat(s.availableArea);
++      const verdict = f.clearanceSource === 'manual'
++        ? (avail >= need ? '— fits ✓' : '— exceeds available area')
++        : (eng && eng.layout && eng.layout.ok
++            ? (eng.layout.verdict === 'short' ? '— exceeds available area'
++              : eng.layout.verdict === 'tight' ? '— fits the rows; the clear band around them is not confirmed'
++              : '— fits ✓')
++            : (avail >= need ? '— fits ✓' : '— exceeds available area'));
++      const basis = f.clearanceSource === 'manual'
++        ? 'module area × ' + f.roofClearanceFactor + ' clearance — manual factor'
++        : (eng && eng.layout && eng.layout.ok
++            ? 'row pitch ' + round2(eng.layout.geo.pitchM) + ' m at ' + s.tiltDeg + '° tilt, no shading ' +
++              '09:00–15:00 on 21 December at ' + s.latitudeDeg + '°N — module area × ' +
++              round2(f.roofClearanceFactor) + ' clearance'
++            : 'module area × ' + round2(f.roofClearanceFactor) + ' clearance');
+       addRows('SITE', [
+         ['Available Roof Area', s.availableArea + ' m²'],
+-        ['Roof Area Required', need + ' m² (module area × ' + f.roofClearanceFactor +
+-          ' clearance) ' + (ok ? '— fits ✓' : '— exceeds available area')]
++        ['Roof Area Required', need + ' m² (' + basis + ') ' + verdict]
+       ]);
+     }
++    /* The design basis itself, so the reader can check the arithmetic. */
++    if (eng) {
++      const wind = eng.wind, lay = eng.layout, str = eng.string;
++      const rows2 = [];
++      if (lay && lay.ok) {
++        rows2.push(['Tilt & row spacing', s.tiltDeg + '° tilt, ' + s.latitudeDeg + '°N — row pitch ' +
++          round2(lay.geo.pitchM) + ' m from a ' + round1(lay.geo.altitudeDeg) +
++          '° mid-morning sun on 21 December (winter solstice)']);
++      } else {
++        rows2.push(['Tilt & row spacing', REQ + ' — ' + (lay ? lay.missing.join(', ') : 'design inputs')]);
++      }
++      rows2.push(['Wind pressure', wind.ok
++        ? wind.vb + ' m/s (IS 875-3:2015 map) × k1 ' + wind.k1 + ' × k2 ' + wind.k2.toFixed(2) +
++          ' × k3 ' + wind.k3 + ' × k4 ' + wind.k4 + ' ⇒ Vz ' + round1(wind.vz) + ' m/s, pz ' +
++          round1(wind.pz) + ' N/m². Net uplift ' + round1(wind.uplift) + ' N/m² at ×' +
++          wind.netCp + ' coefficient and ×' + wind.zoneFactor + ' ' + wind.roofZone +
++          ' zone ⇒ ' + round1(wind.factoredUplift) + ' N/m² design, ' +
++          round1(wind.perAnchorN) + ' N per anchor — module rating ' + wind.moduleRatingPa +
++          ' Pa (IEC 61215)'
++        : REQ + ' — ' + wind.missing.join(', ')]);
++      rows2.push(['String design', str.ok
++        ? str.strings + ' × ' + str.seriesPerString + ' modules in series · Voc at ' + s.minAmbientC +
++          ' °C = ' + Math.round(str.vocColdString) + ' V against the inverter’s ' + s.inverterVmaxDc +
++          ' V limit' + (str.maxSeriesByVoltage === str.seriesPerString ? ' · longest string allowed here is ' + str.maxSeriesByVoltage + ' modules' : '') +
++          ' · Vmp at ' + s.maxCellC + ' °C = ' + Math.round(str.vmpHotString) + ' V against the ' +
++          s.mpptMinV + ' V MPPT floor (IEC 62548)'
++        : REQ + ' — ' + str.missing.join(', ')]);
++      rows2.push(['Cable voltage drop', (eng.cable.dc.ok ? 'DC ' + eng.cable.dc.percent.toFixed(2) + ' % over ' +
++        eng.cable.dc.lengthM + ' m of ' + eng.cable.dc.sizeMm2 + ' mm²' : 'DC ' + REQ) + ' · ' +
++        (eng.cable.ac.ok ? 'AC ' + eng.cable.ac.percent.toFixed(2) + ' % over ' + eng.cable.ac.lengthM +
++          ' m of ' + eng.cable.ac.sizeMm2 + ' mm² (' + eng.cable.ac.phases + '-phase, IS 732 limit ' +
++          eng.cable.ac.limitPct + ' %)' : 'AC ' + REQ)]);
++      if (eng.roofLoad.ok) {
++        rows2.push(['Terrace load', round1(eng.roofLoad.kgPerM2) + ' kg/m² from modules (' +
++          eng.roofLoad.moduleWeightKg + ' kg each) and racking against the ' +
++          eng.roofLoad.benchmarkKgM2 + ' kg/m² benchmark (MNRE/UPNEDA). Roof capacity itself is a structural check']);
++      } else {
++        rows2.push(['Terrace load', REQ + ' — module weight and array area']);
++      }
++      const strip = (m) => m.replace(/^DATA REQUIRED — /, '');
++      const gaps = eng.notes.filter((n) => /^DATA REQUIRED/.test(n.message)).map((n) => strip(n.message));
++      const design = eng.notes.filter((n) => !/^DATA REQUIRED/.test(n.message)).map((n) => strip(n.message));
++      rows2.push(['Data still required', gaps.length
++        ? gaps.join(' ')
++        : 'None — every design figure on this page is either calculated or supplied']);
++      if (design.length) rows2.push(['Design notes', design.join(' ')]);
++      if (eng.advisory.length) rows2.push(['Review before sending', eng.advisory.map((a) => a.message).join(' ')]);
++      addRows('ENGINEERING DESIGN BASIS', rows2);
++    }
+     $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
+     setHTML('v_tsTable', rows.join(''));
+     set('v_tsNoteLabel', P.noteLabel);
+@@ -1058,6 +1153,72 @@
+     if (chip) chip.title = 'Live quote — ' + cap + ' for ' + (s.custName || 'customer') + (root.Bess.included(s)||root.AdditionalSystems.included(s) ? ' — solar-only net ' : ' — net ') + F.fmtINR(f.netInvestment);
+   }
+ 
++  /* A page is a fixed A4 box with overflow hidden, so content that runs past
++     the bottom prints as missing rather than warning anyone — and the footer
++     sits over the last of it either way. The design basis is the one block
++     whose height is not fixed, so the page takes the cheapest room back first
++     and stops as soon as it fits: tighter table cells, then a smaller system
++     diagram, then both at once. Each step is measured, never assumed.
++     Whatever still does not fit is reported where the builder will see it.
++     jsdom lays nothing out (scrollHeight is always 0), so this is inert in the
++     node suites and live in a real browser, where the answer matters. */
++  /* Type and cell padding give room before the drawing does: a figure at 9 px
++     is still a figure, and the sheet should look the same on the days it fits.
++     The drawing only ever shrinks for the pages that carry everything at once. */
++  const SPEC_FIT_STEPS = [
++    [],
++    ['is-tight-spec'],
++    ['is-tighter-spec'],
++    ['is-tighter-spec', 'is-table-min'],
++    ['is-tighter-spec', 'is-table-min', 'is-diagram-spec'],
++    ['is-tighter-spec', 'is-table-min', 'is-diagram-tighter'],
++    ['is-tighter-spec', 'is-table-min', 'is-diagram-tiny'],
++    ['is-tighter-spec', 'is-table-min', 'is-diagram-min']
++  ];
++  const SPEC_FIT_CLASSES = ['is-tight-spec', 'is-tighter-spec', 'is-diagram-spec',
++    'is-diagram-tighter', 'is-diagram-tiny', 'is-diagram-min', 'is-table-min'];
++  let lastSpecFit = null;
++  function fitPages() {
++    if (typeof document === 'undefined' || !document.getElementById) return [];
++    const spec = document.getElementById('pageTechSpec');
++    const box = (spec && spec.clientHeight) || 1123, SLACK = 2;
++    if (spec) {
++      /* Fitting the box is not enough on its own: the footer is painted over
++         the last 34 px of the page, so content may only end above it. Both
++         conditions are measured; without a layout engine (jsdom) the footer
++         limit is Infinity and only the box is judged. */
++      const rect = spec.getBoundingClientRect(), foot = spec.querySelector('.pg-foot');
++      const limit = rect.height ? rect.bottom - (foot ? foot.getBoundingClientRect().height : 34) - 1 : Infinity;
++      const lowest = () => {
++        const body = spec.querySelector('.pg-body');
++        let max = 0;
++        if (body) for (const kid of body.children) { const r = kid.getBoundingClientRect(); if (r.bottom > max) max = r.bottom; }
++        return max;
++      };
++      const fits = () => spec.scrollHeight <= box + SLACK && lowest() <= limit;
++      SPEC_FIT_CLASSES.forEach((c) => spec.classList.remove(c));
++      for (const step of SPEC_FIT_STEPS) {
++        SPEC_FIT_CLASSES.forEach((c) => spec.classList.toggle(c, step.indexOf(c) >= 0));
++        if (fits()) break;
++      }
++      /* Resizing the drawing after it has been painted leaves Chromium's SVG
++         text painted at the old scale, which is why refreshDiagramScale()
++         exists at all. Re-laying it out whenever the fit level changes keeps
++         the drawing and its labels in step. */
++      const applied = SPEC_FIT_CLASSES.filter((c) => spec.classList.contains(c)).join(' ');
++      if (applied !== lastSpecFit) { lastSpecFit = applied; refreshDiagramScale(); }
++    }
++    /* Measured after the ladder, so what is reported is what is still true:
++       the specification page appears here only if every step was not enough. */
++    const over = [];
++    (lastVisible.length ? lastVisible : PAGES).forEach((p) => {
++      const el = document.getElementById(p.id);
++      if (el && el.scrollHeight > box + SLACK) over.push(p.id);
++    });
++    root.__qsPageOverflow = over;
++    return over;
++  }
++
+   /* ================================================================== */
+   let lastState = null;
+   function renderAll(stateOverride) {
+@@ -1083,6 +1244,7 @@
+       set('v_tmSub','Solar EPC terms • additional system scope, price and payment terms require separate agreement.');
+     }
+     updateLiveChip(s, f);
++    fitPages();
+     drawCharts(f);
+     if (typeof document !== 'undefined' && document.dispatchEvent) {
+       try { document.dispatchEvent(new CustomEvent('qs:rendered')); } catch (e) { /* noop */ }
+@@ -1090,6 +1252,24 @@
+     return { s, f };
+   }
+ 
++
++  /* The engineering design-basis inputs, read in one place. readState() is a
++     hand-written list (collectForm() is the generic one used for saving), so a
++     new input has to be named here or the engine never sees it. */
++  const ENGINEERING_IDS = [
++    'tiltDeg', 'latitudeDeg', 'shadeHalfWindowHours', 'roofSetbackM',
++    'windSpeed', 'terrainCategory', 'buildingHeightM', 'windK1', 'windK3', 'windK4',
++    'netUpliftCp', 'roofZone', 'anchorsPerModule', 'moduleLoadClassPa',
++    'moduleVoc', 'moduleVmp', 'moduleIsc', 'moduleImp',
++    'moduleVocBetaPct', 'moduleVmpBetaPct',
++    'inverterVmaxDc', 'mpptMinV', 'mpptMaxV', 'inverterMaxCurrentA',
++    'minAmbientC', 'maxCellC', 'dcCableLengthM', 'dcCableSizeMm2',
++    'acCableLengthM', 'acCableSizeMm2',
++    'soilResistivity', 'earthTargetOhm', 'electrodeLengthM', 'electrodeDiaM',
++    'electrodeEfficiency', 'thunderstormDays', 'lpsClass', 'buildingLengthM', 'buildingWidthM',
++    'moduleWeightKg', 'rackKgPerM2', 'roofLoadBenchmarkKgM2'
++  ];
++
+   function readState() {
+     const g = (id) => { const el = $(id); return el ? el.value : ''; };
+     return {
+@@ -1110,6 +1290,7 @@
+       mountMake: g('mountMake'), cableMake: g('cableMake'),
+       roofType: g('roofType'), availableArea: g('availableArea'),
+       roofClearanceFactor: g('roofClearanceFactor'),
++      ...Object.fromEntries(ENGINEERING_IDS.map((id) => [id, g(id)])),
+       pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'),
+       /* The form collects ₹/Wp; the engine and every stored field work in
+          ₹/kWp, so the conversion happens here at the single boundary. */
+@@ -1136,7 +1317,7 @@
+     if (svg) svg.replaceWith(svg.cloneNode(true));
+   }
+ 
+-  root.Render = { safeHttpUrl, renderAll, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
++  root.Render = { safeHttpUrl, renderAll, fitPages, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
+     get lastState() { return lastState; },
+     get lastVisible() { return lastVisible; } };
+ })(typeof self !== 'undefined' ? self : this);
+diff --git a/assets/js/state.js b/assets/js/state.js
+index 3c9997a..54aab07 100644
+--- a/assets/js/state.js
++++ b/assets/js/state.js
+@@ -63,7 +63,8 @@
+                             ₹64/unit over 25 years, which invites challenge.
+          co2Factor 0.71   — CEA CO2 Baseline Database v21.0, FY2024-25.
+          treeFactor 22    — mature-tree absorption, 20-25 kg CO2/yr.
+-         clearance 1.4x   — module area → roof area for walkways/parapet/rows. */
++       Roof clearance is no longer a fixed 1.4x assumption: engineering.js
++       derives it from the tilt and latitude (see the block below). */
+     /* Quoted as ₹ per Wp — the rate customers and sales teams actually quote.
+        The calculation engine keeps working in ₹/kWp; state.js and render.js
+        convert at the boundary. */
+@@ -74,7 +75,68 @@
+     tariff: '10',
+     escalation: '4',
+     degradation: '0.5',
+-    roofClearanceFactor: '1.4',
++    /* ---- Engineering design basis (engineering.js) -------------------------
++       Every figure below is either a standard's own arithmetic or a site value
++       the designer supplies. They print on the Tech Spec page; blanks print as
++       DATA REQUIRED. Values here are the shipped assumptions, not derivations:
++         tilt 15°        site figure — MNRE/UPNEDA bands 22–24° for north India
++         latitude 18.52  Pune
++         Vb 39 m/s       IS 875-3:2015 basic wind speed map
++         terrain 3       suburban, IS 875-3 Table 2 Class A
++         netUpliftCp 1.2 design assumption — confirm with the structural designer
++         roofZone edge   suction is far stronger at edges and corners
++         Vmax 1100 V     typical three-phase rooftop inverter DC limit
++         MPPT 200–1000 V typical window; datasheet wins
++         Tmin 0 °C       conventional cold cell temperature (safety side)
++         Tmax cell 65 °C
++         2400 Pa         IEC 61215-2 module mechanical-load rating
++         60 kg/m²        MNRE/UPNEDA terrace load benchmark
++       --------------------------------------------------------------------- */
++    tiltDeg: '15',
++    latitudeDeg: '18.52',
++    shadeHalfWindowHours: '3',
++    roofSetbackM: '0.6',
++    windSpeed: '39',
++    terrainCategory: '3',
++    buildingHeightM: '10',
++    windK1: '1',
++    windK3: '1',
++    windK4: '1',
++    netUpliftCp: '1.2',
++    roofZone: 'edge',
++    anchorsPerModule: '4',
++    moduleLoadClassPa: '2400',
++    moduleVoc: '',
++    moduleVmp: '',
++    moduleIsc: '',
++    moduleImp: '',
++    moduleVocBetaPct: '-0.27',
++    moduleVmpBetaPct: '-0.36',
++    inverterVmaxDc: '1100',
++    mpptMinV: '200',
++    mpptMaxV: '1000',
++    inverterMaxCurrentA: '',
++    minAmbientC: '0',
++    maxCellC: '65',
++    dcCableLengthM: '',
++    dcCableSizeMm2: '',
++    acCableLengthM: '',
++    acCableSizeMm2: '',
++    soilResistivity: '',
++    earthTargetOhm: '5',
++    electrodeLengthM: '3',
++    electrodeDiaM: '0.05',
++    electrodeEfficiency: '0.75',
++    thunderstormDays: '30',
++    lpsClass: 'IV',
++    buildingLengthM: '',
++    buildingWidthM: '',
++    moduleWeightKg: '28',
++    rackKgPerM2: '2.5',
++    roofLoadBenchmarkKgM2: '60',
++    /* Blank means derive the roof clearance from tilt and latitude; a typed
++       value is a deliberate manual override and the page says so. */
++    roofClearanceFactor: '',
+     subsidyOverride: '',
+     co2Factor: '0.71',
+     treeFactor: '22',
+diff --git a/docs/proposal-input-checklist.md b/docs/proposal-input-checklist.md
+new file mode 100644
+index 0000000..1182bd0
+--- /dev/null
++++ b/docs/proposal-input-checklist.md
+@@ -0,0 +1,349 @@
++# Proposal input checklist — what to fill before sending
++
++A working sheet for the person preparing the quotation in `quotation.html`.
++Every field named below exists in the form; nothing here is theory.
++
++**The rule behind all of it:** everything downstream of *capacity* is computed,
++not typed. You supply the site facts and the price. If a number is wrong, the
++cause is almost always one of the inputs listed in this sheet — not the preview.
++
++---
++
++## 0. What stops the download — and what only warns
++
++Pressing **Generate & Download PDF** first runs the studio's own checks. Nothing
++is produced until they pass, and the dialog tells you exactly what is wrong.
++
++**These block the PDF.** Each one would print a wrong offer, so the button
++produces the dialog instead — with a *Fix this →* link that jumps straight to
++the field:
++
++| Field | Why it is checked |
++|---|---|
++| **Customer name** | Printed on the cover, the executive summary and the closing page. A fresh template has no name yet, so a new proposal is blocked until you add one. |
++| **Capacity (kWp)** | Drives generation, module count, roof area, subsidy, CO₂ and every financial page. |
++| **Cost per Wp (₹)** | Drives investment, subsidy-share, payback, IRR and the EMI page. |
++| **Payment milestones** | They are printed as a payment schedule, so they must total 100 %. Default is 50 / 40 / 10. |
++| **Loan** | All-or-nothing: amount, rate *and* tenure, or leave all three empty. A half-filled loan is what the studio refuses. |
++
++**These also block — the engineering design basis.** A figure the studio has
++already computed can prove the design wrong, and then there is nothing to send:
++
++| Check | What it caught |
++|---|---|
++| **Roof smaller than the shading-safe rows need** | The array needs more roof than the input says is available, once row spacing is built from the tilt and the winter-solstice sun angle. |
++| **String above the inverter's DC limit** | Cold-morning open-circuit voltage of the series string exceeds the inverter's maximum DC input. The input stage fails on the first cold morning. |
++| **An inverter that cannot take one module** | The single-module cold Voc is already above the limit, so no string of these modules exists. |
++| **String below the MPPT floor** | At the maximum cell temperature the string voltage falls under the inverter's MPPT minimum — the inverter stops tracking. |
++| **String current above the inverter input** | 1.25 × Isc × strings exceeds the inverter's DC input current (IEC 62548). |
++| **Wind above the module's own class** | IS 875 uplift exceeds the module's IEC 61215 mechanical-load rating. |
++
++**These only warn.** The dialog names them, then offers **Download anyway**,
++because an unusual figure is often deliberate:
++
++- Any number outside its expected range (e.g. degradation of 150 %).
++- A subsidy override larger than the project cost.
++- **Roof area exactly tight** — the rows fit, but the 0.6 m clear band around
++  them could not be confirmed from the figures given.
++- **Cable voltage drop over its limit** — DC above the 2 % design limit, or AC
++  above the IS 732 limit of 3 %.
++
++**And these are printed, not gated.** A missing datasheet value is not a design
++fault, so it never stops the PDF — it is printed on the specification page as
++**DATA REQUIRED** and listed in the panel:
++
++- No module Voc / Vmp / Isc / Imp or inverter DC limits → string design cannot be
++  checked.
++- No DC or AC run length → that voltage drop cannot be checked.
++- No soil resistivity → no number of earth pits is invented.
++- No module weight or roof area → roof load cannot be checked.
++
++A proposal that claims nothing it cannot support has nothing to stop for. That
++is the rule the three levels exist to keep.
++
++**When everything passes**, no dialog appears — the PDF is produced immediately
++and a green notice says *"All checks passed — your download has started."* and
++fades away on its own. You never have to dismiss it.
++
++Anything else left blank degrades honestly — the affected row or page is simply
++not shown. Nothing is invented.
++
++---
++
++## 1. Fill this every time — it is the customer's identity
++
++**Customer & System**
++
++- **Customer name** — as it should appear on the offer.
++- **Customer address** — the site, not the billing address. It is what makes the
++  roof-fit and site statements meaningful.
++- **Capacity (kWp)** — the contracted DC size you are quoting. Type `1`, `7`,
++  `10`, whatever the deal is, and watch the rest of the sheet follow.
++- **Prepared by** — optional, but the customer should know who to call back.
++- **Proposal date** — defaults to today. Change it only if you are backdating.
++- **Valid for (days)** — default 15. This becomes the printed "valid until" date.
++- **Avg. monthly bill** — optional. Fill it if you want the bill-offset figure
++  (how much of their bill the system covers) instead of a generic savings claim.
++- **Proposal link** — optional, and only if you actually have a hosted URL. The
++  cover QR is generated from this and is hidden when the field is empty.
++
++**Proposals strip (top of the panel)**
++
++- Press **New** for every new customer. That is what issues the next reference
++  number in the `KTM/<year>/Solar/<NNN>` sequence and stamps today's date.
++- **Duplicate** copies a similar job; **New version** bumps the minor version
++  and issues a fresh reference. Never two live proposals on one number.
++- Leaving the template's sample reference in place is the easiest avoidable
++  mistake on this whole sheet — and the studio now watches for it. A warning sits
++  under the proposal list whenever the reference is still the template sample,
++  is empty, or is **already used by another proposal**; it clears as soon as the
++  proposal has a number of its own.
++
++---
++
++## 2. Verify per site — these change with the roof and the design
++
++**System Design & Equipment**
++
++- **Generation (kWh/kWp/yr)** — default **1460**. This is the single most
++  powerful number in the proposal: it drives generation, savings, payback and
++  the CO₂ claim. Take it from the actual site study (PVsyst / Arka / your own
++  yield history), not from the template. The hint under the field now shows the
++  year-one kWh immediately, so you can sanity-check it in one glance.
++- **Module make / rating (Wp) / length & width (mm)** — the rating decides how
++  many modules the array needs, and the dimensions decide the roof area the
++  array occupies. All three must match the datasheet you are quoting.
++- **Module technology** — printed on the specification page.
++- **Inverter make & rating (kW)** — blank falls back to 1:1 with the contracted
++  capacity. Fill the real figure: the DC:AC ratio is shown as an engineering
++  check.
++- **Mounting structure, Cabling & protection, Roof type** — pick the real ones.
++  Every list has a *Custom…* entry for anything not listed.
++The engineering design basis behind every printed figure — tilt and row pitch,
++IS 875 wind pressure, the IEC 62548 string check, IS 732 cable drop, IS 3043
++earthing, IS/IEC 62305 lightning and roof load — has its own section: **2A**.
++
++- **Available roof area (m²)** — **fill it.** With a figure in it the page shows
++  the roof-fit verdict (required area vs available, with the clearance factor
++  applied). Left blank, that whole row disappears and you lose the check.
++- **Roof clearance factor** — **leave it blank.** The studio then derives it:
++  raise the array to the chosen tilt and work out the row pitch that keeps the
++  rows out of each other's shadow between 09:00 and 15:00 on 21 December, at the
++  site's own latitude. For 15° tilt at Pune's 18.52°N that is a **1.428×**
++  factor — 48 m² for 13 modules, against the flat 1.4× this sheet used to
++  assume. Type a figure only to override that with your own engineering; the
++  page then reads *manual factor* instead of showing the sun-angle arithmetic.
++
++---
++
++## 2A. The engineering design basis — the inputs behind the printed figures
++
++The **Engineering design basis** panel holds 42 inputs. They are not decoration:
++each one is either a figure you supply or arithmetic a named standard defines,
++and every one of them prints on the *Technical Specification* page under
++**ENGINEERING DESIGN BASIS**. Nothing is printed that is neither — a value the
++studio does not have appears as **DATA REQUIRED**, never as a plausible-looking
++number.
++
++Five groups, and what each one changes on the page:
++
++| Panel group | Inputs | What gets printed | If left blank |
++|---|---|---|---|
++| **Array geometry & row spacing** | Tilt, site latitude, no-shading window (± h around solar noon), clear band around the array | Row pitch in metres, the sun elevation it came from (21 December), and the roof area required — module area × the derived clearance | Tilt and latitude ship with Pune's own values (15°, 18.52°N). The window and clear band default to 3 h and 0.6 m (MNRE/UPNEDA edge clearance). |
++| **Wind load — IS 875 (Part 3):2015** | Basic wind speed Vb, terrain category, building height, k1, k3, k4, net uplift coefficient, roof zone, anchors per module, module mechanical-load class | Vz = Vb·k1·k2·k3·k4, pressure pz = 0.6·Vz², then × net coefficient × roof-zone factor → N/m² on the array and N per anchor, against the module's own IEC 61215 class | Blank Vb → *DATA REQUIRED*, and no wind figure is invented. |
++| **String & cable — IEC 62548, IEC 62109, IS 732** | Module Voc / Vmp / Isc / Imp and their temperature coefficients, inverter max DC voltage, MPPT minimum and maximum, inverter max DC input current, minimum ambient, maximum cell temperature, DC and AC run lengths and cable sizes | Strings in series × parallel, cold-morning string Voc against the inverter's DC limit, hot-afternoon Vmp against the MPPT floor, 1.25 × Isc × strings against the inverter's DC input current, and ΔU = 2ρLI/A for both the DC and AC runs | Any missing datasheet figure → *DATA REQUIRED*; the string configuration is not printed at all rather than guessed. |
++| **Earthing & lightning — IS 3043, IS/IEC 62305** | Soil resistivity, earth resistance target, electrode length and diameter, group efficiency, thunderstorm days per year, protection level, building length and width | Single-electrode resistance R = (ρ/2πL)[ln(4L/d) − 1], parallel group R = R₁/(n × η), the number of pits that reaches the target; and Ng = 0.04·Td^1.25 with collection area A = LW + 2(L+W)H + πH² → expected strikes per year | Blank resistivity → *DATA REQUIRED*. The studio will not guess a number of earth pits. |
++| **Roof load — MNRE / UPNEDA** | Module weight, racking kg/m², roof load benchmark | Dead load in kg/m² from modules and racking, against the benchmark | Missing weight or area → *DATA REQUIRED*. |
++
++**Where the numbers come from.** Everything above is standard arithmetic, not a
++rule of thumb:
++
++- **Row pitch.** Row pitch = L·cosβ + L·sinβ / tan(altitude), with the sun
++  elevation from the winter-solstice geometry at the site's latitude. No-shading
++  is defined for 09:00–15:00 solar time on 21 December, so the design survives
++  the worst day of the year rather than an average one.
++- **Wind.** k2 is read from IS 875-3 Table 2, Class A, interpolated between the
++  10 m and 15 m rows. **Above 15 m the studio refuses to extrapolate** and says
++  so on the page — the table must be read for that height. The combination
++  factors Kd, Ka and Kc are deliberately **not** applied and not shown.
++- **String voltage.** Voc at the site's minimum ambient, Vmp at the maximum cell
++  temperature — the two ends of the year, which is what IEC 62548 and
++  IEC 62109 size against.
++- **Cable drop.** ΔU = 2ρLI/A for the DC run and the single-phase AC run, with
++  ρ for copper at its operating temperature. The DC limit is 2 %; the AC limit
++  is the 3 % IS 732 allows for a power circuit.
++- **Earthing and lightning.** IS 3043 electrode formulas and IEC 62305-3's
++  protection-level parameters (sphere, mesh, down conductors, earth resistance).
++  The lightning figure is an expected-strike count, not a verdict: whether a
++  lightning protection system is provided is a risk decision that stays with the
++  designer, and the page says so.
++
++**What the page will not claim.** The roof's own structural capacity is a
++structural check, not a solar calculation — the page prints the dead load and
++says so. PVsyst-class yield numbers are yours to supply (see section 2); the
++studio does not simulate shading, so it designs *around* shading between 09:00
++and 15:00 instead. And a printed wind figure is a calculation to IS 875, not a
++structural certificate.
++
++**Reading it on the page.** The worked 7 kWp example — 13 × 545 Wp modules at
++15° tilt on 18.52°N — prints as: row pitch 3.25 m from a 29.3° mid-morning sun;
++required roof area 48 m² (module area × 1.43); Vz 35.5 m/s and 755.7 N/m², so
++2040.5 N/m² design uplift and 1317.8 N per anchor against the module's 2400 Pa
++class; 1 × 13 in series, 690 V cold against the 1100 V limit and 462 V hot
++against the 200 V MPPT floor; DC drop 0.81 %, AC drop 1.34 %; 4 × 3 m pipe
++electrodes at 50 Ω·m giving ≈4.0 Ω against the 5 Ω target; and 10.1 kg/m² of
++roof load against the 60 kg/m² benchmark.
++
++---
++
++## 3. Fill per deal — this is where your price and your promises live
++
++**Financial Assumptions**
++
++- **Cost per Wp (₹)** — the rate you are actually quoting. Everything financial
++  follows it. See section 6 — read that before your next quotation.
++- **GST (%)** — default **8.9 %**, the composite EPC rate (70 % goods @ 5 % +
++  30 % services @ 18 %). Change it only if the contract is structured
++  differently (e.g. supply-only or services-only).
++- **Blended tariff saved (₹/unit)** and **Tariff escalation (%/yr)** — default
++  ₹10 and 4 %/yr. If you know the customer's slab, put their real blended tariff
++  in: it is the second-largest lever on payback after the price.
++- **Panel degradation (%/yr)** — default 0.5 %, from a typical warranty curve.
++- **Subsidy override (₹)** — **leave it blank.** Blank means the MNRE
++  *PM Surya Ghar* slabs are applied automatically, on the DC capacity actually
++  installed: ₹30,000/kW for the first 2 kW, ₹18,000 for the third, capped at
++  ₹78,000, residential only. Type a figure only when you are deliberately
++  showing something else — it wins over the calculation, so it also becomes your
++  responsibility on the page.
++- **Grid CO₂ factor** — 0.71 kg/kWh, CEA CO₂ Baseline Database v21.0 for
++  FY 2024-25. **Tree absorption** — 22 kg CO₂/yr, a mature tree. Both are
++  defensible published figures; do not adjust them by feel.
++- **Payment terms** — 50 / 40 / 10 by default; must total 100 %.
++
++**Commercial / industrial customers only**
++
++- **Depreciation (%)** — 40 % (IT Act Sec 32 written-down value).
++- **Tax rate (%)** — the customer's slab; 25 % is assumed.
++- These feed the tax-shield banner. They appear for commercial and industrial
++  customer types only — residential proposals never show them.
++
++---
++
++## 4. Optional — fill only when you have the real data
++
++Each of these adds a page or a section for the customer. Blank means it is not
++shown, which is the honest default.
++
++- **Cost breakdown (BOM)** — six line items: modules, inverter, structure, BOS,
++  installation, net-metering. Entered, they render as a donut and table on the
++  *Investment & Cost Breakdown* page — a customer-facing page. They are shown
++  exactly as entered, and the page warns when the itemised total does not cover
++  the quoted price. Leave blank rather than entering estimates.
++- **PVsyst / Arka links** — appear as reference chips on the technical page.
++  Only add links that resolve to a report for *this* site.
++- **Photos** — nine slots. Blank slots fall back to the bundled stock images,
++  which is fine for a first look and not fine for a signed offer.
++- **Battery storage (BESS)** — off by default, and while it is off your
++  solar-only proposal is untouched. Switched on, it adds two pages plus a
++  separate report, and it asks for datasheet values (capacity, DoD, round-trip
++  efficiency, converter limit, warranty terms). It has its own engineering
++  status line and it will refuse to claim a sizing it cannot support — fill it
++  from the datasheet or leave it off.
++- **Additional system** — Zero Export, monitoring, EV charging, PFC, DG
++  coordination or Custom. Off by default. It never invents a price: you type the
++  separately agreed figure, or it shows none.
++- **System options (Good / Better / Best)** — save **two or more** and the
++  Options comparison page appears. One option, no page.
++- **Customer experience (QR & audio)** — QR destination and public URL. The PDF
++  QR is only drawn when the URL is a real `https://` link. The audio briefing is
++  a browser read-out, never part of the PDF.
++
++---
++
++## 5. Before you send it — ten-point pre-flight
++
++1. **New** was pressed, and the reference number and date are right.
++2. Customer name and address are the customer's, not the template's.
++3. Capacity matches what you actually intend to build.
++4. **Generation figure** is defensible for this site.
++5. **Cost per Wp** is the rate you meant to quote (see section 6).
++6. Subsidy override is **blank** unless you meant to override it.
++7. Payment milestones total 100 %; loan is either complete or empty.
++8. The pre-flight dialog is silent. If it appears, fix the blocking items —
++   the PDF is not produced until you do (see section 0).
++9. Roof area is filled, so the fit verdict is on the page — and the engineering
++   design basis reads without *DATA REQUIRED* on the figures that matter for
++   this job (module datasheet values, cable runs, soil resistivity).
++10. Set the status to **Ready** or **Sent**, press **Save now**, then
++    **Generate & Download PDF** and actually read pages 1, 2, the savings page
++    and the investment page before it goes out.
++
++### Two buttons that do less than they look like they do
++
++- **WhatsApp share** opens WhatsApp with a pre-written message — customer name,
++  your company, the capacity, and the proposal link *if you filled it*. It does
++  **not** attach the PDF. You still have to attach the file yourself.
++- **Customer view** opens `share.html?p=<id>`, which reads the proposal out of
++  **this browser's storage**. It therefore works only on your own machine: a
++  customer who opens that address sees *"Proposal not found"*. Same for the
++  cover QR — it points at whatever URL you typed, so only point it at something
++  that genuinely resolves for them.
++
++**Storage warning.** Autosave and *Save now* keep the proposal **in this browser
++only** — there is no server. Use **Save proposal file** to write a single
++proposal to a JSON file you can keep or move to another machine, and **Open
++proposal file** to bring it back. Clearing browser data loses every proposal
++that was not exported.
++
++**Send the customer the PDF.** Not a link, not the customer view, not a QR
++unless you have hosted the file yourself.
++
++---
++
++## 6. The quoted rate — now ₹63.63/Wp by default
++
++The shipped default was ₹90/Wp (₹90,000/kWp), a carry-over from before the form
++switched to ₹/Wp. It was never set from a market figure, and it sat above the
++range 2026 references give for residential rooftop around Pune while the app's
++own presets sat inside it. **On 2026-09-28 the default was set to ₹63.63/Wp.**
++
++| Path | ₹/Wp | ₹/kWp |
++|---|---|---|
++| **Template default (a fresh proposal)** | **63.63** | 63,630 |
++| Preset 3 kW | 62 | 62,000 |
++| Preset 5 kW | 58 | 58,000 |
++| Preset 25 kW | 48 | 48,000 |
++| Preset 100 kW | 42 | 42,000 |
++
++Reference points behind the number — residential rooftop around Pune, 2026:
++
++- ₹59,000–85,000 for 1 kW, ~₹2.95 L for 5 kW
++  ([Bluebird Solar, Pune 2026](https://bluebirdsolar.com/blogs/all/solar-panel-price-and-subsidy-in-pune-2026))
++- ₹2.50–3.10 L for 5 kW, ~₹56–65/W across 1–10 kW
++  ([EnergyTech Engineers, Pune 2026](https://www.energytechengineers.in/blog/solar-panel-cost-pune-2026))
++- ~₹56–65/W by system size, ₹65/W at 1 kW falling to ₹56/W at 10 kW
++  ([Bluebird Solar, India 2026](https://bluebirdsolar.com/blogs/all/solar-panel-installation-cost-in-india))
++- MNRE's own scheme benchmark: ₹50,000/kW for the first 2 kW, ₹45,000/kW after
++  ([MNRE benchmark summary](https://qbitsenergy.com/blog/solar-panel-price-india/))
++
++What the default now produces — 7 kWp, 13 modules, 7.085 kWp installed:
++
++| | |
++|---|---|
++| Project cost, ex-GST | ₹4,45,410 |
++| With GST 8.9 % | ₹4,85,051 |
++| Less subsidy (cap) | ₹78,000 |
++| **Net investment** | **₹4,07,051** |
++| Year-one generation | 10,344 kWh |
++| Payback | 3.7 years |
++
++Two things to keep in mind:
++
++- **This is a starting point, not a price.** Overwrite the rate on every
++  quotation. The presets move it too — applying a preset replaces the rate with
++  that preset's own ₹/Wp, which is why the numbers above only hold for a fresh,
++  untouched proposal.
++- **The document prints the rate to one decimal**, so a ₹63.63/Wp entry appears
++  as *₹63.6 / Wp* on the Investment page (and as ₹63.63/Wp in the panel
++  summary). If the quoted rate should appear exact on the customer's copy, that
++  is a one-line change — ask.
+diff --git a/qa/briefing-voices.test.js b/qa/briefing-voices.test.js
+new file mode 100644
+index 0000000..2499713
+--- /dev/null
++++ b/qa/briefing-voices.test.js
+@@ -0,0 +1,121 @@
++/* Voice selection is the difference between a Marathi briefing that plays and
++   one that can never play: Chrome desktop ships no Marathi voice, and Windows
++   installs one only with the Marathi language pack. The chain that decides
++   which voice speaks is pure logic, so it is checked here on every test run
++   rather than only in the browser suite. */
++'use strict';
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const path = require('node:path');
++const { JSDOM } = require('jsdom');
++const ROOT = path.join(__dirname, '..');
++let pass = 0, fail = 0;
++const check = (name, fn) => {
++  try { fn(); pass++; console.log('  ✓ ' + name); }
++  catch (e) { fail++; console.log('  ✗ FAIL: ' + name + ' → ' + e.message); }
++};
++function boot(voices) {
++  const dom = new JSDOM('<!doctype html><html><body></body></html>', {
++    url: 'http://localhost/', runScripts: 'dangerously', pretendToBeVisual: true,
++    beforeParse(w) {
++      const speech = new EventTarget();
++      speech.voices = voices;
++      speech.getVoices = () => speech.voices;
++      speech.speak = () => {}; speech.cancel = () => {}; speech.pause = () => {}; speech.resume = () => {};
++      Object.defineProperty(w, 'speechSynthesis', { value: speech, configurable: true });
++      Object.defineProperty(w, 'SpeechSynthesisUtterance', { value: class { constructor(t) { this.text = t; } }, configurable: true });
++      w.__speech = speech;
++    }
++  });
++  const w = dom.window;
++  w.eval(fs.readFileSync(path.join(ROOT, 'assets/js/briefing.js'), 'utf8'));
++  return w;
++}
++const names = { en: 'English test voice', hi: 'Hindi test voice', mr: 'Marathi test voice' };
++const voice = (lang, local) => ({ name: names[String(lang).split('-')[0]] || lang, lang, localService: !!local });
++
++console.log('\n— briefing voice selection —');
++
++check('a Marathi voice is used as-is when the device has one', () => {
++  const { Briefing } = boot([voice('en-IN', true), voice('hi-IN', true), voice('mr-IN', true)]);
++  const plan = Briefing.voicePlan('mr');
++  assert.equal(plan.exact, true);
++  assert.equal(plan.voice.name, 'Marathi test voice');
++});
++
++check('Marathi without a Marathi voice falls back to Hindi, and says so', () => {
++  const { Briefing } = boot([voice('en-IN', true), voice('hi-IN', true)]);
++  const plan = Briefing.voicePlan('mr');
++  assert.equal(plan.exact, false);
++  assert.equal(plan.family, 'hi');
++  assert.equal(plan.voice.name, 'Hindi test voice');
++});
++
++check('Hindi text falls back the same way when only Marathi is installed', () => {
++  const { Briefing } = boot([voice('mr-IN', true)]);
++  const plan = Briefing.voicePlan('hi');
++  assert.equal(plan.exact, false);
++  assert.equal(plan.family, 'mr');
++  assert.equal(plan.voice.name, 'Marathi test voice');
++});
++
++check('English text is never handed to an Indic voice', () => {
++  const { Briefing } = boot([voice('hi-IN', true), voice('mr-IN', true)]);
++  assert.equal(Briefing.voicePlan('en').voice, null);
++  assert.equal(Briefing.voicePlan('mr').exact, true);
++});
++
++check('no English substitution for Marathi either — that would be gibberish', () => {
++  const { Briefing } = boot([voice('en-IN', true)]);
++  assert.equal(Briefing.voicePlan('mr').voice, null);
++  assert.equal(Briefing.voicePlan('en').exact, true);
++});
++
++check('a device with no voices at all yields no voice rather than an error', () => {
++  const { Briefing } = boot([]);
++  ['en', 'hi', 'mr'].forEach((lang) => assert.equal(Briefing.voicePlan(lang).voice, null));
++});
++
++check('a region-less language tag still counts as the family', () => {
++  const { Briefing } = boot([{ name: 'Marathi (no region)', lang: 'mr', localService: true }]);
++  assert.equal(Briefing.voicePlan('mr').exact, true);
++});
++
++check('within a family the Indian locale beats a foreign one', () => {
++  const { Briefing } = boot([{ name: 'Hindi (IN)', lang: 'hi-IN', localService: false }, voice('en-IN', true)]);
++  assert.equal(Briefing.voicePlan('mr').voice.name, 'Hindi (IN)');
++});
++
++check('within the same locale a locally installed voice beats a network one', () => {
++  const { Briefing } = boot([
++    { name: 'Hindi network', lang: 'hi-IN', localService: false },
++    { name: 'Hindi local', lang: 'hi-IN', localService: true },
++    voice('en-IN', true)
++  ]);
++  assert.equal(Briefing.voicePlan('mr').voice.name, 'Hindi local');
++});
++
++check('English prefers en-IN over en-US', () => {
++  const { Briefing } = boot([{ name: 'English US', lang: 'en-US', localService: true }, voice('en-IN', true)]);
++  assert.equal(Briefing.voicePlan('en').voice.name, 'English test voice');
++});
++
++check('underscore tags from some engines are read the same as hyphen tags', () => {
++  const { Briefing } = boot([{ name: 'Marathi underscore', lang: 'mr_IN', localService: true }]);
++  assert.equal(Briefing.voicePlan('mr').exact, true);
++});
++
++check('a voice with no lang tag cannot be mistaken for a match', () => {
++  const { Briefing } = boot([{ name: 'Mystery voice', localService: true }]);
++  assert.equal(Briefing.voicePlan('en').voice, null);
++  assert.equal(Briefing.voicePlan('mr').voice, null);
++});
++
++check('the legacy voiceFor() still answers with the voice that will speak', () => {
++  const { Briefing } = boot([voice('hi-IN', true)]);
++  assert.equal(Briefing.voiceFor('mr').lang, 'hi-IN');
++  assert.equal(Briefing.voiceFor('en'), null);
++});
++
++console.log(`\n${pass} passed, ${fail} failed`);
++process.exit(fail ? 1 : 0);
+diff --git a/qa/briefing.test.js b/qa/briefing.test.js
+index 144aa03..6528805 100644
+--- a/qa/briefing.test.js
++++ b/qa/briefing.test.js
+@@ -73,6 +73,21 @@ async function installSpeech(page) {
+   await page.evaluate(()=>{__speech.voices=__speech.voices.filter(v=>v.lang==='en-IN');__speech.dispatchEvent(new Event('voiceschanged'));});
+   await page.evaluate(()=>{__speech.voices.push({name:'Marathi added later',lang:'mr-IN',localService:true});__speech.dispatchEvent(new Event('voiceschanged'));});
+   check('asynchronously added voices enable Play without autoplay',await page.evaluate(()=>!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
++  /* The Marathi case that actually happens: Chrome desktop ships no Marathi
++     voice at all, so the honest options are Hindi (same script) or silence. */
++  await page.evaluate(()=>{__speech.voices=[{name:'English test voice',lang:'en-IN',localService:true},{name:'Hindi test voice',lang:'hi-IN',localService:true}];__speech.dispatchEvent(new Event('voiceschanged'));});
++  check('Marathi without a Marathi voice plays with the Hindi voice, and is never silently substituted',await page.evaluate(()=>{const s=document.getElementById('briefingStatus').textContent;return !document.getElementById('briefingPlay').disabled&&s.includes('No Marathi voice is installed')&&s.includes('Hindi test voice')&&document.getElementById('briefingText').lang==='mr';}));
++  check('the Marathi text itself is unchanged by the substitute voice',await page.evaluate(()=>/\u0900-\u097F/.test('')===false&&/[\u0900-\u097F]/.test(document.getElementById('briefingText').textContent)&&document.getElementById('briefingText').textContent.includes('अंदाजित')));
++  check('the recovery button offers the Hindi briefing as native audio',await page.evaluate(()=>!document.getElementById('briefingUseEnglish').hidden&&document.getElementById('briefingUseEnglish').textContent==='Switch to Hindi audio'));
++  await page.click('#briefingPlay');
++  check('Marathi text is spoken by the Hindi voice, never by the English one',await page.evaluate(()=>{const u=__speech.spoken.at(-1);return u.voice.lang==='hi-IN'&&u.lang==='hi-IN'&&/[\u0900-\u097F]/.test(u.text);}));
++  check('the playing status repeats which voice is speaking',await page.evaluate(()=>document.getElementById('briefingStatus').textContent.includes('with a Hindi voice')));
++  await page.click('#briefingStop');
++  await page.click('#briefingUseEnglish');
++  check('switching to the Hindi briefing is still an explicit choice and does not autoplay',await page.evaluate(()=>document.querySelector('[data-briefing-language="hi"]').getAttribute('aria-pressed')==='true'&&document.getElementById('briefingStop').disabled&&document.getElementById('briefingText').lang==='hi'));
++  await page.click('[data-briefing-language="mr"]');
++  await page.evaluate(()=>{__speech.voices.push({name:'Marathi test voice',lang:'mr-IN',localService:true});__speech.dispatchEvent(new Event('voiceschanged'));});
++  check('a real Marathi voice, once installed, takes over and the substitute notice goes away',await page.evaluate(()=>document.getElementById('briefingStatus').textContent.includes('Ready in Marathi')&&document.getElementById('briefingUseEnglish').hidden&&!document.getElementById('briefingPlay').disabled));
+   await page.click('#briefingPlay');await page.evaluate(()=>__speech.spoken.at(-1).onerror({error:'network'}));
+   check('speech-provider errors leave a usable transcript and retry controls',await page.evaluate(()=>document.getElementById('briefingStatus').textContent.includes('could not play')&&!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
+   await page.click('[data-briefing-language="en"]');await page.click('#briefingPlay');
+@@ -107,6 +122,28 @@ async function installSpeech(page) {
+   await customer.emulateMediaType('print');
+   check('audio interface stays out of browser print and both PDF page trees',await customer.evaluate(()=>!document.getElementById('proposalBriefing').checkVisibility()&&![...document.querySelectorAll('.page')].some(e=>e.querySelector('#proposalBriefing'))));
+   await customer.emulateMediaType('screen');
++  /* Chrome hands back an empty voice list until the platform has finished
++     enumerating them, and a few builds never fire voiceschanged at all. Saying
++     "Marathi voice unavailable" at that moment is simply wrong. */
++  const late=await browser.newPage();
++  await late.evaluateOnNewDocument(()=>{
++    const speech=new EventTarget();
++    let voices=[];
++    speech.getVoices=()=>voices;speech.cancel=()=>{};speech.pause=()=>{};speech.resume=()=>{};speech.speak=()=>{};
++    Object.defineProperty(window,'speechSynthesis',{value:speech,configurable:true});
++    Object.defineProperty(window,'SpeechSynthesisUtterance',{value:class{constructor(t){this.text=t;}},configurable:true});
++    window.__arrive=()=>{voices=[{name:'Late Marathi voice',lang:'mr-IN',localService:true}];};
++  });
++  await late.setViewport({width:1440,height:1100});
++  await late.goto(base+'/quotation.html',{waitUntil:'networkidle0'});
++  await late.evaluate(()=>Experience.whenReady());
++  await late.$eval('#proposalBriefing',e=>{e.open=true;e.scrollIntoView({behavior:'instant'});});
++  await late.click('[data-briefing-language="mr"]');
++  check('voices still being enumerated say so, instead of claiming Marathi is missing',await late.evaluate(()=>{const s=document.getElementById('briefingStatus').textContent;return s.includes('Checking the voices')&&!s.includes('unavailable')&&document.getElementById('briefingPlay').disabled;}));
++  await late.evaluate(()=>window.__arrive());
++  await late.waitForFunction(()=>!document.getElementById('briefingPlay').disabled,{timeout:5000});
++  check('a voice that arrives late enables Marathi on its own, without a manual refresh',await late.evaluate(()=>!document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStop').disabled));
++  await late.close();
+   const fallback=await browser.newPage();await fallback.evaluateOnNewDocument(()=>{Object.defineProperty(window,'speechSynthesis',{value:undefined});});
+   await fallback.goto(base+'/quotation.html',{waitUntil:'networkidle0'});
+   check('unsupported browsers clearly offer the written briefing instead',await fallback.evaluate(()=>document.getElementById('briefingPlay').disabled&&document.getElementById('briefingStatus').textContent.includes('not supported')&&!!document.getElementById('briefingText').textContent));
+diff --git a/qa/engineering-boundaries.test.js b/qa/engineering-boundaries.test.js
+index 374fb70..76b18a6 100644
+--- a/qa/engineering-boundaries.test.js
++++ b/qa/engineering-boundaries.test.js
+@@ -67,10 +67,15 @@ check('roof clearance is applied and clamped at bare module area',()=>{
+  const dims={moduleLengthMm:2278,moduleWidthMm:1134};
+  const a=F.compute({capacity:10,moduleWattage:545,...dims,roofClearanceFactor:1.4});
+  assert(Math.abs(a.requiredArea-a.arrayArea*1.4)<1e-9);
+- const b=F.compute({capacity:10,moduleWattage:545,...dims,roofClearanceFactor:0});
+- assert.equal(b.requiredArea,b.arrayArea);
++ assert.equal(a.clearanceSource,'manual');
++ /* A typed factor below 1 is clamped: an array can never need less roof than
++    the modules themselves cover. */
++ const b=F.compute({capacity:10,moduleWattage:545,...dims,roofClearanceFactor:0.5});
++ assert(Math.abs(b.requiredArea-b.arrayArea)<1e-9);
++ /* Nothing typed and no geometry available in this process: the 1.4 estimate. */
+  const c=F.compute({capacity:10,moduleWattage:545,...dims});
+  assert.equal(c.roofClearanceFactor,1.4);
++ assert.equal(c.clearanceSource,'fallback');
+ });
+ check('environmental defaults are the current published figures',()=>{
+  const f=F.compute({capacity:7,genFactor:1460,moduleWattage:545});
+diff --git a/qa/engineering-standards.test.js b/qa/engineering-standards.test.js
+new file mode 100644
+index 0000000..7bf9930
+--- /dev/null
++++ b/qa/engineering-standards.test.js
+@@ -0,0 +1,707 @@
++/* ==========================================================================
++   Engineering standards — every figure the design basis prints is checked
++   against the standard that defines it, and against arithmetic worked out
++   here independently of the module that produced it.
++
++     IS 875 (Part 3):2015   wind pressure and the k2 terrain table
++     IS 3043:2018           earth electrode resistance (the standard's own
++                            worked example is reproduced at the bottom of it)
++     IS 732 / IEC 62548     voltage drop and string current
++     IEC 62548 / IEC 62109  string voltage against the inverter's limits
++     IEC 61215-2            module mechanical-load class
++     IEC/IS 62305           lightning risk parameters
++     MNRE / UPNEDA rooftop  terrace load benchmark
++
++   Run: node qa/engineering-standards.test.js
++   ========================================================================== */
++'use strict';
++const assert = require('node:assert/strict');
++const fs = require('fs');
++const path = require('path');
++const E = require('../assets/js/engineering.js');
++
++const ROOT = path.join(__dirname, '..');
++let pass = 0, fail = 0;
++const check = (name, fn) => {
++  try { fn(); pass++; console.log('  ✓ ' + name); }
++  catch (e) { fail++; console.error('  ✗ FAIL:', name, '→', e.message); }
++};
++const near = (a, b, tol) => assert.ok(Math.abs(a - b) <= tol, `${a} is not within ${tol} of ${b}`);
++
++/* the shipped defaults, in the form's own units */
++const SITE = {
++  capacity: '7', moduleWattage: '545', moduleLengthMm: '2278', moduleWidthMm: '1134',
++  tiltDeg: '15', latitudeDeg: '18.52', shadeHalfWindowHours: '3', roofSetbackM: '0.6',
++  windSpeed: '39', terrainCategory: '3', buildingHeightM: '10',
++  windK1: '1', windK3: '1', windK4: '1', netUpliftCp: '1.2', roofZone: 'edge',
++  anchorsPerModule: '4', moduleLoadClassPa: '2400',
++  moduleVoc: '', moduleVmp: '', moduleIsc: '', moduleImp: '',
++  moduleVocBetaPct: '-0.27', moduleVmpBetaPct: '-0.36',
++  inverterVmaxDc: '1100', mpptMinV: '200', mpptMaxV: '1000', inverterMaxCurrentA: '',
++  minAmbientC: '0', maxCellC: '65',
++  dcCableLengthM: '', dcCableSizeMm2: '', acCableLengthM: '', acCableSizeMm2: '',
++  soilResistivity: '', earthTargetOhm: '5', electrodeLengthM: '3', electrodeDiaM: '0.05',
++  electrodeEfficiency: '0.75', thunderstormDays: '30', lpsClass: 'IV',
++  moduleWeightKg: '28', rackKgPerM2: '2.5', roofLoadBenchmarkKgM2: '60'
++};
++
++/* ==========================================================================
++   IS 875 (Part 3):2015 — wind
++   ========================================================================== */
++console.log('— IS 875 (Part 3):2015 — wind load —');
++
++check('k2 at 10 m is the table\'s own Class A row: 1.05 / 1.00 / 0.91 / 0.80', () => {
++  assert.equal(E.k2For('1', 10).k2, 1.05);
++  assert.equal(E.k2For('2', 10).k2, 1.00);
++  assert.equal(E.k2For('3', 10).k2, 0.91);
++  assert.equal(E.k2For('4', 10).k2, 0.80);
++});
++
++check('k2 at 15 m is the table\'s next row, exactly', () => {
++  assert.equal(E.k2For('1', 15).k2, 1.09);
++  assert.equal(E.k2For('2', 15).k2, 1.05);
++  assert.equal(E.k2For('3', 15).k2, 0.97);
++  assert.equal(E.k2For('4', 15).k2, 0.80);
++});
++
++check('between the tabulated heights k2 is linearly interpolated, as the table notes', () => {
++  /* 12.5 m is halfway from 10 m to 15 m: 0.91 + 0.5 × (0.97 − 0.91) = 0.94 */
++  near(E.k2For('3', 12.5).k2, 0.94, 1e-12);
++  near(E.k2For('2', 11).k2, 1.00 + (1 / 5) * (1.05 - 1.00), 1e-12);
++  /* and the interpolation is monotonic in height */
++  assert.ok(E.k2For('3', 14).k2 > E.k2For('3', 11).k2);
++});
++
++check('below 10 m the 10 m row stands, and above 15 m the shortfall is flagged', () => {
++  assert.equal(E.k2For('3', 4).k2, 0.91);
++  assert.equal(E.k2For('3', 10).beyond, false);
++  assert.equal(E.k2For('3', 20).beyond, true, 'the table stops at 15 m and the page must say so');
++  assert.equal(E.k2For('3', 20).k2, 0.97, 'never silently below the last tabulated value');
++});
++
++check('Pune 39 m/s in a suburban terrain: Vz and pz worked out independently', () => {
++  /* Vz = 39 × 1.00 × 0.91 × 1.00 × 1.00 = 35.49 m/s ; pz = 0.6 × Vz² */
++  const vz = 39 * 1.00 * 0.91 * 1.00 * 1.00;
++  const pz = 0.6 * vz * vz;
++  const w = E.wind(SITE);
++  near(w.vz, vz, 1e-9);
++  near(w.pz, pz, 1e-9);
++  near(w.pz, 755.7, 0.1);
++  assert.equal(w.ok, true);
++});
++
++check('the pressure is 0.6 Vz² — nothing else is folded in', () => {
++  /* Kd, Ka and Kc all reduce pressure. Leaving them out is the conservative
++     side of the code, and the page says so rather than looking forgetful. */
++  const w = E.wind(SITE);
++  near(w.pz, 0.6 * w.vz * w.vz, 1e-9);
++  const doubled = E.wind({ ...SITE, windSpeed: '78' });
++  near(doubled.pz, 4 * w.pz, 1e-6); // pressure goes with the square
++});
++
++check('uplift carries the coefficient and the roof-zone multiplier, and gets the IS load factor', () => {
++  const w = E.wind(SITE);
++  near(w.uplift, w.pz * 1.2 * 1.5, 1e-9);
++  near(w.factoredUplift, 1.5 * w.uplift, 1e-9);
++  const interior = E.wind({ ...SITE, roofZone: 'interior' });
++  const corner = E.wind({ ...SITE, roofZone: 'corner' });
++  assert.equal(interior.zoneFactor, 1.0);
++  assert.equal(corner.zoneFactor, 2.0);
++  assert.ok(corner.factoredUplift > interior.factoredUplift, 'a corner is the worst place to put an array');
++});
++
++check('a missing wind speed is DATA REQUIRED, never a zero-pressure pass', () => {
++  const w = E.wind({ ...SITE, windSpeed: '' });
++  assert.equal(w.ok, false);
++  assert.equal(w.pz, undefined);
++  assert.ok(w.missing.join(' ').includes('wind speed'));
++});
++
++check('a corner-zone array can overload a 2400 Pa module and says so', () => {
++  const w = E.wind({ ...SITE, roofZone: 'corner' });
++  near(w.factoredUplift, 2720.6, 0.5);
++  assert.ok(w.factoredUplift > 2400, 'IEC 61215 standard class is 2400 Pa');
++  assert.equal(w.moduleOverloaded, true);
++  const heavy = E.wind({ ...SITE, roofZone: 'corner', moduleLoadClassPa: '5400' });
++  assert.equal(heavy.moduleOverloaded, false, 'a 5400 Pa module is the fix');
++});
++
++check('the same array on the roof interior stays inside the standard class', () => {
++  const w = E.wind({ ...SITE, roofZone: 'interior' });
++  near(w.factoredUplift, 1360.3, 0.5);
++  assert.equal(w.moduleOverloaded, false);
++});
++
++/* ==========================================================================
++   Shadow geometry — the roof area an array actually needs
++   ========================================================================== */
++console.log('— row spacing on the winter solstice —');
++
++check('the sun angle is the standard elevation formula for Pune on 21 December', () => {
++  /* sin α = sin φ sin δ + cos φ cos δ cos ω, with ω = 45° (±3 h) and δ = −23.45° */
++  const toRad = (d) => (d * Math.PI) / 180;
++  const sin = Math.sin(toRad(18.52)) * Math.sin(toRad(-23.45)) +
++    Math.cos(toRad(18.52)) * Math.cos(toRad(-23.45)) * Math.cos(toRad(45));
++  const alpha = (Math.asin(sin) * 180) / Math.PI;
++  near(E.solarAltitude(18.52, 45, -23.45), alpha, 1e-9);
++  near(alpha, 29.26, 0.01);
++});
++
++check('row pitch = module depth + the shadow the row throws', () => {
++  const s = E.shadow({ ...SITE });
++  const L = 2.278, W = 1.134, tilt = 15;
++  const toRad = (d) => (d * Math.PI) / 180;
++  const footprint = L * Math.cos(toRad(tilt));
++  const rise = L * Math.sin(toRad(tilt));
++  const throwM = rise / Math.tan(toRad(E.solarAltitude(18.52, 45, -23.45)));
++  near(s.footprintM, footprint, 1e-9);
++  near(s.riseM, rise, 1e-9);
++  near(s.shadowM, throwM, 1e-9);
++  near(s.pitchM, footprint + throwM, 1e-9);
++});
++
++check('at the shipped 15° tilt, one module needs 1.43 × its own area of roof', () => {
++  const s = E.shadow({ ...SITE });
++  near(s.ratio, 1.428, 0.001);
++  near(s.pitchM, 3.25, 0.01);
++});
++
++check('the old fixed 1.4 factor corresponds to about a 14° tilt, which is why it was a guess', () => {
++  let found = null;
++  for (let tilt = 5; tilt <= 30; tilt += 0.1) {
++    const r = E.shadow({ ...SITE, tiltDeg: String(tilt) }).ratio;
++    if (Math.abs(r - 1.4) < 0.002) { found = tilt; break; }
++  }
++  assert.ok(found !== null && Math.abs(found - 14.2) < 0.5, `1.4 fits a ${found}° tilt`);
++});
++
++check('a steeper array needs more roof, and a flat one needs exactly its own area', () => {
++  const at = (t) => E.shadow({ ...SITE, tiltDeg: String(t) }).ratio;
++  assert.ok(at(22) > at(18) && at(18) > at(15) && at(15) > at(10));
++  near(at(0), 1, 1e-9);
++  near(at(22), 1.596, 0.001);
++});
++
++check('required area is modules × pitch × width — the shaded block, not the module area', () => {
++  const lay = E.layout(SITE, 13);
++  const pitch = lay.geo.pitchM;
++  near(lay.requiredArea, 13 * pitch * 1.134, 1e-9);
++  near(lay.requiredArea, 47.96, 0.02);
++  near(lay.arrayArea, 13 * 2.278 * 1.134, 1e-9);
++  assert.ok(lay.requiredArea > lay.arrayArea);
++});
++
++check('a roof between the module area and the shaded block is not called a fit', () => {
++  assert.equal(E.layout({ ...SITE, availableArea: '30' }, 13).verdict, 'short');
++  assert.equal(E.layout({ ...SITE, availableArea: '49' }, 13).verdict, 'tight');
++  assert.equal(E.layout({ ...SITE, availableArea: '60' }, 13).verdict, 'fits');
++  assert.equal(E.layout({ ...SITE, availableArea: '' }, 13).verdict, 'unknown');
++  near(E.layout({ ...SITE, availableArea: '40' }, 13).shortfallM2, 7.96, 0.02);
++});
++
++check('no tilt or latitude means no geometry — and no verdict', () => {
++  const lay = E.layout({ ...SITE, tiltDeg: '', latitudeDeg: '' }, 13);
++  assert.equal(lay.ok, false);
++  assert.ok(lay.missing.length >= 1);
++});
++
++/* ==========================================================================
++   IS 3043:2018 — earthing
++   ========================================================================== */
++console.log('— IS 3043:2018 — earthing —');
++
++check('the standard\'s own worked example: 3 m pipe, 50 mm dia, 50 Ω·m → 11.8 Ω', () => {
++  /* R = (ρ/2πL)·[ln(4L/d) − 1] with ρ=50, L=3, d=0.0508 */
++  const expected = (50 / (2 * Math.PI * 3)) * (Math.log((4 * 3) / 0.0508) - 1);
++  near(E.electrodeOhm(50, 3, 0.0508), expected, 1e-12);
++  near(E.electrodeOhm(50, 3, 0.0508), 11.84, 0.01);
++});
++
++check('resistance falls as the electrode goes deeper, and rises with resistivity', () => {
++  assert.ok(E.electrodeOhm(50, 4.5, 0.05) < E.electrodeOhm(50, 3, 0.05));
++  assert.ok(E.electrodeOhm(100, 3, 0.05) > E.electrodeOhm(50, 3, 0.05));
++});
++
++check('electrodes in parallel give R1/(n·η), and the count is the smallest that meets the target', () => {
++  const e = E.earthing({ ...SITE, soilResistivity: '50' });
++  assert.equal(e.ok, true);
++  near(e.singleOhm, 11.9, 0.1);
++  assert.equal(e.electrodeCount, 4);
++  near(e.parallelOhm, e.singleOhm / (4 * 0.75), 1e-9);
++  assert.ok(e.parallelOhm <= 5, 'and it meets the 5 Ω general LV target');
++  assert.equal(e.pass, true);
++  /* one fewer electrode must miss the target, or the count is not minimal */
++  assert.ok(e.singleOhm / (3 * 0.75) > 5);
++});
++
++check('better soil needs fewer pits; the 1 Ω system earth needs more', () => {
++  const good = E.earthing({ ...SITE, soilResistivity: '30' });
++  const poor = E.earthing({ ...SITE, soilResistivity: '120' });
++  assert.ok(good.electrodeCount <= poor.electrodeCount);
++  const system = E.earthing({ ...SITE, soilResistivity: '50', earthTargetOhm: '1' });
++  assert.ok(system.electrodeCount > good.electrodeCount);
++});
++
++check('soil that cannot reach the target says so instead of printing a number nobody would build', () => {
++  const rocky = E.earthing({ ...SITE, soilResistivity: '200' });
++  assert.equal(rocky.pass, false);
++  assert.equal(rocky.chemicalRequired, true);
++  assert.ok(rocky.electrodeCount <= 12);
++});
++
++check('no soil test means DATA REQUIRED — the app will not guess a number of pits', () => {
++  const e = E.earthing({ ...SITE, soilResistivity: '' });
++  assert.equal(e.ok, false);
++  assert.ok(e.missing.join(' ').includes('soil resistivity'));
++  assert.equal(e.electrodeCount, undefined);
++});
++
++/* ==========================================================================
++   IS 732 / IEC 62548 — cable and string
++   ========================================================================== */
++console.log('— IS 732 / IEC 62548 — cable and string —');
++
++check('copper at 70 °C is the resistivity used, not the 20 °C datasheet figure', () => {
++  near(E.RHO_CU_70, 0.0172 * (1 + 0.00393 * 45), 1e-12);
++  near(E.RHO_CU_70, 0.0202, 0.0001);
++});
++
++check('a two-wire DC run drops 2·ρ·L·I/A', () => {
++  const d = E.voltageDrop(10, 30, 4, 600, 2);
++  near(d.dropV, (2 * E.RHO_CU_70 * 30 * 10) / 4, 1e-12);
++  near(d.dropV, 3.04, 0.01);
++  near(d.percent, 0.506, 0.002);
++});
++
++check('a three-phase AC run drops √3·ρ·L·I/A, which is less than the same two-wire load', () => {
++  const single = E.voltageDrop(20, 40, 6, 230, 1);
++  const three = E.voltageDrop(20, 40, 6, 415, 3);
++  near(three.dropV, (Math.sqrt(3) * E.RHO_CU_70 * 40 * 20) / 6, 1e-12);
++  assert.ok(three.percent < single.percent);
++});
++
++check('the limits quoted are the code\'s own: IS 732 3 % power, DC designed to 2 %', () => {
++  const c = E.cable(SITE, { dcCurrentA: 10, dcVoltageV: 600, acCurrentA: 20, acVoltageV: 230, phases: 1 });
++  assert.equal(c.acLimitPct, 3);
++  assert.equal(c.dcLimitPct, 2);
++  assert.ok(c.limits.includes('IS 732'));
++});
++
++check('a 30 m 4 mm² DC run passes; 2.5 mm² over 60 m does not', () => {
++  const ok = E.cable({ ...SITE, dcCableLengthM: '30', dcCableSizeMm2: '4' },
++    { dcCurrentA: 10, dcVoltageV: 600, acCurrentA: 0, acVoltageV: 0 });
++  assert.equal(ok.dc.pass, true);
++  const thin = E.cable({ ...SITE, dcCableLengthM: '80', dcCableSizeMm2: '2.5' },
++    { dcCurrentA: 12, dcVoltageV: 600, acCurrentA: 0, acVoltageV: 0 });
++  assert.equal(thin.dc.pass, false);
++  assert.ok(thin.dc.percent > 2, thin.dc.percent);
++});
++
++check('a cable nobody has sized reports DATA REQUIRED rather than a clean bill of health', () => {
++  const c = E.cable(SITE, { dcCurrentA: 10, dcVoltageV: 600, acCurrentA: 20, acVoltageV: 230 });
++  assert.equal(c.dc.ok, false);
++  assert.equal(c.ac.ok, false);
++  assert.ok(c.dc.missing.length >= 1 && c.ac.missing.length >= 1);
++});
++
++check('string voltage is checked at the coldest temperature, using the module\'s own coefficient', () => {
++  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0' };
++  const st = E.string(mod, { moduleCount: 26 });
++  const vocCold = 49.7 * (1 + (-0.27 / 100) * (0 - 25));
++  near(st.vocColdPerModule, vocCold, 1e-12);
++  assert.equal(st.maxSeriesByVoltage, Math.floor(1100 / vocCold));
++  assert.equal(st.maxSeriesByVoltage, 20);
++});
++
++check('a string is never longer than the array, and the strings are balanced', () => {
++  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0' };
++  const one = E.string(mod, { moduleCount: 13 });
++  assert.equal(one.strings, 1);
++  assert.equal(one.seriesPerString, 13, 'thirteen modules cannot make a twenty-module string');
++  const two = E.string(mod, { moduleCount: 26 });
++  assert.equal(two.strings, 2);
++  assert.equal(two.seriesPerString, 13, 'equal strings, or one drags the other');
++  assert.equal(two.balancedStrings, true);
++  const three = E.string(mod, { moduleCount: 46 });
++  assert.equal(three.strings, 3);
++  assert.equal(three.seriesPerString, 16);
++});
++
++check('the string that fits is inside the inverter limit, with the margin shown', () => {
++  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0' };
++  const st = E.string(mod, { moduleCount: 13 });
++  assert.equal(st.overVoltage, false);
++  /* 49.7 × (1 + 0.0027 × 25) = 53.05475 V per module, × 13 = 689.71 V */
++  near(st.vocColdString, 49.7 * 1.0675 * 13, 1e-9);
++  near(st.vocColdString, 689.71, 0.01);
++  assert.ok(st.vocMarginPct > 30);
++});
++
++check('a 600 V inverter makes the same array two short strings instead of one long one', () => {
++  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterVmaxDc: '600' };
++  const st = E.string(mod, { moduleCount: 13 });
++  assert.equal(st.maxSeriesByVoltage, 11);
++  assert.equal(st.strings, 2);
++  assert.equal(st.seriesPerString, 7);
++  assert.equal(st.overVoltage, false, 'seven modules at 53 V is 371 V — inside the limit');
++  assert.ok(st.vocColdString < 600);
++  assert.equal(st.impossible, false);
++});
++
++check('a module that cannot fit under the inverter at all is reported, not silently mangled', () => {
++  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterVmaxDc: '40' };
++  const st = E.string(mod, { moduleCount: 13 });
++  assert.equal(st.impossible, true);
++  assert.equal(st.overVoltage, true);
++  assert.equal(st.strings, 0);
++});
++
++check('a string that falls under the MPPT floor at midday is caught too', () => {
++  const hot = E.string({ ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', mpptMinV: '400' },
++    { moduleCount: 13 });
++  assert.equal(hot.belowMppt, false, '13 × 35.52 V = 461.8 V still clears a 400 V floor');
++  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', mpptMinV: '500' };
++  const st = E.string(mod, { moduleCount: 13 });
++  assert.equal(st.belowMppt, true, 'but not a 500 V one');
++});
++
++check('IEC 62548 sizes the conductor for 1.25 × Isc per string', () => {
++  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0' };
++  const st = E.string(mod, { moduleCount: 26 });
++  near(st.iscDesignPerString, 1.25 * 13.9, 1e-12);
++  near(st.designCurrent, 1.25 * 13.9 * 2, 1e-12);
++});
++
++check('more strings than the inverter input allows is reported', () => {
++  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterMaxCurrentA: '26' };
++  const st = E.string(mod, { moduleCount: 46 });
++  assert.equal(st.iscOverload, true);
++  assert.ok(st.designCurrent > 26);
++});
++
++check('without datasheet figures the string check is DATA REQUIRED, never a silent pass', () => {
++  const st = E.string(SITE, { moduleCount: 13 });
++  assert.equal(st.ok, false);
++  assert.equal(st.overVoltage, undefined);
++  assert.ok(st.missing.includes('moduleVoc'));
++});
++
++/* ==========================================================================
++   IEC/IS 62305 and the MNRE/UPNEDA roof-load benchmark
++   ========================================================================== */
++console.log('— IEC 62305 — lightning, and the terrace load benchmark —');
++
++check('Ng follows 0.04 × Td^1.25 from the local thunderstorm-day count', () => {
++  const li = E.lightning({ ...SITE, thunderstormDays: '30' });
++  near(li.ng, 0.04 * Math.pow(30, 1.25), 1e-12);
++  near(li.ng, 2.808, 0.001);
++  const stormier = E.lightning({ ...SITE, thunderstormDays: '60' });
++  assert.ok(stormier.ng > li.ng);
++});
++
++check('the collection area is LW + 2(L+W)H + πH²', () => {
++  const li = E.lightning({ ...SITE, buildingLengthM: '10', buildingWidthM: '8' });
++  const area = 10 * 8 + 2 * (10 + 8) * 10 + Math.PI * 100;
++  near(li.collectionAreaM2, area, 1e-9);
++  near(li.strikesPerYear, li.ng * area * 1e-6, 1e-15);
++});
++
++check('the LPL parameters are the standard\'s: sphere / mesh / down-conductor / 10 Ω earth', () => {
++  assert.deepEqual(E.LPL.I, { sphere: 20, mesh: 5, down: 10, eff: '99 %' });
++  assert.deepEqual(E.LPL.II, { sphere: 30, mesh: 10, down: 10, eff: '97 %' });
++  assert.deepEqual(E.LPL.III, { sphere: 45, mesh: 15, down: 15, eff: '91 %' });
++  assert.deepEqual(E.LPL.IV, { sphere: 60, mesh: 20, down: 20, eff: '84 %' });
++  assert.equal(E.lightning(SITE).earthOhm, 10);
++  assert.equal(E.lightning({ ...SITE, lpsClass: 'nonsense' }).lpsClass, 'IV', 'an unknown level falls back, it does not invent one');
++});
++
++check('terrace load is modules plus racking over the array, against the 60 kg/m² benchmark', () => {
++  const lay = E.layout(SITE, 13);
++  const r = E.roofLoad(SITE, 13, lay.requiredArea);
++  near(r.kgPerM2, (13 * 28 + 2.5 * lay.requiredArea) / lay.requiredArea, 1e-9);
++  near(r.kgPerM2, 10.1, 0.1);
++  assert.equal(r.pass, true);
++  assert.ok(r.basis.includes('60 kg/m²'));
++  /* the benchmark is a shared rooftop figure, not a structural design */
++  assert.ok(r.basis.includes('MNRE'));
++});
++
++/* ==========================================================================
++   The export gate — which level each finding lands on
++   ========================================================================== */
++console.log('— the gate: block, warn, or note —');
++
++check('a sheet with everything specified and compliant reports nothing to stop for', () => {
++  const done = {
++    ...SITE, soilResistivity: '50', dcCableLengthM: '30', dcCableSizeMm2: '4',
++    acCableLengthM: '20', acCableSizeMm2: '6', inverterMaxCurrentA: '26',
++    moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0',
++    buildingLengthM: '10', buildingWidthM: '8', availableArea: '60'
++  };
++  const r = E.report(done, { moduleCount: 13, acCurrentA: 10, acVoltageV: 230, phases: 1 });
++  assert.equal(r.blocking.length, 0, JSON.stringify(r.blocking));
++  assert.equal(r.advisory.length, 0, JSON.stringify(r.advisory));
++});
++
++check('missing inputs are notes, so a page that says DATA REQUIRED still downloads', () => {
++  const r = E.report(SITE, { moduleCount: 13 });
++  assert.equal(r.blocking.length, 0);
++  assert.equal(r.advisory.length, 0);
++  assert.ok(r.notes.length >= 3, JSON.stringify(r.notes));
++  assert.ok(r.notes.every((n) => /DATA REQUIRED/.test(n.message)), 'and each one says so');
++});
++
++check('a roof too small for the shaded rows blocks the download', () => {
++  const r = E.report({ ...SITE, availableArea: '30' }, { moduleCount: 13 });
++  assert.equal(r.blocking.length, 1);
++  assert.equal(r.blocking[0].id, 'availableArea');
++  assert.ok(r.blocking[0].message.includes('48 m²'), r.blocking[0].message);
++});
++
++check('an over-voltage string blocks, and the message carries both numbers', () => {
++  const r = E.report({
++    ...SITE, availableArea: '', moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0',
++    inverterVmaxDc: '40'
++  }, { moduleCount: 13 });
++  const vol = r.blocking.find((i) => i.id === 'inverterVmaxDc');
++  assert.ok(vol, 'must block on string voltage: ' + JSON.stringify(r.blocking));
++  assert.ok(/53 V/.test(vol.message) && /40 V/.test(vol.message), vol.message);
++});
++
++check('wind that exceeds the module\'s own rating blocks', () => {
++  const r = E.report({ ...SITE, roofZone: 'corner' }, { moduleCount: 13 });
++  const wind = r.blocking.find((i) => i.id === 'moduleLoadClassPa');
++  assert.ok(wind, JSON.stringify(r.blocking));
++  assert.ok(wind.message.includes('2721') && wind.message.includes('2400'), wind.message);
++});
++
++check('a marginal cable drop warns but does not stop the document', () => {
++  const r = E.report({
++    ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0',
++    dcCableLengthM: '80', dcCableSizeMm2: '2.5', soilResistivity: '50'
++  }, { moduleCount: 13, acCurrentA: 0, acVoltageV: 0 });
++  assert.equal(r.blocking.length, 0, JSON.stringify(r.blocking));
++  assert.ok(r.advisory.some((i) => i.id === 'dcCableSizeMm2'));
++});
++
++/* ==========================================================================
++   finance.js follows the geometry, and the page prints the basis
++   ========================================================================== */
++console.log('— the engine and the printed page —');
++
++check('finance derives the clearance, and a typed factor still overrides it', () => {
++  delete require.cache[require.resolve('../assets/js/engineering.js')];
++  require('../assets/js/engineering.js');            // puts Engineering on globalThis
++  const F = require('../assets/js/finance.js');
++  const base = {
++    capacity: '7', genFactor: '1460', costPerKwp: '63630', gstPercent: '8.9', tariff: '10',
++    escalation: '4', degradation: '0.5', customerType: 'residential',
++    moduleWattage: '545', moduleLengthMm: '2278', moduleWidthMm: '1134',
++    tiltDeg: '15', latitudeDeg: '18.52'
++  };
++  const derived = F.compute(base);
++  assert.equal(derived.clearanceSource, 'derived');
++  near(derived.roofClearanceFactor, 1.428, 0.001);
++  near(derived.requiredArea, 13 * derived.roofClearanceFactor * 2.278 * 1.134, 1e-6);
++  const manual = F.compute({ ...base, roofClearanceFactor: '1.1' });
++  assert.equal(manual.clearanceSource, 'manual');
++  near(manual.requiredArea, manual.arrayArea * 1.1, 1e-9);
++  /* the money must not move because the roof geometry changed */
++  assert.equal(derived.netInvestment, F.compute({ ...base, roofClearanceFactor: '1.1' }).netInvestment);
++});
++
++check('the printed page names the standards and prints DATA REQUIRED where inputs are missing', () => {
++  const { JSDOM } = require('jsdom');
++  const html = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8')
++    .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
++  const mockCtx = () => new Proxy({}, {
++    get(t, p) {
++      if (p === 'measureText') return () => ({ width: 42 });
++      if (p === 'createLinearGradient' || p === 'createRadialGradient') return () => ({ addColorStop() {} });
++      if (p === 'getImageData') return () => ({ data: new Uint8ClampedArray(4) });
++      if (typeof p === 'string') { if (!(p in t)) t[p] = () => {}; return t[p]; }
++      return undefined;
++    },
++    set() { return true; }
++  });
++  const dom = new JSDOM(html, {
++    url: 'http://localhost/quotation.html', runScripts: 'dangerously', pretendToBeVisual: true,
++    beforeParse(w) {
++      w.HTMLCanvasElement.prototype.getContext = () => mockCtx();
++      w.Element.prototype.scrollIntoView = function () {};
++      Object.defineProperty(w.HTMLImageElement.prototype, 'complete', { get: () => true });
++      Object.defineProperty(w.HTMLImageElement.prototype, 'naturalWidth', { get: () => 100 });
++      Object.defineProperty(w.HTMLImageElement.prototype, 'naturalHeight', { get: () => 100 });
++      w.devicePixelRatio = 2;
++      w.confirm = () => true;
++    }
++  });
++  const w = dom.window;
++  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
++    'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
++    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
++    .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
++  w.eval(src);
++  w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
++  const text = w.document.getElementById('v_tsTable').textContent;
++
++  assert.ok(text.includes('ENGINEERING DESIGN BASIS'), 'the design basis is printed');
++  assert.ok(text.includes('IS 875-3:2015 map'), 'the wind code is named');
++  assert.ok(text.includes('IEC 61215'), 'the module mechanical class is named');
++  assert.ok(text.includes('IS 3043'), 'the earthing code is named');
++  assert.ok(text.includes('IEC 62305'), 'the lightning code is named');
++  assert.ok(text.includes('MNRE/UPNEDA'), 'the roof-load benchmark is named');
++  assert.ok(/row pitch \d+\.\d+ m from a \d+\.\d° mid-morning sun on 21 December/.test(text),
++    'the row pitch is shown, not assumed');
++  assert.ok(text.includes('DATA REQUIRED'), 'and the gaps say so');
++
++  /* the claims that could not be supported are gone */
++  const flat = text.replace(/\s+/g, ' ');
++  assert.ok(!/engineered for monsoon wind loads/i.test(flat), 'no unbacked wind claim');
++  assert.ok(!/IS\/IEC-compliant installations/i.test(flat), 'no blanket compliance claim');
++  assert.ok(!/Included \(as per EPC scope\)/.test(flat), 'earthing is a design, not a phrase');
++});
++
++check('the engineering basis is kept inside its page, and an overflowing page is not silent', () => {
++  const { JSDOM } = require('jsdom');
++  const html = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8')
++    .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
++  const mockCtx = () => new Proxy({}, {
++    get(t, p) {
++      if (p === 'measureText') return () => ({ width: 42 });
++      if (p === 'createLinearGradient' || p === 'createRadialGradient') return () => ({ addColorStop() {} });
++      if (p === 'getImageData') return () => ({ data: new Uint8ClampedArray(4) });
++      if (typeof p === 'string') { if (!(p in t)) t[p] = () => {}; return t[p]; }
++      return undefined;
++    },
++    set() { return true; }
++  });
++  const dom = new JSDOM(html, {
++    url: 'http://localhost/quotation.html', runScripts: 'dangerously', pretendToBeVisual: true,
++    beforeParse(w) {
++      w.HTMLCanvasElement.prototype.getContext = () => mockCtx();
++      w.Element.prototype.scrollIntoView = function () {};
++      Object.defineProperty(w.HTMLImageElement.prototype, 'complete', { get: () => true });
++      Object.defineProperty(w.HTMLImageElement.prototype, 'naturalWidth', { get: () => 100 });
++      Object.defineProperty(w.HTMLImageElement.prototype, 'naturalHeight', { get: () => 100 });
++      w.devicePixelRatio = 2;
++      w.confirm = () => true;
++    }
++  });
++  const w = dom.window;
++  w.eval(['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
++    'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
++    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
++    .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n'));
++  w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
++  const page = w.document.getElementById('pageTechSpec');
++
++  /* the design basis is the one variable-length group, so it is the one that
++     can be asked to give up a little room */
++  const engRows = w.document.querySelectorAll('#v_tsTable tr.is-eng').length;
++  assert.ok(engRows >= 5, `the design-basis rows are tagged for compaction, found ${engRows}`);
++
++  /* jsdom lays nothing out (scrollHeight is always 0), so the fit ladder is
++     exercised by handing the element a height, which is exactly the branch a
++     real browser takes */
++  assert.deepEqual([...w.Render.fitPages()], [], 'nothing overflows when the page is short');
++  assert.ok(!page.className.includes('is-tight'), 'and nothing is tightened unnecessarily');
++
++  /* jsdom lays nothing out (scrollHeight is always 0), so the fit ladder is
++     driven by handing the element a height: each tightening step is modelled as
++     the compression it actually is — content that fits after a step stops the
++     ladder, content that cannot be helped is reported instead of clipped. */
++  /* every dial the fit ladder can turn, counted as one step each */
++  const steps = () => ['is-tight-spec', 'is-tighter-spec', 'is-diagram-spec', 'is-diagram-tighter']
++    .filter((c) => page.className.includes(c)).length;
++  const model = (base, perStep) => Object.defineProperty(page, 'scrollHeight', {
++    get: () => base - perStep * steps(), configurable: true,
++  });
++
++  model(1200, 150);                       /* a little long: one step is enough */
++  assert.deepEqual([...w.Render.fitPages()], [], 'a page that can be tightened is not reported as broken');
++  assert.ok(page.className.includes('is-tight-spec'),
++    'and it is tightened — the cheapest step that makes it fit, never simply everything');
++  assert.ok(/is-tight-spec/.test(page.className), 'the specification table compacts before the diagram gives up size');
++
++  page.className = 'page';                /* too long to save: say so */
++  model(1600, 100);
++  assert.deepEqual([...w.Render.fitPages()], ['pageTechSpec'], 'a page that stays long after every step is reported');
++  assert.ok(page.className.includes('is-tighter-spec') && page.className.includes('is-table-min') &&
++    page.className.includes('is-diagram-min'),
++    'only after every step has been tried, the smallest drawing included');
++  page.className = 'page';
++
++  const other = w.document.getElementById('pageExec');
++  Object.defineProperty(other, 'scrollHeight', { get: () => 1300, configurable: true });
++  const over = w.Render.fitPages();
++  assert.ok(over.includes('pageExec'), 'any other overflowing page is reported too');
++  assert.deepEqual([...w.__qsPageOverflow], [...over], 'and the report is readable after the render');
++});
++
++check('every engineering input in the form reaches the engine, and no id is a phantom', () => {
++  const { JSDOM } = require('jsdom');
++  const html = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8')
++    .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
++  const mockCtx = () => new Proxy({}, {
++    get(t, p) {
++      if (p === 'measureText') return () => ({ width: 42 });
++      if (p === 'createLinearGradient' || p === 'createRadialGradient') return () => ({ addColorStop() {} });
++      if (p === 'getImageData') return () => ({ data: new Uint8ClampedArray(4) });
++      if (typeof p === 'string') { if (!(p in t)) t[p] = () => {}; return t[p]; }
++      return undefined;
++    },
++    set() { return true; }
++  });
++  const dom = new JSDOM(html, {
++    url: 'http://localhost/quotation.html', runScripts: 'dangerously', pretendToBeVisual: true,
++    beforeParse(w) {
++      w.HTMLCanvasElement.prototype.getContext = () => mockCtx();
++      w.Element.prototype.scrollIntoView = function () {};
++      Object.defineProperty(w.HTMLImageElement.prototype, 'complete', { get: () => true });
++      Object.defineProperty(w.HTMLImageElement.prototype, 'naturalWidth', { get: () => 100 });
++      Object.defineProperty(w.HTMLImageElement.prototype, 'naturalHeight', { get: () => 100 });
++      w.devicePixelRatio = 2;
++      w.confirm = () => true;
++    }
++  });
++  const w = dom.window;
++  w.eval(['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
++    'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
++    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
++    .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n'));
++  w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
++
++  /* readState() is a hand-written list, so a field the form shows but the list
++     omits is silently ignored by every calculation downstream of it. That
++     failure is invisible on screen: the input looks live and changes nothing. */
++  const fields = [...w.document.querySelectorAll('fieldset.eng-basis [id]')];
++  assert.ok(fields.length >= 40, `the design-basis panel is present (${fields.length} fields)`);
++  const state = w.Render.readState();
++  const unread = fields.filter((el) => !Object.prototype.hasOwnProperty.call(state, el.id)).map((el) => el.id);
++  assert.deepEqual(unread, [], 'no design-basis field is invisible to the engine');
++
++  /* and the value that arrives is the value on screen */
++  const probe = fields.find((el) => el.id === 'tiltDeg');
++  probe.value = '27';
++  probe.dispatchEvent(new w.Event('input', { bubbles: true }));
++  assert.equal(w.Render.readState().tiltDeg, '27', 'an edited field reaches the engine unchanged');
++});
++
++check('a missing datasheet value is printed, not treated as something to review', () => {
++  const src = fs.readFileSync(path.join(ROOT, 'assets/js/control-panel.js'), 'utf8');
++  /* The strip is the builder's "fix this" area; DATA REQUIRED notes belong on
++     the page. Re-deriving the rule from the source keeps the two from drifting
++     apart without a browser. */
++  assert.ok(/feedback\.hidden = notesOnly \|\| !messages\.length/.test(src),
++    'the feed hides itself when the only findings are notes');
++  assert.ok(/const notesOnly = !list\.blocking\.length && !list\.advisory\.length/.test(src),
++    'notes are recognised as informational only');
++  const eng = require('../assets/js/engineering.js');
++  const clean = eng.report(SITE, { moduleCount: 13 });
++  assert.equal(clean.blocking.length, 0, 'the shipped defaults raise nothing that blocks');
++  assert.ok(clean.notes.length > 0, 'and they still report the figures nobody has supplied');
++});
++
++console.log(`\n${pass} passed, ${fail} failed`);
++process.exit(fail ? 1 : 0);
+diff --git a/qa/export-preflight.test.js b/qa/export-preflight.test.js
+index c2f4410..e816b72 100644
+--- a/qa/export-preflight.test.js
++++ b/qa/export-preflight.test.js
+@@ -83,7 +83,7 @@ function bootApp() {
+     }
+   });
+   const { window } = dom;
+-  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js',
++  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js',
+     'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js', 'equipment.js',
+     'render.js', 'editor.js', 'experience.js', 'briefing.js', 'export.js', 'workspace-prefs.js',
+     'app.js', 'control-panel.js']
+diff --git a/qa/integration.test.js b/qa/integration.test.js
+index 3af6d2b..f607eda 100644
+--- a/qa/integration.test.js
++++ b/qa/integration.test.js
+@@ -55,7 +55,7 @@ function bootApp(seedStorage) {
+   });
+   const { window } = dom;
+   /* browser <script> tags share top-level scope; a single concatenated eval mimics that */
+-  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
++  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+     'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
+     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
+   window.eval(src);
+@@ -214,10 +214,14 @@ console.log('— installed capacity & roof area —');
+ t('tech spec states the installed array beside the contracted capacity',
+   d.getElementById('v_tsTable').textContent.includes('7.085 kWp (contracted 7 kWp)'),
+   d.getElementById('v_tsTable').textContent.match(/Installed Array Size.*?kWp[^k]*/));
+-t('roof requirement names the clearance factor instead of bare module area',
++/* The required roof area is no longer "module area × 1.4": it is the shaded
++   row pitch worked out from the tilt and the winter-solstice sun angle, and the
++   page has to say which one it used. */
++t('roof requirement states the derived row pitch, not bare module area',
+   d.getElementById('v_tsTable').textContent.includes('Roof Area Required') &&
+-  d.getElementById('v_tsTable').textContent.includes('module area × 1.4 clearance'),
+-  d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,70}/));
++  /row pitch \d+\.\d+ m at 15° tilt, no shading 09:00–15:00 on 21 December/.test(d.getElementById('v_tsTable').textContent) &&
++  /module area × 1\.4\d clearance/.test(d.getElementById('v_tsTable').textContent),
++  d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,140}/));
+ d.getElementById('roofClearanceFactor').value = '1.1';
+ fire(w, d.getElementById('roofClearanceFactor'), 'input');
+ t('changing the clearance factor re-renders the required roof area live',
+diff --git a/qa/options.test.js b/qa/options.test.js
+index 127f6ae..c2359de 100644
+--- a/qa/options.test.js
++++ b/qa/options.test.js
+@@ -46,7 +46,7 @@ function bootBuilder(seedStorage, url) {
+     }
+   });
+   const { window } = dom;
+-  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
++  const src = ['content.js', 'engineering.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+     'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
+     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
+   window.eval(src);
+@@ -191,7 +191,7 @@ setTimeout(async () => {
+       addPage() {} addImage() {} setProperties() {} save() {}
+     }
+   };
+-  const src3 = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
++  const src3 = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+     'equipment.js', 'render.js', 'export.js', 'share.js']
+     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
+   w3.eval(src3);
+diff --git a/qa/package.json b/qa/package.json
+index 7af04bc..ff6f133 100644
+--- a/qa/package.json
++++ b/qa/package.json
+@@ -4,7 +4,7 @@
+   "description": "",
+   "main": "index.js",
+   "scripts": {
+-    "test": "node finance.test.js && node reconcile.test.js && node engineering-boundaries.test.js && node integration.test.js && node reconcile-render.test.js && node export-preflight.test.js && node options.test.js && node sync.test.js && node audit-finance.test.js && node bess.test.js && node supplements.test.js",
++    "test": "node finance.test.js && node reconcile.test.js && node engineering-boundaries.test.js && node engineering-standards.test.js && node briefing-voices.test.js && node integration.test.js && node reconcile-render.test.js && node export-preflight.test.js && node options.test.js && node sync.test.js && node audit-finance.test.js && node bess.test.js && node supplements.test.js",
+     "test:browser": "node cover-sync.test.js && node brand-engineering.test.js && node visual-discovery.test.js && node page-spacing.test.js && node audit-browser.test.js && node tech-spec.test.js && node array-size.test.js && node system-diagram.test.js && node experience.test.js && node briefing.test.js && node tracking-project.test.js && node control-panel.test.js && node session.test.js && node equipment-entry.test.js && node blank-defaults.test.js && node release-audit.test.js && node browser.test.js && node bess-browser.test.js && node supplements-browser.test.js"
+   },
+   "keywords": [],
+diff --git a/qa/reconcile-render.test.js b/qa/reconcile-render.test.js
+index 6de002a..754d5b4 100644
+--- a/qa/reconcile-render.test.js
++++ b/qa/reconcile-render.test.js
+@@ -72,7 +72,7 @@ function bootApp() {
+   });
+   const { window } = dom;
+   /* the order matches quotation.html, so page wiring behaves as it does live */
+-  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js',
++  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js',
+     'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js', 'equipment.js',
+     'render.js', 'editor.js', 'experience.js', 'briefing.js', 'export.js', 'workspace-prefs.js',
+     'app.js', 'control-panel.js']
+@@ -132,7 +132,10 @@ const cfg = {
+   tariff: digit(d.getElementById('tariff').value),
+   esc: digit(d.getElementById('escalation').value),
+   deg: digit(d.getElementById('degradation').value),
+-  clearance: digit(d.getElementById('roofClearanceFactor').value),
++  /* The clearance is no longer a literal default: it is derived from these
++     two, so they are what the defaults pin. */
++  tilt: digit(d.getElementById('tiltDeg').value),
++  latitude: digit(d.getElementById('latitudeDeg').value),
+   wattage: digit(d.getElementById('moduleWattage').value)
+ };
+ 
+@@ -146,9 +149,19 @@ console.log('— Reconcile (rendered): the shipped defaults are pinned —');
+    whatever the default became), so BOTH sources are pinned explicitly. */
+ const REVIEWED = {
+   capacity: '7', genFactor: '1460', costPerWp: '63.63', gstPercent: '8.9',
+-  tariff: '10', escalation: '4', degradation: '0.5', roofClearanceFactor: '1.4',
++  tariff: '10', escalation: '4', degradation: '0.5',
+   co2Factor: '0.71', treeFactor: '22', moduleWattage: '545',
+-  moduleLengthMm: '2278', moduleWidthMm: '1134'
++  moduleLengthMm: '2278', moduleWidthMm: '1134',
++  /* engineering design basis — the assumptions the whole engineering section
++     stands on, so they are pinned here rather than left to drift */
++  tiltDeg: '15', latitudeDeg: '18.52', shadeHalfWindowHours: '3', roofSetbackM: '0.6',
++  windSpeed: '39', buildingHeightM: '10', windK1: '1', windK3: '1', windK4: '1',
++  netUpliftCp: '1.2', anchorsPerModule: '4',
++  inverterVmaxDc: '1100', mpptMinV: '200', mpptMaxV: '1000', minAmbientC: '0',
++  maxCellC: '65', moduleVocBetaPct: '-0.27', moduleVmpBetaPct: '-0.36',
++  electrodeLengthM: '3', electrodeDiaM: '0.05', electrodeEfficiency: '0.75',
++  thunderstormDays: '30', moduleWeightKg: '28', rackKgPerM2: '2.5',
++  roofLoadBenchmarkKgM2: '60'
+ };
+ const authored = (id) => d.getElementById(id).getAttribute('value');
+ /* the shipped default, read once — restore points must not hardcode a rate */
+@@ -183,8 +196,11 @@ check('the 8.9 % default matches the 70:30 composite rule, not the pre-reform 12
+   assert.equal(Math.round((0.7 * 5 + 0.3 * 18) * 10) / 10, 8.9);
+   assert.notEqual(w.StateStore.DEFAULTS.gstPercent, '12');
+ });
+-check('roof clearance factor is present and editable', () => {
+-  assert.equal(d.getElementById('roofClearanceFactor').disabled, false);
++check('roof clearance factor is present, editable, and blank means derive', () => {
++  const el = d.getElementById('roofClearanceFactor');
++  assert.equal(el.disabled, false);
++  assert.equal(el.value, '', 'blank by default so the geometry decides');
++  assert.equal(authored('roofClearanceFactor'), null, 'no authored default to fall back on');
+ });
+ 
+ console.log('— Reconcile (rendered): ₹/Wp form rate maps to the ₹/kWp engine —');
+diff --git a/qa/reconcile.test.js b/qa/reconcile.test.js
+index 8eb79c3..37c4e0c 100644
+--- a/qa/reconcile.test.js
++++ b/qa/reconcile.test.js
+@@ -44,6 +44,10 @@ function independent(s) {
+   const tariff = n(s.tariff);
+   const esc = n(s.escalation) / 100;
+   const deg = n(s.degradation) / 100;
++  /* Blank or zero means "derive it" — finance.js asks engineering.js for the
++     row pitch when that module is present, and falls back to 1.4 without it.
++     Any positive value is a deliberate manual override, clamped to at least
++     the bare module area. */
+   const clearance = Math.max(1, n(s.roofClearanceFactor, 1.4));
+ 
+   /* ratio rounded to 6 dp then ceil: neutralises the same binary round-off the
+@@ -394,9 +398,19 @@ check('grid CO₂ factor defaults to CEA v21.0 (0.710 tCO₂/MWh)', () => {
+ check('tree absorption defaults to 22 kg CO₂ per tree per year', () => {
+   assert.equal(F.compute({ capacity: 7, moduleWattage: 545 }).treeFactor, 22);
+ });
+-check('roof clearance defaults to ×1.4 and never drops below bare module area', () => {
+-  assert.equal(F.compute({ capacity: 7, moduleWattage: 545 }).roofClearanceFactor, 1.4);
+-  assert.equal(F.compute({ capacity: 7, moduleWattage: 545, roofClearanceFactor: 0 }).roofClearanceFactor, 1);
++check('roof clearance: derived when it can be, manual when typed, never below bare module area', () => {
++  /* Without the geometry inputs (this process has no engineering.js) the old
++     1.4 estimate still stands, and a typed factor still wins. */
++  const plain = F.compute({ capacity: 7, moduleWattage: 545 });
++  assert.equal(plain.roofClearanceFactor, 1.4);
++  assert.equal(plain.clearanceSource, 'fallback');
++  const manual = F.compute({ capacity: 7, moduleWattage: 545, roofClearanceFactor: '1.1' });
++  assert.equal(manual.roofClearanceFactor, 1.1);
++  assert.equal(manual.clearanceSource, 'manual');
++  /* A zero is not a clearance factor anybody builds; the field's own min is 1,
++     so it reads as "not set" rather than as an override. */
++  assert.equal(F.compute({ capacity: 7, moduleWattage: 545, roofClearanceFactor: 0 }).clearanceSource, 'fallback');
++  assert.ok(Math.ceil(plain.requiredArea) >= Math.ceil(plain.arrayArea));
+ });
+ check('PM Surya Ghar slabs and the ₹78,000 ceiling are unchanged', () => {
+   assert.equal(F.SUBSIDY_MAX, 78000);
+diff --git a/qa/sync.test.js b/qa/sync.test.js
+index cc3a064..8a6d724 100644
+--- a/qa/sync.test.js
++++ b/qa/sync.test.js
+@@ -48,7 +48,7 @@ function bootApp(seedStorage, url) {
+     }
+   });
+   const { window } = dom;
+-  const src = ['content.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
++  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+     'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
+     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
+   window.eval(src);
+@@ -109,7 +109,12 @@ const form = d.getElementById('quoteForm');
+ const advanced = [...form.querySelectorAll('[data-adv]')];
+ t('defaults to Essentials', form.classList.contains('qs-mode-essentials'));
+ t('Essentials button active by default', d.getElementById('modeEss').classList.contains('active') && !d.getElementById('modeAll').classList.contains('active'));
+-t('ten advanced sections including tax and QR/audio settings', advanced.length === 10, advanced.length);
++/* Eleven since the engineering design basis joined them: the section is
++   hidden in Essentials, and its defaults carry the sheet there, while every
++   result still prints on the Tech Spec page. */
++t('eleven advanced sections including the engineering design basis', advanced.length === 11, advanced.length);
++t('the engineering design basis is one of them',
++  advanced.some((el) => el.querySelector('#tiltDeg') && el.querySelector('#soilResistivity')), 'engineering fieldset');
+ t('all advanced sections hidden in Essentials', advanced.every((el) => w.getComputedStyle(el).display === 'none'));
+ t('capacity remains visible in Customer & System beside customer type', (() => {
+   const cap = d.getElementById('capacity');
+diff --git a/qa/tech-spec.test.js b/qa/tech-spec.test.js
+index 7e0160d..5bff812 100644
+--- a/qa/tech-spec.test.js
++++ b/qa/tech-spec.test.js
+@@ -102,6 +102,79 @@ const t = (name, condition) => {
+     t('20 kWp lifetime savings unchanged', await page.$eval('#v_coverBadgeGen', (el) => el.textContent.includes('₹1.14')));
+     t('20 kWp installed array shows 20.165 kWp beside the contracted 20 kWp', await page.$eval('#v_tsTable', el => [...el.querySelectorAll('tr')].some(row => row.querySelector('.spec-k')?.textContent === 'Installed Array Size' && row.querySelector('.spec-v')?.textContent === '20.165 kWp (contracted 20 kWp)')));
+     t('20 kWp module count unchanged', await page.$eval('#v_tsTable', (el) => el.textContent.includes('37 modules')));
++    /* The page is a fixed A4 box with overflow hidden, so an engineering basis
++       that runs past the bottom prints as missing text rather than warning
++       anyone. Only a real engine can answer whether it fits — jsdom reports
++       scrollHeight as 0 — so it is answered here, with the design-basis inputs
++       both complete and empty (a DATA REQUIRED line is the longest form). */
++    const fit = await page.evaluate(() => {
++      const set = (id, value) => {
++        const el = document.getElementById(id);
++        if (el) { el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); }
++      };
++      const filled = {
++        moduleVoc: '49.70', moduleVmp: '41.50', moduleIsc: '13.90', moduleImp: '13.00',
++        inverterMaxCurrentA: '26', dcCableLengthM: '25', dcCableSizeMm2: '4',
++        acCableLengthM: '15', acCableSizeMm2: '6', soilResistivity: '50',
++        buildingLengthM: '12', buildingWidthM: '9', availableArea: '120'
++      };
++      const measure = (values) => {
++        Object.entries(values).forEach(([id, value]) => set(id, value));
++        Render.renderAll();
++        const el = document.getElementById('pageTechSpec');
++        const rows = [...el.querySelectorAll('#v_tsTable tr.is-eng')];
++        const last = rows[rows.length - 1];
++        return {
++          overflow: Math.round(el.scrollHeight - el.clientHeight),
++          classes: el.className,
++          rows: rows.length,
++          fontPx: last ? parseFloat(getComputedStyle(last.querySelector('td')).fontSize) : 0,
++          inside: last ? last.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom + 0.5 : false
++        };
++      };
++      const complete = measure(filled);
++      const blank = measure(Object.fromEntries(Object.keys(filled).map((k) => [k, ''])));
++      return { complete, blank, reported: (window.__qsPageOverflow || []).slice() };
++    });
++    t('the design basis fits its A4 page with inputs complete (' + fit.complete.overflow + ' px spare)',
++      fit.complete.overflow <= 2 && fit.complete.inside);
++    t('the design basis fits its A4 page with inputs blank (' + fit.blank.overflow + ' px spare)',
++      fit.blank.overflow <= 2 && fit.blank.inside);
++    t('every design-basis row is tagged for compaction', fit.complete.rows >= 5 && fit.blank.rows >= 5);
++    t('fitting the page never shrinks the design basis below 9 px',
++      fit.complete.fontPx >= 9 && fit.blank.fontPx >= 9);
++    t('no page is reported as overflowing after the fit', fit.reported.length === 0);
++
++    /* One combination genuinely cannot fit on a single sheet: roof-area rows,
++       reference pills and the full design basis together. It must be reported
++       — never clipped in silence — and every row must still be in the page. */
++    await setLinks('https://www.example.com/reports/site-pvsyst.pdf', '');
++    const dense = await page.evaluate(() => {
++      const set = (id, value) => {
++        const el = document.getElementById(id);
++        if (el) { el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); }
++      };
++      set('availableArea', '120');
++      Render.renderAll();
++      const el = document.getElementById('pageTechSpec');
++      return {
++        reported: (window.__qsPageOverflow || []).includes('pageTechSpec'),
++        rows: el.querySelectorAll('#v_tsTable tr').length,
++        lastRow: el.querySelector('#v_tsTable tr:last-child td')?.textContent || '',
++        engFont: parseFloat(getComputedStyle(el.querySelector('#v_tsTable tr.is-eng td')).fontSize)
++      };
++    });
++    t('the one sheet that cannot fit everything is reported, not silently clipped', dense.reported);
++    t('and it still prints every row it holds, down to the honesty row', dense.rows >= 25 && dense.lastRow.includes('Data still required'));
++    t('the design basis never drops below 9 px to achieve that', dense.engFont >= 9);
++    await setLinks('', '');
++    await page.evaluate(() => {
++      const el = document.getElementById('availableArea');
++      if (el) { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); }
++      Render.renderAll();
++    });
++    t('clearing either optional block fits the page again', await page.evaluate(() => (window.__qsPageOverflow || []).length === 0));
++
+     t('no browser runtime errors', errors.length === 0);
+     fs.writeFileSync(path.join(OUT, 'tech-spec-metrics.json'), JSON.stringify(results, null, 2) + '\n');
+     console.log(JSON.stringify(results, null, 2));
+diff --git a/quotation.html b/quotation.html
+index 1114d4a..3395d22 100644
+--- a/quotation.html
++++ b/quotation.html
+@@ -239,16 +239,174 @@
+             <div class="hint">Enables the roof-area fit check on the Tech Spec page.</div>
+           </div>
+           <div class="field">
+-            <label>Roof clearance factor (× module area)</label>
+-            <input type="number" id="roofClearanceFactor" value="1.4" step="0.1" min="1">
+-            <div class="hint">Module area is not roof area. Walkways, parapet setback and
+-            inter-row shadow spacing need extra space — the fit check multiplies module
+-              area by this factor. Use 1.4 for a typical tilted RCC layout, 1.1–1.2 for
+-              flush-mounted rows, 1.8–2.0 where wide row spacing is required.</div>
++            <label>Roof clearance factor (× module area) — leave blank to derive</label>
++            <input type="number" id="roofClearanceFactor" placeholder="auto from tilt &amp; latitude" step="0.01" min="1">
++            <div class="hint">Left blank, the factor is computed from the tilt and latitude below:
++            row pitch = module depth + the shadow it throws on 21 December (IS 875 is a wind
++            code; this geometry is the standard solar design criterion). Only type here to
++            override that with a figure of your own — the page then says it is a manual
++            factor rather than a calculated one.</div>
+           </div>
+         </div>
+       </fieldset>
+ 
++      <fieldset data-adv class="eng-basis">
++        <legend>Engineering design basis</legend>
++        <div class="hint">Each line is either arithmetic a named standard defines or a figure you
++        supply. Everything prints on the Tech Spec page; anything left blank prints as
++        DATA REQUIRED instead of a number that merely looks plausible.</div>
++
++        <details class="eng-group" open>
++          <summary>Array geometry &amp; row spacing</summary>
++          <div class="field"><label for="tiltDeg">Module tilt (° from horizontal)</label>
++            <input type="number" id="tiltDeg" value="15" step="1" min="0" max="60">
++            <div class="hint">Site figure. MNRE/UPNEDA rooftop specifications show 22–24° for north India, location dependent; a lower tilt needs less row spacing.</div></div>
++          <div class="field"><label for="latitudeDeg">Site latitude (°N)</label>
++            <input type="number" id="latitudeDeg" value="18.52" step="0.01" min="-60" max="60">
++            <div class="hint">Sets the winter-solstice sun angle the row pitch is built on (Pune 18.52).</div></div>
++          <div class="field"><label for="shadeHalfWindowHours">No-shading window (± h around solar noon)</label>
++            <input type="number" id="shadeHalfWindowHours" value="3" step="0.5" min="1" max="5">
++            <div class="hint">3 = no inter-row shading between 09:00 and 15:00 solar time on 21 December.</div></div>
++          <div class="field"><label for="roofSetbackM">Clear band around the array (m)</label>
++            <input type="number" id="roofSetbackM" value="0.6" step="0.1" min="0">
++            <div class="hint">MNRE/UPNEDA rooftop specification keeps the array clear of the roof edge.</div></div>
++        </details>
++
++        <details class="eng-group">
++          <summary>Wind load — IS 875 (Part 3):2015</summary>
++          <div class="field"><label for="windSpeed">Basic wind speed Vb (m/s)</label>
++            <input type="number" id="windSpeed" value="39" step="1" min="0">
++            <div class="hint">Read from the IS 875-3:2015 basic wind speed map. Pune 39, Mumbai 44, Chennai 50, Delhi 47.</div></div>
++          <div class="field"><label for="terrainCategory">Terrain category</label>
++            <select id="terrainCategory">
++              <option value="1">1 — open coast, flat treeless plain</option>
++              <option value="2">2 — open terrain, scattered obstructions</option>
++              <option value="3" selected>3 — suburban / closely spaced obstructions</option>
++              <option value="4">4 — dense city centre</option>
++            </select>
++            <div class="hint">IS 875-3 Table 2, Class A column set.</div></div>
++          <div class="field"><label for="buildingHeightM">Building height (m)</label>
++            <input type="number" id="buildingHeightM" value="10" step="0.5" min="0">
++            <div class="hint">Height above ground that k2 is read at. Above 15 m read k2 from the table.</div></div>
++          <div class="field"><label for="windK1">k1 — risk coefficient</label>
++            <input type="number" id="windK1" value="1" step="0.01" min="0">
++            <div class="hint">IS 875-3 Table 1: 1.00 for a normal 50-year structure.</div></div>
++          <div class="field"><label for="windK3">k3 — topography factor</label>
++            <input type="number" id="windK3" value="1" step="0.01" min="0">
++            <div class="hint">1.00 on flat ground; up to 1.36 on an escarpment or hill crest.</div></div>
++          <div class="field"><label for="windK4">k4 — cyclonic region factor</label>
++            <input type="number" id="windK4" value="1" step="0.05" min="0">
++            <div class="hint">1.00 inland; 1.15–1.30 within 60 km of a cyclone-prone coast.</div></div>
++          <div class="field"><label for="netUpliftCp">Net uplift pressure coefficient</label>
++            <input type="number" id="netUpliftCp" value="1.2" step="0.1" min="0">
++            <div class="hint">Design assumption, printed on the page — confirm with the structural designer for the chosen tilt and roof.</div></div>
++          <div class="field"><label for="roofZone">Array position on the roof</label>
++            <select id="roofZone">
++              <option value="interior">Interior (×1.0)</option>
++              <option value="edge" selected>Edge (×1.5)</option>
++              <option value="corner">Corner (×2.0)</option>
++            </select>
++            <div class="hint">Suction is far stronger at edges and corners. The multiplier is listed, not hidden.</div></div>
++          <div class="field"><label for="anchorsPerModule">Anchors per module</label>
++            <input type="number" id="anchorsPerModule" value="4" step="1" min="1">
++            <div class="hint">Divides the uplift into a load per fixing.</div></div>
++          <div class="field"><label for="moduleLoadClassPa">Module mechanical-load class (Pa)</label>
++            <select id="moduleLoadClassPa">
++              <option value="2400" selected>2400 — IEC 61215 standard</option>
++              <option value="5400">5400 — heavy-load class</option>
++            </select>
++            <div class="hint">The module's own IEC 61215-2 static mechanical-load rating.</div></div>
++        </details>
++
++        <details class="eng-group">
++          <summary>String &amp; cable — IEC 62548, IEC 62109, IS 732</summary>
++          <div class="field"><label for="moduleVoc">Module Voc at STC (V)</label>
++            <input type="number" id="moduleVoc" step="0.01" min="0" placeholder="from the datasheet">
++            <div class="hint">Rated open-circuit voltage. Leave blank until you have the datasheet — the string check then reports DATA REQUIRED instead of passing silently.</div></div>
++          <div class="field"><label for="moduleVmp">Module Vmp at STC (V)</label>
++            <input type="number" id="moduleVmp" step="0.01" min="0"></div>
++          <div class="field"><label for="moduleIsc">Module Isc at STC (A)</label>
++            <input type="number" id="moduleIsc" step="0.01" min="0"></div>
++          <div class="field"><label for="moduleImp">Module Imp at STC (A)</label>
++            <input type="number" id="moduleImp" step="0.01" min="0"></div>
++          <div class="field"><label for="moduleVocBetaPct">Voc temperature coefficient (%/°C)</label>
++            <input type="number" id="moduleVocBetaPct" value="-0.27" step="0.01">
++            <div class="hint">PERC ≈ −0.27, TOPCon ≈ −0.25, HJT ≈ −0.21. Datasheet value wins.</div></div>
++          <div class="field"><label for="moduleVmpBetaPct">Vmp temperature coefficient (%/°C)</label>
++            <input type="number" id="moduleVmpBetaPct" value="-0.36" step="0.01"></div>
++          <div class="field"><label for="inverterVmaxDc">Inverter max DC input voltage (V)</label>
++            <input type="number" id="inverterVmaxDc" value="1100" step="10" min="0">
++            <div class="hint">A hard limit: exceeding it destroys the input stage.</div></div>
++          <div class="field"><label for="mpptMinV">MPPT minimum voltage (V)</label>
++            <input type="number" id="mpptMinV" value="200" step="10" min="0"></div>
++          <div class="field"><label for="mpptMaxV">MPPT maximum voltage (V)</label>
++            <input type="number" id="mpptMaxV" value="1000" step="10" min="0"></div>
++          <div class="field"><label for="inverterMaxCurrentA">Inverter max DC input current (A)</label>
++            <input type="number" id="inverterMaxCurrentA" step="0.1" min="0" placeholder="from the datasheet">
++            <div class="hint">Checked against 1.25 × Isc × strings (IEC 62548).</div></div>
++          <div class="field"><label for="minAmbientC">Minimum ambient (°C)</label>
++            <input type="number" id="minAmbientC" value="0" step="1">
++            <div class="hint">Cell temperature at dawn is taken as the ambient minimum — the coldest string voltage.</div></div>
++          <div class="field"><label for="maxCellC">Maximum cell temperature (°C)</label>
++            <input type="number" id="maxCellC" value="65" step="1"></div>
++          <div class="field"><label for="dcCableLengthM">DC run length (m, one way)</label>
++            <input type="number" id="dcCableLengthM" step="1" min="0" placeholder="array to inverter"></div>
++          <div class="field"><label for="dcCableSizeMm2">DC cable size (mm²)</label>
++            <input type="number" id="dcCableSizeMm2" step="0.5" min="0" placeholder="e.g. 4"></div>
++          <div class="field"><label for="acCableLengthM">AC run length (m, one way)</label>
++            <input type="number" id="acCableLengthM" step="1" min="0" placeholder="inverter to meter"></div>
++          <div class="field"><label for="acCableSizeMm2">AC cable size (mm²)</label>
++            <input type="number" id="acCableSizeMm2" step="0.5" min="0"></div>
++        </details>
++
++        <details class="eng-group">
++          <summary>Earthing &amp; lightning — IS 3043, IS/IEC 62305</summary>
++          <div class="field"><label for="soilResistivity">Soil resistivity (Ω·m)</label>
++            <input type="number" id="soilResistivity" step="1" min="0" placeholder="from the site test">
++            <div class="hint">IS 3043 sizes the electrode from this. Without it the page reports DATA REQUIRED — it will not guess a number of earth pits.</div></div>
++          <div class="field"><label for="earthTargetOhm">Earth resistance target (Ω)</label>
++            <select id="earthTargetOhm">
++              <option value="5" selected>5 — general LV installation (IS 3043)</option>
++              <option value="1">1 — system / substation earth</option>
++              <option value="10">10 — lightning earth</option>
++            </select></div>
++          <div class="field"><label for="electrodeLengthM">Pipe electrode length (m)</label>
++            <input type="number" id="electrodeLengthM" value="3" step="0.5" min="1"></div>
++          <div class="field"><label for="electrodeDiaM">Pipe electrode diameter (m)</label>
++            <input type="number" id="electrodeDiaM" value="0.05" step="0.005" min="0.01"></div>
++          <div class="field"><label for="electrodeEfficiency">Group efficiency of parallel electrodes</label>
++            <input type="number" id="electrodeEfficiency" value="0.75" step="0.05" min="0.4" max="0.95">
++            <div class="hint">R_group = R1 / (n × η). 0.6–0.8 is the usual band for pits spaced at least twice their length apart (IS 3043 practice).</div></div>
++          <div class="field"><label for="thunderstormDays">Thunderstorm days per year</label>
++            <input type="number" id="thunderstormDays" value="30" step="1" min="0">
++            <div class="hint">Gives Ng ≈ 0.04 × Td^1.25 flashes/km²/yr (IS/IEC 62305).</div></div>
++          <div class="field"><label for="lpsClass">Lightning protection level (if provided)</label>
++            <select id="lpsClass">
++              <option value="I">I — 20 m sphere, 5 m mesh</option>
++              <option value="II">II — 30 m sphere, 10 m mesh</option>
++              <option value="III">III — 45 m sphere, 15 m mesh</option>
++              <option value="IV" selected>IV — 60 m sphere, 20 m mesh</option>
++            </select>
++            <div class="hint">IEC 62305-3 parameters; whether an LPS is required is a risk decision that stays with the designer.</div></div>
++          <div class="field"><label for="buildingLengthM">Building length (m)</label>
++            <input type="number" id="buildingLengthM" step="1" min="0" placeholder="for the collection area"></div>
++          <div class="field"><label for="buildingWidthM">Building width (m)</label>
++            <input type="number" id="buildingWidthM" step="1" min="0"></div>
++        </details>
++
++        <details class="eng-group">
++          <summary>Roof load — MNRE / UPNEDA rooftop specification</summary>
++          <div class="field"><label for="moduleWeightKg">Module weight (kg)</label>
++            <input type="number" id="moduleWeightKg" value="28" step="0.5" min="0"></div>
++          <div class="field"><label for="rackKgPerM2">Racking weight (kg/m² of array)</label>
++            <input type="number" id="rackKgPerM2" value="2.5" step="0.1" min="0">
++            <div class="hint">HDGI rail and purlin weight per square metre of array.</div></div>
++          <div class="field"><label for="roofLoadBenchmarkKgM2">Roof load benchmark (kg/m²)</label>
++            <input type="number" id="roofLoadBenchmarkKgM2" value="60" step="1" min="0">
++            <div class="hint">MNRE/UPNEDA put the terrace load from structure plus modules under 60 kg/m².</div></div>
++        </details>
++      </fieldset>
++
+ <fieldset class="bess-controls"><legend>Battery storage (BESS)</legend>
+ <label for="bessEnabled" class="studio-sr-only">Include battery storage supplement</label><input type="checkbox" id="bessEnabled" hidden>
+ <div class="bess-choice" role="group" aria-label="Battery storage"><button type="button" data-bess-choice="no" aria-pressed="true">No<span>Solar only</span></button><button type="button" data-bess-choice="yes" aria-pressed="false">Yes<span>Prepare a storage option</span></button></div>
+@@ -491,7 +649,7 @@
+         <div class="briefing-controls"><button type="button" id="briefingPlay">Play summary</button><button type="button" id="briefingPause" disabled>Pause</button><button type="button" id="briefingStop" disabled>Stop</button></div>
+         <p id="briefingStatus" class="briefing-status" role="status" aria-live="polite"></p>
+         <div id="briefingVoiceHelp" class="briefing-voice-help" hidden>
+-          <p>Audio uses voices supplied by your browser and operating system, not a hosted recording. A language pack alone may not provide a speech voice. You can always read the translated briefing below.</p>
++          <p>Audio uses voices supplied by your browser and operating system, not a hosted recording. A language pack alone may not provide a speech voice. If the Marathi voice is missing, the briefing is read with the closest installed voice — a Hindi voice reads Marathi text correctly enough to follow — and the status line names it. To add the real one: <strong>Windows → Settings → Time &amp; language → Speech → Add voices</strong>, then press <strong>Check voices again</strong>. The written briefing below is always complete.</p>
+           <div class="briefing-controls"><button type="button" id="briefingRefresh">Check voices again</button><button type="button" id="briefingUseEnglish" hidden>Use English audio</button></div>
+         </div>
+         <details class="briefing-transcript"><summary>Read the briefing</summary><p id="briefingText"></p></details>
+@@ -1185,6 +1343,7 @@
+ <script src="assets/vendor/jspdf.umd.min.js"></script>
+ <script src="assets/vendor/qrcode.min.js"></script>
+ <script src="assets/js/content.js"></script>
++<script src="assets/js/engineering.js"></script>
+ <script src="assets/js/finance.js"></script>
+ <script src="assets/js/storage-catalog.js"></script>
+ <script src="assets/js/bess.js"></script>
