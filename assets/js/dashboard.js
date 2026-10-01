@@ -1159,7 +1159,7 @@
     try {
       const avail = await api.isAvailable();
       if (!avail) {
-        showAuthError('Platform server is not running. Start it with: node platform/local-server/server.js');
+        showAuthError('Can\u2019t reach the platform server. This link is a static preview (no backend) \u2014 open the live :8787 server preview to sign in.');
         return;
       }
       user = await api.currentUser();
