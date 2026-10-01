@@ -8,214 +8,232 @@
   <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png" />
   <style>
     :root {
-      --navy:      #0E2339;
-      --navy-2:    #14314E;
-      --navy-3:    #1C4368;
-      --orange:    #F2811D;
-      --orange-l:  #FFB347;
-      --orange-d:  #D96A0E;
-      --ink:       #12233A;
-      --muted:     #5D6B7C;
-      --muted-2:   #8A97A6;
-      --line:      #E3E9F0;
-      --field:     #F6F9FC;
-      --radius:    14px;
+      --navy:   #0A1C2E;
+      --navy-2: #0E2339;
+      --teal:   #0F3A52;
+      --orange: #F2811D;
+      --orange-l: #FFB347;
+      --orange-d: #D96A0E;
+      --ink:    #10233A;
+      --muted:  #5D6B7C;
+      --muted-2:#8A97A6;
+      --line:   #E3E9F0;
+      --field:  #F6F9FC;
+      --r:      14px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       color: var(--ink);
-      background: #F2F5F9;
+      background: var(--navy);
+      overflow: hidden;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ============ SHELL ============ */
-    .shell {
-      min-height: 100vh;
-      min-height: 100dvh;
-      display: grid;
-      grid-template-columns: 1.05fr .95fr;
-    }
+    /* ================================================================
+       LIVE BACKGROUND — animated solar / electric scene
+       ================================================================ */
+    .bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
 
-    /* ============ BRAND PANEL ============ */
-    .brand {
-      position: relative;
+    /* sky */
+    .sky {
+      position: absolute; inset: 0;
       background:
-        radial-gradient(120% 90% at 12% 8%, #1C4368 0%, transparent 55%),
-        radial-gradient(90% 70% at 100% 100%, rgba(242,129,29,.28) 0%, transparent 60%),
-        linear-gradient(160deg, var(--navy) 0%, #102A44 55%, #0B1F34 100%);
-      color: #fff;
-      padding: 40px 48px;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+        radial-gradient(90% 65% at 78% 12%, rgba(242,129,29,.20) 0%, transparent 55%),
+        radial-gradient(120% 80% at 50% 105%, rgba(15,58,82,.85) 0%, transparent 60%),
+        linear-gradient(178deg, #061421 0%, #0A1C2E 34%, #0F3A52 74%, #14536B 100%);
     }
 
-    /* faint grid lines = "smart energy" feel */
-    .brand::before {
-      content: '';
+    /* faint engineering grid */
+    .grid {
       position: absolute; inset: 0;
       background-image:
-        linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
-      background-size: 46px 46px;
-      mask-image: radial-gradient(80% 70% at 70% 30%, #000 0%, transparent 78%);
-      -webkit-mask-image: radial-gradient(80% 70% at 70% 30%, #000 0%, transparent 78%);
-      pointer-events: none;
+        linear-gradient(rgba(255,255,255,.040) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.040) 1px, transparent 1px);
+      background-size: 54px 54px;
+      mask-image: radial-gradient(70% 65% at 50% 45%, #000 0%, transparent 80%);
+      -webkit-mask-image: radial-gradient(70% 65% at 50% 45%, #000 0%, transparent 80%);
+      animation: gridDrift 26s linear infinite;
     }
+    @keyframes gridDrift { to { background-position: 54px 54px, 54px 54px; } }
 
-    .logo-row { position: relative; z-index: 3; display: flex; align-items: center; gap: 14px; }
-    .logo-row img { width: 178px; height: auto; display: block; }
-
-    .brand-copy { position: relative; z-index: 3; margin-top: auto; padding-bottom: 6px; max-width: 470px; }
-    .eyebrow {
-      display: inline-flex; align-items: center; gap: 8px;
-      font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
-      color: var(--orange-l);
-      border: 1px solid rgba(255,179,71,.35);
-      background: rgba(242,129,29,.12);
-      padding: 6px 12px; border-radius: 999px;
-      margin-bottom: 18px;
+    /* stars */
+    .stars { position: absolute; inset: 0; }
+    .stars i {
+      position: absolute; width: 2px; height: 2px; border-radius: 50%;
+      background: rgba(255,255,255,.75);
+      animation: twinkle 4s ease-in-out infinite;
     }
-    .eyebrow i { width: 6px; height: 6px; border-radius: 50%; background: var(--orange-l); box-shadow: 0 0 8px var(--orange-l); animation: blip 2.2s ease-in-out infinite; }
-    @keyframes blip { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+    @keyframes twinkle { 0%,100% { opacity: .12 } 50% { opacity: .85 } }
 
-    .brand-copy h1 {
-      font-size: clamp(28px, 3vw, 40px);
-      line-height: 1.1;
-      font-weight: 800;
-      letter-spacing: -.025em;
-      margin-bottom: 14px;
-    }
-    .brand-copy h1 em { font-style: normal; color: var(--orange-l); }
-    .brand-copy p { font-size: 15px; line-height: 1.6; color: rgba(255,255,255,.72); }
-
-    .points { position: relative; z-index: 3; margin-top: 30px; display: grid; gap: 12px; }
-    .point { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; color: rgba(255,255,255,.82); }
-    .point .tick {
-      flex: 0 0 22px; width: 22px; height: 22px; border-radius: 7px;
-      background: rgba(242,129,29,.16);
-      border: 1px solid rgba(242,129,29,.35);
-      display: grid; place-items: center; margin-top: 1px;
-    }
-    .point .tick svg { width: 12px; height: 12px; stroke: var(--orange-l); }
-    .point b { color: #fff; font-weight: 600; }
-
-    .brand-foot {
-      position: relative; z-index: 3; margin-top: 34px;
-      font-size: 12px; color: rgba(255,255,255,.45);
-      display: flex; flex-wrap: wrap; gap: 6px 18px;
-    }
-
-    /* ---- solar / electric motion ---- */
+    /* sun */
     .sun {
-      position: absolute; z-index: 1;
-      width: 210px; height: 210px; border-radius: 50%;
-      right: -46px; top: -46px;
-      background: radial-gradient(circle at 38% 38%, #FFE9A8 0%, #FFC169 32%, var(--orange) 58%, rgba(242,129,29,0) 70%);
-      box-shadow: 0 0 70px 26px rgba(242,129,29,.32);
-      animation: sunRise 1.6s cubic-bezier(.22,1,.36,1) both, sunPulse 5s ease-in-out 1.6s infinite;
+      position: absolute; right: 13%; top: 11%;
+      width: clamp(120px, 17vw, 210px); aspect-ratio: 1; border-radius: 50%;
+      background: radial-gradient(circle at 38% 36%, #FFF3D0 0%, #FFD88A 26%, #FFB347 46%, var(--orange) 62%, rgba(242,129,29,0) 72%);
+      box-shadow: 0 0 90px 34px rgba(242,129,29,.30), 0 0 200px 90px rgba(242,129,29,.14);
+      animation: sunRise 1.9s cubic-bezier(.22,1,.36,1) both, sunPulse 5.5s ease-in-out 1.9s infinite;
     }
-    @keyframes sunRise { from { transform: scale(.5) translateY(26px); opacity: 0 } to { transform: scale(1) translateY(0); opacity: 1 } }
+    @keyframes sunRise { from { transform: translateY(70px) scale(.55); opacity: 0 } to { transform: none; opacity: 1 } }
     @keyframes sunPulse {
-      0%,100% { box-shadow: 0 0 70px 26px rgba(242,129,29,.32) }
-      50%     { box-shadow: 0 0 96px 38px rgba(242,129,29,.44) }
+      0%,100% { box-shadow: 0 0 90px 34px rgba(242,129,29,.30), 0 0 200px 90px rgba(242,129,29,.14) }
+      50%     { box-shadow: 0 0 120px 46px rgba(242,129,29,.42), 0 0 250px 120px rgba(242,129,29,.20) }
     }
 
-    /* rotating ray sweep */
+    /* rotating rays */
     .rays {
-      position: absolute; z-index: 1; right: -110px; top: -110px;
-      width: 420px; height: 420px; border-radius: 50%;
+      position: absolute; right: calc(13% - 260px); top: calc(11% - 260px);
+      width: 780px; height: 780px; border-radius: 50%;
       background: conic-gradient(from 0deg,
-        rgba(255,179,71,.16) 0deg, transparent 26deg,
-        rgba(255,179,71,.10) 52deg, transparent 78deg,
-        rgba(255,179,71,.14) 104deg, transparent 130deg,
-        rgba(255,179,71,.08) 156deg, transparent 182deg,
-        rgba(255,179,71,.12) 208deg, transparent 234deg,
-        rgba(255,179,71,.10) 260deg, transparent 286deg,
-        rgba(255,179,71,.14) 312deg, transparent 338deg);
-      animation: spin 44s linear infinite;
-      mask-image: radial-gradient(circle, #000 30%, transparent 70%);
-      -webkit-mask-image: radial-gradient(circle, #000 30%, transparent 70%);
-      pointer-events: none;
+        rgba(255,190,100,.13) 0deg, transparent 22deg,
+        rgba(255,190,100,.09) 46deg, transparent 70deg,
+        rgba(255,190,100,.12) 94deg, transparent 118deg,
+        rgba(255,190,100,.08) 142deg, transparent 166deg,
+        rgba(255,190,100,.11) 190deg, transparent 214deg,
+        rgba(255,190,100,.09) 238deg, transparent 262deg,
+        rgba(255,190,100,.12) 286deg, transparent 310deg,
+        rgba(255,190,100,.08) 334deg, transparent 358deg);
+      mask-image: radial-gradient(circle, transparent 22%, #000 40%, transparent 68%);
+      -webkit-mask-image: radial-gradient(circle, transparent 22%, #000 40%, transparent 68%);
+      animation: spin 60s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg) } }
 
-    /* rooftop + panels */
-    .roof {
-      position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; height: 190px;
-      pointer-events: none;
+    /* power transmission lines with travelling pulses */
+    .wires { position: absolute; inset: 0; }
+    .wires .w {
+      position: absolute; left: -5%; right: -5%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(140,200,230,.28) 20%, rgba(140,200,230,.28) 80%, transparent);
+      overflow: visible;
     }
-    .roof .hill {
-      position: absolute; left: -8%; right: -8%; bottom: -60px; height: 190px;
-      background: linear-gradient(180deg, rgba(11,31,52,.0) 0%, rgba(11,31,52,.75) 60%);
+    .wires .w::after {
+      content: ''; position: absolute; top: -2px; left: 0;
+      width: 90px; height: 5px; border-radius: 99px;
+      background: linear-gradient(90deg, transparent, #BFE9FF, rgba(191,233,255,0));
+      filter: blur(1px);
+      animation: pulseRun 5.5s linear infinite;
     }
-    .panel-grid {
-      position: absolute; left: 8%; bottom: 42px;
-      width: min(300px, 42%); display: grid;
-      grid-template-columns: repeat(6, 1fr); gap: 3px;
-      transform: perspective(520px) rotateX(52deg) rotateZ(-3deg);
+    .wires .w:nth-child(1) { top: 27%; animation-delay: 0s; }
+    .wires .w:nth-child(1)::after { animation-delay: 0s; }
+    .wires .w:nth-child(2) { top: 41%; opacity: .7; }
+    .wires .w:nth-child(2)::after { animation-delay: 1.8s; }
+    .wires .w:nth-child(3) { top: 55%; opacity: .45; }
+    .wires .w:nth-child(3)::after { animation-delay: 3.4s; }
+    @keyframes pulseRun {
+      0%   { transform: translateX(-15%); opacity: 0 }
+      12%  { opacity: 1 }
+      88%  { opacity: 1 }
+      100% { transform: translateX(105vw); opacity: 0 }
+    }
+
+    /* solar farm floor in perspective */
+    .farm {
+      position: absolute; left: -14%; right: -14%; bottom: -8%;
+      height: 46vh; min-height: 240px;
+      perspective: 520px; perspective-origin: 50% 0%;
       transform-style: preserve-3d;
-      animation: panelIn 1.5s cubic-bezier(.22,1,.36,1) .3s both;
+      mask-image: linear-gradient(to bottom, transparent 0%, #000 26%, #000 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 26%, #000 100%);
     }
-    .panel-grid span {
-      aspect-ratio: 1 / 1.05; border-radius: 2px;
-      background: linear-gradient(135deg, #1B4F72 0%, #2E86AB 45%, #1B4F72 100%);
-      border: 1px solid rgba(255,255,255,.18);
-      box-shadow: inset 0 0 10px rgba(120,220,255,.16);
-      animation: panelGlow 3.4s ease-in-out infinite;
+    .farm-grid {
+      position: absolute; inset: 0;
+      transform: rotateX(74deg);
+      transform-origin: 50% 0%;
+      display: grid;
+      grid-template-columns: repeat(11, 1fr);
+      grid-auto-rows: 1fr;
+      gap: 9px;
     }
-    .panel-grid span:nth-child(odd)  { animation-delay: .25s }
-    .panel-grid span:nth-child(3n)   { animation-delay: .6s }
-    .panel-grid span:nth-child(4n)   { animation-delay: 1s }
-    @keyframes panelIn { from { opacity: 0; transform: perspective(520px) rotateX(76deg) translateY(26px) } to { opacity: 1; transform: perspective(520px) rotateX(52deg) rotateZ(-3deg) } }
-    @keyframes panelGlow {
-      0%,100% { filter: brightness(1); box-shadow: inset 0 0 10px rgba(120,220,255,.16) }
-      50%     { filter: brightness(1.3); box-shadow: inset 0 0 14px rgba(255,190,90,.4) }
+    .farm-grid span {
+      border-radius: 3px;
+      background: linear-gradient(135deg, #14425F 0%, #2E86AB 42%, #14425F 100%);
+      border: 1px solid rgba(160,225,255,.20);
+      box-shadow: inset 0 0 14px rgba(120,220,255,.16);
+      animation: cellGlow 3.6s ease-in-out infinite;
+    }
+    .farm-grid span:nth-child(odd)  { animation-delay: .2s }
+    .farm-grid span:nth-child(3n)   { animation-delay: .7s }
+    .farm-grid span:nth-child(4n)   { animation-delay: 1.2s }
+    .farm-grid span:nth-child(5n)   { animation-delay: 1.9s }
+    .farm-grid span:nth-child(7n)   { animation-delay: 2.5s }
+    @keyframes cellGlow {
+      0%,100% { filter: brightness(.9); box-shadow: inset 0 0 14px rgba(120,220,255,.16) }
+      50%     { filter: brightness(1.45); box-shadow: inset 0 0 20px rgba(255,200,120,.42), 0 0 18px rgba(255,190,90,.18) }
     }
 
-    /* current-flow sparks */
-    .spark {
-      position: absolute; z-index: 2; width: 5px; height: 5px; border-radius: 50%;
-      background: #FFD98A; box-shadow: 0 0 10px 2px rgba(255,179,71,.75);
-      animation: floatY 5.5s ease-in-out infinite;
+    /* rising energy sparks */
+    .sparks { position: absolute; inset: 0; }
+    .sparks i {
+      position: absolute; bottom: -10px;
+      width: 4px; height: 4px; border-radius: 50%;
+      background: #FFD98A;
+      box-shadow: 0 0 10px 3px rgba(255,179,71,.7);
+      animation: rise linear infinite;
     }
-    .spark:nth-of-type(1) { left: 14%; bottom: 22%; animation-delay: 0s }
-    .spark:nth-of-type(2) { left: 34%; bottom: 12%; animation-delay: .9s; width: 4px; height: 4px }
-    .spark:nth-of-type(3) { left: 58%; bottom: 30%; animation-delay: 1.8s }
-    .spark:nth-of-type(4) { left: 78%; bottom: 16%; animation-delay: 2.6s; width: 3px; height: 3px }
-    .spark:nth-of-type(5) { left: 46%; bottom: 40%; animation-delay: 3.4s; width: 4px; height: 4px }
-    @keyframes floatY { 0%,100% { transform: translateY(0); opacity: .35 } 50% { transform: translateY(-16px); opacity: .95 } }
+    .sparks i:nth-child(1) { left: 12%; animation-duration: 11s; animation-delay: 0s }
+    .sparks i:nth-child(2) { left: 24%; animation-duration: 14s; animation-delay: 2.4s; width: 3px; height: 3px }
+    .sparks i:nth-child(3) { left: 37%; animation-duration: 9.5s; animation-delay: 5s }
+    .sparks i:nth-child(4) { left: 49%; animation-duration: 13s; animation-delay: 1.2s; width: 3px; height: 3px }
+    .sparks i:nth-child(5) { left: 61%; animation-duration: 10.5s; animation-delay: 6.4s }
+    .sparks i:nth-child(6) { left: 73%; animation-duration: 15s; animation-delay: 3.6s; width: 3px; height: 3px }
+    .sparks i:nth-child(7) { left: 84%; animation-duration: 12s; animation-delay: 7.2s }
+    .sparks i:nth-child(8) { left: 92%; animation-duration: 10s; animation-delay: 4.4s; width: 3px; height: 3px }
+    @keyframes rise {
+      0%   { transform: translateY(0) scale(.6); opacity: 0 }
+      10%  { opacity: .9 }
+      90%  { opacity: .5 }
+      100% { transform: translateY(-92vh) scale(1.1); opacity: 0 }
+    }
 
-    /* ============ FORM SIDE ============ */
-    .panel {
+    /* readability vignette */
+    .veil {
+      position: absolute; inset: 0;
+      background: radial-gradient(58% 52% at 50% 48%, rgba(6,20,33,.62) 0%, rgba(6,20,33,.30) 55%, transparent 100%);
+    }
+
+    /* ================================================================
+       LOGIN CARD — sits in front of the live scene
+       ================================================================ */
+    .wrap {
+      position: relative; z-index: 5;
+      min-height: 100vh; min-height: 100dvh;
+      display: grid; place-items: center;
+      padding: 24px 16px;
+      overflow-y: auto;
+    }
+
+    .card {
+      width: 100%; max-width: 386px;
+      background: rgba(255,255,255,.97);
+      border: 1px solid rgba(255,255,255,.6);
+      border-radius: 20px;
+      padding: 30px 28px 24px;
+      box-shadow:
+        0 2px 6px rgba(4,16,28,.18),
+        0 30px 70px rgba(4,16,28,.45),
+        0 0 0 1px rgba(242,129,29,.06);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      animation: cardIn .8s cubic-bezier(.22,1,.36,1) both;
       position: relative;
-      background: #fff;
-      display: flex; align-items: center; justify-content: center;
-      padding: 40px 34px;
     }
-    .panel-inner { width: 100%; max-width: 400px; }
-
-    .panel-badge {
-      position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
-      font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
-      color: var(--orange-d); background: #FFF4E8;
-      border: 1px solid #FFDDBE; border-radius: 999px;
-      padding: 6px 13px; white-space: nowrap;
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 22px; right: 22px; height: 3px;
+      border-radius: 0 0 4px 4px;
+      background: linear-gradient(90deg, var(--orange-d), var(--orange), var(--orange-l));
     }
-    .panel-badge a { color: var(--orange-d); font-weight: 700; text-decoration: none; border-bottom: 1px dotted var(--orange-d); }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(22px) scale(.985) }
+      to   { opacity: 1; transform: none }
+    }
 
-    .mobile-logo { display: none; }
+    .logo { display: flex; justify-content: center; margin-bottom: 20px; }
+    .logo img { width: 152px; height: auto; display: block; }
 
-    .head { margin-bottom: 22px; }
-    .head h2 { font-size: 25px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 6px; }
-    .head p { font-size: 14px; color: var(--muted); line-height: 1.5; }
-
-    /* tabs */
     .tabs {
       display: flex; gap: 4px; padding: 4px;
-      background: #F1F5F9; border-radius: 12px; margin-bottom: 20px;
+      background: #EFF3F8; border-radius: 12px; margin-bottom: 20px;
     }
     .tabs button {
       flex: 1; border: 0; background: transparent; cursor: pointer;
@@ -225,18 +243,18 @@
     }
     .tabs button[aria-selected="true"] {
       background: #fff; color: var(--ink);
-      box-shadow: 0 1px 3px rgba(18,35,58,.12), 0 0 0 1px rgba(18,35,58,.04);
+      box-shadow: 0 1px 3px rgba(16,35,58,.14), 0 0 0 1px rgba(16,35,58,.04);
     }
 
-    /* fields */
     .field { margin-bottom: 15px; }
     .field > label {
-      display: block; font-size: 12px; font-weight: 700;
-      letter-spacing: .05em; text-transform: uppercase; color: #46586B;
+      display: block; font-size: 11.5px; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase; color: #46586B;
       margin-bottom: 6px;
     }
     .field-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
     .field-row label { margin: 0; }
+
     .iw { position: relative; display: flex; align-items: center; }
     .iw > .ico {
       position: absolute; left: 13px; display: grid; place-items: center;
@@ -245,15 +263,15 @@
     .iw input {
       width: 100%; font: inherit; font-size: 15px; color: var(--ink);
       padding: 13px 14px 13px 40px;
-      border: 1.5px solid var(--line); border-radius: var(--radius);
+      border: 1.5px solid var(--line); border-radius: var(--r);
       background: var(--field); outline: none;
       transition: border-color .16s, box-shadow .16s, background .16s;
     }
     .iw input::placeholder { color: #A7B3C0; }
     .iw input:hover { border-color: #CFDAE6; }
-    .iw input:focus { border-color: var(--orange); background: #fff; box-shadow: 0 0 0 4px rgba(242,129,29,.15); }
+    .iw input:focus { border-color: var(--orange); background: #fff; box-shadow: 0 0 0 4px rgba(242,129,29,.16); }
     .iw:focus-within .ico { color: var(--orange); }
-    .iw input[aria-invalid="true"] { border-color: #E5484D; box-shadow: 0 0 0 4px rgba(229,72,77,.12); }
+    .iw input[aria-invalid="true"] { border-color: #E5484D; }
 
     .peek {
       position: absolute; right: 8px; border: 0; background: transparent;
@@ -262,9 +280,8 @@
     }
     .peek:hover { color: var(--orange-d); background: #FFF4E8; }
 
-    .hint { margin-top: 6px; font-size: 12px; color: var(--muted-2); line-height: 1.45; }
+    .hint { margin-top: 6px; font-size: 11.5px; color: var(--muted-2); line-height: 1.45; }
 
-    /* charge meter */
     .charge { margin-top: 9px; height: 6px; border-radius: 99px; background: #EAF0F6; overflow: hidden; }
     .charge i {
       display: block; height: 100%; width: 0; border-radius: 99px;
@@ -273,245 +290,210 @@
       transition: width .22s ease, background .22s ease;
     }
     .charge.strong i { background: linear-gradient(90deg, #37C978, #1FA85C); box-shadow: 0 0 10px rgba(31,168,92,.4); }
-    .charge-label { margin-top: 6px; font-size: 11.5px; color: var(--muted-2); }
+    .charge-label { margin-top: 6px; font-size: 11px; color: var(--muted-2); }
 
-    .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; }
-    .check input { width: 15px; height: 15px; accent-color: var(--orange); cursor: pointer; }
-
-    .link-btn { border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--orange-d); cursor: pointer; padding: 0; }
+    .link-btn { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--orange-d); cursor: pointer; padding: 0; }
     .link-btn:hover { text-decoration: underline; }
 
-    /* primary button */
+    .check { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); cursor: pointer; user-select: none; }
+    .check input { width: 15px; height: 15px; accent-color: var(--orange); cursor: pointer; }
+
     .btn {
-      width: 100%; margin-top: 6px; padding: 14px 16px; border: 0; border-radius: var(--radius);
+      width: 100%; margin-top: 6px; padding: 14px 16px; border: 0; border-radius: var(--r);
       font: inherit; font-size: 15px; font-weight: 700; color: #fff; cursor: pointer;
       background: linear-gradient(95deg, #F5A04A, var(--orange) 52%, var(--orange-d));
-      box-shadow: 0 10px 22px rgba(242,129,29,.32);
+      box-shadow: 0 10px 24px rgba(242,129,29,.34);
       display: inline-flex; align-items: center; justify-content: center; gap: 9px;
       position: relative; overflow: hidden;
       transition: transform .12s, box-shadow .16s, filter .16s;
     }
-    .btn:hover { filter: brightness(1.04); transform: translateY(-1px); box-shadow: 0 14px 26px rgba(242,129,29,.38); }
+    .btn:hover { filter: brightness(1.04); transform: translateY(-1px); box-shadow: 0 14px 28px rgba(242,129,29,.40); }
     .btn:active { transform: translateY(1px); }
-    .btn[disabled] { pointer-events: none; opacity: .8; }
+    .btn[disabled] { pointer-events: none; opacity: .85; }
     .btn[disabled]::after {
       content: ''; position: absolute; inset: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.32), transparent);
       animation: sheen 1.05s linear infinite;
     }
     @keyframes sheen { from { transform: translateX(-100%) } to { transform: translateX(100%) } }
 
     .err {
       display: none; margin-bottom: 14px; padding: 10px 12px;
-      border-radius: 11px; font-size: 13px; line-height: 1.45;
+      border-radius: 11px; font-size: 12.5px; line-height: 1.45;
       background: #FEF2F2; border: 1px solid #FBD5D5; color: #B42318;
     }
     .err.on { display: block; }
 
-    .foot-note { margin-top: 18px; font-size: 12px; color: var(--muted-2); line-height: 1.55; }
-    .foot-note b { color: #46586B; }
-
-    /* toast */
-    .toast {
-      position: fixed; left: 50%; bottom: 26px; z-index: 60;
-      transform: translate(-50%, 18px); opacity: 0; pointer-events: none;
-      background: var(--navy); color: #fff;
-      padding: 12px 18px; border-radius: 12px;
-      font-size: 13.5px; font-weight: 600;
-      box-shadow: 0 14px 32px rgba(11,31,52,.35);
-      transition: opacity .28s, transform .28s;
-      max-width: 90vw;
+    .tag {
+      position: fixed; z-index: 6; left: 50%; bottom: 16px; transform: translateX(-50%);
+      font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600;
+      color: rgba(255,255,255,.55); white-space: nowrap;
     }
-    .toast.on { opacity: 1; transform: translate(-50%, 0); }
+    .tag a { color: var(--orange-l); text-decoration: none; }
+    .tag a:hover { text-decoration: underline; }
 
-    /* ============ RESPONSIVE ============ */
-    @media (max-width: 900px) {
-      .shell { grid-template-columns: 1fr; }
-      .brand { padding: 22px 22px 26px; min-height: 208px; }
-      .brand-copy { margin-top: 20px; }
-      .brand-copy h1 { font-size: 24px; }
-      .brand-copy p { display: none; }
-      .points { display: none; }
-      .brand-foot { margin-top: 16px; }
-      .sun { width: 130px; height: 130px; right: -34px; top: -34px; }
-      .rays { width: 260px; height: 260px; right: -70px; top: -70px; }
-      .panel { padding: 26px 20px 34px; }
-      .mobile-logo { display: block; text-align: center; margin-bottom: 18px; }
-      .mobile-logo img { width: 150px; }
-    }
     @media (max-width: 420px) {
-      .logo-row img { width: 146px; }
-      .panel-badge { font-size: 10.5px; }
+      .card { padding: 24px 20px 20px; border-radius: 18px; }
+      .logo img { width: 132px; }
+      .farm { height: 34vh; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .sun, .rays, .panel-grid, .panel-grid span, .spark, .eyebrow i, .btn[disabled]::after {
+      .sun, .rays, .grid, .farm-grid span, .sparks i, .wires .w::after, .stars i, .card {
         animation: none !important;
       }
     }
   </style>
 </head>
 <body>
-  <div class="shell">
 
-    <!-- ================= BRAND SIDE ================= -->
-    <aside class="brand">
-      <div class="rays" aria-hidden="true"></div>
-      <div class="sun" aria-hidden="true"></div>
-
-      <div class="logo-row">
-        <img src="assets/images/ktm-cover-logo-transparent.png" alt="KTM Energy Experts" width="178" height="105" />
-      </div>
-
-      <div class="roof" aria-hidden="true">
-        <div class="hill"></div>
-        <div class="panel-grid">
-          <span></span><span></span><span></span><span></span><span></span><span></span>
-          <span></span><span></span><span></span><span></span><span></span><span></span>
-        </div>
-      </div>
-      <span class="spark" aria-hidden="true"></span>
-      <span class="spark" aria-hidden="true"></span>
-      <span class="spark" aria-hidden="true"></span>
-      <span class="spark" aria-hidden="true"></span>
-      <span class="spark" aria-hidden="true"></span>
-
-      <div class="brand-copy">
-        <span class="eyebrow"><i></i> Solar EPC · Quotation Studio</span>
-        <h1>Quotations that <em>close faster</em>, built for solar teams.</h1>
-        <p>Design, price and share professional solar proposals in one place — with your own branding on every page.</p>
-
-        <div class="points">
-          <div class="point">
-            <span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
-            <span><b>Branded PDF + link</b> — send either, customers get the same clean proposal.</span>
-          </div>
-          <div class="point">
-            <span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
-            <span><b>Version history &amp; send log</b> — every revision and follow-up stays traceable.</span>
-          </div>
-          <div class="point">
-            <span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
-            <span><b>Your own account</b> — staff sign in with company-issued access only.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="brand-foot">
-        <span>© <span id="yr">2026</span> KTM Energy Experts</span>
-        <span>Internal staff access</span>
-      </div>
-    </aside>
-
-    <!-- ================= FORM SIDE ================= -->
-    <main class="panel">
-      <div class="panel-badge">PREVIEW UI — not wired to real login · <a href="dashboard.html">open real dashboard →</a></div>
-
-      <div class="panel-inner">
-        <div class="mobile-logo">
-          <img src="assets/images/ktm-cover-logo-transparent.png" alt="KTM Energy Experts" />
-        </div>
-
-        <div class="head">
-          <h2 id="headTitle">Sign in to Quotation Studio</h2>
-          <p id="headSub">Use your KTM work account to continue.</p>
-        </div>
-
-        <div class="tabs" role="tablist" aria-label="Account">
-          <button type="button" role="tab" id="tabIn" aria-selected="true" aria-controls="acctForm">Sign in</button>
-          <button type="button" role="tab" id="tabUp" aria-selected="false" aria-controls="acctForm">Create account</button>
-        </div>
-
-        <div class="err" id="err" role="alert"></div>
-
-        <form id="acctForm" autocomplete="off" novalidate>
-          <!-- create-account only -->
-          <div class="field" id="fName" hidden>
-            <label for="name">Full name</label>
-            <div class="iw">
-              <span class="ico">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.2-3.6 4-5.4 7.5-5.4S18.3 16.4 19.5 20"/></svg>
-              </span>
-              <input id="name" type="text" placeholder="Rushikesh Dhumal" autocomplete="name" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="email">Work email</label>
-            <div class="iw">
-              <span class="ico">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/></svg>
-              </span>
-              <input id="email" type="email" placeholder="you@ktmenergy.in" autocomplete="username" required />
-            </div>
-          </div>
-
-          <div class="field">
-            <div class="field-row">
-              <label for="password">Password</label>
-              <button type="button" class="link-btn" id="forgot">Forgot password?</button>
-            </div>
-            <div class="iw">
-              <span class="ico">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V7a4 4 0 018 0v3.5"/></svg>
-              </span>
-              <input id="password" type="password" placeholder="At least 8 characters" autocomplete="current-password" required />
-              <button type="button" class="peek" id="peek" aria-label="Show password">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
-              </button>
-            </div>
-            <div class="charge" id="charge"><i id="chargeBar"></i></div>
-            <div class="charge-label" id="chargeLabel">Password strength · 8+ characters recommended</div>
-          </div>
-
-          <!-- create-account only -->
-          <div class="field" id="fRole" hidden>
-            <label for="role">Your role</label>
-            <div class="iw">
-              <span class="ico">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 9.4l5.9-.9z"/></svg>
-              </span>
-              <input id="role" type="text" placeholder="Type your role, e.g. Sales Engineer" />
-            </div>
-            <p class="hint">Type it yourself — no dropdown. Example: Owner, Sales, Engineer, Accounts, Viewer.</p>
-          </div>
-
-          <!-- create-account only -->
-          <div class="field row-between" id="fTerms" hidden>
-            <label class="check" for="terms">
-              <input type="checkbox" id="terms" />
-              <span>I understand this is internal company data</span>
-            </label>
-          </div>
-
-          <button class="btn" type="submit" id="submitBtn">
-            <span id="btnText">Sign in</span>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
-          </button>
-        </form>
-
-        <p class="foot-note" id="footNote">
-          Access is issued by KTM admins. <b>Demo preview</b> — real sign-in runs on the dashboard with company accounts.
-        </p>
-      </div>
-    </main>
+  <!-- ================= LIVE BACKGROUND ================= -->
+  <div class="bg" id="bg" aria-hidden="true">
+    <div class="sky"></div>
+    <div class="grid"></div>
+    <div class="stars" id="stars"></div>
+    <div class="sun" data-depth="14"></div>
+    <div class="rays" data-depth="26"></div>
+    <div class="wires">
+      <span class="w"></span><span class="w"></span><span class="w"></span>
+    </div>
+    <div class="sparks">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+    <div class="farm" data-depth="10">
+      <div class="farm-grid" id="farm"></div>
+    </div>
+    <div class="veil"></div>
   </div>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <!-- ================= LOGIN ================= -->
+  <div class="wrap">
+    <div class="card">
+      <div class="logo">
+        <img src="assets/images/ktm-logo-dark.png" alt="KTM Energy Experts" width="152" height="90" />
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Account">
+        <button type="button" role="tab" id="tabIn" aria-selected="true" aria-controls="acctForm">Sign in</button>
+        <button type="button" role="tab" id="tabUp" aria-selected="false" aria-controls="acctForm">Create account</button>
+      </div>
+
+      <div class="err" id="err" role="alert"></div>
+
+      <form id="acctForm" autocomplete="off" novalidate>
+        <div class="field" id="fName" hidden>
+          <label for="name">Full name</label>
+          <div class="iw">
+            <span class="ico">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.2-3.6 4-5.4 7.5-5.4S18.3 16.4 19.5 20"/></svg>
+            </span>
+            <input id="name" type="text" placeholder="Your full name" autocomplete="name" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="email">Work email</label>
+          <div class="iw">
+            <span class="ico">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/></svg>
+            </span>
+            <input id="email" type="email" placeholder="you@ktmenergy.in" autocomplete="username" required />
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-row">
+            <label for="password">Password</label>
+            <button type="button" class="link-btn" id="forgot">Forgot?</button>
+          </div>
+          <div class="iw">
+            <span class="ico">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V7a4 4 0 018 0v3.5"/></svg>
+            </span>
+            <input id="password" type="password" placeholder="At least 8 characters" autocomplete="current-password" required />
+            <button type="button" class="peek" id="peek" aria-label="Show password">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
+            </button>
+          </div>
+          <div class="charge" id="charge"><i id="chargeBar"></i></div>
+          <div class="charge-label" id="chargeLabel">Password strength</div>
+        </div>
+
+        <div class="field" id="fRole" hidden>
+          <label for="role">Your role</label>
+          <div class="iw">
+            <span class="ico">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 9.4l5.9-.9z"/></svg>
+            </span>
+            <input id="role" type="text" placeholder="Type your role, e.g. Sales Engineer" />
+          </div>
+          <p class="hint">Type it yourself — no dropdown.</p>
+        </div>
+
+        <div class="field" id="fTerms" hidden>
+          <label class="check" for="terms">
+            <input type="checkbox" id="terms" />
+            <span>This is internal company data</span>
+          </label>
+        </div>
+
+        <button class="btn" type="submit" id="submitBtn">
+          <span id="btnText">Sign in</span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <p class="tag">Preview only · <a href="dashboard.html">real dashboard →</a></p>
 
   <script>
     (function () {
       'use strict';
+
+      /* ---- build stars ---- */
+      var stars = document.getElementById('stars');
+      for (var i = 0; i < 46; i++) {
+        var s = document.createElement('i');
+        s.style.left = (Math.random() * 100).toFixed(2) + '%';
+        s.style.top = (Math.random() * 62).toFixed(2) + '%';
+        s.style.animationDelay = (Math.random() * 4).toFixed(2) + 's';
+        s.style.animationDuration = (3 + Math.random() * 3).toFixed(2) + 's';
+        if (Math.random() > .7) { s.style.width = s.style.height = '3px'; }
+        stars.appendChild(s);
+      }
+
+      /* ---- build solar farm cells ---- */
+      var farm = document.getElementById('farm');
+      var rows = window.innerWidth < 700 ? 6 : 8;
+      for (var r = 0; r < rows * 11; r++) {
+        farm.appendChild(document.createElement('span'));
+      }
+
+      /* ---- parallax depth on pointer move ---- */
+      var bg = document.getElementById('bg');
+      var layers = bg.querySelectorAll('[data-depth]');
+      var raf = null, tx = 0, ty = 0;
+      function apply() {
+        raf = null;
+        for (var k = 0; k < layers.length; k++) {
+          var d = parseFloat(layers[k].getAttribute('data-depth')) || 0;
+          layers[k].style.transform = 'translate3d(' + (tx * d) + 'px,' + (ty * d) + 'px,0)';
+        }
+      }
+      window.addEventListener('mousemove', function (e) {
+        tx = (e.clientX / window.innerWidth - .5) * 2;
+        ty = (e.clientY / window.innerHeight - .5) * 2;
+        if (!raf) raf = requestAnimationFrame(apply);
+      }, { passive: true });
+
+      /* ---- account form ---- */
       var tabIn = document.getElementById('tabIn');
       var tabUp = document.getElementById('tabUp');
       var form = document.getElementById('acctForm');
-      var headTitle = document.getElementById('headTitle');
-      var headSub = document.getElementById('headSub');
-      var btnText = document.getElementById('btnText');
       var btn = document.getElementById('submitBtn');
+      var btnText = document.getElementById('btnText');
       var err = document.getElementById('err');
-      var footNote = document.getElementById('footNote');
       var email = document.getElementById('email');
       var password = document.getElementById('password');
       var nameF = document.getElementById('name');
@@ -523,21 +505,12 @@
       var charge = document.getElementById('charge');
       var chargeBar = document.getElementById('chargeBar');
       var chargeLabel = document.getElementById('chargeLabel');
-      var toast = document.getElementById('toast');
       var mode = 'signin';
 
-      document.getElementById('yr').textContent = String(new Date().getFullYear());
-
-      function say(msg) {
-        toast.textContent = msg;
-        toast.classList.add('on');
-        clearTimeout(say._t);
-        say._t = setTimeout(function () { toast.classList.remove('on'); }, 2600);
-      }
-
-      function fail(msg) {
+      function fail(msg, el) {
         err.textContent = msg;
         err.classList.add('on');
+        if (el) el.focus();
       }
       function clearErr() { err.textContent = ''; err.classList.remove('on'); }
 
@@ -549,18 +522,10 @@
         fName.hidden = !isUp;
         fRole.hidden = !isUp;
         fTerms.hidden = !isUp;
-        headTitle.textContent = isUp ? 'Create your account' : 'Sign in to Quotation Studio';
-        headSub.textContent = isUp
-          ? 'One account per staff member. Type your role — it decides what you can edit.'
-          : 'Use your KTM work account to continue.';
         btnText.textContent = isUp ? 'Create account' : 'Sign in';
         password.setAttribute('autocomplete', isUp ? 'new-password' : 'current-password');
-        footNote.innerHTML = isUp
-          ? 'Owner / Sales / Viewer are built-in roles. Any other title becomes a custom role. <b>Demo preview</b> — no account is created here.'
-          : 'Access is issued by KTM admins. <b>Demo preview</b> — real sign-in runs on the dashboard with company accounts.';
         clearErr();
       }
-
       tabIn.addEventListener('click', function () { setMode('signin'); });
       tabUp.addEventListener('click', function () { setMode('signup'); });
 
@@ -571,7 +536,7 @@
       });
 
       document.getElementById('forgot').addEventListener('click', function () {
-        say('Password reset is handled by your KTM admin.');
+        fail('Password reset is handled by your KTM admin.');
       });
 
       function score(v) {
@@ -583,12 +548,10 @@
         if (/[^A-Za-z0-9]/.test(v)) n++;
         return n;
       }
-      var LABELS = ['Password strength · 8+ characters recommended', 'Weak · add numbers or symbols', 'Fair · make it longer', 'Good · almost there', 'Strong · good to go', 'Strong · good to go'];
-
+      var LABELS = ['Password strength', 'Weak', 'Fair', 'Good', 'Strong', 'Strong'];
       password.addEventListener('input', function () {
         var v = password.value;
-        var pct = Math.min(100, Math.round((v.length / 12) * 100));
-        chargeBar.style.width = pct + '%';
+        chargeBar.style.width = Math.min(100, Math.round((v.length / 12) * 100)) + '%';
         charge.classList.toggle('strong', score(v) >= 4);
         chargeLabel.textContent = v ? LABELS[score(v)] : LABELS[0];
       });
@@ -596,28 +559,26 @@
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         clearErr();
-
+        var isUp = mode === 'signup';
         var em = email.value.trim();
         var pw = password.value;
-        var isUp = mode === 'signup';
 
-        if (!em) return fail('Please enter your work email.'), email.focus();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return fail('That email address does not look right.'), email.focus();
-        if (pw.length < 8) return fail('Password must be at least 8 characters.'), password.focus();
+        if (!em) return fail('Enter your work email.', email);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return fail('That email does not look right.', email);
+        if (pw.length < 8) return fail('Password must be at least 8 characters.', password);
         if (isUp) {
-          if (!nameF.value.trim()) return fail('Please enter your full name.'), nameF.focus();
-          if (!roleF.value.trim()) return fail('Please type your role — it decides your access level.'), roleF.focus();
-          if (!terms.checked) return fail('Please confirm you understand this holds internal company data.');
+          if (!nameF.value.trim()) return fail('Enter your full name.', nameF);
+          if (!roleF.value.trim()) return fail('Type your role — it decides your access.', roleF);
+          if (!terms.checked) return fail('Confirm that this is internal company data.');
         }
 
         btn.disabled = true;
-        btnText.textContent = isUp ? 'Creating account…' : 'Signing in…';
-
+        btnText.textContent = isUp ? 'Creating…' : 'Signing in…';
         setTimeout(function () {
           btn.disabled = false;
           btnText.textContent = isUp ? 'Create account' : 'Sign in';
-          say(isUp
-            ? 'Preview only — no account created. Wire this to PlatformAPI next.'
+          fail(isUp
+            ? 'Preview only — no account created yet. Next: wire to PlatformAPI.'
             : 'Preview only — real sign-in lives on dashboard.html.');
         }, 900);
       });
