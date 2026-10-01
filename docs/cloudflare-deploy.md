@@ -339,6 +339,7 @@ Wait until it prints a success URL. Then hard-refresh:
 | Static 404 | Deploy from `platform/cloudflare` so assets `directory = "../.."` is repo root |
 | Wrong CF account | `npx wrangler whoami` then `npx wrangler logout` / `login` |
 | Accidentally opened solar-epc-relay | Close it — deploy only `quotation-studio` |
+| `table users has no column named role_custom` | Old DB predates the column — empty pre-launch DB only: `npm run db:reset-schema` (drops + rebuilds all tables) |
 
 ---
 

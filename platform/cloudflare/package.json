@@ -8,6 +8,7 @@
     "deploy": "npm run sync && wrangler deploy",
     "db:create": "wrangler d1 create quotation-studio-db",
     "db:schema": "wrangler d1 execute quotation-studio-db --remote --file=../schema.sql",
+    "db:reset-schema": "wrangler d1 execute quotation-studio-db --remote --file=../migrations/001-drop-all.sql && wrangler d1 execute quotation-studio-db --remote --file=../schema.sql",
     "db:schema:local": "wrangler d1 execute quotation-studio-db --local --file=../schema.sql",
     "tail": "wrangler tail"
   },
