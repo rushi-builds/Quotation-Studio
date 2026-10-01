@@ -202,3 +202,17 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);
 
 -- Later: R2 file objects for server-held PDFs
+
+CREATE TABLE IF NOT EXISTS gallery (
+  id            TEXT PRIMARY KEY,
+  r2_key        TEXT NOT NULL DEFAULT '',
+  file_name     TEXT NOT NULL DEFAULT '',
+  mime          TEXT NOT NULL DEFAULT '',
+  caption       TEXT NOT NULL DEFAULT '',
+  category      TEXT NOT NULL DEFAULT 'site',
+  size          INTEGER NOT NULL DEFAULT 0,
+  created_by    TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_gallery_created ON gallery(created_at);

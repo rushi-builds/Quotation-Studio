@@ -530,6 +530,39 @@ function bindingNames(env) {
   catch (_) { return []; }
 }
 
+/* Staff gallery: photo bytes in R2, metadata in D1. Public page stays repo-curated. */
+const GALLERY_MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
+const GALLERY_CAT = new Set(['site', 'industrial', 'commercial', 'residential']);
+function getGalleryBucket(env) {
+  if (env && env.GALLERY && typeof env.GALLERY.put === 'function') return env.GALLERY;
+  if (!env || typeof env !== 'object') return null;
+  for (const key of Object.keys(env)) {
+    const v = env[key];
+    if (v && typeof v.put === 'function' && typeof v.get === 'function' &&
+        typeof v.delete === 'function' && typeof v.prepare !== 'function') return v;
+  }
+  return null;
+}
+function safeGalleryName(name) {
+  const base = String(name || 'photo.jpg').split('/').pop().replace(/[^a-zA-Z0-9._-]/g, '_');
+  const dot = base.lastIndexOf('.');
+  const ext = dot >= 0 ? base.slice(dot).toLowerCase() : '';
+  const type = GALLERY_MIME[ext];
+  if (!type) return null;
+  const stem = (dot >= 0 ? base.slice(0, dot) : base).slice(0, 60) || 'photo';
+  return { name: stem + ext, type };
+}
+function publicGallery(g) {
+  return {
+    id: g.id,
+    url: '/api/gallery/file/' + encodeURIComponent(g.id),
+    caption: g.caption || '',
+    category: g.category || 'site',
+    size: g.size || 0,
+    created_at: g.created_at
+  };
+}
+
 /* ---------- API ---------- */
 async function handleApi(request, env, url) {
   const db = getDb(env);
@@ -818,6 +851,68 @@ async function handleApi(request, env, url) {
     if (!user) return json({ error: 'Sign in required' }, 401);
     const canWrite = requireRole(user, 'sales');
     const canAdmin = requireRole(user, 'owner');
+
+    /* PROJECT GALLERY (staff uploads; writes need sales+) */
+    if (parts[0] === 'gallery' && parts.length === 1 && method === 'GET') {
+      const rows = await all(db, 'SELECT * FROM gallery ORDER BY created_at DESC');
+      return json({ gallery: rows.map(publicGallery) });
+    }
+    if (parts[0] === 'gallery' && parts.length === 1 && method === 'POST') {
+      if (!canWrite) return json({ error: 'Your role can view data but cannot upload photos.' }, 403);
+      const bucket = getGalleryBucket(env);
+      if (!bucket) {
+        return json({
+          error: 'Photo storage (R2) is not bound. Create the bucket and redeploy.',
+          hint: 'Run: npx wrangler r2 bucket create quotation-studio-gallery — then: npm run deploy',
+          bindingNames: bindingNames(env)
+        }, 500);
+      }
+      const safe = safeGalleryName(request.headers.get('X-Filename'));
+      if (!safe) return json({ error: 'Allowed types: png, jpg, webp (max 8 MB).' }, 400);
+      const buf = await request.arrayBuffer();
+      if (!buf || !buf.byteLength) return json({ error: 'Empty file.' }, 400);
+      if (buf.byteLength > 8 * 1024 * 1024) return json({ error: 'File is over 8 MB.' }, 413);
+      let caption = '';
+      try { caption = decodeURIComponent(request.headers.get('X-Caption') || ''); }
+      catch (_) { caption = request.headers.get('X-Caption') || ''; }
+      caption = caption.slice(0, 140);
+      const cat = String(request.headers.get('X-Category') || 'site').toLowerCase();
+      const category = GALLERY_CAT.has(cat) ? cat : 'site';
+      const id = uid('gal');
+      const key = 'gal/' + id + '/' + safe.name;
+      await bucket.put(key, buf, { httpMetadata: { contentType: safe.type } });
+      const now = nowISO();
+      await run(
+        db,
+        'INSERT INTO gallery (id, r2_key, file_name, mime, caption, category, size, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        id, key, safe.name, safe.type, caption, category, buf.byteLength, user.id, now
+      );
+      return json({ gallery: publicGallery({ id, caption, category, size: buf.byteLength, created_at: now }) }, 201);
+    }
+    if (parts[0] === 'gallery' && parts[1] === 'file' && parts[2] && method === 'GET') {
+      const row = await one(db, 'SELECT * FROM gallery WHERE id = ?', parts[2]);
+      if (!row) return json({ error: 'Photo not found.' }, 404);
+      const bucket = getGalleryBucket(env);
+      if (!bucket) return json({ error: 'Photo storage (R2) is not bound.' }, 500);
+      const obj = await bucket.get(row.r2_key);
+      if (!obj) return json({ error: 'Photo bytes missing.' }, 404);
+      return new Response(obj.body, {
+        headers: {
+          'Content-Type': row.mime || 'application/octet-stream',
+          'Cache-Control': 'private, max-age=3600',
+          'X-Content-Type-Options': 'nosniff'
+        }
+      });
+    }
+    if (parts[0] === 'gallery' && parts[1] && parts.length === 2 && method === 'DELETE') {
+      if (!canWrite) return json({ error: 'Your role can view data but cannot delete photos.' }, 403);
+      const row = await one(db, 'SELECT * FROM gallery WHERE id = ?', parts[1]);
+      if (!row) return json({ error: 'Photo not found.' }, 404);
+      const bucket = getGalleryBucket(env);
+      if (bucket && row.r2_key) { try { await bucket.delete(row.r2_key); } catch (_) {} }
+      await run(db, 'DELETE FROM gallery WHERE id = ?', parts[1]);
+      return json({ ok: true });
+    }
 
     if (parts[0] === 'dashboard' && parts[1] === 'summary' && method === 'GET') {
       const mine = await all(db, 'SELECT * FROM proposals WHERE owner_id = ?', user.id);

@@ -28,3 +28,7 @@ database_id = "78f2b390-8468-4250-b8fd-c7ec119b56b8"
 
 [vars]
 APP_NAME = "Quotation Studio"
+
+[[r2_buckets]]
+binding = "GALLERY"
+bucket_name = "quotation-studio-gallery"
