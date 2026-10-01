@@ -1135,17 +1135,59 @@
     }
   }
 
+  /* Shrink photos in the browser (max ~1400px, JPEG, under ~900 KB) so the
+     free database tier holds thousands of them and pages stay fast. */
+  function compressPhoto(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAXDIM = 1400;
+        let w = img.naturalWidth, hgt = img.naturalHeight;
+        if (!w || !hgt) { reject(new Error('Could not read that image.')); return; }
+        const scale = Math.min(1, MAXDIM / Math.max(w, hgt));
+        w = Math.max(1, Math.round(w * scale));
+        hgt = Math.max(1, Math.round(hgt * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = hgt;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Image tools unavailable in this browser.')); return; }
+        ctx.drawImage(img, 0, 0, w, hgt);
+        const attempt = (q, last) => canvas.toBlob((b) => {
+          if (!b) { reject(new Error('Could not process that image.')); return; }
+          if (b.size <= 900 * 1024 || last) {
+            if (b.size > 900 * 1024) {
+              reject(new Error('Photo is too large even compressed (kept under ~900 KB so storage stays free forever).'));
+              return;
+            }
+            resolve(b);
+            return;
+          }
+          attempt(0.7, true);
+        }, 'image/jpeg', q);
+        attempt(0.85, false);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image file.')); };
+      img.src = url;
+    });
+  }
+
   async function uploadGalleryPhoto() {
     const fileInput = $('galleryFile');
     const msg = $('galleryMsg');
     const file = fileInput && fileInput.files && fileInput.files[0];
     if (msg) msg.textContent = '';
     if (!file) { if (msg) msg.textContent = 'Choose a photo file first.'; return; }
-    if (file.size > 8 * 1024 * 1024) { if (msg) msg.textContent = 'File is over 8 MB.'; return; }
+    if (file.size > 20 * 1024 * 1024) { if (msg) msg.textContent = 'File is over 20 MB.'; return; }
     const btn = $('btnGalleryUpload');
     if (btn) btn.disabled = true;
+    if (msg) msg.textContent = 'Optimizing photo…';
     try {
-      await api.uploadGallery(file, {
+      const small = await compressPhoto(file);
+      const up = new File([small], (file.name || 'photo').replace(/\.[a-z0-9]+$/i, '') + '.jpg', { type: 'image/jpeg' });
+      await api.uploadGallery(up, {
         caption: ($('galleryCaption') && $('galleryCaption').value || '').trim(),
         category: ($('galleryCategory') && $('galleryCategory').value) || 'site'
       });

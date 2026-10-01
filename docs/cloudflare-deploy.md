@@ -355,3 +355,10 @@ Wait until it prints a success URL. Then hard-refresh:
 This environment **cannot** run `wrangler login` against your personal account.  
 You run steps 0–5 on your laptop (or any machine where you can log into Cloudflare).  
 After deploy, paste the `workers.dev` URL in chat if you want help testing.
+
+## Gallery photos live in D1 (no R2, no card)
+
+Site-photo uploads are auto-compressed in the browser (max ~1400px, under ~900 KB)
+and stored as values in the free D1 database — no R2 subscription and no payment
+method needed, ever. The local server keeps full files on disk instead. Same
+dashboard UI works on both. D1 free tier (5 GB) holds thousands of site photos.

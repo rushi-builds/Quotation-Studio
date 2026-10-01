@@ -205,7 +205,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_at);
 
 CREATE TABLE IF NOT EXISTS gallery (
   id            TEXT PRIMARY KEY,
-  r2_key        TEXT NOT NULL DEFAULT '',
+  store_key        TEXT NOT NULL DEFAULT '',
   file_name     TEXT NOT NULL DEFAULT '',
   mime          TEXT NOT NULL DEFAULT '',
   caption       TEXT NOT NULL DEFAULT '',
@@ -216,3 +216,8 @@ CREATE TABLE IF NOT EXISTS gallery (
 );
 
 CREATE INDEX IF NOT EXISTS idx_gallery_created ON gallery(created_at);
+
+CREATE TABLE IF NOT EXISTS gallery_blobs (
+  id            TEXT PRIMARY KEY REFERENCES gallery(id) ON DELETE CASCADE,
+  data          BLOB NOT NULL
+);

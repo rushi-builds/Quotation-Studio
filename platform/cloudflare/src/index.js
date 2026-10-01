@@ -532,19 +532,12 @@ function bindingNames(env) {
   catch (_) { return []; }
 }
 
-/* Staff gallery: photo bytes in R2, metadata in D1. Public page stays repo-curated. */
+/* Staff gallery: photo bytes as D1 BLOBs (free tier forever — no R2, no card).
+   Browser auto-compresses uploads under ~900 KB so rows stay small.
+   Public page stays repo-curated. */
 const GALLERY_MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
 const GALLERY_CAT = new Set(['site', 'industrial', 'commercial', 'residential']);
-function getGalleryBucket(env) {
-  if (env && env.GALLERY && typeof env.GALLERY.put === 'function') return env.GALLERY;
-  if (!env || typeof env !== 'object') return null;
-  for (const key of Object.keys(env)) {
-    const v = env[key];
-    if (v && typeof v.put === 'function' && typeof v.get === 'function' &&
-        typeof v.delete === 'function' && typeof v.prepare !== 'function') return v;
-  }
-  return null;
-}
+const GALLERY_MAX_BYTES = 900 * 1024;
 function safeGalleryName(name) {
   const base = String(name || 'photo.jpg').split('/').pop().replace(/[^a-zA-Z0-9._-]/g, '_');
   const dot = base.lastIndexOf('.');
@@ -861,19 +854,13 @@ async function handleApi(request, env, url) {
     }
     if (parts[0] === 'gallery' && parts.length === 1 && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot upload photos.' }, 403);
-      const bucket = getGalleryBucket(env);
-      if (!bucket) {
-        return json({
-          error: 'Photo storage (R2) is not bound. Create the bucket and redeploy.',
-          hint: 'Run: npx wrangler r2 bucket create quotation-studio-gallery — then: npm run deploy',
-          bindingNames: bindingNames(env)
-        }, 500);
-      }
       const safe = safeGalleryName(request.headers.get('X-Filename'));
-      if (!safe) return json({ error: 'Allowed types: png, jpg, webp (max 8 MB).' }, 400);
+      if (!safe) return json({ error: 'Allowed types: png, jpg, webp.' }, 400);
       const buf = await request.arrayBuffer();
       if (!buf || !buf.byteLength) return json({ error: 'Empty file.' }, 400);
-      if (buf.byteLength > 8 * 1024 * 1024) return json({ error: 'File is over 8 MB.' }, 413);
+      if (buf.byteLength > GALLERY_MAX_BYTES) {
+        return json({ error: 'Photo must stay under ~900 KB so storage stays on the free tier forever.' }, 413);
+      }
       let caption = '';
       try { caption = decodeURIComponent(request.headers.get('X-Caption') || ''); }
       catch (_) { caption = request.headers.get('X-Caption') || ''; }
@@ -881,24 +868,23 @@ async function handleApi(request, env, url) {
       const cat = String(request.headers.get('X-Category') || 'site').toLowerCase();
       const category = GALLERY_CAT.has(cat) ? cat : 'site';
       const id = uid('gal');
-      const key = 'gal/' + id + '/' + safe.name;
-      await bucket.put(key, buf, { httpMetadata: { contentType: safe.type } });
       const now = nowISO();
       await run(
         db,
-        'INSERT INTO gallery (id, r2_key, file_name, mime, caption, category, size, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        id, key, safe.name, safe.type, caption, category, buf.byteLength, user.id, now
+        'INSERT INTO gallery (id, store_key, file_name, mime, caption, category, size, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        id, '', safe.name, safe.type, caption, category, buf.byteLength, user.id, now
       );
+      await run(db, 'INSERT INTO gallery_blobs (id, data) VALUES (?, ?)', id, buf);
       return json({ gallery: publicGallery({ id, caption, category, size: buf.byteLength, created_at: now }) }, 201);
     }
     if (parts[0] === 'gallery' && parts[1] === 'file' && parts[2] && method === 'GET') {
-      const row = await one(db, 'SELECT * FROM gallery WHERE id = ?', parts[2]);
-      if (!row) return json({ error: 'Photo not found.' }, 404);
-      const bucket = getGalleryBucket(env);
-      if (!bucket) return json({ error: 'Photo storage (R2) is not bound.' }, 500);
-      const obj = await bucket.get(row.r2_key);
-      if (!obj) return json({ error: 'Photo bytes missing.' }, 404);
-      return new Response(obj.body, {
+      const row = await one(
+        db,
+        'SELECT g.mime AS mime, b.data AS data FROM gallery g JOIN gallery_blobs b ON b.id = g.id WHERE g.id = ?',
+        parts[2]
+      );
+      if (!row || !row.data) return json({ error: 'Photo not found.' }, 404);
+      return new Response(row.data, {
         headers: {
           'Content-Type': row.mime || 'application/octet-stream',
           'Cache-Control': 'private, max-age=3600',
@@ -908,10 +894,9 @@ async function handleApi(request, env, url) {
     }
     if (parts[0] === 'gallery' && parts[1] && parts.length === 2 && method === 'DELETE') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot delete photos.' }, 403);
-      const row = await one(db, 'SELECT * FROM gallery WHERE id = ?', parts[1]);
+      const row = await one(db, 'SELECT id FROM gallery WHERE id = ?', parts[1]);
       if (!row) return json({ error: 'Photo not found.' }, 404);
-      const bucket = getGalleryBucket(env);
-      if (bucket && row.r2_key) { try { await bucket.delete(row.r2_key); } catch (_) {} }
+      await run(db, 'DELETE FROM gallery_blobs WHERE id = ?', parts[1]);
       await run(db, 'DELETE FROM gallery WHERE id = ?', parts[1]);
       return json({ ok: true });
     }
