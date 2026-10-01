@@ -5,287 +5,165 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <title>Sign in | KTM Quotation Studio</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{
-  --night:#080b12; --deep:#0e1422; --amber:#f5a12a; --ember:#e8661c;
-  --text:#f4efe7; --muted:#9aa3b4; --line:rgba(255,255,255,.11); --err:#ff7a6b;
-  --head:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
-  --body:"DM Sans","Segoe UI",system-ui,sans-serif;
-}
+:root{--sw:max(100vw,177.68vh);--bg:url("assets/images/login-bg.jpg");--or:#f9a02c;--f:"Inter","Segoe UI",system-ui,sans-serif}
 *{box-sizing:border-box;margin:0}
-html,body{height:100%}
-body{font-family:var(--body);color:var(--text);background:var(--night);overflow-x:hidden;-webkit-font-smoothing:antialiased}
-
-/* ---------- live background ---------- */
-.bg{position:fixed;inset:0;overflow:hidden;z-index:0;
-  background:radial-gradient(120% 90% at 20% 110%,#2a1507 0%,transparent 55%),
-             linear-gradient(180deg,var(--night) 0%,var(--deep) 100%)}
-.sun{position:absolute;width:75vmax;height:75vmax;left:-24vmax;bottom:-44vmax;border-radius:50%;
-  background:radial-gradient(circle,rgba(255,176,70,.6) 0%,rgba(232,102,28,.28) 38%,transparent 68%);
-  animation:breathe 10s ease-in-out infinite}
-.floor{position:absolute;left:-30%;right:-30%;bottom:-8%;height:60%;
-  transform:perspective(620px) rotateX(60deg);transform-origin:50% 100%;
-  background:
-    linear-gradient(rgba(245,161,42,.26) 1px,transparent 1px) 0 0/100% 76px,
-    linear-gradient(90deg,rgba(245,161,42,.2) 1px,transparent 1px) 0 0/116px 100%,
-    linear-gradient(180deg,rgba(38,60,118,.05),rgba(32,52,104,.5));
-  -webkit-mask-image:linear-gradient(to top,#000 25%,transparent 96%);
-  mask-image:linear-gradient(to top,#000 25%,transparent 96%);
-  animation:flow 14s linear infinite}
-.floor::after{content:"";position:absolute;inset:0;
-  background:linear-gradient(105deg,transparent 42%,rgba(255,218,160,.3) 50%,transparent 58%) 120% 0/260% 100% no-repeat;
-  animation:glint 9s ease-in-out infinite}
-#sparks{position:absolute;inset:0;width:100%;height:100%;display:block}
-@keyframes breathe{50%{transform:scale(1.08);opacity:.82}}
-@keyframes flow{to{background-position:0 76px,0 0,0 0}}
-@keyframes glint{to{background-position:-30% 0}}
-
-/* ---------- layout ---------- */
-.page{position:relative;z-index:1;min-height:100dvh;display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,80px);
-  align-items:center;max-width:1200px;margin:0 auto;padding:clamp(24px,5vw,56px)}
-.brand img{height:88px;width:auto;display:block;margin-bottom:36px}
-.brand h1{font-family:var(--head);font-weight:700;font-size:clamp(34px,4.6vw,58px);line-height:1.04;letter-spacing:-.02em;max-width:13ch}
-.brand p{margin-top:20px;color:var(--muted);font-size:17px;line-height:1.6;max-width:44ch}
-.brand ul{list-style:none;padding:0;margin-top:30px;display:grid;gap:12px;color:#d8d3c9;font-size:15px}
-.brand li{display:flex;gap:12px;align-items:center}
-.brand li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 12px var(--amber);flex:none}
-
-/* ---------- card ---------- */
-.card{width:100%;max-width:440px;justify-self:end;padding:30px;border-radius:20px;
-  background:rgba(16,21,34,.62);border:1px solid var(--line);
-  -webkit-backdrop-filter:blur(20px) saturate(140%);backdrop-filter:blur(20px) saturate(140%);
-  box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.07);
-  animation:rise .8s cubic-bezier(.2,.7,.2,1) both}
-@keyframes rise{from{opacity:0;transform:translateY(18px)}}
-.tabs{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:12px;background:rgba(255,255,255,.06);margin-bottom:26px}
-.tabs button{position:relative;z-index:1;background:none;border:0;color:var(--muted);font:600 14px var(--body);padding:11px 0;cursor:pointer;transition:color .25s;border-radius:9px}
-.tabs button[aria-selected=t]{color:#1c1002}
-.ind{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:9px;
-  background:linear-gradient(135deg,var(--amber),var(--ember));transition:transform .35s cubic-bezier(.3,.8,.3,1)}
-.tabs[data-mode=up] .ind{transform:translateX(100%)}
-h2{font-family:var(--head);font-size:26px;font-weight:700;letter-spacing:-.01em}
-.sub{color:var(--muted);font-size:14.5px;margin:6px 0 22px}
-form{display:grid;gap:16px;animation:fade .35s ease both}
-form[hidden]{display:none}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}}
-.field label{display:block;font-size:13.5px;font-weight:500;color:#cfd3dc;margin-bottom:7px}
-.input{position:relative}
-.input input{width:100%;height:48px;padding:0 14px;border-radius:11px;border:1px solid var(--line);
-  background:rgba(8,11,18,.55);color:var(--text);font:400 15px var(--body);transition:border-color .2s,box-shadow .2s}
-.input input::placeholder{color:#5f6879}
-.input input:hover{border-color:rgba(255,255,255,.2)}
-.input input:focus{outline:0;border-color:var(--amber);box-shadow:0 0 0 3px rgba(245,161,42,.2)}
-.input input[aria-invalid=true]{border-color:var(--err)}
-.eye{position:absolute;right:6px;top:6px;height:36px;padding:0 10px;border:0;background:none;color:var(--muted);font:500 13px var(--body);cursor:pointer;border-radius:8px}
-.eye:hover{color:var(--text)}
-.err{color:var(--err);font-size:12.5px;margin-top:6px;min-height:0}
-.row{display:flex;justify-content:space-between;align-items:center;font-size:13.5px}
-.check{display:flex;gap:9px;align-items:center;color:#cfd3dc;cursor:pointer}
-.check input{accent-color:var(--amber);width:16px;height:16px}
-a{color:var(--amber);text-decoration:none}
-a:hover{text-decoration:underline}
-.btn{height:50px;border:0;border-radius:12px;cursor:pointer;font:600 15.5px var(--body);color:#1c1002;margin-top:4px;
-  background:linear-gradient(135deg,var(--amber),var(--ember));box-shadow:0 10px 28px rgba(232,102,28,.35);
-  transition:transform .2s,box-shadow .2s,filter .2s}
-.btn:hover{transform:translateY(-1px);box-shadow:0 14px 34px rgba(232,102,28,.45);filter:brightness(1.05)}
-.btn:active{transform:none}
-.btn[disabled]{opacity:.7;cursor:progress}
-.status{font-size:13.5px;text-align:center;min-height:18px;color:var(--amber)}
-.status.bad{color:var(--err)}
-.foot{margin-top:18px;text-align:center;font-size:12.5px;color:#6f788a}
-:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-
-@media (max-width:900px){
-  .page{grid-template-columns:1fr;align-content:start;gap:28px}
-  .brand img{height:64px;margin-bottom:22px}
-  .brand ul{display:none}
-  .card{justify-self:center}
-}
-@media (prefers-reduced-motion:reduce){
-  .sun,.floor,.floor::after,.card,form{animation:none}
-}
+html,body{height:100%;overflow:hidden;background:#0b0f18 var(--bg) center/cover no-repeat;font-family:var(--f);color:#fff}
+body::before{content:"";position:fixed;inset:0;background:inherit;filter:blur(28px) brightness(.7);transform:scale(1.1)}
+.stage{position:absolute;left:calc(50% - var(--sw)/2);top:calc(50% - var(--sw)*.2814);width:var(--sw);aspect-ratio:1672/941;container-type:inline-size;
+  background:var(--bg) 0 0/100% 100% no-repeat}
+@media(max-width:600px){.stage{width:300vw;left:-185.8vw;top:calc(50% - 84.4vw)}}
+.ov{position:absolute;inset:0;pointer-events:none}
+.ov[hidden]{display:none}
+.ov>*{position:absolute;pointer-events:auto}
+input,button,a{font-family:var(--f)}
+.f{background:transparent;border:0;color:#fff;font-size:max(1.02cqw,16px);padding:0 1cqw 0 3.1cqw;border-radius:.84cqw;caret-color:#fff}
+.f::placeholder{color:#a9afbc;opacity:1}
+.f:focus{outline:0;box-shadow:0 0 0 .18cqw rgba(249,160,44,.75);background:rgba(255,255,255,.04)}
+.f[aria-invalid=true]{box-shadow:0 0 0 .18cqw rgba(255,122,107,.85)}
+.f.pw{padding-right:4.6cqw}
+.hit{background:transparent;border:0;cursor:pointer;border-radius:.7cqw;display:block}
+.hit:hover{background:rgba(255,255,255,.08)}
+.hit:focus-visible,.link:focus-visible{outline:.15cqw solid var(--or);outline-offset:.1cqw}
+.link{background:transparent;border:0;color:transparent;cursor:pointer;display:block;border-radius:.4cqw}
+.link:hover{background:rgba(249,160,44,.12)}
+.eye{display:grid;place-items:center;cursor:pointer;background:transparent;border:0;border-radius:.6cqw}
+.eye svg{width:1.35cqw;height:1.35cqw;fill:#e9e9ee}
+.eye:focus-visible{outline:.15cqw solid var(--or)}
+.cta{border:0;border-radius:999px;cursor:pointer;background:transparent;color:#1b1206;font:700 1.12cqw var(--f);display:grid;place-items:center;transition:background .2s}
+.cta:hover{background:rgba(255,255,255,.1)}
+.cta.busy{background:linear-gradient(180deg,#fdc153,#fcae45);cursor:progress}
+.cta span{opacity:0}.cta.busy span{opacity:1}
+.logo{position:fixed;z-index:5;display:block;width:calc(var(--sw)*.0945);left:calc(50vw - var(--sw)/2 + var(--sw)*.0461);top:max(14px,calc(50vh - var(--sw)/3.5536 + var(--sw)*.0124))}
+.logo img{width:100%;height:auto;display:block}
+@media(max-width:600px){.logo{width:104px;left:16px;top:16px}}
+/* sign-up panel */
+.up{border-radius:1.9cqw;background:rgba(13,17,28,.88) url("assets/images/login-card.jpg") 0 0/100% 100% no-repeat;overflow:hidden;padding:2.3cqw 2.9cqw;display:flex;flex-direction:column;gap:.75cqw;animation:in .35s ease both}
+@keyframes in{from{opacity:0;transform:translateY(.8cqw)}}
+.up h2{font-size:2.15cqw;font-weight:700}
+.up .sub{color:#c3c8d4;font-size:1.05cqw;margin:-.4cqw 0 .2cqw}
+.up label{font-size:.95cqw;font-weight:500;display:block;margin-bottom:.45cqw}
+.up .f{width:100%;height:2.95cqw;padding-left:1.2cqw;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07)}
+.up .f:focus{border-color:var(--or)}
+.up .pwrap{position:relative}.up .pwrap .eye{position:absolute;right:.4cqw;top:50%;transform:translateY(-50%);width:2.4cqw;height:2.4cqw}
+.up .cta2{height:3.1cqw;border:0;border-radius:999px;cursor:pointer;background:linear-gradient(180deg,#fdc153,#fcae45);color:#1b1206;font:700 1.12cqw var(--f);margin-top:.5cqw;transition:filter .2s}
+.up .cta2:hover{filter:brightness(1.06)}.up .cta2[disabled]{opacity:.75;cursor:progress}
+.up .sw{text-align:center;font-size:1cqw;margin-top:.2cqw}
+.up .sw a{color:var(--or);font-weight:600;margin-left:.4cqw;text-decoration:none;cursor:pointer}
+.e{color:#ff8a7a;font-size:.85cqw;margin-top:.3cqw;min-height:0}
+.toast{position:fixed;left:50%;top:22px;transform:translate(-50%,-20px);opacity:0;pointer-events:none;z-index:9;padding:12px 20px;border-radius:999px;
+  background:rgba(24,24,32,.9);border:1px solid rgba(255,255,255,.2);font:500 14px var(--f);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);transition:.3s;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}.toast.bad{border-color:#ff8a7a;color:#ffb3a8}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* real text (crisp at any size) */
+.hero{position:absolute;left:7.5%;top:35.6%;text-shadow:0 .1cqw .6cqw rgba(0,0,0,.35)}
+.hero .eb{font-size:.86cqw;font-weight:400;letter-spacing:.2em;color:#f2ede6}
+.hero h1{font-size:3.1cqw;line-height:1.14;font-weight:700;margin:.55cqw 0 .9cqw;letter-spacing:-.01em}
+.hero h1 em{font-style:normal;color:#f9a02c}
+.hero .tag{font-size:1.2cqw;color:#fff}
+.up .fg{align-self:flex-end;background:transparent;border:0;color:var(--or);font:500 .95cqw var(--f);cursor:pointer;margin:-.2cqw 0 -.1cqw}
+.up .or{display:flex;align-items:center;gap:1cqw;color:#c3c8d4;font-size:.9cqw}
+.up .or:before,.up .or:after{content:"";flex:1;height:1px;background:rgba(255,255,255,.2)}
+.up .soc{display:grid;grid-template-columns:repeat(3,1fr);gap:.9cqw}
+.up .sb{height:3.2cqw;border-radius:.9cqw;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);cursor:pointer;display:grid;place-items:center}
+.up .sb:hover{background:rgba(255,255,255,.12)}
+.up .sb svg{width:1.5cqw;height:1.5cqw}
+.up .sb:focus-visible,.up .fg:focus-visible,.up .sw a:focus-visible{outline:.15cqw solid var(--or)}
+.up .e{margin-top:.2cqw}
+#f-in .up{justify-content:center;gap:1.05cqw}
 </style>
 </head>
 <body>
-<div class="bg" aria-hidden="true">
-  <div class="sun"></div>
-  <div class="floor"></div>
-  <canvas id="sparks"></canvas>
+<div class="stage">
+ <div class="hero"><p class="eb">BUILD A BRIGHTER TOMORROW</p><h1>Solar Solutions
+for a <em>Cleaner World</em></h1><p class="tag">Design  &bull;  Engineer  &bull;  Quote  &bull;  Deliver</p></div>
+ <form id="f-in" class="ov" data-mode="in" novalidate>
+  <div class="up" style="left:63.457%;top:14.772%;width:30.263%;height:69.501%">
+   <div><h2>Welcome Back</h2></div><p class="sub">Sign in to your account</p>
+   <div><label for="i-e">Email</label><input class="f" id="i-e" name="email" type="email" autocomplete="email" placeholder="Enter your email"><div class="e"></div></div>
+   <div><label for="i-p">Password</label><div class="pwrap"><input class="f" id="i-p" name="password" type="password" autocomplete="current-password" placeholder="Enter your password"><button class="eye" type="button" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M12 6.5c4.2 0 7.4 3 8.700 5.500-.5 1-1.300 2-2.200 2.800l1.400 1.400c1.400-1.300 2.500-2.900 3.100-4.200C21.800 8.800 17.600 4.500 12 4.500c-1.400 0-2.700.3-3.900.8l1.600 1.600c.7-.3 1.500-.4 2.300-.4zM2.100 3.500 3.500 2.100l18.400 18.400-1.400 1.400-3-3c-1.400.6-3 .9-5.500.9C6.400 19.800 2.200 15.200.9 12c.7-1.700 1.900-3.300 3.500-4.600zm5.200 5.200a5 5 0 0 0 6.900 6.900l-1.500-1.500a3 3 0 0 1-3.900-3.900z"/></svg></button></div><div class="e"></div></div>
+   <button class="fg" type="button" data-act="forgot">Forgot password?</button>
+   <button class="cta2" type="submit">Sign In &rarr;</button>
+   <div class="or"><span>or continue with</span></div>
+   <div class="soc"><button class="sb" type="button" data-p="google" aria-label="Continue with Google"><svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.080 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.650-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.860-1.977 13.409-5.192l-6.190-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002 6.190 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.650-.389-3.917z"/></svg></button><button class="sb" type="button" data-p="microsoft" aria-label="Continue with Microsoft"><svg viewBox="0 0 24 24"><path fill="#F25022" d="M3 3h8.500v8.500H3z"/><path fill="#7FBA00" d="M12.500 3H21v8.500h-8.500z"/><path fill="#00A4EF" d="M3 12.500h8.500V21H3z"/><path fill="#FFB900" d="M12.500 12.500H21V21h-8.500z"/></svg></button><button class="sb" type="button" data-p="apple" aria-label="Continue with Apple"><svg viewBox="0 0 24 24"><path fill="#fff" d="M16.400 12.600c0-2.400 2-3.500 2.100-3.600-1.200-1.700-3-1.900-3.600-2-1.500-.2-3 .9-3.800.9s-2-.9-3.300-.9C6.100 7 4.500 8 3.700 9.500c-1.800 3.100-.5 7.700 1.300 10.200.8 1.200 1.800 2.600 3.100 2.500 1.300-.1 1.700-.8 3.200-.8s1.900.8 3.200.8c1.300 0 2.200-1.200 3-2.400.9-1.400 1.300-2.700 1.300-2.800 0 0-2.500-1-2.400-4.400zM14 5.200c.7-.8 1.100-1.900 1-3-1 0-2.100.7-2.800 1.500-.6.700-1.200 1.800-1 2.900 1.100.1 2.100-.6 2.800-1.400z"/></svg></button></div>
+   <p class="sw">Don&rsquo;t have an account?<a data-go="up" tabindex="0" role="button">Create one</a></p>
+  </div>
+ </form>
+
+ <form id="f-up" class="ov" data-mode="up" novalidate hidden>
+  <div class="up" style="left:63.457%;top:14.772%;width:30.263%;height:69.501%">
+   <div><h2>Create Account</h2></div><p class="sub">Set up access to your quotations</p>
+   <div><label for="u-n">Full name</label><input class="f" id="u-n" name="name" autocomplete="name" placeholder="Enter your full name"><div class="e"></div></div>
+   <div><label for="u-e">Work email</label><input class="f" id="u-e" name="email" type="email" autocomplete="email" placeholder="Enter your email"><div class="e"></div></div>
+   <div><label for="u-r">Your Role</label><input class="f" id="u-r" name="role" autocomplete="organization-title" placeholder="Type your Role"><div class="e"></div></div>
+   <div><label for="u-p">Password</label><div class="pwrap"><input class="f" id="u-p" name="password" type="password" autocomplete="new-password" placeholder="At least 8 characters"><button class="eye" type="button" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M12 6.5c4.2 0 7.4 3 8.700 5.500-.5 1-1.300 2-2.200 2.800l1.400 1.400c1.400-1.300 2.500-2.900 3.100-4.200C21.800 8.800 17.600 4.500 12 4.500c-1.400 0-2.700.3-3.900.8l1.600 1.600c.7-.3 1.500-.4 2.300-.4zM2.100 3.500 3.500 2.100l18.400 18.400-1.400 1.400-3-3c-1.400.6-3 .9-5.500.9C6.400 19.800 2.200 15.200.9 12c.7-1.700 1.900-3.300 3.500-4.600zm5.200 5.200a5 5 0 0 0 6.900 6.900l-1.500-1.500a3 3 0 0 1-3.900-3.900z"/></svg></button></div><div class="e"></div></div>
+   <button class="cta2" type="submit">Create Account</button>
+   <p class="sw">Already have an account?<a data-go="in" tabindex="0" role="button">Sign in</a></p>
+  </div>
+ </form>
 </div>
+<a class="logo" href="#" aria-label="KTM Energy Experts"><img src="assets/images/login-logo.png" onerror="this.onerror=null;this.src='assets/images/ktm-logo-dark.png'" alt="KTM Energy Experts"></a>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<main class="page">
-  <section class="brand">
-    <img src="assets/images/ktm-logo-dark.png" alt="KTM Energy Experts">
-    <h1>Solar quotations, ready in minutes.</h1>
-    <p>Enter the site details, review the savings and subsidy numbers, and send your customer a finished proposal PDF.</p>
-    <ul>
-      <li>Automatic cost, GST and subsidy calculation</li>
-      <li>Payback and lifetime savings worked out for you</li>
-      <li>Branded proposal, one click to download</li>
-    </ul>
-  </section>
-
-  <section class="card" aria-label="Account access">
-    <div class="tabs" id="tabs" data-mode="in" role="tablist">
-      <span class="ind"></span>
-      <button role="tab" id="tab-in" aria-selected="true" aria-controls="f-in" type="button">Sign in</button>
-      <button role="tab" id="tab-up" aria-selected="false" aria-controls="f-up" type="button">Create account</button>
-    </div>
-
-    <form id="f-in" data-mode="in" novalidate aria-labelledby="tab-in">
-      <div><h2>Welcome back</h2><p class="sub">Sign in to continue to your quotations.</p></div>
-      <div class="field"><label for="in-email">Email</label>
-        <div class="input"><input id="in-email" name="email" type="email" autocomplete="email" placeholder="you@company.com"></div><div class="err"></div></div>
-      <div class="field"><label for="in-pass">Password</label>
-        <div class="input"><input id="in-pass" name="password" type="password" autocomplete="current-password" placeholder="Enter your password"><button class="eye" type="button" aria-label="Show password">Show</button></div><div class="err"></div></div>
-      <div class="row"><label class="check"><input type="checkbox" name="remember"> Keep me signed in</label><a href="#" id="forgot">Forgot password?</a></div>
-      <button class="btn" type="submit">Sign in</button>
-      <div class="status" role="status" aria-live="polite"></div>
-    </form>
-
-    <form id="f-up" data-mode="up" novalidate hidden aria-labelledby="tab-up">
-      <div><h2>Create your account</h2><p class="sub">Set up access to generate and manage quotations.</p></div>
-      <div class="field"><label for="up-name">Full name</label>
-        <div class="input"><input id="up-name" name="name" type="text" autocomplete="name" placeholder="Your name"></div><div class="err"></div></div>
-      <div class="field"><label for="up-email">Work email</label>
-        <div class="input"><input id="up-email" name="email" type="email" autocomplete="email" placeholder="you@company.com"></div><div class="err"></div></div>
-      <!-- free-text role: type + submit, no dropdown -->
-      <div class="field"><label for="up-role">Your role</label>
-        <div class="input"><input id="up-role" name="role" type="text" autocomplete="off" placeholder="Type your role, e.g. Sales Engineer"></div><div class="err"></div>
-        <p class="err" style="margin-top:6px;color:#6f788a">Type it yourself — no dropdown. Owner, Sales, Engineer, Accounts, Viewer or your own title.</p></div>
-      <div class="field"><label for="up-pass">Password</label>
-        <div class="input"><input id="up-pass" name="password" type="password" autocomplete="new-password" placeholder="At least 8 characters"><button class="eye" type="button" aria-label="Show password">Show</button></div><div class="err"></div></div>
-      <button class="btn" type="submit">Create account</button>
-      <div class="status" role="status" aria-live="polite"></div>
-    </form>
-
-    <p class="foot">KTM Energy Experts &middot; Solar EPC</p>
-  </section>
-</main>
-
+<script src="assets/js/platform-api.js"></script>
 <script>
-/* ---- tabs ---- */
-const tabs=document.getElementById('tabs'),forms={in:document.getElementById('f-in'),up:document.getElementById('f-up')};
-function setMode(m){
-  tabs.dataset.mode=m;
-  document.getElementById('tab-in').setAttribute('aria-selected',m==='in');
-  document.getElementById('tab-up').setAttribute('aria-selected',m==='up');
-  forms.in.hidden=m!=='in';forms.up.hidden=m!=='up';
-}
-document.getElementById('tab-in').onclick=()=>setMode('in');
-document.getElementById('tab-up').onclick=()=>setMode('up');
+const EYE_OFF='<svg viewBox="0 0 24 24"><path d="M12 6.5c4.2 0 7.4 3 8.700 5.500-.5 1-1.300 2-2.200 2.800l1.400 1.400c1.400-1.300 2.500-2.900 3.100-4.200C21.800 8.800 17.600 4.500 12 4.500c-1.400 0-2.700.3-3.900.8l1.600 1.600c.7-.3 1.500-.4 2.300-.4zM2.100 3.500 3.500 2.100l18.400 18.400-1.400 1.400-3-3c-1.400.6-3 .9-5.500.9C6.400 19.800 2.200 15.200.9 12c.7-1.700 1.900-3.300 3.500-4.600zm5.200 5.200a5 5 0 0 0 6.900 6.900l-1.500-1.500a3 3 0 0 1-3.900-3.900z"/></svg>',EYE_ON='<svg viewBox="0 0 24 24"><path d="M12 5C6.500 5 2.700 9 1.500 12c1.200 3 5 7 10.500 7s9.300-4 10.500-7C21.300 9 17.500 5 12 5zm0 11.500a4.500 4.500 0 1 1 0-9 4.500 4.500 0 0 1 0 9zm0-7a2.500 2.500 0 1 0 0 5 2.500 2.500 0 0 0 0-5z"/></svg>';
+const F={in:document.getElementById('f-in'),up:document.getElementById('f-up')},T=document.getElementById('toast');let tt;
+function toast(m,bad){T.textContent=m;T.className='toast on'+(bad?' bad':'');clearTimeout(tt);tt=setTimeout(()=>T.className='toast',3600);}
+document.querySelectorAll('[data-go]').forEach(a=>{const go=()=>{const m=a.dataset.go;F.in.hidden=m!=='in';F.up.hidden=m!=='up';F[m].querySelector('input').focus();};a.onclick=go;a.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};});
+document.querySelectorAll('.eye').forEach(b=>b.onclick=()=>{const i=b.parentElement.querySelector('input'),s=i.type==='password';i.type=s?'text':'password';b.innerHTML=s?EYE_ON:EYE_OFF;b.setAttribute('aria-label',(s?'Hide':'Show')+' password');});
+const rx=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/* error box lookup: climb to the field wrapper that directly owns the .e line,
+   so password fields (nested in .pwrap) report errors just like the others */
+function errBox(i){let el=i.parentElement;while(el&&el.tagName!=='FORM'&&!el.querySelector(':scope > .e'))el=el.parentElement;return el?el.querySelector(':scope > .e'):null;}
+function check(f){let ok=true,first=null,msg='';f.querySelectorAll('input.f').forEach(i=>{let m='';const v=i.value.trim();
+  if(i.name==='name'&&!v)m='Enter your full name.';
+  if(i.name==='role'&&!v)m='Enter your role.';
+  if(i.name==='email'&&!rx.test(v))m='Enter a valid email address.';
+  if(i.name==='password'){if(!i.value)m='Enter your password.';else if(f.dataset.mode==='up'&&i.value.length<8)m='Use at least 8 characters.';}
+  i.setAttribute('aria-invalid',!!m);const e=errBox(i);if(e)e.textContent=m;
+  if(m){ok=false;first=first||i;msg=msg||m;}});
+  if(!ok){first.focus();if(f.dataset.mode==='in')toast(msg,true);}return ok;}
+document.querySelectorAll('input.f').forEach(i=>i.addEventListener('input',()=>{i.setAttribute('aria-invalid','false');const e=errBox(i);if(e)e.textContent='';}));
 
-/* ---- show / hide password ---- */
-document.querySelectorAll('.eye').forEach(b=>b.onclick=()=>{
-  const i=b.parentElement.querySelector('input'),show=i.type==='password';
-  i.type=show?'text':'password';b.textContent=show?'Hide':'Show';b.setAttribute('aria-label',(show?'Hide':'Show')+' password');
-});
-
-/* ---- forgot password ---- */
-document.getElementById('forgot').onclick=e=>{
-  e.preventDefault();
-  const st=forms.in.querySelector('.status');
-  st.classList.remove('bad');
-  st.textContent='Password reset is handled by your KTM admin.';
-};
-
-/* ---- validation ---- */
-const emailRx=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-function check(form){
-  const mode=form.dataset.mode;let ok=true;
-  form.querySelectorAll('.field').forEach(f=>{
-    const i=f.querySelector('input'),e=f.querySelector('.err');let msg='';
-    if(i.name==='name'&&!i.value.trim())msg='Enter your full name.';
-    if(i.name==='role'&&!i.value.trim())msg='Type your role — it decides what you can edit.';
-    if(i.name==='email'&&!emailRx.test(i.value.trim()))msg='Enter a valid email address.';
-    if(i.name==='password'){
-      if(!i.value)msg='Enter your password.';
-      else if(mode==='up'&&i.value.length<8)msg='Use at least 8 characters.';
-    }
-    e.textContent=msg;i.setAttribute('aria-invalid',!!msg);
-    if(msg)ok=false;
-  });
-  return ok;
-}
-document.querySelectorAll('input').forEach(i=>i.addEventListener('input',()=>{
-  i.setAttribute('aria-invalid','false');const e=i.closest('.field');if(e)e.querySelector('.err').textContent='';
-}));
-
-/* ---- submit: connect your real auth here ---- */
+/* Real auth via the Quotation Studio platform API (same backend as the dashboard).
+   Social providers are NOT connected — the buttons say so honestly instead of faking a login. */
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 async function submitAuth(mode,data){
-  await new Promise(r=>setTimeout(r,900));           // placeholder for the real request
-  return {ok:true};
+  const P=window.PlatformAPI;
+  if(!P)throw new Error('noapi');
+  let r;
+  if(mode==='in')r=await P.login(data.email.trim(),data.password);
+  else r=await P.register(data.name.trim(),data.email.trim(),data.password,(data.role||'').trim());
+  if(r&&r.token&&P.setSessionToken)P.setSessionToken(r.token);
+  return r;
 }
-Object.values(forms).forEach(f=>f.addEventListener('submit',async ev=>{
-  ev.preventDefault();
-  const st=f.querySelector('.status'),btn=f.querySelector('.btn'),label=btn.textContent;
-  st.textContent='';st.classList.remove('bad');       // reset colour every attempt
-  if(!check(f)){f.querySelector('[aria-invalid=true]')?.focus();return;}
-  btn.disabled=true;btn.textContent=f.dataset.mode==='in'?'Signing in…':'Creating account…';
-  try{
-    const res=await submitAuth(f.dataset.mode,Object.fromEntries(new FormData(f)));
-    if(!res.ok)throw new Error();
-    st.textContent=f.dataset.mode==='in'?'Signed in. Opening your workspace…':'Account created. Opening your workspace…';
-    // window.location.href='dashboard.html';
-  }catch(_){st.classList.add('bad');st.textContent='Something went wrong. Check your details and try again.';}
-  btn.disabled=false;btn.textContent=label;
-}));
-
-/* ---- floating light motes (cached sprites + dpr aware) ---- */
-(function(){
-  const c=document.getElementById('sparks');if(!c)return;
-  const x=c.getContext('2d');
-  let W=0,H=0,dpr=1,P=[],t=0,raf=0,running=false;
-  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  /* pre-render one glow sprite per 10deg hue bucket — no per-frame gradients */
-  const SPRITES={};
-  function sprite(hue){
-    const key=Math.round(hue/10)*10;
-    if(SPRITES[key])return SPRITES[key];
-    const R=32,s=document.createElement('canvas');s.width=s.height=R*2;
-    const g=s.getContext('2d');
-    const grd=g.createRadialGradient(R,R,0,R,R,R);
-    grd.addColorStop(0,`hsla(${key},100%,72%,1)`);
-    grd.addColorStop(.35,`hsla(${key},100%,60%,.45)`);
-    grd.addColorStop(1,`hsla(${key},100%,50%,0)`);
-    g.fillStyle=grd;g.fillRect(0,0,R*2,R*2);
-    return(SPRITES[key]=s);
-  }
-  function spawn(init){
-    return{x:Math.random()*W,y:init?Math.random()*H:H+10,
-      r:1+Math.random()*1.6,v:.15+Math.random()*.45,d:(Math.random()-.5)*.25,
-      p:Math.random()*6.28,a:.35+Math.random()*.5,hue:22+Math.random()*26};
-  }
-  function size(){
-    dpr=Math.min(2,window.devicePixelRatio||1);
-    W=c.clientWidth;H=c.clientHeight;
-    c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);
-    x.setTransform(dpr,0,0,dpr,0,0);
-    if(!P.length)for(let i=0;i<44;i++)P.push(spawn(true));
-  }
-  function draw(){
-    x.clearRect(0,0,W,H);x.globalCompositeOperation='lighter';
-    for(const p of P){
-      if(running){p.y-=p.v;p.x+=p.d+Math.sin(t/1800+p.p)*.12;if(p.y<-10)Object.assign(p,spawn(false));}
-      const k=(.5+.5*Math.sin(t/900+p.p))*p.a*(p.y/H*.6+.4);
-      const s=p.r*10;
-      x.globalAlpha=Math.max(0,Math.min(1,k));
-      x.drawImage(sprite(p.hue),p.x-s,p.y-s,s*2,s*2);
-    }
-    x.globalAlpha=1;x.globalCompositeOperation='source-over';
-    if(running)raf=requestAnimationFrame(draw);
-  }
-  function start(){if(running||reduced)return;running=true;t=0;raf=requestAnimationFrame(draw);}
-  function stop(){running=false;cancelAnimationFrame(raf);}
-  addEventListener('resize',()=>{size();if(!running)x.clearRect(0,0,W,H);});
-  document.addEventListener('visibilitychange',()=>document.hidden?stop():start());
-  size();
-  if(reduced){x.clearRect(0,0,W,H);}else{start();}
-})();
+function honestError(err){
+  if(!err)return 'Something went wrong. Check your details and try again.';
+  if(err.message==='noapi'||err instanceof TypeError)return 'Can\u2019t reach the server right now. Check your connection and try again.';
+  if(typeof err.message==='string'&&err.message)return err.message;
+  return 'Something went wrong. Check your details and try again.';
+}
+async function run(f,provider,data){
+  if(provider!=='password'){toast(cap(provider)+' sign-in is not connected yet \u2014 use email + password for now.',true);return;}
+  const btn=f.querySelector('.cta,.cta2');btn.disabled=true;btn.classList.add('busy');const t=btn.textContent;if(btn.classList.contains('cta2'))btn.textContent=f.dataset.mode==='in'?'Signing in\u2026':'Creating account\u2026';
+  try{await submitAuth(f.dataset.mode,data);toast(f.dataset.mode==='in'?'Signed in. Opening your workspace\u2026':'Account created. Opening your workspace\u2026');setTimeout(()=>{location.href='dashboard.html';},650);}
+  catch(err){toast(honestError(err),true);}
+  btn.disabled=false;btn.classList.remove('busy');if(btn.classList.contains('cta2'))btn.textContent=t;}
+Object.values(F).forEach(f=>{f.addEventListener('submit',e=>{e.preventDefault();if(check(f))run(f,'password',Object.fromEntries(new FormData(f)));});
+  f.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>run(f,b.dataset.p,{}));});
+/* Forgot password uses the email already typed in the sign-in form */
+document.querySelector('[data-act=forgot]').onclick=async()=>{
+  const em=document.getElementById('i-e').value.trim();
+  if(!rx.test(em)){toast('Type your email first, then tap Forgot password.',true);document.getElementById('i-e').focus();return;}
+  const P=window.PlatformAPI;
+  if(!P){toast('Can\u2019t reach the server right now. Ask your KTM admin for a reset.',true);return;}
+  try{const r=await P.forgotPassword(em);
+    toast(r&&r.recoveryCode?('Recovery code: '+r.recoveryCode+' \u2014 it expires in 30 minutes and works once.'):((r&&r.message)||'If that account exists, your admin will share the recovery steps.'));
+  }catch(err){toast(honestError(err),true);}
+};
 </script>
 </body>
 </html>
