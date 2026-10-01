@@ -33,6 +33,7 @@
       <nav class="side-nav">
         <button type="button" class="nav-item on" data-panel="home"><span class="ico">🏠</span><span class="label">Home</span></button>
         <button type="button" class="nav-item" data-panel="proposals"><span class="ico">📄</span><span class="label">Proposals</span></button>
+        <button type="button" class="nav-item" data-panel="gallery"><span class="ico">\U0001f5bc\ufe0f</span><span class="label">Gallery</span></button>
         <button type="button" class="nav-item" data-panel="publish"><span class="ico">🔗</span><span class="label">Publish &amp; links</span></button>
         <button type="button" class="nav-item" data-panel="send"><span class="ico">📤</span><span class="label">Send centre</span></button>
         <button type="button" class="nav-item" data-panel="activity"><span class="ico">🔔</span><span class="label">Activity</span></button>
@@ -431,6 +432,7 @@
               </select>
             </div>
           </div>
+          <div id="propStats" class="stat-chips"></div>
           <div class="table-wrap">
             <table class="data">
               <thead>
@@ -449,6 +451,38 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <!-- Project gallery -->
+      <section id="panel-gallery" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Project gallery</h1>
+            <p class="sub">Staff uploads of site and installation photos. Uploads stay staff-only here — the public gallery page only shows approved portfolio photos.</p>
+          </div>
+          <div class="topbar-actions">
+            <a class="btn btn-secondary btn-sm" href="gallery.html" target="_blank" rel="noopener">View public page</a>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Upload site photo</h2><span class="muted">PNG / JPG / WebP · max 8 MB</span></div>
+          <div class="upload-row">
+            <input type="file" id="galleryFile" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" aria-label="Photo file" />
+            <input type="text" id="galleryCaption" placeholder="Caption — e.g. Nerolac plant, 2.1 MWp rooftop" class="grow" maxlength="140" />
+            <select id="galleryCategory" aria-label="Category">
+              <option value="site">Site / general</option>
+              <option value="industrial">Industrial</option>
+              <option value="commercial">Commercial</option>
+              <option value="residential">Residential</option>
+            </select>
+            <button type="button" class="btn btn-primary btn-sm" id="btnGalleryUpload">Upload</button>
+          </div>
+          <p id="galleryMsg" class="muted micro" role="status"></p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Uploaded photos</h2><span class="muted" id="galleryCount">0 photos</span></div>
+          <div id="galleryGrid" class="ggrid"><div class="empty-pad">Loading…</div></div>
         </div>
       </section>
 
@@ -542,6 +576,12 @@
       </section>
     </main>
   </div>
+
+  <dialog id="galleryViewer" aria-label="Photo viewer">
+    <button type="button" id="galleryViewerClose" class="dlg-close" aria-label="Close">×</button>
+    <img id="galleryLarge" alt="" />
+    <p id="galleryViewerCap"></p>
+  </dialog>
 
   <div id="toast" class="toast" role="status"></div>
 

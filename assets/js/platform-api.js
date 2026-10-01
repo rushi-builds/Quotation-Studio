@@ -98,6 +98,43 @@
     return data;
   }
 
+  async function requestRaw(method, path, buf, extraHeaders) {
+    const opts = {
+      method,
+      credentials: 'same-origin',
+      headers: Object.assign({}, extraHeaders || {})
+    };
+    const token = readToken();
+    if (token) {
+      opts.headers['Authorization'] = 'Bearer ' + token;
+      opts.headers['X-QS-Session'] = token;
+    }
+    opts.body = buf;
+    let res;
+    try {
+      res = await fetch(BASE + path, opts);
+    } catch (err) {
+      const e = new Error('Cannot reach the platform server. Is it running?');
+      e.code = 'NETWORK';
+      e.cause = err;
+      throw e;
+    }
+    let data = null;
+    const text = await res.text();
+    if (text) {
+      try { data = JSON.parse(text); }
+      catch (_) { data = { raw: text }; }
+    }
+    if (!res.ok) {
+      if (res.status === 401 && token) clearToken();
+      const e = new Error((data && data.error) || ('Request failed (' + res.status + ')'));
+      e.status = res.status;
+      e.data = data;
+      throw e;
+    }
+    return data;
+  }
+
   const api = {
     async health() {
       try { return await request('GET', '/api/health'); }
@@ -204,6 +241,20 @@
     },
     reportSummary() {
       return request('GET', '/api/reports/summary');
+    },
+    listGallery() { return request('GET', '/api/gallery'); },
+    async uploadGallery(file, meta) {
+      const buf = await file.arrayBuffer();
+      const headers = {
+        'Content-Type': 'application/octet-stream',
+        'X-Filename': file.name || 'photo.jpg'
+      };
+      if (meta && meta.caption) headers['X-Caption'] = encodeURIComponent(meta.caption).slice(0, 500);
+      if (meta && meta.category) headers['X-Category'] = meta.category;
+      return requestRaw('POST', '/api/gallery', buf, headers);
+    },
+    deleteGallery(id) {
+      return request('DELETE', '/api/gallery/' + encodeURIComponent(id));
     },
     listTeam() {
       return request('GET', '/api/team/members');

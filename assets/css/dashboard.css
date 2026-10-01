@@ -352,3 +352,91 @@ select option { background: var(--panel-solid); color: var(--text); }
   .kpi { padding: 11px 12px; }
   .kpi .value { font-size: 24px; }
 }
+
+/* ---------- status badges ---------- */
+.badge {
+  display: inline-block;
+  font-size: 11.5px; font-weight: 600;
+  padding: 3px 11px;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.badge.draft { color: #C7D2E4; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.06); }
+.badge.internal_review { color: #9FD0FF; border-color: rgba(127,180,255,.4); background: rgba(127,180,255,.1); }
+.badge.ready { color: #FFE1AC; border-color: rgba(246,167,35,.5); background: rgba(246,167,35,.12); }
+.badge.sent { color: #C4B5FD; border-color: rgba(196,181,253,.4); background: rgba(196,181,253,.1); }
+.badge.viewed { color: #7FE3C3; border-color: rgba(52,211,153,.4); background: rgba(52,211,153,.1); }
+.badge.negotiation { color: #F9A8D4; border-color: rgba(249,168,212,.4); background: rgba(249,168,212,.1); }
+.badge.accepted { color: #0B241A; border-color: transparent; background: linear-gradient(180deg,#6EE7B7,#34D399); }
+.badge.rejected { color: #FFB4B4; border-color: rgba(248,113,113,.4); background: rgba(248,113,113,.1); }
+.badge.expired { color: #9DACC4; border-color: rgba(157,172,196,.35); background: rgba(157,172,196,.1); }
+.badge.archived { color: #6E7E99; border-color: rgba(110,126,153,.3); background: transparent; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.row-actions .btn { margin-left: 0; }
+
+/* ---------- proposal stat chips ---------- */
+.stat-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.stat-chips .chip {
+  font-size: 12px; font-weight: 600;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.stat-chips .chip b { color: var(--text); font-variant-numeric: tabular-nums; }
+.stat-chips .chip.hot { border-color: rgba(246,167,35,.45); color: #FFE1AC; }
+.stat-chips .chip.good { border-color: rgba(52,211,153,.4); color: #B9F1D8; }
+
+/* ---------- gallery ---------- */
+.upload-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.upload-row input[type="file"] { font-size: 12.5px; color: var(--muted); max-width: 240px; }
+.upload-row input[type="file"]::file-selector-button {
+  font: inherit; font-size: 12px; font-weight: 600;
+  color: var(--amber-ink);
+  background: linear-gradient(180deg,var(--amber2),var(--amber));
+  border: none; border-radius: 8px;
+  padding: 7px 13px; margin-right: 10px; cursor: pointer;
+}
+.upload-row .grow { flex: 1; min-width: 180px; }
+.ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+.gcard {
+  margin: 0;
+  background: rgba(6,13,26,.5);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: border-color .15s, transform .15s;
+}
+.gcard:hover { border-color: rgba(246,167,35,.4); transform: translateY(-2px); }
+.gcard .gimg { border: none; background: #04080F; padding: 0; cursor: zoom-in; display: block; }
+.gcard .gimg img { width: 100%; height: 150px; object-fit: cover; display: block; transition: transform .2s; }
+.gcard .gimg:hover img { transform: scale(1.03); }
+.gcard figcaption { padding: 10px 12px 4px; font-size: 12.5px; font-weight: 600; display: flex; flex-direction: column; gap: 2px; }
+.gcard figcaption > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gcard .gdel { margin: 8px 12px 12px; align-self: flex-start; }
+.empty-pad { padding: 26px 12px; text-align: center; color: var(--muted); font-size: 13px; grid-column: 1 / -1; }
+dialog#galleryViewer {
+  background: rgba(8,15,30,.97);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  max-width: min(860px, 94vw);
+}
+dialog#galleryViewer::backdrop { background: rgba(3,6,12,.82); backdrop-filter: blur(4px); }
+dialog#galleryViewer img { width: 100%; max-height: 72vh; object-fit: contain; border-radius: 10px; display: block; background: #04080F; }
+dialog#galleryViewer p { color: var(--muted); font-size: 13px; margin: 10px 4px 2px; }
+dialog#galleryViewer .dlg-close {
+  position: absolute; top: 6px; right: 6px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.08);
+  color: var(--text);
+  font-size: 16px; line-height: 1;
+  cursor: pointer;
+}
+dialog#galleryViewer .dlg-close:hover { background: rgba(248,113,113,.25); }

@@ -462,6 +462,7 @@ function loadDb() {
   if (!Array.isArray(db.notifications)) db.notifications = [];
   if (!Array.isArray(db.tasks)) db.tasks = [];
   if (!Array.isArray(db.password_resets)) db.password_resets = [];
+  if (!Array.isArray(db.gallery)) db.gallery = [];
   if (!Array.isArray(db.users)) db.users = [];
   if (!Array.isArray(db.sessions)) db.sessions = [];
   if (!Array.isArray(db.customers)) db.customers = [];
@@ -559,6 +560,23 @@ function readRawBody(req, maxBytes) {
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+/* Staff project-photo uploads (dashboard gallery). Files live next to db.json;
+   the PUBLIC gallery page stays repo-curated and never auto-lists these. */
+const GALLERY_DIR = path.join(DATA_DIR, 'gallery');
+const GALLERY_MAX = 8 * 1024 * 1024;
+const GALLERY_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+const GALLERY_CAT = new Set(['site', 'industrial', 'commercial', 'residential']);
+function ensureGalleryDir() {
+  fs.mkdirSync(GALLERY_DIR, { recursive: true });
+}
+function safeGalleryName(name) {
+  const base = path.basename(String(name || 'photo.jpg')).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const ext = path.extname(base).toLowerCase();
+  if (!GALLERY_EXT.has(ext)) return null;
+  const stem = path.basename(base, ext).slice(0, 60) || 'photo';
+  return stem + ext;
 }
 
 function send(res, status, body, headers) {
@@ -1118,6 +1136,56 @@ async function handleApi(req, res, url) {
 
     const canWrite = requireRole(user, 'sales'); /* owner + sales */
     const canAdmin = requireRole(user, 'owner');
+
+    /* PROJECT GALLERY (staff uploads; writes need sales+) */
+    if (parts[0] === 'gallery' && parts.length === 1 && method === 'GET') {
+      const items = (db.gallery || []).slice().sort((a, b) =>
+        String(b.created_at || '').localeCompare(String(a.created_at || '')));
+      return sendJson(res, 200, { gallery: items });
+    }
+    if (parts[0] === 'gallery' && parts.length === 1 && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot upload photos.' });
+      ensureGalleryDir();
+      const safe = safeGalleryName(req.headers['x-filename']);
+      if (!safe) return sendJson(res, 400, { error: 'Allowed types: png, jpg, webp (max 8 MB).' });
+      let buf;
+      try {
+        buf = await readRawBody(req, GALLERY_MAX);
+      } catch (err) {
+        return sendJson(res, err.status || 413, { error: err.message || 'Upload too large.' });
+      }
+      if (!buf.length) return sendJson(res, 400, { error: 'Empty file.' });
+      let caption = '';
+      try { caption = decodeURIComponent(String(req.headers['x-caption'] || '')); }
+      catch (_) { caption = String(req.headers['x-caption'] || ''); }
+      const cat = String(req.headers['x-category'] || 'site').toLowerCase();
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const finalName = stamp + '_' + uid('img').slice(4) + '_' + safe;
+      fs.writeFileSync(path.join(GALLERY_DIR, finalName), buf);
+      const item = {
+        id: uid('gal'),
+        file: finalName,
+        url: '/platform/data/gallery/' + encodeURIComponent(finalName),
+        caption: caption.slice(0, 140),
+        category: GALLERY_CAT.has(cat) ? cat : 'site',
+        size: buf.length,
+        created_by: user.id,
+        created_at: nowISO()
+      };
+      db.gallery.push(item);
+      saveDb(db);
+      return sendJson(res, 201, { gallery: item });
+    }
+    if (parts[0] === 'gallery' && parts[1] && parts.length === 2 && method === 'DELETE') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot delete photos.' });
+      const ix = (db.gallery || []).findIndex((g) => g.id === parts[1]);
+      if (ix < 0) return sendJson(res, 404, { error: 'Photo not found.' });
+      const gone = db.gallery[ix];
+      db.gallery.splice(ix, 1);
+      try { fs.unlinkSync(path.join(GALLERY_DIR, path.basename(gone.file || ''))); } catch (_) {}
+      saveDb(db);
+      return sendJson(res, 200, { ok: true });
+    }
 
     /* DASHBOARD SUMMARY */
     if (parts[0] === 'dashboard' && parts[1] === 'summary' && method === 'GET') {

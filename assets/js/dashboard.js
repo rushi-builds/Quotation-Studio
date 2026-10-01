@@ -38,6 +38,16 @@
     archived: 'Archived'
   };
 
+  /* Staff pipeline: one honest step at a time. Terminal states have no "next". */
+  const NEXT_STATUS = {
+    draft: 'internal_review',
+    internal_review: 'ready',
+    ready: 'sent',
+    sent: 'viewed',
+    viewed: 'negotiation',
+    negotiation: 'accepted'
+  };
+
   function toast(msg) {
     const el = $('toast');
     if (!el) return;
@@ -152,8 +162,9 @@
     });
     const panel = $('panel-' + name);
     if (panel) panel.classList.add('on');
-    if (name === 'proposals') renderPropTable();
+    if (name === 'proposals') { renderPropTable(); renderPropStats(); }
     if (name === 'home') renderHome();
+    if (name === 'gallery') refreshGalleryPanel();
     if (name === 'publish') refreshPublishPanel();
     if (name === 'send') refreshSendPanel();
     if (name === 'activity') refreshActivityPanel();
@@ -884,6 +895,19 @@
     bindRowActions(body);
   }
 
+  function renderPropStats() {
+    const el = $('propStats');
+    if (!el) return;
+    const rows = filteredProposals();
+    const inSet = (...ss) => rows.filter((x) => ss.includes(x.status || 'draft')).length;
+    el.innerHTML =
+      '<span class="chip">Showing <b>' + rows.length + '</b> of <b>' + allProposals.length + '</b></span>' +
+      '<span class="chip hot">In progress <b>' + inSet('draft', 'internal_review', 'ready') + '</b></span>' +
+      '<span class="chip">With customer <b>' + inSet('sent', 'viewed', 'negotiation') + '</b></span>' +
+      '<span class="chip good">Accepted <b>' + inSet('accepted') + '</b></span>' +
+      '<span class="chip">Closed <b>' + inSet('rejected', 'expired', 'archived') + '</b></span>';
+  }
+
   function filteredProposals() {
     const q = (($('filterQ') && $('filterQ').value) || '').trim().toLowerCase();
     const st = ($('filterStatus') && $('filterStatus').value) || '';
@@ -913,11 +937,13 @@
     const cap = escapeHtml(p.capacity ? p.capacity + ' kWp' : '—');
     const ver = escapeHtml(p.version || '1.0');
     const updated = escapeHtml(fmtDate(p.updatedAt));
+    const nextStatus = NEXT_STATUS[p.status || 'draft'];
     const actions =
       '<div class="row-actions">' +
         '<button type="button" class="btn btn-secondary btn-sm" data-act="open" data-id="' + escapeHtml(p.id) + '">Open in Studio</button>' +
         '<button type="button" class="btn btn-ghost btn-sm" data-act="pub" data-id="' + escapeHtml(p.id) + '">Publish</button>' +
         '<button type="button" class="btn btn-ghost btn-sm" data-act="send" data-id="' + escapeHtml(p.id) + '">Send</button>' +
+        (nextStatus ? '<button type="button" class="btn btn-ghost btn-sm" data-act="adv" data-id="' + escapeHtml(p.id) + '" title="Move to ' + escapeHtml(STATUS_LABEL[nextStatus]) + '">Advance \u2192</button>' : '') +
         '<button type="button" class="btn btn-ghost btn-sm" data-act="dup" data-id="' + escapeHtml(p.id) + '">Duplicate</button>' +
         '<button type="button" class="btn btn-danger-soft btn-sm" data-act="del" data-id="' + escapeHtml(p.id) + '">Delete</button>' +
       '</div>';
@@ -967,6 +993,23 @@
       fillSendSelect(id);
       if ($('sendSelect')) $('sendSelect').value = id;
       refreshSendPanel();
+      return;
+    }
+    if (act === 'adv') {
+      const found = allProposals.find((x) => x.id === id) || {};
+      const next = NEXT_STATUS[found.status || 'draft'];
+      if (!next) return;
+      btn.disabled = true;
+      try {
+        await api.updateProposal(id, { status: next });
+        toast('Status \u2192 ' + (STATUS_LABEL[next] || next));
+        await refreshAll();
+        renderPropStats();
+      } catch (err) {
+        toast(err.message || 'Status update failed');
+      } finally {
+        btn.disabled = false;
+      }
       return;
     }
     if (act === 'dup') {
@@ -1032,6 +1075,91 @@
     el.innerHTML =
       'API <strong>ok</strong> · phase <strong>' + escapeHtml(h.phase || '?') + '</strong> · storage <strong>' +
       escapeHtml(h.storage || '?') + '</strong> · ' + escapeHtml(h.time || '');
+  }
+
+  /* ---------- project gallery (staff uploads) ---------- */
+  const GALLERY_LABEL = { site: 'Site', industrial: 'Industrial', commercial: 'Commercial', residential: 'Residential' };
+
+  async function refreshGalleryPanel() {
+    const grid = $('galleryGrid');
+    const count = $('galleryCount');
+    if (!grid) return;
+    try {
+      const r = await api.listGallery();
+      const items = (r && r.gallery) || [];
+      if (count) count.textContent = items.length + (items.length === 1 ? ' photo' : ' photos');
+      if (!items.length) {
+        grid.innerHTML = '<div class="empty-pad">No site photos uploaded yet. Add the first one above \u2014 it stays staff-only until approved for the public page.</div>';
+        return;
+      }
+      grid.innerHTML = items.map((g) => (
+        '<figure class="gcard">' +
+          '<button type="button" class="gimg" data-view="' + escapeHtml(g.url) + '" data-cap="' + escapeHtml(g.caption || 'Site photo') + '" aria-label="Enlarge photo">' +
+            '<img src="' + escapeHtml(g.url) + '" alt="' + escapeHtml(g.caption || 'Site photo') + '" loading="lazy" />' +
+          '</button>' +
+          '<figcaption><span>' + escapeHtml(g.caption || 'Site photo') + '</span>' +
+          '<span class="muted micro">' + escapeHtml(GALLERY_LABEL[g.category] || 'Site') + ' \u00b7 ' + escapeHtml(fmtDate(g.created_at)) + '</span></figcaption>' +
+          '<button type="button" class="btn btn-danger-soft btn-sm gdel" data-del="' + escapeHtml(g.id) + '">Delete</button>' +
+        '</figure>'
+      )).join('');
+      grid.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
+        openGalleryViewer(b.getAttribute('data-view'), b.getAttribute('data-cap'));
+      }));
+      grid.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => {
+        deleteGalleryItem(b.getAttribute('data-del'), b);
+      }));
+    } catch (err) {
+      grid.innerHTML = '<div class="empty-pad">Could not load gallery: ' + escapeHtml(err.message || 'error') + '</div>';
+    }
+  }
+
+  function openGalleryViewer(src, cap) {
+    const dlg = $('galleryViewer');
+    if (!dlg || !dlg.showModal) { window.open(src, '_blank', 'noopener'); return; }
+    if ($('galleryLarge')) { $('galleryLarge').src = src; $('galleryLarge').alt = cap || 'Site photo'; }
+    if ($('galleryViewerCap')) $('galleryViewerCap').textContent = cap || '';
+    if (!dlg.open) dlg.showModal();
+  }
+
+  async function deleteGalleryItem(id, btn) {
+    if (!id) return;
+    if (!confirm('Delete this photo? This cannot be undone.')) return;
+    if (btn) btn.disabled = true;
+    try {
+      await api.deleteGallery(id);
+      toast('Photo deleted');
+      await refreshGalleryPanel();
+    } catch (err) {
+      toast(err.message || 'Delete failed');
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function uploadGalleryPhoto() {
+    const fileInput = $('galleryFile');
+    const msg = $('galleryMsg');
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    if (msg) msg.textContent = '';
+    if (!file) { if (msg) msg.textContent = 'Choose a photo file first.'; return; }
+    if (file.size > 8 * 1024 * 1024) { if (msg) msg.textContent = 'File is over 8 MB.'; return; }
+    const btn = $('btnGalleryUpload');
+    if (btn) btn.disabled = true;
+    try {
+      await api.uploadGallery(file, {
+        caption: ($('galleryCaption') && $('galleryCaption').value || '').trim(),
+        category: ($('galleryCategory') && $('galleryCategory').value) || 'site'
+      });
+      if (fileInput) fileInput.value = '';
+      if ($('galleryCaption')) $('galleryCaption').value = '';
+      if (msg) msg.textContent = 'Uploaded.';
+      toast('Photo uploaded');
+      await refreshGalleryPanel();
+    } catch (err) {
+      if (msg) msg.textContent = err.message || 'Upload failed';
+      toast(err.message || 'Upload failed');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   /* ---------- boot ---------- */
@@ -1108,8 +1236,8 @@
 
     $('btnNewFromHome').addEventListener('click', createBlankAndOpen);
     $('btnNewProposal').addEventListener('click', createBlankAndOpen);
-    $('filterQ').addEventListener('input', renderPropTable);
-    $('filterStatus').addEventListener('change', renderPropTable);
+    $('filterQ').addEventListener('input', () => { renderPropTable(); renderPropStats(); });
+    $('filterStatus').addEventListener('change', () => { renderPropTable(); renderPropStats(); });
     if ($('btnPublish')) $('btnPublish').addEventListener('click', publishSelected);
     if ($('publishSelect')) {
       $('publishSelect').addEventListener('change', () => { refreshPublishPanel(); });
@@ -1154,6 +1282,9 @@
     }
     if ($('btnTaskAdd')) $('btnTaskAdd').addEventListener('click', addTask);
     if ($('btnReportRefresh')) $('btnReportRefresh').addEventListener('click', refreshReportsPanel);
+    if ($('btnGalleryUpload')) $('btnGalleryUpload').addEventListener('click', uploadGalleryPhoto);
+    if ($('galleryViewerClose')) $('galleryViewerClose').addEventListener('click', () => { const d = $('galleryViewer'); if (d && d.open) d.close(); });
+    if ($('galleryViewer')) $('galleryViewer').addEventListener('click', (e) => { const d = $('galleryViewer'); if (e.target === d && d.open) d.close(); });
 
     /* session restore */
     try {
