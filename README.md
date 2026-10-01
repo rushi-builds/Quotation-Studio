@@ -7,6 +7,23 @@ no build step, no CDN, all libraries and fonts bundled locally.
 
 Open `quotation.html` in a browser, or serve the folder with any static server.
 
+### Staff dashboard & cloud (Phase A)
+
+```bash
+node platform/local-server/server.js
+# → Studio    http://localhost:8787/quotation.html
+# → Dashboard http://localhost:8787/dashboard.html
+```
+
+Create an account on the dashboard, save proposals to the cloud, and open them
+again from any browser on that server. **Publish & links** freezes an immutable
+customer version and issues a secure `portal.html?t=…` link. **Send centre**
+prepares WhatsApp / email / copy-link messages with honest states only.
+**Activity**, **Follow-ups**, and **Reports** cover notifications, tasks, and
+pipeline metrics with explicit honesty notes; **Settings** includes owner role
+management. The A4 proposal design is unchanged; offline localStorage still
+works. Docs: `docs/platform-phase-a.md` … `docs/platform-phase-d-e.md`.
+Cloudflare: **new** Worker project `quotation-studio` + D1 `quotation-studio-db` (do **not** use `solar-epc-relay`). Scaffold in `platform/cloudflare/`. Step-by-step: `docs/cloudflare-deploy.md`. Later: R2 PDFs, provider webhooks.
 ## The 15-page proposal journey
 
 The journey is **15–21 pages**: optional comparison, financing, battery storage and
@@ -80,16 +97,8 @@ assets/
   images/  fonts/  vendor/   Bundled photos, Inter/Poppins, html2canvas + jsPDF
 docs/ROADMAP.md         Master product vision & phased plan
 qa/
-  finance.test.js       78 unit tests for the calculation engine (node qa/finance.test.js)
-  reconcile.test.js     83 independent reconciliations — every engine figure is
-                        recomputed from first principles using different methods
-                        (ratio-rounding vs epsilon ceil, marginal-rate integration
-                        vs slab piecewise, closed-form geometric sums vs iterative
-                        multiply, amortisation schedules vs closed-form EMI)
-  integration.test.js   115 end-to-end tests in jsdom (node qa/integration.test.js)
-  reconcile-render.test.js  48 DOM-level reconciliations — boots the real app,
-                        sweeps capacity and reads each figure back out of the
-                        pages, so a renderer drifting from the engine fails too
+  finance.test.js       58 unit tests for the calculation engine (node qa/finance.test.js)
+  integration.test.js   110 end-to-end tests in jsdom (node qa/integration.test.js)
   browser.test.js       Real-browser QA (charts, overflow, PDF, mobile) — needs Chromium
 ```
 
@@ -143,21 +152,9 @@ clearly-marked placeholder — nothing is invented.
 ## Testing
 
 ```
-npm --prefix qa test                        # the full Node/jsdom suite (634 tests)
-node qa/finance.test.js                     # engine unit tests
-node qa/reconcile.test.js                   # independent recomputation of the engine
-node qa/integration.test.js                 # full app boot + interactions in jsdom
-node qa/reconcile-render.test.js            # pages must display what the engine computed
+node qa/finance.test.js        # engine unit tests
+node qa/integration.test.js    # full app boot + interactions in jsdom
 ```
-
-`reconcile.test.js` and `reconcile-render.test.js` exist because a test that
-calls the engine and compares it with the engine proves nothing. Both compute
-their expected values independently, and both pin the shipped defaults — from
-`StateStore.DEFAULTS` *and* from the HTML `value` attributes, because boot and
-"New proposal" read different sources. Mutation-tested: reverting generation to
-the contracted capacity, the subsidy to the contracted basis, or any reviewed
-default (GST 8.9 %, tariff ₹10, escalation 4 %, CO₂ 0.71, trees 22, clearance ×1.4)
-fails the suite.
 
 ## Replacing photos
 
@@ -379,21 +376,3 @@ remain unchanged. Reliable Marathi audio on every device would require a separat
 hosted speech integration; this release provides honest device-voice recovery and
 translated written briefings. The owner authorized merging PR #8 after the final download-menu and summary
 refinements on 22 September 2026; see [the final release notes](docs/download-menu-summary-2026-09-22.md).
-
-
-### Calculation accuracy review — 28 September 2026
-
-See [the accuracy review](docs/calculation-accuracy-2026-09-28.md). GST (8.9 %),
-the PM Surya Ghar slabs and the module-count maths were verified correct and left
-untouched. Five defects were fixed: **generation now follows the installed array**
-(13 × 545 Wp = 7.085 kWp → 10,344 kWh, not the contracted 7.000 kWp → 10,220 kWh)
-while the quoted price stays on the contracted capacity; **subsidy is assessed on
-installed DC capacity** (2.5 kWp = 2.725 kWp → ₹73,050, not ₹69,000); the grid
-CO₂ factor moved to the current CEA v21.0 figure (0.79 → 0.71); tree absorption
-moved to the standard 20–25 kg/yr (58.4 → 22); and the roof fit-check now applies
-a stated, editable clearance factor instead of comparing bare module area.
-
-Two defaults are now conservative and defensible — blended tariff ₹10/unit and
-escalation 4 %/yr, both editable. The Maharashtra SMART scheme was researched and
-deliberately **not** auto-applied: it is restricted to BPL/EWS households under
-100 units/month, and `subsidyOverride` already covers that case. Test count 474 → 503.

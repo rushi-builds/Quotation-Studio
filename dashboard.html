@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Dashboard — KTM Quotation Studio</title>
+  <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png" />
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=photo1" />
+</head>
+<body>
+  <!-- ========== Session gate (sign-in lives on index.html) ========== -->
+  <div id="authScreen" class="splash">
+    <div class="splash-card">
+      <img class="splash-logo" src="assets/images/ktm-logo-dark.png" alt="KTM" />
+      <h1>Quotation Studio</h1>
+      <p class="muted" id="splashMsg">Opening your workspace…</p>
+      <div id="authError" class="auth-error" role="alert"></div>
+      <div id="authOk" class="banner ok" style="display:none" role="status"></div>
+      <p class="muted splash-fallback">Taking too long? <a href="index.html">Back to sign in</a></p>
+    </div>
+  </div>
+
+  <div id="dash" class="dash">
+    <aside class="sidebar" aria-label="Dashboard navigation">
+      <div class="side-brand">
+        <img src="assets/images/ktm-logo-dark.png" alt="KTM" />
+        <div>
+          <strong>Quotation Studio</strong>
+          <span>Sales platform</span>
+        </div>
+      </div>
+      <nav class="side-nav">
+        <button type="button" class="nav-item on" data-panel="home"><span class="ico">🏠</span><span class="label">Home</span></button>
+        <button type="button" class="nav-item" data-panel="proposals"><span class="ico">📄</span><span class="label">Proposals</span></button>
+        <button type="button" class="nav-item" data-panel="gallery"><span class="ico">\U0001f5bc\ufe0f</span><span class="label">Gallery</span></button>
+        <button type="button" class="nav-item" data-panel="publish"><span class="ico">🔗</span><span class="label">Publish &amp; links</span></button>
+        <button type="button" class="nav-item" data-panel="send"><span class="ico">📤</span><span class="label">Send centre</span></button>
+        <button type="button" class="nav-item" data-panel="activity"><span class="ico">🔔</span><span class="label">Activity</span></button>
+        <button type="button" class="nav-item" data-panel="tasks"><span class="ico">✅</span><span class="label">Follow-ups</span></button>
+        <button type="button" class="nav-item" data-panel="reports"><span class="ico">📊</span><span class="label">Reports</span></button>
+        <button type="button" class="nav-item" data-panel="settings"><span class="ico">⚙️</span><span class="label">Settings</span></button>
+      </nav>
+      <div class="side-foot">
+        <div class="side-user">
+          <strong id="userName">—</strong>
+          <span id="userEmail">—</span>
+        </div>
+        <div class="side-links">
+          <a href="quotation.html"><span>Open Studio →</span></a>
+          <button type="button" id="btnLogout"><span>Log out</span></button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div id="banner" class="banner" role="status"></div>
+
+      <!-- Home -->
+      <section id="panel-home" class="panel on">
+        <div class="hero">
+          <div>
+            <h1 id="homeGreeting">Dashboard</h1>
+            <p class="sub">Your cloud workspace — drafts, sent work and next steps.</p>
+          </div>
+          <div class="topbar-actions">
+            <a class="btn btn-secondary btn-sm" href="quotation.html">Open Studio</a>
+            <button type="button" class="btn btn-primary btn-sm" id="btnNewFromHome">New proposal</button>
+          </div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi"><div class="label">Total</div><div class="value" id="kpiTotal">0</div><div class="hint">Cloud proposals</div></div>
+          <div class="kpi"><div class="label">Drafts</div><div class="value" id="kpiDraft">0</div><div class="hint">Still editing</div></div>
+          <div class="kpi accent"><div class="label">Ready</div><div class="value" id="kpiReady">0</div><div class="hint">Staff-marked only — not delivery tracking</div></div>
+          <div class="kpi"><div class="label">Accepted</div><div class="value" id="kpiAccepted">0</div><div class="hint">Marked manually by staff — not customer-confirmed</div></div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi"><div class="label">Unread</div><div class="value" id="kpiUnread">0</div><div class="hint">Notifications</div></div>
+          <div class="kpi"><div class="label">Open tasks</div><div class="value" id="kpiTasks">0</div><div class="hint">Follow-ups</div></div>
+          <div class="kpi"><div class="label">Overdue</div><div class="value" id="kpiOverdue">0</div><div class="hint">Past due date</div></div>
+          <div class="kpi"><div class="label">Role</div><div class="value" id="kpiRole">—</div><div class="hint">Workspace access</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Recent proposals</h2>
+            <span class="muted">Sorted by last update</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data" id="homeTable">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Ref</th>
+                  <th>Capacity</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="homeTableBody">
+                <tr><td colspan="6" class="empty">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="phase-note">
+          <strong>Platform status.</strong>
+          Phases A–E are available on this server: cloud drafts, secure customer portal, send centre,
+          activity &amp; notifications, follow-up tasks, and reports with role-aware access.
+          Manual channels never invent delivery. Provider webhooks and R2 PDF storage remain optional next steps.
+        </div>
+      </section>
+
+      <!-- Activity & notifications -->
+      <section id="panel-activity" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Activity</h1>
+            <p class="sub">Customer portal events and share actions — labelled honestly, including suspected link previews.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnMarkAllRead">Mark notifications read</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Notifications</h2>
+            <span class="muted" id="notifUnreadLabel">0 unread</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Alert</th>
+                  <th>Detail</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="notifBody">
+                <tr><td colspan="4" class="empty">No notifications yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Event timeline</h2>
+            <span class="muted">Newest first</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Event</th>
+                  <th>Proposal</th>
+                </tr>
+              </thead>
+              <tbody id="activityBody">
+                <tr><td colspan="3" class="empty">No activity yet. Publish a link and open the customer portal to generate events.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Follow-up tasks -->
+      <section id="panel-tasks" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Follow-ups</h1>
+            <p class="sub">Track calls, visits and next steps against proposals. Overdue items stay visible until completed.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>New follow-up</h2></div>
+          <div class="filters">
+            <input type="text" id="taskTitle" placeholder="Task title — e.g. Call after site visit" class="grow" />
+            <select id="taskProposal" aria-label="Related proposal">
+              <option value="">No linked proposal</option>
+            </select>
+            <input type="date" id="taskDue" aria-label="Due date" />
+            <button type="button" class="btn btn-primary btn-sm" id="btnTaskAdd">Add task</button>
+          </div>
+          <div class="field">
+            <input type="text" id="taskNotes" placeholder="Optional notes" />
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Open &amp; recent tasks</h2>
+            <span class="muted">Open tasks sort by due date</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Due</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tasksBody">
+                <tr><td colspan="4" class="empty">No follow-ups yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reports -->
+      <section id="panel-reports" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Reports</h1>
+            <p class="sub">Workspace totals with explicit honesty notes. Missing commercial values are counted, not invented.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnReportRefresh">Refresh</button>
+          </div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi"><div class="label">Proposals</div><div class="value" id="repTotal">0</div><div class="hint">In this workspace</div></div>
+          <div class="kpi"><div class="label">Accepted</div><div class="value" id="repAccepted">0</div><div class="hint">Staff-marked</div></div>
+          <div class="kpi accent"><div class="label">Quoted value</div><div class="value small" id="repValue">—</div><div class="hint" id="repValueHint">Where data exists</div></div>
+          <div class="kpi"><div class="label">Link opens</div><div class="value" id="repOpens">0</div><div class="hint">Excludes prefetch bots</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Engagement</h2></div>
+          <div id="repEngagement" class="muted report-lines">Loading…</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Status breakdown</h2></div>
+          <div id="repStatus" class="muted report-lines">Loading…</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>How to read these numbers</h2></div>
+          <ul id="repHonesty" class="honesty-list"></ul>
+        </div>
+      </section>
+
+      <!-- Publish & secure links -->
+      <section id="panel-publish" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Publish &amp; customer links</h1>
+            <p class="sub">Freeze the current cloud draft into an immutable version, then share a secure link. Editing the draft afterwards does not change what the customer sees.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Select proposal</h2>
+          </div>
+          <div class="filters">
+            <select id="publishSelect" aria-label="Proposal to publish" class="grow"></select>
+            <button type="button" class="btn btn-primary btn-sm" id="btnPublish">Publish version &amp; create link</button>
+          </div>
+          <p class="muted note">
+            Default link validity: 30 days. You can revoke a link at any time. The raw token is shown once — copy it immediately.
+          </p>
+          <div id="publishResult" class="banner info" style="display:none"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Published versions</h2>
+            <span class="muted">Immutable snapshots</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Version</th>
+                  <th>Published</th>
+                  <th>Snapshot hash</th>
+                </tr>
+              </thead>
+              <tbody id="versionsBody">
+                <tr><td colspan="3" class="empty">Select a proposal to view published versions.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Customer links</h2>
+            <span class="muted">Token hashes only — raw token never stored</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Created</th>
+                  <th>Expires</th>
+                  <th>Opens</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="linksBody">
+                <tr><td colspan="6" class="empty">Select a proposal to view links.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>PDF exports</h2>
+            <span class="muted">From frozen versions</span>
+          </div>
+          <p class="muted note">
+            Each published version above can be exported as a PDF from the Studio
+            (open the proposal → Print / Save as PDF), or requested by the customer from the
+            portal — those requests appear under Activity. No PDF bytes are stored on this
+            server yet; R2 storage is a planned next step.
+          </p>
+          <a class="btn btn-secondary btn-sm" href="quotation.html">Open Studio</a>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Recent events</h2>
+            <span class="muted">Honest activity only</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Event</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody id="eventsBody">
+                <tr><td colspan="3" class="empty">Select a proposal to view events.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Send centre -->
+      <section id="panel-send" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Send centre</h1>
+            <p class="sub">Prepare a professional message with the secure proposal link. Manual channels record that you started sharing — not that the message was delivered.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Compose</h2></div>
+          <div class="filters">
+            <select id="sendSelect" aria-label="Proposal to send" class="grow"></select>
+          </div>
+          <div class="filters">
+            <select id="sendChannel" aria-label="Channel">
+              <option value="whatsapp_manual">WhatsApp (manual)</option>
+              <option value="email_manual">Email (manual)</option>
+              <option value="copy_link">Copy link only</option>
+              <option value="other">Other / offline</option>
+            </select>
+            <input type="text" id="sendRecipientName" placeholder="Recipient name" class="grow" />
+            <input type="text" id="sendRecipientTo" placeholder="WhatsApp number or email" class="grow" />
+          </div>
+          <div class="field">
+            <label for="sendMessage">Message</label>
+            <textarea id="sendMessage" rows="10"></textarea>
+          </div>
+          <p class="muted note" id="sendHonesty">
+            Publishing creates a frozen customer version and a new secure link inside this message.
+            Opening WhatsApp or Mail does <strong>not</strong> mean the customer received it.
+          </p>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary btn-sm" id="btnSendPrepare">Publish link &amp; prepare send</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnSendLaunch" hidden>Open channel</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnSendCopy" hidden>Copy message</button>
+          </div>
+          <div id="sendResult" class="banner info" style="display:none"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Send history</h2>
+            <span class="muted">Honest states only</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Channel</th>
+                  <th>To</th>
+                  <th>State</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="sendsBody">
+                <tr><td colspan="5" class="empty">Select a proposal to view send history.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Proposals -->
+      <section id="panel-proposals" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Proposals</h1>
+            <p class="sub">Every cloud proposal you own. Open any one in the Studio to edit.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="btnNewProposal">New proposal</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="filters wide">
+              <input type="search" id="filterQ" placeholder="Search customer, ref, title…" class="grow" />
+              <select id="filterStatus">
+                <option value="">All statuses</option>
+                <option value="draft">Draft</option>
+                <option value="internal_review">Internal review</option>
+                <option value="ready">Ready</option>
+                <option value="sent">Sent</option>
+                <option value="viewed">Viewed</option>
+                <option value="negotiation">Negotiation</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="expired">Expired</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+          <div id="propStats" class="stat-chips"></div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Ref</th>
+                  <th>Ver</th>
+                  <th>kWp</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="propTableBody">
+                <tr><td colspan="7" class="empty">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Project gallery -->
+      <section id="panel-gallery" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Project gallery</h1>
+            <p class="sub">Staff uploads of site and installation photos. Uploads stay staff-only here — the public gallery page only shows approved portfolio photos.</p>
+          </div>
+          <div class="topbar-actions">
+            <a class="btn btn-secondary btn-sm" href="gallery.html" target="_blank" rel="noopener">View public page</a>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Upload site photo</h2><span class="muted">PNG / JPG / WebP · auto-optimized, free-forever storage</span></div>
+          <div class="upload-row">
+            <input type="file" id="galleryFile" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" aria-label="Photo file" />
+            <input type="text" id="galleryCaption" placeholder="Caption — e.g. Nerolac plant, 2.1 MWp rooftop" class="grow" maxlength="140" />
+            <select id="galleryCategory" aria-label="Category">
+              <option value="site">Site / general</option>
+              <option value="industrial">Industrial</option>
+              <option value="commercial">Commercial</option>
+              <option value="residential">Residential</option>
+            </select>
+            <button type="button" class="btn btn-primary btn-sm" id="btnGalleryUpload">Upload</button>
+          </div>
+          <p id="galleryMsg" class="muted micro" role="status"></p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Uploaded photos</h2><span class="muted" id="galleryCount">0 photos</span></div>
+          <div id="galleryGrid" class="ggrid"><div class="empty-pad">Loading…</div></div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section id="panel-settings" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Settings</h1>
+            <p class="sub">Account and platform notes for this build.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Signed-in account</h2></div>
+          <p class="account-line">
+            <strong id="settingsName">—</strong><br />
+            <span class="muted" id="settingsEmail">—</span>
+          </p>
+          <div class="field">
+            <label for="profileName">Display name</label>
+            <input type="text" id="profileName" placeholder="Your name" />
+          </div>
+          <div class="field">
+            <label>Role</label>
+            <p id="settingsRole" class="role-line">—</p>
+            <p class="muted micro">
+              Set when the account was created. An Owner can update team roles under Team below.
+            </p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary btn-sm" id="btnSaveProfile">Save name</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnLogout2">Log out</button>
+          </div>
+          <p id="profileSaveMsg" class="muted micro" role="status"></p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Change password</h2></div>
+          <p class="muted note">
+            Choose a new password (minimum 8 characters, no spaces). Other devices signed in with this account will be signed out.
+          </p>
+          <div class="field">
+            <label for="currPassword">Current password</label>
+            <input id="currPassword" type="password" minlength="8" maxlength="128" autocomplete="current-password" />
+          </div>
+          <div class="field">
+            <label for="newPassword">New password</label>
+            <input id="newPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" />
+          </div>
+          <div class="field">
+            <label for="newPassword2">Confirm new password</label>
+            <input id="newPassword2" type="password" minlength="8" maxlength="128" autocomplete="new-password" />
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btnChangePassword">Update password</button>
+          <p id="passwordChangeMsg" class="muted micro" role="status"></p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Platform</h2></div>
+          <p class="muted note" id="settingsHealth">Checking server…</p>
+        </div>
+        <div class="card" id="teamCard">
+          <div class="card-head">
+            <h2>Team &amp; roles</h2>
+            <span class="muted">Owner only</span>
+          </div>
+          <p class="muted note">
+            Roles: <strong>Owner</strong> (full access + team), <strong>Sales</strong> (create/edit/send),
+            <strong>Viewer</strong> (read-only). Role is typed at Create account (free text). Built-in names Owner / Sales / Viewer unlock matching access; any other title is saved as custom. Owners can still adjust built-in roles here.
+          </p>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                </tr>
+              </thead>
+              <tbody id="teamBody">
+                <tr><td colspan="3" class="empty">Only the workspace owner can manage team roles.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Later: company transfer</h2></div>
+          <p class="muted note">
+            When the company mailbox is ready, create a Cloudflare account with that address,
+            redeploy this repo, export/import the database, and retire the personal account.
+            Details: <code>docs/platform-phase-a.md</code>.
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="galleryViewer" aria-label="Photo viewer">
+    <button type="button" id="galleryViewerClose" class="dlg-close" aria-label="Close">×</button>
+    <img id="galleryLarge" alt="" />
+    <p id="galleryViewerCap"></p>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="assets/js/platform-api.js?v=role-enter1"></script>
+  <script src="assets/js/dashboard.js?v=photo1"></script>
+</body>
+</html>

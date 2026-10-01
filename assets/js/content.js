@@ -593,3 +593,6 @@ function portfolioCategories(page = CONTENT.pageProjects) {
 
 /* Export for Node-based tests (ignored in the browser) */
 if (typeof module !== 'undefined' && module.exports) { module.exports = { CONTENT, PROJECT_IMAGES, upgradeProposalContent, portfolioCategories }; }
+
+/* Cloud bridge handle (additive only — exposes the same objects the Studio already renders). */
+if (typeof window !== 'undefined') { window.CONTENT = CONTENT; window.PROJECT_IMAGES = PROJECT_IMAGES; }

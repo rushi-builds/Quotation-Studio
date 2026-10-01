@@ -1,0 +1,31 @@
+# Quotation Studio — NEW Cloudflare project (do NOT reuse solar-epc-relay)
+# --------------------------------------------------------------------------
+# Project name:  quotation-studio
+# D1 database:   quotation-studio-db
+# --------------------------------------------------------------------------
+# 1) Put your real D1 database_id below (from: wrangler d1 list)
+# 2) cd platform/cloudflare && npm install && npx wrangler deploy
+# See docs/cloudflare-deploy.md
+
+name = "quotation-studio"
+main = "src/worker.js"
+compatibility_date = "2024-11-12"
+compatibility_flags = ["nodejs_compat"]
+
+# Static HTML/CSS/JS/images — must be under this package so ASSETS binds on deploy.
+# If you only paste worker code in the dashboard, ASSETS is missing → black page error.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+# Worker handles /api/* first; everything else is served from ./public
+run_worker_first = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "quotation-studio-db"
+# quotation-studio-db (personal CF account)
+database_id = "78f2b390-8468-4250-b8fd-c7ec119b56b8"
+
+[vars]
+APP_NAME = "Quotation Studio"
+
