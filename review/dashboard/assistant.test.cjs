@@ -8,14 +8,14 @@ const {JSDOM}=require('jsdom'),fs=require('fs'),path=require('path'),assert=requ
  w.eval(fs.readFileSync(path.resolve(__dirname,'../../assets/js/dashboard-ui.js'),'utf8'));
  $('assistantLauncher').click();await new Promise(r=>setTimeout(r,0));
  assert.equal($('assistantSend').disabled,true,'empty prompt cannot send');
- assert.equal($('assistantConsent'),null);assert.match($('assistantSharingNote').textContent,/Gemini/);
+ assert.equal($('assistantConsent'),null);assert.equal($('assistantQuotation'),null);assert.match($('assistantConnectionNote').textContent,/verify once/);
  w.document.querySelector('[data-ai-prompt]').click();assert.equal(requests.length,0,'suggestions never send context');
  assert.equal($('assistantPrompt').disabled,false);
- $('assistantQuotation').value='p1';$('assistantPrompt').value='Summarise';$('assistantPrompt').dispatchEvent(new w.Event('input'));
+ $('assistantPrompt').value='Summarise';$('assistantPrompt').dispatchEvent(new w.Event('input'));
  const submit=()=> $('assistantForm').dispatchEvent(new w.Event('submit',{cancelable:true}));submit();submit();
- await new Promise(r=>setTimeout(r,0));assert.equal(requests.length,1);assert.deepEqual(requests[0],['Summarise','p1',true]);
+ await new Promise(r=>setTimeout(r,0));assert.equal(requests.length,1);assert.deepEqual(requests[0],['Summarise',null,true]);
  assert.equal($('assistantMessages').querySelector('img'),null,'model text never parsed as HTML');assert.ok($('assistantMessages').textContent.includes('<img'));assert.equal($('assistantMessages').querySelectorAll('.assistant-sources button').length,1);
  w.PlatformAPI.assistantChat=async()=>{throw Object.assign(Error('Gemini is not connected yet.'),{status:503})};
  $('assistantPrompt').value='Again';submit();await new Promise(r=>setTimeout(r,0));assert.equal($('assistantSend').disabled,true);assert.match($('assistantMessages').textContent,/not connected/);
- dom.window.close();console.log('PASS: real backend adapter, explicit-send disclosure, selected record, single inflight request, safe text rendering, source allowlist, configuration error handling.');
+ dom.window.close();console.log('PASS: real backend adapter, explicit-send gate, workspace-only context, single inflight request, safe text rendering, source allowlist, configuration error handling.');
 })().catch(e=>{console.error(e);process.exit(1)});

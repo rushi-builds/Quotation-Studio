@@ -15,8 +15,8 @@
         document.documentElement.dataset.theme = t === "dark" ? "dark" : "light";
       })();
     </script>
-    <link rel="stylesheet" href="assets/css/dashboard.css?v=workspace5-pearl1" />
-    <link rel="stylesheet" href="assets/css/dashboard-pearl.css?v=workspace5-pearl1" />
+    <link rel="stylesheet" href="assets/css/dashboard.css?v=workspace5-clear1" />
+    <link rel="stylesheet" href="assets/css/dashboard-pearl.css?v=workspace5-clear1" />
   </head>
   <body>
     <div id="authScreen" class="splash">
@@ -147,7 +147,7 @@
           <div class="gright">
             <label class="theme-picker"
               ><span class="sr-only">Appearance</span
-              ><select id="dashboardTheme" aria-label="Dashboard appearance" title="System: Pearl white glass · Dark: Solar glass · Light: Classic">
+              ><select id="dashboardTheme" aria-label="Dashboard appearance" title="System: Transparent glass · Dark: Solar glass · Light: Classic">
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
                 <option value="system">System</option>
@@ -952,7 +952,7 @@
                 <span>▤</span> Summarise my quotations <b>↗</b></button
               ><button
                 type="button"
-                data-ai-prompt="Draft a short friendly follow-up message for the selected quotation. Do not send it or invent pricing."
+                data-ai-prompt="Help me draft a short friendly quotation follow-up. Ask which customer if unclear. Do not send it or invent pricing."
               >
                 <span>↗</span> Help me write a follow-up <b>↗</b>
               </button>
@@ -965,16 +965,6 @@
             aria-live="polite"
             aria-label="Assistant conversation"
           ></div>
-          <details class="assistant-options">
-            <summary>Quotation context <span>optional</span></summary>
-            <div class="assistant-context">
-              <label for="assistantQuotation">Use</label>
-              <select id="assistantQuotation"><option value="">My workspace</option></select>
-              <span id="assistantContext" class="sr-only"></span>
-              <span id="assistantContextDetail" class="sr-only"></span>
-              <p class="assistant-context-explainer">Your question, saved quotation summaries, tasks and events go to Gemini. A selected quotation adds limited technical fields. No PDFs, images or dedicated contact fields. Read-only; check important details.</p>
-            </div>
-          </details>
           <form id="assistantForm" class="assistant-composer">
             <label class="sr-only" for="assistantPrompt"
               >Message Studio AI</label
@@ -983,7 +973,7 @@
               rows="2"
               maxlength="2000"
               placeholder="Ask Studio anything about your work…"
-              aria-describedby="assistantSharingNote assistantConnectionNote"
+              aria-describedby="assistantConnectionNote"
             ></textarea
             ><button
               type="submit"
@@ -992,9 +982,7 @@
               aria-label="Send message and share selected context with Gemini"
             >
               ↑</button
-            ><small id="assistantSharingNote">Sending shares your question and relevant workspace context with Gemini.</small><small id="assistantConnectionNote"
-              >Read-only assistance · Your work stays yours.</small
-            >
+            > <small id="assistantConnectionNote">AI can make mistakes. Please verify once.</small>
           </form>
         </section>
       </main>
@@ -1011,9 +999,9 @@
       <p id="galleryViewerCap"></p>
     </dialog>
     <div id="toast" role="status"></div>
-    <script src="assets/js/platform-api.js?v=workspace5-pearl1"></script>
-    <script src="assets/js/dashboard.js?v=workspace5-pearl1"></script>
-    <script src="assets/js/dashboard-home.js?v=workspace5-pearl1"></script>
-    <script src="assets/js/dashboard-ui.js?v=workspace5-pearl1"></script>
+    <script src="assets/js/platform-api.js?v=workspace5-clear1"></script>
+    <script src="assets/js/dashboard.js?v=workspace5-clear1"></script>
+    <script src="assets/js/dashboard-home.js?v=workspace5-clear1"></script>
+    <script src="assets/js/dashboard-ui.js?v=workspace5-clear1"></script>
   </body>
 </html>

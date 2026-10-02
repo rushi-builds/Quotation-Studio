@@ -296,7 +296,8 @@ const { spawn } = require("child_process"),
     assert.equal(chatCalls, 0, "Picking a suggestion never sends workspace context");
     assert.equal(await p.locator("#assistantSend").isEnabled(), true);
     assert.equal(await p.locator("#assistantConsent").count(), 0);
-    assert.ok(await p.locator("#assistantSharingNote").isVisible());
+    assert.equal(await p.locator("#assistantQuotation, #assistantSharingNote").count(),0);
+    assert.match(await p.locator("#assistantConnectionNote").innerText(),/verify once/);
     await p.click("#assistantSend");
     await p.waitForFunction(() =>
       document

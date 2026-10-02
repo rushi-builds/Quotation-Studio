@@ -18,10 +18,10 @@ $('dashboardTheme').value='system';$('dashboardTheme').dispatchEvent(new w.Event
 w.dispatchEvent(new w.StorageEvent('storage',{key:'qs.dashboard.theme',newValue:'dark'}));assert.equal(w.document.documentElement.dataset.theme,'dark');assert.equal(w.document.documentElement.dataset.appearance,'dark');
 assert.equal($('assistantPanel').hidden,true);
 $('assistantLauncher').focus();$('assistantLauncher').click();assert.equal($('assistantPanel').hidden,false);assert.equal($('assistantLauncher').getAttribute('aria-expanded'),'true');assert.equal(w.document.activeElement,$('assistantClose'));
-assert.match($('assistantContext').textContent,/3 saved quotations/);count=4;w.document.dispatchEvent(new w.CustomEvent('qs:workspace-updated'));assert.match($('assistantContext').textContent,/4 saved quotations/);
+assert.equal($('assistantContext'),null);assert.equal($('assistantQuotation'),null);
 assert.equal($('assistantSend').disabled,true);
 w.document.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert.equal($('assistantPanel').hidden,true);assert.equal(w.document.activeElement,$('assistantLauncher'));
 $('assistantLauncher').click();w.document.querySelector('[data-ai-prompt]').click();assert.ok($('assistantPrompt').value);assert.equal($('assistantSend').disabled,true,'suggestion cannot bypass connection or consent');
 d.window.close();
 const locked=new JSDOM(html,{url:'https://locked.test',runScripts:'outside-only'});Object.defineProperty(locked.window,'localStorage',{get(){throw Error('Storage blocked')}});locked.window.eval(code);assert.equal(locked.window.document.documentElement.dataset.theme,'light');locked.window.close();
-console.log('PASS: system/light/dark preference, persistence, storage unavailable, cross-tab update, assistant open/close/Escape/focus, synced local context, prompt suggestions, disabled unconnected send.');
+console.log('PASS: system/light/dark preference, persistence, storage unavailable, cross-tab update, assistant open/close/Escape/focus, removed context controls, prompt suggestions, disabled unconnected send.');

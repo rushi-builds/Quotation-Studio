@@ -39,14 +39,13 @@
   let available = false, sending = false, statusGeneration = 0;
   const api = window.PlatformAPI;
   const form = $('assistantForm'), prompt = $('assistantPrompt');
-  const messages = $('assistantMessages'), selection = $('assistantQuotation');
+  const messages = $('assistantMessages');
   function updateComposer() {
     const enabled = available && !sending;
     prompt.disabled = sending;
     $('assistantSend').disabled = !enabled || !prompt.value.trim();
     $('assistantSend').title = !available ? 'Connect the AI backend first' : 'Send to Gemini';
-    selection.disabled = sending;
-    $('assistantConnectionNote').textContent = !available ? 'AI not connected · No data sent.' : sending ? 'Studio AI is thinking…' : 'Read-only assistance · Check important details.';
+    $('assistantConnectionNote').textContent = 'AI can make mistakes. Please verify once.';
   }
   function connectionError(text) {
     if ($('assistantError')) $('assistantError').hidden = !text;
@@ -104,14 +103,14 @@
     if (!available || sending || !prompt.value.trim()) return;
     const text = prompt.value.trim();
     if (text.length > 2000) return;
-    const proposalId = selection.value || null;
+    const proposalId = null; // Workspace overview only; no selected-record fields.
     message('user', text); prompt.value = ''; sending = true; updateComposer();
     const pending = message('assistant', 'Looking at your saved workspace…');
     pending.classList.add('thinking');
     if($('assistantNewChat'))$('assistantNewChat').disabled=true;
     try {
-      // Explicit Send (or Enter) accepts the visible context-sharing disclosure.
-      // Opening chat, picking a suggestion or choosing a record never sends context.
+      // Workspace context is sent only on an explicit Send (or Enter).
+      // Opening chat or picking a suggestion never sends workspace context.
       const result = await api.assistantChat(text, proposalId, true);
       connectionError('');
       $('assistantStatus').textContent = 'Gemini · Read-only';
@@ -139,20 +138,6 @@
       if (err.status === 401 || err.status === 503) { available = false; $('assistantStatus').textContent = err.status === 401 ? 'Sign in required' : 'AI not connected'; }
     } finally { sending = false; if($('assistantNewChat'))$('assistantNewChat').disabled=false; updateComposer(); messages.scrollTop = messages.scrollHeight; if (!prompt.disabled && !panel.hidden) prompt.focus(); }
   });
-  function context() {
-    const D = window.QSDash, user = D?.user();
-    if (!user) { $('assistantContext').textContent = 'Available after sign-in'; return; }
-    const active = document.querySelector('.nav-item.on .label')?.textContent || 'Home';
-    const proposals = D.proposals(), count = proposals.length;
-    if (!sending) {
-      const value = selection.value;
-      selection.replaceChildren(new Option('Workspace overview', ''));
-      proposals.forEach(p => selection.add(new Option((p.customer || p.title || 'Quotation') + (p.ref ? ' · ' + p.ref : ''), p.id)));
-      if (proposals.some(p => p.id === value)) selection.value = value;
-    }
-    $('assistantContext').textContent = `${active} · ${count} saved quotation${count === 1 ? '' : 's'}`;
-    $('assistantContextDetail').textContent = `${user.name || 'User'} · ${user.roleLabel || user.role || 'Workspace member'}`;
-  }
   function close() {
     panel.hidden = true;
     launcher.setAttribute('aria-expanded', 'false');
@@ -164,16 +149,11 @@
     previousFocus = document.activeElement;
     panel.hidden = false;
     launcher.setAttribute('aria-expanded', 'true');
-    context();
     if (!sending) checkConnection();
     $('assistantClose').focus();
   });
   $('assistantClose').addEventListener('click', close);
   document.addEventListener('keydown', event => {
     if (!panel.hidden && event.key === 'Escape') { event.preventDefault(); close(); }
-  });
-  document.addEventListener('qs:workspace-updated', context);
-  document.addEventListener('click', event => {
-    if (!panel.hidden && event.target.closest('.nav-item')) context();
   });
 })();

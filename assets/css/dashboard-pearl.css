@@ -1,4 +1,4 @@
-/* Pearl is the product's System appearance. Dark retains the solar-glass theme.
+/* Transparent glass is the product's System appearance. Dark retains the solar-glass theme.
    Scoped to this dashboard preference; never loaded by the quotation editor. */
 html[data-appearance="system"] {
   --bg: #edf2f7;
@@ -15,13 +15,13 @@ html[data-appearance="system"] .main {
   --line: #d6e1ea99;
 }
 html[data-appearance="system"] .main::before {
-  background: linear-gradient(125deg, #f3f7fcf7 4%, #eef4f9e8 45%, #f5efe4b8 100%), url("../images/dash-hero-bg.jpg") right bottom / cover no-repeat;
+  background: linear-gradient(125deg, #edf4faab 4%, #eaf2f98c 45%, #f4eddf66 100%), url("../images/dash-hero-bg.jpg") right bottom / cover no-repeat;
 }
 html[data-appearance="system"] .main::after {
   background: radial-gradient(ellipse at 88% 15%, #fff0c280, transparent 48%), radial-gradient(ellipse at 20% 60%, #b2d6ee45, transparent 56%);
 }
 html[data-appearance="system"] .gbar {
-  background: #ffffffa6;
+  background: #ffffff66;
   border-bottom: 1px solid #ffffffd9;
   box-shadow: 0 4px 26px #41658a04;
 }
@@ -31,17 +31,17 @@ html[data-appearance="system"] :is(.gsearch,.search-field) {
   box-shadow: inset 0 1px 3px #38516e04, 0 1px 0 #fff;
 }
 html[data-appearance="system"] .main :is(.card,.hc,.kpis,.report-metric,.solar-hero) {
-  background: linear-gradient(130deg, #ffffffed, #ffffffb8);
+  background: linear-gradient(130deg, #ffffff80, #ffffff45);
   border: 1px solid #fffffff0;
   box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 #ffffff80, 0 6px 14px #28496c04, 0 22px 55px -22px #294f752b;
-  -webkit-backdrop-filter: blur(26px) saturate(115%);
-  backdrop-filter: blur(26px) saturate(115%);
+  -webkit-backdrop-filter: blur(14px) saturate(110%);
+  backdrop-filter: blur(14px) saturate(110%);
 }
 html[data-appearance="system"] .main .solar-hero {
   min-height: 246px;
   padding: 38px;
   border-radius: 27px;
-  background: linear-gradient(112deg, #fffffff2, #ffffffb8 66%, #fff8ead6);
+  background: linear-gradient(112deg, #ffffff80, #ffffff40 66%, #fff8ea59);
   box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 #ffffffb3, 0 18px 54px -22px #385f843b;
 }
 /* An etched sun in the glass, not a second photograph or moving image. */
@@ -96,7 +96,7 @@ html[data-appearance="system"] .kic {
 }
 html[data-appearance="system"] .kpi2 b { font-weight: 500; letter-spacing: -.055em; }
 html[data-appearance="system"] .client-icon { background: #edf4fac9; border-color: #dce7f28c; }
-html[data-appearance="system"] table.data th { background: #f2f6f99c; }
+html[data-appearance="system"] table.data th { background: #f2f6f945; }
 html[data-appearance="system"] .count-pill { background: #eaf1f88c; }
 html[data-appearance="system"] .assistant-launcher {
   background: linear-gradient(135deg, #fffffff7, #eaf0f8ed);
@@ -129,3 +129,11 @@ html[data-appearance="system"] .assistant-composer > button:not(:disabled) { bac
 @media (prefers-reduced-transparency: reduce) {
   html[data-appearance="system"] .main :is(.card,.hc,.kpis,.report-metric,.solar-hero,.gbar) { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+
+/* Clear panes: let the solar scene show through instead of a pearl-white fill. */
+html[data-appearance="system"] .solar-hero::after { display: none; }
+html[data-appearance="system"] .main { --muted: #405570; --line: #e4edf1a6; }
+html[data-appearance="system"] .solar-hero .sub,
+html[data-appearance="system"] .datechip { color: #405570; }
+html[data-appearance="system"] .main :is(.card,.hc,.kpis,.report-metric,.solar-hero) { border-color: #ffffffa6; }
+html[data-appearance="system"] .hero-kicker { background: #fffaf259; color: #654a1d; }
