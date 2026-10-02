@@ -110,6 +110,14 @@ const { spawn } = require("child_process"),
       await p.click(`.nav-item[data-panel="${name}"]`);
       await p.waitForSelector(`#panel-${name}.on`);
     };
+    await p.waitForFunction(() => {
+      const logo = document.querySelector('.ktm-brand-logo');
+      return logo && logo.complete && logo.naturalWidth > 0;
+    });
+    assert.match(await p.locator('.ktm-brand-logo').getAttribute('src'), /ktm-logo-dark/);
+    assert.ok(await p.locator('.solar-hero #homeGreeting').isVisible());
+    assert.match(await p.locator('.main').evaluate(el => getComputedStyle(el, '::before').backgroundImage), /dash-hero-bg/);
+    assert.notEqual(await p.locator('.kpis').evaluate(el => getComputedStyle(el).backdropFilter), 'none');
     await shot("overview");
     await nav("proposals");
     await p.waitForSelector("#propTableBody .quote-client");
