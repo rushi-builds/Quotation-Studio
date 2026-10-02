@@ -14,6 +14,7 @@
   const CLOUD_MAP_KEY = 'qstudio.cloudMap'; /* localId -> cloudId */
   const CLOUD_REV_KEY = 'qstudio.cloudRev'; /* cloudId -> last known server revision */
   const OPEN_KEY = 'qs.cloudOpenId';
+  const tabRevisions = new Map();
 
   function $(id) { return document.getElementById(id); }
 
@@ -47,11 +48,13 @@
     if (!cloudId) return;
     const n = Number(revision);
     if (!Number.isFinite(n) || n < 1) return;
+    tabRevisions.set(cloudId, Math.floor(n));
     const revs = readRevs();
     revs[cloudId] = Math.floor(n);
     writeRevs(revs);
   }
   function knownRev(cloudId) {
+    if (tabRevisions.has(cloudId)) return tabRevisions.get(cloudId);
     const revs = readRevs();
     const n = Number(cloudId && revs[cloudId]);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
@@ -93,9 +96,28 @@
     };
   }
 
-  async function saveToCloud() {
+  let savePending = null, saveTarget = null, opening = false;
+  const savedSnapshots = new Map();
+  function fingerprint(payload) {
+    if (!payload) return '';
+    const {localId, ...data} = payload;
+    return JSON.stringify(data);
+  }
+  function hasUnsavedChanges() {
+    const payload = collectPayload();
+    return !!payload && savedSnapshots.get(payload.localId) !== fingerprint(payload);
+  }
+  function saveToCloud() {
+    const target = root.Proposals?.activeId();
+    if (savePending) return target === saveTarget ? savePending : Promise.resolve({ok:false,error:'Another quotation is being saved. Wait for it to finish, then save this quotation.'});
+    saveTarget = target;
+    savePending = performSaveToCloud(target).finally(() => { savePending = null; saveTarget = null; });
+    return savePending;
+  }
+  async function performSaveToCloud(target) {
+    if (opening) return {ok:false,error:'Wait for the quotation to finish loading.'};
     const api = root.PlatformAPI;
-    if (!api) return;
+    if (!api) return {ok:false,error:'Cloud connection unavailable.'};
     const btn = $('cloudSaveBtn');
     if (btn) btn.disabled = true;
     setChip('sync', 'Saving…');
@@ -104,23 +126,21 @@
       if (!user) {
         setChip('off', 'Sign in on Dashboard');
         setStatus('Sign in on the Dashboard first, then return here to save to cloud.');
-        return;
+        return {ok:false,error:'Sign in on Dashboard first.'};
       }
+      if (user.role === 'viewer') throw new Error('Your role is read-only.');
+      if (root.Proposals?.activeId() !== target) throw new Error('The active quotation changed. Please save the intended quotation again.');
       /* Prefer flushing local autosave so cloud gets the latest on-screen values. */
-      try {
-        if (typeof root.__qsSaveNow === 'function') root.__qsSaveNow();
-      } catch (_) {}
+      if (typeof root.__qsSaveNow === 'function' && root.__qsSaveNow() === false) throw new Error('Review invalid fields in Studio before saving.');
 
       const payload = collectPayload();
       if (!payload) throw new Error('Studio is not ready yet');
 
       const localId = payload.localId;
       let cloudId = cloudIdFor(localId);
-      /* Also honour a cloud id already stashed on the URL from Dashboard open. */
-      try {
-        const q = new URLSearchParams(location.search).get('cloud');
-        if (q) cloudId = q;
-      } catch (_) {}
+      // The active local proposal's mapping is authoritative. A stale ?cloud=
+      // URL must never redirect a newly-created/switched proposal's save.
+      const snapshot = fingerprint(payload);
 
       let result;
       if (cloudId) {
@@ -136,7 +156,7 @@
             setChip('err', 'Newer in cloud');
             setStatus((err.message || 'Cloud has a newer version') +
               ' Your work is still open here — export a backup, then reopen from the Dashboard.');
-            return;
+            return {ok:false,error:'Cloud has newer changes. Your local edits are safe; reopen or back up before resolving the conflict.'};
           } else {
             throw err;
           }
@@ -149,17 +169,21 @@
       if (result.proposal && result.proposal.revision != null) {
         rememberRev(cloudId, result.proposal.revision);
       }
-      setChip('on', 'Saved in cloud');
+      savedSnapshots.set(localId, snapshot);
+      const unsaved = hasUnsavedChanges();
+      setChip(unsaved ? 'sync' : 'on', unsaved ? 'Unsaved changes' : 'Saved in cloud');
       setStatus('Saved to cloud · ' + (result.proposal.ref || result.proposal.title || cloudId));
       /* Keep ?cloud= in the URL so the next save updates the same row. */
       try {
         const u = new URL(location.href);
         u.searchParams.set('cloud', cloudId);
-        history.replaceState(null, '', u.pathname + u.search + u.hash);
+        if (root.Proposals.activeId() === localId) history.replaceState(null, '', u.pathname + u.search + u.hash);
       } catch (_) {}
+      return {ok:true,proposal:result.proposal,unsaved};
     } catch (err) {
       setChip('err', 'Cloud error');
       setStatus(err.message || 'Cloud save failed');
+      return {ok:false,error:err.message || 'Cloud save failed'};
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -208,6 +232,7 @@
   async function openFromCloud(cloudId) {
     const api = root.PlatformAPI;
     if (!api || !cloudId) return;
+    opening = true;
     setChip('sync', 'Loading…');
     try {
       const user = await api.currentUser();
@@ -219,6 +244,8 @@
       const r = await api.getProposal(cloudId);
       const ok = applyCloudProposal(r.proposal);
       if (ok) {
+        const loaded = collectPayload();
+        if (loaded) savedSnapshots.set(loaded.localId, fingerprint(loaded));
         if (r.proposal.revision != null) rememberRev(cloudId, r.proposal.revision);
         setChip('on', 'Cloud proposal');
         setStatus('Opened from cloud · ' + (r.proposal.ref || r.proposal.title || cloudId));
@@ -231,12 +258,21 @@
     } catch (err) {
       setChip('err', 'Cloud error');
       setStatus(err.message || 'Could not open cloud proposal');
-    }
+    } finally { opening = false; }
   }
 
   async function initCloudBridge() {
     const bar = $('studioCloudBar');
     if (bar) bar.hidden = false;
+    if ($('cloudSaveBtn')) $('cloudSaveBtn').textContent = 'Save Quotation';
+    const markDirty = e => {
+      if (opening || savePending || !e.target.closest('#quoteForm')) return;
+      // Do not serialize image-heavy payloads on every keystroke. Exact dirty
+      // comparison is deferred until save/navigation decisions.
+      setChip('sync', 'Unsaved changes');
+    };
+    document.addEventListener('input', markDirty);
+    document.addEventListener('change', markDirty);
 
     const api = root.PlatformAPI;
     const saveBtn = $('cloudSaveBtn');
@@ -261,7 +297,7 @@
 
     if (user) {
       setChip('on', user.name ? ('Cloud · ' + user.name.split(' ')[0]) : 'Cloud connected');
-      if (saveBtn) saveBtn.hidden = false;
+      if (saveBtn) { saveBtn.hidden = false; saveBtn.disabled = user.role === 'viewer'; saveBtn.title = user.role === 'viewer' ? 'Your role is read-only' : 'Save this quotation to your cloud workspace'; }
     } else {
       setChip('off', 'Sign in on Dashboard');
       if (saveBtn) saveBtn.hidden = true;
@@ -287,7 +323,7 @@
     init: initCloudBridge,
     saveToCloud,
     openFromCloud,
-    cloudIdFor
+    cloudIdFor, hasUnsavedChanges, isOpening: () => opening
   };
 
   /* Run after app boot so Proposals/StateStore exist. App listens on

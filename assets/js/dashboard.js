@@ -1099,7 +1099,7 @@
     }
   }
 
-  window.QSDash = { proposals: () => allProposals, user: () => user, refresh: () => refreshAll(), show: (name) => showPanel(name), open: (id) => openInStudio(id), toast,
+  window.QSDash = { proposals: () => allProposals, setProposals: rows => { allProposals = rows; renderPropTable(); renderPropStats(); }, user: () => user, refresh: () => refreshAll(), show: (name, id) => showPanel(name, id), open: (id) => openInStudio(id), toast,
     showTasks(filter) { if ($('taskFilter')) $('taskFilter').value = filter || 'all'; showPanel('tasks'); },
     filterStatus(status) { if ($('filterStatus')) $('filterStatus').value = status || ''; if ($('filterQ')) $('filterQ').value = ''; showPanel('proposals'); }
   };
@@ -1258,6 +1258,10 @@
       if (user) {
         showApp();
         await refreshAll();
+        const handoff = new URLSearchParams(location.search), panel = handoff.get('panel'), id = handoff.get('proposal');
+        if (['home','proposals','tasks','activity','reports','send'].includes(panel)) {
+          if (!id || allProposals.some(p=>p.id===id)) showPanel(panel,id);
+        }
       } else {
         showAuth();
       }

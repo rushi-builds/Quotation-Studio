@@ -1,12 +1,12 @@
-# Gemini assistant — read-only integration, deployment ready
+# Studio assistant — guarded commands and read-only Gemini
 
 ## Current state
 
-The authenticated Gemini backend and reviewed dashboard have now been promoted to the production source paths. The Cloudflare build configuration enables Gemini; the encrypted key must already exist on the Worker. No Cloudflare production deployment or real Gemini request has been performed from this workspace. The isolated HTML preview remains visual-only.
+The dashboard uses an authenticated, owner-scoped Gemini gateway for general questions and a separate allowlisted browser command layer for open/save/sharing-review/pricing. The same assistant is now available in the quotation Studio. Gemini output itself cannot execute actions.
 
-Local browser verification passed: session gate → sign in → new cloud quotation → update/save in the unchanged editor → return to dashboard and see the saved customer name. Dark mode and unconfigured-AI state also passed without browser runtime errors. Worker deploy dry-run passed.
+Cloudflare Builds successfully deployed earlier dashboard releases; the action update is deployment-ready. Live provider replies still require verification with the user's signed-in account. Local regression tests use isolated accounts/data; no live customer records were modified.
 
-No quotation editor, engineering, finance or PDF code changed.
+Studio changes are limited to the screen-only assistant, cloud-save results/guards and unsaved status. Engineering/finance calculation implementations, proposal page design and PDF export code are unchanged. Pricing calls the existing Finance engine.
 
 ## Provider / activation
 
@@ -76,3 +76,18 @@ The current UI uses a closed-by-default floating chat with prompt suggestions, w
 
 ### Simplified assistant UI
 The context picker and long sharing footer have been removed at the user's request. Chat now requests workspace overview only (`proposalId: null`), not selected-record technical fields. Only an explicit Send/Enter transmits the question and server-scoped summary; opening the panel or choosing a prompt does not. The footer reads “AI can make mistakes. Please verify once.” Backend authentication, owner scoping, read-only behavior and quotas are unchanged.
+
+
+## Studio command layer (October 2026)
+
+The model remains read-only. A separate client-side allowlist interprets **user-entered** open, save, share-review and pricing commands before contacting Gemini. It never parses or executes model replies as commands. Ordinary questions still use the guarded Gemini gateway.
+
+- Examples: `open recent quotation`, `open Rushikesh sir's quotation`, `save quotation`, `send quotation`, `3kw ka kitne paise honge`.
+- The authenticated proposal list is fetched afresh. Ambiguous names/rate sources show selectable records (first eight, with a narrowing hint). Unknown matches do not open arbitrary records.
+- Studio has a screen-only assistant outside proposal pages, hidden for print and marked `data-html2canvas-ignore`. Dashboard and Studio share the chat controller.
+- Save applies only to the current Studio quotation. Dashboard cannot save another tab's unsaved form. Existing cloud save now returns a truthful result, coalesces concurrent requests, respects local validation and viewer permissions, tracks unsaved changes, and retains tab-local revisions. Active proposal mapping—not a stale URL—chooses the cloud ID. Conflicts preserve local edits and never produce an AI success message.
+- Send means **open the exact quotation's existing sharing review**, not unattended delivery. Current unsaved Studio edits require save confirmation. New local drafts must be saved first. Channel, recipient, prepared message and final manual WhatsApp/email Send remain explicit. Commands never call publish/prepare-send APIs automatically.
+- Pricing uses the existing unmodified `Finance.compute`, converting saved `costPerWp` to `costPerKwp` exactly as Render does. Current Studio inputs are used in Studio; dashboard uses a matching saved quotation or asks which rate source to use. Missing rate/GST is rejected, not defaulted. Output names its basis and reports base/GST/gross solar EPC price. Capacity changes are estimates only: no equipment redesign, stored-field mutation, subsidy entitlement, add-on pricing, or engineering certification.
+- Commands/pricing do not consume Gemini quota and work when Gemini is unavailable. API authentication/ownership still apply. The provider is not granted tools or mutation endpoints.
+
+Tests: `npm run test:actions --prefix qa` covers pure parsing/financial parity/auth and real-browser local-server workflows, including two-tab conflicts, new-draft mapping, duplicate-save suppression, print isolation and zero provider requests. The dashboard E2E, Gemini gateway suite, 116 platform checks and 50 export preflight checks remain passing. Production requires authenticated user verification; no live customer record was modified during tests.

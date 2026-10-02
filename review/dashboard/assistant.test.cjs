@@ -5,6 +5,7 @@ const {JSDOM}=require('jsdom'),fs=require('fs'),path=require('path'),assert=requ
  const $=id=>w.document.getElementById(id);let requests=[];
  w.QSDash={user:()=>({id:'u1',name:'User',role:'sales'}),proposals:()=>[{id:'p1',customer:'One'}],open:()=>{},show:()=>{},showTasks:()=>{},filterStatus:()=>{}};
  w.PlatformAPI={assistantStatus:async()=>({enabled:true}),assistantChat:async(...args)=>{requests.push(args);return{answer:'<img src=x onerror=alert(1)>',sources:[{id:'p1',label:'Record one'},{id:'not-allowed',label:'Foreign'}]}}};
+w.eval(fs.readFileSync(path.resolve(__dirname,'../../assets/js/assistant-chat.js'),'utf8'));
  w.eval(fs.readFileSync(path.resolve(__dirname,'../../assets/js/dashboard-ui.js'),'utf8'));
  $('assistantLauncher').click();await new Promise(r=>setTimeout(r,0));
  assert.equal($('assistantSend').disabled,true,'empty prompt cannot send');

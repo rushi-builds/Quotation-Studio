@@ -298,6 +298,7 @@ const { spawn } = require("child_process"),
     assert.equal(await p.locator("#assistantConsent").count(), 0);
     assert.equal(await p.locator("#assistantQuotation, #assistantSharingNote").count(),0);
     assert.match(await p.locator("#assistantConnectionNote").innerText(),/verify once/);
+    await p.fill("#assistantPrompt", "Summarise the business in one sentence.");
     await p.click("#assistantSend");
     await p.waitForFunction(() =>
       document
