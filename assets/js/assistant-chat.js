@@ -8,6 +8,7 @@ window.QSAssistantInit = function () {
   panel.dataset.initialized = "true";
   const workspace = () => window.QSAssistantWorkspace || window.QSDash;
   let previousFocus = null;
+  let conversation = [];
   let available = false,
     sending = false,
     statusGeneration = 0;
@@ -46,7 +47,7 @@ window.QSAssistantInit = function () {
         ? "Gemini · Read-only"
         : "Not connected";
       $("assistantIntro").textContent =
-        "Open, save or ask about your quotations.";
+        "Ask about pricing, calculations, Studio or your workspace.";
       if (!available) {
         const reasons = {
           disabled:
@@ -85,6 +86,7 @@ window.QSAssistantInit = function () {
   $("assistantNewChat")?.addEventListener("click", () => {
     if (sending) return;
     messages.replaceChildren();
+    conversation = [];
     panel.classList.remove("has-messages");
     prompt.value = "";
     updateComposer();
@@ -129,12 +131,15 @@ window.QSAssistantInit = function () {
       return;
     const text = prompt.value.trim();
     if (text.length > 2000) return;
-    const proposalId = null; // Workspace overview only; no selected-record fields.
+    const current = workspace()?.current?.();
+    const proposalId = current?.id || null;
+    const currentForm = workspace()?.form?.();
+    const currentStudio = currentForm ? Object.fromEntries(['capacity','costPerWp','costPerKwp','gstPercent','genFactor','tariff','escalation','degradation','customerType','moduleWattage','inverterKw'].filter(k=>currentForm[k]!=null).map(k=>[k,currentForm[k]])) : undefined;
     message("user", text);
     prompt.value = "";
     sending = true;
     updateComposer();
-    const pending = message("assistant", "Looking at your saved workspace…");
+    const pending = message("assistant", "Checking Studio and your workspace…");
     pending.classList.add("thinking");
     if ($("assistantNewChat")) $("assistantNewChat").disabled = true;
     try {
@@ -183,7 +188,8 @@ window.QSAssistantInit = function () {
         );
       // Workspace context is sent only on an explicit Send (or Enter).
       // Opening chat or picking a suggestion never sends workspace context.
-      const result = await api.assistantChat(text, proposalId, true);
+      const result = await api.assistantChat(text, proposalId, true, {history:conversation, currentStudio});
+      conversation = [...conversation,{role:"user",text:text.slice(0,600)},{role:"assistant",text:(result.answer||"").slice(0,600)}].slice(-4);
       connectionError("");
       $("assistantStatus").textContent = "Gemini · Read-only";
       pending.remove();

@@ -33,7 +33,7 @@ test('context has explicit sample limits and excludes event metadata',()=>{
  const data=buildContext({...raw,total:101,proposals:items,events:[{owner_id:'u1',event_type:'link_opened',meta_json:'TOKEN'}]},owner,null);
  assert.equal(data.recentQuotations.length,30);assert.equal(data.coverage.quotationsTruncated,true);assert.ok(!JSON.stringify(data).includes('TOKEN'));
 });
-test('provider uses fixed host, header key, system instruction, fresh server context, no tools',async()=>{
+test('provider uses fixed host, header key, system instruction, fresh server context, read-only calculation tool',async()=>{
  let sent;
  const result=await handleAssistant({...args,readBody:async()=>({message:'Help',consent:true,context:{password:'BAD_CONTEXT'}}),fetchImpl:async(url,options)=>{
   assert.ok(url.startsWith('https://generativelanguage.googleapis.com/v1beta/models/gemini-'));assert.ok(!url.includes('test-key'));
@@ -41,7 +41,7 @@ test('provider uses fixed host, header key, system instruction, fresh server con
   sent=JSON.parse(options.body);return success();
  }});
  assert.equal(result.status,200);assert.equal(result.body.answer,'Saved draft Q1.');assert.equal(result.body.mode,'read-only');
- assert.ok(sent.systemInstruction);assert.equal(sent.tools,undefined);assert.ok(!JSON.stringify(sent).includes('BAD_CONTEXT'));assert.ok(!JSON.stringify(sent).includes('FOREIGN'));
+ assert.ok(sent.systemInstruction);assert.deepEqual(sent.tools[0].functionDeclarations.map(t=>t.name),['calculateStudio']);assert.ok(!JSON.stringify(sent).includes('BAD_CONTEXT'));assert.ok(!JSON.stringify(sent).includes('FOREIGN'));
 });
 test('provider failures never leak upstream content or keys',async()=>{
  for (const status of [400,403,429,500]) {
@@ -61,8 +61,8 @@ test('limits reject without invoking provider and local quota enforces fifth req
 });
 test('bounded body parser rejects oversized, malformed and multibyte bodies',async()=>{
  const req=s=>new Request('https://test.local',{method:'POST',body:s});
- await assert.rejects(boundedJson(req('x'.repeat(8193))),e=>e.status===413);
- await assert.rejects(boundedJson(req('💡'.repeat(3000))),e=>e.status===413);
+ await assert.rejects(boundedJson(req('x'.repeat(16385))),e=>e.status===413);
+ await assert.rejects(boundedJson(req('💡'.repeat(5000))),e=>e.status===413);
  await assert.rejects(boundedJson(req('{oops')),e=>e.status===400);
  assert.equal((await boundedJson(req('{"message":"hello"}'))).message,'hello');
 });

@@ -40,15 +40,14 @@ test("named, recent, typo, open and save commands", () => {
 });
 test("3 kW Hinglish query and pricing use actual Finance engine with explicit saved inputs", () => {
   const intent = A.parse("3kw ka kitne paise honge");
-  assert.equal(intent.type, "price");
-  assert.equal(intent.query, "");
+  assert.equal(intent, null, "Pricing questions go to Gemini, not keyword routing");
   const form = {
     capacity: "5",
     costPerWp: "63.6",
     gstPercent: "8.9",
     customerType: "residential",
   };
-  const e = A.estimate(form, intent.capacity, Finance);
+  const e = A.estimate(form, 3, Finance);
   assert.equal(e.base, 190800);
   assert.equal(e.tax, 16981.2);
   assert.equal(e.total, 207781.2);

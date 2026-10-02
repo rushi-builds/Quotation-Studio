@@ -19,7 +19,7 @@ try {
  assert.equal((await api('assistant/status',undefined,a.token)).data.enabled,true);
  assert.equal((await api('assistant/chat',{message:'Summarise',consent:true,proposalId:proposal.data.proposal.id},a.token)).status,404,'cannot read another owner record');
  assert.equal((await api('assistant/chat',{message:'Hi'},a.token)).status,400,'consent mandatory');
- assert.equal((await api('assistant/chat',{message:'x'.repeat(9000),consent:true},a.token)).status,413,'bounded request');
+ assert.equal((await api('assistant/chat',{message:'x'.repeat(18000),consent:true},a.token)).status,413,'bounded request');
  assert.equal((await api('assistant/chat',{message:'Hi',consent:true},null,{Cookie:'qs_session='+a.token})).status,403,'explicit session header required');
  console.log('PASS: authenticated routes, missing consent, oversized body, cross-owner denial, cookie-only CSRF guard. No provider requests made.');
 } finally {child.kill('SIGTERM');await new Promise(r=>child.once('exit',r));await rm(data,{recursive:true,force:true});}

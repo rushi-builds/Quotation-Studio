@@ -17,8 +17,7 @@
     ),
   );
   function parse(text) {
-    const t = normalise(text),
-      cap = t.match(/(?:^|\s)(\d+(?:\.\d+)?)\s*(?:kwp|kw|kilowatt)(?:\s|$)/);
+    const t = normalise(text);
     // Mixed instructions (or a customer named "Save") must never turn an
     // open/share request into a write. Ask for one clear command instead.
     if (/\bsave\b/.test(t) && /\b(?:open|edit|send|share|kholo|khol)\b/.test(t)) return null;
@@ -61,20 +60,11 @@
       /^(?:open|show) (?:all |my )?quotations$/.test(t)
     )
       return { type: "panel", panel: "proposals" };
-    if (/\b(?:open|edit|kholo|khol)\b/.test(t))
+    if (/^(?:(?:please|plz|bhai|can you|could you) )*(?:open|edit|kholo|khol)\b/.test(t))
       return {
         type: "open",
         query: query(t),
         recent: /\b(recent|rescent|latest|last|newest)\b/.test(t),
-      };
-    if (
-      cap ||
-      /\b(?:price|pricing|cost|estimate|kitne paise|kitna paisa)\b/.test(t)
-    )
-      return {
-        type: "price",
-        capacity: cap ? Number(cap[1]) : null,
-        query: query(t.replace(/\d+(?:\.\d+)?\s*(kwp|kw|kilowatt)/g, "")),
       };
     return null;
   }
@@ -210,42 +200,6 @@
     if (intent.type === "send" && user.role === "viewer")
       throw Error("Your role is read-only; sharing is unavailable.");
     const current = W.current?.();
-    const price = async (p, currentForm) => {
-      const form =
-        currentForm || (await api.getProposal(p.id)).proposal.form || {};
-      const e = estimate(form, intent.capacity, window.Finance),
-        money = (n) => "₹" + Math.round(n).toLocaleString("en-IN"),
-        rate = (n) =>
-          "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
-      ui.reply(
-        e.capacity +
-          " kWp solar estimate\nUsing " +
-          (currentForm ? "current Studio inputs" : "saved quotation") +
-          ": " +
-          (p.ref || p.customer || p.title || "Current quotation") +
-          "\nRate: " +
-          rate(e.rate) +
-          "/kWp (" +
-          rate(e.rate / 1000) +
-          "/Wp)\nBase price: " +
-          money(e.base) +
-          "\nGST (" +
-          e.gst +
-          "%): " +
-          money(e.tax) +
-          "\nTotal incl. GST: " +
-          money(e.total) +
-          "\n\nCalculated with the existing quotation engine. Indicative solar EPC estimate only; excludes subsidies and separately priced battery/EV/add-on systems. Changing capacity does not redesign equipment or change your quotation.",
-      );
-    };
-    if (
-      intent.type === "price" &&
-      current &&
-      (!intent.query || matches([current], intent.query).length)
-    ) {
-      await price(current, W.form());
-      return true;
-    }
     if (
       intent.type === "send" &&
       current &&
@@ -266,24 +220,13 @@
       intent.type === "send"
     )
       found = rows.filter((p) => p.id === current.id);
-    if (intent.type === "price" && !intent.query && intent.capacity) {
-      const exact = found.filter((p) => Number(p.capacity) === intent.capacity);
-      if (exact.length) found = exact;
-    }
     if (!found.length) {
       ui.reply(
-        "No matching quotation found. Try a customer name or quotation reference" +
-          (intent.type === "price"
-            ? "; pricing needs a saved quotation with rates."
-            : "."),
+        "No matching quotation found. Try a customer name or quotation reference.",
       );
       return true;
     }
     const perform = async (p) => {
-      if (intent.type === "price") {
-        await price(p);
-        return;
-      }
       await api.getProposal(p.id); // Recheck access and existence before navigation.
       if (intent.type === "open") {
         W.open(p.id);
@@ -302,9 +245,7 @@
     if (found.length === 1) await perform(found[0]);
     else
       ui.choices(
-        (intent.type === "price"
-          ? "Which quotation’s saved rates should I use?"
-          : "Which quotation do you mean?") +
+        "Which quotation do you mean?" +
           (found.length > 8
             ? " Showing 8 matches; type a more specific name for others."
             : ""),

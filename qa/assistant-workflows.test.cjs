@@ -114,8 +114,7 @@ const fs = require("fs"),
     );
     await p.waitForSelector("#studioAssistant #assistantLauncher");
     await ask("3kw ka kitne paise honge");
-    await answer("₹2,07,781");
-    await answer("₹63.6/Wp");
+    await answer("Gemini is not connected for this question");
     fs.mkdirSync(path.join(root, "qa/shots/actions"), { recursive: true });
     await p.screenshot({
       path: path.join(root, "qa/shots/actions/studio-pricing.png"),
@@ -146,8 +145,7 @@ const fs = require("fs"),
     );
     assert.equal(writes, 1, "Concurrent saves use one write");
     await ask("3kw price kya hai");
-    await answer("₹1,32,314");
-    await answer("₹40.5/Wp");
+    await answer("Gemini is not connected for this question");
     await p.emulateMedia({ media: "print" });
     assert.equal(await p.locator("#studioAssistant").isVisible(), false);
     await p.emulateMedia({ media: "screen" });
@@ -176,13 +174,8 @@ const fs = require("fs"),
     await ask("save quotation");
     await answer("Open the quotation in Studio first");
     await ask("3kw ka kitne paise honge");
-    await p.waitForSelector(".assistant-choices button");
-    assert.equal(await p.locator(".assistant-choices button").count(), 3);
-    await p
-      .locator(".assistant-choices button")
-      .filter({ hasText: "Rama Solar updated" })
-      .click();
-    await answer("₹1,32,314");
+    await answer("Gemini is not connected for this question");
+    assert.equal(await p.locator(".assistant-choices button").count(),0);
     // New local drafts must never overwrite the old cloud ID left in the URL.
     await p.goto(origin + "/quotation.html?cloud=" + ids[2]);
     await p.waitForFunction(
@@ -236,7 +229,7 @@ const fs = require("fs"),
     await p.setViewportSize({ width: 390, height: 844 });
     await p.waitForSelector("#studioAssistant #assistantLauncher");
     await ask("3kw price");
-    await answer("solar estimate");
+    await answer("Gemini is not connected for this question");
     const box = await p.locator("#assistantPanel").boundingBox();
     assert.ok(
       box.x >= 0 &&
@@ -260,7 +253,7 @@ const fs = require("fs"),
       fullPage: false,
     });
     console.log(
-      "PASS: recent/name open, ambiguous picker, Studio save, duplicate-save guard, existing Finance pricing, rate precision, sharing handoff without delivery, unsaved draft safety, print isolation; no Gemini calls.",
+      "PASS: recent/name open, ambiguous picker, Studio save, duplicate-save guard, honest disconnected pricing, sharing handoff without delivery, unsaved draft safety, print isolation; no Gemini calls.",
     );
   } finally {
     if (browser) await browser.close();

@@ -943,7 +943,7 @@ async function handleApi(request, env, url) {
         loadContext: async proposalId => {
           const [counts, proposals, tasks, events, selected] = await Promise.all([
             all(db, 'SELECT status, COUNT(*) AS count FROM proposals WHERE owner_id = ? GROUP BY status', user.id),
-            all(db, 'SELECT id,owner_id,ref,title,status,capacity,customer_name,updated_at,created_at FROM proposals WHERE owner_id = ? ORDER BY updated_at DESC LIMIT 31', user.id),
+            all(db, 'SELECT id,owner_id,ref,title,status,capacity,customer_name,updated_at,created_at,form_json FROM proposals WHERE owner_id = ? ORDER BY updated_at DESC LIMIT 31', user.id),
             all(db, "SELECT id,owner_id,proposal_id,title,due_at,status FROM tasks WHERE owner_id = ? AND status = 'open' ORDER BY due_at IS NULL,due_at ASC LIMIT 31", user.id),
             all(db, "SELECT owner_id,proposal_id,event_type,created_at FROM portal_events WHERE owner_id = ? AND event_type != 'suspected_prefetch' ORDER BY created_at DESC LIMIT 16", user.id),
             proposalId ? one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', proposalId,user.id) : null

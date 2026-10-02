@@ -6,7 +6,7 @@
   "scripts": {
     "test": "node finance.test.js && node reconcile.test.js && node engineering-boundaries.test.js && node engineering-standards.test.js && node briefing-voices.test.js && node salutation.test.js && node integration.test.js && node reconcile-render.test.js && node export-preflight.test.js && node options.test.js && node sync.test.js && node audit-finance.test.js && node bess.test.js && node supplements.test.js && node platform-api.test.js",
     "test:browser": "node cover-sync.test.js && node brand-engineering.test.js && node visual-discovery.test.js && node page-spacing.test.js && node audit-browser.test.js && node tech-spec.test.js && node array-size.test.js && node system-diagram.test.js && node experience.test.js && node briefing.test.js && node tracking-project.test.js && node control-panel.test.js && node session.test.js && node equipment-entry.test.js && node blank-defaults.test.js && node release-audit.test.js && node browser.test.js && node bess-browser.test.js && node supplements-browser.test.js",
-    "test:assistant": "node --test gemini.test.mjs && node gemini-api.test.mjs && node gemini-worker.test.mjs",
+    "test:assistant": "node --test gemini.test.mjs assistant-knowledge.test.mjs && node gemini-api.test.mjs && node gemini-worker.test.mjs",
     "test:dashboard": "node dashboard-redesign.test.cjs",
     "test:actions": "node --test assistant-actions.test.cjs && node assistant-workflows.test.cjs"
   },

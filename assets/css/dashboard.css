@@ -3080,7 +3080,6 @@ html[data-theme="dark"] .sidebar {
 .breadcrumb { display: flex; align-items: center; }
 .breadcrumb button { border: 0; padding: 5px 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .breadcrumb #currentPage { color: var(--text); font-weight: 600; }
-.breadcrumb #currentPage::after { content: '⌄'; margin-left: 7px; color: var(--muted); }
 .breadcrumb button:hover { color: var(--blue); }
 .page-menu { position: absolute; left: 0; top: calc(100% + 15px); width: 210px; padding: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 12px 35px #14253625; }
 .page-menu button { display: block; width: 100%; padding: 10px 12px; border: 0; border-radius: 7px; background: transparent; color: var(--text); text-align: left; font: inherit; font-size: 12px; }
