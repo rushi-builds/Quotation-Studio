@@ -113,7 +113,22 @@ window.QSAssistantInit = function () {
     label.textContent =
       role === "user" ? "You" : role === "error" ? "Notice" : "Studio AI";
     const body = document.createElement("p");
-    body.textContent = text;
+    if (role !== "assistant") body.textContent = text;
+    else {
+      // Small presentation-only Markdown subset. Never parse model HTML or URLs.
+      const clean = String(text || "").replace(/^\s{0,3}#{1,6}\s+/gm, "")
+        .replace(/^[ \t]*[*+-][ \t]+/gm, "• ");
+      const emphasis = /\*\*([^*\n]+)\*\*|__([^_\n]+)__|\*([^*\n]+)\*/g;
+      let offset = 0;
+      for (const match of clean.matchAll(emphasis)) {
+        body.append(document.createTextNode(clean.slice(offset, match.index)));
+        const span = document.createElement(match[1] || match[2] ? "strong" : "em");
+        span.textContent = match[1] || match[2] || match[3];
+        body.append(span);
+        offset = match.index + match[0].length;
+      }
+      body.append(document.createTextNode(clean.slice(offset)));
+    }
     item.append(label, body);
     messages.append(item);
     panel.classList.add("has-messages");
