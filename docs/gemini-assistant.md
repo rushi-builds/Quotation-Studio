@@ -63,3 +63,13 @@ Persistent atomic D1 quota counters: 5 requests/user/minute, 50/user/day; 30 acr
 - Dashboard jsdom tests cover UI, consent gate, single in-flight request, plain-text rendering, source allowlisting and unavailable-provider state.
 
 Live Gemini responses, production Cloudflare deployment/bootstrap and production quotas remain unverified until activation. Local end-to-end login/create/save/return passed.
+
+## Workspace 5 connection diagnostics
+
+The current UI uses a closed-by-default floating chat with prompt suggestions, context selection, explicit consent, retry and clear-chat. The composer can be drafted before consent; **Send** remains blocked until connected and consented. No automatic retries or fake answers are used.
+
+`GET /api/assistant/status` now returns a sanitized `reason` (`disabled`, `missing_key`, `invalid_model`, or null) and `build: "workspace-5"`. Public health includes the same build marker. These indicate deployment/configuration, not a successful provider request. Provider key/permission/model/quota failures are differentiated without exposing upstream bodies. Browser status/chat timeouts are 12/35 seconds; provider timeout remains 25 seconds.
+
+- `npm run test:dashboard --prefix qa`: production-root browser regression across every dashboard screen, isolated local account/data; explicit mocks only for chat success/consent/XSS checks. Screenshots are ignored under `qa/shots/workspace-v5`.
+- Historical `review/dashboard/*.test.cjs` now load production-root files. `review/dashboard/server.js` also serves the current root dashboard. Stored old review HTML/JS and offline preview are historical, **not the current app**.
+- The redesign changes dashboard presentation/controllers only; quotation editor, proposal/PDF design and finance/engineering files are unchanged.

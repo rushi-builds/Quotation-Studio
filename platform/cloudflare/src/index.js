@@ -770,6 +770,7 @@ async function handleApi(request, env, url) {
       return json({
         ok: true,
         phase: 'E',
+        build: 'workspace-5',
         storage: 'cloudflare-d1',
         time: nowISO(),
         project: 'quotation-studio',

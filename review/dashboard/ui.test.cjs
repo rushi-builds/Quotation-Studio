@@ -1,7 +1,7 @@
 const {JSDOM}=require('jsdom');
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
-const html=fs.readFileSync(path.join(__dirname,'dashboard.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'');
-const code=fs.readFileSync(path.join(__dirname,'dashboard-ui.js'),'utf8');
+const html=fs.readFileSync(path.resolve(__dirname,'../../dashboard.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'');
+const code=fs.readFileSync(path.resolve(__dirname,'../../assets/js/dashboard-ui.js'),'utf8');
 const d=new JSDOM(html,{url:'https://preview.test',runScripts:'outside-only'}),w=d.window;
 let systemDark=true,onSystem,action='',count=3;
 w.matchMedia=()=>({get matches(){return systemDark},addEventListener(type,fn){onSystem=fn}});
@@ -19,9 +19,9 @@ w.dispatchEvent(new w.StorageEvent('storage',{key:'qs.dashboard.theme',newValue:
 assert.equal($('assistantPanel').hidden,true);
 $('assistantLauncher').focus();$('assistantLauncher').click();assert.equal($('assistantPanel').hidden,false);assert.equal($('assistantLauncher').getAttribute('aria-expanded'),'true');assert.equal(w.document.activeElement,$('assistantClose'));
 assert.match($('assistantContext').textContent,/3 saved quotations/);count=4;w.document.dispatchEvent(new w.CustomEvent('qs:workspace-updated'));assert.match($('assistantContext').textContent,/4 saved quotations/);
-assert.equal($('assistantPrompt').disabled,true);
+assert.equal($('assistantSend').disabled,true);
 w.document.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert.equal($('assistantPanel').hidden,true);assert.equal(w.document.activeElement,$('assistantLauncher'));
-$('assistantLauncher').click();w.document.querySelector('[data-assistant-action="overdue"]').click();assert.equal(action,'tasks:overdue');assert.equal($('assistantPanel').hidden,true);
+$('assistantLauncher').click();w.document.querySelector('[data-ai-prompt]').click();assert.ok($('assistantPrompt').value);assert.equal($('assistantSend').disabled,true,'suggestion cannot bypass connection or consent');
 d.window.close();
 const locked=new JSDOM(html,{url:'https://locked.test',runScripts:'outside-only'});Object.defineProperty(locked.window,'localStorage',{get(){throw Error('Storage blocked')}});locked.window.eval(code);assert.equal(locked.window.document.documentElement.dataset.theme,'light');locked.window.close();
-console.log('PASS: system/light/dark preference, persistence, storage unavailable, cross-tab update, assistant open/close/Escape/focus, synced local context, genuine shortcuts, disabled unconnected chat.');
+console.log('PASS: system/light/dark preference, persistence, storage unavailable, cross-tab update, assistant open/close/Escape/focus, synced local context, prompt suggestions, disabled unconnected send.');

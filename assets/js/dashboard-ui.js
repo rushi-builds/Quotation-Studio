@@ -27,6 +27,12 @@
     applyTheme();
   });
 
+  const menu = $('btnMenu'), dash = $('dash'), backdrop = $('sidebarBackdrop');
+  const closeMenu = () => { dash?.classList.remove('nav-open'); if(backdrop)backdrop.hidden=true; menu?.setAttribute('aria-expanded','false'); };
+  menu?.addEventListener('click',()=>{const open=dash.classList.toggle('nav-open');backdrop.hidden=!open;menu.setAttribute('aria-expanded',String(open));});
+  backdrop?.addEventListener('click',closeMenu);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
+
   const launcher = $('assistantLauncher'), panel = $('assistantPanel');
   if (!launcher || !panel) return;
   let previousFocus = null;
@@ -36,34 +42,58 @@
   const messages = $('assistantMessages'), selection = $('assistantQuotation');
   function updateComposer() {
     const enabled = available && consent.checked && !sending;
-    prompt.disabled = !enabled;
+    prompt.disabled = sending;
     $('assistantSend').disabled = !enabled || !prompt.value.trim();
+    $('assistantSend').title = !available ? 'Connect the AI backend first' : !consent.checked ? 'Allow context sharing below to send' : 'Send message';
     selection.disabled = sending;
     consent.disabled = sending;
-    $('assistantConnectionNote').textContent = !available ? 'AI not connected · No data sent.' : !consent.checked ? 'Allow context sharing to enable chat.' : sending ? 'Gemini is thinking…' : 'Read-only · Check answers before acting.';
+    $('assistantConnectionNote').textContent = !available ? 'AI not connected · No data sent.' : !consent.checked ? 'Tick the context-sharing box to send your question.' : sending ? 'Studio AI is thinking…' : 'Read-only assistance · Check important details.';
+  }
+  function connectionError(text) {
+    if ($('assistantError')) $('assistantError').hidden = !text;
+    if ($('assistantErrorText')) $('assistantErrorText').textContent = text || '';
   }
   async function checkConnection() {
+    if (sending) return;
     const version = ++statusGeneration;
     available = false;
-    $('assistantStatus').textContent = 'Checking connection…';
+    $('assistantStatus').textContent = 'Connecting to Gemini…';
+    connectionError('');
+    if ($('assistantRetry')) $('assistantRetry').disabled = true;
     updateComposer();
     try {
-      const status = api?.assistantStatus ? await api.assistantStatus() : { enabled: false };
+      const status = api?.assistantStatus ? await api.assistantStatus() : { enabled: false, reason:'preview' };
       if (version !== statusGeneration) return;
       available = status.enabled === true;
-      $('assistantStatus').textContent = available ? 'Gemini · Read-only' : 'AI not connected';
-      $('assistantIntro').textContent = available ? 'Ask about your saved quotations and follow-ups.' : 'Gemini needs to be enabled on the server.';
-    } catch (_) {
+      $('assistantStatus').textContent = available ? 'Gemini · Read-only' : 'Not connected';
+      $('assistantIntro').textContent = 'Your saved work, one question away.';
+      if (!available) {
+        const reasons = { disabled:'Gemini is switched off on the Worker. Deploy the latest code with GEMINI_ENABLED=true.', missing_key:'The Worker is missing its Gemini secret. Add GEMINI_API_KEY in Cloudflare settings.', invalid_model:'The Gemini model setting is invalid. Check GEMINI_MODEL on the Worker.', preview:'This is a design preview. AI works in the signed-in application.' };
+        connectionError(reasons[status.reason] || 'AI is not enabled on the server yet. Check the latest Cloudflare build.');
+      }
+    } catch (err) {
       if (version !== statusGeneration) return;
-      $('assistantStatus').textContent = 'Connection unavailable';
-      $('assistantIntro').textContent = 'Close and reopen to retry.';
-    }
-    updateComposer();
+      $('assistantStatus').textContent = err.status === 401 ? 'Sign in required' : 'Connection issue';
+      connectionError(err.status === 404 ? 'The live server does not have the new AI route yet. Deploy the latest Cloudflare build.' : err.status === 401 ? 'Your session expired. Sign in again to use Studio AI.' : (err.message || 'Cannot reach the AI backend. Please try again.'));
+    } finally { if(version===statusGeneration) { if ($('assistantRetry')) $('assistantRetry').disabled=false; updateComposer(); } }
   }
+  $('assistantRetry')?.addEventListener('click',checkConnection);
+  $('assistantNewChat')?.addEventListener('click',()=>{
+    if(sending)return;
+    messages.replaceChildren(); panel.classList.remove('has-messages'); prompt.value=''; updateComposer();prompt.focus();
+  });
+  document.querySelectorAll('[data-ai-prompt]').forEach(button=>button.addEventListener('click',()=>{
+    if(sending)return;
+    prompt.value=button.dataset.aiPrompt; updateComposer(); prompt.focus();
+    if(available && !consent.checked) consent.focus();
+  }));
+  prompt.addEventListener('keydown',event=>{
+    if(event.key==='Enter' && !event.shiftKey && !event.isComposing){event.preventDefault(); if(!$('assistantSend').disabled)form.requestSubmit();}
+  });
   function message(role, text) {
     const item = document.createElement('div');
     item.className = 'assistant-message ' + role;
-    const label = document.createElement('strong'); label.textContent = role === 'user' ? 'You' : role === 'error' ? 'Notice' : 'Gemini';
+    const label = document.createElement('strong'); label.textContent = role === 'user' ? 'You' : role === 'error' ? 'Notice' : 'Studio AI';
     const body = document.createElement('p'); body.textContent = text;
     item.append(label, body); messages.append(item);
     panel.classList.add('has-messages');
@@ -79,9 +109,13 @@
     if (text.length > 2000) return;
     const proposalId = selection.value || null;
     message('user', text); prompt.value = ''; sending = true; updateComposer();
-    const pending = message('assistant', 'Thinking…');
+    const pending = message('assistant', 'Looking at your saved workspace…');
+    pending.classList.add('thinking');
+    if($('assistantNewChat'))$('assistantNewChat').disabled=true;
     try {
       const result = await api.assistantChat(text, proposalId, true);
+      connectionError('');
+      $('assistantStatus').textContent = 'Gemini · Read-only';
       pending.remove();
       const item = message('assistant', result.answer || 'No answer returned.');
       if (result.partial) message('error', 'Answer shortened. Ask a narrower question.');
@@ -101,8 +135,10 @@
       }
     } catch (err) {
       pending.remove(); message('error', err.message || 'Could not reach Gemini. Try again.');
+      connectionError(err.message || 'Could not reach Gemini.');
+      $('assistantStatus').textContent = err.status === 429 ? 'Request limit reached' : 'Request failed';
       if (err.status === 401 || err.status === 503) { available = false; $('assistantStatus').textContent = err.status === 401 ? 'Sign in required' : 'AI not connected'; }
-    } finally { sending = false; updateComposer(); messages.scrollTop = messages.scrollHeight; if (!prompt.disabled && !panel.hidden) prompt.focus(); }
+    } finally { sending = false; if($('assistantNewChat'))$('assistantNewChat').disabled=false; updateComposer(); messages.scrollTop = messages.scrollHeight; if (!prompt.disabled && !panel.hidden) prompt.focus(); }
   });
   function context() {
     const D = window.QSDash, user = D?.user();
@@ -136,18 +172,6 @@
   $('assistantClose').addEventListener('click', close);
   document.addEventListener('keydown', event => {
     if (!panel.hidden && event.key === 'Escape') { event.preventDefault(); close(); }
-  });
-  panel.addEventListener('click', event => {
-    const button = event.target.closest('[data-assistant-action]');
-    if (!button) return;
-    const D = window.QSDash;
-    if (!D?.user()) return;
-    close();
-    switch (button.dataset.assistantAction) {
-      case 'overdue': D.showTasks('overdue'); break;
-      case 'active': D.filterStatus('active'); break;
-      case 'reports': D.show('reports'); break;
-    }
   });
   document.addEventListener('qs:workspace-updated', context);
   document.addEventListener('click', event => {

@@ -82,7 +82,7 @@
   function badge(status) {
     const s = status || 'draft';
     const label = STATUS_LABEL[s] || s;
-    return '<span class="badge ' + s + '">' + escapeHtml(label) + '</span>';
+    return '<span class="badge ' + escapeHtml(s) + '">' + escapeHtml(label) + '</span>';
   }
 
   function escapeHtml(v) {
@@ -91,6 +91,10 @@
     }[c]));
   }
 
+  function canEdit() { return !!user && user.role !== 'viewer'; }
+  function emptyState(title, detail, icon = '◇') {
+    return '<div class="hempty"><span class="empty-icon" aria-hidden="true">' + icon + '</span><strong>' + escapeHtml(title) + '</strong>' + escapeHtml(detail || '') + '</div>';
+  }
   /* ---------- auth UI ---------- */
   function clearAuthMessages() {
     if ($('authError')) {
@@ -143,7 +147,8 @@
     if ($('passwordChangeMsg')) $('passwordChangeMsg').textContent = '';
     const hour = new Date().getHours();
     const greet = hour < 5 ? 'Good night' : hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : hour < 21 ? 'Good evening' : 'Good night';
-    $('homeGreeting').textContent = greet + ', ' + (user.name || 'there').split(' ')[0];
+    $('homeGreeting').textContent = greet + ', ' + (user.name || 'there').split(' ')[0] + '.';
+    ['btnNewFromHome','btnNewProposal','btnNewFollowup','btnTaskAdd','btnPublish','btnSendPrepare','btnGalleryUpload'].forEach(id => { if ($(id)) { $(id).disabled = !canEdit(); $(id).title = canEdit() ? '' : 'Your role is read-only'; } });
   }
 
   function showAuth() {
@@ -155,10 +160,20 @@
   /* ---------- navigation ---------- */
   let lastLaunch = null;
 
-  function showPanel(name) {
+  const PAGE_LABELS = {home:'Overview',proposals:'Quotations',tasks:'Follow-ups',activity:'Customer activity',send:'Sharing',publish:'Sharing',gallery:'Project gallery',reports:'Analytics',settings:'Settings'};
+  function showPanel(name, preferId) {
+    if (!$('panel-' + name)) return;
+    banner(null);
+    if ($('currentPage')) $('currentPage').textContent = PAGE_LABELS[name] || name;
+    if ($('dash').classList.contains('nav-open') && $('dashboardSidebar')?.contains(document.activeElement)) $('btnMenu')?.focus();
+    $('dash').classList.remove('nav-open');
+    if ($('btnMenu')) $('btnMenu').setAttribute('aria-expanded','false');
+    if ($('sidebarBackdrop')) $('sidebarBackdrop').hidden = true;
+    if (preferId && name === 'send') fillSendSelect(preferId);
+    if (preferId && name === 'publish') fillPublishSelect(preferId);
     document.querySelectorAll('.panel').forEach((p) => p.classList.remove('on'));
     document.querySelectorAll('.nav-item[data-panel]').forEach((n) => {
-      n.classList.toggle('on', n.getAttribute('data-panel') === name);
+      n.classList.toggle('on', n.getAttribute('data-panel') === (name === 'publish' ? 'send' : name));
     });
     const panel = $('panel-' + name);
     if (panel) panel.classList.add('on');
@@ -211,59 +226,26 @@
   }
 
   function renderNotifications(rows) {
-    const body = $('notifBody');
-    if (!body) return;
-    if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="4" class="empty">No notifications yet. Customer opens and requests will appear here.</td></tr>';
-      return;
-    }
-    body.innerHTML = rows.map((n) => (
-      '<tr style="' + (n.unread ? 'background:#FFFBF5' : '') + '">' +
-        '<td class="muted">' + escapeHtml(fmtDate(n.createdAt)) + '</td>' +
-        '<td><strong>' + escapeHtml(n.title) + '</strong>' +
-          (n.unread ? ' <span class="badge sent">New</span>' : '') + '</td>' +
-        '<td class="muted">' + escapeHtml(n.body || '—') + '</td>' +
-        '<td class="row-actions">' +
-          (n.unread
-            ? '<button type="button" class="btn btn-ghost btn-sm" data-act="read-n" data-id="' +
-              escapeHtml(n.id) + '">Mark read</button>'
-            : '') +
-        '</td></tr>'
-    )).join('');
-    body.querySelectorAll('[data-act="read-n"]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        try {
-          await api.markNotificationRead(btn.getAttribute('data-id'));
-          await refreshActivityPanel();
-          await refreshAll();
-        } catch (err) {
-          toast(err.message || 'Could not update notification');
-        }
-      });
-    });
+    const body = $('notifBody'); if (!body) return;
+    body.innerHTML = rows.length ? rows.map(n => '<article class="notification-item ' + (n.unread ? 'unread' : '') + '"><span class="activity-dot" aria-hidden="true"></span><div class="notification-copy"><h3>' + escapeHtml(n.title) + '</h3><p>' + escapeHtml(n.body || '') + '</p><small>' + escapeHtml(fmtDate(n.createdAt)) + '</small></div>' + (n.unread ? '<button type="button" class="text-link" data-read="' + escapeHtml(n.id) + '">Mark read</button>' : '') + '</article>').join('') : emptyState('You’re all caught up.','New notifications will appear here.','✓');
+    body.querySelectorAll('[data-read]').forEach(btn => btn.addEventListener('click',async()=>{
+      btn.disabled=true;try { await api.markNotificationRead(btn.dataset.read); await refreshActivityPanel(); await refreshAll(); } catch(err) { toast(err.message || 'Could not mark read'); btn.disabled=false; }
+    }));
   }
 
   function renderActivity(rows) {
-    const body = $('activityBody');
-    if (!body) return;
-    if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="3" class="empty">No activity yet.</td></tr>';
-      return;
-    }
-    body.innerHTML = rows.map((e) => (
-      '<tr>' +
-        '<td class="muted">' + escapeHtml(fmtDate(e.createdAt)) + '</td>' +
-        '<td>' + escapeHtml(EVENT_LABELS[e.type] || e.type) + '</td>' +
-        '<td class="muted">' + escapeHtml(e.proposalTitle || e.proposalId || '—') + '</td>' +
-      '</tr>'
-    )).join('');
+    const body = $('activityBody'); if (!body) return;
+    body.innerHTML = rows.length ? rows.map(e => '<article class="timeline-item"><time>' + escapeHtml(fmtDate(e.createdAt)) + '</time><h3>' + escapeHtml(EVENT_LABELS[e.type] || e.type) + '</h3>' + (e.proposalId && allProposals.some(p=>p.id===e.proposalId) ? '<button type="button" class="text-link" data-open-activity="' + escapeHtml(e.proposalId) + '">' + escapeHtml(e.proposalTitle || 'Open quotation') + '</button>' : '<p>' + escapeHtml(e.proposalTitle || 'Workspace event') + '</p>') + '</article>').join('') : emptyState('The story starts here.','Shared links and customer activity will build this timeline.','↗');
+    body.querySelectorAll('[data-open-activity]').forEach(b=>b.addEventListener('click',()=>openInStudio(b.dataset.openActivity)));
   }
 
+  let taskLoad = 0;
   async function refreshTasksPanel() {
+    const requestId = ++taskLoad;
     fillTaskProposalSelect();
     try {
       const r = await api.listTasks();
-      renderTasks((r && r.tasks) || []);
+      if (requestId === taskLoad) renderTasks((r && r.tasks) || []);
     } catch (err) {
       banner('err', err.message || 'Could not load tasks');
     }
@@ -283,44 +265,26 @@
   }
 
   function renderTasks(rows) {
-    const body = $('tasksBody');
-    if (!body) return;
-    const filter = $('taskFilter') ? $('taskFilter').value : 'all';
-    rows = rows.filter(t => { if (filter === 'all') return true; if (t.status !== 'open') return false; if (filter === 'overdue') return !!t.overdue; const d = new Date(t.dueAt), now = new Date(); return !!t.dueAt && d.toDateString() === now.toDateString(); });
-    if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="4" class="empty">No follow-ups match this view.</td></tr>';
-      return;
-    }
-    body.innerHTML = rows.map((t) => {
-      let badge = t.status;
-      let cls = 'draft';
-      if (t.status === 'open' && t.overdue) { badge = 'Overdue'; cls = 'rejected'; }
-      else if (t.status === 'open') { badge = 'Open'; cls = 'sent'; }
-      else if (t.status === 'done') { badge = 'Done'; cls = 'accepted'; }
-      else if (t.status === 'cancelled') { badge = 'Cancelled'; cls = 'archived'; }
-      const prop = allProposals.find((p) => p.id === t.proposalId);
-      return '<tr>' +
-        '<td><strong>' + escapeHtml(t.title) + '</strong>' +
-          (prop ? '<div class="muted" style="font-size:11.5px">' + escapeHtml(prop.customer || prop.ref || '') + '</div>' : '') +
-          (t.notes ? '<div class="muted" style="font-size:11.5px">' + escapeHtml(t.notes) + '</div>' : '') +
-        '</td>' +
-        '<td class="muted">' + escapeHtml(t.dueAt ? fmtDate(t.dueAt) : '—') + '</td>' +
-        '<td><span class="badge ' + cls + '">' + escapeHtml(badge) + '</span></td>' +
-        '<td class="row-actions">' +
-          (t.status === 'open'
-            ? '<button type="button" class="btn btn-secondary btn-sm" data-act="task-done" data-id="' +
-              escapeHtml(t.id) + '">Complete</button>' +
-              '<button type="button" class="btn btn-ghost btn-sm" data-act="task-cancel" data-id="' +
-              escapeHtml(t.id) + '">Cancel</button>'
-            : '<button type="button" class="btn btn-ghost btn-sm" data-act="task-reopen" data-id="' +
-              escapeHtml(t.id) + '">Reopen</button>') +
-          '<button type="button" class="btn btn-danger-soft btn-sm" data-act="task-del" data-id="' +
-            escapeHtml(t.id) + '">Delete</button>' +
-        '</td></tr>';
+    const body = $('tasksBody'); if (!body) return;
+    const filter = $('taskFilter')?.value || 'all';
+    rows = rows.filter(t => {
+      if (filter === 'all') return true;
+      if (filter === 'done') return t.status === 'done';
+      if (t.status !== 'open') return false;
+      if (filter === 'open') return true;
+      if (filter === 'overdue') return !!t.overdue;
+      return !!t.dueAt && new Date(t.dueAt).toDateString() === new Date().toDateString();
+    }).sort((a,b)=> (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || (Date.parse(a.dueAt) || Infinity) - (Date.parse(b.dueAt) || Infinity));
+    if ($('taskCount')) $('taskCount').textContent = String(rows.length);
+    if (!rows.length) { body.innerHTML = emptyState('A clear list. A fresh start.','No follow-ups in this view. Plan your next step on the right.','✓'); return; }
+    body.innerHTML = rows.map(t => {
+      const prop = allProposals.find(p=>p.id===t.proposalId);
+      const action = (act,label,cls='') => '<button type="button" class="' + cls + '" data-act="' + act + '" data-id="' + escapeHtml(t.id) + '">' + label + '</button>';
+      const check = canEdit() ? action(t.status === 'open' ? 'task-done' : 'task-reopen', t.status === 'done' ? '✓' : '<span class="sr-only">' + (t.status === 'open' ? 'Complete task' : 'Reopen task') + '</span>', 'task-check') : '<span class="task-check" aria-label="' + escapeHtml(t.status) + '">' + (t.status === 'done' ? '✓' : '') + '</span>';
+      return '<article class="task-item ' + escapeHtml(t.status) + '">' + check + '<div class="task-copy"><h3>' + escapeHtml(t.title) + '</h3><div class="task-meta"><span class="' + (t.overdue ? 'late' : '') + '">' + escapeHtml(t.dueAt ? fmtDate(t.dueAt) : 'No due date') + '</span>' + (prop ? '<button type="button" class="text-link" data-task-quote="' + escapeHtml(prop.id) + '">' + escapeHtml(prop.customer || prop.ref || 'Quotation') + '</button>' : '') + (t.status === 'cancelled' ? '<span>Cancelled</span>' : '') + '</div>' + (t.notes ? '<p>' + escapeHtml(t.notes) + '</p>' : '') + '</div>' + (canEdit() ? '<details class="row-menu"><summary aria-label="Task actions">⋯</summary><div class="row-menu-list">' + (t.status === 'open' ? action('task-cancel','Cancel task') : action('task-reopen','Reopen task')) + action('task-del','Delete task','danger') + '</div></details>' : '') + '</article>';
     }).join('');
-    body.querySelectorAll('[data-act]').forEach((btn) => {
-      btn.addEventListener('click', onTaskAction);
-    });
+    body.querySelectorAll('[data-act]').forEach(btn=>btn.addEventListener('click',onTaskAction));
+    body.querySelectorAll('[data-task-quote]').forEach(btn=>btn.addEventListener('click',()=>openInStudio(btn.dataset.taskQuote)));
   }
 
   async function onTaskAction(ev) {
@@ -387,32 +351,18 @@
       if ($('repAccepted')) $('repAccepted').textContent = String((r.proposals && r.proposals.accepted) || 0);
       if ($('repOpens')) $('repOpens').textContent = String((r.engagement && r.engagement.linkOpens) || 0);
       if ($('repValue')) {
-        $('repValue').textContent = fmtINR(r.value && r.value.quotedSum);
+        $('repValue').textContent = r.value?.proposalsWithValue > 0 ? fmtINR(r.value.quotedSum) : '—';
       }
       if ($('repValueHint')) {
         const known = (r.value && r.value.proposalsWithValue) || 0;
         const miss = (r.value && r.value.proposalsMissingValue) || 0;
-        $('repValueHint').textContent = known + ' with value · ' + miss + ' missing';
+        $('repValueHint').textContent = known + ' priced · ' + miss + ' missing · not revenue';
       }
       const eng = r.engagement || {};
-      if ($('repEngagement')) {
-        $('repEngagement').innerHTML =
-          'Versions published: <strong>' + escapeHtml(eng.versionsPublished || 0) + '</strong><br />' +
-          'Active customer links: <strong>' + escapeHtml(eng.activeCustomerLinks || 0) + '</strong><br />' +
-          'Share starts (manual): <strong>' + escapeHtml(eng.shareClicksRecorded || 0) + '</strong><br />' +
-          'Link opens: <strong>' + escapeHtml(eng.linkOpens || 0) + '</strong> · ' +
-          'Suspected previews: <strong>' + escapeHtml(eng.suspectedPrefetches || 0) + '</strong><br />' +
-          'PDF requests: <strong>' + escapeHtml(eng.pdfDownloadRequests || 0) + '</strong> · ' +
-          'Survey requests: <strong>' + escapeHtml(eng.surveyRequests || 0) + '</strong><br />' +
-          '<span class="muted">' + escapeHtml(eng.note || '') + '</span>';
-      }
-      const st = (r.proposals && r.proposals.byStatus) || {};
-      if ($('repStatus')) {
-        const keys = Object.keys(st);
-        $('repStatus').innerHTML = keys.length
-          ? keys.map((k) => escapeHtml(STATUS_LABEL[k] || k) + ': <strong>' + st[k] + '</strong>').join(' · ')
-          : 'No proposals yet.';
-      }
+      const metrics = [['Published versions',eng.versionsPublished],['Active customer links',eng.activeCustomerLinks],['Share starts',eng.shareClicksRecorded],['PDF requests',eng.pdfDownloadRequests],['Survey requests',eng.surveyRequests],['Suspected previews',eng.suspectedPrefetches]];
+      if ($('repEngagement')) $('repEngagement').innerHTML = metrics.map(([label,value])=>'<div class="engagement-tile"><span>' + label + '</span><strong>' + escapeHtml(value || 0) + '</strong></div>').join('');
+      const st = r.proposals?.byStatus || {}, max = Math.max(1,...Object.values(st).map(Number));
+      if ($('repStatus')) $('repStatus').innerHTML = Object.keys(st).length ? Object.entries(st).map(([key,n])=>'<div class="stage-row"><span>' + escapeHtml(STATUS_LABEL[key] || key) + '</span><span class="stage-bar"><i style="width:' + Math.max(0,Math.min(100,Number(n)/max*100)) + '%"></i></span><b>' + escapeHtml(n) + '</b></div>').join('') : emptyState('No quotations yet.','Your saved quotation stages will appear here.','▤');
       const ul = $('repHonesty');
       if (ul) {
         ul.innerHTML = (r.honesty || []).map((line) => '<li>' + escapeHtml(line) + '</li>').join('');
@@ -487,9 +437,12 @@
     if (cur && allProposals.some((p) => p.id === cur)) sel.value = cur;
   }
 
+  let sendLoad = 0, sendLoadedId = null;
   async function refreshSendPanel() {
+    const requestId = ++sendLoad;
     fillSendSelect();
     const id = $('sendSelect') && $('sendSelect').value;
+    if (sendLoadedId !== id) { ['sendMessage','sendRecipientName','sendRecipientTo'].forEach(key=>{ if ($(key)) $(key).value=''; }); sendLoadedId=id; }
     lastLaunch = null;
     if ($('btnSendLaunch')) $('btnSendLaunch').hidden = true;
     if ($('btnSendCopy')) $('btnSendCopy').hidden = true;
@@ -499,7 +452,7 @@
     }
     if (!id) {
       if ($('sendsBody')) {
-        $('sendsBody').innerHTML = '<tr><td colspan="5" class="empty">Select a proposal to view send history.</td></tr>';
+        $('sendsBody').innerHTML = emptyState('Choose a quotation.','Its sharing history will appear here.','↗');
       }
       if ($('sendMessage')) $('sendMessage').value = '';
       return;
@@ -509,6 +462,7 @@
         api.sendPreview(id),
         api.listSends(id)
       ]);
+      if (requestId !== sendLoad || $('sendSelect').value !== id) return;
       if ($('sendRecipientName') && !$('sendRecipientName').value) {
         $('sendRecipientName').value = preview.defaultRecipientName || '';
       }
@@ -542,44 +496,10 @@
   }
 
   function renderSends(rows) {
-    const body = $('sendsBody');
-    if (!body) return;
-    if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="5" class="empty">No send attempts recorded yet.</td></tr>';
-      return;
-    }
-    body.innerHTML = rows.map((s) => {
-      let badgeCls = 'draft';
-      if (s.state === 'share_clicked') badgeCls = 'sent';
-      if (s.state === 'delivered') badgeCls = 'accepted';
-      if (s.state === 'failed' || s.state === 'cancelled') badgeCls = 'rejected';
-      return '<tr>' +
-        '<td class="muted">' + escapeHtml(fmtDate(s.createdAt)) + '</td>' +
-        '<td>' + escapeHtml(s.channelLabel || s.channel) + '</td>' +
-        '<td>' + escapeHtml(s.recipientTo || s.recipientName || '—') + '</td>' +
-        '<td><span class="badge ' + badgeCls + '" title="' + escapeHtml(s.stateLabel || '') + '">' +
-          escapeHtml(s.stateLabel || s.state) + '</span></td>' +
-        '<td class="row-actions">' +
-          (s.state !== 'cancelled' && s.state !== 'failed'
-            ? '<button type="button" class="btn btn-ghost btn-sm" data-act="cancel-send" data-id="' +
-              escapeHtml(s.id) + '">Cancel</button>'
-            : '') +
-        '</td></tr>';
-    }).join('');
-    body.querySelectorAll('[data-act="cancel-send"]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        try {
-          await api.updateSendState(btn.getAttribute('data-id'), 'cancelled');
-          toast('Send marked cancelled');
-          await refreshSendPanel();
-        } catch (err) {
-          toast(err.message || 'Could not update send');
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    });
+    const body = $('sendsBody'); if (!body) return;
+    if (!rows.length) { body.innerHTML = emptyState('Nothing shared yet.','Prepare a message to start the conversation.','↗'); return; }
+    body.innerHTML = rows.map(s => '<article class="send-item"><span class="client-icon" aria-hidden="true">↗</span><div><strong>' + escapeHtml(s.recipientName || s.recipientTo || 'Customer') + '</strong><p>' + escapeHtml(s.channelLabel || s.channel) + '</p><span class="badge ' + (s.state === 'failed' || s.state === 'cancelled' ? 'rejected' : 'sent') + '">' + escapeHtml(s.stateLabel || s.state) + '</span><p><small>' + escapeHtml(fmtDate(s.createdAt)) + '</small></p></div>' + (canEdit() && !['cancelled','failed'].includes(s.state) ? '<button type="button" class="text-link" data-cancel-send="' + escapeHtml(s.id) + '">Cancel</button>' : '') + '</article>').join('');
+    body.querySelectorAll('[data-cancel-send]').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;try{await api.updateSendState(btn.dataset.cancelSend,'cancelled');await refreshSendPanelKeepMessage();toast('Send cancelled');}catch(err){toast(err.message || 'Could not cancel');btn.disabled=false;}}));
   }
 
   async function prepareSend() {
@@ -604,6 +524,7 @@
         expiresInDays: 30,
         markShareClicked: true
       });
+      if ($('sendSelect').value !== id) { toast('Sharing prepared for the previous quotation'); await refreshAll(); return; }
       lastLaunch = r.launch || null;
       if ($('sendMessage') && r.launch && r.launch.copyText) {
         $('sendMessage').value = r.launch.copyText;
@@ -704,7 +625,9 @@
     if (cur && allProposals.some((p) => p.id === cur)) sel.value = cur;
   }
 
+  let publishLoad = 0;
   async function refreshPublishPanel() {
+    const requestId = ++publishLoad;
     fillPublishSelect();
     const id = $('publishSelect') && $('publishSelect').value;
     if (!id) {
@@ -719,6 +642,7 @@
         api.listLinks(id),
         api.listEvents(id)
       ]);
+      if (requestId !== publishLoad || $('publishSelect').value !== id) return;
       renderVersions((vers && vers.versions) || []);
       renderLinks((links && links.links) || []);
       renderEvents((events && events.events) || []);
@@ -762,7 +686,7 @@
         '<td class="mono">' + escapeHtml(String(t.openCount || 0)) + '</td>' +
         '<td><span class="badge ' + badgeCls + '">' + escapeHtml(status) + '</span></td>' +
         '<td class="row-actions">' +
-          (t.revokedAt ? '' :
+          (t.revokedAt || !canEdit() ? '' :
             '<button type="button" class="btn btn-danger-soft btn-sm" data-act="revoke" data-id="' + escapeHtml(t.id) + '">Revoke</button>') +
         '</td></tr>';
     }).join('');
@@ -920,46 +844,19 @@
     if (!body) return;
     const rows = filteredProposals();
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="7" class="empty">No proposals match. Try clearing filters or create a new one.</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="empty"><span class="empty-icon" aria-hidden="true">▤</span><strong>No quotations here yet.</strong>Create your first quotation, or try another filter.</td></tr>';
       return;
     }
     body.innerHTML = rows.map((p) => rowHtml(p, false)).join('');
     bindRowActions(body);
   }
 
-  function rowHtml(p, compact) {
-    const customer = escapeHtml(p.customer || 'Untitled');
-    const ref = escapeHtml(p.ref || '—');
-    const cap = escapeHtml(p.capacity ? p.capacity + ' kWp' : '—');
-    const ver = escapeHtml(p.version || '1.0');
-    const updated = escapeHtml(fmtDate(p.updatedAt));
-    const nextStatus = NEXT_STATUS[p.status || 'draft'];
-    const actions =
-      '<div class="row-actions">' +
-        '<button type="button" class="btn btn-secondary btn-sm" data-act="open" data-id="' + escapeHtml(p.id) + '">Open in Studio</button>' +
-        '<button type="button" class="btn btn-ghost btn-sm" data-act="pub" data-id="' + escapeHtml(p.id) + '">Publish</button>' +
-        '<button type="button" class="btn btn-ghost btn-sm" data-act="send" data-id="' + escapeHtml(p.id) + '">Send</button>' +
-        (nextStatus ? '<button type="button" class="btn btn-ghost btn-sm" data-act="adv" data-id="' + escapeHtml(p.id) + '" title="Move to ' + escapeHtml(STATUS_LABEL[nextStatus]) + '">Advance \u2192</button>' : '') +
-        '<button type="button" class="btn btn-ghost btn-sm" data-act="dup" data-id="' + escapeHtml(p.id) + '">Duplicate</button>' +
-        '<button type="button" class="btn btn-danger-soft btn-sm" data-act="del" data-id="' + escapeHtml(p.id) + '">Delete</button>' +
-      '</div>';
-    if (compact) {
-      return '<tr>' +
-        '<td><strong>' + customer + '</strong></td>' +
-        '<td class="mono muted">' + ref + '</td>' +
-        '<td>' + cap + '</td>' +
-        '<td>' + badge(p.status) + '</td>' +
-        '<td class="muted">' + updated + '</td>' +
-        '<td>' + actions + '</td></tr>';
-    }
-    return '<tr>' +
-      '<td><strong>' + customer + '</strong><div class="muted" style="font-size:11.5px">' + escapeHtml(p.title || '') + '</div></td>' +
-      '<td class="mono muted">' + ref + '</td>' +
-      '<td class="mono">v' + ver + '</td>' +
-      '<td>' + cap + '</td>' +
-      '<td>' + badge(p.status) + '</td>' +
-      '<td class="muted">' + updated + '</td>' +
-      '<td>' + actions + '</td></tr>';
+  function rowHtml(p) {
+    const customer = p.customer || 'Untitled customer', id = escapeHtml(p.id);
+    const action = (act,label,cls='') => '<button type="button" class="' + cls + '" data-act="' + act + '" data-id="' + id + '">' + label + '</button>';
+    const next = NEXT_STATUS[p.status || 'draft'];
+    const menu = canEdit() ? '<details class="row-menu"><summary aria-label="Actions for ' + escapeHtml(customer) + '">⋯</summary><div class="row-menu-list">' + action('send','Share quotation') + action('pub','Manage versions & links') + action('dup','Duplicate quotation') + (next ? action('adv','Mark ' + escapeHtml(STATUS_LABEL[next])) : '') + action('del','Delete quotation','danger') + '</div></details>' : '';
+    return '<tr><td><div class="quote-client"><span class="client-icon" aria-hidden="true">' + escapeHtml(customer.trim().slice(0,2).toUpperCase()) + '</span><div>' + action('open',escapeHtml(customer),'record-link') + '<small>' + escapeHtml(p.ref || p.title || 'No reference') + '</small></div></div></td><td class="capacity-cell">' + escapeHtml(p.capacity ? p.capacity + ' kWp' : '—') + '<small>Version ' + escapeHtml(p.version || '1.0') + '</small></td><td>' + badge(p.status) + '</td><td class="muted">' + escapeHtml(fmtDate(p.updatedAt)) + '</td><td><div class="row-actions">' + action('open','Open ↗','btn btn-secondary btn-sm') + menu + '</div></td></tr>';
   }
 
   function bindRowActions(root) {
@@ -978,23 +875,18 @@
       return;
     }
     if (act === 'pub') {
-      showPanel('publish');
-      fillPublishSelect(id);
-      if ($('publishSelect')) $('publishSelect').value = id;
-      refreshPublishPanel();
+      showPanel('publish',id);
       return;
     }
     if (act === 'send') {
-      showPanel('send');
-      fillSendSelect(id);
-      if ($('sendSelect')) $('sendSelect').value = id;
-      refreshSendPanel();
+      showPanel('send',id);
       return;
     }
     if (act === 'adv') {
       const found = allProposals.find((x) => x.id === id) || {};
       const next = NEXT_STATUS[found.status || 'draft'];
       if (!next) return;
+      if (['sent','viewed','accepted'].includes(next) && !confirm('Mark this quotation ' + STATUS_LABEL[next] + ' manually? This does not verify customer delivery or approval.')) return;
       btn.disabled = true;
       try {
         await api.updateProposal(id, { status: next });
@@ -1087,10 +979,12 @@
     if (!grid) return;
     try {
       const r = await api.listGallery();
-      const items = (r && r.gallery) || [];
+      const allItems = (r && r.gallery) || [];
+      const category = $('galleryFilter')?.value || '';
+      const items = allItems.filter(g=>!category || g.category===category);
       if (count) count.textContent = items.length + (items.length === 1 ? ' photo' : ' photos');
       if (!items.length) {
-        grid.innerHTML = '<div class="empty-pad">No site photos uploaded yet. Add the first one above \u2014 it stays staff-only until approved for the public page.</div>';
+        grid.innerHTML = '<div class="empty-pad">Your projects deserve a place here. Upload a photo, or choose another category.</div>';
         return;
       }
       grid.innerHTML = items.map((g) => (
@@ -1100,7 +994,7 @@
           '</button>' +
           '<figcaption><span>' + escapeHtml(g.caption || 'Site photo') + '</span>' +
           '<span class="muted micro">' + escapeHtml(GALLERY_LABEL[g.category] || 'Site') + ' \u00b7 ' + escapeHtml(fmtDate(g.created_at)) + '</span></figcaption>' +
-          '<button type="button" class="btn btn-danger-soft btn-sm gdel" data-del="' + escapeHtml(g.id) + '">Delete</button>' +
+          (canEdit() ? '<button type="button" class="btn btn-danger-soft btn-sm gdel" data-del="' + escapeHtml(g.id) + '">Remove photo</button>' : '') +
         '</figure>'
       )).join('');
       grid.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
@@ -1278,6 +1172,15 @@
       });
     }
 
+    if ($('galleryFilter')) $('galleryFilter').addEventListener('change',refreshGalleryPanel);
+    document.querySelectorAll('[data-go-panel]').forEach(b=>b.addEventListener('click',()=>showPanel(b.dataset.goPanel)));
+    document.querySelectorAll('[data-focus]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.focus)?.focus()));
+    document.querySelectorAll('[data-settings]').forEach(b=>b.addEventListener('click',()=>{
+      document.querySelectorAll('[data-settings]').forEach(n=>n.classList.toggle('selected',n===b));
+      document.querySelectorAll('[data-settings-section]').forEach(n=>n.hidden=n.dataset.settingsSection!==b.dataset.settings);
+    }));
+    document.addEventListener('click', e=>document.querySelectorAll('.row-menu[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false;}));
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.row-menu[open]').forEach(menu=>menu.open=false);});
     document.querySelectorAll('.nav-item[data-panel]').forEach((n) => {
       n.addEventListener('click', () => showPanel(n.getAttribute('data-panel')));
     });

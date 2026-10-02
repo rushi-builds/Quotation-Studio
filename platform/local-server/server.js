@@ -1029,6 +1029,7 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, {
         ok: true,
         phase: 'E',
+        build: 'workspace-5',
         storage: 'local-json',
         time: nowISO(),
         sending: {

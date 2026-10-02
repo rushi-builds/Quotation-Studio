@@ -66,3 +66,14 @@ test('bounded body parser rejects oversized, malformed and multibyte bodies',asy
  await assert.rejects(boundedJson(req('{oops')),e=>e.status===400);
  assert.equal((await boundedJson(req('{"message":"hello"}'))).message,'hello');
 });
+
+test('connection diagnostics distinguish configuration and sanitized provider failures',async()=>{
+ for (const [config,reason] of [[{},'disabled'],[{GEMINI_ENABLED:'true'},'missing_key'],[{...env,GEMINI_MODEL:'invalid model'},'invalid_model'],[env,null]]) {
+  const r=await handleAssistant({...args,env:config,method:'GET',action:'status'});
+  assert.equal(r.body.reason,reason);assert.equal(r.body.build,'workspace-5');
+ }
+ for(const [status,pattern] of [[400,/configuration/],[401,/authentication/],[403,/permissions/],[404,/GEMINI_MODEL/],[429,/quota/]]){
+  const r=await handleAssistant({...args,fetchImpl:async()=>new Response('SECRET_PROVIDER_BODY',{status})});
+  assert.match(r.body.error,pattern);assert.ok(!JSON.stringify(r).includes('SECRET_PROVIDER_BODY'));
+ }
+});

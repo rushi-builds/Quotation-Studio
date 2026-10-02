@@ -1,7 +1,7 @@
 // Run with: NODE_PATH=/home/user/review-tools/node_modules node review/dashboard/review.test.cjs
 const {JSDOM} = require('jsdom');
 const fs = require('fs'); const path = require('path'); const assert = require('node:assert/strict');
-const file = n => fs.readFileSync(path.join(__dirname,n),'utf8');
+const file = n => fs.readFileSync(path.resolve(__dirname,'../..', n === 'dashboard.html' ? n : 'assets/js/'+n),'utf8');
 (async () => {
  const dom = new JSDOM(file('dashboard.html').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,''),{url:'http://review.test',runScripts:'outside-only'});
  const w=dom.window, errors=[];w.addEventListener('error',e=>errors.push(e.message));

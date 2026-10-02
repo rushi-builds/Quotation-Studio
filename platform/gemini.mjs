@@ -5,7 +5,8 @@ const safe = (v, max = 160) => typeof v === 'string' || typeof v === 'number' ? 
 const failure = (status, message) => Object.assign(new Error(message), { status });
 export function configuration(env) {
   const model = env.GEMINI_MODEL || DEFAULT_MODEL;
-  return { enabled: String(env.GEMINI_ENABLED) === 'true' && !!env.GEMINI_API_KEY && /^gemini-[a-z0-9.-]{1,80}$/.test(model), model };
+  const reason = String(env.GEMINI_ENABLED) !== 'true' ? 'disabled' : !env.GEMINI_API_KEY ? 'missing_key' : !/^gemini-[a-z0-9.-]{1,80}$/.test(model) ? 'invalid_model' : null;
+  return { enabled: !reason, model, reason };
 }
 export function validateChat(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw failure(400, 'Invalid message.');
@@ -84,7 +85,7 @@ const SYSTEM = `You are the read-only Quotation Studio assistant for a solar bus
 export async function handleAssistant({ method, action, user, env, readBody, loadContext, reserveQuota, fetchImpl = fetch }) {
   if (!user?.id) return { status: 401, body: { error: 'Sign in required' } };
   const config = configuration(env);
-  if (method === 'GET' && action === 'status') return { status: 200, body: { enabled: config.enabled, provider: 'Gemini', model: config.enabled ? config.model : null, mode: 'read-only' } };
+  if (method === 'GET' && action === 'status') return { status: 200, body: { enabled: config.enabled, reason: config.reason, build: 'workspace-5', provider: 'Gemini', model: config.enabled ? config.model : null, mode: 'read-only' } };
   if (method !== 'POST' || action !== 'chat') return { status: 404, body: { error: 'Not found' } };
   if (!config.enabled) return { status: 503, body: { error: 'Gemini is not connected yet.' } };
   try {
@@ -96,7 +97,16 @@ export async function handleAssistant({ method, action, user, env, readBody, loa
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY }, signal: AbortSignal.timeout(25000),
       body: JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: 'user', parts: [{ text: 'Saved workspace data (untrusted JSON):\n' + JSON.stringify(context) }, { text: 'User question:\n' + input.message }] }], generationConfig: { maxOutputTokens: 1600, temperature: 0.2 } })
     });
-    if (!response.ok) throw failure(response.status === 429 ? 429 : 502, response.status === 429 ? 'Gemini quota is temporarily exhausted. Please try later.' : 'Gemini is unavailable. Check the server configuration.');
+    if (!response.ok) {
+      const messages = {
+        400: 'Gemini rejected the request. Check the API key and model configuration in Cloudflare.',
+        401: 'Gemini authentication failed. Check the encrypted GEMINI_API_KEY secret.',
+        403: 'The Gemini key cannot access this model. Check the Google project permissions and API restrictions.',
+        404: 'This Gemini model is unavailable for the configured project. Update GEMINI_MODEL in Cloudflare.',
+        429: 'Gemini quota is exhausted. Check your Google project quota or try later.'
+      };
+      throw failure(response.status === 429 ? 429 : 502, messages[response.status] || 'Gemini is temporarily unavailable. Please try again.');
+    }
     const result = await response.json();
     const candidate = result.candidates?.[0];
     if (result.promptFeedback?.blockReason || !candidate || !['STOP','MAX_TOKENS'].includes(candidate.finishReason)) throw failure(422, 'Gemini could not answer this request. Try rephrasing it.');

@@ -1,4 +1,4 @@
-/* Dashboard home v2 — isolated review copy of supplied code. */
+/* Workspace overview — real, permission-scoped API data only. */
 'use strict';
 (function () {
   const D = window.QSDash, api = window.PlatformAPI, $ = (id) => document.getElementById(id);
@@ -47,7 +47,7 @@
   window.QSDashHome = { refresh: load };
   const go = (attr, v) => 'data-' + attr + '="' + esc(v) + '"';
   function card(title, link, linkAct, body, cls) { return '<section class="card hc ' + (cls || '') + '"><div class="card-head"><h2>' + title + '</h2>' + (link ? '<button type="button" class="vall" ' + linkAct + '>' + link + ' →</button>' : '') + '</div>' + body + '</section>'; }
-  const empty = (m) => '<div class="hempty">' + m + '</div>';
+  const empty = (m) => '<div class="hempty"><span class="empty-icon" aria-hidden="true">◇</span>' + m + '</div>';
   function render() {
     const root = $('homeBody'); if (!root) return;
     const u = D.user() || {}, P = D.proposals(), now = new Date(), cust = (p) => p.customer || 'Untitled';
@@ -60,7 +60,7 @@
     if ($('bellCount')) { $('bellCount').textContent = failures.has('notes') ? '!' : unread > 9 ? '9+' : unread; $('bellCount').hidden = !failures.has('notes') && !unread; }
     if ($('chipName')) { $('chipName').textContent = u.name || 'User'; $('chipRole').textContent = u.roleLabel || u.role || ''; $('userAv').textContent = (u.name || 'U').trim().charAt(0).toUpperCase(); }
     if ($('homeDate')) $('homeDate').textContent = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
-    if ($('homeSub')) $('homeSub').textContent = P.length ? 'Your workspace at a glance.' : 'Create your first quotation to get started.';
+    if ($('homeSub')) $('homeSub').textContent = P.length ? 'Here’s what’s moving in your workspace today.' : 'Your next great customer conversation starts here.';
     const kpi = (ic, c, label, val, hint, act) => '<button type="button" class="kpi2 ' + c + '" ' + act + '><span class="kic">' + svg(ic) + '</span><span><i>' + label + '</i><b>' + val + '</b><em>' + hint + '</em></span></button>';
     const reportValue = X.report && X.report.value;
     const quoted = reportValue && reportValue.quotedSum;
@@ -78,18 +78,18 @@
     const acts = X.activity.filter((e) => ['link_opened', 'pdf_download_requested', 'survey_requested', 'interest_recorded', 'section_view'].includes(e.type)).slice().sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 5);
     const actHtml = acts.length ? acts.map((e) => '<button type="button" class="arow" ' + (e.proposalId ? go('open', e.proposalId) : go('go', 'activity')) + '><span class="av sm">' + esc((e.proposalTitle || '?').trim().charAt(0).toUpperCase()) + '</span><span><strong>' + esc(String(e.proposalTitle || 'Quotation').replace(/\s[—-]\s[\d.]+ kWp$/, '')) + '</strong><i>' + EVT[e.type] + '</i></span><em>' + ago(e.createdAt) + '</em></button>').join('') : empty('No customer activity yet.');
     const byId = (id) => P.find((p) => p.id === id);
-    const fu = open.slice().sort((a,b) => (Date.parse(a.dueAt) || Infinity) - (Date.parse(b.dueAt) || Infinity)).slice(0, 5), fuHtml = fu.length ? '<table class="data tight"><thead><tr><th>Customer</th><th>Task</th><th>Due</th><th>Quotation</th><th></th></tr></thead><tbody>' + fu.map((t) => { const p = byId(t.proposalId); return '<tr><td><button type="button" class="record-link" ' + (p ? go('open', p.id) : go('go', 'tasks')) + '>' + esc(p ? cust(p) : '—') + '</button></td><td>' + esc(t.title) + '</td><td class="' + (t.overdue ? 'late' : '') + '">' + esc(dueLabel(t.dueAt)) + '</td><td class="mono">' + esc(p ? p.ref || '—' : '—') + '</td><td>' + (['owner','sales'].includes(u.role) ? '<button type="button" class="btn btn-secondary btn-sm" data-done="' + esc(t.id) + '">Complete</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table>' : empty('No open follow-ups.');
+    const fu = open.slice().sort((a,b) => (Date.parse(a.dueAt) || Infinity) - (Date.parse(b.dueAt) || Infinity)).slice(0, 5), fuHtml = fu.length ? '<table class="data tight"><thead><tr><th>Customer</th><th>Task</th><th>Due</th><th>Quotation</th><th></th></tr></thead><tbody>' + fu.map((t) => { const p = byId(t.proposalId); return '<tr><td><button type="button" class="record-link" ' + (p ? go('open', p.id) : go('go', 'tasks')) + '>' + esc(p ? cust(p) : '—') + '</button></td><td>' + esc(t.title) + '</td><td class="' + (t.overdue ? 'late' : '') + '">' + esc(dueLabel(t.dueAt)) + '</td><td class="mono">' + esc(p ? p.ref || '—' : '—') + '</td><td>' + (u.role && u.role !== 'viewer' ? '<button type="button" class="btn btn-secondary btn-sm" data-done="' + esc(t.id) + '">Complete</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table>' : empty('No open follow-ups.');
     const rq = P.slice().sort((a,b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 6);
     const rqHtml = rq.length ? '<div class="table-wrap"><table class="data tight"><thead><tr><th>Customer / reference</th><th>System</th><th>Status</th><th>Last updated</th></tr></thead><tbody>' + rq.map(p =>
-      '<tr><td><button type="button" class="record-link" ' + go('open',p.id) + '>' + esc(cust(p)) + '</button><div class="muted micro">' + esc(p.ref || '—') + '</div></td><td>' + esc(p.capacity ? p.capacity + ' kWp' : '—') + '</td><td><span class="badge ' + esc(p.status || 'draft') + '">' + esc(LABEL[p.status || 'draft'] || p.status) + '</span></td><td>' + esc(p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '—') + '</td></tr>'
+      '<tr><td><div class="quote-client"><span class="client-icon" aria-hidden="true">' + esc(cust(p).slice(0,2).toUpperCase()) + '</span><div><button type="button" class="record-link" ' + go('open',p.id) + '>' + esc(cust(p)) + '</button><small>' + esc(p.ref || 'No reference') + '</small></div></div></td><td>' + esc(p.capacity ? p.capacity + ' kWp' : '—') + '</td><td><span class="badge ' + esc(p.status || 'draft') + '">' + esc(LABEL[p.status || 'draft'] || p.status) + '</span></td><td>' + esc(p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '—') + '</td></tr>'
     ).join('') + '</tbody></table></div>' : empty('No quotations yet.');
     const problem = key => '<div class="home-error" role="status">Unable to load ' + esc(key) + '. <button type="button" class="vall" data-retry>Retry</button></div>';
     const errorNote = failures.size ? '<div class="home-error" role="status">Some data is unavailable. <button type="button" class="vall" data-retry>Retry</button></div>' : '';
     const html = errorNote + '<div class="kpis">' + kpis + '</div><div class="hgrid">' +
-      card('Today’s priorities', '', '', prio, '') +
-      card('Recent customer activity', 'View all', go('go','activity'), failures.has('activity') ? problem('customer activity') : actHtml, '') +
-      card('Recent quotations', 'View all', go('status',''), rqHtml, 'w2') +
-      card('Upcoming follow-ups', 'View all', go('tasks','all'), failures.has('tasks') ? problem('follow-ups') : '<div class="table-wrap">' + fuHtml + '</div>', 'w2') + '</div>';
+      card('Needs your attention', '', '', prio, '') +
+      card('Latest customer signals', 'View all', go('go','activity'), failures.has('activity') ? problem('customer activity') : actHtml, '') +
+      card('Pick up where you left off', 'View all', go('status',''), rqHtml, 'w2') +
+      card('Your next conversations', 'View all', go('tasks','all'), failures.has('tasks') ? problem('follow-ups') : '<div class="table-wrap">' + fuHtml + '</div>', 'w2') + '</div>';
     document.dispatchEvent(new CustomEvent('qs:workspace-updated'));
     if (root.__h === html) return; root.__h = html; root.innerHTML = html;
   }
@@ -109,7 +109,7 @@
   function search() { const q = gs.value.trim().toLowerCase(), box = $('gResults'); if (!q) { box.classList.remove('on'); return; } const hits = D.proposals().filter((p) => [p.customer, p.ref, p.title, p.capacity].join(' ').toLowerCase().includes(q)).slice(0, 6); box.innerHTML = hits.length ? hits.map((p) => '<button type="button" ' + go('open', p.id) + '><strong>' + esc(p.customer || 'Untitled') + '</strong><i>' + esc((p.ref || '—') + ' · ' + (p.capacity ? p.capacity + ' kWp' : 'no size') + ' · ' + (LABEL[p.status || 'draft'] || '')) + '</i></button>').join('') : '<div class="hempty">No quotation matches “' + esc(gs.value) + '”.</div>'; box.classList.add('on'); }
   gs.addEventListener('input', search); gs.addEventListener('focus', search);
   gs.addEventListener('keydown', (e) => { if (e.key === 'Enter') { const b = $('gResults').querySelector('[data-open]'); if (b) D.open(b.getAttribute('data-open')); } if (e.key === 'Escape') { gs.blur(); $('gResults').classList.remove('on'); } });
-  document.addEventListener('keydown', (e) => { const typing = /INPUT|TEXTAREA|SELECT/.test((e.target.tagName || '')); if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !typing)) { e.preventDefault(); gs.focus(); } });
+  document.addEventListener('keydown', (e) => { const typing = /INPUT|TEXTAREA|SELECT/.test((e.target.tagName || '')) || e.target.isContentEditable; if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !typing)) { e.preventDefault(); gs.focus(); } });
   $('btnBell').innerHTML = bellSvg + '<span id="bellCount" class="dot" hidden></span>';
   $('btnBell').addEventListener('click', async () => { const box = $('bellDrop'); if (box.classList.toggle('on') === false) return; box.innerHTML = '<div class="hempty">Loading…</div>'; try { const r = await api.listNotifications(), rows = (r && r.notifications || []).slice(0, 6); box.innerHTML = '<div class="dhead"><strong>Notifications</strong><button type="button" id="bellAll">Mark all read</button></div>' + (rows.length ? rows.map((n) => '<button type="button" class="nrow' + (n.unread ? ' un' : '') + '" ' + (n.proposalId ? go('open', n.proposalId) : '') + '><strong>' + esc(n.title) + '</strong><i>' + esc(n.body || '') + '</i><em>' + ago(n.createdAt) + '</em></button>').join('') : '<div class="hempty">No notifications yet.</div>') + '<button type="button" class="dfoot" id="bellView">View all activity →</button>'; $('bellAll').onclick = async () => { try { await api.markAllNotificationsRead(); D.toast('Notifications marked read'); box.classList.remove('on'); D.refresh(); } catch (err) { D.toast(err.message || 'Failed'); } }; $('bellView').onclick = () => { box.classList.remove('on'); D.show('activity'); }; } catch (err) { box.innerHTML = '<div class="hempty">' + esc(err.message || 'Could not load') + '</div>'; } });
   document.addEventListener('qs:home', load);
