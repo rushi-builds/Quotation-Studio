@@ -940,22 +940,10 @@
               <p id="assistantIntro">Your saved work, one question away.</p>
             </div>
             <div class="assistant-shortcuts">
-              <button
-                type="button"
-                data-ai-prompt="Which open follow-ups need attention first? Use due dates from my saved tasks."
-              >
-                <span>◷</span> What needs my attention? <b>↗</b></button
-              ><button
-                type="button"
-                data-ai-prompt="Give me a concise summary of my active quotations. Be clear about the limited snapshot."
-              >
-                <span>▤</span> Summarise my quotations <b>↗</b></button
-              ><button
-                type="button"
-                data-ai-prompt="Help me draft a short friendly quotation follow-up. Ask which customer if unclear. Do not send it or invent pricing."
-              >
-                <span>↗</span> Help me write a follow-up <b>↗</b>
-              </button>
+              <button type="button" data-ai-prompt="Find pending follow-ups. List my open tasks with saved due dates, prioritising overdue items. Be clear if the snapshot is limited."><span aria-hidden="true">◷</span> Find pending follow-ups <b aria-hidden="true">↗</b></button>
+              <button type="button" data-ai-prompt="Show open quotations. Exclude accepted, rejected, expired and archived quotations. Include saved customer names, references and statuses; do not invent missing details."><span aria-hidden="true">▤</span> Show open quotations <b aria-hidden="true">↗</b></button>
+              <button type="button" data-ai-prompt="Give me a concise business summary from my saved quotation counts, stages and pending follow-ups. Do not treat quoted values as revenue. Clearly state snapshot limitations."><span aria-hidden="true">◇</span> Business summary <b aria-hidden="true">↗</b></button>
+              <button type="button" data-ai-prompt="Show recent customer activity from my saved events. Distinguish recorded events from manually marked statuses, and do not claim verified delivery or customer approval without evidence."><span aria-hidden="true">↗</span> Show customer activity <b aria-hidden="true">↗</b></button>
             </div>
           </div>
           <div
