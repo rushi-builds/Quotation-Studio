@@ -103,3 +103,24 @@ Tests: `npm run test:actions --prefix qa` covers pure parsing/financial parity/a
 - Conversation is in-memory only, bounded to four 600-character messages and reset by New chat. No client system-role history is accepted. Arbitrary client context/model/URLs are ignored. Server-side ownership checks, API key secrecy, quota, safe text rendering and CSRF protections remain.
 - Explicit save/open/share commands retain application safety guards; model tool output never executes these actions. Disconnected Gemini gives an honest connection error for questions, not a fake fallback AI answer.
 - Verification: `node --test qa/gemini.test.mjs qa/assistant-knowledge.test.mjs qa/assistant-actions.test.cjs`; API/Worker suites; dashboard and assistant browser suites. Provider/tool round-trip tests use a mocked provider, not proof of live Gemini output.
+
+## Expanded Studio coverage audit
+
+The model now has the **full starter equipment catalogue**, quick presets, battery catalogue with source editions, additional-system templates, subsidy method and engineering basis as generated reference data. The new read-only `inspectStudio` tool uses the existing Finance, Bess and Engineering engines. It is selected by Gemini, not a keyword FAQ router. Current Studio context includes allowlisted equipment, technical, financial, battery and commercial fields, rather than only eleven pricing inputs. Both dashboard and Studio can supply the browser's equipment catalogue (up to ten entries/category, possible truncation flagged). Customer/contact fields and arbitrary object keys remain excluded.
+
+| Example question | Grounding / response boundary |
+|---|---|
+| Which module/inverter brands do we offer? | Full `equipment.js` starter catalogue plus `app.js` presets; distinguish locally edited catalogue and current quotation. No availability claim. |
+| Which panels/inverter are in this quotation? | Current unsaved fields or authenticated saved fields, not a guessed/default brand. Blank exact model/datasheet values stay unspecified. |
+| Explain GST / commercial tax savings | Selected/default GST, Finance tax illustration; not live statutory verification, no guaranteed tax eligibility. |
+| Residential vs commercial subsidy? | Existing Finance engine/category logic. Commercial/industrial automatic subsidy = zero; explicit overrides are labeled. No invented state top-up slab. |
+| 2.5 kW, 545 Wp module subsidy? | 5 modules = 2.725 kWp installed; repository central estimate ₹73,050, not ₹69,000. Actual eligibility/registration requires verification. |
+| How much generation / how many modules? | Finance module rounding and generation assumptions; no rate required for these questions. No generation guarantee. |
+| Payment milestones, BOM, EMI, ROI? | Existing engine and supplied fields; missing loan/BOM inputs do not become guessed lender offers/component prices. |
+| Battery types, capacity, backup hours? | Versioned Pylontech/Deye/Dyness starter data, source editions and Bess engine. Missing efficiency/load/readiness remains missing. No invented battery cost or compatibility. |
+| Roof, wind, strings, cable, earthing? | Engineering.report with missing/blocking/advisory details. Preliminary checks only, never certification/site approval. |
+| Warranty, scope, exclusions, installation? | `content.js` proposal templates, not universal OEM warranties or proof of individually modified/signed terms. |
+| EV, zero export, monitoring, PFC, DG coordination? | Actual `additional-systems.js` scope/equipment/exclusions; no invented charging/DG savings or sizing. |
+| Contacts / final site review? | Supplied company contact when asked or human approval genuinely needed; do not substitute sales deflection for supported answers. |
+
+Automated coverage checks include full catalogue extraction/drift, source-specific brands/GST, subsidy category/override/installed-capacity rules without rates, generation without pricing, Bess missing inputs/runtime, preliminary engineering, owner isolation, current-field/browser-catalogue privacy, and Gemini inspection-tool round trips with a mocked provider. These do not certify live Gemini wording or up-to-date statutory/OEM facts.

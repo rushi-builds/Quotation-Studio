@@ -18,6 +18,11 @@ w.eval(fs.readFileSync(path.resolve(__dirname,'../../assets/js/assistant-chat.js
  assert.equal($('assistantMessages').querySelector('img'),null,'model text never parsed as HTML');assert.ok($('assistantMessages').textContent.includes('<img'));assert.equal($('assistantMessages').querySelectorAll('.assistant-sources button').length,1);
  $('assistantPrompt').value='whats the prize for 3kw?';submit();await new Promise(r=>setTimeout(r,0));assert.equal(requests.length,2);assert.equal(requests[1][3].history.length,2);assert.equal(requests[1][3].history[0].text,'Summarise');
  $('assistantNewChat').click();assert.equal($('assistantMessages').children.length,0);
+ w.StateStore={DEFAULTS:{capacity:'',moduleMake:'',inverterMake:'',bessCapacity:'',gstPercent:'',custName:'',companyPhone:''}};
+ w.QSAssistantWorkspace={...w.QSDash,current:()=>({id:'p1'}),form:()=>({capacity:3,moduleMake:'Current module',inverterMake:'Current inverter',bessCapacity:10,gstPercent:12,custName:'PRIVATE',companyPhone:'PRIVATE'})};
+ w.EquipmentStore={cat:()=>({modules:[{make:'Local catalogue module',wp:600,secret:'PRIVATE'}]})};
+ $('assistantPrompt').value='Which module and inverter are in my current quotation?';submit();await new Promise(r=>setTimeout(r,0));
+ assert.equal(requests[2][1],'p1');assert.equal(requests[2][3].currentStudio.moduleMake,'Current module');assert.equal(requests[2][3].currentStudio.inverterMake,'Current inverter');assert.equal(requests[2][3].currentStudio.bessCapacity,10);assert.equal(requests[2][3].equipmentCatalog.modules[0].make,'Local catalogue module');assert.ok(!JSON.stringify(requests[2]).includes('PRIVATE'));assert.equal(requests[2][3].history.length,0);
  w.PlatformAPI.assistantChat=async()=>{throw Object.assign(Error('Gemini is not connected yet.'),{status:503})};
  $('assistantPrompt').value='Again';submit();await new Promise(r=>setTimeout(r,0));assert.equal($('assistantSend').disabled,true);assert.match($('assistantMessages').textContent,/not connected/);
  dom.window.close();console.log('PASS: real backend adapter, explicit-send gate, workspace-only context, single inflight request, safe text rendering, source allowlist, configuration error handling.');

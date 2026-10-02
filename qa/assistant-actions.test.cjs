@@ -93,6 +93,7 @@ test("actions require auth; ambiguity asks; sharing never invokes a send API", a
   user = { id: "u", role: "viewer" };
   await assert.rejects(A.run("send quotation", ui), /read-only/);
   await assert.rejects(A.run("save quotation", ui), /read-only/);
+  assert.equal(await A.run("open circuit voltage kya hai", ui),false);
   user = null;
   await assert.rejects(A.run("open recent quotation", ui), /Sign in/);
   delete global.window;

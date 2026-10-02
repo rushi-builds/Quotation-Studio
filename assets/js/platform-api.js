@@ -136,7 +136,7 @@
   const api = {
     assistantStatus() { return request('GET', '/api/assistant/status', undefined, 12000); },
     assistantChat(message, proposalId, consent, options = {}) {
-      return request('POST', '/api/assistant/chat', { message, proposalId: proposalId || null, consent: consent === true, history: options.history, currentStudio: options.currentStudio }, 85000);
+      return request('POST', '/api/assistant/chat', { message, proposalId: proposalId || null, consent: consent === true, history: options.history, currentStudio: options.currentStudio, equipmentCatalog: options.equipmentCatalog }, 85000);
     },
     async health() {
       try { return await request('GET', '/api/health'); }

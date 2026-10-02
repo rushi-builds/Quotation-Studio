@@ -134,7 +134,11 @@ window.QSAssistantInit = function () {
     const current = workspace()?.current?.();
     const proposalId = current?.id || null;
     const currentForm = workspace()?.form?.();
-    const currentStudio = currentForm ? Object.fromEntries(['capacity','costPerWp','costPerKwp','gstPercent','genFactor','tariff','escalation','degradation','customerType','moduleWattage','inverterKw'].filter(k=>currentForm[k]!=null).map(k=>[k,currentForm[k]])) : undefined;
+    const contextKeys=Object.keys(window.StateStore?.DEFAULTS||{}).filter(k=>!/^cust[A-Z]|^prop|^prep|Url$|^(company|stat)|^(systemNotes|systemScope|systemExclusions|systemEquipment|systemPurpose)$/.test(k));
+    const currentStudio = currentForm ? Object.fromEntries([...contextKeys,'costPerKwp'].filter(k=>currentForm[k]!=null && ['string','number','boolean'].includes(typeof currentForm[k]) && String(currentForm[k]).length<=160).map(k=>[k,currentForm[k]])) : undefined;
+    const catalogueFields=['id','make','model','wp','tech','lengthMm','widthMm','efficiency','voc','isc','vmp','imp','kw','mppt','label','vmaxDc','mpptMin','mpptMax','maxCurrent'];
+    const catalog=window.EquipmentStore?.cat?.();
+    const equipmentCatalog=catalog?Object.fromEntries(['modules','inverters','structures','cables'].filter(k=>Array.isArray(catalog[k])).map(k=>[k,catalog[k].slice(0,10).map(row=>Object.fromEntries(catalogueFields.filter(key=>row&&['string','number'].includes(typeof row[key])).map(key=>[key,String(row[key]).slice(0,100)])))])):undefined;
     message("user", text);
     prompt.value = "";
     sending = true;
@@ -188,7 +192,7 @@ window.QSAssistantInit = function () {
         );
       // Workspace context is sent only on an explicit Send (or Enter).
       // Opening chat or picking a suggestion never sends workspace context.
-      const result = await api.assistantChat(text, proposalId, true, {history:conversation, currentStudio});
+      const result = await api.assistantChat(text, proposalId, true, {history:conversation, currentStudio, equipmentCatalog});
       conversation = [...conversation,{role:"user",text:text.slice(0,600)},{role:"assistant",text:(result.answer||"").slice(0,600)}].slice(-4);
       connectionError("");
       $("assistantStatus").textContent = "Gemini · Read-only";

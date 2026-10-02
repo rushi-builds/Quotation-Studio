@@ -220,6 +220,7 @@
       intent.type === "send"
     )
       found = rows.filter((p) => p.id === current.id);
+    if (!found.length && intent.type === "open") return false; // Unknown phrasing may be a technical question (e.g. open circuit voltage), not navigation.
     if (!found.length) {
       ui.reply(
         "No matching quotation found. Try a customer name or quotation reference.",

@@ -4,7 +4,13 @@ export default {
     "assets/js/state.js",
     "assets/js/app.js: PRESETS / resetDesign",
     "assets/js/content.js",
-    "assets/js/finance.js"
+    "assets/js/finance.js",
+    "assets/js/equipment.js",
+    "assets/js/storage-catalog.js",
+    "assets/js/bess.js",
+    "assets/js/additional-systems.js",
+    "assets/js/engineering.js",
+    "docs/storage-catalogue.md"
   ],
   "defaults": {
     "bessInclude": true,
@@ -222,6 +228,224 @@ export default {
     "moduleLengthMm": "",
     "moduleWidthMm": ""
   },
+  "equipment": {
+    "modules": [
+      {
+        "id": "m1",
+        "make": "Panasonic / Waaree / Adani or Equivalent",
+        "model": "",
+        "wp": 545,
+        "tech": "Mono PERC Half-Cut",
+        "lengthMm": 2278,
+        "widthMm": 1134,
+        "efficiency": "",
+        "voc": "",
+        "isc": "",
+        "vmp": "",
+        "imp": ""
+      },
+      {
+        "id": "m2",
+        "make": "Premier Energies or Equivalent",
+        "model": "",
+        "wp": 545,
+        "tech": "Mono PERC Half-Cut",
+        "lengthMm": 2278,
+        "widthMm": 1134,
+        "efficiency": "",
+        "voc": "",
+        "isc": "",
+        "vmp": "",
+        "imp": ""
+      },
+      {
+        "id": "m3",
+        "make": "Vikram Solar or Equivalent",
+        "model": "",
+        "wp": 545,
+        "tech": "Mono PERC Half-Cut",
+        "lengthMm": 2278,
+        "widthMm": 1134,
+        "efficiency": "",
+        "voc": "",
+        "isc": "",
+        "vmp": "",
+        "imp": ""
+      }
+    ],
+    "inverters": [
+      {
+        "id": "i4",
+        "make": "Sungrow / Fronius or Equivalent",
+        "model": "",
+        "kw": "",
+        "mppt": "",
+        "efficiency": ""
+      },
+      {
+        "id": "i1",
+        "make": "Deye or Equivalent",
+        "model": "",
+        "kw": "",
+        "mppt": "",
+        "efficiency": ""
+      },
+      {
+        "id": "i2",
+        "make": "Growatt or Equivalent",
+        "model": "",
+        "kw": "",
+        "mppt": "",
+        "efficiency": ""
+      },
+      {
+        "id": "i3",
+        "make": "Luminous or Equivalent",
+        "model": "",
+        "kw": "",
+        "mppt": "",
+        "efficiency": ""
+      }
+    ],
+    "structures": [
+      {
+        "id": "s1",
+        "label": "Hot-Dip GI / Aluminum-ARS Solartech make"
+      },
+      {
+        "id": "s2",
+        "label": "Hot-Dip GI - In-house KTM manufactured"
+      }
+    ],
+    "cables": [
+      {
+        "id": "c1",
+        "label": "Polycab / KEI or Equivalent"
+      },
+      {
+        "id": "c2",
+        "label": "Havells or Equivalent"
+      }
+    ]
+  },
+  "storage": {
+    "version": "2026-09-22.1",
+    "models": [
+      {
+        "id": "pylon-us5000",
+        "name": "Pylontech US5000",
+        "rated": 4.8,
+        "usable": 4.56,
+        "voltage": 48,
+        "current": 100,
+        "maxUnits": 16,
+        "chemistry": "LFP",
+        "source": "https://en.pylontech.com.cn/products/us5000",
+        "edition": "OEM product page, reviewed 22 Sep 2026; confirm supplied revision",
+        "note": "48 V rack module · IP20 · normal current, not a surge rating"
+      },
+      {
+        "id": "deye-seg51",
+        "name": "Deye SE-G5.1 Pro-B",
+        "rated": 5.12,
+        "usable": 4.6,
+        "voltage": 51.2,
+        "current": 50,
+        "maxUnits": 32,
+        "chemistry": "LFP",
+        "source": "https://deyeess.com/product/se-g5-1-pro-b/",
+        "edition": "OEM product page + EU manual Issue 06 (2026-05-26)",
+        "note": "51.2 V · IP20 · 50 A recommended current. Uses conservative 4.6 kWh operating energy, not 100% test discharge."
+      },
+      {
+        "id": "dyness-dl50c",
+        "name": "Dyness DL5.0C",
+        "rated": 5.12,
+        "usable": 4.608,
+        "voltage": 51.2,
+        "current": 50,
+        "maxUnits": 50,
+        "chemistry": "LFP",
+        "source": "https://www.dyness.com/Public/Uploads/uploadfile/files/20241023/DynessDL5.0CdatasheetEN.pdf",
+        "edition": "OEM datasheet V1.0-20241011; not the Pro / other revisions",
+        "note": "51.2 V · IP20 · 90% DoD · 50 A recommended current"
+      },
+      {
+        "id": "pylon-us3000c",
+        "name": "Pylontech US3000C",
+        "rated": 3.552,
+        "usable": 3.374,
+        "voltage": 48,
+        "current": 37,
+        "maxUnits": 16,
+        "chemistry": "LFP",
+        "source": "https://www.pluginsolar.co.uk/wp-content/uploads/2022/05/us5000-datasheet.pdf",
+        "edition": "Manufacturer residential BESS sheet, distributor-hosted 2022 edition",
+        "note": "48 V rack module · IP20 · 37 A continuous. Usable energy follows the rounded datasheet value."
+      },
+      {
+        "id": "pylon-us2000c",
+        "name": "Pylontech US2000C",
+        "rated": 2.4,
+        "usable": 2.28,
+        "voltage": 48,
+        "current": 25,
+        "maxUnits": 16,
+        "chemistry": "LFP",
+        "source": "https://www.pluginsolar.co.uk/wp-content/uploads/2022/05/us5000-datasheet.pdf",
+        "edition": "Manufacturer residential BESS sheet, distributor-hosted 2022 edition",
+        "note": "48 V rack module · IP20 · 25 A continuous. Confirm current model availability."
+      }
+    ]
+  },
+  "additionalSystems": {
+    "zero": {
+      "name": "Zero Export Control",
+      "purpose": "Control solar export at the point of grid connection, where export is restricted or not intended.",
+      "equipment": "Compatible export controller / inverter control function\nBidirectional meter or correctly sized current transformers\nCommunication links and required control interfaces",
+      "scope": "Review the point of common coupling and site load profile\nConfirm inverter control compatibility and meter placement\nConfigure the agreed export setpoint and fail-safe behaviour\nTest load changes, communication loss and commissioned settings",
+      "notes": "Zero export is not outage backup. Response delays can allow transient export; final limits and acceptance tests must be agreed with the utility. Curtailment can reduce solar generation and savings. Existing solar figures do not include this effect.",
+      "exclusions": "Utility approval, switchboard replacement and major cabling unless priced\nGuaranteed elimination of every transient export\nBattery backup or generator integration unless separately included"
+    },
+    "monitoring": {
+      "name": "Energy Monitoring",
+      "purpose": "Bring generation, import/export and selected consumption measurements into a clearer view for the project team.",
+      "equipment": "Compatible energy meters / current transformers\nData logger or monitoring gateway\nAgreed local or cloud dashboard and communication link",
+      "scope": "Agree the measurement points and dashboard requirements\nVerify meter ratings, polarity and communication protocols\nConfigure data logging, access permissions and alerts\nTest readings and hand over user access",
+      "notes": "Monitoring measures performance; it does not itself reduce consumption or guarantee savings. Data accuracy depends on metering and installation. Connectivity, subscriptions, retention and data ownership must be agreed.",
+      "exclusions": "Recurring data / cloud subscription unless priced\nNetwork infrastructure changes and additional metering points\nAutomated load control unless explicitly included"
+    },
+    "ev": {
+      "name": "EV Charging Integration",
+      "purpose": "Add a defined charging point with electrical capacity and optional solar-aware scheduling reviewed for the site.",
+      "equipment": "Selected EV charger and compatible connector\nDedicated circuit, appropriate protection and earthing\nOptional meter / load-management interface, if specified",
+      "scope": "Confirm vehicle compatibility and requested charging power\nAssess sanctioned load, spare capacity and cable route\nDesign protection and earthing to applicable requirements\nConfigure agreed charging schedules and test operation",
+      "notes": "Charging speed depends on the charger, vehicle and available site power. Solar-only charging is not guaranteed. Charging adds consumption; the solar quotation does not model the additional EV load or savings.",
+      "exclusions": "Sanctioned-load enhancement and utility charges\nCivil works and long cable routes unless priced\nVehicle battery warranty or guaranteed charging time"
+    },
+    "pfc": {
+      "name": "Power-Factor Correction",
+      "purpose": "Review reactive-power compensation for the site, using measured electrical conditions and the applicable utility billing basis.",
+      "equipment": "Engineered automatic power-factor controller and capacitor-bank steps\nSuitable switching, protection, discharge and ventilation arrangements\nDetuned reactors or harmonic mitigation only where the study requires",
+      "scope": "Measure demand, existing power factor and the harmonic spectrum\nReview solar and generator operating modes and minimum site load\nEngineer the bank rating, step sizes and resonance / protection checks\nCommission step switching and verify agreed operating limits",
+      "notes": "This is not a solar-generation or battery-backup upgrade. Capacitor rating cannot be inferred from solar kWp alone. Harmonics, resonance and leading power factor at light load must be assessed. Any billing benefit depends on measured conditions and the utility tariff; no savings or kvar sizing is automatically assumed.",
+      "exclusions": "Guaranteed tariff savings, unity power factor or harmonic elimination\nUtility penalties, approvals and switchboard replacement unless priced\nActive harmonic filtering or generator modifications unless specified"
+    },
+    "dg": {
+      "name": "DG–Solar Coordination",
+      "purpose": "Review controlled solar operation alongside the existing generator, with interlocks and operating limits engineered for the site.",
+      "equipment": "Compatible solar / generator control interface\nRequired metering, reverse-power protection and interlocks\nCommunication hardware and agreed control panel modifications",
+      "scope": "Survey the generator, existing changeover and load profile\nConfirm minimum generator loading and inverter control support\nEngineer the coordination sequence and protection settings\nCommission transitions, fault response and operator training",
+      "notes": "This is not permission to parallel equipment without engineering. Generator loading, reverse power, synchronisation and changeover behaviour require a project-specific design. No automatic diesel-saving or seamless-transfer claim is made.",
+      "exclusions": "Generator supply, overhaul or fuel\nMajor switchgear replacement unless priced\nBattery backup and guaranteed fuel savings"
+    }
+  },
+  "methods": {
+    "subsidy": "function calcSubsidy(kwp) {\n    if (!isFinite(kwp) || kwp <= 0) return 0;\n    if (kwp <= 2) return 30000 * kwp;\n    if (kwp < 3) return 60000 + 18000 * (kwp - 2);\n    return 78000;\n  }",
+    "subsidyApplication": "    /* ----- subsidy -----\n       PM Surya Ghar CFA is assessed on the DC capacity actually installed and\n       registered with the DISCOM, so it follows installedKwp - not the\n       contracted figure. The difference only shows below the 3 kW cap:\n       2.5 kWp contracted at 545 Wp is 5 modules = 2.725 kWp → ₹73,050, not\n       the ₹69,000 a contracted-basis calculation would report. */\n    const customerType = s.customerType || 'residential';\n    /* Maharashtra state top-up: published only as a range - ₹25,000–₹60,000\n       by capacity, maxing at 3 kW (SMART households below 100 units/month add\n       ₹17,500 BPL / ₹15,000 SC-ST / ₹10,000 others on the 1 kW benchmark).\n       No per-kW slab is public, so the app never invents one: the dealer\n       enters the figure that applies to this customer and the sheet states it\n       is potential, subject to eligibility and approval. */\n    const topUpRaw = parseFloat(s.stateTopUp);\n    const stateTopUp = (customerType === 'residential' && isFinite(topUpRaw) && topUpRaw > 0) ? topUpRaw : 0;\n    let subsidy;\n    const overrideRaw = (s.subsidyOverride === '' || s.subsidyOverride === null ||\n      s.subsidyOverride === undefined) ? NaN : parseFloat(s.subsidyOverride);\n    if (isFinite(overrideRaw)) {\n      subsidy = overrideRaw;                                   // explicit override wins\n    } else {\n      subsidy = (customerType === 'residential' ? calcSubsidy(installedKwp) : 0) + stateTopUp;\n    }\n    const subsidyAuto = (customerType === 'residential' && !isFinite(overrideRaw));\n    const netInvestment = grossTotal - subsidy;\n    /* costPerWp is the quoted rate (contracted basis). costPerWpDelivered is\n       what the customer actually receives per watt of installed DC. */\n    const costPerWp = capacity > 0 ? projectCost / (capacity * 1000) : 0;\n    const costPerWpDelivered = installedKwp > 0 ? projectCost / (installedKwp * 1000) : 0;\n    /* True only when whole modules land exactly on the contracted capacity. */\n    const capacityExact = (installedKwp > 0 && capacity > 0) &&\n      Math.abs(installedKwp - capacity) < 1e-9;\n\n    /* Optional illustration only: eligibility, asset basis and first-year\n       allowance must be confirmed by the customer's tax adviser. Never net\n       this assumed shield off investment, payback or projected savings. */\n    const isCommercialOrInd = (customerType === 'commercial' || c",
+    "engineeringBasis": "/* =====================================================================\n   ENGINEERING DESIGN BASIS\n   =====================================================================\n   Every number this file produces is either (a) arithmetic that a named\n   standard defines, or (b) a value the designer has to supply. Nothing is\n   invented. Where a site figure is missing the section comes back with\n   `ok:false` and a `missing` list, and the document prints DATA REQUIRED\n   instead of a number that merely looks plausible.\n\n   Sources, all named at the point of use:\n     IS 875 (Part 3):2015   wind load on the array and its attachments\n     IS 3043:2018           earthing - electrode resistance and targets\n     IS 732                 wiring - voltage drop limits on the AC side\n     IS/IEC 60364-7-712,\n     IEC 62548              PV array design - string voltage, currents\n     IEC 62109-1            inverter DC input limits (Vmax, MPPT window)\n     IEC 61215-2            module mechanical load (static load test)\n     IEC/IS 62305 (+IS 2309) lightning risk parameters\n     MNRE / UPNEDA rooftop\n     technical specification 150 km/h structure, 60 kg/m² roof load,\n                             roof-edge clearance, HDGI galvanising\n   The financial module (finance.js) keeps working without this file: it\n   falls back to its older clearance-factor estimate when Engineering is\n   absent. Load order matters - this file must precede finance.js.\n   ===================================================================== */\n"
+  },
+  "referenceNotes": "# Starter battery catalogue — sources, limits and assumptions\n\nCatalogue version: **2026-09-22.1**. Reviewed 22 September 2026.\nImplementation: `assets/js/storage-catalog.js`. This is a documented starter set,\nnot an endorsement, price list, availability claim or compatibility certificate.\nExcel connection is deliberately deferred; it is not needed to use these models.\n\n## Selected models\n\nAll five are LFP low-voltage modules. Capacity is **per module**, not per system.\n\n| Stable ID / model | Rated / usable DC energy (kWh) | Nominal voltage | Current used for design estimate | Catalogue quantity ceiling |\n|---|---:|---:|---:|---:|\n| `pylon-us5000` — Pylontech US5000 | 4.8 / 4.56 | 48 V | 100 A normal | 16 |\n| `deye-seg51` — Deye SE-G5.1 Pro-B | 5.12 / 4.6 | 51.2 V | 50 A recommended | 32 |\n| `dyness-dl50c` — Dyness DL5.0C | 5.12 / 4.608 | 51.2 V | 50 A recommended | 50 |\n| `pylon-us3000c` — Pylontech US3000C | 3.552 / 3.374 | 48 V | 37 A continuous | 16 |\n| `pylon-us2000c` — Pylontech US2000C | 2.4 / 2.28 | 48 V | 25 A continuous | 16 |\n\nA quantity ceiling is an application guard, not permission to connect that many\nmodules to any inverter. OEM wiring, communications, protection, busbar and\nparallel-bank rules still govern the actual project. Never mix models or brands\nin a bank based on this table. These selected editions describe IP20 products;\nindoor/environmental suitability and enclosure requirements need site review.\n\n## Source editions and differences\n\n### Pylontech US5000\n\n[Manufacturer English product page](https://en.pylontech.com.cn/products/us5000):\n4.8 kWh rated, 4.56 kWh usable, 48 V, 100 A normal current and 16 modules/string.\nThis product-page edition is the application reference.\n\nThe older [manufacturer multi-model sheet, distributor hosted](https://www.pluginsolar.co.uk/wp-content/uploads/2022/05/us5000-datasheet.pdf)\nlists 80 A recommended and 100 A maximum continuous for US5000. A newer linked\n[PDF](https://global-site.oss-eu-central-1.aliyuncs.com/upload/2026/06/23/US%205000%20Spec_1782186290116.pdf)\nhas conflicting configuration/life entries, including 20 modules. We **do not\ncombine the most favourable values from different revisions**. Verify the exact\nsupplied revision and its supported inverter before procurement.\n\n### Pylontech US3000C and US2000C\n\nUse the same [manufacturer residential BESS sheet, distributor-hosted 2022 edition](https://www.pluginsolar.co.uk/wp-content/uploads/2022/05/us5000-datasheet.pdf).\nThe table supplies rated/usable energy and 37 A / 25 A continuous ratings,\nrespectively, with 16 modules/string. Current ratings depend on cell temperature\nand must be derated outside the stated conditions. The usable energy is retained\nas the published rounded figure, rather than reconstructed from rounded DoD.\nConfirm current availability and the delivered edition.\n\n**The 96% efficiency printed for Powercube X1/X2 in that multi-model document is\nnot a US-series specification.** It is not used as such in this application.\n\n### Dyness DL5.0C\n\n[Official datasheet V1.0-20241011](https://www.dyness.com/Public/Uploads/uploadfile/files/20241023/DynessDL5.0CdatasheetEN.pdf):\n5.12 kWh, 51.2 V, 90% DoD, 50 A recommended charge/discharge and up to 50 parallel\nmodules. The 4.608 kWh usable entry is **calculated as 5.12 × 90%**. Do not substitute\nDL5.0C Pro or newer product-page specifications without versioning the catalogue.\nCycle-life test conditions are not an unconditional warranty or an AC-efficiency\nrating.\n\n### Deye SE-G5.1 Pro-B\n\n[Official product page](https://deyeess.com/product/se-g5-1-pro-b/) and\n[EU/EN manual Issue 06, 26 May 2026](https://deyeess.com/wp-content/uploads/2025/12/Deye-ESS-User-Manual-SE-G5.1-Pro-B-EUEN-V06_20260526.pdf).\nUse the page's 4.6 kWh usable operating energy and the manual's recommended 50 A,\nnot 100 A maximum or 150 A peak. The application ceiling is 32 modules without\nexternal setup, not the 64-module larger arrangement. The manual's 5.12 kWh\nusable figure refers to a 100%-DoD test; it is not substituted for practical\n90%-DoD operation. Warranty is location-dependent (5/10 years on the page), so\nno automatic universal 10-year warranty is filled.\n\n## What is automatic, and what remains an assumption\n\nSelecting a model activates automatic specification mode and supplies its name,\nchemistry, rated/usable energy and current-based design estimate. It initializes\n**96% DC-to-AC conversion** and **15% power derating** as explicitly editable design\nassumptions. Neither is claimed to be a measured or manufacturer-guaranteed\ncomplete-system efficiency. Actual performance depends on the battery, converter,\nvoltage/SOC, environment and operating point.\n\nThe solar-linked starting scenario shifts **30% of average daily generation**;\nthis is neither measured surplus nor a claim that every day has that energy.\nFor solar-linked self-consumption/TOU sizing, the entered operating reserve is\ndeducted from each module’s usable energy before rounding the quantity upward.\nEssential-load sizing requires the preparer to enter both kW and backup hours;\nbackup duration starts blank. Solar capacity alone cannot establish outage needs.\n\nThere is **no automatic installed price, warranty, compatibility approval or\nmanufacturer AC round-trip efficiency**. The separate quotation-linked economics\nbutton offers editable scenario assumptions; missing source tariff or O&M still\nwithholds financial benefit. See the workflow document for equations and gates.\n\n## Updating this data later\n\nCheck exact OEM revision, regional supply/warranty, usable-energy conditions,\ncontinuous versus peak current and topology before editing a catalogue record.\nKeep stable IDs, bump the catalogue version and rerun both supplement suites.\nChanging catalogue data can resize an automatically linked saved proposal when\nit is reopened; review resulting scope, converter selection and price. Existing\nautomatic bank/output changes invalidate backup confirmation and clear the old\nstorage price. Manual mode retains preparer-supplied ratings. JSON backups store\nproposal inputs, not an immutable snapshot of the catalogue; retain exported PDFs\nfor issued documents. Excel import can be added later using these same fields\nand validation boundaries.\n",
   "content": {
     "shared": {
       "footerTagline": "Engineering Excellence • Premium Quality • Trusted Performance",
