@@ -118,6 +118,7 @@ const { spawn } = require("child_process"),
     assert.ok(await p.locator('.solar-hero #homeGreeting').isVisible());
     assert.match(await p.locator('.main').evaluate(el => getComputedStyle(el, '::before').backgroundImage), /dash-hero-bg/);
     assert.notEqual(await p.locator('.kpis').evaluate(el => getComputedStyle(el).backdropFilter), 'none');
+    assert.equal(await p.locator(".solar-hero").evaluate(el => getComputedStyle(el).backgroundImage), "none");
     await shot("overview");
     await nav("proposals");
     await p.waitForSelector("#propTableBody .quote-client");
@@ -131,6 +132,14 @@ const { spawn } = require("child_process"),
       () => document.querySelectorAll("#propTableBody tr").length === 4,
     );
     await shot("quotations");
+    const editButton = p.locator(`#propTableBody .row-actions [data-act="open"][data-id="${seed[0]}"]`);
+    assert.match(await editButton.innerText(), /Edit in Studio/);
+    await editButton.click();
+    await p.waitForURL('**/quotation.html?cloud=*');
+    await p.waitForFunction(()=>document.querySelector('#custName').value==='Sample Industries');
+    assert.equal(new URL(p.url()).searchParams.get('cloud'), seed[0]);
+    await p.goto(origin+'/dashboard.html');await p.waitForSelector('.kpi2');await nav('proposals');
+
     // Sharing must use the selected record, never a stale/default recipient.
     await p.locator("#propTableBody .row-menu summary").first().click();
     await p
@@ -223,6 +232,21 @@ const { spawn } = require("child_process"),
     await p.waitForFunction(() =>
       document.body.innerText.includes("Saved to cloud ·"),
     );
+    // Diagnose existing manual cloud-save behavior; no Studio logic changed.
+    await p.click('#modeAll');
+    await p.click('.studio-management > summary');
+    await p.selectOption('#pmStatus','ready');
+    assert.equal(await p.evaluate(()=>Proposals.active().status), 'ready');
+    assert.equal(await p.evaluate(async()=> (await PlatformAPI.getProposal(new URL(location.href).searchParams.get('cloud'))).proposal.status), 'draft', 'Studio status change is local until Save to cloud');
+    await p.click('#cloudSaveBtn');
+    await p.waitForFunction(async()=> (await PlatformAPI.getProposal(new URL(location.href).searchParams.get('cloud'))).proposal.status==='ready');
+    await p.waitForSelector('#cloudSaveBtn:not([disabled])');
+    await p.evaluate(async()=>PlatformAPI.updateProposal(new URL(location.href).searchParams.get('cloud'),{status:'sent'}));
+    assert.equal(await p.inputValue('#pmStatus'),'ready','An already-open Studio does not live-refresh cloud status');
+    await p.click('#cloudSaveBtn');
+    await p.waitForFunction(()=>document.querySelector('#cloudChip').textContent==='Newer in cloud');
+    assert.equal(await p.evaluate(async()=> (await PlatformAPI.getProposal(new URL(location.href).searchParams.get('cloud'))).proposal.status), 'sent', 'Conflict guard prevents stale Studio from overwriting newer cloud status');
+    console.log('VERIFIED: status changes stay local until cloud save; open Studio has no live status refresh; revision conflicts protect newer cloud edits.');
     await p.goto(origin + "/dashboard.html");
     await p.waitForFunction(() =>
       document
@@ -266,8 +290,10 @@ const { spawn } = require("child_process"),
         "Gemini · Read-only",
     );
     await p.locator("[data-ai-prompt]").first().click();
-    assert.equal(await p.locator("#assistantSend").isDisabled(), true);
-    await p.check("#assistantConsent");
+    assert.equal(chatCalls, 0, "Picking a suggestion never sends workspace context");
+    assert.equal(await p.locator("#assistantSend").isEnabled(), true);
+    assert.equal(await p.locator("#assistantConsent").count(), 0);
+    assert.ok(await p.locator("#assistantSharingNote").isVisible());
     await p.click("#assistantSend");
     await p.waitForFunction(() =>
       document

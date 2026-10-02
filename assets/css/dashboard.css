@@ -2954,3 +2954,55 @@ html[data-theme="dark"] .main :is(.card,.hc,.kpis,.report-metric) {
 @media (prefers-reduced-transparency: reduce) {
   .main :is(.card,.hc,.kpis,.report-metric,.gbar) { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+
+/* One continuous solar scene, not a second cropped image inside the greeting. */
+.main::before { z-index: -2; }
+.main::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse at 85% 24%, #ffcc802e, transparent 53%);
+  animation: solar-light 16s ease-in-out infinite alternate;
+}
+@keyframes solar-light { from { opacity: .2; } to { opacity: .85; } }
+.main .solar-hero {
+  min-height: 224px;
+  background: #ffffffcf;
+  color: var(--text);
+  border-color: #ffffffc9;
+  box-shadow: 0 12px 36px #122b4810, inset 0 1px 0 #ffffffd9;
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  backdrop-filter: blur(18px) saturate(125%);
+}
+.solar-hero::before { display: none; }
+.solar-hero .hero-kicker { color: #856123; }
+.solar-hero .sub, .solar-hero .datechip { color: var(--muted); }
+.solar-hero .btn-secondary { color: var(--text); background: #ffffff66; border-color: var(--line); }
+.solar-hero .btn:focus-visible { outline-color: var(--blue); }
+html[data-theme="dark"] .main .solar-hero { background: #17273acf; border-color: #c8dcf224; box-shadow: 0 14px 40px #040c1926; }
+html[data-theme="dark"] .solar-hero .hero-kicker { color: #f4cc8a; }
+html[data-theme="dark"] .solar-hero .btn-secondary { background: #ffffff0d; }
+.assistant-panel { height: min(560px, calc(100dvh - 118px)); }
+.ai-welcome { padding-bottom: 20px; }
+.ai-welcome > span { width: 36px; height: 36px; font-size: 25px; border-radius: 12px; margin-bottom: 12px; }
+.ai-welcome h2 { font-size: 23px; margin-bottom: 8px; }
+.assistant-options { flex: none; border-top: 1px solid var(--line); padding: 10px 17px; font-size: 10px; color: var(--muted); }
+.assistant-options > summary { cursor: pointer; }
+.assistant-options > summary span { margin-left: 5px; font-size: 9px; opacity: .8; }
+.assistant-options .assistant-context { border: 0; padding: 10px 0 0; }
+.assistant-context-explainer { font-size: 10px; line-height: 1.6; margin: 5px 0 0; }
+.assistant-options[open] { max-height: 150px; overflow-y: auto; }
+#assistantSharingNote { font-size: 9px; line-height: 1.5; padding: 0 4px; }
+#assistantConnectionNote { font-size: 8px; }
+@media (max-width: 760px) {
+  .main .solar-hero { min-height: 280px; }
+  .assistant-panel { height: min(560px, calc(100dvh - 100px)); }
+}
+@media (prefers-reduced-motion: reduce) { .main::after { animation: none; opacity: .3; } }
+@media (prefers-reduced-transparency: reduce) {
+  .main .solar-hero, html[data-theme="dark"] .main .solar-hero { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* Keep all three starter questions in view without a large welcome ornament. */
+.assistant-body { padding: 18px; }
+.ai-welcome > span { display: none; }
+.ai-welcome { padding-bottom: 16px; }
+.ai-welcome h2 { font-size: 21px; }

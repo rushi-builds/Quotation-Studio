@@ -44,7 +44,7 @@ Set `GEMINI_API_KEY`, `GEMINI_ENABLED=true` and optionally `GEMINI_MODEL` in a p
 - Fresh summary counts, up to 30 recent quotation summaries, 30 open tasks, 15 non-prefetch events. A selected quotation includes a narrow allowlist of saved scalar technical/pricing fields. Counts and sample coverage are supplied explicitly.
 - No passwords, API keys, session/share tokens, contact fields, image bytes, full PDFs, internal notes, arbitrary form contents or event metadata go to Gemini. Data fields are untrusted model input; the model is explicitly told not to treat them as instructions.
 - No tools, function calling, mutation routes or autonomous execution. Model output is displayed as text, not HTML. Source buttons are limited to records in the user's current dashboard list.
-- Messages are held in the page only; there is no persistent chat history. Each question is independent and uses fresh server data, not previous chat turns. UI context sharing requires an explicit checkbox, not just opening the launcher.
+- Messages are held in the page only; there is no persistent chat history. Each question is independent and uses fresh server data, not previous chat turns. Context sharing occurs only on explicit Send (or Enter), alongside a visible Gemini sharing disclosure. Opening the launcher or selecting a suggestion sends no workspace context.
 - Sending/publishing/deleting, report-wide reasoning and engineering certification are **not implemented**. Future mutation tools need explicit confirmation and auditing.
 
 ## Limits / failure behavior
@@ -66,7 +66,7 @@ Live Gemini responses, production Cloudflare deployment/bootstrap and production
 
 ## Workspace 5 connection diagnostics
 
-The current UI uses a closed-by-default floating chat with prompt suggestions, context selection, explicit consent, retry and clear-chat. The composer can be drafted before consent; **Send** remains blocked until connected and consented. No automatic retries or fake answers are used.
+The current UI uses a closed-by-default floating chat with prompt suggestions, context selection, a visible sharing disclosure, retry and clear-chat. **Send** remains blocked until connected and a question is entered. The explicit submit action accepts the disclosure; there is no separate checkbox. No automatic retries or fake answers are used.
 
 `GET /api/assistant/status` now returns a sanitized `reason` (`disabled`, `missing_key`, `invalid_model`, or null) and `build: "workspace-5"`. Public health includes the same build marker. These indicate deployment/configuration, not a successful provider request. Provider key/permission/model/quota failures are differentiated without exposing upstream bodies. Browser status/chat timeouts are 12/35 seconds; provider timeout remains 25 seconds.
 

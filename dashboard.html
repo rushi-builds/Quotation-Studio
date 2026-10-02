@@ -19,7 +19,7 @@
         } catch (_) {}
       })();
     </script>
-    <link rel="stylesheet" href="assets/css/dashboard.css?v=workspace5-glass1" />
+    <link rel="stylesheet" href="assets/css/dashboard.css?v=workspace5-glass2" />
   </head>
   <body>
     <div id="authScreen" class="splash">
@@ -939,7 +939,7 @@
           <div class="assistant-body">
             <div class="ai-welcome">
               <span aria-hidden="true">✦</span>
-              <h2>A little help.<br />A clearer next step.</h2>
+              <h2>How can I help?</h2>
               <p id="assistantIntro">Your saved work, one question away.</p>
             </div>
             <div class="assistant-shortcuts">
@@ -968,26 +968,16 @@
             aria-live="polite"
             aria-label="Assistant conversation"
           ></div>
-          <div class="assistant-context">
-            <label for="assistantQuotation">CONTEXT</label
-            ><select id="assistantQuotation">
-              <option value="">My workspace</option></select
-            ><span id="assistantContext" class="sr-only"></span
-            ><span id="assistantContextDetail" class="sr-only"></span>
-            <details class="assistant-privacy">
-              <summary>What’s shared?</summary>
-              <p>
-                Your question, recent quotation summaries, open tasks and events
-                from your account. Selecting a quotation adds limited technical
-                fields. No PDF files, images or dedicated contact fields.
-                Read-only; AI can make mistakes.
-              </p>
-            </details>
-            <label class="assistant-consent"
-              ><input type="checkbox" id="assistantConsent" /> Allow selected
-              workspace context to be sent to Gemini.</label
-            >
-          </div>
+          <details class="assistant-options">
+            <summary>Quotation context <span>optional</span></summary>
+            <div class="assistant-context">
+              <label for="assistantQuotation">Use</label>
+              <select id="assistantQuotation"><option value="">My workspace</option></select>
+              <span id="assistantContext" class="sr-only"></span>
+              <span id="assistantContextDetail" class="sr-only"></span>
+              <p class="assistant-context-explainer">Your question, saved quotation summaries, tasks and events go to Gemini. A selected quotation adds limited technical fields. No PDFs, images or dedicated contact fields. Read-only; check important details.</p>
+            </div>
+          </details>
           <form id="assistantForm" class="assistant-composer">
             <label class="sr-only" for="assistantPrompt"
               >Message Studio AI</label
@@ -996,16 +986,16 @@
               rows="2"
               maxlength="2000"
               placeholder="Ask Studio anything about your work…"
-              aria-describedby="assistantConnectionNote"
+              aria-describedby="assistantSharingNote assistantConnectionNote"
             ></textarea
             ><button
               type="submit"
               id="assistantSend"
               disabled
-              aria-label="Send message"
+              aria-label="Send message and share selected context with Gemini"
             >
               ↑</button
-            ><small id="assistantConnectionNote"
+            ><small id="assistantSharingNote">Sending shares your question and relevant workspace context with Gemini.</small><small id="assistantConnectionNote"
               >Read-only assistance · Your work stays yours.</small
             >
           </form>
@@ -1024,9 +1014,9 @@
       <p id="galleryViewerCap"></p>
     </dialog>
     <div id="toast" role="status"></div>
-    <script src="assets/js/platform-api.js?v=workspace5-glass1"></script>
-    <script src="assets/js/dashboard.js?v=workspace5-glass1"></script>
-    <script src="assets/js/dashboard-home.js?v=workspace5-glass1"></script>
-    <script src="assets/js/dashboard-ui.js?v=workspace5-glass1"></script>
+    <script src="assets/js/platform-api.js?v=workspace5-glass2"></script>
+    <script src="assets/js/dashboard.js?v=workspace5-glass2"></script>
+    <script src="assets/js/dashboard-home.js?v=workspace5-glass2"></script>
+    <script src="assets/js/dashboard-ui.js?v=workspace5-glass2"></script>
   </body>
 </html>

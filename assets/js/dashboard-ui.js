@@ -38,16 +38,15 @@
   let previousFocus = null;
   let available = false, sending = false, statusGeneration = 0;
   const api = window.PlatformAPI;
-  const form = $('assistantForm'), prompt = $('assistantPrompt'), consent = $('assistantConsent');
+  const form = $('assistantForm'), prompt = $('assistantPrompt');
   const messages = $('assistantMessages'), selection = $('assistantQuotation');
   function updateComposer() {
-    const enabled = available && consent.checked && !sending;
+    const enabled = available && !sending;
     prompt.disabled = sending;
     $('assistantSend').disabled = !enabled || !prompt.value.trim();
-    $('assistantSend').title = !available ? 'Connect the AI backend first' : !consent.checked ? 'Allow context sharing below to send' : 'Send message';
+    $('assistantSend').title = !available ? 'Connect the AI backend first' : 'Send to Gemini';
     selection.disabled = sending;
-    consent.disabled = sending;
-    $('assistantConnectionNote').textContent = !available ? 'AI not connected · No data sent.' : !consent.checked ? 'Tick the context-sharing box to send your question.' : sending ? 'Studio AI is thinking…' : 'Read-only assistance · Check important details.';
+    $('assistantConnectionNote').textContent = !available ? 'AI not connected · No data sent.' : sending ? 'Studio AI is thinking…' : 'Read-only assistance · Check important details.';
   }
   function connectionError(text) {
     if ($('assistantError')) $('assistantError').hidden = !text;
@@ -85,7 +84,6 @@
   document.querySelectorAll('[data-ai-prompt]').forEach(button=>button.addEventListener('click',()=>{
     if(sending)return;
     prompt.value=button.dataset.aiPrompt; updateComposer(); prompt.focus();
-    if(available && !consent.checked) consent.focus();
   }));
   prompt.addEventListener('keydown',event=>{
     if(event.key==='Enter' && !event.shiftKey && !event.isComposing){event.preventDefault(); if(!$('assistantSend').disabled)form.requestSubmit();}
@@ -100,11 +98,10 @@
     messages.scrollTop = messages.scrollHeight;
     return item;
   }
-  consent.addEventListener('change', updateComposer);
   prompt.addEventListener('input', updateComposer);
   form.addEventListener('submit', async event => {
     event.preventDefault();
-    if (!available || !consent.checked || sending || !prompt.value.trim()) return;
+    if (!available || sending || !prompt.value.trim()) return;
     const text = prompt.value.trim();
     if (text.length > 2000) return;
     const proposalId = selection.value || null;
@@ -113,6 +110,8 @@
     pending.classList.add('thinking');
     if($('assistantNewChat'))$('assistantNewChat').disabled=true;
     try {
+      // Explicit Send (or Enter) accepts the visible context-sharing disclosure.
+      // Opening chat, picking a suggestion or choosing a record never sends context.
       const result = await api.assistantChat(text, proposalId, true);
       connectionError('');
       $('assistantStatus').textContent = 'Gemini · Read-only';
