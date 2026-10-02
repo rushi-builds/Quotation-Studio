@@ -77,3 +77,18 @@ test('connection diagnostics distinguish configuration and sanitized provider fa
   assert.match(r.body.error,pattern);assert.ok(!JSON.stringify(r).includes('SECRET_PROVIDER_BODY'));
  }
 });
+
+test('assistant identity comes only from authenticated profile, preserves spelling, and follows updates',async()=>{
+ const profile={...owner,name:'रुशिकेश Dhumal',email:'private@example.test',password_hash:'SECRET_HASH'};
+ const context=buildContext(raw,profile,null);
+ assert.equal(context.signedInUser.name,'रुशिकेश Dhumal');
+ assert.equal(buildContext(raw,{...profile,name:'Updated Profile'},null).signedInUser.name,'Updated Profile');
+ assert.equal(buildContext(raw,{id:owner.id},null).signedInUser.name,null);
+ assert.equal(JSON.stringify(context).includes('private@example.test'),false);
+ assert.equal(JSON.stringify(context).includes('SECRET_HASH'),false);
+ const r=await handleAssistant({...args,user:profile,readBody:async()=>({message:'What is my name?',consent:true,signedInUser:{name:'Spoofed Name'},name:'Spoofed Name'}),fetchImpl:async(url,options)=>{
+  const sent=JSON.parse(options.body),text=JSON.stringify(sent);
+  assert.ok(text.includes('रुशिकेश Dhumal'));assert.ok(!text.includes('Spoofed Name'));assert.match(sent.systemInstruction.parts[0].text,/Never confuse customer names/);
+  return success();
+ }});assert.equal(r.status,200);
+});
