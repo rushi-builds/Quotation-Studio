@@ -114,11 +114,12 @@
     const writable = D.user() && D.user().role !== 'viewer';
     const rows = pages.map(([id,label])=>({label,detail:'Page',keywords:id+' '+({home:'dashboard workspace',proposals:'quotes proposals customers customer',tasks:'tasks reminders pending calls',activity:'notifications timeline events',send:'send whatsapp email share customer',gallery:'photos images portfolio projects',reports:'reports business summary analytics',settings:'account profile preferences'}[id]||''),run:()=>D.show(id)}));
     rows.push(
+      {label:'Log out',detail:'Sign out of your account',keywords:'logout log out signout sign out exit account session',run:()=>$('btnLogout').click()},
       {label:'Forgot password',detail:'Open sign-in password recovery',keywords:'forgot fogot forget reset recover password login bhool',run:()=>{location.href='index.html#forgotPassword';}},
       {label:'Change password',detail:'Settings · Security',keywords:'password security update',run:()=>{settings('security');$('currPassword').focus();}},
       {label:'Edit profile',detail:'Settings · Profile',keywords:'name account profile email',run:()=>{settings('profile');$('profileName').focus();}},
       {label:'Appearance',detail:'Light / Dark / System',keywords:'theme appearance mode light dark system glass color',run:()=>$('dashboardTheme').focus()},
-      {label:'Ask Studio AI',detail:'Open assistant',keywords:'ai assistant chat help pricing price cost 3kw',run:()=>{if($('assistantPanel').hidden)$('assistantLauncher').click();$('assistantPrompt').focus();}},
+      {label:'Ask Studio AI',detail:'Open assistant',keywords:'ai assistant artificial intelligence chatbot chat bot help pricing price cost 3kw',run:()=>{if($('assistantPanel').hidden)$('assistantLauncher').click();$('assistantPrompt').focus();}},
       {label:'Open quotation Studio',detail:'Editor · Pricing, system settings and PDF export',keywords:'editor studio edit rate gst capacity module inverter engineering finance pdf export download save quotation',run:()=>{location.href='quotation.html';}},
       {label:'Versions & links',detail:'Sharing · Published quotation versions',keywords:'publish published versions customer links',run:()=>D.show('publish')}
     );
@@ -133,6 +134,7 @@
   const normalise=value=>String(value||'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
   function search() {
     const q=normalise(gs.value), words=q.split(' ').filter(Boolean);
+    if(!q){results=[];searchBox.replaceChildren();closeSearch();return;}
     const actionRows=commands();
     const recordRows=[
       ...D.proposals().map(p=>({label:p.customer||p.title||'Untitled quotation',detail:'Quotation · '+(p.ref||'No reference')+' · '+(p.capacity?p.capacity+' kWp':'No size'),keywords:[p.title,p.ref,p.capacity,p.status,'quotation proposal customer'].join(' '),run:()=>D.open(p.id)})),
@@ -140,9 +142,9 @@
       ...X.notes.map(n=>({label:n.title,detail:'Notification',keywords:[n.body,'notification activity'].join(' '),run:()=>D.show('activity')}))
     ];
     const match=r=>words.every(w=>normalise(r.label+' '+r.detail+' '+r.keywords).includes(w));
-    results=q ? [...actionRows.filter(match),...recordRows.filter(match)].sort((a,b)=>Number(normalise(b.label).startsWith(q))-Number(normalise(a.label).startsWith(q))).slice(0,14) : actionRows.slice(0,7);
+    results=[...actionRows.filter(match),...recordRows.filter(match)].sort((a,b)=>Number(normalise(b.label).startsWith(q))-Number(normalise(a.label).startsWith(q))).slice(0,14);
     searchBox.replaceChildren();activeResult=-1;gs.removeAttribute('aria-activedescendant');
-    const heading=document.createElement('div');heading.className='search-heading';heading.textContent=q?'Pages, actions & records':'Quick actions';searchBox.append(heading);
+    const heading=document.createElement('div');heading.className='search-heading';heading.textContent='Search results';searchBox.append(heading);
     if(!results.length){const empty=document.createElement('div');empty.className='hempty';empty.textContent='No matches. Try “new proposal”, “forgot password”, a customer or a task.';searchBox.append(empty);}
     results.forEach((r,i)=>{const b=document.createElement('button');b.type='button';b.id='global-result-'+i;b.setAttribute('role','option');b.setAttribute('aria-selected','false');const strong=document.createElement('strong'),detail=document.createElement('i');strong.textContent=r.label;detail.textContent=r.detail;b.append(strong,detail);b.addEventListener('click',()=>activate(i));searchBox.append(b);});
     searchBox.classList.add('on');gs.setAttribute('aria-expanded','true');

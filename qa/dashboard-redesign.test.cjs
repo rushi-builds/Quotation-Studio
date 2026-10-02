@@ -130,6 +130,24 @@ const { spawn } = require("child_process"),
     await p.setViewportSize({width:1536,height:1060});
     await shot("overview");
     assert.equal(await p.locator('.workspace-label').count(),0);
+    await p.focus('#gSearch');
+    assert.equal(await p.getAttribute('#gSearch','aria-expanded'),'false');
+    await p.press('#gSearch','ArrowDown');
+    assert.equal(await p.getAttribute('#gSearch','aria-expanded'),'false');
+    await p.fill('#gSearch','ai');
+    assert.equal(await p.getAttribute('#gSearch','aria-expanded'),'true');
+    assert.equal(await p.locator('#gResults button').filter({hasText:'Ask Studio AI'}).count(),1);
+    await p.fill('#gSearch','');
+    assert.equal(await p.getAttribute('#gSearch','aria-expanded'),'false');
+    assert.equal(await p.locator('#gResults button').count(),0);
+    for(const query of ['logout','log out','sign out']){
+      await p.fill('#gSearch',query);
+      assert.equal(await p.locator('#gResults button').filter({hasText:'Log out'}).count(),1);
+      assert.ok(p.url().includes('dashboard.html'));
+    }
+    await p.fill('#gSearch','   ');
+    assert.equal(await p.getAttribute('#gSearch','aria-expanded'),'false');
+
     await p.evaluate(()=>window.scrollTo(0,600));
     await p.waitForFunction(()=>Math.abs(document.querySelector('.gbar').getBoundingClientRect().top)<1);
     assert.ok(await p.evaluate(()=>window.scrollY>100));
@@ -373,6 +391,11 @@ const { spawn } = require("child_process"),
     await p.goto(origin+'/dashboard.html');await p.waitForSelector('.kpi2');assert.equal(await p.locator('#btnNewFromHome').isDisabled(),true);await p.fill('#gSearch','new proposal');assert.equal(await p.locator('#gResults button').filter({hasText:'New quotation'}).count(),0);await p.press('#gSearch','Escape');await nav('tasks');assert.equal(await p.locator('#btnTaskAdd').isDisabled(),true);
     await p.evaluate(async()=>{await PlatformAPI.logout();const r=await PlatformAPI.register('Custom role test','custom@example.test','ReviewPass!123','Design engineer');PlatformAPI.setSessionToken(r.token)});
     await p.goto(origin+'/dashboard.html');await p.waitForSelector('.kpi2');assert.equal(await p.locator('#btnNewFromHome').isEnabled(),true);
+    await p.fill('#gSearch','logout');
+    await p.locator('#gResults button').filter({hasText:'Log out'}).click();
+    await p.waitForURL('**/index.html');
+    await p.goto(origin+'/dashboard.html');
+    await p.waitForURL('**/index.html');
     assert.deepEqual(errors, []);
     console.log(
       "PASS: all 8 dashboard screens, filters, duplicate, selected sharing, publish history, tasks, gallery upload/filter/viewer, analytics, settings, login/editor/save/return, theme/mobile, disconnected AI and mocked consent/chat/XSS states.",
