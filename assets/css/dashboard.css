@@ -197,7 +197,7 @@ small {
 }
 .dash.on {
   display: grid;
-  grid-template-columns: 230px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   min-height: 100vh;
 }
 .sidebar {
@@ -2433,7 +2433,7 @@ dialog::backdrop {
 }
 @media (max-width: 1250px) {
   .dash.on {
-    grid-template-columns: 210px minmax(0, 1fr);
+    grid-template-columns: 240px minmax(0, 1fr);
   }
   .sidebar {
     padding-left: 12px;
@@ -2566,7 +2566,7 @@ dialog::backdrop {
     position: fixed;
     left: 0;
     top: 0;
-    width: 240px;
+    width: min(270px, calc(100vw - 32px));
     transform: translateX(-100%);
     transition: transform 0.2s;
   }
@@ -3011,3 +3011,64 @@ html[data-theme="dark"] .solar-hero .btn-secondary { background: #ffffff0d; }
 .assistant-choices button { text-align:left;white-space:normal;line-height:1.5; }
 
 .assistant-choices button { font-size:11px;min-height:36px;padding:8px 10px; }
+
+/* Solar-at-dusk navigation: shared visual language with the glass workspace.
+   Background asset: generated portrait, upscaled to 1280×3840, WebP delivery. */
+.sidebar {
+  background: linear-gradient(180deg, #18222ed9 0%, #272d37b8 42%, #202932b3 68%, #111d2beb 100%), url("../images/sidebar-solar.webp") center center / cover no-repeat;
+  border-right: 1px solid #ffffff36;
+  box-shadow: 8px 0 32px #18293a14;
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff40 transparent;
+}
+.sidebar::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: #ffffff40; border-radius: 6px; }
+.sidebar > * { flex-shrink: 0; }
+.sidebar .side-brand {
+  padding: 15px 12px 14px;
+  border: 1px solid #ffffff24;
+  border-radius: 16px;
+  background: #17263324;
+  box-shadow: inset 0 1px 0 #ffffff0d;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.sidebar .brand-caption { color: #dde4ec; }
+.sidebar .workspace-label {
+  background: #12213042;
+  border-color: #ffffff29;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.sidebar .workspace-label small, .sidebar .side-user>span { color: #c3cddb; }
+.sidebar .nav-caption { color: #c8d0db; }
+.sidebar .nav-item { color: #e2e8f0; }
+.sidebar .nav-item:hover { color: #fff; background: #ffffff12; border-color: #ffffff1c; }
+.sidebar .nav-item.on {
+  color: #ffe2aa;
+  background: linear-gradient(110deg,#ffffff20,#ffffff0e);
+  border-color: #ffffff45;
+  box-shadow: inset 0 1px 0 #ffffff18,0 4px 12px #10172214;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.sidebar .studio-link { color: #eff3fa; background: #17263845; border-color: #ffffff30; }
+.sidebar .side-foot { border-color: #ffffff29; }
+.sidebar .build-label { color: #aebdcd; }
+html[data-theme="dark"] .sidebar {
+  background-image: linear-gradient(180deg,#0a1623e6,#182735c7 45%,#14212cc2 70%,#081422ed), url("../images/sidebar-solar.webp");
+}
+@media(max-height:800px) {
+  .sidebar { padding-top: 16px; padding-bottom: 12px; }
+  .sidebar .side-brand { padding-top: 9px; padding-bottom: 10px; gap: 8px; }
+  .sidebar .ktm-brand-logo { width: 134px; height: 79px; }
+  .sidebar .workspace-label { margin-top: 17px; margin-bottom: 12px; padding: 10px; }
+  .sidebar .nav-item { padding-top: 10px; padding-bottom: 10px; }
+  .sidebar .sidebar-bottom { padding-top: 16px; }
+  .sidebar .studio-link { margin-bottom: 13px; }
+  .sidebar .side-foot { padding-top: 13px; }
+}
+@media(prefers-reduced-transparency:reduce) {
+  .sidebar .side-brand, .sidebar .workspace-label, .sidebar .nav-item.on { background:#263442; -webkit-backdrop-filter:none; backdrop-filter:none; }
+}

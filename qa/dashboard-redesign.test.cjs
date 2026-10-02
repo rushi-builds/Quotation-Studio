@@ -122,6 +122,12 @@ const { spawn } = require("child_process"),
     await p.emulateMedia({colorScheme:'dark'});
     assert.equal(await p.locator('html').getAttribute('data-appearance'),'system');
     assert.equal(await p.locator('html').getAttribute('data-theme'),'light','Pearl System mode is independent of OS dark mode');
+    assert.equal(Math.round((await p.locator('#dashboardSidebar').boundingBox()).width),260);
+    assert.match(await p.locator('#dashboardSidebar').evaluate(el=>getComputedStyle(el).backgroundImage),/sidebar-solar.webp/);
+    await p.setViewportSize({width:1568,height:710});
+    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await p.screenshot({path:path.join(shots,'sidebar-laptop.png'),fullPage:false});
+    await p.setViewportSize({width:1536,height:1060});
     await shot("overview");
     await nav("proposals");
     await p.waitForSelector("#propTableBody .quote-client");
