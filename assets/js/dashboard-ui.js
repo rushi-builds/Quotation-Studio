@@ -6,11 +6,12 @@
   const $ = id => document.getElementById(id);
   const KEY = 'qs.dashboard.theme';
   const allowed = ['light', 'dark', 'system'];
-  const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   let preference = 'system';
   try { const saved = localStorage.getItem(KEY); if (allowed.includes(saved)) preference = saved; } catch (_) {}
   function applyTheme() {
-    document.documentElement.dataset.theme = preference === 'dark' || (preference === 'system' && media && media.matches) ? 'dark' : 'light';
+    // Product preference: System is the Pearl glass workspace, independent of OS.
+    document.documentElement.dataset.appearance = preference;
+    document.documentElement.dataset.theme = preference === 'dark' ? 'dark' : 'light';
     if ($('dashboardTheme')) $('dashboardTheme').value = preference;
   }
   applyTheme();
@@ -20,7 +21,6 @@
     try { localStorage.setItem(KEY, preference); } catch (_) {}
     applyTheme();
   });
-  if (media?.addEventListener) media.addEventListener('change', applyTheme);
   window.addEventListener('storage', event => {
     if (event.key !== KEY && event.key !== null) return;
     preference = allowed.includes(event.newValue) ? event.newValue : 'system';

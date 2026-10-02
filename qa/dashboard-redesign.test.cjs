@@ -118,7 +118,10 @@ const { spawn } = require("child_process"),
     assert.ok(await p.locator('.solar-hero #homeGreeting').isVisible());
     assert.match(await p.locator('.main').evaluate(el => getComputedStyle(el, '::before').backgroundImage), /dash-hero-bg/);
     assert.notEqual(await p.locator('.kpis').evaluate(el => getComputedStyle(el).backdropFilter), 'none');
-    assert.equal(await p.locator(".solar-hero").evaluate(el => getComputedStyle(el).backgroundImage), "none");
+    assert.doesNotMatch(await p.locator(".solar-hero").evaluate(el => getComputedStyle(el).backgroundImage), /url\(/, "Greeting has glass, not a separate photo");
+    await p.emulateMedia({colorScheme:'dark'});
+    assert.equal(await p.locator('html').getAttribute('data-appearance'),'system');
+    assert.equal(await p.locator('html').getAttribute('data-theme'),'light','Pearl System mode is independent of OS dark mode');
     await shot("overview");
     await nav("proposals");
     await p.waitForSelector("#propTableBody .quote-client");
@@ -310,7 +313,7 @@ const { spawn } = require("child_process"),
     await p.selectOption("#dashboardTheme", "dark");
     await nav("proposals");
     await shot("quotations-dark");
-    await p.selectOption("#dashboardTheme", "light");
+    await p.selectOption("#dashboardTheme", "system");
     await p.setViewportSize({ width: 390, height: 844 });
     await nav("home");
     assert.equal(

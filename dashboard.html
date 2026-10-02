@@ -8,18 +8,15 @@
     <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png" />
     <script>
       (function () {
-        try {
-          var t = localStorage.getItem("qs.dashboard.theme") || "system";
-          document.documentElement.dataset.theme =
-            t === "dark" ||
-            (t === "system" &&
-              matchMedia("(prefers-color-scheme: dark)").matches)
-              ? "dark"
-              : "light";
-        } catch (_) {}
+        var t = "system";
+        try { t = localStorage.getItem("qs.dashboard.theme") || "system"; } catch (_) {}
+        if (!["light", "dark", "system"].includes(t)) t = "system";
+        document.documentElement.dataset.appearance = t;
+        document.documentElement.dataset.theme = t === "dark" ? "dark" : "light";
       })();
     </script>
-    <link rel="stylesheet" href="assets/css/dashboard.css?v=workspace5-glass2" />
+    <link rel="stylesheet" href="assets/css/dashboard.css?v=workspace5-pearl1" />
+    <link rel="stylesheet" href="assets/css/dashboard-pearl.css?v=workspace5-pearl1" />
   </head>
   <body>
     <div id="authScreen" class="splash">
@@ -150,7 +147,7 @@
           <div class="gright">
             <label class="theme-picker"
               ><span class="sr-only">Appearance</span
-              ><select id="dashboardTheme" aria-label="Dashboard appearance">
+              ><select id="dashboardTheme" aria-label="Dashboard appearance" title="System: Pearl white glass · Dark: Solar glass · Light: Classic">
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
                 <option value="system">System</option>
@@ -1014,9 +1011,9 @@
       <p id="galleryViewerCap"></p>
     </dialog>
     <div id="toast" role="status"></div>
-    <script src="assets/js/platform-api.js?v=workspace5-glass2"></script>
-    <script src="assets/js/dashboard.js?v=workspace5-glass2"></script>
-    <script src="assets/js/dashboard-home.js?v=workspace5-glass2"></script>
-    <script src="assets/js/dashboard-ui.js?v=workspace5-glass2"></script>
+    <script src="assets/js/platform-api.js?v=workspace5-pearl1"></script>
+    <script src="assets/js/dashboard.js?v=workspace5-pearl1"></script>
+    <script src="assets/js/dashboard-home.js?v=workspace5-pearl1"></script>
+    <script src="assets/js/dashboard-ui.js?v=workspace5-pearl1"></script>
   </body>
 </html>

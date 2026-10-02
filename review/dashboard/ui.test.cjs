@@ -9,13 +9,13 @@ w.fetch=()=>{throw Error('Assistant must not call a provider before integration'
 w.QSDash={user:()=>({name:'Test user',role:'sales'}),proposals:()=>Array.from({length:count},(_,i)=>({id:'p'+i,customer:'Customer '+i})),showTasks:f=>action='tasks:'+f,filterStatus:s=>action='quotes:'+s,show:s=>action=s};
 w.eval(code);
 const $=id=>w.document.getElementById(id);
-assert.equal(w.document.documentElement.dataset.theme,'dark','system preference respected');
+assert.equal(w.document.documentElement.dataset.theme,'light','System uses Pearl even with a dark OS');assert.equal(w.document.documentElement.dataset.appearance,'system');
 $('dashboardTheme').value='light';$('dashboardTheme').dispatchEvent(new w.Event('change'));
 assert.equal(w.localStorage.getItem('qs.dashboard.theme'),'light');
 assert.equal(w.document.documentElement.dataset.theme,'light');
-onSystem();assert.equal(w.document.documentElement.dataset.theme,'light','explicit setting wins');
-$('dashboardTheme').value='system';$('dashboardTheme').dispatchEvent(new w.Event('change'));systemDark=false;onSystem();assert.equal(w.document.documentElement.dataset.theme,'light');
-w.dispatchEvent(new w.StorageEvent('storage',{key:'qs.dashboard.theme',newValue:'dark'}));assert.equal(w.document.documentElement.dataset.theme,'dark');
+assert.equal(w.document.documentElement.dataset.theme,'light','explicit setting wins');
+$('dashboardTheme').value='system';$('dashboardTheme').dispatchEvent(new w.Event('change'));systemDark=false;assert.equal(w.document.documentElement.dataset.theme,'light');
+w.dispatchEvent(new w.StorageEvent('storage',{key:'qs.dashboard.theme',newValue:'dark'}));assert.equal(w.document.documentElement.dataset.theme,'dark');assert.equal(w.document.documentElement.dataset.appearance,'dark');
 assert.equal($('assistantPanel').hidden,true);
 $('assistantLauncher').focus();$('assistantLauncher').click();assert.equal($('assistantPanel').hidden,false);assert.equal($('assistantLauncher').getAttribute('aria-expanded'),'true');assert.equal(w.document.activeElement,$('assistantClose'));
 assert.match($('assistantContext').textContent,/3 saved quotations/);count=4;w.document.dispatchEvent(new w.CustomEvent('qs:workspace-updated'));assert.match($('assistantContext').textContent,/4 saved quotations/);
