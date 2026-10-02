@@ -129,6 +129,22 @@ const { spawn } = require("child_process"),
     await p.screenshot({path:path.join(shots,'sidebar-laptop.png'),fullPage:false});
     await p.setViewportSize({width:1536,height:1060});
     await shot("overview");
+    assert.equal(await p.locator('.workspace-label').count(),0);
+    await p.evaluate(()=>window.scrollTo(0,600));
+    await p.waitForFunction(()=>Math.abs(document.querySelector('.gbar').getBoundingClientRect().top)<1);
+    assert.ok(await p.evaluate(()=>window.scrollY>100));
+    await p.click('#currentPage');await p.locator('#pageMenu button').filter({hasText:'Analytics'}).click();await p.waitForSelector('#panel-reports.on');
+    await p.click('#workspaceHome');await p.waitForSelector('#panel-home.on');
+    for(const [query,label,focus] of [['edit profile','Edit profile','profileName'],['upload photo','Upload photo','galleryFile'],['ask studio ai','Ask Studio AI','assistantPrompt']]){
+      await p.fill('#gSearch',query);await p.locator('#gResults button').filter({hasText:label}).click();assert.equal(await p.evaluate(()=>document.activeElement.id),focus);
+    }
+    await p.click('#assistantClose');
+    await p.fill('#gSearch','change password');await p.press('#gSearch','ArrowDown');await p.press('#gSearch','Enter');
+    assert.equal(await p.locator('[data-settings-section="security"]').isVisible(),true);
+    await p.fill('#gSearch','Review the site survey');await p.locator('#gResults button').filter({hasText:'Review the site survey'}).click();await p.waitForSelector('#panel-tasks.on');
+    await p.fill('#gSearch','Sample Factory');assert.ok(await p.locator('#gResults button').filter({hasText:'Sample Factory'}).count());await p.press('#gSearch','Escape');assert.equal(await p.getAttribute('#gSearch','aria-expanded'),'false');
+    await p.click('#workspaceHome');
+
     await nav("proposals");
     await p.waitForSelector("#propTableBody .quote-client");
     assert.equal(await p.locator("#propTableBody tr").count(), 3);
@@ -233,7 +249,8 @@ const { spawn } = require("child_process"),
     );
     await shot("settings");
     await nav("home");
-    await p.click("#btnNewFromHome");
+    await p.fill("#gSearch", "new proposal");
+    await p.press("#gSearch", "Enter");
     await p.waitForURL("**/quotation.html?cloud=*");
     await p.waitForSelector("#cloudSaveBtn:not([hidden])");
     await p.fill("#custName", "Editor sync test");
@@ -350,9 +367,10 @@ const { spawn } = require("child_process"),
       false,
     );
     await shot("mobile-tasks");
+    await p.fill('#gSearch','fogot password');await p.locator('#gResults button').filter({hasText:'Forgot password'}).click();await p.waitForURL('**/index.html#forgotPassword');assert.equal(await p.locator('#forgotPassword').isVisible(),true);
     // Preserve viewer restrictions and custom-role write access.
     await p.evaluate(async()=>{await PlatformAPI.logout();const r=await PlatformAPI.register('Viewer test','viewer@example.test','ReviewPass!123','viewer');PlatformAPI.setSessionToken(r.token)});
-    await p.goto(origin+'/dashboard.html');await p.waitForSelector('.kpi2');assert.equal(await p.locator('#btnNewFromHome').isDisabled(),true);await nav('tasks');assert.equal(await p.locator('#btnTaskAdd').isDisabled(),true);
+    await p.goto(origin+'/dashboard.html');await p.waitForSelector('.kpi2');assert.equal(await p.locator('#btnNewFromHome').isDisabled(),true);await p.fill('#gSearch','new proposal');assert.equal(await p.locator('#gResults button').filter({hasText:'New quotation'}).count(),0);await p.press('#gSearch','Escape');await nav('tasks');assert.equal(await p.locator('#btnTaskAdd').isDisabled(),true);
     await p.evaluate(async()=>{await PlatformAPI.logout();const r=await PlatformAPI.register('Custom role test','custom@example.test','ReviewPass!123','Design engineer');PlatformAPI.setSessionToken(r.token)});
     await p.goto(origin+'/dashboard.html');await p.waitForSelector('.kpi2');assert.equal(await p.locator('#btnNewFromHome').isEnabled(),true);
     assert.deepEqual(errors, []);

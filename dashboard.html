@@ -15,8 +15,8 @@
         document.documentElement.dataset.theme = t === "dark" ? "dark" : "light";
       })();
     </script>
-    <link rel="stylesheet" href="assets/css/dashboard.css?v=workspace6-sidebar1" />
-    <link rel="stylesheet" href="assets/css/dashboard-pearl.css?v=workspace6-sidebar1" />
+    <link rel="stylesheet" href="assets/css/dashboard.css?v=workspace6-search1" />
+    <link rel="stylesheet" href="assets/css/dashboard-pearl.css?v=workspace6-search1" />
   </head>
   <body>
     <div id="authScreen" class="splash">
@@ -51,11 +51,6 @@
           <img class="ktm-brand-logo" src="assets/images/ktm-logo-dark.png" alt="KTM Energy Experts" width="146" height="86" />
           <span class="brand-caption">QUOTATION STUDIO</span>
         </a>
-        <div class="workspace-label">
-          <span class="workspace-initial">K</span
-          ><span>KTM Solar<small>Your workspace</small></span
-          ><span class="workspace-dot"></span>
-        </div>
         <nav class="side-nav">
           <span class="nav-caption">WORKSPACE</span
           ><button type="button" class="nav-item on" data-panel="home">
@@ -129,20 +124,23 @@
               aria-expanded="false"
             >
               ☰</button
-            ><span class="breadcrumb"
-              >Workspace <span>/</span> <b id="currentPage">Overview</b></span
             >
+            <nav class="breadcrumb" aria-label="Workspace navigation">
+              <button type="button" id="workspaceHome">Workspace</button><span aria-hidden="true">/</span>
+              <button type="button" id="currentPage" aria-haspopup="menu" aria-expanded="false" aria-controls="pageMenu">Overview</button>
+            </nav>
+            <div id="pageMenu" class="page-menu" role="menu" aria-label="Workspace pages" hidden></div>
           </div>
           <div class="gsearch">
             <span aria-hidden="true">⌕</span
             ><input
               id="gSearch"
               type="search"
-              placeholder="Search quotations…"
+              placeholder="Search anything…"
               autocomplete="off"
-              aria-label="Search quotations"
+              aria-label="Search pages, actions and workspace records" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="gResults"
             /><kbd>/</kbd>
-            <div id="gResults" class="drop"></div>
+            <div id="gResults" class="drop" role="listbox" aria-label="Search results"></div>
           </div>
           <div class="gright">
             <label class="theme-picker"
@@ -987,12 +985,12 @@
       <p id="galleryViewerCap"></p>
     </dialog>
     <div id="toast" role="status"></div>
-    <script src="assets/js/platform-api.js?v=workspace6-sidebar1"></script>
-    <script src="assets/js/dashboard.js?v=workspace6-sidebar1"></script>
-    <script src="assets/js/dashboard-home.js?v=workspace6-sidebar1"></script>
+    <script src="assets/js/platform-api.js?v=workspace6-search1"></script>
+    <script src="assets/js/dashboard.js?v=workspace6-search1"></script>
+    <script src="assets/js/dashboard-home.js?v=workspace6-search1"></script>
     <script src="assets/js/finance.js"></script>
-    <script src="assets/js/assistant-actions.js?v=workspace6-sidebar1"></script>
-    <script src="assets/js/assistant-chat.js?v=workspace6-sidebar1"></script>
-    <script src="assets/js/dashboard-ui.js?v=workspace6-sidebar1"></script>
+    <script src="assets/js/assistant-actions.js?v=workspace6-search1"></script>
+    <script src="assets/js/assistant-chat.js?v=workspace6-search1"></script>
+    <script src="assets/js/dashboard-ui.js?v=workspace6-search1"></script>
   </body>
 </html>

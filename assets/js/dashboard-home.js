@@ -98,18 +98,78 @@
     const task = e.target.closest('#homeBody [data-tasks]'); if (task) { D.showTasks(task.dataset.tasks); return; }
     const done = e.target.closest('#homeBody [data-done]');
     if (done) { e.stopPropagation(); done.disabled = true; try { await api.updateTask(done.getAttribute('data-done'), { status: 'done' }); D.toast('Follow-up completed'); await D.refresh(); } catch (err) { D.toast(err.message || 'Could not complete task'); done.disabled = false; } return; }
-    const t = e.target.closest('#homeBody [data-open],#gResults [data-open],#bellDrop [data-open]'); if (t) { D.open(t.getAttribute('data-open')); return; }
+    const t = e.target.closest('#homeBody [data-open],#bellDrop [data-open]'); if (t) { D.open(t.getAttribute('data-open')); return; }
     const s = e.target.closest('#homeBody [data-status]'); if (s) { D.filterStatus(s.getAttribute('data-status')); return; }
     const g = e.target.closest('#homeBody [data-go]'); if (g) { D.show(g.getAttribute('data-go')); return; }
-    if (!e.target.closest('.gsearch')) $('gResults').classList.remove('on'); if (!e.target.closest('.bellwrap')) $('bellDrop').classList.remove('on');
+    if (!e.target.closest('.gsearch')) closeSearch(); if (!e.target.closest('.bellwrap')) $('bellDrop').classList.remove('on');
   });
   $('btnNewFollowup').addEventListener('click', () => { D.showTasks('all'); setTimeout(() => $('taskTitle') && $('taskTitle').focus(), 50); });
   $('btnUserChip').addEventListener('click', () => D.show('settings'));
-  const gs = $('gSearch');
-  function search() { const q = gs.value.trim().toLowerCase(), box = $('gResults'); if (!q) { box.classList.remove('on'); return; } const hits = D.proposals().filter((p) => [p.customer, p.ref, p.title, p.capacity].join(' ').toLowerCase().includes(q)).slice(0, 6); box.innerHTML = hits.length ? hits.map((p) => '<button type="button" ' + go('open', p.id) + '><strong>' + esc(p.customer || 'Untitled') + '</strong><i>' + esc((p.ref || '—') + ' · ' + (p.capacity ? p.capacity + ' kWp' : 'no size') + ' · ' + (LABEL[p.status || 'draft'] || '')) + '</i></button>').join('') : '<div class="hempty">No quotation matches “' + esc(gs.value) + '”.</div>'; box.classList.add('on'); }
-  gs.addEventListener('input', search); gs.addEventListener('focus', search);
-  gs.addEventListener('keydown', (e) => { if (e.key === 'Enter') { const b = $('gResults').querySelector('[data-open]'); if (b) D.open(b.getAttribute('data-open')); } if (e.key === 'Escape') { gs.blur(); $('gResults').classList.remove('on'); } });
-  document.addEventListener('keydown', (e) => { const typing = /INPUT|TEXTAREA|SELECT/.test((e.target.tagName || '')) || e.target.isContentEditable; if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !typing)) { e.preventDefault(); gs.focus(); } });
+  const gs = $('gSearch'), searchBox = $('gResults');
+  let results = [], activeResult = -1;
+  const pages = [['home','Overview'],['proposals','Quotations'],['tasks','Follow-ups'],['activity','Customer activity'],['send','Sharing'],['gallery','Project gallery'],['reports','Analytics'],['settings','Settings']];
+  function settings(tab) { D.show('settings'); document.querySelector('[data-settings="'+tab+'"]').click(); }
+  function closeSearch() { searchBox.classList.remove('on'); gs.setAttribute('aria-expanded','false'); gs.removeAttribute('aria-activedescendant'); activeResult=-1; }
+  function commands() {
+    const writable = D.user() && D.user().role !== 'viewer';
+    const rows = pages.map(([id,label])=>({label,detail:'Page',keywords:id+' '+({home:'dashboard workspace',proposals:'quotes proposals customers customer',tasks:'tasks reminders pending calls',activity:'notifications timeline events',send:'send whatsapp email share customer',gallery:'photos images portfolio projects',reports:'reports business summary analytics',settings:'account profile preferences'}[id]||''),run:()=>D.show(id)}));
+    rows.push(
+      {label:'Forgot password',detail:'Open sign-in password recovery',keywords:'forgot fogot forget reset recover password login bhool',run:()=>{location.href='index.html#forgotPassword';}},
+      {label:'Change password',detail:'Settings · Security',keywords:'password security update',run:()=>{settings('security');$('currPassword').focus();}},
+      {label:'Edit profile',detail:'Settings · Profile',keywords:'name account profile email',run:()=>{settings('profile');$('profileName').focus();}},
+      {label:'Appearance',detail:'Light / Dark / System',keywords:'theme appearance mode light dark system glass color',run:()=>$('dashboardTheme').focus()},
+      {label:'Ask Studio AI',detail:'Open assistant',keywords:'ai assistant chat help pricing price cost 3kw',run:()=>{if($('assistantPanel').hidden)$('assistantLauncher').click();$('assistantPrompt').focus();}},
+      {label:'Open quotation Studio',detail:'Editor · Pricing, system settings and PDF export',keywords:'editor studio edit rate gst capacity module inverter engineering finance pdf export download save quotation',run:()=>{location.href='quotation.html';}},
+      {label:'Versions & links',detail:'Sharing · Published quotation versions',keywords:'publish published versions customer links',run:()=>D.show('publish')}
+    );
+    if(writable) rows.unshift(
+      {label:'New quotation',detail:'Create a quotation in Studio',keywords:'new quotation proposal quote create add banana',run:()=>$('btnNewProposal').click()},
+      {label:'New follow-up',detail:'Create a task or reminder',keywords:'new task followup follow up reminder add create',run:()=>{D.showTasks('all');$('taskTitle').focus();}},
+      {label:'Upload photo',detail:'Project gallery',keywords:'upload image photo gallery project',run:()=>{D.show('gallery');$('galleryFile').focus();}}
+    );
+    if(D.user()?.role==='owner')rows.push({label:'Manage team',detail:'Settings · Team',keywords:'team roles permission members users',run:()=>settings('team')});
+    return rows;
+  }
+  const normalise=value=>String(value||'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+  function search() {
+    const q=normalise(gs.value), words=q.split(' ').filter(Boolean);
+    const actionRows=commands();
+    const recordRows=[
+      ...D.proposals().map(p=>({label:p.customer||p.title||'Untitled quotation',detail:'Quotation · '+(p.ref||'No reference')+' · '+(p.capacity?p.capacity+' kWp':'No size'),keywords:[p.title,p.ref,p.capacity,p.status,'quotation proposal customer'].join(' '),run:()=>D.open(p.id)})),
+      ...X.tasks.map(t=>({label:t.title,detail:'Follow-up · '+(t.status||'open'),keywords:[t.notes,t.status,'task followup reminder'].join(' '),run:()=>D.showTasks(t.status==='done'?'done':'all')})),
+      ...X.notes.map(n=>({label:n.title,detail:'Notification',keywords:[n.body,'notification activity'].join(' '),run:()=>D.show('activity')}))
+    ];
+    const match=r=>words.every(w=>normalise(r.label+' '+r.detail+' '+r.keywords).includes(w));
+    results=q ? [...actionRows.filter(match),...recordRows.filter(match)].sort((a,b)=>Number(normalise(b.label).startsWith(q))-Number(normalise(a.label).startsWith(q))).slice(0,14) : actionRows.slice(0,7);
+    searchBox.replaceChildren();activeResult=-1;gs.removeAttribute('aria-activedescendant');
+    const heading=document.createElement('div');heading.className='search-heading';heading.textContent=q?'Pages, actions & records':'Quick actions';searchBox.append(heading);
+    if(!results.length){const empty=document.createElement('div');empty.className='hempty';empty.textContent='No matches. Try “new proposal”, “forgot password”, a customer or a task.';searchBox.append(empty);}
+    results.forEach((r,i)=>{const b=document.createElement('button');b.type='button';b.id='global-result-'+i;b.setAttribute('role','option');b.setAttribute('aria-selected','false');const strong=document.createElement('strong'),detail=document.createElement('i');strong.textContent=r.label;detail.textContent=r.detail;b.append(strong,detail);b.addEventListener('click',()=>activate(i));searchBox.append(b);});
+    searchBox.classList.add('on');gs.setAttribute('aria-expanded','true');
+  }
+  function activate(index){const result=results[index];if(!result)return;closeSearch();gs.value='';result.run();}
+  gs.addEventListener('input',search);gs.addEventListener('focus',search);
+  gs.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){e.preventDefault();closeSearch();gs.blur();return;}
+    if(e.key==='Tab'){closeSearch();return;}
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault();if(!searchBox.classList.contains('on'))search();if(!results.length)return;
+      activeResult=activeResult<0?(e.key==='ArrowDown'?0:results.length-1):(activeResult+(e.key==='ArrowDown'?1:-1)+results.length)%results.length;
+      searchBox.querySelectorAll('[role="option"]').forEach((b,i)=>b.setAttribute('aria-selected',String(i===activeResult)));
+      const selected=$('global-result-'+activeResult);gs.setAttribute('aria-activedescendant',selected.id);selected.scrollIntoView?.({block:'nearest'});return;
+    }
+    if(e.key==='Enter'){e.preventDefault();if(searchBox.classList.contains('on'))activate(activeResult<0?0:activeResult);}
+  });
+  document.addEventListener('qs:workspace-updated',()=>{if(document.activeElement===gs&&searchBox.classList.contains('on'))search();});
+  document.addEventListener('keydown',e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(e.target.tagName||'')||e.target.isContentEditable;if(((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k')||(e.key==='/'&&!typing)){e.preventDefault();gs.focus();}});
+  const menu=$('pageMenu'), pageButton=$('currentPage');
+  function closePages(){menu.hidden=true;pageButton.setAttribute('aria-expanded','false');}
+  $('workspaceHome').addEventListener('click',()=>{closePages();closeSearch();D.show('home');window.scrollTo({top:0,behavior:'instant'});});
+  pages.forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.setAttribute('role','menuitem');b.textContent=label;b.addEventListener('click',()=>{closePages();D.show(id);pageButton.focus();window.scrollTo({top:0,behavior:'instant'});});menu.append(b);});
+  pageButton.addEventListener('click',()=>{menu.hidden=!menu.hidden;pageButton.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden){closeSearch();menu.querySelector('button').focus();}});
+  menu.addEventListener('keydown',e=>{const buttons=[...menu.querySelectorAll('button')],i=buttons.indexOf(document.activeElement);if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?buttons.length-1:(i+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[next].focus();}if(e.key==='Escape'){closePages();pageButton.focus();}});
+  document.addEventListener('click',e=>{if(!e.target.closest('.gbar-left'))closePages();});
+  document.addEventListener('focusin',e=>{if(!e.target.closest('.gbar-left'))closePages();});
   $('btnBell').innerHTML = bellSvg + '<span id="bellCount" class="dot" hidden></span>';
   $('btnBell').addEventListener('click', async () => { const box = $('bellDrop'); if (box.classList.toggle('on') === false) return; box.innerHTML = '<div class="hempty">Loading…</div>'; try { const r = await api.listNotifications(), rows = (r && r.notifications || []).slice(0, 6); box.innerHTML = '<div class="dhead"><strong>Notifications</strong><button type="button" id="bellAll">Mark all read</button></div>' + (rows.length ? rows.map((n) => '<button type="button" class="nrow' + (n.unread ? ' un' : '') + '" ' + (n.proposalId ? go('open', n.proposalId) : '') + '><strong>' + esc(n.title) + '</strong><i>' + esc(n.body || '') + '</i><em>' + ago(n.createdAt) + '</em></button>').join('') : '<div class="hempty">No notifications yet.</div>') + '<button type="button" class="dfoot" id="bellView">View all activity →</button>'; $('bellAll').onclick = async () => { try { await api.markAllNotificationsRead(); D.toast('Notifications marked read'); box.classList.remove('on'); D.refresh(); } catch (err) { D.toast(err.message || 'Failed'); } }; $('bellView').onclick = () => { box.classList.remove('on'); D.show('activity'); }; } catch (err) { box.innerHTML = '<div class="hempty">' + esc(err.message || 'Could not load') + '</div>'; } });
   document.addEventListener('qs:home', load);
