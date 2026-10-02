@@ -29,3 +29,7 @@ database_id = "78f2b390-8468-4250-b8fd-c7ec119b56b8"
 [vars]
 APP_NAME = "Quotation Studio"
 
+# Gemini enabled by owner request; encrypted GEMINI_API_KEY already configured in Worker settings.
+# Quota table is created idempotently on the first authenticated AI request.
+GEMINI_ENABLED = "true"
+GEMINI_MODEL = "gemini-3.1-flash-lite"

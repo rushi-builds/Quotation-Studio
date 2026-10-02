@@ -9,6 +9,8 @@
    ============================================================================ */
 'use strict';
 
+import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
+
 import { scryptSync, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 
 const SESSION_DAYS = 30;
@@ -377,6 +379,19 @@ function parseExpiryDays(body) {
   const days = Number(body.expiresInDays != null ? body.expiresInDays : 30);
   if (!Number.isFinite(days) || days <= 0) return null;
   return new Date(Date.now() + days * 864e5).toISOString();
+}
+
+const assistantSchemas = new WeakMap();
+async function ensureAssistantSchema(db) {
+  let pending = assistantSchemas.get(db);
+  if (!pending) {
+    pending = run(db, `CREATE TABLE IF NOT EXISTS assistant_usage (
+      scope TEXT NOT NULL, bucket TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0,
+      expires_at INTEGER NOT NULL, PRIMARY KEY(scope,bucket)
+    )`).catch(err => { assistantSchemas.delete(db); throw err; });
+    assistantSchemas.set(db, pending);
+  }
+  await pending;
 }
 
 /* ---------- D1 helpers ---------- */
@@ -905,6 +920,41 @@ async function handleApi(request, env, url) {
     if (!user) return json({ error: 'Sign in required' }, 401);
     const canWrite = requireRole(user, 'sales');
     const canAdmin = requireRole(user, 'owner');
+
+    /* Gemini: no browser-supplied context or mutation tools. */
+    if (parts[0] === 'assistant' && parts.length === 2) {
+      if (method === 'POST' && !request.headers.get('Authorization') && !request.headers.get('X-QS-Session')) return json({ error: 'Sign in again to use the assistant.' }, 403);
+      const result = await handleAssistant({
+        method, action: parts[1], user, env,
+        readBody: () => boundedJson(request),
+        reserveQuota: async userId => {
+          // Additive, idempotent bootstrap: no manual D1 migration or destructive reset.
+          await ensureAssistantSchema(db);
+          // Atomic conditional UPSERTs enforce limits across Worker isolates.
+          await run(db, 'DELETE FROM assistant_usage WHERE expires_at < ?', Date.now());
+          for (const w of quotaWindows(userId)) {
+            const row = await one(db,
+              `INSERT INTO assistant_usage (scope,bucket,count,expires_at) VALUES (?,?,1,?)
+               ON CONFLICT(scope,bucket) DO UPDATE SET count=count+1 WHERE count < ? RETURNING count`,
+              w.scope,w.bucket,w.expires,w.limit);
+            if (!row) return false;
+          }
+          return true;
+        },
+        loadContext: async proposalId => {
+          const [counts, proposals, tasks, events, selected] = await Promise.all([
+            all(db, 'SELECT status, COUNT(*) AS count FROM proposals WHERE owner_id = ? GROUP BY status', user.id),
+            all(db, 'SELECT id,owner_id,ref,title,status,capacity,customer_name,updated_at,created_at FROM proposals WHERE owner_id = ? ORDER BY updated_at DESC LIMIT 31', user.id),
+            all(db, "SELECT id,owner_id,proposal_id,title,due_at,status FROM tasks WHERE owner_id = ? AND status = 'open' ORDER BY due_at IS NULL,due_at ASC LIMIT 31", user.id),
+            all(db, "SELECT owner_id,proposal_id,event_type,created_at FROM portal_events WHERE owner_id = ? AND event_type != 'suspected_prefetch' ORDER BY created_at DESC LIMIT 16", user.id),
+            proposalId ? one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', proposalId,user.id) : null
+          ]);
+          const byStatus = {}; counts.forEach(r => { byStatus[r.status || 'draft'] = Number(r.count) || 0; });
+          return { total: counts.reduce((sum,r) => sum + Number(r.count),0), byStatus, proposals,tasks,events,selected };
+        }
+      });
+      return json(result.body, result.status);
+    }
 
     /* PROJECT GALLERY (staff uploads; writes need sales+) */
     if (parts[0] === 'gallery' && parts.length === 1 && method === 'GET') {

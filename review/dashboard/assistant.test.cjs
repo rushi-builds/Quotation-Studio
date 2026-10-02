@@ -1,0 +1,20 @@
+const {JSDOM}=require('jsdom'),fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
+(async()=>{
+ const html=fs.readFileSync(path.join(__dirname,'dashboard.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'');
+ const dom=new JSDOM(html,{url:'https://review.test',runScripts:'outside-only'}),w=dom.window;
+ const $=id=>w.document.getElementById(id);let requests=[];
+ w.QSDash={user:()=>({id:'u1',name:'User',role:'sales'}),proposals:()=>[{id:'p1',customer:'One'}],open:()=>{},show:()=>{},showTasks:()=>{},filterStatus:()=>{}};
+ w.PlatformAPI={assistantStatus:async()=>({enabled:true}),assistantChat:async(...args)=>{requests.push(args);return{answer:'<img src=x onerror=alert(1)>',sources:[{id:'p1',label:'Record one'},{id:'not-allowed',label:'Foreign'}]}}};
+ w.eval(fs.readFileSync(path.join(__dirname,'dashboard-ui.js'),'utf8'));
+ $('assistantLauncher').click();await new Promise(r=>setTimeout(r,0));
+ assert.equal($('assistantPrompt').disabled,true,'consent required');
+ $('assistantConsent').checked=true;$('assistantConsent').dispatchEvent(new w.Event('change'));
+ assert.equal($('assistantPrompt').disabled,false);
+ $('assistantQuotation').value='p1';$('assistantPrompt').value='Summarise';$('assistantPrompt').dispatchEvent(new w.Event('input'));
+ const submit=()=> $('assistantForm').dispatchEvent(new w.Event('submit',{cancelable:true}));submit();submit();
+ await new Promise(r=>setTimeout(r,0));assert.equal(requests.length,1);assert.deepEqual(requests[0],['Summarise','p1',true]);
+ assert.equal($('assistantMessages').querySelector('img'),null,'model text never parsed as HTML');assert.ok($('assistantMessages').textContent.includes('<img'));assert.equal($('assistantMessages').querySelectorAll('.assistant-sources button').length,1);
+ w.PlatformAPI.assistantChat=async()=>{throw Object.assign(Error('Gemini is not connected yet.'),{status:503})};
+ $('assistantPrompt').value='Again';submit();await new Promise(r=>setTimeout(r,0));assert.equal($('assistantPrompt').disabled,true);assert.match($('assistantMessages').textContent,/not connected/);
+ dom.window.close();console.log('PASS: real backend adapter, consent gate, selected record, single inflight request, safe text rendering, source allowlist, configuration error handling.');
+})().catch(e=>{console.error(e);process.exit(1)});

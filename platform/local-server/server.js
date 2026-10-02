@@ -24,6 +24,8 @@ const DATA_DIR = process.env.QS_DATA_DIR
 const DB_PATH = path.join(DATA_DIR, 'db.json');
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '0.0.0.0';
+const assistantModule = import('../gemini.mjs');
+let assistantLimiter;
 const SESSION_DAYS = 30;
 const COOKIE = 'qs_session';
 
@@ -1136,6 +1138,40 @@ async function handleApi(req, res, url) {
 
     const canWrite = requireRole(user, 'sales'); /* owner + sales */
     const canAdmin = requireRole(user, 'owner');
+
+    /* Gemini: authenticated, owner-scoped, read-only, opt-in. */
+    if (parts[0] === 'assistant' && parts.length === 2) {
+      if (method === 'POST' && !req.headers.authorization && !req.headers['x-qs-session']) return sendJson(res, 403, { error: 'Sign in again to use the assistant.' });
+      const ai = await assistantModule;
+      if (!assistantLimiter) assistantLimiter = ai.makeLocalLimiter();
+      const result = await ai.handleAssistant({
+        method, action: parts[1], user, env: process.env,
+        readBody: () => new Promise((resolve, reject) => {
+          let size = 0, chunks = [], failed = false;
+          req.on('data', chunk => {
+            if (failed) return;
+            size += chunk.length;
+            if (size > ai.MAX_BODY_BYTES) { failed = true; chunks = []; reject(Object.assign(new Error('Message is too large.'), { status: 413 })); return; }
+            chunks.push(chunk);
+          });
+          req.on('end', () => { if (failed) return; try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch (_) { reject(Object.assign(new Error('Invalid JSON.'), { status: 400 })); } });
+          req.on('error', reject);
+        }),
+        reserveQuota: assistantLimiter,
+        loadContext: async proposalId => {
+          const mine = (db.proposals || []).filter(p => p.owner_id === user.id);
+          const byStatus = {}; mine.forEach(p => { const key = p.status || 'draft'; byStatus[key] = (byStatus[key] || 0) + 1; });
+          return {
+            total: mine.length, byStatus,
+            proposals: mine.slice().sort((a,b) => String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,31),
+            selected: proposalId ? mine.find(p => p.id === proposalId) : null,
+            tasks: (db.tasks || []).filter(t => t.owner_id === user.id && t.status === 'open').sort((a,b) => String(a.due_at || '9999').localeCompare(String(b.due_at || '9999'))).slice(0,31),
+            events: (db.events || []).filter(e => e.owner_id === user.id && e.event_type !== 'suspected_prefetch').sort((a,b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0,16)
+          };
+        }
+      });
+      return sendJson(res, result.status, result.body);
+    }
 
     /* PROJECT GALLERY (staff uploads; writes need sales+) */
     if (parts[0] === 'gallery' && parts.length === 1 && method === 'GET') {
