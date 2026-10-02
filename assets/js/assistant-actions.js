@@ -12,13 +12,16 @@
       .replace(/[^\p{L}\p{N}.]+/gu, " ")
       .trim();
   const stop = new Set(
-    "most kya liye kitni milega bhai hey hello can you could would bata batao bataiye tell mujhe quotation open show edit quotation quotations quote proposal proposals please plz recent rescent latest last newest the my me mera meri kholo khol karo kar kr do dikhao dikha sir madam ji s ki ka ke for of from using use rate rates price cost estimate kitna kitne paise honge hai hoga what how much would will does it be at in a an this current save send share bhejo bhej whatsapp email on pe ko".split(
+    "to cloud most kya liye kitni milega bhai hey hello can you could would bata batao bataiye tell mujhe quotation open show edit quotation quotations quote proposal proposals please plz recent rescent latest last newest the my me mera meri kholo khol karo kar kr do dikhao dikha sir madam ji s ki ka ke for of from using use rate rates price cost estimate kitna kitne paise honge hai hoga what how much would will does it be at in a an this current save send share bhejo bhej whatsapp email on pe ko".split(
       " ",
     ),
   );
   function parse(text) {
     const t = normalise(text),
       cap = t.match(/(?:^|\s)(\d+(?:\.\d+)?)\s*(?:kwp|kw|kilowatt)(?:\s|$)/);
+    // Mixed instructions (or a customer named "Save") must never turn an
+    // open/share request into a write. Ask for one clear command instead.
+    if (/\bsave\b/.test(t) && /\b(?:open|edit|send|share|kholo|khol)\b/.test(t)) return null;
     // Questions/explanations about actions do not trigger mutations.
     if (/\b(?:how to|how do|kaise|why|kyu|not|don t|dont|mat)\b/.test(t))
       return null;

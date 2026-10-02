@@ -29,6 +29,8 @@ test("named, recent, typo, open and save commands", () => {
     "b",
   );
   assert.equal(A.parse("save quotation").type, "save");
+  assert.equal(A.parse("save to cloud").type, "save");
+  assert.equal(A.parse("open save"), null);
   assert.equal(A.parse("show open quotations").panel, "proposals");
   assert.equal(A.parse("send Rushikesh quotation").type, "send");
   assert.equal(A.parse("do not open recent quotation"), null);
