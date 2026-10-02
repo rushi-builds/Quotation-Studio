@@ -106,6 +106,9 @@ test('greetings use profile first name; full identity retained and nickname neve
   assert.match(instruction,/explicitly requests a nickname/);
   assert.match(instruction,/Do not invent nicknames/);
   assert.match(instruction,/short, clean, direct answers/);
+  assert.match(instruction,/Respond in professional English/);
+  assert.match(instruction,/do not mirror its language or slang/);
+  assert.ok(!instruction.includes("Reply in the user's language"));
   assert.match(instruction,/Do not append/);
   return success();
  }});assert.equal(r.status,200);
