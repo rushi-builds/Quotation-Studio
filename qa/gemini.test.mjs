@@ -92,3 +92,19 @@ test('assistant identity comes only from authenticated profile, preserves spelli
   return success();
  }});assert.equal(r.status,200);
 });
+
+test('greetings use profile first name; full identity retained and nickname never guessed',async()=>{
+ for(const [name,firstName] of [['Rushikesh Dhumal','Rushikesh'],['  Rushi   Dhumal  ','Rushi'],['रुशिकेश धुमाळ','रुशिकेश'],['Rushi','Rushi'],['   ',null]]){
+  const c=buildContext(raw,{...owner,name},null);
+  assert.equal(c.signedInUser.firstName,firstName);
+  assert.equal(c.signedInUser.name,name);
+ }
+ assert.equal(buildContext(raw,owner,null).signedInUser.firstName,null);
+ const r=await handleAssistant({...args,user:{...owner,name:'Rushikesh Dhumal'},fetchImpl:async(url,options)=>{
+  const sent=JSON.parse(options.body),instruction=sent.systemInstruction.parts[0].text;
+  assert.match(instruction,/use signedInUser.firstName, not their full name/);
+  assert.match(instruction,/explicitly requests a nickname/);
+  assert.match(instruction,/Do not invent nicknames/);
+  return success();
+ }});assert.equal(r.status,200);
+});
