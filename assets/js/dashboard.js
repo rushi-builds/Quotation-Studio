@@ -1173,7 +1173,12 @@
     }
 
     if ($('galleryFilter')) $('galleryFilter').addEventListener('change',refreshGalleryPanel);
-    document.querySelectorAll('[data-go-panel]').forEach(b=>b.addEventListener('click',()=>showPanel(b.dataset.goPanel)));
+    document.querySelectorAll('[data-go-panel]').forEach(b=>b.addEventListener('click',()=>{
+      const name = b.dataset.goPanel;
+      const active = document.querySelector('.panel.on')?.id;
+      const id = active === 'panel-send' ? $('sendSelect')?.value : active === 'panel-publish' ? $('publishSelect')?.value : null;
+      showPanel(name,id);
+    }));
     document.querySelectorAll('[data-focus]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.focus)?.focus()));
     document.querySelectorAll('[data-settings]').forEach(b=>b.addEventListener('click',()=>{
       document.querySelectorAll('[data-settings]').forEach(n=>n.classList.toggle('selected',n===b));

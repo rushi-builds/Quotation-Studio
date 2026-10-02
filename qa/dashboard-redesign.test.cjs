@@ -143,7 +143,7 @@ const { spawn } = require("child_process"),
     await p.waitForSelector(".send-item");
     await p.click('#panel-send [data-go-panel="publish"]');
     await p.waitForSelector("#panel-publish.on");
-    await p.selectOption("#publishSelect", seed[1]);
+    assert.equal(await p.inputValue("#publishSelect"), seed[1], "Sharing tabs preserve the selected quotation");
     await p.waitForSelector('#linksBody [data-act="revoke"]');
     await shot("links");
     await nav("tasks");
