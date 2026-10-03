@@ -169,6 +169,7 @@
       return request('POST', '/api/auth/profile', payload || {});
     },
     summary() { return request('GET', '/api/dashboard/summary'); },
+    reserveProposalReference() { return request('POST', '/api/proposals/reference', {}); },
     listProposals() { return request('GET', '/api/proposals'); },
     getProposal(id) { return request('GET', '/api/proposals/' + encodeURIComponent(id)); },
     createProposal(payload) { return request('POST', '/api/proposals', payload); },

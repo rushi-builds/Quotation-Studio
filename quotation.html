@@ -85,7 +85,7 @@
         <div class="field"><label>Customer address</label><input type="text" id="custAddress" value="" placeholder="Enter site address"></div>
         <div class="row3">
           <div class="field"><label>Proposal date</label><input type="date" id="propDate"></div>
-          <div class="field"><label>Reference no.</label><input type="text" id="propRef" value="KTM/2026/Solar/013"></div>
+          <div class="field"><label>Reference no.</label><input type="text" id="propRef" value="" autocomplete="off" spellcheck="false" placeholder="Assigned automatically for a new proposal"></div>
           <div class="field"><label>Version</label><input type="text" id="propVersion" value="1.0"></div>
         </div>
         <div class="row2">
@@ -536,6 +536,7 @@
       </fieldset>
 <fieldset class="prop-manager">
         <legend>Proposals</legend>
+        <p class="hint">This list contains proposals saved in this browser, not reference suggestions. Delete here removes only the local copy; Dashboard deletion affects the cloud record.</p>
         <div class="field">
           <select id="proposalSelect" aria-label="Active proposal"></select>
         </div>

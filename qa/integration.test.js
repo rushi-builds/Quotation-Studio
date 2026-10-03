@@ -442,7 +442,7 @@ setTimeout(() => {
   };
   w.document.getElementById('downloadBtn').click();
   setTimeout(() => {
-    t('pdf saved with customer+capacity+ref', /Proposal_QA_Customer_7kWp_KTM-2026-Solar-013\.pdf/.test(savedName), savedName);
+    t('pdf saved with customer+capacity+ref', savedName === 'Proposal_QA_Customer_7kWp_' + d.getElementById('propRef').value.replace(/[^a-z0-9]+/gi, '-') + '.pdf', savedName);
     t('status message shown', w.document.getElementById('statusMsg').textContent.includes('Downloaded'),
       w.document.getElementById('statusMsg').textContent);
 

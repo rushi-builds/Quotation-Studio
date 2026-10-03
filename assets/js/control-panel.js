@@ -181,7 +181,25 @@
       const ref = String(state.propRef || '').trim();
       if (!ref) return 'This proposal has no reference number - press New in Proposals to issue the next one.';
       const active = window.Proposals.activeId();
+      const family = id => {
+        const seen = new Set();
+        while (id && !seen.has(id)) { seen.add(id); const previous = window.Proposals.get(id)?.prevId; if (!previous) break; id = previous; }
+        return id;
+      };
+      const activeFamily = family(active);
+      const familyCloud = id => {
+        const seen = new Set();
+        while (id && !seen.has(id)) {
+          seen.add(id);
+          const cloud = window.CloudBridge?.cloudIdFor?.(id);
+          if (cloud) return cloud;
+          id = window.Proposals.get(id)?.prevId;
+        }
+        return null;
+      };
+      const activeCloud = familyCloud(active);
       const clash = (window.Proposals.list() || []).find(p => p.id !== active &&
+        family(p.id) !== activeFamily && !(activeCloud && familyCloud(p.id) === activeCloud) &&
         String(p.ref || '').trim().toLowerCase() === ref.toLowerCase());
       if (clash) return 'Reference ' + ref + ' is already used by another proposal (#' +
         (clash.ref || clash.id.slice(-4)) + ' · ' + (clash.title || 'untitled') +

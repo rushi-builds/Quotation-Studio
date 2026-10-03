@@ -230,3 +230,9 @@ CREATE TABLE IF NOT EXISTS assistant_usage (
   PRIMARY KEY (scope, bucket)
 );
 CREATE INDEX IF NOT EXISTS idx_assistant_usage_expiry ON assistant_usage(expires_at);
+
+-- Monotonic allocation metadata; deleting a proposal must not recycle its number.
+CREATE TABLE IF NOT EXISTS proposal_reference_counters (
+  year INTEGER PRIMARY KEY,
+  sequence INTEGER NOT NULL
+);

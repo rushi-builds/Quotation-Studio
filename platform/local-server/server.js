@@ -31,6 +31,19 @@ const COOKIE = 'qs_session';
 
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }
+function reserveLocalReference(db) {
+  const year = new Intl.DateTimeFormat('en', {year:'numeric',timeZone:'Asia/Kolkata'}).format(new Date());
+  const prefix = 'KTM/' + year + '/Solar/';
+  db.referenceCounters = db.referenceCounters || {};
+  let sequence = Number(db.referenceCounters[year]) || 0;
+  for (const p of db.proposals || []) {
+    const ref = String(p.ref || '');
+    if (ref.startsWith(prefix) && /^\d{1,9}$/.test(ref.slice(prefix.length))) sequence = Math.max(sequence, Number(ref.slice(prefix.length)));
+  }
+  db.referenceCounters[year] = ++sequence;
+  return prefix + String(sequence).padStart(3,'0');
+}
+
 function uid(prefix) {
   return (prefix || 'id') + '_' + crypto.randomBytes(8).toString('hex');
 }
@@ -1269,10 +1282,20 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { proposals: mine });
     }
 
+    if (parts[0] === 'proposals' && parts[1] === 'reference' && parts.length === 2 && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, {error:'Your role cannot issue proposal references.'});
+      Object.assign(db, loadDb());
+      const reference = reserveLocalReference(db); saveDb(db);
+      return sendJson(res, 200, {reference});
+    }
+
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot create or edit proposals.' });
       const body = await readBody(req);
+      Object.assign(db, loadDb()); // readBody awaited; retain other concurrent creations.
       const meta = metaFromBody(body, null);
+      if (!String(meta.ref || '').trim()) meta.ref = reserveLocalReference(db);
+      meta.form = { ...meta.form, propRef: meta.ref };
       const row = {
         id: uid('prp'),
         owner_id: user.id,
@@ -1377,12 +1400,12 @@ async function handleApi(req, res, url) {
       try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
       form = Object.assign({}, form);
       if (form.custName) form.custName = form.custName + ' (copy)';
-      form.propRef = '';
+      form.propRef = reserveLocalReference(db);
       const copy = {
         id: uid('prp'),
         owner_id: user.id,
         customer_id: row.customer_id,
-        ref: '',
+        ref: form.propRef,
         title: (form.custName || 'Untitled') + ' — ' + (form.capacity || row.capacity || '0') + ' kWp',
         status: 'draft',
         version_label: '1.0',

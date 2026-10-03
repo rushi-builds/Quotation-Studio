@@ -9,6 +9,8 @@
    ============================================================================ */
 'use strict';
 
+import { reserveCloudReference } from '../../reference-numbers.mjs';
+
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
 
 import { scryptSync, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
@@ -1054,10 +1056,17 @@ async function handleApi(request, env, url) {
       return json({ proposals: list.map(proposalSummary) });
     }
 
+    if (parts[0] === 'proposals' && parts[1] === 'reference' && parts.length === 2 && method === 'POST') {
+      if (!canWrite) return json({ error: 'Your role cannot issue proposal references.' }, 403);
+      return json({ reference: await reserveCloudReference(db) });
+    }
+
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot create or edit proposals.' }, 403);
       const body = await readBody(request);
       const meta = metaFromBody(body, null);
+      if (!String(meta.ref || '').trim()) meta.ref = await reserveCloudReference(db);
+      meta.form = { ...meta.form, propRef: meta.ref };
       const row = {
         id: uid('prp'),
         owner_id: user.id,
@@ -1162,12 +1171,12 @@ async function handleApi(request, env, url) {
       try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
       form = Object.assign({}, form);
       if (form.custName) form.custName = form.custName + ' (copy)';
-      form.propRef = '';
+      form.propRef = await reserveCloudReference(db);
       const copy = {
         id: uid('prp'),
         owner_id: user.id,
         customer_id: row.customer_id,
-        ref: '',
+        ref: form.propRef,
         title: (form.custName || 'Untitled') + ' — ' + (form.capacity || row.capacity || '0') + ' kWp',
         status: 'draft',
         version_label: '1.0',

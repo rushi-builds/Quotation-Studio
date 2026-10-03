@@ -147,12 +147,11 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
 (async () => {
   console.log('- Export pre-flight: the reference-number guard -');
   const refAdvisories = () => w.__qsPreflight.run().advisory.filter((i) => i.id === 'propRef');
-  check('the sample reference stays off the panel but is flagged pre-flight', () => {
+  check('a fresh proposal receives its own reference without a sample warning', () => {
     w.Render.renderAll();
-    assert.equal(val('propRef'), 'KTM/2026/Solar/013', 'the template sample is the shipped default');
+    assert.match(val('propRef'), /^KTM\/\d{4}\/Solar\/\d+$/, 'a new reference is allocated');
     assert.equal(d.getElementById('refWarning').hidden, true, 'the panel stays silent');
-    assert.ok(refAdvisories().some((i) => /template sample reference/.test(i.message)),
-      JSON.stringify(refAdvisories()));
+    assert.equal(refAdvisories().length, 0, JSON.stringify(refAdvisories()));
   });
   check('the guard lives in the builder, never inside the customer markup', () => {
     assert.equal(d.querySelector('.preview-panel #refWarning'), null,

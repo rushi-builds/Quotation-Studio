@@ -37,7 +37,7 @@
     custSpokenName: '',
     custAddress: '',
     propDate: '',
-    propRef: 'KTM/2026/Solar/013',
+    propRef: '',
     propVersion: '1.0',
     validityDays: '15',
     monthlyBill: '',
