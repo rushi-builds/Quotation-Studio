@@ -273,6 +273,8 @@
 
 .portfolio-link a{color:#ad590e;}
 
-/* Two-tone editorial headings: same hierarchy and wording on all six pages. */
-.power-six h1{color:#17354a;}
-.power-six .power-heading-accent{color:#b56317;border-bottom:2px solid #efd2af;padding-bottom:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone;}
+/* Single-colour editorial headings with a restrained amber signature.
+   Position the rule within existing spacing to preserve the A4 layout. */
+.power-six h1{color:#17354a;position:relative;}
+.power-six h1::after{content:"";position:absolute;left:0;bottom:-5px;width:42px;height:2px;background:#dc8629;border-radius:1px;}
+.power-six .power-heading-accent{color:inherit;border:0;padding:0;}

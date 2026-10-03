@@ -36,3 +36,7 @@ Checks: core 995 assertions; Power eleven-fixture/actual six-page PDF suite; exp
 The Power investment waterfall now uses a 340px canvas, matching the generous Detailed Proposal chart height (previously 180px). Payment milestones remain in normal document flow below it. For dense financing/subsidy cases, the measured A4 space can reduce it to no less than 240px; the canvas is drawn at its final size, not stretched. Existing overflow rejection remains in place for excessive custom text.
 
 All six Power page headings retain their exact wording and use a shared navy/amber treatment with a fine amber underline beneath the emphasized phrase. Detailed Proposal headings and all financial calculations are unchanged. The eleven-fixture Power suite now asserts all six heading accents, a 340px standard waterfall, minimum 240px dense-page height and payment separation; actual PDF generation and the 49-check experience suite pass. Rendered investment and About pages were visually reviewed.
+
+## Final heading treatment
+
+Following the user's preference for a quieter presentation, all Power headline words now use the same deep navy. The split-colour phrase underline is replaced by one short amber rule under the left edge of each headline. The rule occupies existing spacing, so the page layout, chart height, copy and calculations are unchanged. All eleven Power fixtures and actual six-page PDF checks pass, with new computed-style checks for consistent headline colour and the 42px rule; the rendered About page was visually reviewed.
