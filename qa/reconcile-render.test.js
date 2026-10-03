@@ -217,7 +217,7 @@ check('₹90/Wp becomes ₹90,000/kWp for the engine', () => {
 check('editing the ₹/Wp rate moves the quoted price', () => {
   setInput('costPerWp', 75);
   assert.equal(w.Finance.compute(w.Render.lastState).projectCost, 525000, '7 kWp × ₹75/Wp');
-  assert.equal(txt('v_exHeroNet'), inr(525000 * 1.089 - 78000), 'exec hero follows the rate');
+  assert.equal(txt('v_inCostNet'), inr(525000 * 1.089 - 78000), 'exec hero follows the rate');
   setInput('costPerWp', DEFAULT_RATE);
   assert.equal(w.Finance.compute(w.Render.lastState).projectCost, 7 * DEFAULT_RATE * 1000, 'restored');
 });
@@ -333,13 +333,15 @@ for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
 
     /* cover */
     assert.equal(txt('v_coverCapacity'), cap + ' kWp', 'cover capacity');
-    assert.equal(txt('v_coverBadgeGen'), short(e.gross), 'cover project-cost badge');
-    assert.equal(txt('v_exHeroLifetime'), inr(e.subsidy), 'exec subsidy tile');
+    assert.equal(txt('v_coverBadgeGen'), num(e.annualGen) + ' kWh', 'cover generation badge');
+    assert.equal(txt('v_inCostSub'), '− ' + inr(e.subsidy), 'investment subsidy');
+    assert.equal(txt('v_exHeroLifetime'), 'Turnkey EPC', 'summary delivery highlight');
+    assert.equal(txt('v_exHeroSave'), w.Finance.compute(w.Render.lastState).installedKwp.toLocaleString('en-IN', {maximumFractionDigits:3}) + ' kWp', 'installed capacity precision');
 
     /* executive summary */
-    assert.equal(txt('v_exHeroNet'), inr(e.net), 'exec net investment');
-    assert.ok(txt('v_exHeroPayback').startsWith(e.payback.toFixed(1)), 'exec payback ' + txt('v_exHeroPayback'));
-    assert.ok(txt('v_exKpis').includes(num(e.annualGen) + ' kWh'), 'exec generation KPI');
+    assert.equal(txt('v_inCostNet'), inr(e.net), 'exec net investment');
+    assert.equal(txt('v_exHeroNet'), num(e.annualGen) + ' kWh', 'summary generation');
+    assert.ok(txt('v_exHeroNet').includes(num(e.annualGen) + ' kWh'), 'exec generation KPI');
 
     /* technical specification */
     const ts = txt('v_tsTable');
@@ -413,22 +415,25 @@ check('commercial shows nil subsidy and gross investment', () => {
   assert.equal(txt('v_inCostSub'), '− ₹0', 'commercial subsidy must be nil');
   assert.ok(txt('v_inCostSubCap').includes('Not applicable'), 'subsidy caption must explain why');
   const gross = 25 * cfg.rate * (1 + cfg.gstPct / 100);
-  assert.equal(txt('v_exHeroNet'), inr(gross), 'commercial net equals gross');
+  assert.equal(txt('v_inCostNet'), inr(gross), 'commercial net equals gross');
   typeEl.value = 'residential';
   typeEl.dispatchEvent(new w.Event('change', { bubbles: true }));
 });
 
 console.log('- Reconcile (rendered): the pages agree with each other -');
-check('cover badge, exec hero and investment card carry one net figure', () => {
+check('opening pages are non-financial while investment retains the figures', () => {
   setInput('capacity', 7);
-  const net = txt('v_exHeroNet');
+  const net = inr(w.Finance.compute(w.Render.lastState).netInvestment);
+  assert.ok(!/₹|Payback|Estimated IRR|Net Investment|Effective Solar Cost|Estimated Subsidy/i.test(txt('pageCover') + txt('pageExec')));
+  assert.equal(txt('v_coverBadgeGen'), txt('v_exHeroNet'));
+  assert.equal(txt('v_exEffectiveHint'), '');
   assert.equal(txt('v_inCostNet'), net, 'investment card must match the summary');
   assert.equal(txt('v_inCostSub'), '− ₹78,000', '7 kWp is above the subsidy cap');
 });
 check('generation is identical on the summary, savings page and assumptions strip', () => {
   setInput('capacity', 7);
   const gen = num(expected(7, cfg).annualGen) + ' kWh';
-  assert.ok(txt('v_exKpis').includes(gen), 'summary KPI');
+  assert.ok(txt('v_exHeroNet').includes(gen), 'summary KPI');
   assert.equal(txt('v_svChipGen'), gen, 'savings chip');
 });
 check('no runtime errors during the whole sweep', () => {

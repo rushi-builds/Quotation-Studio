@@ -454,30 +454,27 @@ export default {
     "exec": {
       "eyebrow": "PROPOSAL SUMMARY",
       "heading": "Your Solar Proposal at a Glance",
-      "sub": "Everything you need to know about your rooftop solar investment - on one page.",
-      "heroLabels": {
-        "netInvestment": "Your Net Investment",
-        "year1Saving": "Saving in Year 1",
-        "payback": "Payback Period",
-        "lifetime": "Savings over 25 Years",
-        "subsidy": "Estimated Subsidy"
+      "sub": "Your system, energy potential and turnkey delivery - at a glance.",
+      "systemHeroLabels": {
+        "generation": "Estimated Year-1 Generation",
+        "installed": "Installed Solar Capacity",
+        "carbon": "Estimated CO₂ Avoided / Year",
+        "delivery": "Design • Supply • Installation"
       },
       "kpiSectionLabel": "YOUR SYSTEM BY THE NUMBERS",
-      "kpis": {
-        "capacity": "System Capacity",
-        "annualGen": "Year-1 Generation",
+      "systemKpis": {
+        "capacity": "Proposed System Capacity",
         "modules": "Solar Modules",
+        "inverter": "Inverter Rating",
         "arrayArea": "Module Area",
-        "irr": "Estimated IRR",
-        "billOffset": "Bill Offset",
-        "co2": "CO₂ Offset / Year",
-        "effective": "Effective Solar Cost"
+        "technology": "Module Technology",
+        "roof": "Roof Type",
+        "monthlyGen": "Average Monthly Generation",
+        "lifetimeGen": "Estimated 25-Year Generation"
       },
-      "journeySectionLabel": "YOUR INVESTMENT JOURNEY",
-      "journeyNote": "Cumulative savings are projected from your generation, tariff and escalation inputs and cross your net investment in year {payback}.",
+      "systemNote": "Energy and environmental figures are estimates; actual performance depends on site conditions and proposal assumptions.",
       "includedSectionLabel": "WHAT YOU ARE GETTING",
-      "includedIntro": "A complete turnkey rooftop solar system - engineered, supplied, installed and commissioned by {company}:",
-      "effectiveHint": "Net investment ÷ 25-year generation - compare with your grid tariff of ₹{tariff}/unit."
+      "includedIntro": "A complete turnkey rooftop solar system - engineered, supplied, installed and commissioned by {company}:"
     },
     "pageAbout": {
       "eyebrow": "ABOUT {companyCaps}",

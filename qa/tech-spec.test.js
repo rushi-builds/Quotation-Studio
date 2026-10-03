@@ -93,15 +93,15 @@ const t = (name, condition) => {
     t('clearing links restores original note position', cleared.refsHidden &&
       cleared.noteTop === results['no-links'].noteTop && cleared.noteBottom === results['no-links'].noteBottom);
 
-    t('7 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹4,06,823'));
+    t('7 kWp investment unchanged', await page.$eval('#v_inCostNet', (el) => el.textContent === '₹4,06,823'));
     await page.$eval('#capacity', (el) => {
       el.value = '20';
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    t('20 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹13,07,208'));
-    t('20 kWp cover badge shows the project cost, not the savings', await page.evaluate(() =>
+    t('20 kWp investment unchanged', await page.$eval('#v_inCostNet', (el) => el.textContent === '₹13,07,208'));
+    t('20 kWp cover badge shows generation, not pricing', await page.evaluate(() =>
       document.getElementById('v_coverBadgeGen').textContent ===
-      Finance.fmtINRshort(Finance.compute(Render.lastState).grossTotal)));
+      Finance.fmtNum(Finance.compute(Render.lastState).annualGen) + ' kWh'));
     t('20 kWp installed array shows 20.165 kWp beside the contracted 20 kWp', await page.$eval('#v_tsTable', el => [...el.querySelectorAll('tr')].some(row => row.querySelector('.spec-k')?.textContent === 'Installed Array Size' && row.querySelector('.spec-v')?.textContent === '20.165 kWp (contracted 20 kWp)')));
     t('20 kWp module count unchanged', await page.$eval('#v_tsTable', (el) => el.textContent.includes('37 modules')));
     /* The page is a fixed A4 box with overflow hidden, so an engineering basis

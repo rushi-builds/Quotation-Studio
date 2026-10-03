@@ -37,30 +37,23 @@ const CONTENT = {
   exec: {
     eyebrow: 'PROPOSAL SUMMARY',
     heading: 'Your Solar Proposal at a Glance',
-    sub: 'Everything you need to know about your rooftop solar investment - on one page.',
-    heroLabels: {
-      netInvestment: 'Your Net Investment',
-      year1Saving: 'Saving in Year 1',
-      payback: 'Payback Period',
-      lifetime: 'Savings over 25 Years',
-      subsidy: 'Estimated Subsidy'
+    sub: 'Your system, energy potential and turnkey delivery - at a glance.',
+    systemHeroLabels: {
+      generation: 'Estimated Year-1 Generation',
+      installed: 'Installed Solar Capacity',
+      carbon: 'Estimated CO₂ Avoided / Year',
+      delivery: 'Design • Supply • Installation'
     },
     kpiSectionLabel: 'YOUR SYSTEM BY THE NUMBERS',
-    kpis: {
-      capacity: 'System Capacity',
-      annualGen: 'Year-1 Generation',
-      modules: 'Solar Modules',
-      arrayArea: 'Module Area',
-      irr: 'Estimated IRR',
-      billOffset: 'Bill Offset',
-      co2: 'CO₂ Offset / Year',
-      effective: 'Effective Solar Cost'
+    systemKpis: {
+      capacity: 'Proposed System Capacity', modules: 'Solar Modules',
+      inverter: 'Inverter Rating', arrayArea: 'Module Area',
+      technology: 'Module Technology', roof: 'Roof Type',
+      monthlyGen: 'Average Monthly Generation', lifetimeGen: 'Estimated 25-Year Generation'
     },
-    journeySectionLabel: 'YOUR INVESTMENT JOURNEY',
-    journeyNote: 'Cumulative savings are projected from your generation, tariff and escalation inputs and cross your net investment in year {payback}.',
+    systemNote: 'Energy and environmental figures are estimates; actual performance depends on site conditions and proposal assumptions.',
     includedSectionLabel: 'WHAT YOU ARE GETTING',
-    includedIntro: 'A complete turnkey rooftop solar system - engineered, supplied, installed and commissioned by {company}:',
-    effectiveHint: 'Net investment ÷ 25-year generation - compare with your grid tariff of ₹{tariff}/unit.'
+    includedIntro: 'A complete turnkey rooftop solar system - engineered, supplied, installed and commissioned by {company}:'
   },
 
   /* ------------------------------------------------------------------ */
@@ -551,6 +544,7 @@ function upgradeProposalContent(value) {
   const out = JSON.parse(JSON.stringify(value), (key, entry) =>
     typeof entry === 'string' && Object.prototype.hasOwnProperty.call(CONTENT_COPY_UPDATES, entry)
       ? CONTENT_COPY_UPDATES[entry] : entry);
+  if (out.exec && out.exec.sub === 'Everything you need to know about your rooftop solar investment - on one page.') out.exec.sub = 'Your system, energy potential and turnkey delivery - at a glance.';
   if (out.pageProjects && typeof out.pageProjects === 'object' && !Array.isArray(out.pageProjects)) {
     // Saved proposals from before this project get the new default. Never use
     // another proposal's in-memory edited values as migration defaults.

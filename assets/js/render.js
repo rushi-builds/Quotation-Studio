@@ -85,9 +85,8 @@
     set('v_coverPrepLabel', CONTENT.cover.labels.preparedBy);
     set('v_coverPrepBy', s.prepName);
     set('v_coverBadgeKwp', s.capacity + ' kWp');
-    /* The cover's second KPI is the cost of the project (incl. GST); the
-       25-year projection lives in the savings table, not on the cover. */
-    set('v_coverBadgeGen', F.fmtINRshort(f.grossTotal));
+    // Lead with energy potential; pricing remains on the Investment page.
+    set('v_coverBadgeGen', F.fmtNum(f.annualGen) + ' kWh');
     set('v_coverStatYears', s.statYears);
     set('v_coverStatProjects', s.statProjects);
     set('v_coverStatCapacity', s.statCapacity);
@@ -133,39 +132,32 @@
     const E = CONTENT.exec;
     set('v_exEyebrow', tpl(E.eyebrow, v));
     set('v_exHeading', tpl(E.heading, v));
-    set('v_exSub', root.Bess.included(s) ? 'Solar-only figures below • separately priced battery supplement on pages '+pageNum('pageBessOverview')+'–'+pageNum('pageBessAssessment') : tpl(E.sub, v));
+    set('v_exSub', root.Bess.included(s) ? 'Solar system highlights • battery supplement on pages '+pageNum('pageBessOverview')+'–'+pageNum('pageBessAssessment') : tpl(E.sub, v));
     set('v_exCustomerLine', s.custName ? ('Prepared exclusively for ' + s.custName +
       (s.custAddress ? ' • ' + s.custAddress : '')) : '');
 
-    set('v_exHeroNet', F.fmtINR(f.netInvestment));
-    set('v_exHeroNetLabel', root.Bess.included(s) ? 'Solar-only net investment' : E.heroLabels.netInvestment);
-    set('v_exHeroSave', F.fmtINR(f.annualSaving));
-    set('v_exHeroSaveLabel', E.heroLabels.year1Saving);
-    set('v_exHeroPayback', isFinite(f.payback) ? f.payback.toFixed(1) + ' yrs' : '-');
-    set('v_exHeroPaybackLabel', E.heroLabels.payback);
-    /* The fourth hero tile names the money the customer gets back from the
-       scheme - the actual computed subsidy (central slab plus any entered
-       state top-up, or the override), never a promise. */
-    set('v_exHeroLifetime', F.fmtINR(f.subsidy));
-    set('v_exHeroLifetimeLabel', E.heroLabels.subsidy);
+    // Legacy DOM IDs are retained for saved layouts; opening highlights are non-financial.
+    const h = E.systemHeroLabels;
+    set('v_exHeroNet', F.fmtNum(f.annualGen) + ' kWh');
+    set('v_exHeroNetLabel', h.generation);
+    set('v_exHeroSave', f.installedKwp.toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp');
+    set('v_exHeroSaveLabel', h.installed);
+    set('v_exHeroPayback', f.co2Annual.toFixed(1) + ' t');
+    set('v_exHeroPaybackLabel', h.carbon);
+    set('v_exHeroLifetime', 'Turnkey EPC');
+    set('v_exHeroLifetimeLabel', h.delivery);
 
-    /* KPI tiles - 8 tiles; the bill-offset tile replaces the warranty tile
-       only when the customer's monthly bill has been entered. */
-    const k = E.kpis;
+    const k = E.systemKpis;
     const tiles = [
       { l: k.capacity, val: s.capacity + ' kWp', icon: 'panel' },
-      { l: k.annualGen, val: F.fmtNum(f.annualGen) + ' kWh', icon: 'sun' },
       { l: k.modules, val: f.moduleCount ? f.moduleCount + ' × ' + f.moduleWattage + ' Wp' : '-', icon: 'grid2' },
+      { l: k.inverter, val: f.inverterKw + ' kW', icon: 'bolt' },
       { l: k.arrayArea, val: f.arrayArea ? Math.round(f.arrayArea) + ' m²' : '-', icon: 'target' },
-      { l: k.irr, val: isFinite(f.irr) ? f.irr.toFixed(1) + '%' : '-', icon: 'trend' },
-      { l: k.effective, val: f.lifetimeGen > 0 && Number.isFinite(f.effectivePerUnit) && f.effectivePerUnit >= 0 ? '₹' + f.effectivePerUnit.toFixed(2) + ' / unit' : '-', icon: 'rupee' },
-      { l: k.co2, val: f.co2Annual.toFixed(1) + ' tonnes', icon: 'leaf' }
+      { l: k.technology, val: s.moduleTech || 'To be confirmed', icon: 'panel' },
+      { l: k.roof, val: s.roofType || 'To be confirmed', icon: 'home' },
+      { l: k.monthlyGen, val: F.fmtNum(f.annualGen / 12) + ' kWh', icon: 'sun' },
+      { l: k.lifetimeGen, val: (f.lifetimeGen / 1000).toLocaleString('en-IN', { maximumFractionDigits: 1 }) + ' MWh', icon: 'leaf' }
     ];
-    if (f.monthlyBill > 0 && f.annualSaving > 0) {
-      tiles.push({ l: k.billOffset, val: Math.min(100, Math.round(f.billOffset)) + '% of your bill', icon: 'bolt' });
-    } else {
-      tiles.push({ l: 'Inverter Rating', val: f.inverterKw + ' kW', icon: 'bolt' });
-    }
     setHTML('v_exKpis', tiles.map((t) =>
       '<div class="kpi-tile">' + I.chip(t.icon, 30) +
       '<div class="kpi-l">' + esc(t.l) + '</div>' +
@@ -187,9 +179,9 @@
       '<div><div class="inc-t">' + esc(it.t) + '</div>' +
       '<div class="inc-d">' + esc(it.d) + '</div></div></div>').join(''));
 
-    set('v_exEffectiveHint', tpl(E.effectiveHint, { tariff: s.tariff }));
-    show('v_exEffectiveHint', f.effectivePerUnit > 0);
-    set('v_exTraceNote', '');
+    set('v_exEffectiveHint', '');
+    show('v_exEffectiveHint', false);
+    set('v_exTraceNote', E.systemNote);
   }
 
   function modeDesc(mode, s) {

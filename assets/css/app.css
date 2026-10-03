@@ -831,8 +831,7 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 .ktm-cover__capacity-kpi { left: 23.3%; top: 86.927%; width: 21%; height: 3.64%; font-weight: 700; white-space: nowrap; }
 .ktm-cover__savings-kpi { left: 67.925%; top: 86.927%; width: 28%; height: 3.64%; font-weight: 700; white-space: nowrap; color: #ff890b; }
 /* The cover artwork ships with a savings glyph and label baked in; these two
-   overlays replace them with the project-cost pairing so the cover's money
-   figure is the cost of the project, not a projection. */
+   overlays replace them with an energy-generation label and sun icon. */
 .ktm-cover__cost-icon {
   position: absolute; left: 53.8%; top: 84.29%; width: 9.27%; height: 6.54%;
   border-radius: 50%; background: #fff; color: #0b1c30;
@@ -1723,16 +1722,16 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
    so the band is sized to the picture's own ratio (718 x 239) at full page width
    and the page's other blocks take the remaining space. Nothing is removed. */
 #pageExec .pg-body{padding-top:78px;padding-bottom:47px;}
-#pageExec .exec-hero{padding:16px;margin:15px 0 17px;}
+#pageExec .exec-hero{padding:14px 16px;margin:15px 0 17px;}
 #pageExec .sec-label{margin-bottom:15px;}
-#pageExec .kpi-tile{padding:12px;}
+#pageExec .kpi-tile{padding:10px 12px;}
 #pageExec .kpi-l{margin-top:8px;}
 #pageExec .inc-intro{margin-bottom:12px;}
 #pageExec .inc-grid{grid-template-columns:repeat(4,1fr);gap:11px 20px;}
 #pageExec .inc-item{padding:8px 0;}
 #pageExec .inc-d{font-size:10px;}
-#pageExec .trace-note{margin-top:15px;padding-top:9px;}
-#pageExec .exec-artwork{margin:14px 0 0;}
+#pageExec .trace-note{margin-top:8px;padding-top:5px;font-size:9px;line-height:1.4;}
+#pageExec .exec-artwork{margin:12px 0 0;}
 
 /* Cloud bridge bar (platform logic — not part of backup design). */
 .studio-cloud-bar{

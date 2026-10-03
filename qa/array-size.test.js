@@ -42,7 +42,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    await page.evaluate(inverter=>{const el=document.getElementById('inverterKw');el.value=inverter;el.dispatchEvent(new Event('input',{bubbles:true}));},inverter);
    check('inverter '+(inverter||'auto')+' kW ratio updates live',await row(page,'DC/AC Ratio')===expected);
   }
-  check('10 kWp pricing remains unchanged',await page.evaluate(()=>{const n=Finance.compute(Render.lastState).netInvestment;return Math.abs(n-614930.7)<1e-8&&document.getElementById('v_exHeroNet').textContent==='₹6,14,931';}));
+  check('10 kWp pricing remains unchanged',await page.evaluate(()=>{const n=Finance.compute(Render.lastState).netInvestment;return Math.abs(n-614930.7)<1e-8&&document.getElementById('v_inCostNet').textContent==='₹6,14,931';}));
   await page.evaluate(()=>window.__qsSaveNow());
   await page.reload({waitUntil:'networkidle0'});
   check('reload retains the correct installed array size',await row(page,'Installed Array Size')==='10.355 kWp');
