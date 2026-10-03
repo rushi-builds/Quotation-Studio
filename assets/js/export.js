@@ -13,7 +13,7 @@
     const s=root.Render.lastState||{},select=$('pdfFormat'),reports=formatsFor(s);
     // Remove unavailable entries, rather than merely disabling them: native
     // select popups (especially on mobile) can still display disabled options.
-    const available=[['full','Detailed Proposal - all applicable pages'],['power','Power Proposal - 2-page summary']];
+    const available=[['full','Detailed Proposal - all applicable pages'],['power','Power Proposal - 5-page report']];
     for(const [value,report] of Object.entries(reports)) {
       if(value==='bess'?root.Bess.enabled(s):root.AdditionalSystems.enabled(s))
         available.push([value,report.title+' · '+report.ids.length+(report.ids.length===1?' page':' pages')]);
@@ -33,7 +33,7 @@
       if(report)button.textContent=report.title+' · '+report.ids.length+(report.ids.length===1?' page':' pages');
     });
     const format=select?.value||'full',count=root.Render.lastVisible?.length||15,label=$('downloadLabel');
-    if(label)label.textContent=format==='power'?'Download Power Proposal (2 Pages)':reports[format]?'Download '+reports[format].title+' ('+reports[format].ids.length+' Pages)':'Generate & Download PDF ('+count+' Pages)';
+    if(label)label.textContent=format==='power'?'Download Power Proposal (5 Pages)':reports[format]?'Download '+reports[format].title+' ('+reports[format].ids.length+' Pages)':'Generate & Download PDF ('+count+' Pages)';
   }
   function snapshotFull(selected,standaloneTitle) {
     const host=document.createElement('div'); host.className='pdf-snapshot'; host.setAttribute('aria-hidden','true');
@@ -91,8 +91,8 @@
       })));
       if(format==='power') pages.forEach(page=>{
         const footer=page.querySelector('footer'),last=footer.previousElementSibling;
-        if(last.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-4 || page.scrollHeight>1124)
-          throw new Error('This proposal has too much text for the two-page summary. Please use the detailed PDF or shorten the equipment / delivery text.');
+        if(last.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-4 || page.scrollHeight>1124 || page.scrollWidth>page.clientWidth+1)
+          throw new Error('This proposal has too much text for the five-page report. Please use the detailed PDF or shorten the equipment / delivery text.');
       });
       // Supplements accept user-authored text. Never silently clip a long scope or model name.
       pages.filter(p=>p.classList.contains('bess-page')||p.classList.contains('system-page')).forEach(page=>{

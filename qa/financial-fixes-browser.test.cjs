@@ -27,11 +27,11 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   const pdf=await customer.evaluate(async()=>{
    const Native=jspdf.jsPDF,originalCapture=html2canvas,records={};
    jspdf.jsPDF=function(...args){const p=new Native(...args);p.save=name=>{records.name=name;records.pages=p.getNumberOfPages();records.bytes=p.output('arraybuffer').byteLength;};return p;};
-   window.html2canvas=async(el,opts)=>{if(el.id==='pageInvestment')records.investment=el.textContent;if(el.id==='powerPage2')records.power=el.textContent;return originalCapture(el,opts);};
+   window.html2canvas=async(el,opts)=>{if(el.id==='pageInvestment')records.investment=el.textContent;if(el.id==='powerPage4')records.power=el.textContent;return originalCapture(el,opts);};
    try {await Exporter.exportPdf(()=>{},{format:'power'});const power={...records};await Exporter.exportPdf(()=>{},{format:'full'});return {power,full:records};}
    finally {jspdf.jsPDF=Native;window.html2canvas=originalCapture;}
   });
-  assert.equal(pdf.power.pages,2);assert.equal(pdf.full.pages,16);assert.ok(pdf.full.bytes>10000&&pdf.power.bytes>10000);
+  assert.equal(pdf.power.pages,5);assert.equal(pdf.full.pages,16);assert.ok(pdf.full.bytes>10000&&pdf.power.bytes>10000);
   for(const text of [pdf.power.power,pdf.full.investment]) {assert.ok(text.includes('₹6,00,000'));assert.ok(text.includes('₹5,75,400'));assert.ok(!text.includes('₹-78,000'));}
   console.log('PASS: persisted builder/Customer View/print/real detailed and power PDFs agree; 0% EMI and export preflight supported.');
   for(const value of ['0','653400','99999999']) {

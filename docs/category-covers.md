@@ -9,7 +9,7 @@ Only page 1's photographic background changes with `customerType`:
 
 The approved navy panel, logo, gold border, text placement, upper-right slogan, KPI/footer structure and live text overlays are retained. Other pages and all calculations remain unchanged. Photos are illustrative AI-generated concepts, not evidence of actual installed projects; their alt text identifies this.
 
-`renderCover()` derives the asset directly from existing customer type. No new saved fields or migration are required. Reload, read-only Customer View and detailed PDF snapshots retain the appropriate category. Selecting Residential restores the original PNG. Optional two-page Power Proposal imagery is unchanged, as requested.
+`renderCover()` derives the asset directly from existing customer type. No new saved fields or migration are required. Reload, read-only Customer View and detailed PDF snapshots retain the appropriate category. Selecting Residential restores the original PNG. The full Detailed Proposal retains the first-page-only image change. The subsequently expanded five-page Power Proposal also uses the matching category scene in its own overview.
 
 ## Assets and reproduction
 

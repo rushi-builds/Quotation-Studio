@@ -9,7 +9,8 @@
     "test:assistant": "node --test gemini.test.mjs assistant-knowledge.test.mjs && node gemini-api.test.mjs && node gemini-worker.test.mjs",
     "test:dashboard": "node dashboard-redesign.test.cjs",
     "test:actions": "node --test assistant-actions.test.cjs && node assistant-workflows.test.cjs",
-    "test:financial-fixes": "node --test calculation-verification.test.cjs rwa-subsidy.test.cjs && node financial-fixes-browser.test.cjs"
+    "test:financial-fixes": "node --test calculation-verification.test.cjs rwa-subsidy.test.cjs && node financial-fixes-browser.test.cjs",
+    "test:power": "node power-five.test.cjs && node experience.test.js"
   },
   "keywords": [],
   "author": "",
