@@ -16,7 +16,8 @@
     "test:portfolio-card": "node portfolio-card.test.cjs",
     "test:export-audit": "node export-audit.test.cjs",
     "test:proposal-stage": "node proposal-stage-note.test.cjs",
-    "test:engineering-panel": "node engineering-panel.test.cjs"
+    "test:engineering-panel": "node engineering-panel.test.cjs",
+    "test:reverification": "node --test reverification.test.cjs calculation-verification.test.cjs rwa-subsidy.test.cjs && node quotation-transitions.test.cjs"
   },
   "keywords": [],
   "author": "",

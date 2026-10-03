@@ -50,7 +50,7 @@ const SITE = {
    ========================================================================== */
 console.log('- IS 875 (Part 3):2015 - wind load -');
 
-check('k2 at 10 m is the table\'s own Class A row: 1.05 / 1.00 / 0.91 / 0.80', () => {
+check('k2 at 10 m is the 2015 table\'s terrain row: 1.05 / 1.00 / 0.91 / 0.80', () => {
   assert.equal(E.k2For('1', 10).k2, 1.05);
   assert.equal(E.k2For('2', 10).k2, 1.00);
   assert.equal(E.k2For('3', 10).k2, 0.91);
@@ -72,11 +72,11 @@ check('between the tabulated heights k2 is linearly interpolated, as the table n
   assert.ok(E.k2For('3', 14).k2 > E.k2For('3', 11).k2);
 });
 
-check('below 10 m the 10 m row stands, and above 15 m the shortfall is flagged', () => {
+check('below 10 m the first row stands; taller roofs use their actual table row', () => {
   assert.equal(E.k2For('3', 4).k2, 0.91);
   assert.equal(E.k2For('3', 10).beyond, false);
-  assert.equal(E.k2For('3', 20).beyond, true, 'the table stops at 15 m and the page must say so');
-  assert.equal(E.k2For('3', 20).k2, 0.97, 'never silently below the last tabulated value');
+  assert.equal(E.k2For('3', 20).beyond, false);
+  assert.equal(E.k2For('3', 20).k2, 1.01, 'do not clamp taller roofs to 15 m');
 });
 
 check('Pune 39 m/s in a suburban terrain: Vz and pz worked out independently', () => {
@@ -280,7 +280,7 @@ check('a three-phase AC run drops √3·ρ·L·I/A, which is less than the same 
   assert.ok(three.percent < single.percent);
 });
 
-check('the limits quoted are the code\'s own: IS 732 3 % power, DC designed to 2 %', () => {
+check('voltage-drop screening targets remain AC 3 % and DC 2 %, not universal code limits', () => {
   const c = E.cable(SITE, { dcCurrentA: 10, dcVoltageV: 600, acCurrentA: 20, acVoltageV: 230, phases: 1 });
   assert.equal(c.acLimitPct, 3);
   assert.equal(c.dcLimitPct, 2);

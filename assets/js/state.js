@@ -84,20 +84,20 @@
     degradation: '0.5',
     engineeringDesignNote: 'Proposal-stage design: Equipment and commercial details are presented in this quotation. Detailed engineering will be completed after site verification and before installation.',
     /* ---- Engineering design basis (engineering.js) -------------------------
-       Every figure below is either a standard's own arithmetic or a site value
-       the designer supplies. They print on the Tech Spec page; blanks print as
-       DATA REQUIRED. Values here are the shipped assumptions, not derivations:
+       Proposal-stage assumptions for internal screening, not verified site
+       data or a compliance certificate. Missing values stay in staff review;
+       customer documents use the shared qualification note:
          tilt 15°        site figure - MNRE/UPNEDA bands 22–24° for north India
          latitude 18.52  Pune
          Vb 39 m/s       IS 875-3:2015 basic wind speed map
-         terrain 3       suburban, IS 875-3 Table 2 Class A
+         terrain 3       suburban, IS 875-3:2015 Table 2
          netUpliftCp 1.2 design assumption - confirm with the structural designer
          roofZone edge   suction is far stronger at edges and corners
          Vmax 1100 V     typical three-phase rooftop inverter DC limit
          MPPT 200–1000 V typical window; datasheet wins
          Tmin 0 °C       conventional cold cell temperature (safety side)
          Tmax cell 65 °C
-         2400 Pa         IEC 61215-2 module mechanical-load rating
+         2400 Pa         assumed uplift TEST load; confirm manufacturer/mounting
          60 kg/m²        MNRE/UPNEDA terrace load benchmark
        --------------------------------------------------------------------- */
     tiltDeg: '15',

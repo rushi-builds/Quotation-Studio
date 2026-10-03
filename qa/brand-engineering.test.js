@@ -18,10 +18,10 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
   const {upgradeProposalContent,CONTENT}=require('../assets/js/content.js');
   const legacy={pageClosing:{cta:'Call us today for a free site survey:'},pageSolution:{sub:'Designed Specifically for Your Property'},custom:'My individually negotiated wording'};
   const migrated=upgradeProposalContent(legacy);
-  check('legacy default copy upgrades in saved proposals',migrated.pageClosing.cta===CONTENT.pageClosing.cta && migrated.pageSolution.sub===CONTENT.pageSolution.sub);
+  check('legacy default copy upgrades in saved proposals',migrated.pageClosing.cta==='An engineering request is not an installation order. Scope, fees and schedule require written confirmation.' && migrated.pageSolution.sub===CONTENT.pageSolution.sub);
   check('custom copy and original stored object are not overwritten',migrated.custom===legacy.custom && legacy.pageClosing.cta==='Call us today for a free site survey:');
   const {default:chromium}=await import('@sparticuz/chromium');
-  const browser=await puppeteer.launch({executablePath:process.env.CHROMIUM_PATH||await chromium.executablePath(),args:chromium.args,headless:true});
+  const browser=await puppeteer.launch({executablePath:process.env.CHROMIUM_PATH||await chromium.executablePath(),args:chromium.args.filter(a=>a!=='--single-process'),headless:true});
   try {
     const base=process.env.QA_BASE||'http://127.0.0.1:8080';
     const page=await browser.newPage();const errors=[];
