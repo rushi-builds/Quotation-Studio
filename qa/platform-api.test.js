@@ -110,7 +110,12 @@ async function main() {
       password: 'password123',
       role: 'owner'
     });
-    t('register 201', r.status === 201 && r.json.user && r.json.user.role === 'owner', r.status);
+    t('public registration starts read-only', r.status === 201 && r.json.user && r.json.user.role === 'viewer', r.status);
+    // Trusted offline fixture represents an existing owner, not a signup bypass.
+    const fixturePath = path.join(DATA, 'db.json');
+    const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+    fixture.users.find(u => u.id === r.json.user.id).role = 'owner';
+    fs.writeFileSync(fixturePath, JSON.stringify(fixture));
     const cookie = cookieFrom(r);
     t('session cookie set', /qs_session=/.test(cookie), cookie);
     t('register returns session token', !!(r.json && r.json.token), r.json && r.json.token);
@@ -476,41 +481,14 @@ async function main() {
     r = await req('POST', '/api/auth/forgot-password', {
       email: 'owner@example.com'
     });
-    t('forgot password returns code for existing', r.status === 200 && r.json.recoveryCode, r.status);
-    const code = r.json.recoveryCode;
-
-    r = await req('POST', '/api/auth/forgot-password', {
-      email: 'no-such-user-xyz@example.com'
-    });
-    t('forgot unknown email still 200', r.status === 200 && r.json.ok && !r.json.recoveryCode, r.status);
-
-    r = await req('POST', '/api/auth/reset-password', {
-      email: 'owner@example.com',
-      code: 'wrong-code',
-      password: 'anotherpass1'
-    });
-    t('bad recovery code rejected', r.status === 400);
-
-    r = await req('POST', '/api/auth/reset-password', {
-      email: 'owner@example.com',
-      code: code,
-      password: 'resetpass88'
-    });
-    t('reset password with code', r.status === 200 && r.json.user, r.status);
-    cookie2 = cookieFrom(r);
-
-    r = await req('POST', '/api/auth/reset-password', {
-      email: 'owner@example.com',
-      code: code,
-      password: 'resetpass99'
-    });
-    t('recovery code is single use', r.status === 400);
-
-    r = await req('POST', '/api/auth/login', {
-      email: 'owner@example.com',
-      password: 'resetpass88'
-    });
-    t('login with reset password', r.status === 200);
+    t('forgot password unavailable without disclosing secrets', r.status === 403 && r.json.code === 'RECOVERY_UNAVAILABLE' && !r.json.recoveryCode);
+    const unavailable = r.json;
+    r = await req('POST', '/api/auth/forgot-password', {email:'no-such-user-xyz@example.com'});
+    t('unknown account gets identical recovery response', r.status === 403 && JSON.stringify(r.json) === JSON.stringify(unavailable));
+    r = await req('POST', '/api/auth/reset-password', {email:'owner@example.com',code:'old-code',password:'resetpass88'});
+    t('public reset disabled including legacy codes', r.status === 403 && !r.json.token);
+    r = await req('POST', '/api/auth/login', {email:'owner@example.com',password:'newpass999'});
+    t('recovery attempts preserve current password', r.status === 200);
     cookie2 = cookieFrom(r);
 
     r = await req('POST', '/api/auth/profile', { name: 'Owner Renamed' }, cookie2);
@@ -524,7 +502,7 @@ async function main() {
 
     r = await req('POST', '/api/auth/login', {
       email: 'owner@example.com',
-      password: 'resetpass88'
+      password: 'newpass999'
     });
     t('login returns session token', !!(r.json && r.json.token));
     r = await req('GET', '/api/auth/me', null, r.json.token);
@@ -532,7 +510,7 @@ async function main() {
 
     {
       const loginR = await req('POST', '/api/auth/login', {
-        email: 'owner@example.com', password: 'resetpass88'
+        email: 'owner@example.com', password: 'newpass999'
       });
       const tok = loginR.json && loginR.json.token;
       const meR = await new Promise((resolve, reject) => {
@@ -558,12 +536,12 @@ async function main() {
     r = await req('POST', '/api/auth/register', {
       name: 'Sales Sam', email: 'sales-role@example.com', password: 'password123', role: 'sales'
     });
-    t('register sales role', r.status === 201 && r.json.user.role === 'sales', r.status);
+    t('sales job title starts read-only', r.status === 201 && r.json.user.role === 'viewer', r.status);
 
     r = await req('POST', '/api/auth/register', {
       name: 'Owner Two', email: 'owner-two@example.com', password: 'password123', role: 'owner'
     });
-    t('register owner role allowed', r.status === 201 && r.json.user.role === 'owner', r.status);
+    t('owner job title cannot grant owner', r.status === 201 && r.json.user.role === 'viewer', r.status);
 
     r = await req('POST', '/api/auth/register', {
       name: 'Viewer Jo', email: 'viewer-role@example.com', password: 'password123', role: 'viewer'
@@ -574,7 +552,7 @@ async function main() {
       name: 'Custom Chris', email: 'custom-role@example.com', password: 'password123',
       role: 'Project lead'
     });
-    t('register free-text custom role', r.status === 201 && r.json.user.role === 'custom' && r.json.user.roleLabel === 'Project lead', r.status);
+    t('register free-text custom role', r.status === 201 && r.json.user.role === 'viewer' && r.json.user.roleCustom === 'Project lead', r.status);
 
     r = await req('POST', '/api/auth/register', {
       name: 'Bad Custom', email: 'bad-custom@example.com', password: 'password123', role: ''
@@ -584,22 +562,21 @@ async function main() {
     r = await req('POST', '/api/auth/register', {
       name: 'Owner Typed', email: 'owner-typed@example.com', password: 'password123', role: 'Owner'
     });
-    t('typed Owner maps to owner', r.status === 201 && r.json.user.role === 'owner', r.status);
+    t('capitalized Owner remains read-only', r.status === 201 && r.json.user.role === 'viewer', r.status);
 
     r = await req('POST', '/api/auth/login', {
       email: 'custom-role@example.com', password: 'password123'
     });
     const customTok = r.json.token;
     r = await req('POST', '/api/proposals', { title: 'Custom can write' }, customTok);
-    t('custom role can create proposals', r.status === 201, r.status);
+    t('unapproved job title cannot create proposals', r.status === 403, r.status);
 
     r = await req('POST', '/api/auth/profile', { role: 'owner' }, customTok);
-    t('profile ignores role change body', r.status === 200 && r.json.user.role === 'custom', r.status);
+    t('profile ignores role change body', r.status === 200 && r.json.user.role === 'viewer', r.status);
     }
 
   } finally {
     child.kill('SIGTERM');
-    try { fs.rmSync(path.join(ROOT, 'platform/data'), { recursive: true, force: true }); } catch (_) {}
     try { fs.rmSync(DATA, { recursive: true, force: true }); } catch (_) {}
   }
 

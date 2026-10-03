@@ -17,7 +17,8 @@
     "test:export-audit": "node export-audit.test.cjs",
     "test:proposal-stage": "node proposal-stage-note.test.cjs",
     "test:engineering-panel": "node engineering-panel.test.cjs",
-    "test:reverification": "node --test reverification.test.cjs calculation-verification.test.cjs rwa-subsidy.test.cjs && node quotation-transitions.test.cjs"
+    "test:reverification": "node --test reverification.test.cjs calculation-verification.test.cjs rwa-subsidy.test.cjs && node quotation-transitions.test.cjs",
+    "test:security": "node studio-security-worker.test.mjs && node studio-security.test.cjs && node platform-api.test.js"
   },
   "keywords": [],
   "author": "",

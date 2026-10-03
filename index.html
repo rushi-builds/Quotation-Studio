@@ -92,10 +92,10 @@ input,button,a{font-family:var(--f)}
 
  <form id="f-up" class="ov" data-mode="up" novalidate hidden>
   <div class="up" style="left:63.457%;top:14.772%;width:30.263%;height:69.501%">
-   <div><h2>Create Account</h2></div><p class="sub">Set up access to your quotations</p>
+   <div><h2>Create Account</h2></div><p class="sub">New accounts start read-only. An existing owner must approve editing or administrative access.</p>
    <div><label for="u-n">Full name</label><input class="f" id="u-n" name="name" autocomplete="name" placeholder="Enter your full name"><div class="e"></div></div>
    <div><label for="u-e">Work email</label><input class="f" id="u-e" name="email" type="email" autocomplete="email" placeholder="Enter your email"><div class="e"></div></div>
-   <div><label for="u-r">Your Role</label><input class="f" id="u-r" name="role" autocomplete="organization-title" placeholder="Type your Role"><div class="e"></div></div>
+   <div><label for="u-r">Your Role</label><input class="f" id="u-r" name="role" autocomplete="organization-title" placeholder="Job title (access starts read-only)"><div class="e"></div></div>
    <div><label for="u-p">Password</label><div class="pwrap"><input class="f" id="u-p" name="password" type="password" autocomplete="new-password" placeholder="At least 8 characters"><button class="eye" type="button" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M12 6.5c4.2 0 7.4 3 8.700 5.500-.5 1-1.300 2-2.200 2.800l1.400 1.400c1.400-1.300 2.500-2.900 3.100-4.200C21.800 8.800 17.600 4.500 12 4.500c-1.400 0-2.700.3-3.900.8l1.600 1.600c.7-.3 1.500-.4 2.300-.4zM2.100 3.500 3.500 2.100l18.400 18.400-1.400 1.400-3-3c-1.400.6-3 .9-5.500.9C6.400 19.800 2.200 15.200.9 12c.7-1.700 1.900-3.300 3.500-4.600zm5.200 5.200a5 5 0 0 0 6.900 6.900l-1.500-1.500a3 3 0 0 1-3.900-3.900z"/></svg></button></div><div class="e"></div></div>
    <button class="cta2" type="submit">Create Account</button>
    <p class="sw">Already have an account?<a data-go="in" tabindex="0" role="button">Sign in</a></p>
@@ -111,16 +111,20 @@ const EYE_OFF='<svg viewBox="0 0 24 24"><path d="M12 6.5c4.2 0 7.4 3 8.700 5.500
 const F={in:document.getElementById('f-in'),up:document.getElementById('f-up')},T=document.getElementById('toast');let tt;
 function toast(m,bad){T.textContent=m;T.className='toast on'+(bad?' bad':'');clearTimeout(tt);tt=setTimeout(()=>T.className='toast',3600);}
 document.querySelectorAll('[data-go]').forEach(a=>{const go=()=>{const m=a.dataset.go;F.in.hidden=m!=='in';F.up.hidden=m!=='up';F[m].querySelector('input').focus();};a.onclick=go;a.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};});
-/* Forgot password uses the email already typed in the sign-in form */
-document.querySelector('[data-act=forgot]').onclick=async()=>{
-  const em=document.getElementById('i-e').value.trim();
-  if(!rx.test(em)){toast('Type your email first, then tap Forgot password.',true);document.getElementById('i-e').focus();return;}
-  const P=window.PlatformAPI;
-  if(!P){toast('Can\u2019t reach the server right now. Ask your KTM admin for a reset.',true);return;}
-  try{const r=await P.forgotPassword(em);
-    toast(r&&r.recoveryCode?('Recovery code: '+r.recoveryCode+' \u2014 it expires in 30 minutes and works once.'):((r&&r.message)||'If that account exists, your admin will share the recovery steps.'));
-  }catch(err){toast(honestError(err),true);}
-};
+/* Recovery is deliberately unavailable until verified delivery is configured.
+   Keep the explanation persistent; never display a reset secret in a toast. */
+const recoveryNotice=document.createElement('div');
+recoveryNotice.id='recoveryNotice';recoveryNotice.setAttribute('role','status');
+recoveryNotice.hidden=true;
+recoveryNotice.style.cssText='position:fixed;z-index:1000;left:50%;top:24px;transform:translateX(-50%);width:min(90vw,520px);box-sizing:border-box;padding:20px;background:#fff;color:#17304a;border:1px solid #d9e1e8;border-radius:12px;box-shadow:0 8px 32px #0003;line-height:1.5';
+const recoveryText=document.createElement('p');recoveryText.textContent='Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent. If you can sign in, use Settings → Security to change your password with your current password.';
+const dismissRecovery=document.createElement('button');dismissRecovery.type='button';dismissRecovery.textContent='Back to sign in';
+dismissRecovery.onclick=()=>{recoveryNotice.hidden=true;document.getElementById('i-e').focus();};
+recoveryNotice.append(recoveryText,dismissRecovery);document.body.append(recoveryNotice);
+function showRecovery(){recoveryNotice.hidden=false;dismissRecovery.focus();}
+document.querySelector('[data-act=forgot]').onclick=showRecovery;
+if(location.hash==='#forgotPassword')showRecovery();
+window.addEventListener('hashchange',()=>{if(location.hash==='#forgotPassword')showRecovery();});
 document.querySelectorAll('.eye').forEach(b=>b.onclick=()=>{const i=b.parentElement.querySelector('input'),s=i.type==='password';i.type=s?'text':'password';b.innerHTML=s?EYE_ON:EYE_OFF;b.setAttribute('aria-label',(s?'Hide':'Show')+' password');});
 const rx=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 function errBox(i){let el=i.parentElement;while(el&&el.tagName!=='FORM'&&!el.querySelector(':scope > .e'))el=el.parentElement;return el?el.querySelector(':scope > .e'):null;}

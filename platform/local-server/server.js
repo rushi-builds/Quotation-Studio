@@ -865,8 +865,10 @@ async function handleApi(req, res, url) {
         email,
         name: name.slice(0, 120),
         password_hash: hashPassword(password),
-        role: parsed.role,
-        role_custom: parsed.roleCustom,
+        // A public job-title field is not an authorization grant.
+        // Existing accounts are unchanged; only an existing owner may promote.
+        role: 'viewer',
+        role_custom: String(body.role != null ? body.role : body.roleCustom).trim(),
         created_at: nowISO(),
         updated_at: nowISO()
       };
@@ -917,81 +919,14 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { user: publicUser(user) });
     }
 
-    /* Forgot password — no outbound email on this local stack.
-       For existing accounts we return a one-time recovery code (shown once).
-       For unknown emails we return the same generic OK (no account enumeration). */
-    if (parts[0] === 'auth' && parts[1] === 'forgot-password' && method === 'POST') {
-      const body = await readBody(req);
-      const email = String(body.email || '').trim().toLowerCase();
-      const blocked = authThrottleCheck(req, email);
-      if (blocked != null) return sendAuthLimited(res, blocked);
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return sendJson(res, 400, { error: 'Enter a valid email address.' });
-      }
-      const user = (db.users || []).find((u) => u.email.toLowerCase() === email);
-      const generic = {
-        ok: true,
-        message: 'If an account exists for that email, a recovery code is available. Enter it below with your new password. Codes expire in 30 minutes and can be used once.'
-      };
-      if (!user) {
-        /* Spend a little work so timing is closer to the real path. */
-        hashPassword('timing-pad-' + email);
-        authThrottleFail(req, email);
-        return sendJson(res, 200, generic);
-      }
-      const rawCode = issuePasswordReset(db, user);
-      saveDb(db);
-      authThrottleSuccess(email);
-      return sendJson(res, 200, Object.assign({}, generic, {
-        recoveryCode: rawCode,
-        delivery: 'local_display',
-        note: 'Email delivery is not configured on this server yet. Copy this recovery code now — it will not be shown again.'
-      }));
-    }
-
-    if (parts[0] === 'auth' && parts[1] === 'reset-password' && method === 'POST') {
-      const body = await readBody(req);
-      const email = String(body.email || '').trim().toLowerCase();
-      const code = String(body.code || '').trim().toLowerCase();
-      const password = String(body.password || '');
-      const blocked = authThrottleCheck(req, email);
-      if (blocked != null) return sendAuthLimited(res, blocked);
-      const policy = passwordPolicyError(password);
-      if (policy) {
-        authThrottleFail(req, email);
-        return sendJson(res, 400, { error: policy });
-      }
-      if (!email || !code) {
-        authThrottleFail(req, email);
-        return sendJson(res, 400, { error: 'Email and recovery code are required.' });
-      }
-      const user = (db.users || []).find((u) => u.email.toLowerCase() === email);
-      const codeHash = hashToken(code);
-      const reset = user
-        ? (db.password_resets || []).find((r) =>
-          r.user_id === user.id &&
-          !r.used_at &&
-          r.code_hash === codeHash &&
-          Date.parse(r.expires_at) > Date.now()
-        )
-        : null;
-      if (!user || !reset) {
-        authThrottleFail(req, email);
-        return sendJson(res, 400, { error: 'Invalid or expired recovery code. Request a new one.' });
-      }
-      reset.used_at = nowISO();
-      user.password_hash = hashPassword(password);
-      user.updated_at = nowISO();
-      revokeUserSessions(db, user.id, null);
-      authThrottleSuccess(email);
-      const sess = createSession(db, user);
-      saveDb(db);
-      return sendJson(res, 200, {
-        user: publicUser(user),
-        token: sess.token,
-        expiresAt: sess.expiresAt,
-        message: 'Password updated. You are signed in. Other sessions were signed out.'
-      }, authSuccessHeaders(sess.token, req));
+    // Public recovery is fail-closed until a verified delivery channel exists.
+    // Reject reset as well: previously disclosed, unexpired codes must not work.
+    // Identical response for known/unknown accounts; no lookup or code issuance.
+    if (parts[0] === 'auth' && ['forgot-password', 'reset-password'].includes(parts[1]) && method === 'POST') {
+      return sendJson(res, 403, {
+        error: 'Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent.',
+        code: 'RECOVERY_UNAVAILABLE'
+      });
     }
 
     if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {

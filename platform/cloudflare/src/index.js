@@ -614,8 +614,10 @@ async function handleApi(request, env, url) {
         email,
         name: name.slice(0, 120),
         password_hash: hashPassword(password),
-        role: parsed.role,
-        role_custom: parsed.roleCustom,
+        // A public job-title field is not an authorization grant.
+        // Existing accounts are unchanged; only an existing owner may promote.
+        role: 'viewer',
+        role_custom: String(body.role != null ? body.role : body.roleCustom).trim(),
         created_at: nowISO(),
         updated_at: nowISO()
       };
@@ -663,65 +665,14 @@ async function handleApi(request, env, url) {
       return json({ user: publicUser(user) });
     }
 
-    if (parts[0] === 'auth' && parts[1] === 'forgot-password' && method === 'POST') {
-      const body = await readBody(request);
-      const email = String(body.email || '').trim().toLowerCase();
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return json({ error: 'Enter a valid email address.' }, 400);
-      }
-      const generic = {
-        ok: true,
-        message: 'If an account exists for that email, a recovery code is available. Enter it below with your new password. Codes expire in 30 minutes and can be used once.'
-      };
-      const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
-      if (!user) {
-        hashPassword('timing-pad-' + email);
-        return json(generic);
-      }
-      const rawCode = await issuePasswordReset(db, user);
-      return json(Object.assign({}, generic, {
-        recoveryCode: rawCode,
-        delivery: 'local_display',
-        note: 'Email delivery is not configured on this server yet. Copy this recovery code now — it will not be shown again.'
-      }));
-    }
-
-    if (parts[0] === 'auth' && parts[1] === 'reset-password' && method === 'POST') {
-      const body = await readBody(request);
-      const email = String(body.email || '').trim().toLowerCase();
-      const code = String(body.code || '').trim().toLowerCase();
-      const password = String(body.password || '');
-      const policy = passwordPolicyError(password);
-      if (policy) return json({ error: policy }, 400);
-      if (!email || !code) return json({ error: 'Email and recovery code are required.' }, 400);
-      const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
-      const codeHash = hashToken(code);
-      const reset = user
-        ? await one(
-          db,
-          `SELECT * FROM password_resets
-           WHERE user_id = ? AND used_at IS NULL AND code_hash = ? AND expires_at > ?`,
-          user.id, codeHash, nowISO()
-        )
-        : null;
-      if (!user || !reset) {
-        return json({ error: 'Invalid or expired recovery code. Request a new one.' }, 400);
-      }
-      await run(db, 'UPDATE password_resets SET used_at = ? WHERE id = ?', nowISO(), reset.id);
-      await run(
-        db,
-        'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
-        hashPassword(password), nowISO(), user.id
-      );
-      await revokeUserSessions(db, user.id, null);
-      user.password_hash = undefined;
-      const sess = await createSession(db, user);
+    // Public recovery is fail-closed until a verified delivery channel exists.
+    // Reject reset as well: previously disclosed, unexpired codes must not work.
+    // Identical response for known/unknown accounts; no lookup or code issuance.
+    if (parts[0] === 'auth' && ['forgot-password', 'reset-password'].includes(parts[1]) && method === 'POST') {
       return json({
-        user: publicUser(user),
-        token: sess.token,
-        expiresAt: sess.expiresAt,
-        message: 'Password updated. You are signed in. Other sessions were signed out.'
-      }, 200, authHeaders(sess.token, request));
+        error: 'Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent.',
+        code: 'RECOVERY_UNAVAILABLE'
+      }, 403);
     }
 
     if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
