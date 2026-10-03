@@ -1,6 +1,6 @@
 /* OIDC authorization-code sign-in. Provider tokens never reach browser storage.
    Configured providers only; no email-based account merging or role promotion. */
-import { createRemoteJWKSet, jwtVerify, decodeJwt } from 'jose';
+import { createRemoteJWKSet, jwtVerify, decodeJwt } from '../../vendor/jose.mjs';
 import { randomBytes, createHash } from 'node:crypto';
 export const providers = ['google', 'microsoft', 'apple'];
 export const digest = value => createHash('sha256').update(value).digest('hex');

@@ -1,7 +1,7 @@
 // Run locally; keep the .p8 key outside the repository. Pipe stdout directly to
 // Cloudflare secret storage. Never paste the key/JWT into chat or commit it.
 import fs from 'node:fs';
-import {importPKCS8,SignJWT} from 'jose';
+import {importPKCS8,SignJWT} from '../../vendor/jose.mjs';
 const {APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_CLIENT_ID,APPLE_PRIVATE_KEY_FILE}=process.env;
 if(!APPLE_TEAM_ID||!APPLE_KEY_ID||!APPLE_CLIENT_ID||!APPLE_PRIVATE_KEY_FILE){console.error('Set APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_CLIENT_ID and APPLE_PRIVATE_KEY_FILE locally.');process.exit(1);}
 try{

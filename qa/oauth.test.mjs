@@ -1,10 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRequire} from 'node:module';
 import {handleOAuth,verifiedIdentity,configuration,providerStatus,digest} from '../platform/cloudflare/src/oauth.mjs';
 import {localOAuthStore,d1OAuthStore} from '../platform/oauth-store.mjs';
-const requireOAuth=createRequire(new URL('../platform/cloudflare/src/oauth.mjs',import.meta.url));
-const {generateKeyPair,SignJWT,exportJWK}=await import(requireOAuth.resolve('jose')); 
+import {generateKeyPair,SignJWT,exportJWK} from '../platform/vendor/jose.mjs';
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 const origin='https://studio.example.test';
