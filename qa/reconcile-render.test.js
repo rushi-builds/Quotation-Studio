@@ -51,7 +51,7 @@ function bootApp() {
   html = html.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, (tag) => {
     const href = /href=["']([^"']+)["']/i.exec(tag);
     if (!href || /^https?:/i.test(href[1])) return tag;
-    const file = path.join(ROOT, href[1]);
+    const file = path.join(ROOT, href[1].split(/[?#]/)[0]);
     if (!fs.existsSync(file)) return tag;
     return '<style data-from="' + href[1] + '">' + fs.readFileSync(file, 'utf8') + '</style>';
   });

@@ -28,3 +28,9 @@ The internal helper reads **(Excel integration pending — the workbook is being
 - Export audit: real anonymous published portal preserves custom note and quotation values; reminder absent; real six-page PDF and failure recovery passed.
 
 All browser/API test records were confined to temporary local QA storage. Existing production records were not deleted or renumbered.
+
+## Advanced-panel styling refinement
+
+The staff-only engineering drawer now uses compact notice cards, explicit 11px body typography, title/subtitle accordion headers and consistent spacing. Standards references sit below the section titles instead of running into oversized browser-default text. Internal findings retain their full messages and severity; long reviews scroll within a bounded area. All disclosures remain keyboard-operable native details/summary elements. No input IDs, calculations, validation rules or customer/PDF content changed.
+
+`npm --prefix qa run test:engineering-panel` checks desktop/mobile fit, typography, six section subtitles, keyboard toggles and unchanged form/PDF markup. The proposal-stage persistence/safety tests and full 993-assertion core suite pass. The style-aware QA harness now resolves cache-versioned CSS URLs correctly. The expanded Advanced panel was visually inspected.

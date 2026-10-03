@@ -356,7 +356,16 @@
       const review = $('engineeringReview');
       if (review) {
         review.replaceChildren();
-        [...eng.blocking, ...eng.advisory, ...eng.notes].forEach(issue => review.append(element('li', '', issue.message)));
+        const entries = [...eng.blocking.map(issue => ({issue, kind:'blocking'})),
+          ...eng.advisory.map(issue => ({issue, kind:'advisory'})),
+          ...eng.notes.map(issue => ({issue, kind:'note'}))];
+        entries.forEach(({issue, kind}) => {
+          const missing = /^DATA REQUIRED/.test(issue.message);
+          const item = element('li', 'eng-review-item'); item.dataset.severity = kind;
+          item.append(element('span', 'eng-review-tag', missing ? 'DATA REQUIRED' : kind === 'blocking' ? 'ACTION REQUIRED' : kind === 'advisory' ? 'REVIEW' : 'NOTE'),
+            element('p', 'eng-review-copy', issue.message.replace(/^DATA REQUIRED\s*[-–—]?\s*/, '')));
+          review.append(item);
+        });
         if (!review.children.length) review.append(element('li', '', 'No issues reported for the supplied inputs. Site verification is still required.'));
       }
       overflowIssues().forEach((i) => add(merged.advisory, i));

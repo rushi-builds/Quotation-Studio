@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="assets/css/app.css?v=finance-fixes1">
 <link rel="stylesheet" href="assets/css/bess.css">
 <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1">
-<link rel="stylesheet" href="assets/css/control-panel.css">
+<link rel="stylesheet" href="assets/css/control-panel.css?v=engineering-panel2">
 <link rel="stylesheet" href="assets/css/studio-assistant.css?v=knowledge3">
 </head>
 <body>
@@ -370,11 +370,11 @@
           <textarea id="engineeringDesignNote" rows="4" maxlength="800" aria-describedby="engineeringExcelHint">Proposal-stage design: Equipment and commercial details are presented in this quotation. Detailed engineering will be completed after site verification and before installation.</textarea>
           <div class="hint" id="engineeringExcelHint">(Excel integration pending — the workbook is being prepared for production.) This reminder is internal only. The note above appears in the Technical Specification and Power Proposal. Leaving it blank restores the standard proposal-stage note.</div>
         </div>
-        <details class="eng-group"><summary>Internal engineering review — not printed</summary><ul id="engineeringReview"></ul></details>
+        <details class="eng-group"><summary><span>Internal engineering review</span><small>Staff only · excluded from customer PDFs</small></summary><ul id="engineeringReview"></ul></details>
         <div class="hint">The inputs below remain available for internal engineering checks. Missing inputs stay in the internal review; confirmed safety issues still appear before download.</div>
 
         <details class="eng-group">
-          <summary>Array geometry &amp; row spacing</summary>
+          <summary><span>Array geometry &amp; row spacing</span><small>Tilt, location &amp; roof clearances</small></summary>
           <div class="field"><label for="tiltDeg">Module tilt (° from horizontal)</label>
             <input type="number" id="tiltDeg" value="15" step="1" min="0" max="60">
             <div class="hint">Site figure. MNRE/UPNEDA rooftop specifications show 22–24° for north India, location dependent; a lower tilt needs less row spacing.</div></div>
@@ -390,7 +390,7 @@
         </details>
 
         <details class="eng-group">
-          <summary>Wind load - IS 875 (Part 3):2015</summary>
+          <summary><span>Wind load</span><small>IS 875 (Part 3):2015</small></summary>
           <div class="field"><label for="windSpeed">Basic wind speed Vb (m/s)</label>
             <input type="number" id="windSpeed" value="39" step="1" min="0">
             <div class="hint">Read from the IS 875-3:2015 basic wind speed map. Pune 39, Mumbai 44, Chennai 50, Delhi 47.</div></div>
@@ -436,7 +436,7 @@
         </details>
 
         <details class="eng-group">
-          <summary>String &amp; cable - IEC 62548, IEC 62109, IS 732</summary>
+          <summary><span>String &amp; cable design</span><small>IEC 62548 · IEC 62109 · IS 732</small></summary>
           <div class="field"><label for="moduleVoc">Module Voc at STC (V)</label>
             <input type="number" id="moduleVoc" step="0.01" min="0" placeholder="from the datasheet">
             <div class="hint">Rated open-circuit voltage. Leave blank until you have the datasheet - the string check then reports DATA REQUIRED instead of passing silently.</div></div>
@@ -477,7 +477,7 @@
         </details>
 
         <details class="eng-group">
-          <summary>Earthing &amp; lightning - IS 3043, IS/IEC 62305</summary>
+          <summary><span>Earthing &amp; lightning</span><small>IS 3043 · IS/IEC 62305</small></summary>
           <div class="field"><label for="soilResistivity">Soil resistivity (Ω·m)</label>
             <input type="number" id="soilResistivity" step="1" min="0" placeholder="from the site test">
             <div class="hint">IS 3043 sizes the electrode from this. Without it the page reports DATA REQUIRED - it will not guess a number of earth pits.</div></div>
@@ -512,7 +512,7 @@
         </details>
 
         <details class="eng-group">
-          <summary>Roof load - MNRE / UPNEDA rooftop specification</summary>
+          <summary><span>Roof load</span><small>MNRE / UPNEDA rooftop specifications</small></summary>
           <div class="field"><label for="moduleWeightKg">Module weight (kg)</label>
             <input type="number" id="moduleWeightKg" value="28" step="0.5" min="0"></div>
           <div class="field"><label for="rackKgPerM2">Racking weight (kg/m² of array)</label>
@@ -1406,7 +1406,7 @@
 <script src="assets/js/platform-api.js?v=knowledge3"></script>
 <script src="assets/js/cloud-bridge.js?v=knowledge3"></script>
 <script src="assets/js/app.js?v=rwa1"></script>
-<script src="assets/js/control-panel.js?v=proposal-stage1"></script>
+<script src="assets/js/control-panel.js?v=engineering-panel2"></script>
 <script src="assets/js/assistant-actions.js?v=knowledge3"></script>
 <script src="assets/js/assistant-chat.js?v=knowledge3"></script>
 <script src="assets/js/studio-assistant.js?v=knowledge3"></script>
