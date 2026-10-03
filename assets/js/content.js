@@ -474,6 +474,7 @@ const CONTENT = {
   cover: {
     eyebrowByType: {
       residential: 'RESIDENTIAL SOLAR PROPOSAL',
+      rwa: 'RWA / HOUSING SOCIETY SOLAR PROPOSAL',
       commercial: 'COMMERCIAL SOLAR PROPOSAL',
       industrial: 'INDUSTRIAL SOLAR PROPOSAL'
     },

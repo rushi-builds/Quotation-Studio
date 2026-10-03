@@ -66,6 +66,7 @@
             <label>Customer type</label>
             <select id="customerType">
               <option value="residential">Residential</option>
+              <option value="rwa">RWA / Housing Society</option>
               <option value="commercial">Commercial</option>
               <option value="industrial">Industrial</option>
             </select>
@@ -189,7 +190,12 @@
         <div class="field">
           <label>Panel degradation (%/yr)</label>
           <input type="number" id="degradation" value="0.5" step="0.1" min="0">
-          <div class="hint">Subsidy auto-calculates for <b>residential</b> projects per PM Surya Ghar slabs (₹30,000/kW × 2 + ₹18,000 × 1, capped at ₹78,000). Commercial/industrial projects show nil unless overridden below.</div>
+          <div class="hint">Subsidy auto-calculates for <b>residential</b> projects per PM Surya Ghar slabs (₹30,000/kW × 2 + ₹18,000 × 1, capped at ₹78,000). RWA/common-facility projects use ₹18,000 per eligible kW (provisional until eligibility is verified). Commercial/industrial projects show nil unless overridden below.</div>
+        </div>
+        <div class="field" id="rwaEligibilityField" hidden>
+          <label for="rwaEligibleKwp">Confirmed eligible RWA capacity (kWp, optional)</label>
+          <input type="number" id="rwaEligibleKwp" min="0" max="500" step="0.001" placeholder="Blank = provisional installed-capacity estimate">
+          <div class="hint">For common facilities. Confirm the 500 kW / 3 kW-per-house limits, including individual residents' rooftop systems, with the approving authority. Enter the eligible common-facility capacity remaining after those limits. Blank uses installed DC capacity up to 500 kW provisionally; 0 means no eligible capacity. An explicit subsidy amount below overrides this calculation.</div>
         </div>
         <div class="field"><label>Subsidy override (₹, blank = auto)</label><input type="number" id="subsidyOverride" placeholder="auto" min="0"></div>
         <div class="field"><label>Maharashtra state top-up (₹, optional)</label><input type="number" id="stateTopUp" placeholder="e.g. 25000" min="0">
@@ -1374,9 +1380,9 @@
 <script src="assets/vendor/html2canvas.min.js"></script>
 <script src="assets/vendor/jspdf.umd.min.js"></script>
 <script src="assets/vendor/qrcode.min.js"></script>
-<script src="assets/js/content.js?v=remote-monitoring1"></script>
+<script src="assets/js/content.js?v=rwa1"></script>
 <script src="assets/js/engineering.js"></script>
-<script src="assets/js/finance.js"></script>
+<script src="assets/js/finance.js?v=rwa1"></script>
 <script src="assets/js/storage-catalog.js"></script>
 <script src="assets/js/bess.js"></script>
 <script src="assets/js/additional-systems.js"></script>
@@ -1384,9 +1390,9 @@
 <script src="assets/js/icons.js"></script>
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/model.js"></script>
-<script src="assets/js/state.js"></script>
+<script src="assets/js/state.js?v=rwa1"></script>
 <script src="assets/js/equipment.js"></script>
-<script src="assets/js/render.js?v=remote-monitoring1"></script>
+<script src="assets/js/render.js?v=rwa1"></script>
 <script src="assets/js/editor.js?v=remote-monitoring1"></script>
 <script src="assets/js/experience.js"></script>
 <script src="assets/js/salutation.js"></script>
@@ -1395,7 +1401,7 @@
 <script src="assets/js/workspace-prefs.js"></script>
 <script src="assets/js/platform-api.js?v=knowledge3"></script>
 <script src="assets/js/cloud-bridge.js?v=knowledge3"></script>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=rwa1"></script>
 <script src="assets/js/control-panel.js"></script>
 <script src="assets/js/assistant-actions.js?v=knowledge3"></script>
 <script src="assets/js/assistant-chat.js?v=knowledge3"></script>

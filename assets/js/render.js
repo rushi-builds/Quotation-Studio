@@ -39,7 +39,7 @@
     } catch (e) { return ''; }
   }
 
-  const TYPE_LABEL = { residential: 'Residential', commercial: 'Commercial', industrial: 'Industrial' };
+  const TYPE_LABEL = { residential: 'Residential', rwa: 'RWA / Housing Society', commercial: 'Commercial', industrial: 'Industrial' };
 
   /* Merge state + finance into the template variable pool. */
   function tplVars(s, f) {
@@ -65,7 +65,7 @@
   /* PAGE 1 - COVER                                                      */
   /* ================================================================== */
   function renderCover(s, f, v) {
-    set('v_coverEyebrow', tpl(CONTENT.cover.eyebrowByType[s.customerType] || CONTENT.cover.eyebrowByType.residential, v));
+    set('v_coverEyebrow', tpl(CONTENT.cover.eyebrowByType[s.customerType] || (s.customerType === 'rwa' ? 'RWA / HOUSING SOCIETY SOLAR PROPOSAL' : CONTENT.cover.eyebrowByType.residential), v));
     set('v_coverTitle1', CONTENT.cover.titleLine1);
     set('v_coverTitle2', CONTENT.cover.titleLine2);
     set('v_coverPreparedLabel', CONTENT.cover.labels.preparedFor);
@@ -202,7 +202,7 @@
   /* ================================================================== */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
     'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
-    'degradation', 'subsidyOverride'];
+    'degradation', 'subsidyOverride', 'rwaEligibleKwp'];
 
   function optionFinance(opt, s) {
     const fields = Object.assign({}, opt.fields || {});
@@ -828,7 +828,8 @@
     set('v_inCostNet', F.fmtINR(f.netInvestment));
     set('v_inCostNetL', root.Bess.included(s) ? 'Solar-only net investment' : P.cards.netInvestment);
     /* subsidy caption reflects exactly how the number was derived */
-    const subCap = f.subsidyAuto ? (f.stateTopUp > 0 ? P.cards.subsidyCaptionTopUp : P.cards.subsidyCaptionAuto)
+    if ($('rwaEligibilityField')) $('rwaEligibilityField').hidden = s.customerType !== 'rwa';
+    const subCap = f.subsidyAuto && s.customerType === 'rwa' ? (f.rwaEligibilityConfirmed ? 'RWA · entered eligible capacity' : 'RWA provisional · verify eligibility') : f.subsidyAuto ? (f.stateTopUp > 0 ? P.cards.subsidyCaptionTopUp : P.cards.subsidyCaptionAuto)
       : (s.subsidyOverride !== '' ? P.cards.subsidyCaptionOverride : P.cards.subsidyCaptionNA);
     set('v_inCostSubCap', subCap);
     set('v_inRate', '₹' + (Math.round(f.costPerWp * 10) / 10) + ' / Wp');
@@ -898,7 +899,7 @@
       set('v_inPayWarn', '⚠ Payment schedule totals ' + f.pay.sumPct + '% - adjust the three percentages to total 100%.');
     } else sumWarn.style.display = 'none';
 
-    set('v_inDisclaimer', P.disclaimer);
+    set('v_inDisclaimer', s.customerType === 'rwa' ? 'RWA/GHS estimate: ₹18,000 per eligible kW, capped at 500 kW and 3 kW per house including individual rooftop installations. Verify common-facility eligibility and approvals. Manual subsidy amounts override the estimate.' : P.disclaimer);
   }
 
   /* ================================================================== */
@@ -1256,7 +1257,7 @@
       set('v_inPayNote','Solar-only milestones. '+CONTENT.pageInvestment.paymentNote);
       set('v_finSub','Solar-only cash-flow illustration • optional-system prices and operating effects are not included.');
       set('v_opSub','Solar-only options • optional systems are proposal-level and priced separately.');
-      set('v_exHeroNetLabel','Solar-only net investment');
+      set('v_exHeroNetLabel','Estimated Monthly Generation');
       set('v_tmSub','Solar EPC terms • additional system scope, price and payment terms require separate agreement.');
     }
     updateLiveChip(s, f);
@@ -1313,7 +1314,7 @@
       costPerKwp: String((parseFloat(g('costPerWp')) || 0) * 1000), gstPercent: g('gstPercent'),
       corpTaxRate: g('corpTaxRate'), depreciationRate: g('depreciationRate'),
       tariff: g('tariff'), escalation: g('escalation'), degradation: g('degradation'),
-      subsidyOverride: g('subsidyOverride'), stateTopUp: g('stateTopUp'), co2Factor: g('co2Factor'), treeFactor: g('treeFactor'),
+      subsidyOverride: g('subsidyOverride'), rwaEligibleKwp: g('rwaEligibleKwp'), stateTopUp: g('stateTopUp'), co2Factor: g('co2Factor'), treeFactor: g('treeFactor'),
       payAdvance: g('payAdvance'), payDispatch: g('payDispatch'), payCompletion: g('payCompletion'),
       bomModules: g('bomModules'), bomInverter: g('bomInverter'), bomStructure: g('bomStructure'),
       bomBos: g('bomBos'), bomInstall: g('bomInstall'), bomLiaison: g('bomLiaison'),

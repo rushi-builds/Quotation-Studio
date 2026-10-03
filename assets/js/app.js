@@ -52,7 +52,7 @@
   /* ---------- system options (Good / Better / Best) ---------- */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
     'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
-    'degradation', 'subsidyOverride'];
+    'degradation', 'subsidyOverride', 'rwaEligibleKwp'];
 
   function optionsList() { return window.__qsOptions || (window.__qsOptions = []); }
 

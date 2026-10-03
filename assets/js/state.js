@@ -145,6 +145,7 @@
        value is a deliberate manual override and the page says so. */
     roofClearanceFactor: '',
       subsidyOverride: '',
+      rwaEligibleKwp: '',
       /* Maharashtra state top-up (₹, optional): published only as a range -
          ₹25,000–₹60,000 by capacity (max at 3 kW); SMART <100-unit households
          add ₹17,500 BPL / ₹15,000 SC-ST / ₹10,000 others on the 1 kW

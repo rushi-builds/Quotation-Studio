@@ -78,6 +78,7 @@
     return 78000;
   }
   const SUBSIDY_MAX = 78000;
+  const RWA_SUBSIDY_PER_KWP = 18000, RWA_MAX_KWP = 500;
 
   /** Internal rate of return via bisection (percent per annum). */
   function calcIRR(cashflows) {
@@ -210,15 +211,20 @@
        is potential, subject to eligibility and approval. */
     const topUpRaw = parseFloat(s.stateTopUp);
     const stateTopUp = (customerType === 'residential' && isFinite(topUpRaw) && topUpRaw > 0) ? topUpRaw : 0;
+    // RWA common-facility estimate. Approved eligible capacity must account for
+    // 3 kW/house and individual resident rooftop systems; blank is provisional.
+    const rwaLimitRaw = s.rwaEligibleKwp === '' || s.rwaEligibleKwp == null ? NaN : Number(s.rwaEligibleKwp);
+    const rwaEligibilityConfirmed = customerType === 'rwa' && Number.isFinite(rwaLimitRaw) && rwaLimitRaw >= 0;
+    const rwaEligibleKwp = customerType === 'rwa' ? Math.max(0, Math.min(installedKwp, RWA_MAX_KWP, rwaEligibilityConfirmed ? rwaLimitRaw : RWA_MAX_KWP)) : 0;
     let subsidy;
     const overrideRaw = (s.subsidyOverride === '' || s.subsidyOverride === null ||
       s.subsidyOverride === undefined) ? NaN : parseFloat(s.subsidyOverride);
     if (isFinite(overrideRaw)) {
       subsidy = overrideRaw;                                   // explicit override wins
     } else {
-      subsidy = (customerType === 'residential' ? calcSubsidy(installedKwp) : 0) + stateTopUp;
+      subsidy = (customerType === 'residential' ? calcSubsidy(installedKwp) : customerType === 'rwa' ? rwaEligibleKwp * RWA_SUBSIDY_PER_KWP : 0) + stateTopUp;
     }
-    const subsidyAuto = (customerType === 'residential' && !isFinite(overrideRaw));
+    const subsidyAuto = ((customerType === 'residential' || customerType === 'rwa') && !isFinite(overrideRaw));
     const netInvestment = grossTotal - subsidy;
     /* costPerWp is the quoted rate (contracted basis). costPerWpDelivered is
        what the customer actually receives per watt of installed DC. */
@@ -355,7 +361,7 @@
       roofClearanceFactor, requiredArea, clearanceSource, layout: engLayout, capacityExact,
       inverterKw, dcAcRatio,
       // costs
-      projectCost, gstAmount, grossTotal, subsidy, stateTopUp, subsidyAuto, netInvestment,
+      projectCost, gstAmount, grossTotal, subsidy, stateTopUp, subsidyAuto, netInvestment, rwaEligibleKwp, rwaEligibilityConfirmed,
       costPerWp, costPerWpDelivered, bomItems, bomSum, bomDelta, gstPercent,
       taxDepreciationYear1, taxShield, corpTaxRatePct, depreciationRatePct, isCommercialOrInd,
       monthlyBillSaving, monthlyBillAfter,
@@ -378,7 +384,7 @@
   function annualSaving0(series) { return series.saving[0] || 0; }
 
   return {
-    YEARS, calcSubsidy, calcIRR, compute,
+    YEARS, calcSubsidy, calcIRR, compute, RWA_SUBSIDY_PER_KWP, RWA_MAX_KWP,
     fmtINR, fmtINRshort, fmtNum, fmtDate, addDays, SUBSIDY_MAX
   };
 }));
