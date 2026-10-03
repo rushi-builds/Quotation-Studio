@@ -459,7 +459,7 @@ export default {
         "generation": "Estimated Monthly Generation",
         "installed": "Installed Solar Capacity",
         "carbon": "Estimated CO₂ Avoided / Year",
-        "delivery": "Design • Supply • Installation"
+        "monitoring": "Remote Monitoring Access"
       },
       "kpiSectionLabel": "YOUR SYSTEM BY THE NUMBERS",
       "systemKpis": {
@@ -472,7 +472,7 @@ export default {
         "annualGen": "Estimated Year-1 Generation",
         "lifetimeGen": "Estimated 25-Year Generation"
       },
-      "systemNote": "Monthly generation is a year-one average, not a seasonal forecast. Actual output varies with site conditions and weather.",
+      "systemNote": "Monthly output is a year-one average. Monitoring needs compatible equipment, power and internet; not staffed support.",
       "includedSectionLabel": "WHAT YOU ARE GETTING",
       "includedIntro": "A complete turnkey rooftop solar system - engineered, supplied, installed and commissioned by {company}:"
     },

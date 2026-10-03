@@ -144,8 +144,8 @@
     set('v_exHeroSaveLabel', h.installed);
     set('v_exHeroPayback', f.co2Annual.toFixed(1) + ' t');
     set('v_exHeroPaybackLabel', h.carbon);
-    set('v_exHeroLifetime', 'Turnkey EPC');
-    set('v_exHeroLifetimeLabel', h.delivery);
+    set('v_exHeroLifetime', '24/7');
+    set('v_exHeroLifetimeLabel', h.monitoring || 'Remote Monitoring Access');
 
     const k = E.systemKpis;
     const tiles = [

@@ -335,7 +335,7 @@ for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
     assert.equal(txt('v_coverCapacity'), cap + ' kWp', 'cover capacity');
     assert.equal(txt('v_coverBadgeGen'), num(e.annualGen) + ' kWh', 'cover generation badge');
     assert.equal(txt('v_inCostSub'), '− ' + inr(e.subsidy), 'investment subsidy');
-    assert.equal(txt('v_exHeroLifetime'), 'Turnkey EPC', 'summary delivery highlight');
+    assert.equal(txt('v_exHeroLifetime'), '24/7', 'summary monitoring highlight');
     assert.equal(txt('v_exHeroSave'), w.Finance.compute(w.Render.lastState).installedKwp.toLocaleString('en-IN', {maximumFractionDigits:3}) + ' kWp', 'installed capacity precision');
 
     /* executive summary */

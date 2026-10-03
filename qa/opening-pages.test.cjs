@@ -22,9 +22,12 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   await page.evaluate(()=>{StateStore.applyForm({costPerWp:'90',gstPercent:'12',subsidyOverride:'12345'});Render.renderAll();});
   assert.equal(await page.locator('#pageExec').textContent(),before,'Price/GST/subsidy edits do not alter the opening');
   // Reopen a legacy saved quotation with the former financial-summary content.
-  await page.evaluate(()=>{const content=JSON.parse(JSON.stringify(CONTENT));content.exec.systemHeroLabels.generation='Estimated Year-1 Generation';delete content.exec.systemKpis.annualGen;content.exec.systemKpis.monthlyGen='Average Monthly Generation';delete content.exec.systemNote;delete content.pageInvestment.paybackCard;content.exec.sub='Everything you need to know about your rooftop solar investment - on one page.';content.exec.heroLabels={netInvestment:'Your Net Investment'};Proposals.saveActive(StateStore.collectForm(),content,PROJECT_IMAGES);});
+  await page.evaluate(()=>{const content=JSON.parse(JSON.stringify(CONTENT));content.exec.systemHeroLabels.generation='Estimated Year-1 Generation';delete content.exec.systemHeroLabels.monitoring;content.exec.systemHeroLabels.delivery='Design • Supply • Installation';delete content.exec.systemKpis.annualGen;content.exec.systemKpis.monthlyGen='Average Monthly Generation';delete content.exec.systemNote;delete content.pageInvestment.paybackCard;content.exec.sub='Everything you need to know about your rooftop solar investment - on one page.';content.exec.heroLabels={netInvestment:'Your Net Investment'};Proposals.saveActive(StateStore.collectForm(),content,PROJECT_IMAGES);});
   await page.reload();await page.waitForFunction(()=>window.Render?.lastState);
   assert.match(await page.locator('#v_exHeroNetLabel').textContent(),/Monthly Generation/);
+  assert.equal(await page.locator('#v_exHeroLifetime').textContent(),'24/7');
+  assert.equal(await page.locator('#v_exHeroLifetimeLabel').textContent(),'Remote Monitoring Access');
+  assert.match(await page.locator('#v_exTraceNote').textContent(),/compatible equipment, power and internet; not staffed support/);
   assert.ok(!(await page.locator('#pageExec').textContent()).includes('₹'));
   await page.evaluate(()=>{StateStore.applyForm({capacity:'9.5',costPerWp:'63.6',gstPercent:'8.9',subsidyOverride:''});Render.renderAll();});
   assert.equal(await page.locator('#pageInvestment .inv-card').count(),5);

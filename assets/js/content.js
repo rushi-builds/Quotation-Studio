@@ -42,7 +42,7 @@ const CONTENT = {
       generation: 'Estimated Monthly Generation',
       installed: 'Installed Solar Capacity',
       carbon: 'Estimated CO₂ Avoided / Year',
-      delivery: 'Design • Supply • Installation'
+      monitoring: 'Remote Monitoring Access'
     },
     kpiSectionLabel: 'YOUR SYSTEM BY THE NUMBERS',
     systemKpis: {
@@ -51,7 +51,7 @@ const CONTENT = {
       technology: 'Module Technology', roof: 'Roof Type',
       annualGen: 'Estimated Year-1 Generation', lifetimeGen: 'Estimated 25-Year Generation'
     },
-    systemNote: 'Monthly generation is a year-one average, not a seasonal forecast. Actual output varies with site conditions and weather.',
+    systemNote: 'Monthly output is a year-one average. Monitoring needs compatible equipment, power and internet; not staffed support.',
     includedSectionLabel: 'WHAT YOU ARE GETTING',
     includedIntro: 'A complete turnkey rooftop solar system - engineered, supplied, installed and commissioned by {company}:'
   },
@@ -551,7 +551,12 @@ function upgradeProposalContent(value) {
     out.exec.systemKpis.annualGen = 'Estimated Year-1 Generation';
     delete out.exec.systemKpis.monthlyGen;
   }
-  if (out.exec && out.exec.systemNote === 'Energy and environmental figures are estimates; actual performance depends on site conditions and proposal assumptions.') out.exec.systemNote = 'Monthly generation is a year-one average, not a seasonal forecast. Actual output varies with site conditions and weather.';
+  if (out.exec && out.exec.systemNote === 'Energy and environmental figures are estimates; actual performance depends on site conditions and proposal assumptions.') out.exec.systemNote = 'Monthly output is a year-one average. Monitoring needs compatible equipment, power and internet; not staffed support.';
+  if (out.exec && out.exec.systemHeroLabels && !out.exec.systemHeroLabels.monitoring) {
+    out.exec.systemHeroLabels.monitoring = 'Remote Monitoring Access';
+    delete out.exec.systemHeroLabels.delivery;
+  }
+  if (out.exec && out.exec.systemNote === 'Monthly generation is a year-one average, not a seasonal forecast. Actual output varies with site conditions and weather.') out.exec.systemNote = 'Monthly output is a year-one average. Monitoring needs compatible equipment, power and internet; not staffed support.';
   if (out.pageProjects && typeof out.pageProjects === 'object' && !Array.isArray(out.pageProjects)) {
     // Saved proposals from before this project get the new default. Never use
     // another proposal's in-memory edited values as migration defaults.

@@ -87,7 +87,7 @@ t('cover badge is estimated generation incl. GST', (() => {
   const f = w.Finance.compute(w.Render.lastState);
   return d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtNum(f.annualGen) + ' kWh';
 })(), d.getElementById('v_coverBadgeGen').textContent);
-t('summary highlights turnkey delivery', d.getElementById('v_exHeroLifetime').textContent === 'Turnkey EPC');
+t('summary highlights remote monitoring', d.getElementById('v_exHeroLifetime').textContent === '24/7');
 t('investment net = ₹4,06,823', d.getElementById('v_inCostNet').textContent === '₹4,06,823',
   d.getElementById('v_inCostNet').textContent);
 t('exec payback ≈ 3.7 yrs', /^3\.7/.test(String(w.Finance.compute(w.Render.lastState).payback.toFixed(1))),
