@@ -147,9 +147,8 @@ const t = (name, condition) => {
       fit.complete.fontPx >= 9 && fit.blank.fontPx >= 9);
     t('no page is reported as overflowing after the fit', fit.reported.length === 0);
 
-    /* One combination genuinely cannot fit on a single sheet: roof-area rows,
-       reference pills and the full design basis together. It must be reported
-       - never clipped in silence - and every row must still be in the page. */
+    /* Roof-area rows plus references used to defeat the fit ladder through CSS
+       specificity. They now fit without losing any design-basis row. */
     await setLinks('https://www.example.com/reports/site-pvsyst.pdf', '');
     const dense = await page.evaluate(() => {
       const set = (id, value) => {
@@ -161,12 +160,13 @@ const t = (name, condition) => {
       const el = document.getElementById('pageTechSpec');
       return {
         reported: (window.__qsPageOverflow || []).includes('pageTechSpec'),
+        fits: el.scrollHeight <= 1124 && [...el.querySelector('.pg-body').children].filter(c=>c.checkVisibility()).every(c=>c.getBoundingClientRect().bottom <= el.querySelector('.pg-foot').getBoundingClientRect().top),
         rows: el.querySelectorAll('#v_tsTable tr').length,
         lastRow: el.querySelector('#v_tsTable tr:last-child td')?.textContent || '',
         engFont: parseFloat(getComputedStyle(el.querySelector('#v_tsTable tr.is-eng td')).fontSize)
       };
     });
-    t('the one sheet that cannot fit everything is reported, not silently clipped', dense.reported);
+    t('site area, references and design basis now fit above the footer', dense.fits && !dense.reported);
     t('and it still prints every row it holds, down to the honesty row', dense.rows >= 25 && dense.lastRow.includes('Data still required'));
     t('the design basis never drops below 9 px to achieve that', dense.engFont >= 9);
     await setLinks('', '');
@@ -177,6 +177,11 @@ const t = (name, condition) => {
     });
     t('clearing either optional block fits the page again', await page.evaluate(() => (window.__qsPageOverflow || []).length === 0));
 
+    t('genuinely excessive content is still reported instead of silently ignored', await page.evaluate(()=>{
+      const extra=document.createElement('div');extra.style.height='1500px';extra.style.flexShrink='0';
+      pageTechSpec.querySelector('.pg-body').appendChild(extra);Render.fitPages();
+      const reported=window.__qsPageOverflow.includes('pageTechSpec');extra.remove();Render.fitPages();return reported;
+    }));
     t('no browser runtime errors', errors.length === 0);
     fs.writeFileSync(path.join(OUT, 'tech-spec-metrics.json'), JSON.stringify(results, null, 2) + '\n');
     console.log(JSON.stringify(results, null, 2));

@@ -1205,7 +1205,7 @@
          conditions are measured; without a layout engine (jsdom) the footer
          limit is Infinity and only the box is judged. */
       const rect = spec.getBoundingClientRect(), foot = spec.querySelector('.pg-foot');
-      const limit = rect.height ? rect.bottom - (foot ? foot.getBoundingClientRect().height : 34) - 1 : Infinity;
+      const limit = rect.height ? (foot ? foot.getBoundingClientRect().top : rect.bottom - 34) - 1 : Infinity;
       const lowest = () => {
         const body = spec.querySelector('.pg-body');
         let max = 0;

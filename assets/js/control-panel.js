@@ -254,9 +254,9 @@
       pay.forEach(id => $(id).setAttribute('aria-invalid', String(invalidPay)));
       if (invalidPay) blocking.push({id: 'payAdvance', message: 'Payment milestones must total 100%.'});
       const loan = ['loanAmt', 'loanRate', 'loanYears'], hasLoan = loan.some(id => $(id).value !== '');
-      const invalidLoan = hasLoan && (!loan.every(id => $(id).value !== '') || !($('loanAmt').value > 0) || !(Number($('loanRate').value) > 0) || !($('loanYears').value >= 1 && $('loanYears').value <= 30));
+      const invalidLoan = hasLoan && (!loan.every(id => $(id).value !== '') || !($('loanAmt').value > 0) || !(Number($('loanRate').value) >= 0) || !($('loanYears').value >= 1 && $('loanYears').value <= 30));
       loan.forEach(id => $(id).setAttribute('aria-invalid', String(invalidLoan)));
-      if (invalidLoan) blocking.push({id: 'loanAmt', message: 'Enter a positive loan amount and interest rate, with a tenure of 1–30 years.'});
+      if (invalidLoan) blocking.push({id: 'loanAmt', message: 'Enter a positive loan amount, an interest rate of 0% or more, and a tenure of 1–30 years.'});
       /* Reference problems (sample number, duplicate, none) never clutter the
          panel; they surface once, in the export pre-flight. */
       const refIssue = referenceIssue(window.Render.lastState || window.Render.readState());

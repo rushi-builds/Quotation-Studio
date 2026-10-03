@@ -60,6 +60,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('dense cost charts retain full width and redraw at compact height',await page.evaluate(()=>chartBridge.clientWidth===718&&chartBridge.clientHeight===180&&chartDonut.clientWidth===150&&!!document.querySelector('#v_inTaxIcon svg')));
   check('all seventeen optional pages are present for stress review',await page.evaluate(()=>Render.lastVisible.length===17));
   await page.emulateMediaType('print');await geometry('Print with optional content');await page.emulateMediaType('screen');
+  await page.evaluate(()=>{StateStore.applyForm({custName:'Layout QA',propRef:'QA-LAYOUT-2026'});Render.renderAll();});
   const output=path.join(__dirname,'shots','page-spacing');fs.mkdirSync(output,{recursive:true});
   for(const name of fs.readdirSync(output))if(name.endsWith('.pdf'))fs.unlinkSync(path.join(output,name));
   const cdp=await page.createCDPSession();await cdp.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:output,eventsEnabled:true});
@@ -86,7 +87,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
     return canvas;
    };
   });
-  try{await page.click('#downloadBtn');await page.waitForFunction(()=>statusMsg.textContent.includes('Downloaded'),{timeout:120000});await done;}finally{clearTimeout(timer);await page.evaluate(()=>__restoreCapture());}
+  try{await page.click('#downloadBtn');await page.evaluate(()=>{const dialog=document.getElementById('exportCheckDialog');if(dialog?.open){const proceed=[...dialog.querySelectorAll('button')].find(b=>b.textContent==='Download anyway');if(!proceed)throw new Error(dialog.textContent);proceed.click();}});await page.waitForFunction(()=>statusMsg.textContent.includes('Downloaded'),{timeout:120000});await done;}finally{clearTimeout(timer);await page.evaluate(()=>__restoreCapture());}
   check('actual PDF capture fits all 17 pages including optional details',await page.evaluate(()=>__layoutCaptureCount===17));
   check('solar landscape is visibly rendered in the actual PDF raster',await page.evaluate(()=>__summaryArtInk>1000));
   const pdf=fs.readdirSync(output).find(name=>name.endsWith('.pdf'));
@@ -96,7 +97,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.evaluate(form=>{StateStore.applyForm({...form,moduleMake:'Custom high-efficiency photovoltaic modules - reviewed equipment make',inverterMake:'Custom three-phase grid-connected inverter'});window.__qsOptions=[];Render.renderAll();},originals.form);
   await geometry('Long custom equipment names');
   await page.evaluate(form=>{StateStore.applyForm(form);Render.renderAll();window.__qsSaveNow();},originals.form);
-  check('clearing BOM restores the original full-size cost chart',await page.evaluate(()=>chartBridge.clientWidth===718&&chartBridge.clientHeight===252&&!document.getElementById('pageTechSpec').classList.contains('has-site-area')));
+  check('clearing BOM restores the original full-size cost chart',await page.evaluate(()=>chartBridge.clientWidth===718&&chartBridge.clientHeight===340&&!document.getElementById('pageTechSpec').classList.contains('has-site-area')));
   check('layout changes do not alter financial output',await page.evaluate(fin=>JSON.stringify(Finance.compute(Render.lastState))===fin,originals.finance));
   await page.setViewport({width:390,height:844});await geometry('Mobile-scaled A4');
   check('mobile document has no horizontal scrolling',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));

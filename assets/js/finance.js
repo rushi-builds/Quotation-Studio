@@ -119,7 +119,11 @@
 
     const capacity = num(s.capacity);
     const genFactor = num(s.genFactor);
-    const costPerKwp = num(s.costPerKwp);
+    // Builder state uses ₹/kWp; saved forms/Customer View use ₹/Wp.
+    // Normalize once at the engine boundary, including assistant/export paths.
+    // An explicit engine rate (including zero) takes precedence.
+    const hasKwpRate = s.costPerKwp !== '' && s.costPerKwp != null && Number.isFinite(Number(s.costPerKwp));
+    const costPerKwp = hasKwpRate ? Number(s.costPerKwp) : num(s.costPerWp) * 1000;
     const gstPercent = num(s.gstPercent);
     const tariff = num(s.tariff);
     const escalation = num(s.escalation) / 100;
@@ -330,12 +334,13 @@
     const loanRate = num(s.loanRate);
     const loanYears = num(s.loanYears);
     let financing = null;
-    if (loanAmt > 0 && loanRate > 0 && loanYears > 0) {
+    const hasLoanRate = s.loanRate !== '' && s.loanRate != null && Number.isFinite(Number(s.loanRate));
+    if (loanAmt > 0 && hasLoanRate && loanRate >= 0 && loanYears > 0) {
       const r = loanRate / 1200;                    // monthly interest rate
       const n = Math.max(1, Math.round(loanYears * 12)); // tenure in months
       const pow = Math.pow(1 + r, n);
-      const emi = loanAmt * r * pow / (pow - 1);    // reducing-balance EMI
-      const totalPaid = emi * n;
+      const emi = r === 0 ? loanAmt / n : loanAmt * r * pow / (pow - 1);    // reducing-balance EMI
+      const totalPaid = r === 0 ? loanAmt : emi * n;
       /* month-wise savings across the tenure (step-wise from yearly series) */
       const monthlySavings = [];
       for (let m = 0; m < n; m++) {

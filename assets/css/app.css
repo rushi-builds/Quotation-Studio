@@ -1669,7 +1669,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 /* Compact only the optional dense cases. No text, disclaimers or numbers are
    removed, and chart canvases redraw at these sizes rather than being squashed. */
-#pageTechSpec.has-site-area:has(#v_tsRefsWrap:not([style*="display: none"])) .spec-table td{padding-top:3.5px;padding-bottom:3.5px;}
+/* The measured fit ladder below owns table padding, including reports + site area. */
 /* The engineering design basis is long by nature — it is the arithmetic behind
    every other number on the page. It reads at a slightly smaller size so the
    page keeps its shape, and if the whole table still runs past the A4 box the
@@ -1706,7 +1706,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec.is-table-min .note-box{margin-top:4px;}
 #chartBridge{width:718px!important;height:340px!important;}
 #chartDonut{width:230px!important;height:230px!important;}
-#pageInvestment.has-bom #chartBridge{height:200px!important;}
+#pageInvestment.has-bom #chartBridge{height:180px!important;}
 #pageInvestment.has-bom #chartDonut{width:150px!important;height:150px!important;flex-shrink:0;}
 #pageInvestment.has-bom .spacer{max-height:16px;}
 #pageInvestment.has-bom .bom-row{padding:3.5px 0;}
