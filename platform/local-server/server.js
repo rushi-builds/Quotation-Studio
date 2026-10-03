@@ -829,6 +829,28 @@ async function handleApi(req, res, url) {
       });
     }
 
+    if (parts[0] === 'auth' && parts[1] === 'oauth') {
+      const {handleOAuth} = await import('../cloudflare/src/oauth.mjs');
+      const {localOAuthStore} = await import('../oauth-store.mjs');
+      const proto = String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+      const requestUrl = proto + '://' + req.headers.host + url.pathname + url.search;
+      const raw = ['POST','PUT'].includes(method) ? await readRawBody(req, 20000) : undefined;
+      const request = new Request(requestUrl, {method, headers:req.headers, ...(raw ? {body:raw} : {})});
+      const result = await handleOAuth(request, process.env, localOAuthStore(loadDb, saveDb), {
+        user: async () => requireUser(req, loadDb()), token: () => sessionTokenFrom(req), rateKey: req.socket.remoteAddress || 'unknown',
+        userByToken: async token => requireUser({headers:{authorization:'Bearer '+token}}, loadDb()),
+        canLink: async (user, password) => {
+          if (!String(user.password_hash).startsWith('oauth-only$')) return password.length <= 128 && verifyPassword(password, user.password_hash);
+          const session=loadDb().sessions.find(s=>s.token===sessionTokenFrom(req)&&s.user_id===user.id);
+          return !!session && Date.parse(session.created_at) > Date.now() - 300000;
+        },
+        session: async user => {const latest=loadDb();const session=createSession(latest,user);saveDb(latest);return session;},
+        cookie: token => sessionCookie(token, SESSION_DAYS * 86400, req)
+      });
+      result.headers.forEach((value,key) => {if(key!=='set-cookie')res.setHeader(key,value);});
+      const cookies=result.headers.getSetCookie();if(cookies.length)res.setHeader('Set-Cookie',cookies);
+      res.writeHead(result.status);return res.end(await result.text());
+    }
     /* AUTH */
     if (parts[0] === 'auth' && parts[1] === 'register' && method === 'POST') {
       const body = await readBody(req);

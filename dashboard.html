@@ -799,6 +799,8 @@
                     </button>
                   </div>
                   <p id="profileSaveMsg" class="micro" role="status"></p>
+                  <div id="socialConnections"></div>
+                  <p id="socialMessage" class="micro" role="status" hidden></p>
                   <details class="help-details">
                     <summary>Connection details</summary>
                     <p id="settingsHealth" class="micro muted">Checking…</p>
@@ -810,6 +812,7 @@
                   hidden
                 >
                   <h2>Change your password</h2>
+                  <p id="socialPasswordHelp" class="micro" hidden>This account uses provider sign-in and has no Studio password. Continue with your connected provider. Self-service password setup and recovery are not available yet.</p>
                   <p class="sub">
                     At least 8 characters, no spaces. Other devices will be
                     signed out.
@@ -993,5 +996,6 @@
     <script src="assets/js/assistant-actions.js?v=workspace7-ai3"></script>
     <script src="assets/js/assistant-chat.js?v=workspace7-ai3"></script>
     <script src="assets/js/dashboard-ui.js?v=workspace7-ai3"></script>
-  </body>
+  <script src="assets/js/oauth-ui.js?v=oauth1"></script>
+</body>
 </html>

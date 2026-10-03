@@ -8,6 +8,8 @@
 'use strict';
 
 import { reserveCloudReference } from '../../reference-numbers.mjs';
+import { handleOAuth } from './oauth.mjs';
+import { d1OAuthStore } from '../../oauth-store.mjs';
 
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
 
@@ -588,6 +590,19 @@ async function handleApi(request, env, url) {
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
 
   try {
+    if (parts[0] === 'auth' && parts[1] === 'oauth') {
+      return handleOAuth(request, env, d1OAuthStore(db), {
+        user: r => requireUser(r, db), token: sessionTokenFrom, rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
+        userByToken: token => requireUser(new Request(request.url, {headers:{Authorization:'Bearer '+token}}), db),
+        canLink: async (user, password, r) => {
+          if (!String(user.password_hash).startsWith('oauth-only$')) return password.length <= 128 && verifyPassword(password, user.password_hash);
+          const session = await one(db, 'SELECT created_at FROM sessions WHERE token = ? AND user_id = ?', sessionTokenFrom(r), user.id);
+          return !!session && Date.parse(session.created_at) > Date.now() - 300000;
+        },
+        session: user => createSession(db, user),
+        cookie: (token, r) => sessionCookie(token, SESSION_DAYS * 86400, r)
+      });
+    }
     /* AUTH */
     if (parts[0] === 'auth' && parts[1] === 'register' && method === 'POST') {
       const body = await readBody(request);

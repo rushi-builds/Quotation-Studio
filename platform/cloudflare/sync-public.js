@@ -37,7 +37,7 @@ mkdir(path.join(PUB, 'assets'));
 
 const files = [
   'index.html', 'dashboard.html', 'quotation.html',
-  'portal.html', 'share.html', 'gallery.html'
+  'portal.html', 'share.html', 'gallery.html', 'oauth-complete.html'
 ];
 for (const f of files) {
   const src = path.join(ROOT, f);

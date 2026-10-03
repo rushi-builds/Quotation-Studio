@@ -18,7 +18,8 @@
     "test:proposal-stage": "node proposal-stage-note.test.cjs",
     "test:engineering-panel": "node engineering-panel.test.cjs",
     "test:reverification": "node --test reverification.test.cjs calculation-verification.test.cjs rwa-subsidy.test.cjs && node quotation-transitions.test.cjs",
-    "test:security": "node studio-security-worker.test.mjs && node studio-security.test.cjs && node platform-api.test.js"
+    "test:security": "node studio-security-worker.test.mjs && node studio-security.test.cjs && node platform-api.test.js",
+    "test:oauth": "node --test oauth.test.mjs && node oauth-browser.test.cjs"
   },
   "keywords": [],
   "author": "",
