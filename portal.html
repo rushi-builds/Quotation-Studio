@@ -7,9 +7,9 @@
   <title>Your Solar Proposal</title>
   <meta name="description" content="Secure, read-only view of your rooftop solar proposal." />
   <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png" />
-  <link rel="stylesheet" href="assets/css/app.css" />
+  <link rel="stylesheet" href="assets/css/app.css?v=finance-fixes1" />
   <link rel="stylesheet" href="assets/css/bess.css" />
-  <link rel="stylesheet" href="assets/css/experience.css" />
+  <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1" />
   <link rel="stylesheet" href="assets/css/portal.css" />
 </head>
 <body class="share-mode portal-mode">
@@ -36,7 +36,7 @@
         <label class="pdf-format-label" for="pdfFormat">PDF format
           <select id="pdfFormat" class="pdf-format">
             <option value="full">Detailed Proposal — all applicable pages</option>
-            <option value="power">Power Proposal — 2-page summary</option>
+            <option value="power">Power Proposal — 6-page report</option>
           </select>
         </label>
         <button type="button" id="sharePrint" disabled>Download PDF</button>
@@ -113,20 +113,22 @@
   <script src="assets/vendor/jspdf.umd.min.js"></script>
   <script src="assets/vendor/qrcode.min.js"></script>
   <script src="assets/js/content.js"></script>
-  <script src="assets/js/finance.js"></script>
+  <script src="assets/js/engineering.js?v=reverify1"></script>
+  <script src="assets/js/finance.js?v=finance-fixes1"></script>
   <script src="assets/js/storage-catalog.js"></script>
   <script src="assets/js/bess.js"></script>
   <script src="assets/js/additional-systems.js"></script>
   <script src="assets/js/supplement-design.js"></script>
   <script src="assets/js/icons.js"></script>
-  <script src="assets/js/charts.js"></script>
+  <script src="assets/js/charts.js?v=finance-fixes1"></script>
   <script src="assets/js/model.js"></script>
-  <script src="assets/js/state.js"></script>
+  <script src="assets/js/state.js?v=proposal-stage1"></script>
   <script src="assets/js/equipment.js"></script>
-  <script src="assets/js/render.js"></script>
-  <script src="assets/js/experience.js"></script>
+  <script src="assets/js/render.js?v=proposal-stage1"></script>
+  <script src="assets/js/experience.js?v=proposal-stage1"></script>
+  <script src="assets/js/salutation.js"></script>
   <script src="assets/js/briefing.js"></script>
-  <script src="assets/js/export.js"></script>
-  <script src="assets/js/portal.js"></script>
+  <script src="assets/js/export.js?v=power-six-audit1"></script>
+  <script src="assets/js/portal.js?v=export-audit1"></script>
 </body>
 </html>

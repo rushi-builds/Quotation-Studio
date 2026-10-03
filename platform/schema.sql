@@ -221,3 +221,18 @@ CREATE TABLE IF NOT EXISTS gallery_blobs (
   id            TEXT PRIMARY KEY REFERENCES gallery(id) ON DELETE CASCADE,
   data          BLOB NOT NULL
 );
+-- Persistent cross-isolate Gemini rate limits. Contains counters only, never prompts.
+CREATE TABLE IF NOT EXISTS assistant_usage (
+  scope TEXT NOT NULL,
+  bucket TEXT NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY (scope, bucket)
+);
+CREATE INDEX IF NOT EXISTS idx_assistant_usage_expiry ON assistant_usage(expires_at);
+
+-- Monotonic allocation metadata; deleting a proposal must not recycle its number.
+CREATE TABLE IF NOT EXISTS proposal_reference_counters (
+  year INTEGER PRIMARY KEY,
+  sequence INTEGER NOT NULL
+);

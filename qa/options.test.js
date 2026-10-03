@@ -206,8 +206,8 @@ setTimeout(async () => {
     t('share: status chip', d3.getElementById('shareStatus').textContent.length > 0);
     t('share: pages injected', d3.querySelectorAll('.page-wrap').length === 21, d3.querySelectorAll('.page-wrap').length);
     t('share: pages visible', [...d3.querySelectorAll('.page-wrap')].filter((x) => x.style.display !== 'none').length === 15);
-    t('share: hero matches proposal finance', d3.getElementById('v_exHeroNet').textContent === expectedNet,
-      d3.getElementById('v_exHeroNet').textContent + ' vs ' + expectedNet);
+    t('share: hero matches proposal finance', d3.getElementById('v_inCostNet').textContent === expectedNet,
+      d3.getElementById('v_inCostNet').textContent + ' vs ' + expectedNet);
     t('share: no editor panel', !d3.getElementById('quoteForm'));
     t('share: no errors', errors.length === 0, errors.join('|'));
 

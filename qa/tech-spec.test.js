@@ -93,15 +93,15 @@ const t = (name, condition) => {
     t('clearing links restores original note position', cleared.refsHidden &&
       cleared.noteTop === results['no-links'].noteTop && cleared.noteBottom === results['no-links'].noteBottom);
 
-    t('7 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹4,06,823'));
+    t('7 kWp investment unchanged', await page.$eval('#v_inCostNet', (el) => el.textContent === '₹4,06,823'));
     await page.$eval('#capacity', (el) => {
       el.value = '20';
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    t('20 kWp hero unchanged', await page.$eval('#v_exHeroNet', (el) => el.textContent === '₹13,07,208'));
-    t('20 kWp cover badge shows the project cost, not the savings', await page.evaluate(() =>
+    t('20 kWp investment unchanged', await page.$eval('#v_inCostNet', (el) => el.textContent === '₹13,07,208'));
+    t('20 kWp cover badge shows generation, not pricing', await page.evaluate(() =>
       document.getElementById('v_coverBadgeGen').textContent ===
-      Finance.fmtINRshort(Finance.compute(Render.lastState).grossTotal)));
+      Finance.fmtNum(Finance.compute(Render.lastState).annualGen) + ' kWh'));
     t('20 kWp installed array shows 20.165 kWp beside the contracted 20 kWp', await page.$eval('#v_tsTable', el => [...el.querySelectorAll('tr')].some(row => row.querySelector('.spec-k')?.textContent === 'Installed Array Size' && row.querySelector('.spec-v')?.textContent === '20.165 kWp (contracted 20 kWp)')));
     t('20 kWp module count unchanged', await page.$eval('#v_tsTable', (el) => el.textContent.includes('37 modules')));
     /* The page is a fixed A4 box with overflow hidden, so an engineering basis
@@ -147,9 +147,8 @@ const t = (name, condition) => {
       fit.complete.fontPx >= 9 && fit.blank.fontPx >= 9);
     t('no page is reported as overflowing after the fit', fit.reported.length === 0);
 
-    /* One combination genuinely cannot fit on a single sheet: roof-area rows,
-       reference pills and the full design basis together. It must be reported
-       - never clipped in silence - and every row must still be in the page. */
+    /* Roof-area rows plus references used to defeat the fit ladder through CSS
+       specificity. They now fit without losing any design-basis row. */
     await setLinks('https://www.example.com/reports/site-pvsyst.pdf', '');
     const dense = await page.evaluate(() => {
       const set = (id, value) => {
@@ -161,12 +160,13 @@ const t = (name, condition) => {
       const el = document.getElementById('pageTechSpec');
       return {
         reported: (window.__qsPageOverflow || []).includes('pageTechSpec'),
+        fits: el.scrollHeight <= 1124 && [...el.querySelector('.pg-body').children].filter(c=>c.checkVisibility()).every(c=>c.getBoundingClientRect().bottom <= el.querySelector('.pg-foot').getBoundingClientRect().top),
         rows: el.querySelectorAll('#v_tsTable tr').length,
         lastRow: el.querySelector('#v_tsTable tr:last-child td')?.textContent || '',
         engFont: parseFloat(getComputedStyle(el.querySelector('#v_tsTable tr.is-eng td')).fontSize)
       };
     });
-    t('the one sheet that cannot fit everything is reported, not silently clipped', dense.reported);
+    t('site area, references and design basis now fit above the footer', dense.fits && !dense.reported);
     t('and it still prints every row it holds, down to the honesty row', dense.rows >= 25 && dense.lastRow.includes('Data still required'));
     t('the design basis never drops below 9 px to achieve that', dense.engFont >= 9);
     await setLinks('', '');
@@ -177,6 +177,11 @@ const t = (name, condition) => {
     });
     t('clearing either optional block fits the page again', await page.evaluate(() => (window.__qsPageOverflow || []).length === 0));
 
+    t('genuinely excessive content is still reported instead of silently ignored', await page.evaluate(()=>{
+      const extra=document.createElement('div');extra.style.height='1500px';extra.style.flexShrink='0';
+      pageTechSpec.querySelector('.pg-body').appendChild(extra);Render.fitPages();
+      const reported=window.__qsPageOverflow.includes('pageTechSpec');extra.remove();Render.fitPages();return reported;
+    }));
     t('no browser runtime errors', errors.length === 0);
     fs.writeFileSync(path.join(OUT, 'tech-spec-metrics.json'), JSON.stringify(results, null, 2) + '\n');
     console.log(JSON.stringify(results, null, 2));

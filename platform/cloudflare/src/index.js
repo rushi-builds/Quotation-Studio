@@ -9,6 +9,12 @@
    ============================================================================ */
 'use strict';
 
+import { reserveCloudReference } from '../../reference-numbers.mjs';
+import { handleOAuth } from './oauth.mjs';
+import { d1OAuthStore } from '../../oauth-store.mjs';
+
+import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
+
 import { scryptSync, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 
 const SESSION_DAYS = 30;
@@ -379,6 +385,19 @@ function parseExpiryDays(body) {
   return new Date(Date.now() + days * 864e5).toISOString();
 }
 
+const assistantSchemas = new WeakMap();
+async function ensureAssistantSchema(db) {
+  let pending = assistantSchemas.get(db);
+  if (!pending) {
+    pending = run(db, `CREATE TABLE IF NOT EXISTS assistant_usage (
+      scope TEXT NOT NULL, bucket TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0,
+      expires_at INTEGER NOT NULL, PRIMARY KEY(scope,bucket)
+    )`).catch(err => { assistantSchemas.delete(db); throw err; });
+    assistantSchemas.set(db, pending);
+  }
+  await pending;
+}
+
 /* ---------- D1 helpers ---------- */
 async function one(db, sql, ...binds) {
   return db.prepare(sql).bind(...binds).first();
@@ -573,6 +592,19 @@ async function handleApi(request, env, url) {
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
 
   try {
+    if (parts[0] === 'auth' && parts[1] === 'oauth') {
+      return handleOAuth(request, env, d1OAuthStore(db), {
+        user: r => requireUser(r, db), token: sessionTokenFrom, rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
+        userByToken: token => requireUser(new Request(request.url, {headers:{Authorization:'Bearer '+token}}), db),
+        canLink: async (user, password, r) => {
+          if (!String(user.password_hash).startsWith('oauth-only$')) return password.length <= 128 && verifyPassword(password, user.password_hash);
+          const session = await one(db, 'SELECT created_at FROM sessions WHERE token = ? AND user_id = ?', sessionTokenFrom(r), user.id);
+          return !!session && Date.parse(session.created_at) > Date.now() - 300000;
+        },
+        session: user => createSession(db, user),
+        cookie: (token, r) => sessionCookie(token, SESSION_DAYS * 86400, r)
+      });
+    }
     /* AUTH */
     if (parts[0] === 'auth' && parts[1] === 'register' && method === 'POST') {
       const body = await readBody(request);
@@ -597,8 +629,10 @@ async function handleApi(request, env, url) {
         email,
         name: name.slice(0, 120),
         password_hash: hashPassword(password),
-        role: parsed.role,
-        role_custom: parsed.roleCustom,
+        // A public job-title field is not an authorization grant.
+        // Existing accounts are unchanged; only an existing owner may promote.
+        role: 'viewer',
+        role_custom: String(body.role != null ? body.role : body.roleCustom).trim(),
         created_at: nowISO(),
         updated_at: nowISO()
       };
@@ -646,65 +680,14 @@ async function handleApi(request, env, url) {
       return json({ user: publicUser(user) });
     }
 
-    if (parts[0] === 'auth' && parts[1] === 'forgot-password' && method === 'POST') {
-      const body = await readBody(request);
-      const email = String(body.email || '').trim().toLowerCase();
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return json({ error: 'Enter a valid email address.' }, 400);
-      }
-      const generic = {
-        ok: true,
-        message: 'If an account exists for that email, a recovery code is available. Enter it below with your new password. Codes expire in 30 minutes and can be used once.'
-      };
-      const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
-      if (!user) {
-        hashPassword('timing-pad-' + email);
-        return json(generic);
-      }
-      const rawCode = await issuePasswordReset(db, user);
-      return json(Object.assign({}, generic, {
-        recoveryCode: rawCode,
-        delivery: 'local_display',
-        note: 'Email delivery is not configured on this server yet. Copy this recovery code now — it will not be shown again.'
-      }));
-    }
-
-    if (parts[0] === 'auth' && parts[1] === 'reset-password' && method === 'POST') {
-      const body = await readBody(request);
-      const email = String(body.email || '').trim().toLowerCase();
-      const code = String(body.code || '').trim().toLowerCase();
-      const password = String(body.password || '');
-      const policy = passwordPolicyError(password);
-      if (policy) return json({ error: policy }, 400);
-      if (!email || !code) return json({ error: 'Email and recovery code are required.' }, 400);
-      const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
-      const codeHash = hashToken(code);
-      const reset = user
-        ? await one(
-          db,
-          `SELECT * FROM password_resets
-           WHERE user_id = ? AND used_at IS NULL AND code_hash = ? AND expires_at > ?`,
-          user.id, codeHash, nowISO()
-        )
-        : null;
-      if (!user || !reset) {
-        return json({ error: 'Invalid or expired recovery code. Request a new one.' }, 400);
-      }
-      await run(db, 'UPDATE password_resets SET used_at = ? WHERE id = ?', nowISO(), reset.id);
-      await run(
-        db,
-        'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
-        hashPassword(password), nowISO(), user.id
-      );
-      await revokeUserSessions(db, user.id, null);
-      user.password_hash = undefined;
-      const sess = await createSession(db, user);
+    // Public recovery is fail-closed until a verified delivery channel exists.
+    // Reject reset as well: previously disclosed, unexpired codes must not work.
+    // Identical response for known/unknown accounts; no lookup or code issuance.
+    if (parts[0] === 'auth' && ['forgot-password', 'reset-password'].includes(parts[1]) && method === 'POST') {
       return json({
-        user: publicUser(user),
-        token: sess.token,
-        expiresAt: sess.expiresAt,
-        message: 'Password updated. You are signed in. Other sessions were signed out.'
-      }, 200, authHeaders(sess.token, request));
+        error: 'Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent.',
+        code: 'RECOVERY_UNAVAILABLE'
+      }, 403);
     }
 
     if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
@@ -755,6 +738,7 @@ async function handleApi(request, env, url) {
       return json({
         ok: true,
         phase: 'E',
+        build: 'workspace-5',
         storage: 'cloudflare-d1',
         time: nowISO(),
         project: 'quotation-studio',
@@ -906,6 +890,41 @@ async function handleApi(request, env, url) {
     const canWrite = requireRole(user, 'sales');
     const canAdmin = requireRole(user, 'owner');
 
+    /* Gemini: no browser-supplied context or mutation tools. */
+    if (parts[0] === 'assistant' && parts.length === 2) {
+      if (method === 'POST' && !request.headers.get('Authorization') && !request.headers.get('X-QS-Session')) return json({ error: 'Sign in again to use the assistant.' }, 403);
+      const result = await handleAssistant({
+        method, action: parts[1], user, env,
+        readBody: () => boundedJson(request),
+        reserveQuota: async userId => {
+          // Additive, idempotent bootstrap: no manual D1 migration or destructive reset.
+          await ensureAssistantSchema(db);
+          // Atomic conditional UPSERTs enforce limits across Worker isolates.
+          await run(db, 'DELETE FROM assistant_usage WHERE expires_at < ?', Date.now());
+          for (const w of quotaWindows(userId)) {
+            const row = await one(db,
+              `INSERT INTO assistant_usage (scope,bucket,count,expires_at) VALUES (?,?,1,?)
+               ON CONFLICT(scope,bucket) DO UPDATE SET count=count+1 WHERE count < ? RETURNING count`,
+              w.scope,w.bucket,w.expires,w.limit);
+            if (!row) return false;
+          }
+          return true;
+        },
+        loadContext: async proposalId => {
+          const [counts, proposals, tasks, events, selected] = await Promise.all([
+            all(db, 'SELECT status, COUNT(*) AS count FROM proposals WHERE owner_id = ? GROUP BY status', user.id),
+            all(db, 'SELECT id,owner_id,ref,title,status,capacity,customer_name,updated_at,created_at FROM proposals WHERE owner_id = ? ORDER BY updated_at DESC LIMIT 31', user.id),
+            all(db, "SELECT id,owner_id,proposal_id,title,due_at,status FROM tasks WHERE owner_id = ? AND status = 'open' ORDER BY due_at IS NULL,due_at ASC LIMIT 31", user.id),
+            all(db, "SELECT owner_id,proposal_id,event_type,created_at FROM portal_events WHERE owner_id = ? AND event_type != 'suspected_prefetch' ORDER BY created_at DESC LIMIT 16", user.id),
+            proposalId ? one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', proposalId,user.id) : null
+          ]);
+          const byStatus = {}; counts.forEach(r => { byStatus[r.status || 'draft'] = Number(r.count) || 0; });
+          return { total: counts.reduce((sum,r) => sum + Number(r.count),0), byStatus, proposals,tasks,events,selected };
+        }
+      });
+      return json(result.body, result.status);
+    }
+
     /* PROJECT GALLERY (staff uploads; writes need sales+) */
     if (parts[0] === 'gallery' && parts.length === 1 && method === 'GET') {
       const rows = await all(db, 'SELECT * FROM gallery ORDER BY created_at DESC');
@@ -1003,10 +1022,17 @@ async function handleApi(request, env, url) {
       return json({ proposals: list.map(proposalSummary) });
     }
 
+    if (parts[0] === 'proposals' && parts[1] === 'reference' && parts.length === 2 && method === 'POST') {
+      if (!canWrite) return json({ error: 'Your role cannot issue proposal references.' }, 403);
+      return json({ reference: await reserveCloudReference(db) });
+    }
+
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot create or edit proposals.' }, 403);
       const body = await readBody(request);
       const meta = metaFromBody(body, null);
+      if (!String(meta.ref || '').trim()) meta.ref = await reserveCloudReference(db);
+      meta.form = { ...meta.form, propRef: meta.ref };
       const row = {
         id: uid('prp'),
         owner_id: user.id,
@@ -1111,12 +1137,12 @@ async function handleApi(request, env, url) {
       try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
       form = Object.assign({}, form);
       if (form.custName) form.custName = form.custName + ' (copy)';
-      form.propRef = '';
+      form.propRef = await reserveCloudReference(db);
       const copy = {
         id: uid('prp'),
         owner_id: user.id,
         customer_id: row.customer_id,
-        ref: '',
+        ref: form.propRef,
         title: (form.custName || 'Untitled') + ' — ' + (form.capacity || row.capacity || '0') + ' kWp',
         status: 'draft',
         version_label: '1.0',

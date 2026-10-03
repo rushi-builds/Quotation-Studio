@@ -37,30 +37,23 @@ const CONTENT = {
   exec: {
     eyebrow: 'PROPOSAL SUMMARY',
     heading: 'Your Solar Proposal at a Glance',
-    sub: 'Everything you need to know about your rooftop solar investment - on one page.',
-    heroLabels: {
-      netInvestment: 'Your Net Investment',
-      year1Saving: 'Saving in Year 1',
-      payback: 'Payback Period',
-      lifetime: 'Savings over 25 Years',
-      subsidy: 'Estimated Subsidy'
+    sub: 'Your system, energy potential and turnkey delivery - at a glance.',
+    systemHeroLabels: {
+      generation: 'Estimated Monthly Generation',
+      installed: 'Installed Solar Capacity',
+      carbon: 'Estimated CO₂ Avoided / Year',
+      monitoring: 'Remote Monitoring Access'
     },
     kpiSectionLabel: 'YOUR SYSTEM BY THE NUMBERS',
-    kpis: {
-      capacity: 'System Capacity',
-      annualGen: 'Year-1 Generation',
-      modules: 'Solar Modules',
-      arrayArea: 'Module Area',
-      irr: 'Estimated IRR',
-      billOffset: 'Bill Offset',
-      co2: 'CO₂ Offset / Year',
-      effective: 'Effective Solar Cost'
+    systemKpis: {
+      capacity: 'Proposed System Capacity', modules: 'Solar Modules',
+      inverter: 'Inverter Rating', arrayArea: 'Module Area',
+      technology: 'Module Technology', roof: 'Roof Type',
+      annualGen: 'Estimated Year-1 Generation', lifetimeGen: 'Estimated 25-Year Generation'
     },
-    journeySectionLabel: 'YOUR INVESTMENT JOURNEY',
-    journeyNote: 'Cumulative savings are projected from your generation, tariff and escalation inputs and cross your net investment in year {payback}.',
+    systemNote: 'Monthly output is a year-one average. Monitoring needs compatible equipment, power and internet; not staffed support.',
     includedSectionLabel: 'WHAT YOU ARE GETTING',
-    includedIntro: 'A complete turnkey rooftop solar system - engineered, supplied, installed and commissioned by {company}:',
-    effectiveHint: 'Net investment ÷ 25-year generation - compare with your grid tariff of ₹{tariff}/unit.'
+    includedIntro: 'A complete turnkey rooftop solar system - engineered, supplied, installed and commissioned by {company}:'
   },
 
   /* ------------------------------------------------------------------ */
@@ -271,6 +264,7 @@ const CONTENT = {
       netInvestment: 'Net Investment',
       netInvestmentCaption: 'Payable after subsidy'
     },
+    paybackCard: { label: 'Estimated Payback', note: 'Projected solar savings', noRecovery: 'Within the 25-year projection' },
     rateChip: 'Effective Rate',
     bridgeTitle: 'COST BUILD-UP',
     bomTitle: 'COST COMPOSITION',
@@ -480,6 +474,7 @@ const CONTENT = {
   cover: {
     eyebrowByType: {
       residential: 'RESIDENTIAL SOLAR PROPOSAL',
+      rwa: 'RWA / HOUSING SOCIETY SOLAR PROPOSAL',
       commercial: 'COMMERCIAL SOLAR PROPOSAL',
       industrial: 'INDUSTRIAL SOLAR PROPOSAL'
     },
@@ -551,6 +546,18 @@ function upgradeProposalContent(value) {
   const out = JSON.parse(JSON.stringify(value), (key, entry) =>
     typeof entry === 'string' && Object.prototype.hasOwnProperty.call(CONTENT_COPY_UPDATES, entry)
       ? CONTENT_COPY_UPDATES[entry] : entry);
+  if (out.exec && out.exec.sub === 'Everything you need to know about your rooftop solar investment - on one page.') out.exec.sub = 'Your system, energy potential and turnkey delivery - at a glance.';
+  if (out.exec && out.exec.systemHeroLabels && out.exec.systemHeroLabels.generation === 'Estimated Year-1 Generation') out.exec.systemHeroLabels.generation = 'Estimated Monthly Generation';
+  if (out.exec && out.exec.systemKpis && !out.exec.systemKpis.annualGen) {
+    out.exec.systemKpis.annualGen = 'Estimated Year-1 Generation';
+    delete out.exec.systemKpis.monthlyGen;
+  }
+  if (out.exec && out.exec.systemNote === 'Energy and environmental figures are estimates; actual performance depends on site conditions and proposal assumptions.') out.exec.systemNote = 'Monthly output is a year-one average. Monitoring needs compatible equipment, power and internet; not staffed support.';
+  if (out.exec && out.exec.systemHeroLabels && !out.exec.systemHeroLabels.monitoring) {
+    out.exec.systemHeroLabels.monitoring = 'Remote Monitoring Access';
+    delete out.exec.systemHeroLabels.delivery;
+  }
+  if (out.exec && out.exec.systemNote === 'Monthly generation is a year-one average, not a seasonal forecast. Actual output varies with site conditions and weather.') out.exec.systemNote = 'Monthly output is a year-one average. Monitoring needs compatible equipment, power and internet; not staffed support.';
   if (out.pageProjects && typeof out.pageProjects === 'object' && !Array.isArray(out.pageProjects)) {
     // Saved proposals from before this project get the new default. Never use
     // another proposal's in-memory edited values as migration defaults.

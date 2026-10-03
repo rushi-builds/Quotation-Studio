@@ -831,8 +831,7 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 .ktm-cover__capacity-kpi { left: 23.3%; top: 86.927%; width: 21%; height: 3.64%; font-weight: 700; white-space: nowrap; }
 .ktm-cover__savings-kpi { left: 67.925%; top: 86.927%; width: 28%; height: 3.64%; font-weight: 700; white-space: nowrap; color: #ff890b; }
 /* The cover artwork ships with a savings glyph and label baked in; these two
-   overlays replace them with the project-cost pairing so the cover's money
-   figure is the cost of the project, not a projection. */
+   overlays replace them with an energy-generation label and sun icon. */
 .ktm-cover__cost-icon {
   position: absolute; left: 53.8%; top: 84.29%; width: 9.27%; height: 6.54%;
   border-radius: 50%; background: #fff; color: #0b1c30;
@@ -853,6 +852,7 @@ details.page-group > summary::-webkit-details-marker{display:none;}
   background:linear-gradient(150deg,#243B57,#1C2B3F 70%);border-radius:12px;
   padding:16px 18px;margin:14px 0 16px;
 }
+#pageExec .hero-tile{text-align:center;min-width:0;}
 .hero-tile .ht-v{font-size:19px;font-weight:800;color:#fff;font-family:'Poppins',sans-serif;}
 .hero-tile:nth-child(2) .ht-v,.hero-tile:nth-child(4) .ht-v{color:var(--orange);}
 .hero-tile .ht-l{font-size:8.6px;font-weight:600;color:#A9B6C6;text-transform:uppercase;letter-spacing:.07em;margin-top:3px;}
@@ -964,13 +964,16 @@ details.page-group > summary::-webkit-details-marker{display:none;}
 }
 
 /* ---------- 12. Investment ---------- */
-.inv-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:6px 0 4px;}
+.inv-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:6px 0 4px;}
 .inv-card{
   border:1px solid var(--line-cool);border-radius:10px;padding:12px 13px;background:#fff;
 }
 .inv-l{font-size:8.4px;font-weight:700;color:var(--gray-light);text-transform:uppercase;letter-spacing:.06em;}
 .inv-v{font-size:16px;font-weight:800;color:var(--navy);font-family:'Poppins',sans-serif;margin-top:4px;}
 .inv-cap{font-size:8.6px;color:var(--gray-light);margin-top:3px;line-height:1.4;}
+.inv-card-payback{background:#fff7ed;border-color:#f2d8b8;}
+.inv-card-payback .inv-v{color:#a95313;}
+#pageInvestment .inv-card{padding:12px 10px;min-width:0;}
 .inv-card-sub{background:#F0F7F2;border-color:#D6E8DC;}
 .inv-card-sub .inv-v{color:var(--green);}
 .inv-card-net{background:linear-gradient(150deg,#243B57,#1C2B3F);border-color:var(--navy);}
@@ -1666,7 +1669,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 /* Compact only the optional dense cases. No text, disclaimers or numbers are
    removed, and chart canvases redraw at these sizes rather than being squashed. */
-#pageTechSpec.has-site-area:has(#v_tsRefsWrap:not([style*="display: none"])) .spec-table td{padding-top:3.5px;padding-bottom:3.5px;}
+/* The measured fit ladder below owns table padding, including reports + site area. */
 /* The engineering design basis is long by nature — it is the arithmetic behind
    every other number on the page. It reads at a slightly smaller size so the
    page keeps its shape, and if the whole table still runs past the A4 box the
@@ -1703,7 +1706,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec.is-table-min .note-box{margin-top:4px;}
 #chartBridge{width:718px!important;height:340px!important;}
 #chartDonut{width:230px!important;height:230px!important;}
-#pageInvestment.has-bom #chartBridge{height:200px!important;}
+#pageInvestment.has-bom #chartBridge{height:180px!important;}
 #pageInvestment.has-bom #chartDonut{width:150px!important;height:150px!important;flex-shrink:0;}
 #pageInvestment.has-bom .spacer{max-height:16px;}
 #pageInvestment.has-bom .bom-row{padding:3.5px 0;}
@@ -1723,16 +1726,16 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
    so the band is sized to the picture's own ratio (718 x 239) at full page width
    and the page's other blocks take the remaining space. Nothing is removed. */
 #pageExec .pg-body{padding-top:78px;padding-bottom:47px;}
-#pageExec .exec-hero{padding:16px;margin:15px 0 17px;}
+#pageExec .exec-hero{padding:14px 16px;margin:15px 0 17px;}
 #pageExec .sec-label{margin-bottom:15px;}
-#pageExec .kpi-tile{padding:12px;}
+#pageExec .kpi-tile{padding:10px 12px;}
 #pageExec .kpi-l{margin-top:8px;}
 #pageExec .inc-intro{margin-bottom:12px;}
 #pageExec .inc-grid{grid-template-columns:repeat(4,1fr);gap:11px 20px;}
 #pageExec .inc-item{padding:8px 0;}
 #pageExec .inc-d{font-size:10px;}
-#pageExec .trace-note{margin-top:15px;padding-top:9px;}
-#pageExec .exec-artwork{margin:14px 0 0;}
+#pageExec .trace-note{margin-top:8px;padding-top:5px;font-size:9px;line-height:1.4;}
+#pageExec .exec-artwork{margin:12px 0 0;}
 
 /* Cloud bridge bar (platform logic — not part of backup design). */
 .studio-cloud-bar{

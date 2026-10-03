@@ -11,8 +11,9 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.setViewport({width:1440,height:1100});
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';
   await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
+  await page.evaluate(()=>{StateStore.applyForm({costPerWp:'60',gstPercent:'8.9'});Render.renderAll();});
   const cases=[
-   ['0','545',0,'0 kWp','-'],['1.5','545',3,'1.635 kWp','1.09 : 1'],['7','545',13,'7.085 kWp','1.01 : 1'],
+   ['0','545',0,'-','-'],['1.5','545',3,'1.635 kWp','1.09 : 1'],['7','545',13,'7.085 kWp','1.01 : 1'],
    ['8.175','545',15,'8.175 kWp','1.00 : 1'],['8.174999','545',15,'8.175 kWp','1.00 : 1'],
    ['8.175001','545',16,'8.72 kWp','1.07 : 1'],['32.7','545',60,'32.7 kWp','1.00 : 1'],
    ['9.81','545',18,'9.81 kWp','1.00 : 1'],['9.82','545',19,'10.355 kWp','1.05 : 1'],
@@ -24,7 +25,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    document.getElementById('capacity').value=capacity;document.getElementById('moduleWattage').value=watts;
    document.getElementById('capacity').dispatchEvent(new Event('input',{bubbles:true}));
   },{capacity,watts});}
-  async function row(p,label){return p.$eval('#v_tsTable',(table,label)=>[...table.querySelectorAll('tr')].find(r=>r.querySelector('.spec-k')?.textContent===label)?.querySelector('.spec-v')?.textContent,label);}
+  async function row(p,label){return p.$eval('#v_tsTable',(table,label)=>[...table.querySelectorAll('tr')].find(r=>r.querySelector('.spec-k')?.textContent===label)?.querySelector('.spec-v')?.textContent.replace(/ \(contracted .*\)$/, ''),label);}
   for(const [capacity,watts,count,expected,ratio] of cases){
    await edit(capacity,watts);
    check(capacity+' kWp / '+watts+' Wp renders '+count+' modules and '+expected,
@@ -33,7 +34,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    check(capacity+' kWp / '+watts+' Wp has no NaN or Infinity in rendered proposal pages',await page.$$eval('.page',els=>els.every(e=>!/NaN|Infinity/.test(e.textContent))));
   }
   await edit('10','545');
-  await page.evaluate(()=>{const el=document.getElementById('subsidyOverride');el.value='980100';el.dispatchEvent(new Event('input',{bubbles:true}));});
+  await page.evaluate(()=>{const el=document.getElementById('subsidyOverride');el.value='653400';el.dispatchEvent(new Event('input',{bubbles:true}));});
   check('zero net investment has undefined ROI, not an invented 0%',await page.$$eval('#v_svTable tbody tr',rows=>rows.length===5&&rows.every(row=>row.lastElementChild.textContent==='-')));
   check('zero-cost generation shows ₹0.00/unit, not an undefined cost',await page.$eval('#v_svChipEff',el=>el.textContent==='₹0.00/unit'));
   await page.evaluate(()=>{const el=document.getElementById('subsidyOverride');el.value='';el.dispatchEvent(new Event('input',{bubbles:true}));});
@@ -42,7 +43,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    await page.evaluate(inverter=>{const el=document.getElementById('inverterKw');el.value=inverter;el.dispatchEvent(new Event('input',{bubbles:true}));},inverter);
    check('inverter '+(inverter||'auto')+' kW ratio updates live',await row(page,'DC/AC Ratio')===expected);
   }
-  check('10 kWp pricing remains unchanged',await page.evaluate(()=>{const n=Finance.compute(Render.lastState).netInvestment;return Math.abs(n-614930.7)<1e-8&&document.getElementById('v_exHeroNet').textContent==='₹6,14,931';}));
+  check('10 kWp pricing remains unchanged',await page.evaluate(()=>{const n=Finance.compute(Render.lastState).netInvestment;return Math.abs(n-575400)<1e-8&&document.getElementById('v_inCostNet').textContent==='₹5,75,400';}));
   await page.evaluate(()=>window.__qsSaveNow());
   await page.reload({waitUntil:'networkidle0'});
   check('reload retains the correct installed array size',await row(page,'Installed Array Size')==='10.355 kWp');
@@ -74,7 +75,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
      window.__arrayRow=[...el.querySelectorAll('tr')].find(r=>r.querySelector('.spec-k')?.textContent==='Installed Array Size')?.querySelector('.spec-v')?.textContent;
      window.__arrayRatio=[...el.querySelectorAll('tr')].find(r=>r.querySelector('.spec-k')?.textContent==='DC/AC Ratio')?.querySelector('.spec-v')?.textContent;
      if(window.__arrayRatio!=='1.04 : 1')throw new Error('Incorrect DC/AC ratio in actual PDF snapshot');
-     if(window.__arrayRow!=='10.355 kWp')throw new Error('Incorrect installed array value in actual PDF snapshot');
+     if(window.__arrayRow!=='10.355 kWp (contracted 10 kWp)')throw new Error('Incorrect installed array value in actual PDF snapshot');
     }
     const canvas=await capture(el,options);
     if(el.id==='pageTechSpec')window.__arrayCanvas=canvas.toDataURL('image/png');
@@ -88,11 +89,11 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    await page.waitForFunction(()=>document.getElementById('statusMsg').textContent.includes('Downloaded'),{timeout:120000});
    await downloadDone;
   } finally {clearTimeout(downloadTimer);await page.evaluate(()=>window.__restoreCapture());}
-  check('actual PDF export captures 10.355 kWp, never a NaN placeholder',await page.evaluate(()=>__arrayRow==='10.355 kWp'&&document.getElementById('statusMsg').textContent.includes('Downloaded')));
+  check('actual PDF export captures 10.355 kWp, never a NaN placeholder',await page.evaluate(()=>__arrayRow==='10.355 kWp (contracted 10 kWp)'&&document.getElementById('statusMsg').textContent.includes('Downloaded')));
   check('actual PDF export captures the installed-array DC/AC ratio',await page.evaluate(()=>__arrayRatio==='1.04 : 1'));
   fs.writeFileSync(path.join(out,'technical-specification-pdf.png'),Buffer.from((await page.evaluate(()=>__arrayCanvas)).split(',')[1],'base64'));
   const pdf=fs.readdirSync(out).find(name=>name.endsWith('.pdf'));
-  check('full quotation PDF downloaded with all 15 pages',!!pdf&&(fs.readFileSync(path.join(out,pdf),'latin1').match(/\/Type \/Page\b/g)||[]).length===15);
+  check('full quotation PDF downloaded with all 15 applicable pages',!!pdf&&(fs.readFileSync(path.join(out,pdf),'latin1').match(/\/Type \/Page\b/g)||[]).length===15);
   check('no browser runtime errors',errors.length===0);
   console.log(`\n${passed} passed, 0 failed`);
  }finally{await browser.close();}

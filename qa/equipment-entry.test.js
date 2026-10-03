@@ -11,6 +11,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';
   await page.setViewport({width:1440,height:1100});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
+  await page.evaluate(()=>{StateStore.applyForm({custName:'Equipment Audit',capacity:'7',costPerWp:'60',gstPercent:'8.9'});Render.renderAll();});
   await page.click('[data-section="moduleMake"] > summary');
   async function type(id,value){
    await page.focus('#'+id);await page.keyboard.press('End');
@@ -48,7 +49,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await type('moduleMake',custom.moduleMake);
   check('unknown names do not invent or overwrite technical ratings',await page.evaluate(()=>moduleWattage.value==='620'&&moduleLengthMm.value==='2300'&&inverterKw.value==='8'));
   check('markup-like brand text is rendered literally, not as elements',await page.$eval('#v_tsTable',el=>!el.querySelector('series')&&el.textContent.includes('Custom cable <series>')));
-  check('pricing is unchanged by custom makes',await page.evaluate(()=>Math.abs(Finance.compute(Render.lastState).netInvestment-407051.49)<1e-8));
+  check('pricing is unchanged by custom makes',await page.evaluate(()=>Math.abs(Finance.compute(Render.lastState).netInvestment-379380)<1e-8));
   await page.evaluate(()=>EquipmentStore.refreshSelects());
   check('catalog refresh does not discard custom values',await matchingForm());
   await type('moduleMake','');await page.evaluate(()=>EquipmentStore.refreshSelects());
@@ -62,20 +63,20 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.reload({waitUntil:'networkidle0'});
   check('reload preserves custom values and rendered specification',await matchingForm()&&await matchingSpec(page));
   check('reload automatically restores Custom mode with the saved text',await page.evaluate(values=>Object.entries(values).every(([id,value])=>!document.getElementById(id+'CustomWrap').hidden&&document.getElementById(id+'Custom').value===value&&document.getElementById(id).selectedOptions[0].hasAttribute('data-custom')),custom));
-  await page.evaluate(()=>document.querySelector('.studio-management').open=true);await page.click('#pmNew');
+  await page.evaluate(()=>document.querySelector('.studio-management').open=true);await page.click('#pmNew');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);
   check('new quotation clears all previous manual drafts and hides the text boxes',await page.evaluate(ids=>ids.every(id=>document.getElementById(id+'Custom').value===''&&document.getElementById(id+'CustomWrap').hidden),Object.keys(custom)));
   check('new quotation retains original template equipment, not previous custom entries',await page.evaluate(()=>moduleMake.value===StateStore.DEFAULTS.moduleMake&&roofType.value===StateStore.DEFAULTS.roofType));
   await page.select('#proposalSelect',original);
   check('switching back restores all custom entries',await matchingForm());
-  await page.click('#pmDup');const duplicate=await page.evaluate(()=>Proposals.activeId());
+  await page.click('#pmDup');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);const duplicate=await page.evaluate(()=>Proposals.activeId());
   check('duplicate retains all custom entries',duplicate!==original&&await matchingForm());
   await page.evaluate(()=>document.querySelector('.studio-tools').open=true);
   page.once('dialog',dialog=>dialog.accept());await page.click('#resetBtn');
   check('reset restores equipment defaults on only the active duplicate',await page.evaluate(id=>moduleMake.value===StateStore.DEFAULTS.moduleMake&&Proposals.get(id).form.moduleMake==='Custom Solar & Partners',original));
   await page.select('#proposalSelect',original);
   // Saved option fields remain plain strings; applying an option must not require a catalog entry.
-  await page.click('#modeAll');await page.evaluate(()=>document.querySelector('[data-section="optName"]').open=true);
-  await page.type('#optName','Custom equipment design');await page.click('#optSave');
+  await page.click('#modeAll');await page.evaluate(()=>{document.getElementById('advancedWrap').open=true;document.querySelector('[data-section="optName"]').open=true;});
+  await page.type('#optName','Custom equipment design');await page.click('#optSave');await page.waitForSelector('#optList button[data-act="apply"]');
   await page.evaluate(()=>{StateStore.applyForm({moduleMake:'Temporary make'});moduleMake.dispatchEvent(new Event('input',{bubbles:true}));});
   await page.click('#optList button[data-act="apply"]');
   check('saved system option restores custom module/inverter/technology',await matchingForm());
@@ -110,6 +111,8 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
     const canvas=await native(el,options);if(el.id==='pageTechSpec')window.__customCanvas=canvas.toDataURL('image/png');return canvas;
    };
   },custom);
+  await page.evaluate(()=>{StateStore.applyForm({propRef:'EQUIPMENT-AUDIT-999'});Render.renderAll();});
+  page.on('dialog',dialog=>dialog.accept());
   try{await page.click('#downloadBtn');await page.waitForFunction(()=>statusMsg.textContent.includes('Downloaded'),{timeout:120000});await downloadDone;}finally{clearTimeout(timer);await page.evaluate(()=>window.__restoreCapture());}
   check('real PDF capture contains every custom equipment value',await page.evaluate(()=>window.__customCaptured));
   fs.writeFileSync(path.join(out,'technical-specification-pdf.png'),Buffer.from((await page.evaluate(()=>window.__customCanvas)).split(',')[1],'base64'));

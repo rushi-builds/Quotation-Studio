@@ -2,11 +2,10 @@
 /* =====================================================================
    ENGINEERING DESIGN BASIS
    =====================================================================
-   Every number this file produces is either (a) arithmetic that a named
-   standard defines, or (b) a value the designer has to supply. Nothing is
-   invented. Where a site figure is missing the section comes back with
-   `ok:false` and a `missing` list, and the document prints DATA REQUIRED
-   instead of a number that merely looks plausible.
+   Proposal-stage screening using referenced methods and explicit design
+   assumptions. This is not a complete standards-compliance calculation.
+   Missing inputs return `ok:false` and a `missing` list for staff review;
+   customer documents retain the shared proposal-stage qualification.
 
    Sources, all named at the point of use:
      IS 875 (Part 3):2015   wind load on the array and its attachments
@@ -37,25 +36,26 @@
      1. WIND - IS 875 (Part 3):2015
      ===================================================================== */
 
-  /* Table 2, Class A (largest horizontal dimension under 20 m). Values are
-     read at the tabulated heights only; anything between them is linearly
-     interpolated, which is the note the table itself carries. Below 10 m the
-     10 m value applies. Class A is the conservative column set for a roof
-     whose plan dimension exceeds 20 m, so a bigger roof is not understated. */
+  /* IS 875 (Part 3):2015 Table 2, terrain/height multipliers.
+     The 2015 revision removes the old structure classes. Intermediate
+     heights use linear interpolation; below 10 m the 10 m row applies.
+     Beyond 500 m no extrapolated or clamped pressure is reported. */
+  const K2_HEIGHTS = [10, 15, 20, 30, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500];
   const K2 = {
-    '1': { 10: 1.05, 15: 1.09 },
-    '2': { 10: 1.00, 15: 1.05 },
-    '3': { 10: 0.91, 0.5: 0.91, 15: 0.97 },
-    '4': { 10: 0.80, 15: 0.80 }
+    '1': [1.05, 1.09, 1.12, 1.15, 1.20, 1.26, 1.30, 1.32, 1.34, 1.35, 1.35, 1.35, 1.35, 1.35],
+    '2': [1.00, 1.05, 1.07, 1.12, 1.17, 1.24, 1.28, 1.30, 1.32, 1.34, 1.35, 1.35, 1.35, 1.35],
+    '3': [0.91, 0.97, 1.01, 1.06, 1.12, 1.20, 1.24, 1.27, 1.29, 1.31, 1.32, 1.34, 1.35, 1.35],
+    '4': [0.80, 0.80, 0.80, 0.97, 1.10, 1.20, 1.24, 1.27, 1.28, 1.30, 1.31, 1.32, 1.33, 1.34]
   };
 
   function k2For(category, heightM) {
     const table = K2[String(category)] || K2['3'];
-    const h = Math.max(0, num(heightM, 10));
-    if (h <= 10) return { k2: table[10], beyond: false };
-    if (h >= 15) return { k2: table[15], beyond: h > 15 };
-    const f = (h - 10) / 5;
-    return { k2: table[10] + f * (table[15] - table[10]), beyond: false };
+    const h = num(heightM, 10);
+    if (h > 500 || h < 0) return { k2: null, beyond: true };
+    if (h <= 10) return { k2: table[0], beyond: false };
+    const i = K2_HEIGHTS.findIndex(z => z >= h);
+    const f = (h - K2_HEIGHTS[i - 1]) / (K2_HEIGHTS[i] - K2_HEIGHTS[i - 1]);
+    return { k2: table[i - 1] + f * (table[i] - table[i - 1]), beyond: false };
   }
 
   /* Vz = Vb · k1 · k2 · k3 · k4   (Cl. 6.3)
@@ -73,6 +73,8 @@
     const k4 = num(s.windK4, 1.0);
     const heightM = num(s.buildingHeightM, 10);
     const { k2, beyond } = k2For(s.terrainCategory, heightM);
+    if (beyond) missing.push('site-specific wind assessment for height outside the supported 0–500 m range');
+    if (vb !== null && vb <= 0) missing.push('positive basic wind speed');
     const netCp = num(s.netUpliftCp, 1.2);
     const zone = ZONE_FACTOR[s.roofZone] !== undefined ? ZONE_FACTOR[s.roofZone] : ZONE_FACTOR.edge;
     const out = {
@@ -85,7 +87,7 @@
     const vz = vb * k1 * k2 * k3 * k4;
     const pz = 0.6 * vz * vz;                       // N/m², characteristic
     const uplift = pz * netCp * zone;               // N/m², characteristic
-    const factored = 1.5 * uplift;                  // IS 875-3 Cl. 8 wind alone
+    const factored = 1.5 * uplift;                  // proposal screening factor; structural load combinations require review
     const areaEach = moduleAreaEach(s);
     out.vz = vz; out.pz = pz; out.uplift = uplift; out.factoredUplift = factored;
     out.pzKnm2 = pz / 1000; out.upliftKnm2 = uplift / 1000;
@@ -94,11 +96,10 @@
     out.perModuleFactoredN = areaEach > 0 ? factored * areaEach : null;
     out.perAnchorN = out.perModuleFactoredN ? out.perModuleFactoredN / out.anchorsPerModule : null;
     out.ballastKgPerM2 = uplift / G;
-    /* IEC 61215-2 static mechanical load test: a standard module is qualified
-       for 2400 Pa on either face, three cycles of one hour; 5400 Pa covers the
-       heavy-snow class. The test pressure already carries roughly a factor of
-       three over service load, so comparing our factored (design) pressure
-       against the rating is the like-for-like comparison. */
+    /* Preliminary screen: 1.5 × characteristic uplift versus the entered
+       mechanical TEST load. A front snow rating is not a rear uplift rating.
+       Confirm manufacturer load direction, mounting/clamp configuration and
+       certified design load before installation; this is not certification. */
     out.moduleRatingPa = num(s.moduleLoadClassPa, 2400);
     out.moduleOverloaded = factored > out.moduleRatingPa;
     return out;
@@ -272,9 +273,9 @@
 
   function cable(s, ctx) {
     const c = ctx || {};
-    const out = { rho: RHO_CU_70, acLimitPct: 3, dcLimitPct: 2, limits: 'IS 732: 2.5 % lighting, 3 % power; DC strings designed to 2 % (IEC 62548 practice)' };
+    const out = { rho: RHO_CU_70, acLimitPct: 3, dcLimitPct: 2, limits: 'Project screening targets: AC 3 %, DC 2 %. Verify the complete installation against IS 732 and applicable PV design requirements.' };
     /* DC run: array to inverter. */
-    if (has(s.dcCableLengthM) && has(s.dcCableSizeMm2) && c.dcCurrentA > 0 && c.dcVoltageV > 0) {
+    if (has(s.dcCableLengthM) && num(s.dcCableLengthM) >= 0 && has(s.dcCableSizeMm2) && num(s.dcCableSizeMm2) > 0 && c.dcCurrentA > 0 && c.dcVoltageV > 0) {
       const d = voltageDrop(c.dcCurrentA, num(s.dcCableLengthM), num(s.dcCableSizeMm2), c.dcVoltageV, 2);
       out.dc = {
         ok: true, lengthM: num(s.dcCableLengthM), sizeMm2: num(s.dcCableSizeMm2),
@@ -283,11 +284,11 @@
         pass: d.percent <= out.dcLimitPct
       };
     } else {
-      out.dc = { ok: false, missing: ['DC cable length, cross-section, string current'] };
+      out.dc = { ok: false, missing: ['non-negative DC length, positive cross-section, string current and voltage'] };
     }
     /* AC run: inverter to the metering point. */
     const phases = c.phases === 3 ? 3 : 1;
-    if (has(s.acCableLengthM) && has(s.acCableSizeMm2) && c.acCurrentA > 0 && c.acVoltageV > 0) {
+    if (has(s.acCableLengthM) && num(s.acCableLengthM) >= 0 && has(s.acCableSizeMm2) && num(s.acCableSizeMm2) > 0 && c.acCurrentA > 0 && c.acVoltageV > 0) {
       const d = voltageDrop(c.acCurrentA, num(s.acCableLengthM), num(s.acCableSizeMm2), c.acVoltageV, phases);
       out.ac = {
         ok: true, lengthM: num(s.acCableLengthM), sizeMm2: num(s.acCableSizeMm2),
@@ -296,7 +297,7 @@
         pass: d.percent <= out.acLimitPct
       };
     } else {
-      out.ac = { ok: false, missing: ['AC cable length and cross-section'] };
+      out.ac = { ok: false, missing: ['non-negative AC length, positive cross-section, current and voltage'] };
     }
     out.ok = out.dc.ok && out.ac.ok;
     return out;
@@ -310,8 +311,10 @@
      which is the formula the standard's own worked example uses. Targets:
      ≤ 5 Ω for a general LV installation, ≤ 1 Ω where a system earth is
      called for, ≤ 10 Ω for a lightning earth. CEA (Measures Relating to
-     Safety and Electric Supply) Regulations 2010 require two distinct earth
-     connections for systems between 250 V and 650 V.
+     Safety and Electric Supply) Regulations 2023, regulation 43(vii), require
+     two distinct earth connections for the specified apparatus above 250 V
+     and up to 650 V. Resistance targets alone do not establish protection
+     compliance: bonding, fault-loop impedance and disconnection need checks.
   */
   function electrodeOhm(rho, lengthM, diaM) {
     return (rho / (2 * Math.PI * lengthM)) * (Math.log((4 * lengthM) / diaM) - 1);
@@ -324,7 +327,7 @@
     const out = {
       targetOhm, lengthM, diaM,
       twoConnections: true,
-      basis: 'IS 3043:2018 - R = (ρ/2πL)·[ln(4L/d) − 1]; two distinct earth connections for 250–650 V (CEA Safety Regulations 2010)'
+      basis: 'IS 3043:2018 - R = (ρ/2πL)·[ln(4L/d) − 1]; two distinct earth connections for specified apparatus >250–650 V (CEA Safety Regulations 2023, 43(vii)); verify bonding, fault-loop impedance and protective disconnection'
     };
     if (!has(s.soilResistivity)) {
       out.ok = false;
@@ -508,14 +511,14 @@
       });
     }
     if (!w.ok) notes.push({ id: 'windSpeed', message: 'DATA REQUIRED - wind load is not calculated: ' + w.missing.join(', ') + '.' });
-    else if (w.k2BeyondTable) {
-      notes.push({ id: 'buildingHeightM', message: 'Height is above the 15 m row of IS 875-3 Table 2 - k2 must be read from the table for this height.' });
+    else if (w.heightM >= 50) {
+      notes.push({ id: 'buildingHeightM', message: 'Static wind screening only: a structural engineer must assess high-rise dynamic response, terrain fetch and site-specific pressure coefficients.' });
     }
     if (cb.dc.ok && !cb.dc.pass) {
       advisory.push({ id: 'dcCableSizeMm2', message: 'DC voltage drop is ' + cb.dc.percent.toFixed(2) + ' %, above the ' + cb.dc.limitPct + ' % design limit.' });
     } else if (!cb.dc.ok) notes.push({ id: 'dcCableLengthM', message: 'DATA REQUIRED - DC voltage drop is not checked: ' + cb.dc.missing.join(', ') + '.' });
     if (cb.ac.ok && !cb.ac.pass) {
-      advisory.push({ id: 'acCableSizeMm2', message: 'AC voltage drop is ' + cb.ac.percent.toFixed(2) + ' %, above the IS 732 limit of ' + cb.ac.limitPct + ' %.' });
+      advisory.push({ id: 'acCableSizeMm2', message: 'AC voltage drop is ' + cb.ac.percent.toFixed(2) + ' %, above the project screening target of ' + cb.ac.limitPct + ' %.' });
     } else if (!cb.ac.ok) notes.push({ id: 'acCableLengthM', message: 'DATA REQUIRED - AC voltage drop is not checked: ' + cb.ac.missing.join(', ') + '.' });
     if (!e.ok) notes.push({ id: 'soilResistivity', message: 'DATA REQUIRED - earthing design needs ' + e.missing.join(', ') + '.' });
     else if (e.chemicalRequired) notes.push({

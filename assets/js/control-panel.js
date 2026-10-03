@@ -141,7 +141,7 @@
       symbol.innerHTML = window.Icons.get('panel', 19, '#6D7B8C');
       const copy = element('span', 'studio-section-copy');
       copy.append(element('strong', '', 'Engineering design basis'),
-        element('small', '', 'Wind, string, cable, earthing & roof-load checks - printed as DATA REQUIRED until supplied'));
+        element('small', '', 'Proposal-stage PDF note · Excel integration pending · internal design checks'));
       summary.append(symbol, copy, element('span', 'studio-chevron', '⌄'));
       d.append(summary);
       engFs.querySelector('legend').classList.add('studio-sr-only');
@@ -181,7 +181,25 @@
       const ref = String(state.propRef || '').trim();
       if (!ref) return 'This proposal has no reference number - press New in Proposals to issue the next one.';
       const active = window.Proposals.activeId();
+      const family = id => {
+        const seen = new Set();
+        while (id && !seen.has(id)) { seen.add(id); const previous = window.Proposals.get(id)?.prevId; if (!previous) break; id = previous; }
+        return id;
+      };
+      const activeFamily = family(active);
+      const familyCloud = id => {
+        const seen = new Set();
+        while (id && !seen.has(id)) {
+          seen.add(id);
+          const cloud = window.CloudBridge?.cloudIdFor?.(id);
+          if (cloud) return cloud;
+          id = window.Proposals.get(id)?.prevId;
+        }
+        return null;
+      };
+      const activeCloud = familyCloud(active);
       const clash = (window.Proposals.list() || []).find(p => p.id !== active &&
+        family(p.id) !== activeFamily && !(activeCloud && familyCloud(p.id) === activeCloud) &&
         String(p.ref || '').trim().toLowerCase() === ref.toLowerCase());
       if (clash) return 'Reference ' + ref + ' is already used by another proposal (#' +
         (clash.ref || clash.id.slice(-4)) + ' · ' + (clash.title || 'untitled') +
@@ -254,9 +272,9 @@
       pay.forEach(id => $(id).setAttribute('aria-invalid', String(invalidPay)));
       if (invalidPay) blocking.push({id: 'payAdvance', message: 'Payment milestones must total 100%.'});
       const loan = ['loanAmt', 'loanRate', 'loanYears'], hasLoan = loan.some(id => $(id).value !== '');
-      const invalidLoan = hasLoan && (!loan.every(id => $(id).value !== '') || !($('loanAmt').value > 0) || !(Number($('loanRate').value) > 0) || !($('loanYears').value >= 1 && $('loanYears').value <= 30));
+      const invalidLoan = hasLoan && (!loan.every(id => $(id).value !== '') || !($('loanAmt').value > 0) || !(Number($('loanRate').value) >= 0) || !($('loanYears').value >= 1 && $('loanYears').value <= 30));
       loan.forEach(id => $(id).setAttribute('aria-invalid', String(invalidLoan)));
-      if (invalidLoan) blocking.push({id: 'loanAmt', message: 'Enter a positive loan amount and interest rate, with a tenure of 1–30 years.'});
+      if (invalidLoan) blocking.push({id: 'loanAmt', message: 'Enter a positive loan amount, an interest rate of 0% or more, and a tenure of 1–30 years.'});
       /* Reference problems (sample number, duplicate, none) never clutter the
          panel; they surface once, in the export pre-flight. */
       const refIssue = referenceIssue(window.Render.lastState || window.Render.readState());
@@ -296,7 +314,7 @@
     /* ---- engineering design basis ----------------------------------------
        The same two levels, from engineering.js: a figure that already proves
        the design wrong stops the PDF, and an input nobody has supplied yet is
-       an advisory that the page prints as DATA REQUIRED. The panel and the
+       an internal note while the customer sees the proposal-stage qualification. The panel and the
        download read this one function, so they cannot disagree. */
     function engineeringIssues(f, state) {
       if (!window.Engineering || typeof window.Engineering.report !== 'function') return { blocking: [], advisory: [] };
@@ -332,15 +350,24 @@
       const add = (list, item) => { if (!seen.has(item.id + '|' + item.message)) list.push(item); };
       eng.blocking.forEach((i) => add(merged.blocking, i));
       eng.advisory.forEach((i) => add(merged.advisory, i));
-      /* A DATA REQUIRED gap prints openly on the page, so it never blocks -
-         but the preparer still gets one look before the sheet leaves the
-         building: the gap rides along as an advisory, so the export
-         pre-flight raises it and offers "Download anyway" rather than
-         refusing. Informational notes stay out of the gate entirely. */
-      eng.notes.forEach((i) => {
-        if (/^DATA REQUIRED/.test(i.message)) add(merged.advisory, i);
-        else add(merged.notes, i);
-      });
+      // Missing inputs are staff-only while customer PDFs use the proposal-stage note.
+      // Keep all proven blockers and engineering advisories in the download gate.
+      eng.notes.forEach((i) => add(merged.notes, i));
+      const review = $('engineeringReview');
+      if (review) {
+        review.replaceChildren();
+        const entries = [...eng.blocking.map(issue => ({issue, kind:'blocking'})),
+          ...eng.advisory.map(issue => ({issue, kind:'advisory'})),
+          ...eng.notes.map(issue => ({issue, kind:'note'}))];
+        entries.forEach(({issue, kind}) => {
+          const missing = /^DATA REQUIRED/.test(issue.message);
+          const item = element('li', 'eng-review-item'); item.dataset.severity = kind;
+          item.append(element('span', 'eng-review-tag', missing ? 'DATA REQUIRED' : kind === 'blocking' ? 'ACTION REQUIRED' : kind === 'advisory' ? 'REVIEW' : 'NOTE'),
+            element('p', 'eng-review-copy', issue.message.replace(/^DATA REQUIRED\s*[-–—]?\s*/, '')));
+          review.append(item);
+        });
+        if (!review.children.length) review.append(element('li', '', 'No issues reported for the supplied inputs. Site verification is still required.'));
+      }
       overflowIssues().forEach((i) => add(merged.advisory, i));
       renderFeedback(merged);
       /* What the download sees: the two levels that change the document. */

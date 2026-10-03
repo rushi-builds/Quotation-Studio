@@ -5,6 +5,7 @@ const path = require('path');
 
 const HERE = __dirname;
 const ROOT = path.resolve(HERE, '../..');
+fs.writeFileSync(path.join(ROOT,'platform/studio-knowledge.mjs'),require('../../scripts/build-assistant-knowledge.cjs').generate());
 const PUB = path.join(HERE, 'public');
 
 function rm(p) {
@@ -36,7 +37,7 @@ mkdir(path.join(PUB, 'assets'));
 
 const files = [
   'index.html', 'dashboard.html', 'quotation.html',
-  'portal.html', 'share.html', 'gallery.html'
+  'portal.html', 'share.html', 'gallery.html', 'oauth-complete.html'
 ];
 for (const f of files) {
   const src = path.join(ROOT, f);

@@ -77,17 +77,16 @@
     mkField(g, 'Eyebrow', CONTENT.exec.eyebrow, (v) => { CONTENT.exec.eyebrow = v; });
     mkField(g, 'Heading', CONTENT.exec.heading, (v) => { CONTENT.exec.heading = v; });
     mkField(g, 'Subheading', CONTENT.exec.sub, (v) => { CONTENT.exec.sub = v; }, true);
-    [['netInvestment', 'Net investment tile'], ['year1Saving', 'Year-1 saving tile'],
-     ['payback', 'Payback tile'], ['lifetime', 'Lifetime tile']].forEach(([k, l]) => {
-      mkField(g, l + ' - caption', CONTENT.exec.heroLabels[k], (v) => { CONTENT.exec.heroLabels[k] = v; });
+    Object.entries(CONTENT.exec.systemHeroLabels).forEach(([k, label]) => {
+      mkField(g, label + ' - caption', label, (v) => { CONTENT.exec.systemHeroLabels[k] = v; });
     });
     mkField(g, 'KPI section label', CONTENT.exec.kpiSectionLabel, (v) => { CONTENT.exec.kpiSectionLabel = v; });
-    Object.keys(CONTENT.exec.kpis).forEach((k) => {
-      mkField(g, 'KPI caption - ' + k, CONTENT.exec.kpis[k], (v) => { CONTENT.exec.kpis[k] = v; });
+    Object.keys(CONTENT.exec.systemKpis).forEach((k) => {
+      mkField(g, 'KPI caption - ' + k, CONTENT.exec.systemKpis[k], (v) => { CONTENT.exec.systemKpis[k] = v; });
     });
     mkField(g, '"What you are getting" label', CONTENT.exec.includedSectionLabel, (v) => { CONTENT.exec.includedSectionLabel = v; });
     mkField(g, 'Included intro (uses {company})', CONTENT.exec.includedIntro, (v) => { CONTENT.exec.includedIntro = v; }, true);
-    mkField(g, 'Effective-cost hint (uses {tariff})', CONTENT.exec.effectiveHint, (v) => { CONTENT.exec.effectiveHint = v; }, true);
+    mkField(g, 'System estimates note', CONTENT.exec.systemNote, (v) => { CONTENT.exec.systemNote = v; }, true);
 
     CONTENT.pageSolution.included.forEach((it, i) => {
       const b = mkItemBlock(g, 'Included item ' + (i + 1) + (it.mode ? ' (description follows the ' + it.mode + ' dropdown)' : ''));
@@ -238,6 +237,8 @@
     mkField(g, 'Heading', CONTENT.pageInvestment.heading, (v) => { CONTENT.pageInvestment.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageInvestment.sub, (v) => { CONTENT.pageInvestment.sub = v; });
     mkField(g, 'Intro (uses {capacity})', CONTENT.pageInvestment.desc, (v) => { CONTENT.pageInvestment.desc = v; }, true);
+    const PB = CONTENT.pageInvestment.paybackCard;
+    Object.keys(PB).forEach(k => mkField(g, 'Payback card - ' + k, PB[k], v => { PB[k] = v; }));
     const IC = CONTENT.pageInvestment.cards;
     Object.keys(IC).forEach((k) => {
       mkField(g, 'Caption - ' + k, IC[k], (v) => { IC[k] = v; });

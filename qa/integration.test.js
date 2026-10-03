@@ -83,17 +83,15 @@ t('rendered all 21 page shells (options, financing and BESS hidden by default)',
 t('page labels generated', /Page 1 of 15/.test(d.querySelector('[data-page="pageCover"] .page-label').textContent),
   d.querySelector('[data-page="pageCover"] .page-label').textContent);
 t('cover shows a neutral customer placeholder', d.getElementById('v_coverCustName').textContent === 'Customer Name');
-t('cover badge is the project cost incl. GST', (() => {
+t('cover badge is estimated generation incl. GST', (() => {
   const f = w.Finance.compute(w.Render.lastState);
-  return d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtINRshort(f.grossTotal);
+  return d.getElementById('v_coverBadgeGen').textContent === w.Finance.fmtNum(f.annualGen) + ' kWh';
 })(), d.getElementById('v_coverBadgeGen').textContent);
-t('exec hero names the actual subsidy', d.getElementById('v_exHeroLifetime').textContent === '₹78,000' &&
-  /Estimated Subsidy/.test(d.getElementById('v_exHeroLifetimeLabel').textContent),
-  d.getElementById('v_exHeroLifetime').textContent + ' / ' + d.getElementById('v_exHeroLifetimeLabel').textContent);
-t('exec hero net = ₹4,06,823', d.getElementById('v_exHeroNet').textContent === '₹4,06,823',
-  d.getElementById('v_exHeroNet').textContent);
-t('exec payback ≈ 3.7 yrs', /^3\.7/.test(d.getElementById('v_exHeroPayback').textContent),
-  d.getElementById('v_exHeroPayback').textContent);
+t('summary highlights remote monitoring', d.getElementById('v_exHeroLifetime').textContent === '24/7');
+t('investment net = ₹4,06,823', d.getElementById('v_inCostNet').textContent === '₹4,06,823',
+  d.getElementById('v_inCostNet').textContent);
+t('exec payback ≈ 3.7 yrs', /^3\.7/.test(String(w.Finance.compute(w.Render.lastState).payback.toFixed(1))),
+  String(w.Finance.compute(w.Render.lastState).payback.toFixed(1)));
 t('exec 8 KPI tiles', d.querySelectorAll('#v_exKpis .kpi-tile').length === 8);
 t('summary does not repeat its financial tiles in a journey strip', !d.getElementById('v_exJourney'));
 t('solution does not repeat the summary inclusion block', !d.getElementById('v_soIncluded'));
@@ -165,8 +163,8 @@ fire(w, d.getElementById('moduleMake'), 'change');
 console.log('- interactions -');
 d.getElementById('capacity').value = '10';
 fire(w, d.getElementById('capacity'), 'input');
-t('capacity 10 → hero updates', d.getElementById('v_exHeroNet').textContent === '₹6,14,604',
-  d.getElementById('v_exHeroNet').textContent);
+t('capacity 10 → hero updates', d.getElementById('v_inCostNet').textContent === '₹6,14,604',
+  d.getElementById('v_inCostNet').textContent);
 t('capacity 10 → module count 19', d.getElementById('v_tsTable').textContent.includes('19 modules'),
   d.getElementById('v_tsTable').textContent.match(/\d+ modules/));
 d.getElementById('capacity').value = '7';
@@ -209,7 +207,7 @@ fire(w, d.getElementById('payCompletion'), 'input');
 
 d.getElementById('monthlyBill').value = '12000';
 fire(w, d.getElementById('monthlyBill'), 'input');
-t('bill-offset KPI appears', d.getElementById('v_exKpis').textContent.includes('of your bill'));
+t('summary stays non-financial after monthly bill entry', !d.getElementById('v_exKpis').textContent.includes('of your bill'));
 d.getElementById('availableArea').value = '25';
 fire(w, d.getElementById('availableArea'), 'input');
 t('area fit check flags shortage', d.getElementById('v_tsTable').textContent.includes('exceeds available area'));
@@ -219,23 +217,19 @@ console.log('- installed capacity & roof area -');
 t('tech spec states the installed array beside the contracted capacity',
   d.getElementById('v_tsTable').textContent.includes('7.085 kWp (contracted 7 kWp)'),
   d.getElementById('v_tsTable').textContent.match(/Installed Array Size.*?kWp[^k]*/));
-/* The required roof area is no longer "module area × 1.4": it is the shaded
-   row pitch worked out from the tilt and the winter-solstice sun angle, and the
-   page has to say which one it used. */
-t('roof requirement states the derived row pitch, not bare module area',
-  d.getElementById('v_tsTable').textContent.includes('Roof Area Required') &&
-  /row pitch \d+\.\d+ m at 15° tilt, no shading 09:00–15:00 on 21 December/.test(d.getElementById('v_tsTable').textContent) &&
-  /module area × 1\.4\d clearance/.test(d.getElementById('v_tsTable').textContent),
-  d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,140}/));
+t('roof requirement remains an explicitly indicative estimate',
+  d.getElementById('v_tsTable').textContent.includes('Indicative Roof Requirement') &&
+  d.getElementById('v_tsTable').textContent.includes(Math.ceil(w.Finance.compute(w.Render.lastState).requiredArea)+' m²') &&
+  d.getElementById('v_tsTable').textContent.includes('subject to site verification'));
 d.getElementById('roofClearanceFactor').value = '1.1';
 fire(w, d.getElementById('roofClearanceFactor'), 'input');
 t('changing the clearance factor re-renders the required roof area live',
-  d.getElementById('v_tsTable').textContent.includes('module area × 1.1 clearance'),
+  d.getElementById('v_tsTable').textContent.includes(Math.ceil(w.Finance.compute(w.Render.lastState).requiredArea)+' m²'),
   d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,70}/));
 t('the same roof fits at 1.1× clearance but not at 1.4×', (() => {
   d.getElementById('availableArea').value = '40';
   fire(w, d.getElementById('availableArea'), 'input');
-  const flushFits = d.getElementById('v_tsTable').textContent.includes('fits ✓');
+  const flushFits = !d.getElementById('v_tsTable').textContent.includes('exceeds available area') && d.getElementById('v_tsTable').textContent.includes('subject to site verification');
   d.getElementById('roofClearanceFactor').value = '1.4';
   fire(w, d.getElementById('roofClearanceFactor'), 'input');
   const tiltedFails = d.getElementById('v_tsTable').textContent.includes('exceeds available area');
@@ -444,7 +438,7 @@ setTimeout(() => {
   };
   w.document.getElementById('downloadBtn').click();
   setTimeout(() => {
-    t('pdf saved with customer+capacity+ref', /Proposal_QA_Customer_7kWp_KTM-2026-Solar-013\.pdf/.test(savedName), savedName);
+    t('pdf saved with customer+capacity+ref', savedName === 'Proposal_QA_Customer_7kWp_' + d.getElementById('propRef').value.replace(/[^a-z0-9]+/gi, '-') + '.pdf', savedName);
     t('status message shown', w.document.getElementById('statusMsg').textContent.includes('Downloaded'),
       w.document.getElementById('statusMsg').textContent);
 

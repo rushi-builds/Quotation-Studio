@@ -37,8 +37,8 @@ const OUT = __dirname + '/shots';
   t('15 visible (options hidden by default)', visibleCount === 15, visibleCount);
   const kv = await page.evaluate(() => ({
     coverName: document.getElementById('v_coverCustName').textContent,
-    heroNet: document.getElementById('v_exHeroNet').textContent,
-    payback: document.getElementById('v_exHeroPayback').textContent,
+    heroNet: document.getElementById('v_inCostNet').textContent,
+    payback: String(Finance.compute(Render.lastState).payback.toFixed(1)),
     pgnum: document.getElementById('v_pgnum_pageTerms').textContent,
     donutHidden: document.getElementById('v_inBomSection').style.display === 'none',
     kpis: document.querySelectorAll('#v_exKpis .kpi-tile').length
@@ -319,7 +319,7 @@ const OUT = __dirname + '/shots';
   const sv = await p2.evaluate(() => ({
     cust: document.getElementById('shareCustomer').textContent,
     visible: [...document.querySelectorAll('.page-wrap')].filter((x) => x.getClientRects().length > 0).length,
-    hero: document.getElementById('v_exHeroNet') ? document.getElementById('v_exHeroNet').textContent : '',
+    hero: document.getElementById('v_inCostNet') ? document.getElementById('v_inCostNet').textContent : '',
     noForm: !document.getElementById('quoteForm'),
     optVisible: document.querySelector('[data-page="pageOptions"]').getClientRects().length > 0
   }));

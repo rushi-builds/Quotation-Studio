@@ -4,6 +4,8 @@
 (function(root) {
   const $=id=>document.getElementById(id);
   let busy=false;
+  const powerPageCount=()=>root.Experience?.POWER_PAGE_COUNT||6;
+  const pageLabel=n=>n+' '+(n===1?'Page':'Pages');
   const formats={bess:{title:'BESS Report',ids:['pageBessOverview','pageBessAssessment']},system:{title:'Additional System Report',ids:['pageSystemOverview','pageSystemDetail']},'system-power':{title:'System Power Proposal',ids:['pageSystemOverview']}};
   function formatsFor(s) {
     const name=String(s.systemName||root.AdditionalSystems.templates[s.systemTemplate]?.name||'Additional System').trim()||'Additional System';
@@ -13,7 +15,7 @@
     const s=root.Render.lastState||{},select=$('pdfFormat'),reports=formatsFor(s);
     // Remove unavailable entries, rather than merely disabling them: native
     // select popups (especially on mobile) can still display disabled options.
-    const available=[['full','Detailed Proposal - all applicable pages'],['power','Power Proposal - 2-page summary']];
+    const available=[['full','Detailed Proposal - all applicable pages'],['power','Power Proposal - '+powerPageCount()+'-page report']];
     for(const [value,report] of Object.entries(reports)) {
       if(value==='bess'?root.Bess.enabled(s):root.AdditionalSystems.enabled(s))
         available.push([value,report.title+' · '+report.ids.length+(report.ids.length===1?' page':' pages')]);
@@ -33,7 +35,7 @@
       if(report)button.textContent=report.title+' · '+report.ids.length+(report.ids.length===1?' page':' pages');
     });
     const format=select?.value||'full',count=root.Render.lastVisible?.length||15,label=$('downloadLabel');
-    if(label)label.textContent=format==='power'?'Download Power Proposal (2 Pages)':reports[format]?'Download '+reports[format].title+' ('+reports[format].ids.length+' Pages)':'Generate & Download PDF ('+count+' Pages)';
+    if(label)label.textContent=format==='power'?'Download Power Proposal ('+pageLabel(powerPageCount())+')':reports[format]?'Download '+reports[format].title+' ('+pageLabel(reports[format].ids.length)+')':'Generate & Download PDF ('+count+' Pages)';
   }
   function snapshotFull(selected,standaloneTitle) {
     const host=document.createElement('div'); host.className='pdf-snapshot'; host.setAttribute('aria-hidden','true');
@@ -72,6 +74,7 @@
       if(format.startsWith('system')&&!root.AdditionalSystems.enabled(s))throw new Error('Enable an additional system to download its report.');
       snapshot=format==='power'?root.Experience.buildPowerPages(s):reports[format]?snapshotFull(root.Render.PAGES.filter(p=>reports[format].ids.includes(p.id)),reports[format].title):snapshotFull();
       const pages=[...snapshot.children];
+      if(format==='power'&&pages.length!==powerPageCount())throw new Error('Power Proposal page count is inconsistent. Refresh the app and try again.');
       await Promise.all([...snapshot.querySelectorAll('img')].map(img=>new Promise((resolve,reject)=>{
         // `complete` is also true for failed/empty images. Do not silently issue
         // a professional PDF with missing artwork or a broken uploaded photo.
@@ -91,8 +94,8 @@
       })));
       if(format==='power') pages.forEach(page=>{
         const footer=page.querySelector('footer'),last=footer.previousElementSibling;
-        if(last.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-4 || page.scrollHeight>1124)
-          throw new Error('This proposal has too much text for the two-page summary. Please use the detailed PDF or shorten the equipment / delivery text.');
+        if(last.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-4 || page.scrollHeight>1124 || page.scrollWidth>page.clientWidth+1)
+          throw new Error('This proposal has too much text for the '+powerPageCount()+'-page report. Please use the detailed PDF or shorten the equipment / delivery text.');
       });
       // Supplements accept user-authored text. Never silently clip a long scope or model name.
       pages.filter(p=>p.classList.contains('bess-page')||p.classList.contains('system-page')).forEach(page=>{

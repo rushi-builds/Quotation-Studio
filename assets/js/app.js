@@ -52,7 +52,7 @@
   /* ---------- system options (Good / Better / Best) ---------- */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
     'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
-    'degradation', 'subsidyOverride'];
+    'degradation', 'subsidyOverride', 'rwaEligibleKwp'];
 
   function optionsList() { return window.__qsOptions || (window.__qsOptions = []); }
 
@@ -271,7 +271,7 @@
       Object.keys(blob.projectImages).forEach((k) => { PROJECT_IMAGES[k] = blob.projectImages[k]; });
     }
     window.EquipmentStore.refreshSelects();
-    if (!blob.form || !Object.keys(blob.form).length) window.Proposals.saveActive(window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES, window.__qsOptions, window.__qsPageImages || {});
+    if (!blob.form || Object.keys(blob.form).every(k => k === 'propRef')) window.Proposals.saveActive(window.StateStore.collectForm(), CONTENT, PROJECT_IMAGES, window.__qsOptions, window.__qsPageImages || {});
     renderOptionsUI();
     // Rebind editor closures to the newly loaded proposal's content objects.
     if ($('advContainer')?.children.length) window.Editor.build();
@@ -280,6 +280,7 @@
   function switchTo(id) {
     if (!saveNow()) { $('proposalSelect').value = window.Proposals.activeId(); return; }
     window.Proposals.setActive(id);
+    window.CloudBridge?.syncActiveLocation?.();
     loadActiveIntoUI();
     window.Render.renderAll();
     refreshManager();
@@ -388,7 +389,8 @@
     if (!sel) return;
     sel.addEventListener('change', () => { if (sel.value) switchTo(sel.value); });
 
-    $('pmNew').addEventListener('click', () => {
+    $('pmNew').addEventListener('click', async () => {
+      if ($('pmNew').disabled) return;
       if (!saveNow()) return; /* keep unsaved edits if browser storage is full */
       const form = Object.assign({}, pristine);
       const company = window.__qsCompanyDefaults && window.__qsCompanyDefaults();
@@ -396,19 +398,44 @@
       form.propDate = today();
       form.propVersion = '1.0';
       /* Automatic customer-facing number, unique inside this workspace. */
-      if (typeof window.Proposals.nextRef === 'function') form.propRef = window.Proposals.nextRef();
+      const sourceId = window.Proposals.activeId();
+      $('pmNew').disabled = true;
+      try {
+        const api = window.PlatformAPI;
+        const available = api && api.reserveProposalReference && await api.isAvailable();
+        const user = available ? await api.currentUser() : null;
+        form.propRef = user ? (await api.reserveProposalReference()).reference : window.Proposals.nextRef();
+        if (window.Proposals.activeId() !== sourceId || !saveNow()) return;
+      } catch (error) {
+        $('statusMsg').textContent = 'Could not issue a new reference. Your current quotation is unchanged. ' + (error.message || 'Please try again.');
+        return;
+      } finally { $('pmNew').disabled = false; }
+
       const b = window.Proposals.create(form);
       if (!creationSaved(b)) return;
       window.Proposals.setActive(b.id);
+      window.CloudBridge?.syncActiveLocation?.();
       loadActiveIntoUI();
       window.Render.renderAll();
       refreshManager();
     });
 
-    $('pmDup').addEventListener('click', () => {
-      if (!saveNow()) return; /* duplicate exactly what is on screen */
-      const b = window.Proposals.duplicate(window.Proposals.activeId());
-      if (creationSaved(b)) switchTo(b.id);
+    $('pmDup').addEventListener('click', async () => {
+      if ($('pmDup').disabled || !saveNow()) return;
+      const sourceId = window.Proposals.activeId();
+      $('pmDup').disabled = true;
+      try {
+        let reference;
+        const api = window.PlatformAPI;
+        if (api?.reserveProposalReference && await api.isAvailable() && await api.currentUser()) {
+          reference = (await api.reserveProposalReference()).reference;
+        }
+        if (window.Proposals.activeId() !== sourceId || !saveNow()) return;
+        const b = window.Proposals.duplicate(sourceId, reference);
+        if (creationSaved(b)) switchTo(b.id);
+      } catch (error) {
+        $('statusMsg').textContent = 'Could not duplicate this quotation. ' + error.message;
+      } finally { $('pmDup').disabled = false; }
     });
 
     $('pmVersion').addEventListener('click', () => {
@@ -417,19 +444,35 @@
       if (creationSaved(b)) switchTo(b.id);
     });
 
-    $('pmDelete').addEventListener('click', () => {
+    $('pmDelete').addEventListener('click', async () => {
+      if ($('pmDelete').disabled) return;
       const blob = window.Proposals.active();
       if (!blob) return;
       const total = window.Proposals.list().length;
       if (!confirm(total > 1
         ? 'Delete this proposal? Other proposals are not affected.'
         : 'Delete this proposal? A fresh blank proposal will be created.')) return;
+      let reference;
+      if (total === 1) {
+        $('pmDelete').disabled = true;
+        try {
+          const api = window.PlatformAPI;
+          if (api?.reserveProposalReference && await api.isAvailable() && await api.currentUser()) {
+            reference = (await api.reserveProposalReference()).reference;
+          }
+          if (window.Proposals.activeId() !== blob.id || window.Proposals.list().length !== 1) return;
+        } catch (error) {
+          $('statusMsg').textContent = 'Could not prepare a fresh proposal. Nothing was deleted. ' + error.message;
+          return;
+        } finally { $('pmDelete').disabled = false; }
+      }
       window.Proposals.remove(blob.id);
       if (!window.Proposals.activeId()) {
         const b = window.Proposals.create(Object.assign({}, pristine,
-          { propDate: today() }));
+          { propDate: today(), propRef: reference || '' }));
         window.Proposals.setActive(b.id);
       }
+      window.CloudBridge?.syncActiveLocation?.();
       loadActiveIntoUI();
       window.Render.renderAll();
       refreshManager();
@@ -556,7 +599,7 @@
       const before = JSON.stringify({ form: window.StateStore.collectForm(),
         content: window.CONTENT, options: window.__qsOptions || [], images: window.__qsPageImages || {} });
       try {
-        window.StateStore.applyForm(Object.assign({}, pristine, { propDate: today() }));
+        window.StateStore.applyForm(Object.assign({}, pristine, { propDate: today(), propRef: $('propRef').value || window.Proposals.nextRef() }));
         restoreObject(CONTENT, templateContent);
         restoreObject(PROJECT_IMAGES, templateProjectImages);
         window.__qsOptions = [];
@@ -684,7 +727,11 @@
       $('propDate').value = today();
       pristine.propDate = $('propDate').value;
     }
-    window.Proposals.init();                           /* migrate legacy, ensure active */
+    let openingCloud = new URLSearchParams(location.search).has('cloud');
+    try { openingCloud = openingCloud || !!sessionStorage.getItem('qs.cloudOpenId'); } catch (_) {}
+    const hadLocalProposals = window.Proposals.list().length > 0;
+    window.Proposals.init({deferCreate:openingCloud}); // Do not invent a local draft while a cloud quote loads.
+    if (!hadLocalProposals && !openingCloud && window.Proposals.active()?.autoAssignedRef) window.__qsFreshLocalId = window.Proposals.activeId();
     /* Resume the proposal last open in this browser, when it still exists.
        A stale or unreadable preference only falls back to the first proposal -
        it never touches proposal data. */
@@ -780,7 +827,7 @@
     window.Exporter.wire();
     buildNav();
     fitPages();
-    saveNow(); /* snapshot the working state immediately - no lost first edits */
+    if (window.Proposals.active() || !openingCloud) saveNow(); /* Do not create an unrelated draft during cloud loading. */
     document.addEventListener('qs:rendered', buildNav);
 
     /* Resume the reading position, but never yank the viewport once the user

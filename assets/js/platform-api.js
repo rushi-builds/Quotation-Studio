@@ -55,7 +55,7 @@
   }
   function clearToken() { writeToken(''); }
 
-  async function request(method, path, body) {
+  async function request(method, path, body, timeoutMs = 0) {
     const opts = {
       method,
       credentials: 'same-origin',
@@ -70,21 +70,19 @@
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
     }
-    let res;
+    const controller = timeoutMs ? new AbortController() : null;
+    if (controller) opts.signal = controller.signal;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    let res, data = null;
     try {
       res = await fetch(BASE + path, opts);
+      const text = await res.text();
+      if (text) { try { data = JSON.parse(text); } catch (_) { data = { raw: text }; } }
     } catch (err) {
-      const e = new Error('Cannot reach the platform server. Is it running?');
-      e.code = 'NETWORK';
-      e.cause = err;
-      throw e;
-    }
-    let data = null;
-    const text = await res.text();
-    if (text) {
-      try { data = JSON.parse(text); }
-      catch (_) { data = { raw: text }; }
-    }
+      const timedOut = controller && controller.signal.aborted;
+      const e = new Error(timedOut ? 'Assistant request timed out. Please retry.' : 'Cannot reach the platform server. Please try again.');
+      e.code = timedOut ? 'TIMEOUT' : 'NETWORK'; e.cause = err; throw e;
+    } finally { if (timer) clearTimeout(timer); }
     if (!res.ok) {
       /* Only drop a stored token when we actually sent it and the server
          rejected it — avoids wiping a good token on an unrelated 401. */
@@ -136,6 +134,10 @@
   }
 
   const api = {
+    assistantStatus() { return request('GET', '/api/assistant/status', undefined, 12000); },
+    assistantChat(message, proposalId, consent, options = {}) {
+      return request('POST', '/api/assistant/chat', { message, proposalId: proposalId || null, consent: consent === true, history: options.history, currentStudio: options.currentStudio, equipmentCatalog: options.equipmentCatalog }, 85000);
+    },
     async health() {
       try { return await request('GET', '/api/health'); }
       catch (_) { return null; }
@@ -167,6 +169,7 @@
       return request('POST', '/api/auth/profile', payload || {});
     },
     summary() { return request('GET', '/api/dashboard/summary'); },
+    reserveProposalReference() { return request('POST', '/api/proposals/reference', {}); },
     listProposals() { return request('GET', '/api/proposals'); },
     getProposal(id) { return request('GET', '/api/proposals/' + encodeURIComponent(id)); },
     createProposal(payload) { return request('POST', '/api/proposals', payload); },
@@ -262,6 +265,8 @@
     setTeamRole(userId, role) {
       return request('POST', '/api/team/role', { userId, role });
     },
+    socialProviders() { return request('GET', '/api/auth/oauth/providers'); },
+    startSocial(provider, link = false, currentPassword = '') { return request('POST', '/api/auth/oauth/' + encodeURIComponent(provider) + '/start', {link, currentPassword}); },
     /** Persist a session token returned by login/register/reset. */
     setSessionToken(token) {
       if (token) writeToken(token);

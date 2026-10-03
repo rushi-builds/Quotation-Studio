@@ -22,3 +22,11 @@ platform/cloudflare/public/
 
 # Temp bag animation references (local drop box)
 tmp/
+
+# Provider private keys and local secret configuration must never be committed.
+*.p8
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*

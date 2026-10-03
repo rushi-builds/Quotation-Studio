@@ -24,11 +24,26 @@ const DATA_DIR = process.env.QS_DATA_DIR
 const DB_PATH = path.join(DATA_DIR, 'db.json');
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '0.0.0.0';
+const assistantModule = import('../gemini.mjs');
+let assistantLimiter;
 const SESSION_DAYS = 30;
 const COOKIE = 'qs_session';
 
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }
+function reserveLocalReference(db) {
+  const year = new Intl.DateTimeFormat('en', {year:'numeric',timeZone:'Asia/Kolkata'}).format(new Date());
+  const prefix = 'KTM/' + year + '/Solar/';
+  db.referenceCounters = db.referenceCounters || {};
+  let sequence = Number(db.referenceCounters[year]) || 0;
+  for (const p of db.proposals || []) {
+    const ref = String(p.ref || '');
+    if (ref.startsWith(prefix) && /^\d{1,9}$/.test(ref.slice(prefix.length))) sequence = Math.max(sequence, Number(ref.slice(prefix.length)));
+  }
+  db.referenceCounters[year] = ++sequence;
+  return prefix + String(sequence).padStart(3,'0');
+}
+
 function uid(prefix) {
   return (prefix || 'id') + '_' + crypto.randomBytes(8).toString('hex');
 }
@@ -814,6 +829,28 @@ async function handleApi(req, res, url) {
       });
     }
 
+    if (parts[0] === 'auth' && parts[1] === 'oauth') {
+      const {handleOAuth} = await import('../cloudflare/src/oauth.mjs');
+      const {localOAuthStore} = await import('../oauth-store.mjs');
+      const proto = String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+      const requestUrl = proto + '://' + req.headers.host + url.pathname + url.search;
+      const raw = ['POST','PUT'].includes(method) ? await readRawBody(req, 20000) : undefined;
+      const request = new Request(requestUrl, {method, headers:req.headers, ...(raw ? {body:raw} : {})});
+      const result = await handleOAuth(request, process.env, localOAuthStore(loadDb, saveDb), {
+        user: async () => requireUser(req, loadDb()), token: () => sessionTokenFrom(req), rateKey: req.socket.remoteAddress || 'unknown',
+        userByToken: async token => requireUser({headers:{authorization:'Bearer '+token}}, loadDb()),
+        canLink: async (user, password) => {
+          if (!String(user.password_hash).startsWith('oauth-only$')) return password.length <= 128 && verifyPassword(password, user.password_hash);
+          const session=loadDb().sessions.find(s=>s.token===sessionTokenFrom(req)&&s.user_id===user.id);
+          return !!session && Date.parse(session.created_at) > Date.now() - 300000;
+        },
+        session: async user => {const latest=loadDb();const session=createSession(latest,user);saveDb(latest);return session;},
+        cookie: token => sessionCookie(token, SESSION_DAYS * 86400, req)
+      });
+      result.headers.forEach((value,key) => {if(key!=='set-cookie')res.setHeader(key,value);});
+      const cookies=result.headers.getSetCookie();if(cookies.length)res.setHeader('Set-Cookie',cookies);
+      res.writeHead(result.status);return res.end(await result.text());
+    }
     /* AUTH */
     if (parts[0] === 'auth' && parts[1] === 'register' && method === 'POST') {
       const body = await readBody(req);
@@ -850,8 +887,10 @@ async function handleApi(req, res, url) {
         email,
         name: name.slice(0, 120),
         password_hash: hashPassword(password),
-        role: parsed.role,
-        role_custom: parsed.roleCustom,
+        // A public job-title field is not an authorization grant.
+        // Existing accounts are unchanged; only an existing owner may promote.
+        role: 'viewer',
+        role_custom: String(body.role != null ? body.role : body.roleCustom).trim(),
         created_at: nowISO(),
         updated_at: nowISO()
       };
@@ -902,81 +941,14 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { user: publicUser(user) });
     }
 
-    /* Forgot password — no outbound email on this local stack.
-       For existing accounts we return a one-time recovery code (shown once).
-       For unknown emails we return the same generic OK (no account enumeration). */
-    if (parts[0] === 'auth' && parts[1] === 'forgot-password' && method === 'POST') {
-      const body = await readBody(req);
-      const email = String(body.email || '').trim().toLowerCase();
-      const blocked = authThrottleCheck(req, email);
-      if (blocked != null) return sendAuthLimited(res, blocked);
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return sendJson(res, 400, { error: 'Enter a valid email address.' });
-      }
-      const user = (db.users || []).find((u) => u.email.toLowerCase() === email);
-      const generic = {
-        ok: true,
-        message: 'If an account exists for that email, a recovery code is available. Enter it below with your new password. Codes expire in 30 minutes and can be used once.'
-      };
-      if (!user) {
-        /* Spend a little work so timing is closer to the real path. */
-        hashPassword('timing-pad-' + email);
-        authThrottleFail(req, email);
-        return sendJson(res, 200, generic);
-      }
-      const rawCode = issuePasswordReset(db, user);
-      saveDb(db);
-      authThrottleSuccess(email);
-      return sendJson(res, 200, Object.assign({}, generic, {
-        recoveryCode: rawCode,
-        delivery: 'local_display',
-        note: 'Email delivery is not configured on this server yet. Copy this recovery code now — it will not be shown again.'
-      }));
-    }
-
-    if (parts[0] === 'auth' && parts[1] === 'reset-password' && method === 'POST') {
-      const body = await readBody(req);
-      const email = String(body.email || '').trim().toLowerCase();
-      const code = String(body.code || '').trim().toLowerCase();
-      const password = String(body.password || '');
-      const blocked = authThrottleCheck(req, email);
-      if (blocked != null) return sendAuthLimited(res, blocked);
-      const policy = passwordPolicyError(password);
-      if (policy) {
-        authThrottleFail(req, email);
-        return sendJson(res, 400, { error: policy });
-      }
-      if (!email || !code) {
-        authThrottleFail(req, email);
-        return sendJson(res, 400, { error: 'Email and recovery code are required.' });
-      }
-      const user = (db.users || []).find((u) => u.email.toLowerCase() === email);
-      const codeHash = hashToken(code);
-      const reset = user
-        ? (db.password_resets || []).find((r) =>
-          r.user_id === user.id &&
-          !r.used_at &&
-          r.code_hash === codeHash &&
-          Date.parse(r.expires_at) > Date.now()
-        )
-        : null;
-      if (!user || !reset) {
-        authThrottleFail(req, email);
-        return sendJson(res, 400, { error: 'Invalid or expired recovery code. Request a new one.' });
-      }
-      reset.used_at = nowISO();
-      user.password_hash = hashPassword(password);
-      user.updated_at = nowISO();
-      revokeUserSessions(db, user.id, null);
-      authThrottleSuccess(email);
-      const sess = createSession(db, user);
-      saveDb(db);
-      return sendJson(res, 200, {
-        user: publicUser(user),
-        token: sess.token,
-        expiresAt: sess.expiresAt,
-        message: 'Password updated. You are signed in. Other sessions were signed out.'
-      }, authSuccessHeaders(sess.token, req));
+    // Public recovery is fail-closed until a verified delivery channel exists.
+    // Reject reset as well: previously disclosed, unexpired codes must not work.
+    // Identical response for known/unknown accounts; no lookup or code issuance.
+    if (parts[0] === 'auth' && ['forgot-password', 'reset-password'].includes(parts[1]) && method === 'POST') {
+      return sendJson(res, 403, {
+        error: 'Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent.',
+        code: 'RECOVERY_UNAVAILABLE'
+      });
     }
 
     if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
@@ -1027,6 +999,7 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, {
         ok: true,
         phase: 'E',
+        build: 'workspace-5',
         storage: 'local-json',
         time: nowISO(),
         sending: {
@@ -1137,6 +1110,40 @@ async function handleApi(req, res, url) {
     const canWrite = requireRole(user, 'sales'); /* owner + sales */
     const canAdmin = requireRole(user, 'owner');
 
+    /* Gemini: authenticated, owner-scoped, read-only, opt-in. */
+    if (parts[0] === 'assistant' && parts.length === 2) {
+      if (method === 'POST' && !req.headers.authorization && !req.headers['x-qs-session']) return sendJson(res, 403, { error: 'Sign in again to use the assistant.' });
+      const ai = await assistantModule;
+      if (!assistantLimiter) assistantLimiter = ai.makeLocalLimiter();
+      const result = await ai.handleAssistant({
+        method, action: parts[1], user, env: process.env,
+        readBody: () => new Promise((resolve, reject) => {
+          let size = 0, chunks = [], failed = false;
+          req.on('data', chunk => {
+            if (failed) return;
+            size += chunk.length;
+            if (size > ai.MAX_BODY_BYTES) { failed = true; chunks = []; reject(Object.assign(new Error('Message is too large.'), { status: 413 })); return; }
+            chunks.push(chunk);
+          });
+          req.on('end', () => { if (failed) return; try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch (_) { reject(Object.assign(new Error('Invalid JSON.'), { status: 400 })); } });
+          req.on('error', reject);
+        }),
+        reserveQuota: assistantLimiter,
+        loadContext: async proposalId => {
+          const mine = (db.proposals || []).filter(p => p.owner_id === user.id);
+          const byStatus = {}; mine.forEach(p => { const key = p.status || 'draft'; byStatus[key] = (byStatus[key] || 0) + 1; });
+          return {
+            total: mine.length, byStatus,
+            proposals: mine.slice().sort((a,b) => String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,31),
+            selected: proposalId ? mine.find(p => p.id === proposalId) : null,
+            tasks: (db.tasks || []).filter(t => t.owner_id === user.id && t.status === 'open').sort((a,b) => String(a.due_at || '9999').localeCompare(String(b.due_at || '9999'))).slice(0,31),
+            events: (db.events || []).filter(e => e.owner_id === user.id && e.event_type !== 'suspected_prefetch').sort((a,b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0,16)
+          };
+        }
+      });
+      return sendJson(res, result.status, result.body);
+    }
+
     /* PROJECT GALLERY (staff uploads; writes need sales+) */
     if (parts[0] === 'gallery' && parts.length === 1 && method === 'GET') {
       const items = (db.gallery || []).slice().sort((a, b) =>
@@ -1232,10 +1239,20 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { proposals: mine });
     }
 
+    if (parts[0] === 'proposals' && parts[1] === 'reference' && parts.length === 2 && method === 'POST') {
+      if (!canWrite) return sendJson(res, 403, {error:'Your role cannot issue proposal references.'});
+      Object.assign(db, loadDb());
+      const reference = reserveLocalReference(db); saveDb(db);
+      return sendJson(res, 200, {reference});
+    }
+
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot create or edit proposals.' });
       const body = await readBody(req);
+      Object.assign(db, loadDb()); // readBody awaited; retain other concurrent creations.
       const meta = metaFromBody(body, null);
+      if (!String(meta.ref || '').trim()) meta.ref = reserveLocalReference(db);
+      meta.form = { ...meta.form, propRef: meta.ref };
       const row = {
         id: uid('prp'),
         owner_id: user.id,
@@ -1340,12 +1357,12 @@ async function handleApi(req, res, url) {
       try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
       form = Object.assign({}, form);
       if (form.custName) form.custName = form.custName + ' (copy)';
-      form.propRef = '';
+      form.propRef = reserveLocalReference(db);
       const copy = {
         id: uid('prp'),
         owner_id: user.id,
         customer_id: row.customer_id,
-        ref: '',
+        ref: form.propRef,
         title: (form.custName || 'Untitled') + ' — ' + (form.capacity || row.capacity || '0') + ' kWp',
         status: 'draft',
         version_label: '1.0',

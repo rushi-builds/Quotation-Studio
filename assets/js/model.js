@@ -55,7 +55,7 @@
      in two different browsers (or two devices) cannot be coordinated without a
      server, so the studio never claims more than that. */
   const REF_SEQ_KEY = 'qstudio.refSeq';
-  const REF_PATTERN = /^KTM\/(\d{4})\/Solar\/(\d+)$/;
+  const REF_PATTERN = /^KTM\/(\d{4})\/Solar\/(\d+)$/i;
   function refsInUse() {
     return new Set(list().map((p) => (p.ref || '').trim()).filter(Boolean));
   }
@@ -64,12 +64,14 @@
     const used = refsInUse();
     let seq = 0;
     try { seq = parseInt(root.localStorage.getItem(REF_SEQ_KEY) || '0', 10) || 0; } catch (e) { seq = 0; }
+    // Imported/high-number references advance the local high-water mark too.
+    for (const ref of used) { const match = ref.match(REF_PATTERN); if (match && Number(match[1]) === year && Number.isSafeInteger(Number(match[2]))) seq = Math.max(seq, Number(match[2])); }
     /* Never reissue a number that a proposal in this workspace already uses. */
     let candidate = '';
     do {
       seq += 1;
       candidate = 'KTM/' + year + '/Solar/' + String(seq).padStart(3, '0');
-    } while (used.has(candidate) && seq < 10000);
+    } while (used.has(candidate));
     try { root.localStorage.setItem(REF_SEQ_KEY, String(seq)); } catch (e) {}
     return candidate;
   }
@@ -124,6 +126,8 @@
       pageImages: null,
       options: []
     }, extras || {});
+    blob.form = Object.assign({}, blob.form);
+    if (!String(blob.form.propRef || '').trim()) { blob.form.propRef = nextRef(); blob.autoAssignedRef = blob.form.propRef; }
     put(blob);
     return blob;
   }
@@ -154,7 +158,7 @@
     saveIndex(list().filter((p) => p.id !== id));
     if (activeId() === id) {
       const first = list()[0];
-      if (first) setActive(first.id); else root.localStorage.removeItem(ACTIVE_KEY);
+      if (first) setActive(first.id); else { root.localStorage.removeItem(ACTIVE_KEY); try { root.sessionStorage.removeItem(TAB_KEY); } catch (_) {} }
     }
   }
 
@@ -162,7 +166,7 @@
     ['sentAt', 'acceptedAt', 'viewedAt', 'rejectedAt', 'signerName', 'consentConfirmed', 'acceptanceMethod'].forEach(key => delete blob[key]);
   }
 
-  function duplicate(id) {
+  function duplicate(id, reference) {
     const b = get(id);
     if (!b) return null;
     const copy = JSON.parse(JSON.stringify(b));
@@ -173,7 +177,7 @@
     copy.prevId = null; /* a copy is a new history, not a version */
     copy.form = JSON.parse(JSON.stringify(b.form || {}));
     if (b.form && b.form.custName) copy.form.custName = b.form.custName + ' (copy)';
-    if (copy.form.propRef) copy.form.propRef = nextRef();  /* never two live proposals with one number */
+    copy.form.propRef = reference || nextRef();  /* never two live proposals with one number */
     put(copy);
     return copy;
   }
@@ -251,7 +255,7 @@
     const id = activeId();
     let b = id ? get(id) : null;
     if (!b) { b = create(form || {}); setActive(b.id); }
-    b.form = form || b.form || {};
+    else b.form = form || b.form || {};
     if (content) b.content = content;
     if (projectImages) b.projectImages = projectImages;
     if (options) b.options = options;
@@ -261,7 +265,7 @@
   }
 
   /* ---------- boot / migration ---------- */
-  function init() {
+  function init(options = {}) {
     let ix = list();
     if (!ix.length) {
       const legacy = readJSON(LEGACY_KEY);
@@ -274,6 +278,7 @@
         put(b);
         setActive(b.id);
       } else {
+        if (options.deferCreate) return []; // A requested cloud quotation is still loading.
         const b = create({});
         setActive(b.id);
       }

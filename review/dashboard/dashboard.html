@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Dashboard — KTM Quotation Studio</title>
+  <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png" />
+  <script>(function(){try{var t=localStorage.getItem('qs.dashboard.theme')||'system';document.documentElement.dataset.theme=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}catch(_){}})();</script>
+  <link rel="stylesheet" href="assets/css/dashboard.css?v=home2" />
+</head>
+<body>
+  <!-- ========== Session gate (sign-in lives on index.html) ========== -->
+  <div id="authScreen" class="splash">
+    <div class="splash-card">
+      <img class="splash-logo" src="assets/images/ktm-logo-dark.png" alt="KTM" />
+      <h1>Quotation Studio</h1>
+      <p class="muted" id="splashMsg">Opening your workspace…</p>
+      <div id="authError" class="auth-error" role="alert"></div>
+      <div id="authOk" class="banner ok" style="display:none" role="status"></div>
+      <p class="muted splash-fallback">Taking too long? <a href="index.html">Back to sign in</a></p>
+    </div>
+  </div>
+
+  <div id="dash" class="dash">
+    <aside class="sidebar" aria-label="Dashboard navigation">
+      <div class="side-brand">
+        <img src="assets/images/ktm-logo-dark.png" alt="KTM" />
+        <div>
+          <strong>Quotation Studio</strong>
+          <span>Solar workspace</span>
+        </div>
+      </div>
+      <nav class="side-nav"><button type="button" class="nav-item on" data-panel="home"><span class="ico">🏠</span><span class="label">Home</span></button><button type="button" class="nav-item" data-panel="proposals"><span class="ico">📄</span><span class="label">Quotations</span></button><button type="button" class="nav-item" data-panel="tasks"><span class="ico">✅</span><span class="label">Follow-ups</span></button><details class="nav-group"><summary>Sharing &amp; activity</summary><button type="button" class="nav-item" data-panel="publish"><span class="ico">🔗</span><span class="label">Publish &amp; links</span></button><button type="button" class="nav-item" data-panel="send"><span class="ico">📤</span><span class="label">Send centre</span></button><button type="button" class="nav-item" data-panel="activity"><span class="ico">🔔</span><span class="label">Activity</span></button></details><details class="nav-group"><summary>Workspace</summary><button type="button" class="nav-item" data-panel="gallery"><span class="ico">🖼️</span><span class="label">Gallery</span></button><button type="button" class="nav-item" data-panel="reports"><span class="ico">📊</span><span class="label">Reports</span></button><button type="button" class="nav-item" data-panel="settings"><span class="ico">⚙️</span><span class="label">Settings</span></button></details></nav>
+      <div class="side-foot">
+        <div class="side-user">
+          <strong id="userName">—</strong>
+          <span id="userEmail">—</span>
+        </div>
+        <div class="side-links">
+          <a href="quotation.html"><span>Open Studio →</span></a>
+          <button type="button" id="btnLogout"><span>Log out</span></button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div id="banner" class="banner" role="status"></div>
+
+      <div class="gbar"><div class="gsearch"><input id="gSearch" type="search" placeholder="Search customers or quotations…  ( / )" autocomplete="off" aria-label="Search quotations" /><div id="gResults" class="drop"></div></div><div class="gright"><label class="theme-picker"><span class="theme-symbol" aria-hidden="true">◐</span><span class="sr-only">Dashboard appearance</span><select id="dashboardTheme" aria-label="Dashboard appearance"><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label><div class="bellwrap"><button type="button" id="btnBell" class="iconbtn" aria-label="Notifications"></button><div id="bellDrop" class="drop right"></div></div><button type="button" id="btnUserChip" class="userchip" aria-label="Account settings"><span class="av" id="userAv">U</span><span class="who"><b id="chipName"></b><i id="chipRole"></i></span></button></div></div>
+      <section id="panel-home" class="panel on"><div class="hero2"><div><h1 id="homeGreeting">Dashboard</h1><p class="sub" id="homeSub">Here’s what’s happening with your quotations today.</p></div><div class="topbar-actions"><button type="button" class="btn btn-secondary" id="btnNewFollowup">+ New follow-up</button><button type="button" class="btn btn-primary" id="btnNewFromHome">+ New quotation</button><span class="datechip" id="homeDate"></span></div></div><div id="homeBody"><div class="hempty">Loading your workspace…</div></div></section>
+      <!-- Activity & notifications -->
+      <section id="panel-activity" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Activity</h1>
+            <p class="sub">Customer activity and notifications.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnMarkAllRead">Mark notifications read</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Notifications</h2>
+            <span class="muted" id="notifUnreadLabel">0 unread</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Alert</th>
+                  <th>Detail</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="notifBody">
+                <tr><td colspan="4" class="empty">No notifications yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Event timeline</h2>
+            <span class="muted">Newest first</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Event</th>
+                  <th>Proposal</th>
+                </tr>
+              </thead>
+              <tbody id="activityBody">
+                <tr><td colspan="3" class="empty">No activity yet. Publish a link and open the customer portal to generate events.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Follow-up tasks -->
+      <section id="panel-tasks" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Follow-ups</h1>
+            <p class="sub">Calls, visits and next steps.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>New follow-up</h2></div>
+          <div class="filters">
+            <input type="text" id="taskTitle" placeholder="Task title — e.g. Call after site visit" class="grow" />
+            <select id="taskProposal" aria-label="Related proposal">
+              <option value="">No linked proposal</option>
+            </select>
+            <input type="date" id="taskDue" aria-label="Due date" />
+            <button type="button" class="btn btn-primary btn-sm" id="btnTaskAdd">Add task</button>
+          </div>
+          <div class="field">
+            <input type="text" id="taskNotes" placeholder="Optional notes" />
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Open &amp; recent tasks</h2>
+            <select id="taskFilter" aria-label="Filter follow-ups"><option value="all">All tasks</option><option value="today">Due today</option><option value="overdue">Overdue</option></select>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Due</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tasksBody">
+                <tr><td colspan="4" class="empty">No follow-ups yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reports -->
+      <section id="panel-reports" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Reports</h1>
+            <p class="sub">Quotation totals and engagement.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnReportRefresh">Refresh</button>
+          </div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi"><div class="label">Proposals</div><div class="value" id="repTotal">0</div><div class="hint">In this workspace</div></div>
+          <div class="kpi"><div class="label">Accepted</div><div class="value" id="repAccepted">0</div><div class="hint">Staff-marked</div></div>
+          <div class="kpi accent"><div class="label">Quoted value</div><div class="value small" id="repValue">—</div><div class="hint" id="repValueHint">Where data exists</div></div>
+          <div class="kpi"><div class="label">Link opens</div><div class="value" id="repOpens">0</div><div class="hint">Excludes prefetch bots</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Engagement</h2></div>
+          <div id="repEngagement" class="muted report-lines">Loading…</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Status breakdown</h2></div>
+          <div id="repStatus" class="muted report-lines">Loading…</div>
+        </div>
+        <details class="card help-details"><summary>About these numbers</summary><ul id="repHonesty" class="honesty-list"></ul></details>
+      </section>
+
+      <!-- Publish & secure links -->
+      <section id="panel-publish" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Publish &amp; customer links</h1>
+            <p class="sub">Share a saved version. Later edits won’t change the shared copy.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Select proposal</h2>
+          </div>
+          <div class="filters">
+            <select id="publishSelect" aria-label="Proposal to publish" class="grow"></select>
+            <button type="button" class="btn btn-primary btn-sm" id="btnPublish">Publish version &amp; create link</button>
+          </div>
+          <p class="muted note">
+            Links expire in 30 days. Copy your link now; revoke it anytime.
+          </p>
+          <div id="publishResult" class="banner info" style="display:none"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Published versions</h2>
+            <span class="muted">Saved copies</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Version</th>
+                  <th>Published</th>
+                  <th>Snapshot hash</th>
+                </tr>
+              </thead>
+              <tbody id="versionsBody">
+                <tr><td colspan="3" class="empty">Select a proposal to view published versions.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Customer links</h2>
+            <span class="muted">Manage shared links</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Created</th>
+                  <th>Expires</th>
+                  <th>Opens</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="linksBody">
+                <tr><td colspan="6" class="empty">Select a proposal to view links.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>PDF exports</h2>
+            <span class="muted">From frozen versions</span>
+          </div>
+          <p class="muted note">
+            Open a quotation in Studio to export a PDF. Customer PDF requests appear in Activity.
+          </p>
+          <a class="btn btn-secondary btn-sm" href="quotation.html">Open Studio</a>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Recent events</h2>
+            <span class="muted"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Event</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody id="eventsBody">
+                <tr><td colspan="3" class="empty">Select a proposal to view events.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Send centre -->
+      <section id="panel-send" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Send centre</h1>
+            <p class="sub">Share via WhatsApp, email or link.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Compose</h2></div>
+          <div class="filters">
+            <select id="sendSelect" aria-label="Proposal to send" class="grow"></select>
+          </div>
+          <div class="filters">
+            <select id="sendChannel" aria-label="Channel">
+              <option value="whatsapp_manual">WhatsApp (manual)</option>
+              <option value="email_manual">Email (manual)</option>
+              <option value="copy_link">Copy link only</option>
+              <option value="other">Other / offline</option>
+            </select>
+            <input type="text" id="sendRecipientName" placeholder="Recipient name" class="grow" />
+            <input type="text" id="sendRecipientTo" placeholder="WhatsApp number or email" class="grow" />
+          </div>
+          <div class="field">
+            <label for="sendMessage">Message</label>
+            <textarea id="sendMessage" rows="10"></textarea>
+          </div>
+          <p class="muted note" id="sendHonesty">Sharing opens your app; delivery is not confirmed.</p>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary btn-sm" id="btnSendPrepare">Publish link &amp; prepare send</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnSendLaunch" hidden>Open channel</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnSendCopy" hidden>Copy message</button>
+          </div>
+          <div id="sendResult" class="banner info" style="display:none"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Send history</h2>
+            <span class="muted">Honest states only</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Channel</th>
+                  <th>To</th>
+                  <th>State</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="sendsBody">
+                <tr><td colspan="5" class="empty">Select a proposal to view send history.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Proposals -->
+      <section id="panel-proposals" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Quotations</h1>
+            <p class="sub">Your saved quotations.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="btnNewProposal">+ New quotation</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="filters wide">
+              <input type="search" id="filterQ" placeholder="Search customer, ref, title…" class="grow" />
+              <select id="filterStatus">
+                <option value="">All statuses</option><option value="active">Active quotations</option><option value="waiting">Sent or viewed</option><option value="this_month">Created this month</option>
+                <option value="draft">Draft</option>
+                <option value="internal_review">Internal review</option>
+                <option value="ready">Ready</option>
+                <option value="sent">Sent</option>
+                <option value="viewed">Viewed</option>
+                <option value="negotiation">Negotiation</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="expired">Expired</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+          <div id="propStats" class="stat-chips"></div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Ref</th>
+                  <th>Ver</th>
+                  <th>kWp</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="propTableBody">
+                <tr><td colspan="7" class="empty">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Project gallery -->
+      <section id="panel-gallery" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Project gallery</h1>
+            <p class="sub">Site and installation photos. Private until approved for your public gallery.</p>
+          </div>
+          <div class="topbar-actions">
+            <a class="btn btn-secondary btn-sm" href="gallery.html" target="_blank" rel="noopener">View public page</a>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Upload site photo</h2><span class="muted">PNG / JPG / WebP · auto-optimized, optimized uploads</span></div>
+          <div class="upload-row">
+            <input type="file" id="galleryFile" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" aria-label="Photo file" />
+            <input type="text" id="galleryCaption" placeholder="Caption — e.g. Nerolac plant, 2.1 MWp rooftop" class="grow" maxlength="140" />
+            <select id="galleryCategory" aria-label="Category">
+              <option value="site">Site / general</option>
+              <option value="industrial">Industrial</option>
+              <option value="commercial">Commercial</option>
+              <option value="residential">Residential</option>
+            </select>
+            <button type="button" class="btn btn-primary btn-sm" id="btnGalleryUpload">Upload</button>
+          </div>
+          <p id="galleryMsg" class="muted micro" role="status"></p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Uploaded photos</h2><span class="muted" id="galleryCount">0 photos</span></div>
+          <div id="galleryGrid" class="ggrid"><div class="empty-pad">Loading…</div></div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section id="panel-settings" class="panel">
+        <div class="topbar">
+          <div>
+            <h1>Settings</h1>
+            <p class="sub">Profile, security and team.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Signed-in account</h2></div>
+          <p class="account-line">
+            <strong id="settingsName">—</strong><br />
+            <span class="muted" id="settingsEmail">—</span>
+          </p>
+          <div class="field">
+            <label for="profileName">Display name</label>
+            <input type="text" id="profileName" placeholder="Your name" />
+          </div>
+          <div class="field">
+            <label>Role</label>
+            <p id="settingsRole" class="role-line">—</p>
+            <p class="muted micro">
+              Owners can manage team roles below.
+            </p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary btn-sm" id="btnSaveProfile">Save name</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnLogout2">Log out</button>
+          </div>
+          <p id="profileSaveMsg" class="muted micro" role="status"></p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Change password</h2></div>
+          <p class="muted note">
+            Minimum 8 characters, no spaces. Changing your password signs out other devices.
+          </p>
+          <div class="field">
+            <label for="currPassword">Current password</label>
+            <input id="currPassword" type="password" minlength="8" maxlength="128" autocomplete="current-password" />
+          </div>
+          <div class="field">
+            <label for="newPassword">New password</label>
+            <input id="newPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" />
+          </div>
+          <div class="field">
+            <label for="newPassword2">Confirm new password</label>
+            <input id="newPassword2" type="password" minlength="8" maxlength="128" autocomplete="new-password" />
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btnChangePassword">Update password</button>
+          <p id="passwordChangeMsg" class="muted micro" role="status"></p>
+        </div>
+        <details class="card help-details"><summary>Connection details</summary><p class="muted note" id="settingsHealth">Checking server…</p></details>
+        <div class="card" id="teamCard">
+          <div class="card-head">
+            <h2>Team &amp; roles</h2>
+            <span class="muted">Owner only</span>
+          </div>
+          <p class="muted note">
+            <strong>Owner</strong>: full access · <strong>Sales</strong>: create and share · <strong>Viewer</strong>: read-only.
+          </p>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                </tr>
+              </thead>
+              <tbody id="teamBody">
+                <tr><td colspan="3" class="empty">Only the workspace owner can manage team roles.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+</section>
+    <button type="button" id="assistantLauncher" class="assistant-launcher" aria-label="Open AI assistant" aria-controls="assistantPanel" aria-expanded="false"><span aria-hidden="true">✧</span><span>Ask assistant</span></button>
+      <section id="assistantPanel" class="assistant-panel" role="dialog" aria-label="Quotation Studio assistant" hidden>
+        <header class="assistant-head"><div class="assistant-mark" aria-hidden="true">✧</div><div><strong>Studio assistant</strong><span>Your solar business workspace</span></div><button type="button" id="assistantClose" aria-label="Close assistant">×</button></header>
+        <div class="assistant-body">
+          <span class="assistant-status" id="assistantStatus" role="status">Checking connection…</span>
+          <h2>How can I help?</h2><p id="assistantIntro">Ask about saved quotations and follow-ups.</p>
+          <div class="assistant-context"><span>Current workspace</span><strong id="assistantContext">Available after sign-in</strong><small id="assistantContextDetail">No data sent to AI.</small></div>
+          <label class="assistant-scope-label" for="assistantQuotation">Quotation context</label><select id="assistantQuotation"><option value="">Workspace overview</option></select>
+          <details class="assistant-privacy"><summary>What Gemini receives</summary><p>Your question, up to 30 recent quotation summaries, 30 open follow-ups and 15 events from your own records. A selected quotation adds limited saved technical and pricing fields. No PDFs, images, dedicated contact fields or internal notes. Names and task titles may contain personal data. This is read-only; each question uses fresh data.</p></details>
+          <label class="assistant-consent"><input type="checkbox" id="assistantConsent"> Allow this context to be sent to Google Gemini.</label>
+          <h3>Quick links</h3>
+          <div class="assistant-shortcuts"><button type="button" data-assistant-action="overdue">View overdue follow-ups <span>↗</span></button><button type="button" data-assistant-action="active">Open active quotations <span>↗</span></button><button type="button" data-assistant-action="reports">View business reports <span>↗</span></button></div>
+        </div>
+        <div id="assistantMessages" class="assistant-messages" role="log" aria-live="polite" aria-label="Assistant conversation"></div>
+        <form id="assistantForm" class="assistant-composer"><label class="sr-only" for="assistantPrompt">Ask the assistant</label><textarea id="assistantPrompt" rows="2" placeholder="Ask about your workspace…" maxlength="2000" disabled aria-describedby="assistantConnectionNote"></textarea><button type="submit" id="assistantSend" disabled aria-label="Send message">↑</button><small id="assistantConnectionNote">Read-only · Review AI answers before acting.</small></form>
+      </section></main>
+  </div>
+
+  <dialog id="galleryViewer" aria-label="Photo viewer">
+    <button type="button" id="galleryViewerClose" class="dlg-close" aria-label="Close">×</button>
+    <img id="galleryLarge" alt="" />
+    <p id="galleryViewerCap"></p>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="assets/js/platform-api.js?v=role-enter1"></script>
+  <script src="assets/js/dashboard.js?v=home2"></script>
+  <script src="assets/js/dashboard-home.js?v=home2"></script>
+  <script src="assets/js/dashboard-ui.js?v=theme-ai1"></script>
+</body>
+</html>

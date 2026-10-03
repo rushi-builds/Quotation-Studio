@@ -250,7 +250,7 @@
   /* ------------------------------------------------------------------ */
   function bridge(canvas, f) {
     if (!canvas) return;
-    const W = canvas.clientWidth || 700, H = Number(canvas.dataset.h) || canvas.clientHeight || 230;
+    const W = canvas.clientWidth || 700, H = canvas.clientHeight || Number(canvas.dataset.h) || 230;
     const ctx = setup(canvas, W, H);
     if (f.projectCost <= 0) {
       emptyNote(ctx, 'Enter the project cost inputs to see the cost build-up.');
@@ -263,27 +263,35 @@
       { label: 'Net Payable', v: f.netInvestment, color: ORANGE, sub: 'your investment', total: true }
     ];
     const pad = { l: 16, r: 16, t: 34, b: 42 };
-    const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
-    const maxY = niceCeil(f.grossTotal * 1.08);
+    const ih = H - pad.t - pad.b;
+    // Include both negative investment and an override larger than gross.
+    const maxY = niceCeil(Math.max(1, f.grossTotal, f.projectCost, Math.abs(f.subsidy), f.netInvestment) * 1.08);
+    const minY = f.netInvestment < 0 ? -niceCeil(Math.abs(f.netInvestment) * 1.08) : 0;
+    const yOf = (v) => pad.t + ih * (maxY - v) / (maxY - minY);
+    // Reserve a separate measured gutter: the first bar must never paint over
+    // currency suffixes (for example the k in ₹83.33k).
+    ctx.font = '500 10.5px ' + FONT;
+    const tickLabels = Array.from({length:4}, (_,i)=>shortINR(minY+(maxY-minY)*i/3));
+    pad.l = Math.ceil(Math.max(...tickLabels.map(label=>ctx.measureText(label).width))) + 16;
+    const iw = W - pad.l - pad.r;
     const slot = iw / steps.length;
     const bw = Math.min(slot * 0.55, 104);
 
     ctx.font = '500 10.5px ' + FONT;
     const ticks = 3;
     for (let i = 0; i <= ticks; i++) {
-      const v = (maxY / ticks) * i;
-      const y = pad.t + ih - (ih * v) / maxY;
+      const v = minY + ((maxY - minY) / ticks) * i;
+      const y = yOf(v);
       ctx.strokeStyle = GRID;
       ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
-      ctx.fillStyle = TEXT; ctx.textAlign = 'left';
-      ctx.fillText(shortINR(v), pad.l + 2, y - 4);
+      ctx.fillStyle = TEXT; ctx.textAlign = 'right';
+      ctx.fillText(tickLabels[i], pad.l - 10, y + 3);
     }
 
     const GUIDE = 'rgba(91,107,128,0.14)';
     steps.forEach((st, i) => {
       const x = pad.l + slot * i + (slot - bw) / 2;
-      const base = pad.t + ih;
-      const yOf = (v) => base - (ih * v) / maxY;
+      const base = yOf(0);
       const valueLabel = (text, y) => {
         ctx.textAlign = 'center';
         ctx.fillStyle = NAVY;
@@ -335,10 +343,10 @@
       ctx.textAlign = 'center';
       ctx.fillStyle = TEXT;
       ctx.font = '600 11.5px ' + FONT;
-      ctx.fillText(st.label, x + bw / 2, base + 17);
+      ctx.fillText(st.label, x + bw / 2, pad.t + ih + 17);
       ctx.font = '500 9.8px ' + FONT;
       ctx.fillStyle = '#8A93A0';
-      ctx.fillText(st.sub, x + bw / 2, base + 30);
+      ctx.fillText(st.sub, x + bw / 2, pad.t + ih + 30);
     });
   }
   function shade(hex) {
@@ -485,7 +493,10 @@
 
   /* ------------------------------------------------------------------ */
   function roundRect(ctx, x, y, w, h, r) {
-    r = Math.min(r, h / 2, w / 2);
+    // Signed bars extend below zero; canvas arcTo requires a positive radius.
+    if (h < 0) { y += h; h = -h; }
+    if (w < 0) { x += w; w = -w; }
+    r = Math.max(0, Math.min(r, h / 2, w / 2));
     ctx.beginPath();
     ctx.moveTo(x + r, y);
     ctx.arcTo(x + w, y, x + w, y + h, r);

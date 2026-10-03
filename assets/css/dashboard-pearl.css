@@ -1,0 +1,139 @@
+/* Transparent glass is the product's System appearance. Dark retains the solar-glass theme.
+   Scoped to this dashboard preference; never loaded by the quotation editor. */
+html[data-appearance="system"] {
+  --bg: #edf2f7;
+  --surface: #fff;
+  --surface-soft: #f5f8fbc9;
+  --text: #1c3049;
+  --muted: #62758a;
+  --line: #d6e1ea99;
+  --blue: #426d9a;
+  --radius: 21px;
+}
+html[data-appearance="system"] .main {
+  --muted: #62758a;
+  --line: #d6e1ea99;
+}
+html[data-appearance="system"] .main::before {
+  background: linear-gradient(125deg, #edf4faab 4%, #eaf2f98c 45%, #f4eddf66 100%), url("../images/dash-hero-bg.jpg") right bottom / cover no-repeat;
+}
+html[data-appearance="system"] .main::after {
+  background: radial-gradient(ellipse at 88% 15%, #fff0c280, transparent 48%), radial-gradient(ellipse at 20% 60%, #b2d6ee45, transparent 56%);
+}
+html[data-appearance="system"] .gbar {
+  background: #ffffff66;
+  border-bottom: 1px solid #ffffffd9;
+  box-shadow: 0 4px 26px #41658a04;
+}
+html[data-appearance="system"] :is(.gsearch,.search-field) {
+  background: #f0f5f98f;
+  border-color: #dce6efb3;
+  box-shadow: inset 0 1px 3px #38516e04, 0 1px 0 #fff;
+}
+html[data-appearance="system"] .main :is(.card,.hc,.kpis,.report-metric,.solar-hero) {
+  background: linear-gradient(130deg, #ffffff80, #ffffff45);
+  border: 1px solid #fffffff0;
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 #ffffff80, 0 6px 14px #28496c04, 0 22px 55px -22px #294f752b;
+  -webkit-backdrop-filter: blur(14px) saturate(110%);
+  backdrop-filter: blur(14px) saturate(110%);
+}
+html[data-appearance="system"] .main .solar-hero {
+  min-height: 246px;
+  padding: 38px;
+  border-radius: 27px;
+  background: linear-gradient(112deg, #ffffff80, #ffffff40 66%, #fff8ea59);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 #ffffffb3, 0 18px 54px -22px #385f843b;
+}
+/* An etched sun in the glass, not a second photograph or moving image. */
+html[data-appearance="system"] .solar-hero::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: 190px;
+  width: 208px;
+  height: 208px;
+  border-radius: 50%;
+  border: 1px solid #d0b77826;
+  box-shadow: 0 0 0 24px #ddcda60c, 0 0 0 25px #dccca01a, 0 0 0 49px #f4e4b80a, 0 0 0 50px #dccca012;
+  background: radial-gradient(circle at 35% 30%, #ffffff61, #f0d89e0a 65%);
+  pointer-events: none;
+  z-index: -1;
+}
+html[data-appearance="system"] .hero-kicker {
+  border: 1px solid #dfcfad61;
+  background: #fffcf599;
+  padding: 7px 12px;
+  border-radius: 30px;
+  font-size: 8px;
+  letter-spacing: .18em;
+  color: #816b42;
+  margin-bottom: 20px;
+}
+html[data-appearance="system"] .solar-hero h1 {
+  font-size: clamp(30px, 2.8vw, 44px);
+  font-weight: 500;
+  color: #213a53;
+  letter-spacing: -.055em;
+}
+html[data-appearance="system"] .solar-hero .sub { color: #5b7288; }
+html[data-appearance="system"] .solar-hero .btn-primary {
+  background: linear-gradient(125deg, #243e59, #14283e);
+  color: #fff;
+  border: 1px solid #304c67;
+  box-shadow: inset 0 1px 0 #ffffff26, 0 6px 16px #15345524;
+}
+html[data-appearance="system"] .solar-hero .btn-secondary {
+  background: #ffffffad;
+  border-color: #d4dfe9;
+  box-shadow: 0 2px 5px #344e6605;
+}
+html[data-appearance="system"] .datechip { color: #63768a; }
+html[data-appearance="system"] .kpis { padding-top: 25px; padding-bottom: 25px; }
+html[data-appearance="system"] .kic {
+  width: 37px; height: 37px; border-radius: 12px;
+  background: #f3f7fbcc; border: 1px solid #fff;
+  box-shadow: 0 3px 8px #2b53670a;
+}
+html[data-appearance="system"] .kpi2 b { font-weight: 500; letter-spacing: -.055em; }
+html[data-appearance="system"] .client-icon { background: #edf4fac9; border-color: #dce7f28c; }
+html[data-appearance="system"] table.data th { background: #f2f6f945; }
+html[data-appearance="system"] .count-pill { background: #eaf1f88c; }
+html[data-appearance="system"] .assistant-launcher {
+  background: linear-gradient(135deg, #fffffff7, #eaf0f8ed);
+  color: #243d59;
+  border: 1px solid #fff;
+  box-shadow: 0 8px 25px #243c6024, inset 0 1px 0 #fff;
+}
+html[data-appearance="system"] .assistant-panel {
+  border: 1px solid #fff;
+  background: #fffffff5;
+  box-shadow: 0 22px 70px #223e652b, 0 3px 12px #233d5e0a;
+}
+html[data-appearance="system"] .assistant-head { background: linear-gradient(115deg,#f5f8fc,#fff); }
+html[data-appearance="system"] .assistant-mark { background: #eaf0f8; color: #4f7399; }
+html[data-appearance="system"] .assistant-composer textarea { background: #f3f6fac9; }
+html[data-appearance="system"] .assistant-composer > button:not(:disabled) { background: #233f5d; }
+@media (max-width: 1000px) {
+  html[data-appearance="system"] .solar-hero::after { right: 25px; top: 15px; width: 160px; height: 160px; }
+  html[data-appearance="system"] .main .solar-hero { padding: 30px; }
+}
+@media (max-width: 760px) {
+  html[data-appearance="system"] .main .solar-hero { padding: 25px 22px; min-height: 285px; border-radius: 22px; }
+  html[data-appearance="system"] .solar-hero h1 { font-size: 32px; }
+  html[data-appearance="system"] .hero-kicker { font-size: 7px; padding: 6px 9px; letter-spacing: .12em; }
+  html[data-appearance="system"] .kpis { padding: 0; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-appearance="system"] .main :is(.card,.hc,.kpis,.report-metric,.solar-hero,.gbar) { background: #fffffff5; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  html[data-appearance="system"] .main :is(.card,.hc,.kpis,.report-metric,.solar-hero,.gbar) { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* Clear panes: let the solar scene show through instead of a pearl-white fill. */
+html[data-appearance="system"] .solar-hero::after { display: none; }
+html[data-appearance="system"] .main { --muted: #405570; --line: #e4edf1a6; }
+html[data-appearance="system"] .solar-hero .sub,
+html[data-appearance="system"] .datechip { color: #405570; }
+html[data-appearance="system"] .main :is(.card,.hc,.kpis,.report-metric,.solar-hero) { border-color: #ffffffa6; }
+html[data-appearance="system"] .hero-kicker { background: #fffaf259; color: #654a1d; }

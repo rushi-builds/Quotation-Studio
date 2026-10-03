@@ -185,8 +185,8 @@ t('no financing inputs → financing null',
   F.compute({ ...base, loanAmt: '', loanRate: '', loanYears: '' }).financing === null);
 t('partial financing inputs → financing null',
   F.compute({ ...base, loanAmt: '500000', loanRate: '', loanYears: '10' }).financing === null);
-t('zero-rate guard (rate 0 → null, no div-by-zero NaN)',
-  F.compute({ ...base, loanAmt: '500000', loanRate: '0', loanYears: '10' }).financing === null);
+t('zero rate gives principal-only EMI without division by zero',
+  Math.abs(F.compute({ ...base, loanAmt: '500000', loanRate: '0', loanYears: '10' }).financing.emi - 500000 / 120) < 1e-9);
 
 console.log('- Edge cases -');
 const zero = F.compute({});

@@ -51,7 +51,7 @@ function bootApp() {
   html = html.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, (tag) => {
     const href = /href=["']([^"']+)["']/i.exec(tag);
     if (!href || /^https?:/i.test(href[1])) return tag;
-    const file = path.join(ROOT, href[1]);
+    const file = path.join(ROOT, href[1].split(/[?#]/)[0]);
     if (!fs.existsSync(file)) return tag;
     return '<style data-from="' + href[1] + '">' + fs.readFileSync(file, 'utf8') + '</style>';
   });
@@ -217,7 +217,7 @@ check('₹90/Wp becomes ₹90,000/kWp for the engine', () => {
 check('editing the ₹/Wp rate moves the quoted price', () => {
   setInput('costPerWp', 75);
   assert.equal(w.Finance.compute(w.Render.lastState).projectCost, 525000, '7 kWp × ₹75/Wp');
-  assert.equal(txt('v_exHeroNet'), inr(525000 * 1.089 - 78000), 'exec hero follows the rate');
+  assert.equal(txt('v_inCostNet'), inr(525000 * 1.089 - 78000), 'exec hero follows the rate');
   setInput('costPerWp', DEFAULT_RATE);
   assert.equal(w.Finance.compute(w.Render.lastState).projectCost, 7 * DEFAULT_RATE * 1000, 'restored');
 });
@@ -333,12 +333,15 @@ for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
 
     /* cover */
     assert.equal(txt('v_coverCapacity'), cap + ' kWp', 'cover capacity');
-    assert.equal(txt('v_coverBadgeGen'), short(e.gross), 'cover project-cost badge');
-    assert.equal(txt('v_exHeroLifetime'), inr(e.subsidy), 'exec subsidy tile');
+    assert.equal(txt('v_coverBadgeGen'), num(e.annualGen) + ' kWh', 'cover generation badge');
+    assert.equal(txt('v_inCostSub'), '− ' + inr(e.subsidy), 'investment subsidy');
+    assert.equal(txt('v_exHeroLifetime'), '24/7', 'summary monitoring highlight');
+    assert.equal(txt('v_exHeroSave'), w.Finance.compute(w.Render.lastState).installedKwp.toLocaleString('en-IN', {maximumFractionDigits:3}) + ' kWp', 'installed capacity precision');
 
     /* executive summary */
-    assert.equal(txt('v_exHeroNet'), inr(e.net), 'exec net investment');
-    assert.ok(txt('v_exHeroPayback').startsWith(e.payback.toFixed(1)), 'exec payback ' + txt('v_exHeroPayback'));
+    assert.equal(txt('v_inCostNet'), inr(e.net), 'exec net investment');
+    assert.equal(txt('v_exHeroNet'), num(e.annualGen / 12) + ' kWh', 'summary monthly generation');
+    assert.equal(txt('v_inPayback'), e.payback.toFixed(1) + ' years', 'investment payback from existing projection');
     assert.ok(txt('v_exKpis').includes(num(e.annualGen) + ' kWh'), 'exec generation KPI');
 
     /* technical specification */
@@ -396,11 +399,11 @@ check('the same roof flips verdict when the clearance factor changes', () => {
   setInput('capacity', 7);
   setInput('availableArea', 40);
   setInput('roofClearanceFactor', 1.1);
-  assert.ok(txt('v_tsTable').includes('fits ✓'), 'should fit at ×1.1');
-  assert.ok(txt('v_tsTable').includes('module area × 1.1 clearance'), 'must state the factor it used');
+  assert.ok(!txt('v_tsTable').includes('exceeds available area') && txt('v_tsTable').includes('subject to site verification'), 'estimated space is sufficient at ×1.1, not a verified design');
+  assert.ok(txt('v_tsTable').includes(Math.ceil(w.Finance.compute(w.Render.lastState).requiredArea)+' m²'), 'indicative area must follow the entered factor');
   setInput('roofClearanceFactor', 1.4);
   assert.ok(txt('v_tsTable').includes('exceeds available area'), 'should not fit at ×1.4');
-  assert.ok(txt('v_tsTable').includes('module area × 1.4 clearance'), 'must state the factor it used');
+  assert.ok(txt('v_tsTable').includes(Math.ceil(w.Finance.compute(w.Render.lastState).requiredArea)+' m²'), 'indicative area must follow the entered factor');
   setInput('availableArea', '');
 });
 
@@ -413,15 +416,18 @@ check('commercial shows nil subsidy and gross investment', () => {
   assert.equal(txt('v_inCostSub'), '− ₹0', 'commercial subsidy must be nil');
   assert.ok(txt('v_inCostSubCap').includes('Not applicable'), 'subsidy caption must explain why');
   const gross = 25 * cfg.rate * (1 + cfg.gstPct / 100);
-  assert.equal(txt('v_exHeroNet'), inr(gross), 'commercial net equals gross');
+  assert.equal(txt('v_inCostNet'), inr(gross), 'commercial net equals gross');
   typeEl.value = 'residential';
   typeEl.dispatchEvent(new w.Event('change', { bubbles: true }));
 });
 
 console.log('- Reconcile (rendered): the pages agree with each other -');
-check('cover badge, exec hero and investment card carry one net figure', () => {
+check('opening pages are non-financial while investment retains the figures', () => {
   setInput('capacity', 7);
-  const net = txt('v_exHeroNet');
+  const net = inr(w.Finance.compute(w.Render.lastState).netInvestment);
+  assert.ok(!/₹|Payback|Estimated IRR|Net Investment|Effective Solar Cost|Estimated Subsidy/i.test(txt('pageCover') + txt('pageExec')));
+  assert.equal(txt('v_exHeroNet'), num(w.Finance.compute(w.Render.lastState).annualGen / 12) + ' kWh');
+  assert.equal(txt('v_exEffectiveHint'), '');
   assert.equal(txt('v_inCostNet'), net, 'investment card must match the summary');
   assert.equal(txt('v_inCostSub'), '− ₹78,000', '7 kWp is above the subsidy cap');
 });

@@ -39,7 +39,7 @@
     } catch (e) { return ''; }
   }
 
-  const TYPE_LABEL = { residential: 'Residential', commercial: 'Commercial', industrial: 'Industrial' };
+  const TYPE_LABEL = { residential: 'Residential', rwa: 'RWA / Housing Society', commercial: 'Commercial', industrial: 'Industrial' };
 
   /* Merge state + finance into the template variable pool. */
   function tplVars(s, f) {
@@ -64,8 +64,23 @@
   /* ================================================================== */
   /* PAGE 1 - COVER                                                      */
   /* ================================================================== */
+  // Change only the photographic cover background. All live overlays, original
+  // branding, residential artwork, and subsequent pages remain unchanged.
+  const COVER_ARTWORK = {
+    residential: ['assets/images/cover-editable-background.png', 'KTM Energy Experts solar proposal cover artwork'],
+    commercial: ['assets/images/cover-commercial-background.webp', 'Illustrative commercial solar office campus cover — AI-generated architectural concept'],
+    industrial: ['assets/images/cover-industrial-background.webp', 'Illustrative industrial rooftop solar facility cover — AI-generated architectural concept'],
+    rwa: ['assets/images/cover-rwa-background.webp', 'Illustrative housing society rooftop solar cover — AI-generated architectural concept']
+  };
   function renderCover(s, f, v) {
-    set('v_coverEyebrow', tpl(CONTENT.cover.eyebrowByType[s.customerType] || CONTENT.cover.eyebrowByType.residential, v));
+    const cover = $('coverArtwork');
+    if (cover) {
+      const choice = COVER_ARTWORK[s.customerType];
+      const [src, alt] = Array.isArray(choice) ? choice : COVER_ARTWORK.residential;
+      if (cover.getAttribute('src') !== src) cover.setAttribute('src', src);
+      cover.alt = alt;
+    }
+    set('v_coverEyebrow', tpl(CONTENT.cover.eyebrowByType[s.customerType] || (s.customerType === 'rwa' ? 'RWA / HOUSING SOCIETY SOLAR PROPOSAL' : CONTENT.cover.eyebrowByType.residential), v));
     set('v_coverTitle1', CONTENT.cover.titleLine1);
     set('v_coverTitle2', CONTENT.cover.titleLine2);
     set('v_coverPreparedLabel', CONTENT.cover.labels.preparedFor);
@@ -85,9 +100,8 @@
     set('v_coverPrepLabel', CONTENT.cover.labels.preparedBy);
     set('v_coverPrepBy', s.prepName);
     set('v_coverBadgeKwp', s.capacity + ' kWp');
-    /* The cover's second KPI is the cost of the project (incl. GST); the
-       25-year projection lives in the savings table, not on the cover. */
-    set('v_coverBadgeGen', F.fmtINRshort(f.grossTotal));
+    // Lead with energy potential; pricing remains on the Investment page.
+    set('v_coverBadgeGen', F.fmtNum(f.annualGen) + ' kWh');
     set('v_coverStatYears', s.statYears);
     set('v_coverStatProjects', s.statProjects);
     set('v_coverStatCapacity', s.statCapacity);
@@ -133,39 +147,32 @@
     const E = CONTENT.exec;
     set('v_exEyebrow', tpl(E.eyebrow, v));
     set('v_exHeading', tpl(E.heading, v));
-    set('v_exSub', root.Bess.included(s) ? 'Solar-only figures below • separately priced battery supplement on pages '+pageNum('pageBessOverview')+'–'+pageNum('pageBessAssessment') : tpl(E.sub, v));
+    set('v_exSub', root.Bess.included(s) ? 'Solar system highlights • battery supplement on pages '+pageNum('pageBessOverview')+'–'+pageNum('pageBessAssessment') : tpl(E.sub, v));
     set('v_exCustomerLine', s.custName ? ('Prepared exclusively for ' + s.custName +
       (s.custAddress ? ' • ' + s.custAddress : '')) : '');
 
-    set('v_exHeroNet', F.fmtINR(f.netInvestment));
-    set('v_exHeroNetLabel', root.Bess.included(s) ? 'Solar-only net investment' : E.heroLabels.netInvestment);
-    set('v_exHeroSave', F.fmtINR(f.annualSaving));
-    set('v_exHeroSaveLabel', E.heroLabels.year1Saving);
-    set('v_exHeroPayback', isFinite(f.payback) ? f.payback.toFixed(1) + ' yrs' : '-');
-    set('v_exHeroPaybackLabel', E.heroLabels.payback);
-    /* The fourth hero tile names the money the customer gets back from the
-       scheme - the actual computed subsidy (central slab plus any entered
-       state top-up, or the override), never a promise. */
-    set('v_exHeroLifetime', F.fmtINR(f.subsidy));
-    set('v_exHeroLifetimeLabel', E.heroLabels.subsidy);
+    // Legacy DOM IDs are retained for saved layouts; opening highlights are non-financial.
+    const h = E.systemHeroLabels;
+    set('v_exHeroNet', F.fmtNum(f.annualGen / 12) + ' kWh');
+    set('v_exHeroNetLabel', h.generation);
+    set('v_exHeroSave', f.installedKwp.toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp');
+    set('v_exHeroSaveLabel', h.installed);
+    set('v_exHeroPayback', f.co2Annual.toFixed(1) + ' t');
+    set('v_exHeroPaybackLabel', h.carbon);
+    set('v_exHeroLifetime', '24/7');
+    set('v_exHeroLifetimeLabel', h.monitoring || 'Remote Monitoring Access');
 
-    /* KPI tiles - 8 tiles; the bill-offset tile replaces the warranty tile
-       only when the customer's monthly bill has been entered. */
-    const k = E.kpis;
+    const k = E.systemKpis;
     const tiles = [
       { l: k.capacity, val: s.capacity + ' kWp', icon: 'panel' },
-      { l: k.annualGen, val: F.fmtNum(f.annualGen) + ' kWh', icon: 'sun' },
       { l: k.modules, val: f.moduleCount ? f.moduleCount + ' × ' + f.moduleWattage + ' Wp' : '-', icon: 'grid2' },
+      { l: k.inverter, val: f.inverterKw + ' kW', icon: 'bolt' },
       { l: k.arrayArea, val: f.arrayArea ? Math.round(f.arrayArea) + ' m²' : '-', icon: 'target' },
-      { l: k.irr, val: isFinite(f.irr) ? f.irr.toFixed(1) + '%' : '-', icon: 'trend' },
-      { l: k.effective, val: f.lifetimeGen > 0 && Number.isFinite(f.effectivePerUnit) && f.effectivePerUnit >= 0 ? '₹' + f.effectivePerUnit.toFixed(2) + ' / unit' : '-', icon: 'rupee' },
-      { l: k.co2, val: f.co2Annual.toFixed(1) + ' tonnes', icon: 'leaf' }
+      { l: k.technology, val: s.moduleTech || 'To be confirmed', icon: 'panel' },
+      { l: k.roof, val: s.roofType || 'To be confirmed', icon: 'home' },
+      { l: k.annualGen || 'Estimated Year-1 Generation', val: F.fmtNum(f.annualGen) + ' kWh', icon: 'sun' },
+      { l: k.lifetimeGen, val: (f.lifetimeGen / 1000).toLocaleString('en-IN', { maximumFractionDigits: 1 }) + ' MWh', icon: 'leaf' }
     ];
-    if (f.monthlyBill > 0 && f.annualSaving > 0) {
-      tiles.push({ l: k.billOffset, val: Math.min(100, Math.round(f.billOffset)) + '% of your bill', icon: 'bolt' });
-    } else {
-      tiles.push({ l: 'Inverter Rating', val: f.inverterKw + ' kW', icon: 'bolt' });
-    }
     setHTML('v_exKpis', tiles.map((t) =>
       '<div class="kpi-tile">' + I.chip(t.icon, 30) +
       '<div class="kpi-l">' + esc(t.l) + '</div>' +
@@ -187,9 +194,9 @@
       '<div><div class="inc-t">' + esc(it.t) + '</div>' +
       '<div class="inc-d">' + esc(it.d) + '</div></div></div>').join(''));
 
-    set('v_exEffectiveHint', tpl(E.effectiveHint, { tariff: s.tariff }));
-    show('v_exEffectiveHint', f.effectivePerUnit > 0);
-    set('v_exTraceNote', '');
+    set('v_exEffectiveHint', '');
+    show('v_exEffectiveHint', false);
+    set('v_exTraceNote', E.systemNote);
   }
 
   function modeDesc(mode, s) {
@@ -210,7 +217,7 @@
   /* ================================================================== */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
     'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
-    'degradation', 'subsidyOverride'];
+    'degradation', 'subsidyOverride', 'rwaEligibleKwp'];
 
   function optionFinance(opt, s) {
     const fields = Object.assign({}, opt.fields || {});
@@ -427,124 +434,20 @@
         ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '-'],
       ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
     ]);
-    /* ---- engineering design basis ------------------------------------------
-       Everything below is either arithmetic a named standard defines or a
-       figure the designer supplied. Where an input is missing the row says
-       DATA REQUIRED and the design-basis block lists what to bring - the page
-       never fills that gap with a plausible-looking number. */
-    const phaseCount = f.isCommercialOrInd ? 3 : 1;
-    const acVoltageV = phaseCount === 3 ? 415 : 230;
-    const acCurrentA = f.inverterKw > 0
-      ? (f.inverterKw * 1000) / (acVoltageV * (phaseCount === 3 ? Math.sqrt(3) : 1)) : 0;
-    const eng = root.Engineering ? root.Engineering.report(s, {
-      moduleCount: f.moduleCount, acCurrentA, acVoltageV, phases: phaseCount
-    }) : null;
-    const REQ = 'DATA REQUIRED';
-    const round1 = (x) => Math.round(x * 10) / 10;
-    const round2 = (x) => Math.round(x * 100) / 100;
-
+    // Proposal-stage presentation. Engineering calculations and checks remain
+    // in the staff panel; unverified design outputs do not become customer claims.
     addRows('MOUNTING & CABLING', [
       ['Structure Make', s.mountMake],
       ['Roof Type', s.roofType || '-'],
       ['Cabling & Protection', s.cableMake],
-      /* Not "included as per EPC scope" - that claims a design without one.
-         Either the electrode design is here, or the row says what is missing. */
-      ['Earthing', (eng && eng.earthing.ok)
-        ? eng.earthing.electrodeCount + ' × ' + eng.earthing.lengthM + ' m pipe electrode at ' +
-          eng.earthing.soilResistivity + ' Ω·m ⇒ ' + round1(eng.earthing.parallelOhm) +
-          ' Ω against ' + eng.earthing.targetOhm + ' Ω (IS 3043) - two distinct earths (CEA 2010)'
-        : REQ + ' - soil resistivity test; electrode design to follow (IS 3043)'],
-      ['Lightning Protection', (eng && eng.lightning.ok && eng.lightning.strikesPerYear)
-        ? 'LPL ' + eng.lightning.lpsClass + ': ' + eng.lightning.params.mesh + ' m mesh, ' +
-          eng.lightning.params.sphere + ' m rolling sphere, down conductors ≤ ' +
-          eng.lightning.params.down + ' m, earth ≤ ' + eng.lightning.earthOhm + ' Ω (IEC 62305) - risk assessment to confirm'
-        : REQ + ' - lightning risk assessment (IEC 62305)']
+      ['Earthing', 'Electrode design will follow site testing and electrical design verification.'],
+      ['Lightning Protection', 'Protection requirements will be confirmed through the site risk assessment.']
     ]);
-    if (s.availableArea) {
-      /* Module area alone is not enough roof. Two rows tell the truth about
-         which figure it is: a factor worked out from the tilt and the
-         winter-solstice sun angle, or one the designer typed in. */
-      const need = Math.ceil(f.requiredArea || 0);
-      const avail = parseFloat(s.availableArea);
-      const verdict = f.clearanceSource === 'manual'
-        ? (avail >= need ? '- fits ✓' : '- exceeds available area')
-        : (eng && eng.layout && eng.layout.ok
-            ? (eng.layout.verdict === 'short' ? '- exceeds available area'
-              : eng.layout.verdict === 'tight' ? '- fits the rows; the clear band around them is not confirmed'
-              : '- fits ✓')
-            : (avail >= need ? '- fits ✓' : '- exceeds available area'));
-      const basis = f.clearanceSource === 'manual'
-        ? 'module area × ' + f.roofClearanceFactor + ' clearance - manual factor'
-        : (eng && eng.layout && eng.layout.ok
-            ? 'row pitch ' + round2(eng.layout.geo.pitchM) + ' m at ' + s.tiltDeg + '° tilt, no shading ' +
-              '09:00–15:00 on 21 December at ' + s.latitudeDeg + '°N - module area × ' +
-              round2(f.roofClearanceFactor) + ' clearance'
-            : 'module area × ' + round2(f.roofClearanceFactor) + ' clearance');
-      addRows('SITE', [
-        ['Available Roof Area', s.availableArea + ' m²'],
-        ['Roof Area Required', need + ' m² (' + basis + ') ' + verdict]
-      ]);
-    }
-    /* The design basis itself, so the reader can check the arithmetic. */
-    if (eng) {
-      const wind = eng.wind, lay = eng.layout, str = eng.string;
-      const rows2 = [];
-      if (lay && lay.ok) {
-        rows2.push(['Tilt & row spacing', s.tiltDeg + '° tilt, ' + s.latitudeDeg + '°N - row pitch ' +
-          round2(lay.geo.pitchM) + ' m from a ' + round1(lay.geo.altitudeDeg) +
-          '° mid-morning sun on 21 December (winter solstice)']);
-      } else {
-        rows2.push(['Tilt & row spacing', REQ + ' - ' + (lay ? lay.missing.join(', ') : 'design inputs')]);
-      }
-      rows2.push(['Wind pressure', wind.ok
-        ? wind.vb + ' m/s (IS 875-3:2015 map) × k1 ' + wind.k1 + ' × k2 ' + wind.k2.toFixed(2) +
-          ' × k3 ' + wind.k3 + ' × k4 ' + wind.k4 + ' ⇒ Vz ' + round1(wind.vz) + ' m/s, pz ' +
-          round1(wind.pz) + ' N/m². Net uplift ' + round1(wind.uplift) + ' N/m² at ×' +
-          wind.netCp + ' coefficient and ×' + wind.zoneFactor + ' ' + wind.roofZone +
-          ' zone ⇒ ' + round1(wind.factoredUplift) + ' N/m² design, ' +
-          round1(wind.perAnchorN) + ' N per anchor - module rating ' + wind.moduleRatingPa +
-          ' Pa (IEC 61215)'
-        : REQ + ' - site wind data (IS 875-3:2015)']);
-      rows2.push(['String design', str.ok
-        ? str.strings + ' × ' + str.seriesPerString + ' modules in series · Voc at ' + s.minAmbientC +
-          ' °C = ' + Math.round(str.vocColdString) + ' V against the inverter’s ' + s.inverterVmaxDc +
-          ' V limit' + (str.maxSeriesByVoltage === str.seriesPerString ? ' · longest string allowed here is ' + str.maxSeriesByVoltage + ' modules' : '') +
-          ' · Vmp at ' + s.maxCellC + ' °C = ' + Math.round(str.vmpHotString) + ' V against the ' +
-          s.mpptMinV + ' V MPPT floor (IEC 62548)'
-        : REQ + ' - module datasheet & inverter DC limits (IEC 62548)']);
-      rows2.push(['Cable voltage drop', (eng.cable.dc.ok ? 'DC ' + eng.cable.dc.percent.toFixed(2) + ' % over ' +
-        eng.cable.dc.lengthM + ' m of ' + eng.cable.dc.sizeMm2 + ' mm²' : 'DC ' + REQ + ' - length & size') + ' · ' +
-        (eng.cable.ac.ok ? 'AC ' + eng.cable.ac.percent.toFixed(2) + ' % over ' + eng.cable.ac.lengthM +
-          ' m of ' + eng.cable.ac.sizeMm2 + ' mm² (' + eng.cable.ac.phases + '-phase, IS 732 limit ' +
-          eng.cable.ac.limitPct + ' %)' : 'AC ' + REQ + ' - length & size')]);
-      if (eng.roofLoad.ok) {
-        rows2.push(['Terrace load', round1(eng.roofLoad.kgPerM2) + ' kg/m² from modules (' +
-          eng.roofLoad.moduleWeightKg + ' kg each) and racking against the ' +
-          eng.roofLoad.benchmarkKgM2 + ' kg/m² benchmark (MNRE/UPNEDA). Roof capacity itself is a structural check']);
-      } else {
-        rows2.push(['Terrace load', REQ + ' - module weight & array area (MNRE/UPNEDA)']);
-      }
-      const strip = (m) => m.replace(/^DATA REQUIRED - /, '');
-      /* The honesty row stays, but as a short shopping list rather than full
-         sentences - the detail lives in the rows above and in the panel. */
-      const GAP_LABEL = {
-        moduleVoc: 'module datasheet (string design)',
-        windSpeed: 'site wind speed',
-        dcCableLengthM: 'DC cable schedule',
-        acCableLengthM: 'AC cable schedule',
-        soilResistivity: 'soil resistivity (earthing)',
-        moduleWeightKg: 'module weight & array area'
-      };
-      const gaps = eng.notes.filter((n) => /^DATA REQUIRED/.test(n.message))
-        .map((n) => GAP_LABEL[n.id] || strip(n.message));
-      const design = eng.notes.filter((n) => !/^DATA REQUIRED/.test(n.message)).map((n) => strip(n.message));
-      rows2.push(['Data still required', gaps.length
-        ? REQ + ' - ' + gaps.join(' · ')
-        : 'None - every design figure on this page is either calculated or supplied']);
-      if (design.length) rows2.push(['Design notes', design.join(' ')]);
-      if (eng.advisory.length) rows2.push(['Review before sending', eng.advisory.map((a) => a.message).join(' ')]);
-      addRows('ENGINEERING DESIGN BASIS', rows2);
-    }
+    if (s.availableArea) addRows('SITE', [
+      ['Available Roof Area', s.availableArea + ' m²'],
+      ['Indicative Roof Requirement', Math.ceil(f.requiredArea || 0) + ' m² — final layout and clearances subject to site verification.' + (Number(s.availableArea) < Math.ceil(f.requiredArea || 0) ? ' Estimated requirement exceeds available area.' : '')]
+    ]);
+    addRows('ENGINEERING DESIGN BASIS', [['Proposal-stage design', root.StateStore.engineeringNote(s)]]);
     $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
     setHTML('v_tsTable', rows.join(''));
     set('v_tsNoteLabel', P.noteLabel);
@@ -836,11 +739,17 @@
     set('v_inCostNet', F.fmtINR(f.netInvestment));
     set('v_inCostNetL', root.Bess.included(s) ? 'Solar-only net investment' : P.cards.netInvestment);
     /* subsidy caption reflects exactly how the number was derived */
-    const subCap = f.subsidyAuto ? (f.stateTopUp > 0 ? P.cards.subsidyCaptionTopUp : P.cards.subsidyCaptionAuto)
+    if ($('rwaEligibilityField')) $('rwaEligibilityField').hidden = s.customerType !== 'rwa';
+    const subCap = f.subsidyAuto && s.customerType === 'rwa' ? (f.rwaEligibilityConfirmed ? 'RWA · entered eligible capacity' : 'RWA provisional · verify eligibility') : f.subsidyAuto ? (f.stateTopUp > 0 ? P.cards.subsidyCaptionTopUp : P.cards.subsidyCaptionAuto)
       : (s.subsidyOverride !== '' ? P.cards.subsidyCaptionOverride : P.cards.subsidyCaptionNA);
     set('v_inCostSubCap', subCap);
     set('v_inRate', '₹' + (Math.round(f.costPerWp * 10) / 10) + ' / Wp');
     set('v_inRateL', P.rateChip);
+    const recovered = Number.isFinite(f.payback) && f.payback >= 0;
+    set('v_inPaybackLabel', P.paybackCard.label);
+    set('v_inPayback', recovered ? f.payback.toFixed(1) + ' years' : f.netInvestment <= 0 ? 'Not applicable' : 'Not reached');
+    set('v_inPaybackNote', recovered ? (root.Bess.included(s) ? 'Solar-only savings estimate' : P.paybackCard.note) : f.netInvestment <= 0 ? 'Net investment is not positive' : P.paybackCard.noRecovery);
+
 
     /* commercial / industrial tax shield benefit (IT Act Sec 32) */
     setHTML('v_inTaxIcon', I.get('building', 22, '#166534'));
@@ -901,7 +810,7 @@
       set('v_inPayWarn', '⚠ Payment schedule totals ' + f.pay.sumPct + '% - adjust the three percentages to total 100%.');
     } else sumWarn.style.display = 'none';
 
-    set('v_inDisclaimer', P.disclaimer);
+    set('v_inDisclaimer', s.customerType === 'rwa' ? 'RWA/GHS estimate: ₹18,000 per eligible kW, capped at 500 kW and 3 kW per house including individual rooftop installations. Verify common-facility eligibility and approvals. Manual subsidy amounts override the estimate.' : P.disclaimer);
   }
 
   /* ================================================================== */
@@ -979,8 +888,6 @@
   function renderProjects(s, f, v) {
     const P = CONTENT.pageProjects;
     set('v_prHeading', P.heading);
-    const projCta = $('projGalleryCta');
-    if (projCta) projCta.href = new root.URL('gallery.html', root.location.href).href;
     set('v_prSub', P.sub);
     /* traceable counts: projects listed on this page + overall track record stat */
     const categories = portfolioCategories(P);
@@ -1207,7 +1114,7 @@
          conditions are measured; without a layout engine (jsdom) the footer
          limit is Infinity and only the box is judged. */
       const rect = spec.getBoundingClientRect(), foot = spec.querySelector('.pg-foot');
-      const limit = rect.height ? rect.bottom - (foot ? foot.getBoundingClientRect().height : 34) - 1 : Infinity;
+      const limit = rect.height ? (foot ? foot.getBoundingClientRect().top : rect.bottom - 34) - 1 : Infinity;
       const lowest = () => {
         const body = spec.querySelector('.pg-body');
         let max = 0;
@@ -1259,7 +1166,7 @@
       set('v_inPayNote','Solar-only milestones. '+CONTENT.pageInvestment.paymentNote);
       set('v_finSub','Solar-only cash-flow illustration • optional-system prices and operating effects are not included.');
       set('v_opSub','Solar-only options • optional systems are proposal-level and priced separately.');
-      set('v_exHeroNetLabel','Solar-only net investment');
+      set('v_exHeroNetLabel','Estimated Monthly Generation');
       set('v_tmSub','Solar EPC terms • additional system scope, price and payment terms require separate agreement.');
     }
     updateLiveChip(s, f);
@@ -1310,13 +1217,13 @@
       roofType: g('roofType'), availableArea: g('availableArea'),
       roofClearanceFactor: g('roofClearanceFactor'),
       ...Object.fromEntries(ENGINEERING_IDS.map((id) => [id, g(id)])),
-      pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'),
+      pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'), engineeringDesignNote: g('engineeringDesignNote'),
       /* The form collects ₹/Wp; the engine and every stored field work in
          ₹/kWp, so the conversion happens here at the single boundary. */
       costPerKwp: String((parseFloat(g('costPerWp')) || 0) * 1000), gstPercent: g('gstPercent'),
       corpTaxRate: g('corpTaxRate'), depreciationRate: g('depreciationRate'),
       tariff: g('tariff'), escalation: g('escalation'), degradation: g('degradation'),
-      subsidyOverride: g('subsidyOverride'), stateTopUp: g('stateTopUp'), co2Factor: g('co2Factor'), treeFactor: g('treeFactor'),
+      subsidyOverride: g('subsidyOverride'), rwaEligibleKwp: g('rwaEligibleKwp'), stateTopUp: g('stateTopUp'), co2Factor: g('co2Factor'), treeFactor: g('treeFactor'),
       payAdvance: g('payAdvance'), payDispatch: g('payDispatch'), payCompletion: g('payCompletion'),
       bomModules: g('bomModules'), bomInverter: g('bomInverter'), bomStructure: g('bomStructure'),
       bomBos: g('bomBos'), bomInstall: g('bomInstall'), bomLiaison: g('bomLiaison'),

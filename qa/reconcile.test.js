@@ -340,7 +340,7 @@ for (const [label, loan] of [
 }
 check('partial financing inputs produce no financing block', () => {
   assert.equal(F.compute(withBase({ capacity: '10', loanAmt: '500000', loanRate: '', loanYears: '10' })).financing, null);
-  assert.equal(F.compute(withBase({ capacity: '10', loanAmt: '500000', loanRate: '0', loanYears: '10' })).financing, null);
+  assert.equal(F.compute(withBase({ capacity: '10', loanAmt: '500000', loanRate: '0', loanYears: '10' })).financing.emi, 500000 / 120);
 });
 
 console.log('- Reconcile: IRR agrees with a high-precision solve -');

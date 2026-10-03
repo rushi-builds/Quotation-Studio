@@ -68,6 +68,7 @@
 
   function applySnapshot(snapshot) {
     const form = snapshot.form || {};
+    const state = Object.assign({}, window.StateStore.DEFAULTS, form, {options:Array.isArray(snapshot.options)?snapshot.options:[]});
     if (window.StateStore && window.StateStore.applyForm) {
       window.StateStore.applyForm(Object.assign({}, window.StateStore.DEFAULTS || {}, form));
     }
@@ -100,10 +101,11 @@
     }
     if (Array.isArray(snapshot.options)) window.__qsOptions = snapshot.options;
 
-    if (window.Render && window.Render.renderAll) window.Render.renderAll();
+    if (window.Render && window.Render.renderAll) window.Render.renderAll(state);
     if (window.Experience && typeof window.Experience.mountShare === 'function') {
       try { window.Experience.mountShare(form); } catch (_) {}
     }
+    return state;
   }
 
   function whatsappPhone(value) {
@@ -146,24 +148,19 @@
     if ($('portalPrivacy')) $('portalPrivacy').hidden = false;
 
     const printBtn = $('sharePrint');
-    if (printBtn && window.Export && typeof window.Export.downloadPdf === 'function') {
+    if (printBtn && window.Exporter && typeof window.Exporter.exportPdf === 'function') {
       printBtn.disabled = false;
-      printBtn.addEventListener('click', () => {
-        postEvent(token, 'pdf_download_requested', {
-          format: ($('pdfFormat') && $('pdfFormat').value) || 'full'
-        });
+      printBtn.addEventListener('click', async () => {
+        const format = $('pdfFormat')?.value || 'full';
+        printBtn.disabled = true;
+        postEvent(token, 'pdf_download_requested', {format});
         try {
-          window.Export.downloadPdf({
-            format: ($('pdfFormat') && $('pdfFormat').value) || 'full',
-            customerName: cust,
-            capacity: cap,
-            ref: snapshot.ref || form.propRef || ''
-          });
+          await window.Exporter.exportPdf(message => {
+            if ($('shareStatus')) $('shareStatus').textContent = message;
+          }, {format});
         } catch (err) {
-          if ($('shareStatus')) {
-            $('shareStatus').textContent = err.message || 'PDF export failed on this device';
-          }
-        }
+          if ($('shareStatus')) $('shareStatus').textContent = err.message || 'PDF export failed on this device';
+        } finally { printBtn.disabled = false; }
       });
     }
 
@@ -266,14 +263,14 @@
 
     try {
       await injectPages();
-      applySnapshot(data.snapshot || {});
+      const state = applySnapshot(data.snapshot || {});
       wireCustomerActions(data.snapshot || {}, token);
       showMain();
       fitPages();
       window.addEventListener('resize', fitPages);
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(() => {
-          if (window.Render && window.Render.renderAll) window.Render.renderAll();
+          if (window.Render && window.Render.renderAll) window.Render.renderAll(state);
           fitPages();
         });
       }

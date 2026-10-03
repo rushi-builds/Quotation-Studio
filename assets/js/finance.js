@@ -78,6 +78,7 @@
     return 78000;
   }
   const SUBSIDY_MAX = 78000;
+  const RWA_SUBSIDY_PER_KWP = 18000, RWA_MAX_KWP = 500;
 
   /** Internal rate of return via bisection (percent per annum). */
   function calcIRR(cashflows) {
@@ -118,7 +119,11 @@
 
     const capacity = num(s.capacity);
     const genFactor = num(s.genFactor);
-    const costPerKwp = num(s.costPerKwp);
+    // Builder state uses ₹/kWp; saved forms/Customer View use ₹/Wp.
+    // Normalize once at the engine boundary, including assistant/export paths.
+    // An explicit engine rate (including zero) takes precedence.
+    const hasKwpRate = s.costPerKwp !== '' && s.costPerKwp != null && Number.isFinite(Number(s.costPerKwp));
+    const costPerKwp = hasKwpRate ? Number(s.costPerKwp) : num(s.costPerWp) * 1000;
     const gstPercent = num(s.gstPercent);
     const tariff = num(s.tariff);
     const escalation = num(s.escalation) / 100;
@@ -210,15 +215,20 @@
        is potential, subject to eligibility and approval. */
     const topUpRaw = parseFloat(s.stateTopUp);
     const stateTopUp = (customerType === 'residential' && isFinite(topUpRaw) && topUpRaw > 0) ? topUpRaw : 0;
+    // RWA common-facility estimate. Approved eligible capacity must account for
+    // 3 kW/house and individual resident rooftop systems; blank is provisional.
+    const rwaLimitRaw = s.rwaEligibleKwp === '' || s.rwaEligibleKwp == null ? NaN : Number(s.rwaEligibleKwp);
+    const rwaEligibilityConfirmed = customerType === 'rwa' && Number.isFinite(rwaLimitRaw) && rwaLimitRaw >= 0;
+    const rwaEligibleKwp = customerType === 'rwa' ? Math.max(0, Math.min(installedKwp, RWA_MAX_KWP, rwaEligibilityConfirmed ? rwaLimitRaw : RWA_MAX_KWP)) : 0;
     let subsidy;
     const overrideRaw = (s.subsidyOverride === '' || s.subsidyOverride === null ||
       s.subsidyOverride === undefined) ? NaN : parseFloat(s.subsidyOverride);
     if (isFinite(overrideRaw)) {
       subsidy = overrideRaw;                                   // explicit override wins
     } else {
-      subsidy = (customerType === 'residential' ? calcSubsidy(installedKwp) : 0) + stateTopUp;
+      subsidy = (customerType === 'residential' ? calcSubsidy(installedKwp) : customerType === 'rwa' ? rwaEligibleKwp * RWA_SUBSIDY_PER_KWP : 0) + stateTopUp;
     }
-    const subsidyAuto = (customerType === 'residential' && !isFinite(overrideRaw));
+    const subsidyAuto = ((customerType === 'residential' || customerType === 'rwa') && !isFinite(overrideRaw));
     const netInvestment = grossTotal - subsidy;
     /* costPerWp is the quoted rate (contracted basis). costPerWpDelivered is
        what the customer actually receives per watt of installed DC. */
@@ -324,12 +334,13 @@
     const loanRate = num(s.loanRate);
     const loanYears = num(s.loanYears);
     let financing = null;
-    if (loanAmt > 0 && loanRate > 0 && loanYears > 0) {
+    const hasLoanRate = s.loanRate !== '' && s.loanRate != null && Number.isFinite(Number(s.loanRate));
+    if (loanAmt > 0 && hasLoanRate && loanRate >= 0 && loanYears > 0) {
       const r = loanRate / 1200;                    // monthly interest rate
       const n = Math.max(1, Math.round(loanYears * 12)); // tenure in months
       const pow = Math.pow(1 + r, n);
-      const emi = loanAmt * r * pow / (pow - 1);    // reducing-balance EMI
-      const totalPaid = emi * n;
+      const emi = r === 0 ? loanAmt / n : loanAmt * r * pow / (pow - 1);    // reducing-balance EMI
+      const totalPaid = r === 0 ? loanAmt : emi * n;
       /* month-wise savings across the tenure (step-wise from yearly series) */
       const monthlySavings = [];
       for (let m = 0; m < n; m++) {
@@ -355,7 +366,7 @@
       roofClearanceFactor, requiredArea, clearanceSource, layout: engLayout, capacityExact,
       inverterKw, dcAcRatio,
       // costs
-      projectCost, gstAmount, grossTotal, subsidy, stateTopUp, subsidyAuto, netInvestment,
+      projectCost, gstAmount, grossTotal, subsidy, stateTopUp, subsidyAuto, netInvestment, rwaEligibleKwp, rwaEligibilityConfirmed,
       costPerWp, costPerWpDelivered, bomItems, bomSum, bomDelta, gstPercent,
       taxDepreciationYear1, taxShield, corpTaxRatePct, depreciationRatePct, isCommercialOrInd,
       monthlyBillSaving, monthlyBillAfter,
@@ -378,7 +389,7 @@
   function annualSaving0(series) { return series.saving[0] || 0; }
 
   return {
-    YEARS, calcSubsidy, calcIRR, compute,
+    YEARS, calcSubsidy, calcIRR, compute, RWA_SUBSIDY_PER_KWP, RWA_MAX_KWP,
     fmtINR, fmtINRshort, fmtNum, fmtDate, addDays, SUBSIDY_MAX
   };
 }));

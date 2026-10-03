@@ -1,0 +1,36 @@
+// Run with: NODE_PATH=/home/user/review-tools/node_modules node review/dashboard/review.test.cjs
+const {JSDOM} = require('jsdom');
+const fs = require('fs'); const path = require('path'); const assert = require('node:assert/strict');
+const file = n => fs.readFileSync(path.resolve(__dirname,'../..', n === 'dashboard.html' ? n : 'assets/js/'+n),'utf8');
+(async () => {
+ const dom = new JSDOM(file('dashboard.html').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,''),{url:'http://review.test',runScripts:'outside-only'});
+ const w=dom.window, errors=[];w.addEventListener('error',e=>errors.push(e.message));
+ let proposals = ['sent','viewed','draft','accepted'].map((status,i)=>({id:'p'+i,status,customer:'Client '+i,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),capacity:100}));
+ let tasks=[{id:'t1',title:'Call',status:'open',dueAt:new Date().toISOString(),overdue:true,proposalId:'p0'}];
+ let failTasks=false, failReport=false, getProposalCalls=0, creates=0;
+ w.PlatformAPI={isAvailable:async()=>true,currentUser:async()=>({id:'u',name:'Rushi',role:'owner'}),summary:async()=>({}),listProposals:async()=>({proposals}),listTasks:async()=>{if(failTasks)throw Error('offline');return {tasks}},listActivity:async()=>({activity:[]}),listNotifications:async()=>({notifications:[],unread:0}),reportSummary:async()=>{if(failReport)throw Error('offline');return {value:{quotedSum:800000,proposalsWithValue:2}}},getProposal:async()=>{getProposalCalls++;return{}},updateTask:async(id,body)=>{tasks=tasks.map(t=>t.id===id?{...t,...body}:t)},createProposal:async()=>{creates++;await new Promise(r=>setTimeout(r,10));return{};}};
+ w.eval(file('dashboard.js'));w.eval(file('dashboard-home.js'));
+ await new Promise(r=>setTimeout(r,30)); await w.QSDash.refresh();
+ const $=s=>w.document.querySelector(s);
+ assert.equal(w.document.querySelectorAll('.kpi2').length,4);
+ assert.equal(w.document.querySelectorAll('.hc').length,4);
+ assert.equal(getProposalCalls,0,'no N+1 financial requests');
+ assert.equal(w.localStorage.length,0,'no finance cache in localStorage');
+ $('#homeBody [data-status="waiting"]').click();
+ assert.equal($('#filterStatus').value,'waiting');
+ assert.equal(w.document.querySelectorAll('#propTableBody tr').length,2);
+ w.QSDash.showTasks('today'); await new Promise(r=>setTimeout(r,0));
+ assert.equal(w.document.querySelectorAll('#tasksBody [data-act="task-done"]').length,1,'today includes overdue-today');
+ w.QSDash.show('home'); await w.QSDashHome.refresh();
+ $('#homeBody [data-done]').click();await new Promise(r=>setTimeout(r,20));
+ assert.equal($('#homeBody [data-done]'),null,'completion immediately refreshes home');
+ proposals=proposals.slice(0,1);await w.QSDash.refresh();
+ assert.match($('#propStats').textContent,/of 1/,'stat chips refresh after data changes');
+ failTasks=true;failReport=true;await w.QSDashHome.refresh();
+ assert.match($('#homeBody').textContent,/Unable to load follow-ups/);
+ assert.match(w.document.querySelectorAll('.kpi2')[1].textContent,/Unable to load/);
+ failTasks=false;failReport=false;await w.QSDashHome.refresh();assert.equal($('#homeBody .home-error'),null);
+ $('#btnNewFromHome').click();$('#btnNewFromHome').click();await new Promise(r=>setTimeout(r,40));assert.equal(creates,1);
+ w.QSDash.show('reports');await new Promise(r=>setTimeout(r,0));assert.equal($('[data-panel="reports"]').closest('details').open,true);
+ assert.deepEqual(errors,[]);dom.window.close(); console.log('PASS: 4 KPIs, 4 sections, correct filters, due-today semantics, task sync, stat refresh, API failure/recovery, no N+1/cache, duplicate-create guard, collapsed navigation.');
+})().catch(e=>{console.error(e);process.exit(1)});

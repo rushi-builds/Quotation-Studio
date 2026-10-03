@@ -15,10 +15,11 @@
 <meta name="twitter:description" content="Build a premium 15-page rooftop solar EPC proposal with live A4 preview, financial analytics and one-click PDF export.">
 <meta name="twitter:image" content="assets/images/page-cover-v2-portrait.jpg">
 <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png">
-<link rel="stylesheet" href="assets/css/app.css">
+<link rel="stylesheet" href="assets/css/app.css?v=finance-fixes1">
 <link rel="stylesheet" href="assets/css/bess.css">
-<link rel="stylesheet" href="assets/css/experience.css">
-<link rel="stylesheet" href="assets/css/control-panel.css">
+<link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1">
+<link rel="stylesheet" href="assets/css/control-panel.css?v=engineering-panel2">
+<link rel="stylesheet" href="assets/css/studio-assistant.css?v=knowledge3">
 </head>
 <body>
 <div class="app">
@@ -65,6 +66,7 @@
             <label>Customer type</label>
             <select id="customerType">
               <option value="residential">Residential</option>
+              <option value="rwa">RWA / Housing Society</option>
               <option value="commercial">Commercial</option>
               <option value="industrial">Industrial</option>
             </select>
@@ -83,7 +85,7 @@
         <div class="field"><label>Customer address</label><input type="text" id="custAddress" value="" placeholder="Enter site address"></div>
         <div class="row3">
           <div class="field"><label>Proposal date</label><input type="date" id="propDate"></div>
-          <div class="field"><label>Reference no.</label><input type="text" id="propRef" value="KTM/2026/Solar/013"></div>
+          <div class="field"><label>Reference no.</label><input type="text" id="propRef" value="" autocomplete="off" spellcheck="false" placeholder="Assigned automatically for a new proposal"></div>
           <div class="field"><label>Version</label><input type="text" id="propVersion" value="1.0"></div>
         </div>
         <div class="row2">
@@ -188,7 +190,12 @@
         <div class="field">
           <label>Panel degradation (%/yr)</label>
           <input type="number" id="degradation" value="0.5" step="0.1" min="0">
-          <div class="hint">Subsidy auto-calculates for <b>residential</b> projects per PM Surya Ghar slabs (₹30,000/kW × 2 + ₹18,000 × 1, capped at ₹78,000). Commercial/industrial projects show nil unless overridden below.</div>
+          <div class="hint">Subsidy auto-calculates for <b>residential</b> projects per PM Surya Ghar slabs (₹30,000/kW × 2 + ₹18,000 × 1, capped at ₹78,000). RWA/common-facility projects use ₹18,000 per eligible kW (provisional until eligibility is verified). Commercial/industrial projects show nil unless overridden below.</div>
+        </div>
+        <div class="field" id="rwaEligibilityField" hidden>
+          <label for="rwaEligibleKwp">Confirmed eligible RWA capacity (kWp, optional)</label>
+          <input type="number" id="rwaEligibleKwp" min="0" max="500" step="0.001" placeholder="Blank = provisional installed-capacity estimate">
+          <div class="hint">For common facilities. Confirm the 500 kW / 3 kW-per-house limits, including individual residents' rooftop systems, with the approving authority. Enter the eligible common-facility capacity remaining after those limits. Blank uses installed DC capacity up to 500 kW provisionally; 0 means no eligible capacity. An explicit subsidy amount below overrides this calculation.</div>
         </div>
         <div class="field"><label>Subsidy override (₹, blank = auto)</label><input type="number" id="subsidyOverride" placeholder="auto" min="0"></div>
         <div class="field"><label>Maharashtra state top-up (₹, optional)</label><input type="number" id="stateTopUp" placeholder="e.g. 25000" min="0">
@@ -359,12 +366,15 @@
       </fieldset>
 <fieldset data-adv class="eng-basis">
         <legend>Engineering design basis</legend>
-        <div class="hint">Each line is either arithmetic a named standard defines or a figure you
-        supply. Everything prints on the Tech Spec page; anything left blank prints as
-        DATA REQUIRED instead of a number that merely looks plausible.</div>
+        <div class="field"><label for="engineeringDesignNote">Proposal-stage engineering note — customer PDF</label>
+          <textarea id="engineeringDesignNote" rows="4" maxlength="800" aria-describedby="engineeringExcelHint">Proposal-stage design: Equipment and commercial details are presented in this quotation. Detailed engineering will be completed after site verification and before installation.</textarea>
+          <div class="hint" id="engineeringExcelHint">(Excel integration pending — the workbook is being prepared for production.) This reminder is internal only. The note above appears in the Technical Specification and Power Proposal. Leaving it blank restores the standard proposal-stage note.</div>
+        </div>
+        <details class="eng-group"><summary><span>Internal engineering review</span><small>Staff only · excluded from customer PDFs</small></summary><ul id="engineeringReview"></ul></details>
+        <div class="hint">The inputs below remain available for internal engineering checks. Missing inputs stay in the internal review; confirmed safety issues still appear before download.</div>
 
-        <details class="eng-group" open>
-          <summary>Array geometry &amp; row spacing</summary>
+        <details class="eng-group">
+          <summary><span>Array geometry &amp; row spacing</span><small>Tilt, location &amp; roof clearances</small></summary>
           <div class="field"><label for="tiltDeg">Module tilt (° from horizontal)</label>
             <input type="number" id="tiltDeg" value="15" step="1" min="0" max="60">
             <div class="hint">Site figure. MNRE/UPNEDA rooftop specifications show 22–24° for north India, location dependent; a lower tilt needs less row spacing.</div></div>
@@ -380,7 +390,7 @@
         </details>
 
         <details class="eng-group">
-          <summary>Wind load - IS 875 (Part 3):2015</summary>
+          <summary><span>Wind load</span><small>IS 875 (Part 3):2015</small></summary>
           <div class="field"><label for="windSpeed">Basic wind speed Vb (m/s)</label>
             <input type="number" id="windSpeed" value="39" step="1" min="0">
             <div class="hint">Read from the IS 875-3:2015 basic wind speed map. Pune 39, Mumbai 44, Chennai 50, Delhi 47.</div></div>
@@ -391,10 +401,10 @@
               <option value="3" selected>3 - suburban / closely spaced obstructions</option>
               <option value="4">4 - dense city centre</option>
             </select>
-            <div class="hint">IS 875-3 Table 2, Class A column set.</div></div>
+            <div class="hint">IS 875-3:2015 Table 2 terrain categories.</div></div>
           <div class="field"><label for="buildingHeightM">Building height (m)</label>
             <input type="number" id="buildingHeightM" value="10" step="0.5" min="0">
-            <div class="hint">Height above ground that k2 is read at. Above 15 m read k2 from the table.</div></div>
+            <div class="hint">Height above ground for Table 2 interpolation (10–500 m). High-rise structures require specialist review.</div></div>
           <div class="field"><label for="windK1">k1 - risk coefficient</label>
             <input type="number" id="windK1" value="1" step="0.01" min="0">
             <div class="hint">IS 875-3 Table 1: 1.00 for a normal 50-year structure.</div></div>
@@ -417,16 +427,16 @@
           <div class="field"><label for="anchorsPerModule">Anchors per module</label>
             <input type="number" id="anchorsPerModule" value="4" step="1" min="1">
             <div class="hint">Divides the uplift into a load per fixing.</div></div>
-          <div class="field"><label for="moduleLoadClassPa">Module mechanical-load class (Pa)</label>
+          <div class="field"><label for="moduleLoadClassPa">Module uplift test load (Pa)</label>
             <select id="moduleLoadClassPa">
-              <option value="2400" selected>2400 - IEC 61215 standard</option>
-              <option value="5400">5400 - heavy-load class</option>
+              <option value="2400" selected>2400 - verify certified uplift test load</option>
+              <option value="5400">5400 - only if certified for uplift</option>
             </select>
-            <div class="hint">The module's own IEC 61215-2 static mechanical-load rating.</div></div>
+            <div class="hint">Use the certified rear/uplift test load for the actual mounting arrangement, not a front snow-load rating. Manufacturer design-load verification is required.</div></div>
         </details>
 
         <details class="eng-group">
-          <summary>String &amp; cable - IEC 62548, IEC 62109, IS 732</summary>
+          <summary><span>String &amp; cable design</span><small>IEC 62548 · IEC 62109 · IS 732</small></summary>
           <div class="field"><label for="moduleVoc">Module Voc at STC (V)</label>
             <input type="number" id="moduleVoc" step="0.01" min="0" placeholder="from the datasheet">
             <div class="hint">Rated open-circuit voltage. Leave blank until you have the datasheet - the string check then reports DATA REQUIRED instead of passing silently.</div></div>
@@ -467,7 +477,7 @@
         </details>
 
         <details class="eng-group">
-          <summary>Earthing &amp; lightning - IS 3043, IS/IEC 62305</summary>
+          <summary><span>Earthing &amp; lightning</span><small>IS 3043 · IS/IEC 62305</small></summary>
           <div class="field"><label for="soilResistivity">Soil resistivity (Ω·m)</label>
             <input type="number" id="soilResistivity" step="1" min="0" placeholder="from the site test">
             <div class="hint">IS 3043 sizes the electrode from this. Without it the page reports DATA REQUIRED - it will not guess a number of earth pits.</div></div>
@@ -502,7 +512,7 @@
         </details>
 
         <details class="eng-group">
-          <summary>Roof load - MNRE / UPNEDA rooftop specification</summary>
+          <summary><span>Roof load</span><small>MNRE / UPNEDA rooftop specifications</small></summary>
           <div class="field"><label for="moduleWeightKg">Module weight (kg)</label>
             <input type="number" id="moduleWeightKg" value="28" step="0.5" min="0"></div>
           <div class="field"><label for="rackKgPerM2">Racking weight (kg/m² of array)</label>
@@ -529,6 +539,7 @@
       </fieldset>
 <fieldset class="prop-manager">
         <legend>Proposals</legend>
+        <p class="hint">This list contains proposals saved in this browser, not reference suggestions. Delete here removes only the local copy; Dashboard deletion affects the cloud record.</p>
         <div class="field">
           <select id="proposalSelect" aria-label="Active proposal"></select>
         </div>
@@ -637,7 +648,7 @@
 
     <div class="form-actions">
       <label class="pdf-format-label" for="pdfFormat">PDF format</label>
-      <select id="pdfFormat" class="pdf-format"><option value="full">Detailed Proposal - all applicable pages</option><option value="power">Power Proposal - 2-page summary</option></select>
+      <select id="pdfFormat" class="pdf-format"><option value="full">Detailed Proposal - all applicable pages</option><option value="power">Power Proposal - 6-page report</option></select>
       <button id="downloadBtn" type="button"><span id="downloadLabel">Generate &amp; Download PDF</span></button>
       <div class="form-links">
         <p class="hint" id="backupScope">Autosave and Save now keep this proposal in this browser. Export backup writes one proposal (not the whole workspace) to a file you can keep or move to another browser.</p>
@@ -686,16 +697,16 @@
       <section class="page" id="pageCover">
         <div class="ktm-cover">
           <div class="ktm-cover__artwork">
-            <img src="assets/images/cover-editable-background.png" width="1588" height="2223" alt="KTM Energy Experts solar proposal cover artwork" />
+            <img id="coverArtwork" src="assets/images/cover-editable-background.png" width="1588" height="2223" alt="KTM Energy Experts solar proposal cover artwork" />
             <span class="ktm-cover__value ktm-cover__name" id="v_coverCustName" data-cover-font="31" aria-label="Customer name"></span>
             <span class="ktm-cover__value ktm-cover__address" id="v_coverCustAddress" data-cover-font="16" aria-label="Customer location"></span>
             <span class="ktm-cover__value ktm-cover__capacity" id="v_coverCapacity" data-cover-font="16" aria-label="System size"></span>
             <span class="ktm-cover__value ktm-cover__reference" id="v_coverRef" data-cover-font="16" aria-label="Proposal number"></span>
             <span class="ktm-cover__value ktm-cover__date" id="v_coverDate" data-cover-font="16" aria-label="Proposal date"></span>
             <span class="ktm-cover__value ktm-cover__capacity-kpi" id="v_coverBadgeKwp" data-cover-font="49" aria-label="Project capacity"></span>
-            <span class="ktm-cover__cost-icon" aria-hidden="true">&#8377;</span>
-            <span class="ktm-cover__cost-label">Project Cost</span>
-            <span class="ktm-cover__value ktm-cover__savings-kpi" id="v_coverBadgeGen" data-cover-font="49" aria-label="Project cost including GST"></span>
+            <span class="ktm-cover__cost-icon" aria-hidden="true">☀</span>
+            <span class="ktm-cover__cost-label">Year-1 Generation</span>
+            <span class="ktm-cover__value ktm-cover__savings-kpi" id="v_coverBadgeGen" data-cover-font="49" aria-label="Estimated first-year solar generation"></span>
           </div>
         </div>
         <!-- Non-artwork metadata retained for renderer compatibility; live values are above -->
@@ -1097,6 +1108,11 @@
               <div class="inv-v" id="v_inCostNet">-</div>
               <div class="inv-cap"><span id="v_inRateL"></span>: <b id="v_inRate"></b></div>
             </div>
+            <div class="inv-card inv-card-payback">
+              <div class="inv-l" id="v_inPaybackLabel"></div>
+              <div class="inv-v" id="v_inPayback">-</div>
+              <div class="inv-cap" id="v_inPaybackNote"></div>
+            </div>
           </div>
 
           <!-- Commercial & Industrial Tax Shield Banner -->
@@ -1223,8 +1239,8 @@
           </div>
           <div class="proj-stats" id="v_prStats"></div>
           <div class="spacer"></div>
-          <div class="proj-cta-row"><a class="proj-gallery-cta" id="projGalleryCta" href="gallery.html" target="_blank" rel="noopener noreferrer">Explore our project gallery ↗</a></div>
           <div id="v_prCats"></div>
+          <div id="projectsPortfolio"></div>
           <div class="spacer"></div>
         </div>
         <footer class="pg-foot">
@@ -1368,28 +1384,31 @@
 <script src="assets/vendor/html2canvas.min.js"></script>
 <script src="assets/vendor/jspdf.umd.min.js"></script>
 <script src="assets/vendor/qrcode.min.js"></script>
-<script src="assets/js/content.js"></script>
-<script src="assets/js/engineering.js"></script>
-<script src="assets/js/finance.js"></script>
+<script src="assets/js/content.js?v=rwa1"></script>
+<script src="assets/js/engineering.js?v=reverify1"></script>
+<script src="assets/js/finance.js?v=finance-fixes1"></script>
 <script src="assets/js/storage-catalog.js"></script>
 <script src="assets/js/bess.js"></script>
 <script src="assets/js/additional-systems.js"></script>
 <script src="assets/js/supplement-design.js"></script>
 <script src="assets/js/icons.js"></script>
-<script src="assets/js/charts.js"></script>
+<script src="assets/js/charts.js?v=finance-fixes1"></script>
 <script src="assets/js/model.js"></script>
-<script src="assets/js/state.js"></script>
+<script src="assets/js/state.js?v=proposal-stage1"></script>
 <script src="assets/js/equipment.js"></script>
-<script src="assets/js/render.js"></script>
-<script src="assets/js/editor.js"></script>
-<script src="assets/js/experience.js"></script>
+<script src="assets/js/render.js?v=proposal-stage1"></script>
+<script src="assets/js/editor.js?v=remote-monitoring1"></script>
+<script src="assets/js/experience.js?v=proposal-stage1"></script>
 <script src="assets/js/salutation.js"></script>
 <script src="assets/js/briefing.js"></script>
-<script src="assets/js/export.js"></script>
+<script src="assets/js/export.js?v=power-six-audit1"></script>
 <script src="assets/js/workspace-prefs.js"></script>
-<script src="assets/js/platform-api.js"></script>
-<script src="assets/js/cloud-bridge.js"></script>
-<script src="assets/js/app.js"></script>
-<script src="assets/js/control-panel.js"></script>
+<script src="assets/js/platform-api.js?v=knowledge3"></script>
+<script src="assets/js/cloud-bridge.js?v=knowledge3"></script>
+<script src="assets/js/app.js?v=rwa1"></script>
+<script src="assets/js/control-panel.js?v=engineering-panel2"></script>
+<script src="assets/js/assistant-actions.js?v=knowledge3"></script>
+<script src="assets/js/assistant-chat.js?v=knowledge3"></script>
+<script src="assets/js/studio-assistant.js?v=knowledge3"></script>
 </body>
 </html>
