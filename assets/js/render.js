@@ -992,8 +992,6 @@
   function renderProjects(s, f, v) {
     const P = CONTENT.pageProjects;
     set('v_prHeading', P.heading);
-    const projCta = $('projGalleryCta');
-    if (projCta) projCta.href = new root.URL('gallery.html', root.location.href).href;
     set('v_prSub', P.sub);
     /* traceable counts: projects listed on this page + overall track record stat */
     const categories = portfolioCategories(P);

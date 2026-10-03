@@ -32,6 +32,29 @@
     };
     return copy[s.qrDestinationType] || copy.gallery;
   }
+  function portfolioDestination(s) {
+    return galleryUrl(s)||(!String(s.galleryUrl||'').trim()?'https://studio.rushidhumal-04.workers.dev/gallery.html':'');
+  }
+  function portfolioCard(s) {
+    const url=portfolioDestination(s),copy=String(s.galleryUrl||'').trim()?destinationCopy(s):destinationCopy({qrDestinationType:'gallery'});
+    return url?'<div class="portfolio-link power-portfolio-link"><div><span>THE KTM PROJECT PORTFOLIO</span><h2>See our work in detail.</h2><p>Explore installation photographs and available project media.</p><a href="'+esc(url)+'">'+esc(copy.action)+'</a></div><a class="power-gallery" href="'+esc(url)+'"><canvas width="320" height="320"></canvas><span>Scan to explore</span></a></div>':'';
+  }
+  let projectsReady=Promise.resolve(),allQrReady=Promise.resolve(),projectsRevision=0;
+  function renderProjectsGallery(s) {
+    const host=$('projectsPortfolio');if(!host)return;
+    const html=portfolioCard(s);
+    if(host.dataset.markup===html)return;
+    host.dataset.markup=html;host.innerHTML=html;
+    const revision=++projectsRevision,target=host.querySelector('canvas'),url=portfolioDestination(s);
+    projectsReady=new Promise(resolve=>{
+      if(!target||!root.QRCode){resolve();return;}
+      const canvas=document.createElement('canvas');
+      try {root.QRCode.toCanvas(canvas,url,{width:320,margin:4,errorCorrectionLevel:'M'},error=>{
+        if(!error&&revision===projectsRevision){target.width=canvas.width;target.height=canvas.height;target.getContext('2d').drawImage(canvas,0,0);}
+        resolve();
+      });}catch(_){resolve();}
+    });
+  }
   let qrReady = Promise.resolve(), qrRevision = 0;
   function renderGallery(s) {
     const card = $('closingGallery');
@@ -89,7 +112,7 @@
   }
   function sync() {
     const s=root.Render?.lastState; if(!s) return;
-    renderGallery(s); renderScenario(s);
+    renderGallery(s); renderProjectsGallery(s); allQrReady=Promise.all([qrReady,projectsReady]); renderScenario(s);
     root.Exporter?.updateLabel?.();
   }
   const row=(label,value)=>'<div class="power-row"><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>';
@@ -117,8 +140,7 @@
     const f=F.compute(s);
     // Known public company portfolio, not a guessed sandbox/preview destination.
     // A supplied destination takes precedence; invalid explicit URLs stay hidden.
-    const url=galleryUrl(s)||(!String(s.galleryUrl||'').trim()?'https://studio.rushidhumal-04.workers.dev/gallery.html':'');
-    const destination=String(s.galleryUrl||'').trim()?destinationCopy(s):destinationCopy({qrDestinationType:'gallery'});
+    const url=portfolioDestination(s);
     let runningGeneration=0;
     const cumulativeGeneration=f.series.gen.map(value=>(runningGeneration+=value)/1000);
     const hasBattery=root.Bess.included(s),hasSystem=root.AdditionalSystems.included(s),separate=hasBattery||hasSystem;
@@ -158,7 +180,7 @@
         '<h2>Integrated project capabilities</h2><div class="power-capabilities">'+capabilities.map(item=>'<div><strong>'+esc(item.title)+'</strong></div>').join('')+'</div>'+
         '<h2 class="power-portfolio-heading">Selected projects</h2><div class="power-projects">'+projects.map(project=>'<article><img src="'+esc(PROJECT_IMAGES[project.img]||'')+'" alt="'+esc(project.name)+'"><div><span>'+esc(project.capacity)+'</span><h3>'+esc(project.name)+'</h3><p>'+esc(project.location)+'</p></div></article>').join('')+'</div>'+
         '<p class="power-caption">Project photographs and details from the KTM portfolio.</p>'+
-        (url?'<div class="power-portfolio-link"><div><span>THE KTM PROJECT PORTFOLIO</span><h2>See our work in detail.</h2><p>Explore installation photographs and available project media.</p><a href="'+esc(url)+'">'+esc(destination.action)+'</a></div><a class="power-gallery" href="'+esc(url)+'"><canvas width="320" height="320"></canvas><span>Scan to explore</span></a></div>':'')+
+        portfolioCard(s)+
         '<div class="power-company-services"><h2>From design through commissioning</h2><p>Site assessment · System engineering · Supply & installation · Testing & commissioning · After-sales support</p></div>')+
       page(3,'03 / EQUIPMENT & SYSTEM DESIGN','The system behind the numbers.','Selected equipment and the design basis for your proposed solar installation.',
         '<div class="power-columns"><section><h2>Solar array & installation</h2>'+row('Module make',s.moduleMake||'To be confirmed')+row('Module technology',s.moduleTech||'To be confirmed')+row('Modules / rating',f.moduleCount+' × '+precise(f.moduleWattage)+' Wp')+row('Installed DC array',precise(f.installedKwp)+' kWp')+row('Module area',precise(f.arrayArea)+' m²')+'</section><section><h2>Conversion & balance of system</h2>'+row('Inverter make',s.inverterMake||'To be confirmed')+row('Inverter rating',precise(f.inverterKw)+' kW')+row('DC / AC ratio',Number.isFinite(f.dcAcRatio)&&f.dcAcRatio>0?f.dcAcRatio.toFixed(2)+' : 1':'-')+row('Mounting structure',s.mountMake||'To be confirmed')+row('Cables & protection',s.cableMake||'To be confirmed')+'</section></div>'+
@@ -167,7 +189,7 @@
         '<div class="power-design-note"><h2>Engineering before installation</h2><p>Confirm roof dimensions, shading, structural capacity, string voltage/current limits, cable routes, earthing and utility approvals before finalising installation drawings.</p><p>Selected makes and ratings follow this quotation. Datasheets, compatibility, product availability and OEM warranty terms must be checked during engineering.</p></div>')+
       page(4,'04 / GENERATION & SAVINGS','Energy production. Long-term value.','Projected system output and energy value, based on the assumptions below.',
         '<div class="power-metrics power-metrics-three">'+metric('Year-one energy value',F.fmtINR(f.annualSaving),'Generation × entered tariff')+metric('25-year energy value',F.fmtINRshort(f.lifetimeSaving),'Before investment and operating costs')+metric('Estimated payback',paybackText,f.netInvestment<=0?'Net investment is not positive':'Interpolated from cumulative energy value')+'</div>'+
-        '<div class="power-chart-card"><h2>Cumulative solar generation <small>MWh produced over time</small></h2>'+powerChart(cumulativeGeneration,'Cumulative solar generation over 25 years in MWh',false,false)+'</div>'+
+        '<section class="power-energy"><div class="power-energy-title">'+root.Icons.get('sun',22)+'<div><h2>Your solar energy milestones</h2><p>Projected electricity generated by your system</p></div></div><div class="power-energy-grid">'+[0,9,24].map(i=>'<article data-energy-year="'+(i+1)+'" data-energy-mwh="'+cumulativeGeneration[i]+'"><span>'+(['Year 1','First 10 years','Over 25 years'][[0,9,24].indexOf(i)])+'</span><strong>'+cumulativeGeneration[i].toLocaleString('en-IN',{maximumFractionDigits:1})+' <small>MWh</small></strong><p>'+(i===0?'First-year output':'Total energy produced')+'</p></article>').join('')+'</div><p class="power-caption">1 MWh = 1,000 kWh. Lifetime totals include the entered annual degradation.</p></section>'+
         '<div class="power-chart-card"><h2>Cumulative energy value <small>— projected value &nbsp; ┄ net investment</small></h2>'+powerChart(f.series.cumSaving,'Cumulative energy value over 25 years in rupees',true,false,f.netInvestment)+'</div>'+
         '<table class="power-projection-table"><thead><tr><th>Year</th><th>Annual generation</th><th>Annual energy value</th><th>Cumulative value</th></tr></thead><tbody>'+[0,4,9,14,24].map(i=>'<tr><td>'+f.series.years[i]+'</td><td>'+F.fmtNum(f.series.gen[i])+' kWh</td><td>'+F.fmtINR(f.series.saving[i])+'</td><td>'+F.fmtINR(f.series.cumSaving[i])+'</td></tr>').join('')+'</tbody></table>'+
         '<div class="power-columns power-assumptions"><div>'+row('Yield basis',safe(s.genFactor)+' kWh/kWp/year')+row('Annual degradation',safe(s.degradation)+'%')+'</div><div>'+row('Electricity tariff','₹'+safe(s.tariff)+' per kWh')+row('Annual tariff escalation',safe(s.escalation)+'%')+'</div></div>'+
@@ -180,11 +202,11 @@
         (f.financing?'<div class="power-financing"><h2>Optional financing illustration</h2><div class="power-columns"><div>'+row('Loan / interest',F.fmtINR(f.financing.loan)+' / '+f.financing.ratePct+'% p.a.')+row('Term / monthly EMI',f.financing.months+' months / '+F.fmtINR(f.financing.emi))+'</div><div>'+row('Total loan repayment',F.fmtINR(f.financing.totalPaid))+row('Total loan interest',F.fmtINR(f.financing.totalInterest))+'</div></div><p class="power-caption">Illustration only; lender approval, fees and final terms apply. Interest is not deducted from solar payback above.</p></div>':'')+
         '<p class="power-note power-subsidy-note">'+esc(qualification)+'</p>'+investmentWarning)+
       page(6,'06 / DELIVERY & PROJECT SUPPORT','Delivery, warranty & support.','Project scope, warranty coverage and documentation for your solar installation.',
-        '<div class="power-columns power-scope"><section><h2>Included EPC scope</h2>'+list(scope.deliverables)+'</section><section><h2>Additional scope, if required</h2>'+list(scope.addl)+'</section></div>'+
-        '<div class="power-warranties"><h2>Warranty highlights</h2><div class="power-columns">'+warranty.warranties.map(w=>'<div><strong>'+esc(w.title)+'</strong><p>'+esc(w.b1)+' · '+esc(w.b2)+'</p></div>').join('')+'</div><p class="power-caption">Subject to selected OEM/model terms and the agreed project contract.</p></div>'+
+        '<div class="power-columns power-scope"><section class="power-scope-card"><h2><span>01</span> Included EPC scope</h2>'+list(scope.deliverables)+'</section><section class="power-scope-card power-scope-extra"><h2><span>02</span> Additional scope, if required</h2>'+list(scope.addl)+'</section></div>'+
+        '<div class="power-warranties"><h2>Warranty highlights</h2><div class="power-columns">'+warranty.warranties.map(w=>'<div class="power-warranty-card">'+root.Icons.chip(w.icon,28,'#fff0dc','#a65c1e')+'<div><strong>'+esc(w.title)+'</strong><p>'+esc(w.b1)+' · '+esc(w.b2)+'</p></div></div>').join('')+'</div><p class="power-caption">Subject to selected OEM/model terms and the agreed project contract.</p></div>'+
         optional+
         '<div class="power-terms">'+row('Proposal date / valid until',(F.fmtDate(s.propDate)||'To be confirmed')+' / '+valid)+row('Indicative delivery',s.durationText||'To be confirmed')+row('Jurisdiction',s.jurisdiction||'To be confirmed')+'</div>'+
-        '<p class="power-note"><strong>Customer readiness:</strong> '+scope.resp.map(r=>esc(r.title)).join(' · ')+'. Final site requirements must be agreed before mobilisation.</p>'+
+        '<section class="power-readiness"><h2>Site readiness</h2><div>'+scope.resp.map(r=>'<span>'+esc(r.title)+'</span>').join('')+'</div><p>Final site requirements are agreed before mobilisation.</p></section>'+
         '<div class="power-support"><div><span>PROJECT & SERVICE CONTACT</span><h2>'+safe(s.companyName)+'</h2></div><div><strong>'+safe(s.companyPhone)+'</strong><p>'+safe(s.companyEmail)+'</p></div></div>'+
         '<p class="power-note">This proposal is not an installation order. Complete terms and exclusions are set out in the Detailed Proposal. Solar totals, charts and payment milestones exclude separately priced battery/additional systems. Generation and savings are estimates; subsidy is subject to approval.</p>'+
         (refs?'<section class="power-report-links"><h2>Project engineering reports</h2><p>Site-specific design and simulation documents</p><div>'+refs+'</div></section>':''));
@@ -198,5 +220,5 @@
     return host;
   }
   document.addEventListener('qs:rendered',sync);
-  root.Experience={publicUrl,galleryUrl,destinationCopy,buildPowerPages,sync,whenReady:()=>qrReady};
+  root.Experience={publicUrl,galleryUrl,destinationCopy,buildPowerPages,sync,whenReady:()=>allQrReady};
 })(window);

@@ -1,15 +1,15 @@
 # Six-page Power Proposal
 
-Updated 3 October 2026 following review of the five-page export. The Power format now contains six A4 pages; the Detailed Proposal, calculations, saved quotation data, category cover imagery and separate system reports retain their existing behaviour.
+Updated 4 October 2026 after the portfolio-card and structured-closing review. The Power format now contains six A4 pages; the Detailed Proposal, calculations, saved quotation data, category cover imagery and separate system reports retain their existing behaviour.
 
 ## Page order
 
 1. **Project overview** — original benefits-first opening and selected customer-category image. No opening-page pricing.
 2. **About KTM** — company introduction from existing editable content, existing EPC capability titles, and three existing portfolio photographs/details (one from each category). Includes a clickable gallery action and a scannable QR. The configured public destination takes precedence; when blank, this Power report uses the verified public KTM portfolio at `https://studio.rushidhumal-04.workers.dev/gallery.html`. It never guesses a sandbox/preview URL. Invalid explicit destinations remain hidden. No new project counts, certifications or performance claims were invented.
 3. **Equipment and system design** — selected equipment, DC/AC capacity, system connection, roof requirement and engineering basis. External report links have moved to the closing page.
-4. **Generation and savings** — cumulative solar generation in MWh replaces the declining annual-generation chart. Values are running sums of `Finance.compute().series.gen`, divided by 1,000; no new yield model. Annual degradation remains visible in the assumptions and the year-by-year table. Cumulative monetary value and investment reference remain unchanged.
+4. **Generation and savings** — three energy milestone cards (Year 1, first 10 years, 25 years) replace the extra generation line chart. MWh totals are running sums of `Finance.compute().series.gen`, divided by 1,000 and displayed to one decimal; no new yield model. Only the existing cumulative energy-value chart remains on this page. Annual degradation remains visible in the assumptions and the year-by-year table. Cumulative monetary value and investment reference remain unchanged.
 5. **Investment and payments** — source pricing, GST, subsidy, payment milestones and optional financing. Cost-chart currency ticks now have a measured left gutter rather than sharing plotting space with the first bar, fixing overwritten suffixes such as the `k` in `₹83.33k`. This shared chart correction also protects Detailed Proposal exports. No-loan placeholder commentary is omitted.
-6. **Delivery, warranty and support** — scope, warranty highlights, relevant additional systems, delivery/validity, customer responsibilities and company contact. Removed the “Review → discuss → confirm scope” CTA and redundant delivery sequence. Supplied PVsyst and ARKA links appear once each in the final engineering-reports block, with clickable PDF annotations. No report links or claims of prepared reports are invented when URLs are absent.
+6. **Delivery, warranty and support** — two numbered scope panels, four icon-led warranty cards, a delivery/validity panel, site-readiness tags and a branded contact block, plus any relevant additional systems. Removed the “Review → discuss → confirm scope” CTA and redundant delivery sequence. Supplied PVsyst and ARKA links appear once each in the final engineering-reports block, with clickable PDF annotations. No report links or claims of prepared reports are invented when URLs are absent.
 
 Professional customer-facing headings replace internal/preparer-style captions. Necessary engineering, subsidy and financial limitations remain; they are not removed as marketing cleanup.
 
@@ -23,3 +23,10 @@ Professional customer-facing headings replace internal/preparer-style captions. 
 - Rendered pages 2, 4, 5 and 6 inspected visually. Review artifacts are under ignored `qa/shots/power-six/`; no customer/test records or generated PDFs are committed.
 
 The previous five-page specification is historical. Download selectors in Studio, Customer View and the portal now read “Power Proposal — 6-page report”.
+
+
+## Detailed Proposal portfolio card (4 October)
+
+The Projects page now uses the same shared `portfolioCard` markup as the Power report. It replaces the old small gallery button, retains all ten projects and the original 132px photo frames, and fits the existing page without adding a page. Only inter-section whitespace was tightened. The configured public URL is respected; blank uses the known public KTM gallery, invalid explicit URLs produce no link. Export waits for both project and closing QR generation before cloning their canvas pixels.
+
+Checks: core 995 assertions; Power eleven-fixture/actual six-page PDF suite; experience 49 checks; portfolio regression 36 checks; new `npm --prefix qa run test:portfolio-card` verifies A4 bounds, ten records, default/custom QR decoding, invalid URL handling and actual 15-page Detailed PDF link/QR preservation. The legacy tracking test's investment expectation was corrected to the already-established contracted-capacity basis (`7 × 63,600 × 1.089 − 78,000`); finance code was not changed.
