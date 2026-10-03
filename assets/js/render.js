@@ -434,124 +434,20 @@
         ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '-'],
       ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
     ]);
-    /* ---- engineering design basis ------------------------------------------
-       Everything below is either arithmetic a named standard defines or a
-       figure the designer supplied. Where an input is missing the row says
-       DATA REQUIRED and the design-basis block lists what to bring - the page
-       never fills that gap with a plausible-looking number. */
-    const phaseCount = f.isCommercialOrInd ? 3 : 1;
-    const acVoltageV = phaseCount === 3 ? 415 : 230;
-    const acCurrentA = f.inverterKw > 0
-      ? (f.inverterKw * 1000) / (acVoltageV * (phaseCount === 3 ? Math.sqrt(3) : 1)) : 0;
-    const eng = root.Engineering ? root.Engineering.report(s, {
-      moduleCount: f.moduleCount, acCurrentA, acVoltageV, phases: phaseCount
-    }) : null;
-    const REQ = 'DATA REQUIRED';
-    const round1 = (x) => Math.round(x * 10) / 10;
-    const round2 = (x) => Math.round(x * 100) / 100;
-
+    // Proposal-stage presentation. Engineering calculations and checks remain
+    // in the staff panel; unverified design outputs do not become customer claims.
     addRows('MOUNTING & CABLING', [
       ['Structure Make', s.mountMake],
       ['Roof Type', s.roofType || '-'],
       ['Cabling & Protection', s.cableMake],
-      /* Not "included as per EPC scope" - that claims a design without one.
-         Either the electrode design is here, or the row says what is missing. */
-      ['Earthing', (eng && eng.earthing.ok)
-        ? eng.earthing.electrodeCount + ' × ' + eng.earthing.lengthM + ' m pipe electrode at ' +
-          eng.earthing.soilResistivity + ' Ω·m ⇒ ' + round1(eng.earthing.parallelOhm) +
-          ' Ω against ' + eng.earthing.targetOhm + ' Ω (IS 3043) - two distinct earths (CEA 2010)'
-        : REQ + ' - soil resistivity test; electrode design to follow (IS 3043)'],
-      ['Lightning Protection', (eng && eng.lightning.ok && eng.lightning.strikesPerYear)
-        ? 'LPL ' + eng.lightning.lpsClass + ': ' + eng.lightning.params.mesh + ' m mesh, ' +
-          eng.lightning.params.sphere + ' m rolling sphere, down conductors ≤ ' +
-          eng.lightning.params.down + ' m, earth ≤ ' + eng.lightning.earthOhm + ' Ω (IEC 62305) - risk assessment to confirm'
-        : REQ + ' - lightning risk assessment (IEC 62305)']
+      ['Earthing', 'Electrode design will follow site testing and electrical design verification.'],
+      ['Lightning Protection', 'Protection requirements will be confirmed through the site risk assessment.']
     ]);
-    if (s.availableArea) {
-      /* Module area alone is not enough roof. Two rows tell the truth about
-         which figure it is: a factor worked out from the tilt and the
-         winter-solstice sun angle, or one the designer typed in. */
-      const need = Math.ceil(f.requiredArea || 0);
-      const avail = parseFloat(s.availableArea);
-      const verdict = f.clearanceSource === 'manual'
-        ? (avail >= need ? '- fits ✓' : '- exceeds available area')
-        : (eng && eng.layout && eng.layout.ok
-            ? (eng.layout.verdict === 'short' ? '- exceeds available area'
-              : eng.layout.verdict === 'tight' ? '- fits the rows; the clear band around them is not confirmed'
-              : '- fits ✓')
-            : (avail >= need ? '- fits ✓' : '- exceeds available area'));
-      const basis = f.clearanceSource === 'manual'
-        ? 'module area × ' + f.roofClearanceFactor + ' clearance - manual factor'
-        : (eng && eng.layout && eng.layout.ok
-            ? 'row pitch ' + round2(eng.layout.geo.pitchM) + ' m at ' + s.tiltDeg + '° tilt, no shading ' +
-              '09:00–15:00 on 21 December at ' + s.latitudeDeg + '°N - module area × ' +
-              round2(f.roofClearanceFactor) + ' clearance'
-            : 'module area × ' + round2(f.roofClearanceFactor) + ' clearance');
-      addRows('SITE', [
-        ['Available Roof Area', s.availableArea + ' m²'],
-        ['Roof Area Required', need + ' m² (' + basis + ') ' + verdict]
-      ]);
-    }
-    /* The design basis itself, so the reader can check the arithmetic. */
-    if (eng) {
-      const wind = eng.wind, lay = eng.layout, str = eng.string;
-      const rows2 = [];
-      if (lay && lay.ok) {
-        rows2.push(['Tilt & row spacing', s.tiltDeg + '° tilt, ' + s.latitudeDeg + '°N - row pitch ' +
-          round2(lay.geo.pitchM) + ' m from a ' + round1(lay.geo.altitudeDeg) +
-          '° mid-morning sun on 21 December (winter solstice)']);
-      } else {
-        rows2.push(['Tilt & row spacing', REQ + ' - ' + (lay ? lay.missing.join(', ') : 'design inputs')]);
-      }
-      rows2.push(['Wind pressure', wind.ok
-        ? wind.vb + ' m/s (IS 875-3:2015 map) × k1 ' + wind.k1 + ' × k2 ' + wind.k2.toFixed(2) +
-          ' × k3 ' + wind.k3 + ' × k4 ' + wind.k4 + ' ⇒ Vz ' + round1(wind.vz) + ' m/s, pz ' +
-          round1(wind.pz) + ' N/m². Net uplift ' + round1(wind.uplift) + ' N/m² at ×' +
-          wind.netCp + ' coefficient and ×' + wind.zoneFactor + ' ' + wind.roofZone +
-          ' zone ⇒ ' + round1(wind.factoredUplift) + ' N/m² design, ' +
-          round1(wind.perAnchorN) + ' N per anchor - module rating ' + wind.moduleRatingPa +
-          ' Pa (IEC 61215)'
-        : REQ + ' - site wind data (IS 875-3:2015)']);
-      rows2.push(['String design', str.ok
-        ? str.strings + ' × ' + str.seriesPerString + ' modules in series · Voc at ' + s.minAmbientC +
-          ' °C = ' + Math.round(str.vocColdString) + ' V against the inverter’s ' + s.inverterVmaxDc +
-          ' V limit' + (str.maxSeriesByVoltage === str.seriesPerString ? ' · longest string allowed here is ' + str.maxSeriesByVoltage + ' modules' : '') +
-          ' · Vmp at ' + s.maxCellC + ' °C = ' + Math.round(str.vmpHotString) + ' V against the ' +
-          s.mpptMinV + ' V MPPT floor (IEC 62548)'
-        : REQ + ' - module datasheet & inverter DC limits (IEC 62548)']);
-      rows2.push(['Cable voltage drop', (eng.cable.dc.ok ? 'DC ' + eng.cable.dc.percent.toFixed(2) + ' % over ' +
-        eng.cable.dc.lengthM + ' m of ' + eng.cable.dc.sizeMm2 + ' mm²' : 'DC ' + REQ + ' - length & size') + ' · ' +
-        (eng.cable.ac.ok ? 'AC ' + eng.cable.ac.percent.toFixed(2) + ' % over ' + eng.cable.ac.lengthM +
-          ' m of ' + eng.cable.ac.sizeMm2 + ' mm² (' + eng.cable.ac.phases + '-phase, IS 732 limit ' +
-          eng.cable.ac.limitPct + ' %)' : 'AC ' + REQ + ' - length & size')]);
-      if (eng.roofLoad.ok) {
-        rows2.push(['Terrace load', round1(eng.roofLoad.kgPerM2) + ' kg/m² from modules (' +
-          eng.roofLoad.moduleWeightKg + ' kg each) and racking against the ' +
-          eng.roofLoad.benchmarkKgM2 + ' kg/m² benchmark (MNRE/UPNEDA). Roof capacity itself is a structural check']);
-      } else {
-        rows2.push(['Terrace load', REQ + ' - module weight & array area (MNRE/UPNEDA)']);
-      }
-      const strip = (m) => m.replace(/^DATA REQUIRED - /, '');
-      /* The honesty row stays, but as a short shopping list rather than full
-         sentences - the detail lives in the rows above and in the panel. */
-      const GAP_LABEL = {
-        moduleVoc: 'module datasheet (string design)',
-        windSpeed: 'site wind speed',
-        dcCableLengthM: 'DC cable schedule',
-        acCableLengthM: 'AC cable schedule',
-        soilResistivity: 'soil resistivity (earthing)',
-        moduleWeightKg: 'module weight & array area'
-      };
-      const gaps = eng.notes.filter((n) => /^DATA REQUIRED/.test(n.message))
-        .map((n) => GAP_LABEL[n.id] || strip(n.message));
-      const design = eng.notes.filter((n) => !/^DATA REQUIRED/.test(n.message)).map((n) => strip(n.message));
-      rows2.push(['Data still required', gaps.length
-        ? REQ + ' - ' + gaps.join(' · ')
-        : 'None - every design figure on this page is either calculated or supplied']);
-      if (design.length) rows2.push(['Design notes', design.join(' ')]);
-      if (eng.advisory.length) rows2.push(['Review before sending', eng.advisory.map((a) => a.message).join(' ')]);
-      addRows('ENGINEERING DESIGN BASIS', rows2);
-    }
+    if (s.availableArea) addRows('SITE', [
+      ['Available Roof Area', s.availableArea + ' m²'],
+      ['Indicative Roof Requirement', Math.ceil(f.requiredArea || 0) + ' m² — final layout and clearances subject to site verification.' + (Number(s.availableArea) < Math.ceil(f.requiredArea || 0) ? ' Estimated requirement exceeds available area.' : '')]
+    ]);
+    addRows('ENGINEERING DESIGN BASIS', [['Proposal-stage design', root.StateStore.engineeringNote(s)]]);
     $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
     setHTML('v_tsTable', rows.join(''));
     set('v_tsNoteLabel', P.noteLabel);
@@ -1321,7 +1217,7 @@
       roofType: g('roofType'), availableArea: g('availableArea'),
       roofClearanceFactor: g('roofClearanceFactor'),
       ...Object.fromEntries(ENGINEERING_IDS.map((id) => [id, g(id)])),
-      pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'),
+      pvsystUrl: g('pvsystUrl'), arkaUrl: g('arkaUrl'), engineeringDesignNote: g('engineeringDesignNote'),
       /* The form collects ₹/Wp; the engine and every stored field work in
          ₹/kWp, so the conversion happens here at the single boundary. */
       costPerKwp: String((parseFloat(g('costPerWp')) || 0) * 1000), gstPercent: g('gstPercent'),

@@ -296,22 +296,13 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     reset();
   })();
 
-  console.log('- Export pre-flight: DATA REQUIRED gaps ask once, then stand aside -');
+  console.log('- Export pre-flight: missing engineering inputs stay internal -');
   await (async () => {
-    await idle();
-    cleanSheet();
-    savedName = '';
-    clickDownload();
-    await wait(60);
-    check('missing datasheet figures now raise the pre-flight', () => assert.equal(dlg().open, true));
-    check('the gaps are listed as checks, not refusals', () =>
-      assert.ok(/Check these before you download/.test(dlg().textContent) && /DATA REQUIRED/.test(dlg().textContent),
-        dlg().textContent.trim().slice(0, 90)));
-    check('the download is still offered', () => assert.ok(actionMatching(/Download anyway/)));
-    actionMatching(/Download anyway/).click();
+    await idle(); cleanSheet(); setInput('propRef', 'KTM/2026/Solar/778'); savedName = ''; clickDownload();
     await waitFor(() => savedName !== '');
-    check('and going ahead produces the PDF', () => assert.ok(/^Proposal_/.test(savedName), savedName));
-    check('the dialog is closed afterwards', () => assert.equal(dlg().open, false));
+    check('proposal-stage gaps do not open the download dialog', () => assert.equal(dlg().open, false));
+    check('missing inputs remain in the internal review', () => assert.ok(/DATA REQUIRED/.test(w.document.getElementById('engineeringReview').textContent)));
+    check('proposal-stage PDF is produced', () => assert.ok(/^Proposal_/.test(savedName), savedName));
     reset();
   })();
 

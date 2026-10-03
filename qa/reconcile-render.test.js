@@ -399,11 +399,11 @@ check('the same roof flips verdict when the clearance factor changes', () => {
   setInput('capacity', 7);
   setInput('availableArea', 40);
   setInput('roofClearanceFactor', 1.1);
-  assert.ok(txt('v_tsTable').includes('fits ✓'), 'should fit at ×1.1');
-  assert.ok(txt('v_tsTable').includes('module area × 1.1 clearance'), 'must state the factor it used');
+  assert.ok(!txt('v_tsTable').includes('exceeds available area') && txt('v_tsTable').includes('subject to site verification'), 'estimated space is sufficient at ×1.1, not a verified design');
+  assert.ok(txt('v_tsTable').includes(Math.ceil(w.Finance.compute(w.Render.lastState).requiredArea)+' m²'), 'indicative area must follow the entered factor');
   setInput('roofClearanceFactor', 1.4);
   assert.ok(txt('v_tsTable').includes('exceeds available area'), 'should not fit at ×1.4');
-  assert.ok(txt('v_tsTable').includes('module area × 1.4 clearance'), 'must state the factor it used');
+  assert.ok(txt('v_tsTable').includes(Math.ceil(w.Finance.compute(w.Render.lastState).requiredArea)+' m²'), 'indicative area must follow the entered factor');
   setInput('availableArea', '');
 });
 

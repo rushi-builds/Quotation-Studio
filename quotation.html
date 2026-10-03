@@ -366,11 +366,14 @@
       </fieldset>
 <fieldset data-adv class="eng-basis">
         <legend>Engineering design basis</legend>
-        <div class="hint">Each line is either arithmetic a named standard defines or a figure you
-        supply. Everything prints on the Tech Spec page; anything left blank prints as
-        DATA REQUIRED instead of a number that merely looks plausible.</div>
+        <div class="field"><label for="engineeringDesignNote">Proposal-stage engineering note — customer PDF</label>
+          <textarea id="engineeringDesignNote" rows="4" maxlength="800" aria-describedby="engineeringExcelHint">Proposal-stage design: Equipment and commercial details are presented in this quotation. Detailed engineering will be completed after site verification and before installation.</textarea>
+          <div class="hint" id="engineeringExcelHint">(Excel integration pending — the workbook is being prepared for production.) This reminder is internal only. The note above appears in the Technical Specification and Power Proposal. Leaving it blank restores the standard proposal-stage note.</div>
+        </div>
+        <details class="eng-group"><summary>Internal engineering review — not printed</summary><ul id="engineeringReview"></ul></details>
+        <div class="hint">The inputs below remain available for internal engineering checks. Missing inputs stay in the internal review; confirmed safety issues still appear before download.</div>
 
-        <details class="eng-group" open>
+        <details class="eng-group">
           <summary>Array geometry &amp; row spacing</summary>
           <div class="field"><label for="tiltDeg">Module tilt (° from horizontal)</label>
             <input type="number" id="tiltDeg" value="15" step="1" min="0" max="60">
@@ -1391,11 +1394,11 @@
 <script src="assets/js/icons.js"></script>
 <script src="assets/js/charts.js?v=finance-fixes1"></script>
 <script src="assets/js/model.js"></script>
-<script src="assets/js/state.js?v=rwa1"></script>
+<script src="assets/js/state.js?v=proposal-stage1"></script>
 <script src="assets/js/equipment.js"></script>
-<script src="assets/js/render.js?v=category-cover1"></script>
+<script src="assets/js/render.js?v=proposal-stage1"></script>
 <script src="assets/js/editor.js?v=remote-monitoring1"></script>
-<script src="assets/js/experience.js?v=power-six-audit1"></script>
+<script src="assets/js/experience.js?v=proposal-stage1"></script>
 <script src="assets/js/salutation.js"></script>
 <script src="assets/js/briefing.js"></script>
 <script src="assets/js/export.js?v=power-six-audit1"></script>
@@ -1403,7 +1406,7 @@
 <script src="assets/js/platform-api.js?v=knowledge3"></script>
 <script src="assets/js/cloud-bridge.js?v=knowledge3"></script>
 <script src="assets/js/app.js?v=rwa1"></script>
-<script src="assets/js/control-panel.js?v=finance-fixes1"></script>
+<script src="assets/js/control-panel.js?v=proposal-stage1"></script>
 <script src="assets/js/assistant-actions.js?v=knowledge3"></script>
 <script src="assets/js/assistant-chat.js?v=knowledge3"></script>
 <script src="assets/js/studio-assistant.js?v=knowledge3"></script>

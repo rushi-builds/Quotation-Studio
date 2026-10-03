@@ -217,23 +217,19 @@ console.log('- installed capacity & roof area -');
 t('tech spec states the installed array beside the contracted capacity',
   d.getElementById('v_tsTable').textContent.includes('7.085 kWp (contracted 7 kWp)'),
   d.getElementById('v_tsTable').textContent.match(/Installed Array Size.*?kWp[^k]*/));
-/* The required roof area is no longer "module area × 1.4": it is the shaded
-   row pitch worked out from the tilt and the winter-solstice sun angle, and the
-   page has to say which one it used. */
-t('roof requirement states the derived row pitch, not bare module area',
-  d.getElementById('v_tsTable').textContent.includes('Roof Area Required') &&
-  /row pitch \d+\.\d+ m at 15° tilt, no shading 09:00–15:00 on 21 December/.test(d.getElementById('v_tsTable').textContent) &&
-  /module area × 1\.4\d clearance/.test(d.getElementById('v_tsTable').textContent),
-  d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,140}/));
+t('roof requirement remains an explicitly indicative estimate',
+  d.getElementById('v_tsTable').textContent.includes('Indicative Roof Requirement') &&
+  d.getElementById('v_tsTable').textContent.includes(Math.ceil(w.Finance.compute(w.Render.lastState).requiredArea)+' m²') &&
+  d.getElementById('v_tsTable').textContent.includes('subject to site verification'));
 d.getElementById('roofClearanceFactor').value = '1.1';
 fire(w, d.getElementById('roofClearanceFactor'), 'input');
 t('changing the clearance factor re-renders the required roof area live',
-  d.getElementById('v_tsTable').textContent.includes('module area × 1.1 clearance'),
+  d.getElementById('v_tsTable').textContent.includes(Math.ceil(w.Finance.compute(w.Render.lastState).requiredArea)+' m²'),
   d.getElementById('v_tsTable').textContent.match(/Roof Area Required.{0,70}/));
 t('the same roof fits at 1.1× clearance but not at 1.4×', (() => {
   d.getElementById('availableArea').value = '40';
   fire(w, d.getElementById('availableArea'), 'input');
-  const flushFits = d.getElementById('v_tsTable').textContent.includes('fits ✓');
+  const flushFits = !d.getElementById('v_tsTable').textContent.includes('exceeds available area') && d.getElementById('v_tsTable').textContent.includes('subject to site verification');
   d.getElementById('roofClearanceFactor').value = '1.4';
   fire(w, d.getElementById('roofClearanceFactor'), 'input');
   const tiltedFails = d.getElementById('v_tsTable').textContent.includes('exceeds available area');

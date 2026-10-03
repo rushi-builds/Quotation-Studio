@@ -510,7 +510,7 @@ check('finance derives the clearance, and a typed factor still overrides it', ()
   assert.equal(derived.netInvestment, F.compute({ ...base, roofClearanceFactor: '1.1' }).netInvestment);
 });
 
-check('the printed page names the standards and prints DATA REQUIRED where inputs are missing', () => {
+check('the printed design basis uses the proposal-stage note, not unverified calculations', () => {
   const { JSDOM } = require('jsdom');
   const html = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8')
     .replace(/<script[^>]*src=[^>]*><\/script>/g, '');
@@ -546,14 +546,8 @@ check('the printed page names the standards and prints DATA REQUIRED where input
   const text = w.document.getElementById('v_tsTable').textContent;
 
   assert.ok(text.includes('ENGINEERING DESIGN BASIS'), 'the design basis is printed');
-  assert.ok(text.includes('IS 875-3:2015 map'), 'the wind code is named');
-  assert.ok(text.includes('IEC 61215'), 'the module mechanical class is named');
-  assert.ok(text.includes('IS 3043'), 'the earthing code is named');
-  assert.ok(text.includes('IEC 62305'), 'the lightning code is named');
-  assert.ok(text.includes('MNRE/UPNEDA'), 'the roof-load benchmark is named');
-  assert.ok(/row pitch \d+\.\d+ m from a \d+\.\d° mid-morning sun on 21 December/.test(text),
-    'the row pitch is shown, not assumed');
-  assert.ok(text.includes('DATA REQUIRED'), 'and the gaps say so');
+  assert.ok(text.includes(w.StateStore.DEFAULTS.engineeringDesignNote), 'the proposal-stage qualification is printed');
+  assert.ok(!/DATA REQUIRED|row pitch|Net uplift|per anchor|Excel integration/.test(text), 'internal assumptions and integration status stay out of the PDF');
 
   /* the claims that could not be supported are gone */
   const flat = text.replace(/\s+/g, ' ');
@@ -599,7 +593,7 @@ check('the engineering basis is kept inside its page, and an overflowing page is
   /* the design basis is the one variable-length group, so it is the one that
      can be asked to give up a little room */
   const engRows = w.document.querySelectorAll('#v_tsTable tr.is-eng').length;
-  assert.ok(engRows >= 5, `the design-basis rows are tagged for compaction, found ${engRows}`);
+  assert.ok(engRows === 1, `the design-basis rows are tagged for compaction, found ${engRows}`);
 
   /* jsdom lays nothing out (scrollHeight is always 0), so the fit ladder is
      exercised by handing the element a height, which is exactly the branch a
@@ -675,7 +669,7 @@ check('every engineering input in the form reaches the engine, and no id is a ph
   /* readState() is a hand-written list, so a field the form shows but the list
      omits is silently ignored by every calculation downstream of it. That
      failure is invisible on screen: the input looks live and changes nothing. */
-  const fields = [...w.document.querySelectorAll('fieldset.eng-basis [id]')];
+  const fields = [...w.document.querySelectorAll('fieldset.eng-basis input[id], fieldset.eng-basis select[id], fieldset.eng-basis textarea[id]')];
   assert.ok(fields.length >= 40, `the design-basis panel is present (${fields.length} fields)`);
   const state = w.Render.readState();
   const unread = fields.filter((el) => !Object.prototype.hasOwnProperty.call(state, el.id)).map((el) => el.id);
@@ -688,7 +682,7 @@ check('every engineering input in the form reaches the engine, and no id is a ph
   assert.equal(w.Render.readState().tiltDeg, '27', 'an edited field reaches the engine unchanged');
 });
 
-check('a missing datasheet value is printed, not treated as something to review', () => {
+check('missing datasheet values remain internal informational notes', () => {
   const src = fs.readFileSync(path.join(ROOT, 'assets/js/control-panel.js'), 'utf8');
   /* The strip is the builder's "fix this" area; DATA REQUIRED notes belong on
      the page. Re-deriving the rule from the source keeps the two from drifting

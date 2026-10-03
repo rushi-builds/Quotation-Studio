@@ -82,6 +82,7 @@
     tariff: '10',
     escalation: '4',
     degradation: '0.5',
+    engineeringDesignNote: 'Proposal-stage design: Equipment and commercial details are presented in this quotation. Detailed engineering will be completed after site verification and before installation.',
     /* ---- Engineering design basis (engineering.js) -------------------------
        Every figure below is either a standard's own arithmetic or a site value
        the designer supplies. They print on the Tech Spec page; blanks print as
@@ -259,5 +260,7 @@
     });
   }
 
-  root.StateStore = { DEFAULTS, collectForm, applyForm, exportFile, importFile };
+  function engineeringNote(state) { return String(state?.engineeringDesignNote || '').trim() || DEFAULTS.engineeringDesignNote; }
+
+  root.StateStore = { engineeringNote, DEFAULTS, collectForm, applyForm, exportFile, importFile };
 })(typeof self !== 'undefined' ? self : this);

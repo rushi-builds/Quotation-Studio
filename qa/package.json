@@ -14,7 +14,8 @@
     "test:references": "node --test reference-numbers.test.mjs",
     "test:references:browser": "node reference-browser.test.cjs",
     "test:portfolio-card": "node portfolio-card.test.cjs",
-    "test:export-audit": "node export-audit.test.cjs"
+    "test:export-audit": "node export-audit.test.cjs",
+    "test:proposal-stage": "node proposal-stage-note.test.cjs"
   },
   "keywords": [],
   "author": "",

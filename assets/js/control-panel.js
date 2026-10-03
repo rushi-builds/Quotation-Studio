@@ -141,7 +141,7 @@
       symbol.innerHTML = window.Icons.get('panel', 19, '#6D7B8C');
       const copy = element('span', 'studio-section-copy');
       copy.append(element('strong', '', 'Engineering design basis'),
-        element('small', '', 'Wind, string, cable, earthing & roof-load checks - printed as DATA REQUIRED until supplied'));
+        element('small', '', 'Proposal-stage PDF note · Excel integration pending · internal design checks'));
       summary.append(symbol, copy, element('span', 'studio-chevron', '⌄'));
       d.append(summary);
       engFs.querySelector('legend').classList.add('studio-sr-only');
@@ -314,7 +314,7 @@
     /* ---- engineering design basis ----------------------------------------
        The same two levels, from engineering.js: a figure that already proves
        the design wrong stops the PDF, and an input nobody has supplied yet is
-       an advisory that the page prints as DATA REQUIRED. The panel and the
+       an internal note while the customer sees the proposal-stage qualification. The panel and the
        download read this one function, so they cannot disagree. */
     function engineeringIssues(f, state) {
       if (!window.Engineering || typeof window.Engineering.report !== 'function') return { blocking: [], advisory: [] };
@@ -350,15 +350,15 @@
       const add = (list, item) => { if (!seen.has(item.id + '|' + item.message)) list.push(item); };
       eng.blocking.forEach((i) => add(merged.blocking, i));
       eng.advisory.forEach((i) => add(merged.advisory, i));
-      /* A DATA REQUIRED gap prints openly on the page, so it never blocks -
-         but the preparer still gets one look before the sheet leaves the
-         building: the gap rides along as an advisory, so the export
-         pre-flight raises it and offers "Download anyway" rather than
-         refusing. Informational notes stay out of the gate entirely. */
-      eng.notes.forEach((i) => {
-        if (/^DATA REQUIRED/.test(i.message)) add(merged.advisory, i);
-        else add(merged.notes, i);
-      });
+      // Missing inputs are staff-only while customer PDFs use the proposal-stage note.
+      // Keep all proven blockers and engineering advisories in the download gate.
+      eng.notes.forEach((i) => add(merged.notes, i));
+      const review = $('engineeringReview');
+      if (review) {
+        review.replaceChildren();
+        [...eng.blocking, ...eng.advisory, ...eng.notes].forEach(issue => review.append(element('li', '', issue.message)));
+        if (!review.children.length) review.append(element('li', '', 'No issues reported for the supplied inputs. Site verification is still required.'));
+      }
       overflowIssues().forEach((i) => add(merged.advisory, i));
       renderFeedback(merged);
       /* What the download sees: the two levels that change the document. */
