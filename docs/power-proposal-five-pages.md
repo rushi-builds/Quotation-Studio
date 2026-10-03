@@ -1,3 +1,5 @@
+> Historical specification. Superseded by [the six-page Power Proposal](power-proposal-six-pages.md).
+
 # Five-page Power Proposal
 
 The existing `power` PDF format now produces exactly five A4 pages, replacing the former two-page summary. The full Detailed Proposal and standalone BESS/additional-system reports retain their existing structure and page counts.

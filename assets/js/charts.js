@@ -263,11 +263,17 @@
       { label: 'Net Payable', v: f.netInvestment, color: ORANGE, sub: 'your investment', total: true }
     ];
     const pad = { l: 16, r: 16, t: 34, b: 42 };
-    const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+    const ih = H - pad.t - pad.b;
     // Include both negative investment and an override larger than gross.
     const maxY = niceCeil(Math.max(1, f.grossTotal, f.projectCost, Math.abs(f.subsidy), f.netInvestment) * 1.08);
     const minY = f.netInvestment < 0 ? -niceCeil(Math.abs(f.netInvestment) * 1.08) : 0;
     const yOf = (v) => pad.t + ih * (maxY - v) / (maxY - minY);
+    // Reserve a separate measured gutter: the first bar must never paint over
+    // currency suffixes (for example the k in ₹83.33k).
+    ctx.font = '500 10.5px ' + FONT;
+    const tickLabels = Array.from({length:4}, (_,i)=>shortINR(minY+(maxY-minY)*i/3));
+    pad.l = Math.ceil(Math.max(...tickLabels.map(label=>ctx.measureText(label).width))) + 16;
+    const iw = W - pad.l - pad.r;
     const slot = iw / steps.length;
     const bw = Math.min(slot * 0.55, 104);
 
@@ -278,8 +284,8 @@
       const y = yOf(v);
       ctx.strokeStyle = GRID;
       ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
-      ctx.fillStyle = TEXT; ctx.textAlign = 'left';
-      ctx.fillText(shortINR(v), pad.l + 2, y - 4);
+      ctx.fillStyle = TEXT; ctx.textAlign = 'right';
+      ctx.fillText(tickLabels[i], pad.l - 10, y + 3);
     }
 
     const GUIDE = 'rgba(91,107,128,0.14)';

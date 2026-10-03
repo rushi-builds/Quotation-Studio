@@ -130,59 +130,90 @@
 .briefing-voice-help p{font-size:11px;line-height:1.7;color:#5b6b80;margin:0 0 10px;}
 .briefing-voice-help .briefing-controls{margin-bottom:0;}
 
-/* Five-page Power Proposal. Isolated from every full-report A4 page. */
-.power-five{background:#fff;}
-.power-five .power-head{margin-bottom:15px;}
-.power-five h1{font-size:30px;letter-spacing:-.7px;margin:6px 0 8px;}
-.power-five .power-lead{font-size:11px;color:#64788A;line-height:1.6;margin:0 0 18px;max-width:640px;}
-.power-five .power-body{min-width:0;}
-.power-five .power-body p{overflow-wrap:anywhere;}
-.power-five .power-hero,.power-five .power-hero img{height:296px;}
-.power-five .power-hero{grid-template-columns:40% 60%;}
-.power-five .power-hero>div{padding:28px 24px;}
-.power-five .power-metrics{gap:12px;}
-.power-five .power-metrics-three{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
-.power-five .power-metrics-three .power-metric{padding:12px;}
-.power-five .power-metrics-three .power-metric>strong{font-size:19px;}
-.power-five .power-highlight{background:#071A2E;color:white;padding:15px 18px;border-radius:10px;margin-top:15px;display:flex;flex-direction:column;gap:5px;}
-.power-five .power-highlight strong{font-size:13px;}
-.power-five .power-highlight span{font-size:9px;color:#d2deea;}
-.power-five .power-roadmap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:12px;}
-.power-five .power-roadmap b{font-size:9px;color:#ad590e;letter-spacing:.08em;}
-.power-five .power-roadmap p{font-size:10px;line-height:1.6;color:#64788a;margin:6px 0 0;}
-.power-five .power-diagram{padding:14px;margin:0 0 8px;}
-.power-five .power-design-note{background:#f5f7f9;padding:3px 16px 12px;border-radius:10px;margin-top:16px;}
-.power-five .power-design-note p{font-size:10px;line-height:1.65;color:#64788a;margin:7px 0;}
-.power-five .power-chart-card{padding:12px 14px;border:1px solid #e0e6ec;border-radius:10px;margin-top:14px;}
-.power-five .power-chart-card h2{margin:0 0 9px;font-size:12px;display:flex;justify-content:space-between;gap:15px;}
-.power-five .power-chart-card h2 small{font-weight:400;font-size:9px;color:#64788a;}
-.power-five .power-series-chart{display:block;width:100%;height:172px;}
-.power-five .power-projection-table{border-collapse:collapse;width:100%;font-size:10px;margin-top:14px;}
-.power-five .power-projection-table th{background:#071A2E;color:#fff;text-align:right;padding:8px;font-weight:600;}
-.power-five .power-projection-table td{padding:7px 8px;text-align:right;border-bottom:1px solid #e5eaf0;}
-.power-five .power-projection-table th:first-child,.power-five .power-projection-table td:first-child{text-align:left;}
-.power-five .power-projection-table tr:nth-child(even) td{background:#f7f9fb;}
-.power-five .power-cost-chart canvas{display:block;width:100%;height:180px;}
-.power-five .power-financing{border-top:1px solid #e0e6ec;margin-top:12px;}
-.power-five .power-financing h2{margin:10px 0 6px;}
-.power-five .power-financing .power-caption{margin-bottom:0;}
-.power-five .power-subsidy-note{border-left:3px solid #f7941d;padding-left:10px;}
-.power-five .power-warranties{border-top:1px solid #e0e6ec;margin-top:10px;padding-top:1px;}
-.power-five .power-warranties .power-columns{gap:10px 22px;}
-.power-five .power-warranties strong{font-size:10px;}
-.power-five .power-warranties p{font-size:9px;line-height:1.5;margin:4px 0;color:#64788a;}
-.power-five .power-supplement{padding:9px 12px;background:#fff6eb;border-left:3px solid #f7941d;margin-top:8px;border-radius:6px;}
-.power-five .power-supplement strong{font-size:10px;}
-.power-five .power-supplement p{font-size:9px;line-height:1.5;margin:4px 0 0;}
-.power-five .power-foot span:first-child{max-width:78%;overflow-wrap:anywhere;}
-.power-five .power-foot span:last-child{white-space:nowrap;}
-.power-five.power-compact .power-lead{margin-bottom:12px;}
-.power-five.power-compact .power-chart-card{margin-top:10px;padding-top:9px;padding-bottom:9px;}
-.power-five.power-compact .power-projection-table td{padding-top:5px;padding-bottom:5px;}
-.power-five.power-compact .power-supplement{padding:6px 10px;}
-.power-five.power-compact .power-terms{margin-top:6px;}
+/* Six-page Power Proposal. Isolated from every full-report A4 page. */
+.power-six{background:#fff;}
+.power-six .power-head{margin-bottom:15px;}
+.power-six h1{font-size:30px;letter-spacing:-.7px;margin:6px 0 8px;}
+.power-six .power-lead{font-size:11px;color:#64788A;line-height:1.6;margin:0 0 18px;max-width:640px;}
+.power-six .power-body{min-width:0;}
+.power-six .power-body p{overflow-wrap:anywhere;}
+.power-six .power-hero,.power-six .power-hero img{height:296px;}
+.power-six .power-hero{grid-template-columns:40% 60%;}
+.power-six .power-hero>div{padding:28px 24px;}
+.power-six .power-metrics{gap:12px;}
+.power-six .power-metrics-three{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.power-six .power-metrics-three .power-metric{padding:12px;}
+.power-six .power-metrics-three .power-metric>strong{font-size:19px;}
+.power-six .power-highlight{background:#071A2E;color:white;padding:15px 18px;border-radius:10px;margin-top:15px;display:flex;flex-direction:column;gap:5px;}
+.power-six .power-highlight strong{font-size:13px;}
+.power-six .power-highlight span{font-size:9px;color:#d2deea;}
+.power-six .power-roadmap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:12px;}
+.power-six .power-roadmap b{font-size:9px;color:#ad590e;letter-spacing:.08em;}
+.power-six .power-roadmap p{font-size:10px;line-height:1.6;color:#64788a;margin:6px 0 0;}
+.power-six .power-diagram{padding:14px;margin:0 0 8px;}
+.power-six .power-design-note{background:#f5f7f9;padding:3px 16px 12px;border-radius:10px;margin-top:16px;}
+.power-six .power-design-note p{font-size:10px;line-height:1.65;color:#64788a;margin:7px 0;}
+.power-six .power-chart-card{padding:12px 14px;border:1px solid #e0e6ec;border-radius:10px;margin-top:14px;}
+.power-six .power-chart-card h2{margin:0 0 9px;font-size:12px;display:flex;justify-content:space-between;gap:15px;}
+.power-six .power-chart-card h2 small{font-weight:400;font-size:9px;color:#64788a;}
+.power-six .power-series-chart{display:block;width:100%;height:172px;}
+.power-six .power-projection-table{border-collapse:collapse;width:100%;font-size:10px;margin-top:14px;}
+.power-six .power-projection-table th{background:#071A2E;color:#fff;text-align:right;padding:8px;font-weight:600;}
+.power-six .power-projection-table td{padding:7px 8px;text-align:right;border-bottom:1px solid #e5eaf0;}
+.power-six .power-projection-table th:first-child,.power-six .power-projection-table td:first-child{text-align:left;}
+.power-six .power-projection-table tr:nth-child(even) td{background:#f7f9fb;}
+.power-six .power-cost-chart canvas{display:block;width:100%;height:180px;}
+.power-six .power-financing{border-top:1px solid #e0e6ec;margin-top:12px;}
+.power-six .power-financing h2{margin:10px 0 6px;}
+.power-six .power-financing .power-caption{margin-bottom:0;}
+.power-six .power-subsidy-note{border-left:3px solid #f7941d;padding-left:10px;}
+.power-six .power-warranties{border-top:1px solid #e0e6ec;margin-top:10px;padding-top:1px;}
+.power-six .power-warranties .power-columns{gap:10px 22px;}
+.power-six .power-warranties strong{font-size:10px;}
+.power-six .power-warranties p{font-size:9px;line-height:1.5;margin:4px 0;color:#64788a;}
+.power-six .power-supplement{padding:9px 12px;background:#fff6eb;border-left:3px solid #f7941d;margin-top:8px;border-radius:6px;}
+.power-six .power-supplement strong{font-size:10px;}
+.power-six .power-supplement p{font-size:9px;line-height:1.5;margin:4px 0 0;}
+.power-six .power-foot span:first-child{max-width:78%;overflow-wrap:anywhere;}
+.power-six .power-foot span:last-child{white-space:nowrap;}
+.power-six.power-compact .power-lead{margin-bottom:12px;}
+.power-six.power-compact .power-chart-card{margin-top:10px;padding-top:9px;padding-bottom:9px;}
+.power-six.power-compact .power-projection-table td{padding-top:5px;padding-bottom:5px;}
+.power-six.power-compact .power-supplement{padding:6px 10px;}
+.power-six.power-compact .power-terms{margin-top:6px;}
 
-.power-five .power-journey{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 16px;margin-bottom:14px;}
-.power-five .power-journey>div{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #e5eaf0;}
-.power-five .power-journey b{font-size:12px;color:#ad590e;}
-.power-five .power-journey span{font-size:9px;line-height:1.45;}
+.power-six .power-journey{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 16px;margin-bottom:14px;}
+.power-six .power-journey>div{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #e5eaf0;}
+.power-six .power-journey b{font-size:12px;color:#ad590e;}
+.power-six .power-journey span{font-size:9px;line-height:1.45;}
+
+/* Company portfolio and professional closing, Power report only. */
+.power-six .power-company{background:#071a2e;color:#fff;border-radius:12px;padding:28px 30px;margin-bottom:24px;}
+.power-six .power-company>span,.power-six .power-portfolio-link>div>span,.power-six .power-support span{font-size:9px;letter-spacing:.12em;color:#e9bb82;font-weight:700;}
+.power-six .power-company h2{font-size:25px;line-height:1.3;margin:12px 0;color:#fff;}
+.power-six .power-company p{font-size:12px;line-height:1.85;color:#dce5ed;margin:0;}
+.power-six .power-capabilities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:28px;}
+.power-six .power-capabilities>div{border-top:3px solid #f7941d;padding:14px 8px 4px 0;}
+.power-six .power-capabilities strong{font-size:12px;line-height:1.6;}
+.power-six .power-projects{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+.power-six .power-projects article{border:1px solid #e0e6ec;border-radius:10px;overflow:hidden;min-width:0;}
+.power-six .power-projects img{display:block;width:100%;height:145px;object-fit:cover;}
+.power-six .power-projects article>div{padding:13px 12px;}
+.power-six .power-projects span{font-size:10px;color:#a95b17;font-weight:700;}
+.power-six .power-projects h3{font-size:12px;line-height:1.45;margin:7px 0;overflow-wrap:anywhere;}
+.power-six .power-projects p{font-size:9px;color:#64788a;line-height:1.5;margin:0;}
+.power-six .power-portfolio-link{display:flex;align-items:center;justify-content:space-between;gap:24px;background:#f7f4ef;border:1px solid #ece3d8;border-radius:10px;padding:20px 24px;margin-top:22px;}
+.power-six .power-portfolio-link>div>span{color:#a95b17;}
+.power-six .power-portfolio-link h2{font-size:20px;margin:8px 0;}
+.power-six .power-portfolio-link p,.power-six .power-company-services p{font-size:10px;line-height:1.7;color:#64788a;}
+.power-six .power-portfolio-link>div>a{display:inline-block;font-size:11px;font-weight:700;margin-top:6px;}
+.power-six .power-company-services{border-top:1px solid #e0e6ec;margin-top:24px;padding-top:5px;}
+.power-six .power-support{display:flex;justify-content:space-between;align-items:center;gap:20px;border-radius:10px;background:#071a2e;color:#fff;padding:22px;margin-top:20px;}
+.power-six .power-support h2{font-size:17px;margin:8px 0 0;color:#fff;}
+.power-six .power-support>div:last-child{text-align:right;max-width:48%;overflow-wrap:anywhere;}
+.power-six .power-support strong{font-size:15px;}.power-six .power-support p{font-size:10px;line-height:1.5;color:#dce5ed;margin:7px 0 0;}
+.power-six .power-report-links{border-top:1px solid #dce5ed;margin-top:18px;padding-top:2px;}
+.power-six .power-report-links p{font-size:9px;color:#64788a;margin:0 0 10px;}
+.power-six .power-report-links>div{display:flex;gap:14px;}
+.power-six .power-report-links a{flex:1;border:1px solid #dfd5c7;background:#fffaf3;border-radius:7px;padding:12px;font-size:10px;font-weight:700;text-decoration:none;}
+.power-six.power-compact .power-support{margin-top:12px;padding:16px;}
