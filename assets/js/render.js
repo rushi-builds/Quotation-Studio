@@ -64,7 +64,22 @@
   /* ================================================================== */
   /* PAGE 1 - COVER                                                      */
   /* ================================================================== */
+  // Change only the photographic cover background. All live overlays, original
+  // branding, residential artwork, and subsequent pages remain unchanged.
+  const COVER_ARTWORK = {
+    residential: ['assets/images/cover-editable-background.png', 'KTM Energy Experts solar proposal cover artwork'],
+    commercial: ['assets/images/cover-commercial-background.webp', 'Illustrative commercial solar office campus cover — AI-generated architectural concept'],
+    industrial: ['assets/images/cover-industrial-background.webp', 'Illustrative industrial rooftop solar facility cover — AI-generated architectural concept'],
+    rwa: ['assets/images/cover-rwa-background.webp', 'Illustrative housing society rooftop solar cover — AI-generated architectural concept']
+  };
   function renderCover(s, f, v) {
+    const cover = $('coverArtwork');
+    if (cover) {
+      const choice = COVER_ARTWORK[s.customerType];
+      const [src, alt] = Array.isArray(choice) ? choice : COVER_ARTWORK.residential;
+      if (cover.getAttribute('src') !== src) cover.setAttribute('src', src);
+      cover.alt = alt;
+    }
     set('v_coverEyebrow', tpl(CONTENT.cover.eyebrowByType[s.customerType] || (s.customerType === 'rwa' ? 'RWA / HOUSING SOCIETY SOLAR PROPOSAL' : CONTENT.cover.eyebrowByType.residential), v));
     set('v_coverTitle1', CONTENT.cover.titleLine1);
     set('v_coverTitle2', CONTENT.cover.titleLine2);
