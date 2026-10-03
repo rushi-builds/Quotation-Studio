@@ -5,6 +5,7 @@
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const F = root.Finance;
+  const POWER_PAGE_COUNT = 6;
   const tariffNumber = value => Number.isFinite(Number(value)) ? Math.max(0,Number(value)) : 0;
   const payback = f => Number.isFinite(f.payback) ? f.payback.toFixed(1) + ' years' : 'Not reached within 25 years';
   function publicUrl(value) {
@@ -147,8 +148,8 @@
     const battery=root.Bess.compute(s,f),safe=v=>esc(v==null||v===''?'To be confirmed':v);
     const precise=v=>Number.isFinite(v)?v.toLocaleString('en-IN',{maximumFractionDigits:3}):'-';
     const paybackText=f.netInvestment<=0?'Not applicable':payback(f);
-    const header=n=>'<header class="power-head"><img src="assets/images/ktm-logo-light.png" alt="Company logo"><div>POWER PROPOSAL · '+n+' / 6<br><span>'+esc(s.propRef)+' · v'+esc(s.propVersion)+'</span></div></header>';
-    const foot=n=>'<footer class="power-foot"><span>'+esc(s.companyName)+' · '+esc(s.companyPhone)+'</span><span>Power Proposal · '+n+' / 6</span></footer>';
+    const header=n=>'<header class="power-head"><img src="assets/images/ktm-logo-light.png" alt="Company logo"><div>POWER PROPOSAL · '+n+' / '+POWER_PAGE_COUNT+'<br><span>'+esc(s.propRef)+' · v'+esc(s.propVersion)+'</span></div></header>';
+    const foot=n=>'<footer class="power-foot"><span>'+esc(s.companyName)+' · '+esc(s.companyPhone)+'</span><span>Power Proposal · '+n+' / '+POWER_PAGE_COUNT+'</span></footer>';
     const heading=(n,title)=>{
       const emphasis=['Your energy.','Support.','behind the numbers.','Long-term value.','investment.','& support.'][n-1];
       const split=title.lastIndexOf(emphasis);
@@ -230,5 +231,5 @@
     return host;
   }
   document.addEventListener('qs:rendered',sync);
-  root.Experience={publicUrl,galleryUrl,destinationCopy,buildPowerPages,sync,whenReady:()=>allQrReady};
+  root.Experience={POWER_PAGE_COUNT,publicUrl,galleryUrl,destinationCopy,buildPowerPages,sync,whenReady:()=>allQrReady};
 })(window);

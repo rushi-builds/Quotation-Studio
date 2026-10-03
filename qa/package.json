@@ -13,7 +13,8 @@
     "test:power": "node power-five.test.cjs && node experience.test.js",
     "test:references": "node --test reference-numbers.test.mjs",
     "test:references:browser": "node reference-browser.test.cjs",
-    "test:portfolio-card": "node portfolio-card.test.cjs"
+    "test:portfolio-card": "node portfolio-card.test.cjs",
+    "test:export-audit": "node export-audit.test.cjs"
   },
   "keywords": [],
   "author": "",
