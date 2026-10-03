@@ -162,7 +162,7 @@
 .power-six .power-projection-table td{padding:7px 8px;text-align:right;border-bottom:1px solid #e5eaf0;}
 .power-six .power-projection-table th:first-child,.power-six .power-projection-table td:first-child{text-align:left;}
 .power-six .power-projection-table tr:nth-child(even) td{background:#f7f9fb;}
-.power-six .power-cost-chart canvas{display:block;width:100%;height:180px;}
+.power-six .power-cost-chart canvas{display:block;width:100%;height:340px;}
 .power-six .power-financing{border-top:1px solid #e0e6ec;margin-top:12px;}
 .power-six .power-financing h2{margin:10px 0 6px;}
 .power-six .power-financing .power-caption{margin-bottom:0;}
@@ -272,3 +272,7 @@
 .power-six.power-compact .power-scope-card li{margin:2px 0;}
 
 .portfolio-link a{color:#ad590e;}
+
+/* Two-tone editorial headings: same hierarchy and wording on all six pages. */
+.power-six h1{color:#17354a;}
+.power-six .power-heading-accent{color:#b56317;border-bottom:2px solid #efd2af;padding-bottom:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone;}

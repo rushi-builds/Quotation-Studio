@@ -149,7 +149,12 @@
     const paybackText=f.netInvestment<=0?'Not applicable':payback(f);
     const header=n=>'<header class="power-head"><img src="assets/images/ktm-logo-light.png" alt="Company logo"><div>POWER PROPOSAL · '+n+' / 6<br><span>'+esc(s.propRef)+' · v'+esc(s.propVersion)+'</span></div></header>';
     const foot=n=>'<footer class="power-foot"><span>'+esc(s.companyName)+' · '+esc(s.companyPhone)+'</span><span>Power Proposal · '+n+' / 6</span></footer>';
-    const page=(n,kicker,title,lead,body)=>'<section class="page power-page power-six" id="powerPage'+n+'">'+header(n)+'<div class="power-kicker">'+kicker+'</div><h1>'+title+'</h1><p class="power-lead">'+lead+'</p><div class="power-body">'+body+'</div>'+foot(n)+'</section>';
+    const heading=(n,title)=>{
+      const emphasis=['Your energy.','Support.','behind the numbers.','Long-term value.','investment.','& support.'][n-1];
+      const split=title.lastIndexOf(emphasis);
+      return split<0?esc(title):esc(title.slice(0,split))+'<span class="power-heading-accent">'+esc(title.slice(split))+'</span>';
+    };
+    const page=(n,kicker,title,lead,body)=>'<section class="page power-page power-six" id="powerPage'+n+'">'+header(n)+'<div class="power-kicker">'+kicker+'</div><h1>'+heading(n,title)+'</h1><p class="power-lead">'+lead+'</p><div class="power-body">'+body+'</div>'+foot(n)+'</section>';
     const diagram=$('v_tsDiagram')?.innerHTML.replace(/qs-system|qs-metal|qs-panels|qs-dc-arrow|qs-ac-arrow/g,m=>'power-'+m)||'';
     const photo=['commercial','industrial','rwa'].includes(s.customerType)?'assets/images/cover-'+s.customerType+'-scene.jpg':($('img_solution')?.getAttribute('src')||'assets/images/page-solution.jpg');
     const valid=F.fmtDate(F.addDays(s.propDate,s.validityDays))||'To be confirmed';
@@ -196,7 +201,7 @@
         '<p class="power-note">Assumes generated units have the entered tariff value. Self-consumption, export settlement, fixed charges and site performance affect actual bills. O&M, replacements, financing interest and discounting are not deducted from these savings/payback projections.'+(separate?' Battery/additional-system benefits are not included.':'')+'</p>')+
       page(5,'05 / INVESTMENT & PAYMENT PLAN','A transparent investment.','Project pricing, applicable GST, subsidy estimate and payment schedule.',
         '<div class="power-columns"><section class="power-cost"><h2>'+(separate?'Solar-only investment':'Investment overview')+'</h2>'+row('Project cost before GST',F.fmtINR(f.projectCost))+row('GST ('+f.gstPercent+'%)',F.fmtINR(f.gstAmount))+row('Total including GST',F.fmtINR(f.grossTotal))+row('Estimated subsidy - not approved',F.fmtINR(f.subsidy))+'<div class="power-total">Estimated net investment<strong>'+F.fmtINR(f.netInvestment)+'</strong></div></section><section><h2>Basis of the offer</h2>'+row('Contracted system',precise(f.capacity)+' kWp')+row('Quoted base rate','₹'+precise(f.costPerWp)+' / Wp')+row('Estimated payback',paybackText)+row('Proposal valid until',valid)+'<p class="power-note">Subsidy eligibility, approval and disbursement are subject to the applicable scheme and authority. GST is calculated using the entered rate; confirm the applicable tax treatment.</p></section></div>'+
-        '<div class="power-chart-card power-cost-chart"><h2>From project cost to net investment</h2><canvas id="powerCostChart" aria-label="Cost, GST, subsidy and net investment chart" width="680" height="180"></canvas></div>'+
+        '<div class="power-chart-card power-cost-chart"><h2>From project cost to net investment</h2><canvas id="powerCostChart" aria-label="Cost, GST, subsidy and net investment chart" width="680" height="340"></canvas></div>'+
         '<h2>Payment milestones</h2><p class="power-caption">Calculated on gross including GST, not net after subsidy. Displayed amounts are rounded.</p><div class="power-pay">'+['advance','dispatch','completion'].map(key=>metric(key[0].toUpperCase()+key.slice(1),f.pay[key].pct+'%',F.fmtINR(f.pay[key].amount))).join('')+'</div>'+
         (Math.abs(f.pay.sumPct-100)>.001?'<p class="power-note power-warning">Payment schedule totals '+precise(f.pay.sumPct)+'%. Confirm percentages totalling 100% before approval.</p>':'')+
         (f.financing?'<div class="power-financing"><h2>Optional financing illustration</h2><div class="power-columns"><div>'+row('Loan / interest',F.fmtINR(f.financing.loan)+' / '+f.financing.ratePct+'% p.a.')+row('Term / monthly EMI',f.financing.months+' months / '+F.fmtINR(f.financing.emi))+'</div><div>'+row('Total loan repayment',F.fmtINR(f.financing.totalPaid))+row('Total loan interest',F.fmtINR(f.financing.totalInterest))+'</div></div><p class="power-caption">Illustration only; lender approval, fees and final terms apply. Interest is not deducted from solar payback above.</p></div>':'')+
@@ -211,10 +216,15 @@
         '<p class="power-note">This proposal is not an installation order. Complete terms and exclusions are set out in the Detailed Proposal. Solar totals, charts and payment milestones exclude separately priced battery/additional systems. Generation and savings are estimates; subsidy is subject to approval.</p>'+
         (refs?'<section class="power-report-links"><h2>Project engineering reports</h2><p>Site-specific design and simulation documents</p><div>'+refs+'</div></section>':''));
     document.body.appendChild(host);
-    root.Charts.bridge(host.querySelector('#powerCostChart'),f);
     host.querySelectorAll('.power-page').forEach(p=>{
       if(p.querySelector('.power-body').getBoundingClientRect().bottom>p.querySelector('footer').getBoundingClientRect().top-8)p.classList.add('power-compact');
     });
+    // Match the Detailed Proposal's generous waterfall height. Only reduce it
+    // on dense financing/subsidy pages, retaining at least 240px and A4 safety.
+    const costCanvas=host.querySelector('#powerCostChart'),investment=costCanvas.closest('.power-page');
+    const overflow=investment.querySelector('.power-body').getBoundingClientRect().bottom-investment.querySelector('footer').getBoundingClientRect().top+12;
+    if(overflow>0) costCanvas.style.height=Math.max(240,Math.floor(costCanvas.clientHeight-overflow))+'px';
+    root.Charts.bridge(costCanvas,f); // draw at final dimensions, never stretch pixels
     const canvas=host.querySelector('.power-gallery canvas');
     if(canvas&&url&&root.QRCode){root.QRCode.toCanvas(canvas,url,{width:320,margin:4,errorCorrectionLevel:'M'});canvas.style.width='94px';canvas.style.height='94px';}
     return host;
