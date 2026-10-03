@@ -340,8 +340,9 @@ for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
 
     /* executive summary */
     assert.equal(txt('v_inCostNet'), inr(e.net), 'exec net investment');
-    assert.equal(txt('v_exHeroNet'), num(e.annualGen) + ' kWh', 'summary generation');
-    assert.ok(txt('v_exHeroNet').includes(num(e.annualGen) + ' kWh'), 'exec generation KPI');
+    assert.equal(txt('v_exHeroNet'), num(e.annualGen / 12) + ' kWh', 'summary monthly generation');
+    assert.equal(txt('v_inPayback'), e.payback.toFixed(1) + ' years', 'investment payback from existing projection');
+    assert.ok(txt('v_exKpis').includes(num(e.annualGen) + ' kWh'), 'exec generation KPI');
 
     /* technical specification */
     const ts = txt('v_tsTable');
@@ -425,7 +426,7 @@ check('opening pages are non-financial while investment retains the figures', ()
   setInput('capacity', 7);
   const net = inr(w.Finance.compute(w.Render.lastState).netInvestment);
   assert.ok(!/₹|Payback|Estimated IRR|Net Investment|Effective Solar Cost|Estimated Subsidy/i.test(txt('pageCover') + txt('pageExec')));
-  assert.equal(txt('v_coverBadgeGen'), txt('v_exHeroNet'));
+  assert.equal(txt('v_exHeroNet'), num(w.Finance.compute(w.Render.lastState).annualGen / 12) + ' kWh');
   assert.equal(txt('v_exEffectiveHint'), '');
   assert.equal(txt('v_inCostNet'), net, 'investment card must match the summary');
   assert.equal(txt('v_inCostSub'), '− ₹78,000', '7 kWp is above the subsidy cap');
@@ -433,7 +434,7 @@ check('opening pages are non-financial while investment retains the figures', ()
 check('generation is identical on the summary, savings page and assumptions strip', () => {
   setInput('capacity', 7);
   const gen = num(expected(7, cfg).annualGen) + ' kWh';
-  assert.ok(txt('v_exHeroNet').includes(gen), 'summary KPI');
+  assert.ok(txt('v_exKpis').includes(gen), 'summary KPI');
   assert.equal(txt('v_svChipGen'), gen, 'savings chip');
 });
 check('no runtime errors during the whole sweep', () => {

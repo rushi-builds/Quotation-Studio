@@ -237,6 +237,8 @@
     mkField(g, 'Heading', CONTENT.pageInvestment.heading, (v) => { CONTENT.pageInvestment.heading = v; });
     mkField(g, 'Subheading', CONTENT.pageInvestment.sub, (v) => { CONTENT.pageInvestment.sub = v; });
     mkField(g, 'Intro (uses {capacity})', CONTENT.pageInvestment.desc, (v) => { CONTENT.pageInvestment.desc = v; }, true);
+    const PB = CONTENT.pageInvestment.paybackCard;
+    Object.keys(PB).forEach(k => mkField(g, 'Payback card - ' + k, PB[k], v => { PB[k] = v; }));
     const IC = CONTENT.pageInvestment.cards;
     Object.keys(IC).forEach((k) => {
       mkField(g, 'Caption - ' + k, IC[k], (v) => { IC[k] = v; });

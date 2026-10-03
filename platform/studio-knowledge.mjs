@@ -456,7 +456,7 @@ export default {
       "heading": "Your Solar Proposal at a Glance",
       "sub": "Your system, energy potential and turnkey delivery - at a glance.",
       "systemHeroLabels": {
-        "generation": "Estimated Year-1 Generation",
+        "generation": "Estimated Monthly Generation",
         "installed": "Installed Solar Capacity",
         "carbon": "Estimated CO₂ Avoided / Year",
         "delivery": "Design • Supply • Installation"
@@ -469,10 +469,10 @@ export default {
         "arrayArea": "Module Area",
         "technology": "Module Technology",
         "roof": "Roof Type",
-        "monthlyGen": "Average Monthly Generation",
+        "annualGen": "Estimated Year-1 Generation",
         "lifetimeGen": "Estimated 25-Year Generation"
       },
-      "systemNote": "Energy and environmental figures are estimates; actual performance depends on site conditions and proposal assumptions.",
+      "systemNote": "Monthly generation is a year-one average, not a seasonal forecast. Actual output varies with site conditions and weather.",
       "includedSectionLabel": "WHAT YOU ARE GETTING",
       "includedIntro": "A complete turnkey rooftop solar system - engineered, supplied, installed and commissioned by {company}:"
     },
@@ -850,6 +850,11 @@ export default {
         "totalCostCaption": "Including GST",
         "netInvestment": "Net Investment",
         "netInvestmentCaption": "Payable after subsidy"
+      },
+      "paybackCard": {
+        "label": "Estimated Payback",
+        "note": "Projected solar savings",
+        "noRecovery": "Within the 25-year projection"
       },
       "rateChip": "Effective Rate",
       "bridgeTitle": "COST BUILD-UP",

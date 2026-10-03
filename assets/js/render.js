@@ -138,7 +138,7 @@
 
     // Legacy DOM IDs are retained for saved layouts; opening highlights are non-financial.
     const h = E.systemHeroLabels;
-    set('v_exHeroNet', F.fmtNum(f.annualGen) + ' kWh');
+    set('v_exHeroNet', F.fmtNum(f.annualGen / 12) + ' kWh');
     set('v_exHeroNetLabel', h.generation);
     set('v_exHeroSave', f.installedKwp.toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp');
     set('v_exHeroSaveLabel', h.installed);
@@ -155,7 +155,7 @@
       { l: k.arrayArea, val: f.arrayArea ? Math.round(f.arrayArea) + ' m²' : '-', icon: 'target' },
       { l: k.technology, val: s.moduleTech || 'To be confirmed', icon: 'panel' },
       { l: k.roof, val: s.roofType || 'To be confirmed', icon: 'home' },
-      { l: k.monthlyGen, val: F.fmtNum(f.annualGen / 12) + ' kWh', icon: 'sun' },
+      { l: k.annualGen || 'Estimated Year-1 Generation', val: F.fmtNum(f.annualGen) + ' kWh', icon: 'sun' },
       { l: k.lifetimeGen, val: (f.lifetimeGen / 1000).toLocaleString('en-IN', { maximumFractionDigits: 1 }) + ' MWh', icon: 'leaf' }
     ];
     setHTML('v_exKpis', tiles.map((t) =>
@@ -833,6 +833,11 @@
     set('v_inCostSubCap', subCap);
     set('v_inRate', '₹' + (Math.round(f.costPerWp * 10) / 10) + ' / Wp');
     set('v_inRateL', P.rateChip);
+    const recovered = Number.isFinite(f.payback) && f.payback >= 0;
+    set('v_inPaybackLabel', P.paybackCard.label);
+    set('v_inPayback', recovered ? f.payback.toFixed(1) + ' years' : f.netInvestment <= 0 ? 'Not applicable' : 'Not reached');
+    set('v_inPaybackNote', recovered ? (root.Bess.included(s) ? 'Solar-only savings estimate' : P.paybackCard.note) : f.netInvestment <= 0 ? 'Net investment is not positive' : P.paybackCard.noRecovery);
+
 
     /* commercial / industrial tax shield benefit (IT Act Sec 32) */
     setHTML('v_inTaxIcon', I.get('building', 22, '#166534'));

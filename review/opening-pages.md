@@ -12,3 +12,11 @@ Verification:
 - Tech-spec browser: 31 passed.
 - Page-spacing: opening/default and 10/20/100 kWp checks pass. The dense commercial scenario fails on Tech Spec references/footer and Investment payment-note overflow. Identical failure reproduced with all changed presentation files served from pre-change HEAD through request interception; pre-existing and outside this two-page change.
 - Screenshots (ignored): qa/shots/opening-pages/pageCover.png and pageExec.png.
+
+## Monthly hero and Investment payback follow-up
+
+- Summary hero now uses annual generation / 12, labeled Estimated Monthly Generation. Annual generation moves to a supporting system card; cover remains annual. The note explicitly calls monthly generation a year-one average, not a seasonal forecast.
+- Investment has a fifth Estimated Payback card using Finance.payback (the existing cumulative-savings crossing), with no recalculation or engine change. Non-recovery shows Not reached; nonpositive net investment shows Not applicable. Battery quotes label the result solar-only.
+- Legacy saved captions and Advanced Edit fields updated. Current screenshots include the rendered canvas chart rather than blank cloned canvases.
+- Reconciliation 113, integration 117, sync 106, options/share 40, export preflight 50 all passed. Focused browser coverage tests monthly/annual distinction, price updates, payback and missing-recovery states, legacy saved content, and print output.
+- Dense commercial layout comparison against pre-change HEAD: Investment card row remains 92px high, zero overflowing card values, existing payment-note footer overlap remains identical at 9.27px (not worsened by the fifth card).
