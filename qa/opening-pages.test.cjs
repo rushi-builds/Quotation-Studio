@@ -9,6 +9,7 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   await page.goto((process.env.QA_BASE||'http://127.0.0.1:8080')+'/quotation.html');
   await page.waitForFunction(()=>window.Render?.lastState&&window.Proposals?.active());
   await page.evaluate(()=>document.fonts.ready);
+  assert.ok(await page.locator('#pageExec .hero-tile .ht-v, #pageExec .hero-tile .ht-l').evaluateAll(els=>els.length===8&&els.every(el=>getComputedStyle(el).textAlign==='center')),'Summary values and labels are centered');
   for(const capacity of ['3','7','9.5','20','100']){
    await page.evaluate(cap=>{StateStore.applyForm({capacity:cap});Render.renderAll();},capacity);
    const result=await page.evaluate(()=>{
@@ -43,7 +44,7 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
    await proof.setContent('<base href="'+page.url()+'"><link rel="stylesheet" href="assets/css/app.css"><style>body{margin:0;padding:0;background:white}.page{margin:0;transform:none!important}</style>'+html);
    await proof.evaluate(()=>document.fonts.ready);await proof.waitForFunction(()=>[...document.images].every(i=>i.complete));
    await proof.screenshot({path:path.join(__dirname,'shots/opening-pages',id+'.png')});
-   await proof.emulateMedia({media:'print'});if(id!=='pageInvestment')assert.ok(!(await proof.locator('#'+id).textContent()).includes('₹'));
+   await proof.emulateMedia({media:'print'});if(id==='pageExec')assert.ok(await proof.locator('.hero-tile .ht-v, .hero-tile .ht-l').evaluateAll(els=>els.every(el=>getComputedStyle(el).textAlign==='center')));if(id!=='pageInvestment')assert.ok(!(await proof.locator('#'+id).textContent()).includes('₹'));
    else assert.equal(await proof.locator('#v_inPaybackLabel').textContent(),'Estimated Payback');
    await proof.close();
   }

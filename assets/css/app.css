@@ -852,6 +852,7 @@ details.page-group > summary::-webkit-details-marker{display:none;}
   background:linear-gradient(150deg,#243B57,#1C2B3F 70%);border-radius:12px;
   padding:16px 18px;margin:14px 0 16px;
 }
+#pageExec .hero-tile{text-align:center;min-width:0;}
 .hero-tile .ht-v{font-size:19px;font-weight:800;color:#fff;font-family:'Poppins',sans-serif;}
 .hero-tile:nth-child(2) .ht-v,.hero-tile:nth-child(4) .ht-v{color:var(--orange);}
 .hero-tile .ht-l{font-size:8.6px;font-weight:600;color:#A9B6C6;text-transform:uppercase;letter-spacing:.07em;margin-top:3px;}
