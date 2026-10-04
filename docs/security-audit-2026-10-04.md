@@ -14,6 +14,8 @@ Regression suites (all runnable without a browser):
 | Static | `node qa/audit-static.test.cjs` | referrer metas, deletions, bundled fonts, `_headers`/Vercel headers, `index.js` alias, loopback default, throttle migration |
 | Local server | `node qa/audit-fixes.test.cjs` | static allowlist, response headers, CSRF gate, portal-meta bounds, status allowlist, dev gating |
 | Worker ×2 entries | `node qa/audit-fixes-worker.test.mjs` | CSRF, throttle, expiry clamp, portal parity, status allowlist, task parity, gallery pre-check, headers |
+| DOM-equivalence (jsdom, NOT a browser) | `node qa/audit-dom.test.cjs` | recovery UI honesty, social UI states, sign-in + oauth-complete flows, save/reopen round-trip, dashboard boot |
+| OAuth attacks (mocked provider HTTP) | `node --test qa/oauth-attacks.test.mjs` | malformed/forged/replayed callbacks incl. Apple form_post, token-endpoint failures, method checks |
 
 Run all three with `npm run test:audit` from `qa/`.
 
@@ -86,7 +88,9 @@ flag is on.
 
 `POST /api/portal/event` stored arbitrary caller-supplied objects. Both
 backends now apply a strict allowlist (`note` ≤ 500 chars; `sectionId`,
-`choice`, `label` ≤ 120; numeric `index`, `progress`, `sectionIndex`).
+`choice`, `label`, plus the keys `portal.js` actually sends — `format`,
+`stage`, `wants`, `loc` — ≤ 120; numeric `index`, `progress`,
+`sectionIndex`).
 The Worker's event-type allowlist was also brought to parity with local
 (`pdf_download_requested`, `section_view`, `interest_recorded`,
 `survey_requested`).
@@ -130,6 +134,25 @@ already-bundled `assets/fonts/inter-latin-*.woff2` files (weights 400–700).
 `scripts/serve.js` listened on `0.0.0.0` while serving the working tree. It
 now defaults to `127.0.0.1`; `HOST=0.0.0.0` restores LAN access explicitly.
 
+### 15. OAuth setup diagnostics + localhost development (follow-up)
+
+`configuration()` in `oauth.mjs` is now backed by an exported
+`configurationIssues()` (same fail-closed conditions, single source of
+truth) and a diagnostic script,
+`platform/cloudflare/scripts/oauth-setup-check.mjs`, which reports exactly
+which requirement keeps a provider "not live yet" without printing secret
+values. `http://localhost` / `http://127.0.0.1` origins are accepted for
+local Google/Microsoft testing (both providers allow localhost callbacks);
+any other `http` origin stays unconfigured and Apple stays `https`-only.
+
+### 16. Impact-review correction: portal meta keeps real client keys
+
+The first version of the §8 allowlist dropped `format`/`stage`/`wants`/`loc`,
+which `portal.js` legitimately sends (nothing reads them today — the activity
+feed uses event type + time only — but silent data loss was unintended).
+Both backends now preserve those keys (≤120 chars); the audit suites assert
+preservation alongside junk rejection.
+
 ## Deliberately not changed
 
 - **No CSP / HSTS / frame-ancestors yet.** The app must keep working inside
@@ -148,7 +171,8 @@ now defaults to `127.0.0.1`; `HOST=0.0.0.0` restores LAN access explicitly.
 
 ## Verification
 
-- `npm run test:audit` — 34 static + 41 local + 38 worker assertions, all green.
+- `npm run test:audit` — 34 static + 41 local + 38 worker + 24 DOM-equivalence
+  assertions, all green; `oauth-attacks` 12/12 (mocked provider HTTP only).
 - Existing non-browser suites re-run after the changes, all green: `test`
   (14 files, incl. `platform-api` 114/114), `test:references`,
   `test:assistant` (full chain incl. `gemini-api` + `gemini-worker`),

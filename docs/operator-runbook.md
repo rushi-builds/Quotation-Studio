@@ -73,10 +73,20 @@ The Worker now throttles auth in D1, but edge rules are still worthwhile:
 - **Provider webhooks for delivery status.** "Delivered" receipts still
   require a future WhatsApp/email provider integration; manual shares record
   `share_clicked` only (see the in-code note in `server.js`).
-- **Browser test coverage: NOT RUN, no CI exists.** There is no
+- **Real-browser coverage: NOT RUN, no CI exists.** There is no
   `.github/workflows` directory, so nothing runs any test automatically.
-  Before merge, either run the Playwright suites (`test:browser`,
-  `test:security`, `test:dashboard`, `test:actions`) on a machine with
-  browser libraries installed, or add a GitHub Actions job that installs
-  Playwright's system dependencies and runs them plus `test:audit`.
-  Do not assume they pass.
+  This sandbox cannot install Chromium system libraries (all distro, mirror
+  and browser-CDN hosts are unreachable from its network), so Playwright
+  cannot launch here. Partial substitutes that DO run: the API halves of
+  `studio-security` / `oauth-browser` (verified green up to browser launch),
+  `qa/audit-dom.test.cjs` (real page scripts in jsdom: recovery honesty,
+  social states, sign-in, oauth-complete, save/reopen, dashboard boot —
+  layout/viewport/canvas/PDF excluded), and `qa/oauth-attacks.test.mjs`
+  (callback forgery/replay at handler + route level). Before merge, still
+  run the Playwright suites on a machine with browser libraries, or add a
+  GitHub Actions job. Do not assume they pass.
+- **Social login needs provider registration.** Code is complete and
+  attack-tested, but no live provider login has been certified. Run
+  `node platform/cloudflare/scripts/oauth-setup-check.mjs` to see exactly
+  which requirement is missing, then follow `docs/social-sign-in-setup.md`
+  (Google/Microsoft testable on `http://localhost`; Apple needs `https`).

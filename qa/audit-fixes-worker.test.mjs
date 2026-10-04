@@ -219,14 +219,14 @@ for (const [name, entry] of ENTRIES) {
       gone.status !== 200 && !(gone.json && gone.json.snapshot),
       `${gone.status} ${JSON.stringify(gone.json).slice(0, 120)}`);
     const ok = await asJson(await call(entry, db, 'POST', '/api/portal/event', {
-      body: { token, eventType: 'survey_requested', meta: { note: 'please call', junk: 'x'.repeat(5000) } }
+      body: { token, eventType: 'survey_requested', meta: { note: 'please call', stage: 'design', junk: 'x'.repeat(5000) } }
     }));
     t(`[${name}] portal/event supported type → 200`, ok.status === 200, ok.status);
     const ev = await db.prepare('SELECT * FROM portal_events WHERE event_type = ?')
       .bind('survey_requested').first();
     const storedMeta = ev ? JSON.parse(ev.meta_json) : null;
     t(`[${name}] portal meta allowlisted + bounded`,
-      storedMeta && storedMeta.note === 'please call' && !('junk' in storedMeta),
+      storedMeta && storedMeta.note === 'please call' && storedMeta.stage === 'design' && !('junk' in storedMeta),
       JSON.stringify(storedMeta));
     const no = await asJson(await call(entry, db, 'POST', '/api/portal/event', {
       body: { token, eventType: 'link_opened', meta: {} }

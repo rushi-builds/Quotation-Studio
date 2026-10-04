@@ -139,7 +139,12 @@ async function signup(base, email) {
     const published = await authed('POST', `/api/proposals/${prop.json.proposal.id}/publish`, { expiresInDays: 7 });
     assert.equal(published.status, 201, `publish failed: ${published.status}`);
     const token = published.json.access.token;
-    const badMeta = { note: 'x'.repeat(5000), when: 'soon', nested: { deep: true } };
+    /* Real portal.js keys (stage/wants/loc/format) must survive; junk must not. */
+    const badMeta = {
+      note: 'x'.repeat(5000),
+      stage: 'design', wants: 'callback', loc: 'Pune', format: 'pdf',
+      when: 'soon', nested: { deep: true }
+    };
     const pe = await anon('POST', '/api/portal/event', { token, type: 'survey_requested', meta: badMeta });
     t('portal/event accepts supported type', pe.status === 201, pe.status);
     const store = JSON.parse(fs.readFileSync(path.join(srv.dir, 'db.json'), 'utf8'));
@@ -147,7 +152,9 @@ async function signup(base, email) {
     const storedMeta = event ? JSON.parse(event.meta_json) : null;
     t('portal meta allowlist drops unknown keys + caps note at 500',
       storedMeta && storedMeta.note === 'x'.repeat(500) &&
-      Object.keys(storedMeta).join(',') === 'note',
+      storedMeta.stage === 'design' && storedMeta.wants === 'callback' &&
+      storedMeta.loc === 'Pune' && storedMeta.format === 'pdf' &&
+      !('when' in storedMeta) && !('nested' in storedMeta),
       JSON.stringify(storedMeta).slice(0, 200));
     const unsupported = await anon('POST', '/api/portal/event', { token, type: 'link_opened', meta: {} });
     t('portal/event rejects link_opened', unsupported.status === 400, unsupported.status);

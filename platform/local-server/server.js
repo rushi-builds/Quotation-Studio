@@ -841,14 +841,15 @@ function isMutating(method) {
 
 /* Customer portal event metadata is untrusted bearer-token input. Strict
    allowlist + per-field caps so a shared link cannot bloat the database or
-   smuggle payloads into notification emails. Mirrors the Worker version. */
+   smuggle payloads into notification emails. Keys mirror what portal.js
+   actually sends (format/stage/wants/loc) plus note/section fields. */
 function sanitizePortalMeta(meta) {
   if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return {};
   const out = {};
   if (typeof meta.note === 'string' && meta.note) {
     out.note = meta.note.slice(0, 500);
   }
-  for (const key of ['sectionId', 'choice', 'label']) {
+  for (const key of ['sectionId', 'choice', 'label', 'format', 'stage', 'wants', 'loc']) {
     if (typeof meta[key] === 'string' && meta[key]) {
       out[key] = meta[key].slice(0, 120);
     }
