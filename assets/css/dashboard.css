@@ -388,7 +388,9 @@ small {
 .gbar {
   height: 66px;
   padding: 0 24px;
-  margin: 14px 22px 0;
+  margin: 14px auto 0;
+  width: calc(100% - 76px);
+  max-width: 1524px;
   border: 1px solid var(--line);
   border-radius: 22px;
   background: var(--surface);
@@ -2430,7 +2432,9 @@ dialog::backdrop {
     padding: 45px 55px 110px;
   }
   .gbar {
-    padding: 0 55px;
+    width: calc(100% - 110px);
+    max-width: 1490px;
+    padding: 0 32px;
   }
 }
 @media (max-width: 1250px) {
@@ -2445,6 +2449,7 @@ dialog::backdrop {
     font-size: 13px;
   }
   .gbar {
+    width: calc(100% - 50px);
     padding: 0 24px;
     gap: 16px;
   }
@@ -2594,7 +2599,8 @@ dialog::backdrop {
     height: auto;
     min-height: 60px;
     padding: 11px 16px;
-    margin: 10px 12px 0;
+    margin: 10px auto 0;
+    width: calc(100% - 36px);
     border-radius: 18px;
     gap: 12px;
     flex-wrap: wrap;
