@@ -386,9 +386,11 @@ small {
   min-width: 0;
 }
 .gbar {
-  height: 78px;
-  padding: 0 36px;
-  border-bottom: 1px solid var(--line);
+  height: 66px;
+  padding: 0 24px;
+  margin: 14px 22px 0;
+  border: 1px solid var(--line);
+  border-radius: 22px;
   background: var(--surface);
   display: flex;
   align-items: center;
@@ -2590,8 +2592,10 @@ dialog::backdrop {
   }
   .gbar {
     height: auto;
-    min-height: 67px;
-    padding: 13px 18px;
+    min-height: 60px;
+    padding: 11px 16px;
+    margin: 10px 12px 0;
+    border-radius: 18px;
     gap: 12px;
     flex-wrap: wrap;
   }
@@ -2861,7 +2865,7 @@ dialog::backdrop {
   pointer-events: none;
   background: linear-gradient(150deg, rgba(242,247,250,.97) 8%, rgba(238,244,248,.88) 44%, rgba(232,239,244,.56) 100%), url("../images/dash-hero-bg.jpg") right bottom / cover no-repeat;
 }
-.main .gbar { background: #f7fafde8; border-bottom-color: #ffffffa8; }
+.main .gbar { background: #f7fafde8; border-color: #ffffffa8; }
 .main :is(.card,.hc,.kpis,.report-metric) {
   background: #fffffff0;
   border-color: #ffffffc9;
@@ -2871,7 +2875,7 @@ html:not([data-theme="dark"]) .main { --muted: #627189; --line: #d6e0e999; }
 html[data-theme="dark"] .main::before {
   background: linear-gradient(150deg, rgba(9,20,35,.97) 8%, rgba(11,25,42,.88) 44%, rgba(12,27,43,.65) 100%), url("../images/dash-hero-bg.jpg") right bottom / cover no-repeat;
 }
-html[data-theme="dark"] .main .gbar { background: #142337ed; border-bottom-color: #d6eaff14; }
+html[data-theme="dark"] .main .gbar { background: #142337ed; border-color: #d6eaff14; }
 html[data-theme="dark"] .main :is(.card,.hc,.kpis,.report-metric) {
   background: #17273aef;
   border-color: #c8dcf224;
@@ -3074,7 +3078,7 @@ html[data-theme="dark"] .sidebar {
 }
 
 /* Persistent workspace bar and global command search. */
-.main .gbar { position: sticky; top: 0; z-index: 40; box-shadow: 0 5px 22px #1425360a; }
+.main .gbar { position: sticky; top: 12px; z-index: 40; box-shadow: 0 5px 22px #1425360a; }
 .gbar-left { position: relative; }
 .sidebar .side-nav { margin-top: 19px; }
 .breadcrumb { display: flex; align-items: center; }
