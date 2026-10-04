@@ -45,6 +45,16 @@ for (const f of files) {
 }
 copyDir(path.join(ROOT, 'assets'), path.join(PUB, 'assets'));
 
+/* Workers Static Assets honours a Pages-style _headers file. Portal links
+   carry ?t= bearer tokens: never send them as Referer to third parties, and
+   never let browsers MIME-sniff responses. frame-ancestors is intentionally
+   omitted so the app keeps working inside preview iframes; cross-site API
+   mutations are blocked by the Worker's own Origin check instead. */
+fs.writeFileSync(path.join(PUB, '_headers'),
+  '/*\n' +
+  '  X-Content-Type-Options: nosniff\n' +
+  '  Referrer-Policy: no-referrer\n');
+
 function countFiles(dir) {
   let n = 0;
   if (!fs.existsSync(dir)) return 0;

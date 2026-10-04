@@ -597,6 +597,8 @@ function safeGalleryName(name) {
 function send(res, status, body, headers) {
   const h = Object.assign({
     'X-Content-Type-Options': 'nosniff',
+    /* Portal links carry ?t= bearer tokens; never leak them to third parties. */
+    'Referrer-Policy': 'no-referrer',
     'Cache-Control': 'no-store'
   }, headers || {});
   res.writeHead(status, h);
@@ -783,6 +785,91 @@ function safePath(urlPath) {
   return full;
 }
 
+/* Public static surface. Everything else under ROOT — platform source,
+   platform/data (the JSON database), .git, docs, qa, scripts, tmp, .env —
+   is never served over HTTP. Gallery files keep random unguessable names and
+   act as capability URLs for <img> tags, which cannot send Bearer tokens. */
+const PUBLIC_HTML = new Set([
+  'index.html', 'dashboard.html', 'quotation.html', 'portal.html',
+  'share.html', 'gallery.html', 'oauth-complete.html'
+]);
+/* Dev-only UI: the bag-reference drop box (anonymous file upload) and the
+   login design preview have no production purpose and stay dark unless the
+   operator explicitly enables dev routes on a trusted local machine. */
+const DEV_HTML = new Set(['drop-bag-ref.html', 'preview-solar-login.html']);
+function devRoutesEnabled() {
+  return process.env.QS_ENABLE_DEV_ROUTES === '1';
+}
+function isPublicPath(urlPath) {
+  const clean = String(urlPath || '').split('?')[0];
+  if (clean === '/' || clean === '/dashboard') return true;
+  if (clean.startsWith('/assets/')) return true;
+  if (clean.startsWith('/platform/data/gallery/')) return true;
+  if (clean.startsWith('/tmp/bag-reference/')) return devRoutesEnabled();
+  if (clean.startsWith('/') && !clean.slice(1).includes('/')) {
+    const name = clean.slice(1);
+    if (PUBLIC_HTML.has(name)) return true;
+    if (DEV_HTML.has(name)) return devRoutesEnabled();
+  }
+  return false;
+}
+
+/* CSRF: session cookies are SameSite=None so preview iframes keep working,
+   which means browsers will send them on cross-site requests too. A state-
+   changing /api call that carries a foreign Origin/Referer is a forged
+   cross-site request and must be rejected. Absent or unparseable values come
+   from non-browser clients (curl, scripts, tests) and are allowed through;
+   real browsers always send a valid Origin on cross-site POST/PUT/DELETE.
+   OAuth callbacks are exempt: Apple POSTs from appleid.apple.com and that
+   flow has its own state/binding verification. */
+function crossSiteBlocked(req) {
+  const claimed = String(
+    req.headers.origin || req.headers.referer || ''
+  ).trim();
+  if (!claimed) return false;
+  const host = String(req.headers.host || '').split(',')[0].trim().toLowerCase();
+  try {
+    return new URL(claimed).host.toLowerCase() !== host;
+  } catch (_) {
+    return false;
+  }
+}
+function isMutating(method) {
+  return method === 'POST' || method === 'PUT' ||
+    method === 'PATCH' || method === 'DELETE';
+}
+
+/* Customer portal event metadata is untrusted bearer-token input. Strict
+   allowlist + per-field caps so a shared link cannot bloat the database or
+   smuggle payloads into notification emails. Mirrors the Worker version. */
+function sanitizePortalMeta(meta) {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return {};
+  const out = {};
+  if (typeof meta.note === 'string' && meta.note) {
+    out.note = meta.note.slice(0, 500);
+  }
+  for (const key of ['sectionId', 'choice', 'label']) {
+    if (typeof meta[key] === 'string' && meta[key]) {
+      out[key] = meta[key].slice(0, 120);
+    }
+  }
+  for (const key of ['index', 'progress', 'sectionIndex']) {
+    if (typeof meta[key] === 'number' && Number.isFinite(meta[key])) {
+      out[key] = meta[key];
+    }
+  }
+  return out;
+}
+
+const PROPOSAL_STATUSES = new Set([
+  'draft', 'internal_review', 'ready', 'sent', 'viewed',
+  'negotiation', 'accepted', 'rejected', 'expired', 'archived'
+]);
+function proposalStatusError(status) {
+  if (status == null || status === '') return null;
+  return PROPOSAL_STATUSES.has(status) ? null : 'Unknown proposal status';
+}
+
 /* ---------- API handlers ---------- */
 async function handleApi(req, res, url) {
   const db = loadDb();
@@ -790,7 +877,19 @@ async function handleApi(req, res, url) {
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
 
   try {
-    /* DEV: bag login animation reference upload (local only, no auth) */
+    if (isMutating(method) && !(parts[0] === 'auth' && parts[1] === 'oauth') && crossSiteBlocked(req)) {
+      return sendJson(res, 403, {
+        error: 'Cross-site request blocked. Open Studio from the application website and try again.',
+        code: 'ORIGIN_BLOCKED'
+      });
+    }
+
+    /* DEV: bag animation reference drops. Disabled by default — a
+       network-reachable server must not offer anonymous 80 MB file hosting.
+       Enable locally with QS_ENABLE_DEV_ROUTES=1. */
+    if (parts[0] === 'dev' && (parts[1] === 'bag-ref-list' || parts[1] === 'bag-ref-upload') && !devRoutesEnabled()) {
+      return sendJson(res, 404, { error: 'Unknown API route' });
+    }
     if (parts[0] === 'dev' && parts[1] === 'bag-ref-list' && method === 'GET') {
       ensureBagRefDir();
       const names = fs.readdirSync(BAG_REF_DIR).filter((n) => BAG_REF_EXT.has(path.extname(n).toLowerCase()));
@@ -1096,7 +1195,7 @@ async function handleApi(req, res, url) {
         proposal_id: tok.proposal_id,
         owner_id: tok.owner_id,
         event_type: type,
-        meta: body.meta && typeof body.meta === 'object' ? body.meta : {}
+        meta: sanitizePortalMeta(body.meta)
       });
       notifyFromPortalEvent(db, ev);
       saveDb(db);
@@ -1249,6 +1348,8 @@ async function handleApi(req, res, url) {
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot create or edit proposals.' });
       const body = await readBody(req);
+      const badStatus = proposalStatusError(body.status);
+      if (badStatus) return sendJson(res, 400, { error: badStatus });
       Object.assign(db, loadDb()); // readBody awaited; retain other concurrent creations.
       const meta = metaFromBody(body, null);
       if (!String(meta.ref || '').trim()) meta.ref = reserveLocalReference(db);
@@ -1292,6 +1393,8 @@ async function handleApi(req, res, url) {
       const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
+      const badUpdateStatus = proposalStatusError(body.status);
+      if (badUpdateStatus) return sendJson(res, 400, { error: badUpdateStatus });
       /* Conflict guard: monotonic server revision (not client clocks). Client
          sends baseRevision from the last load/save; mismatch → 409, work kept. */
       if (body.baseRevision != null && body.baseRevision !== '') {
@@ -2076,6 +2179,9 @@ async function handleApi(req, res, url) {
 
 /* ---------- static + router ---------- */
 function serveStatic(req, res, urlPath) {
+  if (!isPublicPath(urlPath)) {
+    return send(res, 404, 'Not found', { 'Content-Type': 'text/plain; charset=utf-8' });
+  }
   let rel = urlPath === '/' ? '/index.html' : urlPath;
   /* dashboard pretty path */
   if (rel === '/dashboard') rel = '/dashboard.html';
@@ -2092,7 +2198,8 @@ function serveStatic(req, res, urlPath) {
     res.writeHead(200, {
       'Content-Type': type,
       'Cache-Control': cache,
-      'X-Content-Type-Options': 'nosniff'
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'no-referrer'
     });
     fs.createReadStream(full).pipe(res);
   });
@@ -2144,6 +2251,8 @@ server.listen(PORT, HOST, () => {
   console.log('  Dash:   http://' + HOST + ':' + PORT + '/dashboard.html');
   console.log('  Portal: http://' + HOST + ':' + PORT + '/portal.html?t=<token>');
   console.log('  API:    http://' + HOST + ':' + PORT + '/api/health');
-  console.log('  Drop:   http://' + HOST + ':' + PORT + '/drop-bag-ref.html');
+  if (devRoutesEnabled()) {
+    console.log('  Drop:   http://' + HOST + ':' + PORT + '/drop-bag-ref.html');
+  }
   console.log('  Data:   ' + DB_PATH);
 });
