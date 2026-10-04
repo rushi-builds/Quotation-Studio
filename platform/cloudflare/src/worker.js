@@ -243,7 +243,8 @@ function publicUser(u) {
     name: u.name,
     role: u.role,
     roleCustom: u.role_custom || null,
-    roleLabel: roleDisplay(u)
+    roleLabel: roleDisplay(u),
+    createdAt: u.created_at || null
   };
 }
 function permissionRole(user) {

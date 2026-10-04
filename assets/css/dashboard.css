@@ -3098,3 +3098,31 @@ html[data-theme="dark"] .sidebar {
 #gResults [aria-selected="true"] { background: var(--surface-soft); outline: 2px solid var(--blue); outline-offset: -2px; }
 .search-heading { padding: 12px 15px 8px; font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
 @media(max-width:760px) { #gResults { width: 100%; } .breadcrumb { font-size: 10px; } .breadcrumb>span { margin: 0 7px; } }
+
+/* ——— Profile card: member-since + role editor ——— */
+#settingsSince { margin: 2px 0 0; }
+.settings-profile > .role-pencil {
+  margin-left: -8px;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--muted);
+  border-radius: 6px;
+  line-height: 0;
+}
+.settings-profile > .role-pencil:hover { color: var(--blue); background: color-mix(in srgb, var(--blue) 10%, transparent); }
+.settings-profile > .role-pencil:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+#roleEditor { display: inline-flex; gap: 6px; align-items: center; margin-left: -8px; }
+#roleEditor[hidden] { display: none; }
+#roleEditor .role-select {
+  font-size: 13px; padding: 3px 6px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
+}
+#roleEditor .role-save, #roleEditor .role-cancel {
+  font-size: 12px; padding: 4px 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line);
+}
+#roleEditor .role-save { background: var(--blue); border-color: var(--blue); color: #fff; }
+#roleEditor .role-save:disabled { opacity: .6; cursor: wait; }
+#roleEditor .role-cancel { background: none; color: inherit; }

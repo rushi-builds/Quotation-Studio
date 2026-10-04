@@ -300,11 +300,20 @@ async function loadPage(base, pagePath, { cookie = '', preset = null } = {}) {
       t('dashboard session resolves user', user && user.email === 'dom@example.test');
       window.QSDash.show('settings');
       await sleep(1500);
-      const conn = window.document.getElementById('socialConnections').textContent;
-      t('settings shows Setup required when unconfigured',
-        conn.includes('Setup required'), conn.slice(0, 160));
-      const disabled = window.document.querySelectorAll('#socialConnections button:disabled').length;
-      t('both provider buttons disabled (Apple removed)', disabled === 2, disabled);
+      const conn = window.document.getElementById('socialConnections');
+      t('provider-connect block removed from profile card', conn === null, String(conn));
+      t('role pencil present', !!window.document.getElementById('btnRoleEdit'));
+      t('role editor slot present', !!window.document.getElementById('roleEditor'));
+      const since = window.document.getElementById('settingsSince').textContent;
+      t('member-since shown', since.startsWith('Member since '), since);
+      t('owner session (promoted earlier)', user && user.role === 'owner', user && user.role);
+      window.document.getElementById('btnRoleEdit').click();
+      await sleep(150);
+      const ed = window.document.getElementById('roleEditor');
+      t('owner pencil opens inline editor', !ed.hidden && !!ed.querySelector('select.role-select'));
+      ed.querySelector('.role-cancel').click();
+      await sleep(150);
+      t('editor cancel closes', ed.hidden === true);
       t('no dashboard script errors', errors.length === 0, errors.join(' | '));
       window.close();
     }
