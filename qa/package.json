@@ -20,7 +20,7 @@
     "test:reverification": "node --test reverification.test.cjs calculation-verification.test.cjs rwa-subsidy.test.cjs && node quotation-transitions.test.cjs",
     "test:security": "node studio-security-worker.test.mjs && node studio-security.test.cjs && node platform-api.test.js",
     "test:audit": "node audit-static.test.cjs && node audit-fixes.test.cjs && node audit-fixes-worker.test.mjs && node audit-dom.test.cjs",
-    "test:oauth": "node --test oauth.test.mjs oauth-attacks.test.mjs && node oauth-browser.test.cjs"
+    "test:oauth": "node --test oauth.test.mjs oauth-attacks.test.mjs phone-auth.test.mjs && node oauth-browser.test.cjs"
   },
   "keywords": [],
   "author": "",

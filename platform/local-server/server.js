@@ -951,6 +951,22 @@ async function handleApi(req, res, url) {
       const cookies=result.headers.getSetCookie();if(cookies.length)res.setHeader('Set-Cookie',cookies);
       res.writeHead(result.status);return res.end(await result.text());
     }
+    if (parts[0] === 'auth' && parts[1] === 'phone') {
+      const {handlePhoneAuth} = await import('../cloudflare/src/phone.mjs');
+      const {localOAuthStore} = await import('../oauth-store.mjs');
+      const proto = String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+      const requestUrl = proto + '://' + req.headers.host + url.pathname + url.search;
+      const raw = ['POST','PUT'].includes(method) ? await readRawBody(req, 20000) : undefined;
+      const request = new Request(requestUrl, {method, headers:req.headers, ...(raw ? {body:raw} : {})});
+      const result = await handlePhoneAuth(request, process.env, localOAuthStore(loadDb, saveDb), {
+        rateKey: req.socket.remoteAddress || 'unknown',
+        session: async user => {const latest=loadDb();const session=createSession(latest,user);saveDb(latest);return session;},
+        cookie: token => sessionCookie(token, SESSION_DAYS * 86400, req)
+      });
+      result.headers.forEach((value,key) => {if(key!=='set-cookie')res.setHeader(key,value);});
+      const cookies=result.headers.getSetCookie();if(cookies.length)res.setHeader('Set-Cookie',cookies);
+      res.writeHead(result.status);return res.end(await result.text());
+    }
     /* AUTH */
     if (parts[0] === 'auth' && parts[1] === 'register' && method === 'POST') {
       const body = await readBody(req);

@@ -90,3 +90,9 @@ The Worker now throttles auth in D1, but edge rules are still worthwhile:
   `node platform/cloudflare/scripts/oauth-setup-check.mjs` to see exactly
   which requirement is missing, then follow `docs/social-sign-in-setup.md`
   (Google/Microsoft testable on `http://localhost`; Apple needs `https`).
+- **Phone OTP needs Firebase setup.** UI order is Google → Phone →
+  Microsoft (Apple button removed; backend dormant). Follow
+  `docs/phone-auth-setup.md`: enable the Phone provider in Firebase
+  console, authorize the worker host, set `PHONE_ENABLED`,
+  `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, redeploy, then test with a
+  real phone. `GET /api/auth/phone/config` shows live status.

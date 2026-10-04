@@ -155,6 +155,14 @@ async function loadPage(base, pagePath, { cookie = '', preset = null } = {}) {
       t('StudioSocial bridge loads', !!window.StudioSocial);
       const btn = window.document.querySelector('[data-p="google"]');
       t('Google button exists', !!btn);
+      t('Apple button removed from sign-in', !window.document.querySelector('[data-p="apple"]'));
+      const phoneBtn = window.document.getElementById('btnPhone');
+      t('Phone button exists with accessible label',
+        !!phoneBtn && phoneBtn.getAttribute('aria-label') === 'Continue with Phone');
+      const order = Array.from(window.document.querySelectorAll('.soc button'))
+        .map((b) => b.id === 'btnPhone' ? 'phone' : b.dataset.p).join(',');
+      t('sign-in order is Google, Phone, Microsoft', order === 'google,phone,microsoft', order);
+      t('phone-auth script loads with bridge', !!window.StudioPhone);
       btn.click();
       await sleep(800);
       const msg = window.document.getElementById('socialMessage');
@@ -296,7 +304,7 @@ async function loadPage(base, pagePath, { cookie = '', preset = null } = {}) {
       t('settings shows Setup required when unconfigured',
         conn.includes('Setup required'), conn.slice(0, 160));
       const disabled = window.document.querySelectorAll('#socialConnections button:disabled').length;
-      t('all three provider buttons disabled', disabled === 3, disabled);
+      t('both provider buttons disabled (Apple removed)', disabled === 2, disabled);
       t('no dashboard script errors', errors.length === 0, errors.join(' | '));
       window.close();
     }

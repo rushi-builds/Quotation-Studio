@@ -9,6 +9,7 @@
 
 import { reserveCloudReference } from '../../reference-numbers.mjs';
 import { handleOAuth } from './oauth.mjs';
+import { handlePhoneAuth } from './phone.mjs';
 import { d1OAuthStore } from '../../oauth-store.mjs';
 
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
@@ -763,6 +764,13 @@ async function handleApi(request, env, url) {
           const session = await one(db, 'SELECT created_at FROM sessions WHERE token = ? AND user_id = ?', sessionTokenFrom(r), user.id);
           return !!session && Date.parse(session.created_at) > Date.now() - 300000;
         },
+        session: user => createSession(db, user),
+        cookie: (token, r) => sessionCookie(token, SESSION_DAYS * 86400, r)
+      });
+    }
+    if (parts[0] === 'auth' && parts[1] === 'phone') {
+      return handlePhoneAuth(request, env, d1OAuthStore(db), {
+        rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
         session: user => createSession(db, user),
         cookie: (token, r) => sessionCookie(token, SESSION_DAYS * 86400, r)
       });

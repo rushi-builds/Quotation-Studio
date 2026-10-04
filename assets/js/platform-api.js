@@ -267,6 +267,7 @@
     },
     socialProviders() { return request('GET', '/api/auth/oauth/providers'); },
     startSocial(provider, link = false, currentPassword = '') { return request('POST', '/api/auth/oauth/' + encodeURIComponent(provider) + '/start', {link, currentPassword}); },
+    phoneVerify(idToken) { return request('POST', '/api/auth/phone/verify', {idToken}); },
     /** Persist a session token returned by login/register/reset. */
     setSessionToken(token) {
       if (token) writeToken(token);
