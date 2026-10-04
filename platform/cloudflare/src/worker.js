@@ -479,7 +479,7 @@ async function run(db, sql, ...binds) {
   return db.prepare(sql).bind(...binds).run();
 }
 
-async function requireUser(request, db) {
+async function requireUser(request, db, env) {
   const token = sessionTokenFrom(request);
   if (!token) return null;
   const session = await one(
@@ -489,7 +489,24 @@ async function requireUser(request, db) {
     nowISO()
   );
   if (!session) return null;
-  return one(db, 'SELECT * FROM users WHERE id = ?', session.user_id);
+  const user = await one(db, 'SELECT * FROM users WHERE id = ?', session.user_id);
+  if (user) await ensureBootstrapOwner(db, env, user);
+  return user;
+}
+/* Bootstrap owner: the deployed workspace designates one login email via the
+   OWNER_EMAIL variable. That account is promoted to owner (persisted) on any
+   authenticated request. One-way: removing the variable does not demote. */
+async function ensureBootstrapOwner(db, env, user) {
+  const designated = String((env && env.OWNER_EMAIL) || '').trim().toLowerCase();
+  if (!designated || !user || user.role === 'owner') return;
+  if (String(user.email || '').trim().toLowerCase() !== designated) return;
+  await run(
+    db,
+    'UPDATE users SET role = ?, role_custom = NULL, updated_at = ? WHERE id = ?',
+    'owner', nowISO(), user.id
+  );
+  user.role = 'owner';
+  user.role_custom = null;
 }
 async function createSession(db, user) {
   const token = randomBytes(24).toString('hex');
@@ -758,8 +775,8 @@ async function handleApi(request, env, url) {
     }
     if (parts[0] === 'auth' && parts[1] === 'oauth') {
       return handleOAuth(request, env, d1OAuthStore(db), {
-        user: r => requireUser(r, db), token: sessionTokenFrom, rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
-        userByToken: token => requireUser(new Request(request.url, {headers:{Authorization:'Bearer '+token}}), db),
+        user: r => requireUser(r, db, env), token: sessionTokenFrom, rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
+        userByToken: token => requireUser(new Request(request.url, {headers:{Authorization:'Bearer '+token}}), db, env),
         canLink: async (user, password, r) => {
           if (!String(user.password_hash).startsWith('oauth-only$')) return password.length <= 128 && verifyPassword(password, user.password_hash);
           const session = await one(db, 'SELECT created_at FROM sessions WHERE token = ? AND user_id = ?', sessionTokenFrom(r), user.id);
@@ -825,6 +842,7 @@ async function handleApi(request, env, url) {
         user.id, user.email, user.name, user.password_hash, user.role, user.role_custom,
         user.created_at, user.updated_at
       );
+      await ensureBootstrapOwner(db, env, user);
       await authThrottleSuccess(db, email);
       const sess = await createSession(db, user);
       return json(
@@ -850,6 +868,7 @@ async function handleApi(request, env, url) {
         return json({ error: 'Invalid email or password' }, 401);
       }
       await authThrottleSuccess(db, email);
+      await ensureBootstrapOwner(db, env, user);
       const sess = await createSession(db, user);
       return json(
         { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt },
@@ -865,7 +884,7 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'auth' && parts[1] === 'me' && method === 'GET') {
-      const user = await requireUser(request, db);
+      const user = await requireUser(request, db, env);
       if (!user) return json({ error: 'Not signed in' }, 401);
       return json({ user: publicUser(user) });
     }
@@ -881,7 +900,7 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
-      const sessionUser = await requireUser(request, db);
+      const sessionUser = await requireUser(request, db, env);
       if (!sessionUser) return json({ error: 'Sign in required' }, 401);
       const body = await readBody(request);
       const currentPassword = String(body.currentPassword || '');
@@ -908,7 +927,7 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'auth' && parts[1] === 'profile' && method === 'POST') {
-      const sessionUser = await requireUser(request, db);
+      const sessionUser = await requireUser(request, db, env);
       if (!sessionUser) return json({ error: 'Sign in required' }, 401);
       const body = await readBody(request);
       if (body.name != null) {
@@ -1037,7 +1056,7 @@ async function handleApi(request, env, url) {
     }
 
     /* Staff session required below */
-    const user = await requireUser(request, db);
+    const user = await requireUser(request, db, env);
     if (!user) return json({ error: 'Sign in required' }, 401);
     const canWrite = requireRole(user, 'sales');
     const canAdmin = requireRole(user, 'owner');

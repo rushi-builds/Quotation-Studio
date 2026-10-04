@@ -758,6 +758,17 @@ function sessionTokenFrom(req) {
   const cookies = parseCookies(req);
   return cookies[COOKIE] || cookies['qs_client'] || null;
 }
+/* Bootstrap owner (local parity with worker): OWNER_EMAIL designates one login
+   email; that account is promoted to owner (persisted). One-way. */
+function applyBootstrapOwner(user) {
+  const designated = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
+  if (!designated || !user || user.role === 'owner') return false;
+  if (String(user.email || '').trim().toLowerCase() !== designated) return false;
+  user.role = 'owner';
+  user.role_custom = null;
+  user.updated_at = nowISO();
+  return true;
+}
 function requireUser(req, db) {
   scrubExpiredSessions(db);
   const token = sessionTokenFrom(req);
@@ -766,6 +777,7 @@ function requireUser(req, db) {
   if (!session) return null;
   if (Date.parse(session.expires_at) <= Date.now()) return null;
   const user = (db.users || []).find((u) => u.id === session.user_id);
+  if (user && applyBootstrapOwner(user)) saveDb(db);
   return user || null;
 }
 function createSession(db, user) {
@@ -1012,6 +1024,7 @@ async function handleApi(req, res, url) {
         updated_at: nowISO()
       };
       db.users.push(user);
+      applyBootstrapOwner(user);
       authThrottleSuccess(email);
       const sess = createSession(db, user);
       saveDb(db);
@@ -1035,6 +1048,7 @@ async function handleApi(req, res, url) {
         authThrottleFail(req, email);
         return sendJson(res, 401, { error: 'Invalid email or password' });
       }
+      applyBootstrapOwner(user);
       authThrottleSuccess(email);
       const sess = createSession(db, user);
       saveDb(db);
