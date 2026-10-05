@@ -386,9 +386,13 @@ small {
   min-width: 0;
 }
 .gbar {
-  height: 78px;
-  padding: 0 36px;
-  border-bottom: 1px solid var(--line);
+  height: 66px;
+  padding: 0 24px;
+  margin: 14px auto 0;
+  width: calc(100% - 76px);
+  max-width: 1524px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
   background: var(--surface);
   display: flex;
   align-items: center;
@@ -2428,7 +2432,9 @@ dialog::backdrop {
     padding: 45px 55px 110px;
   }
   .gbar {
-    padding: 0 55px;
+    width: calc(100% - 110px);
+    max-width: 1490px;
+    padding: 0 32px;
   }
 }
 @media (max-width: 1250px) {
@@ -2443,6 +2449,7 @@ dialog::backdrop {
     font-size: 13px;
   }
   .gbar {
+    width: calc(100% - 50px);
     padding: 0 24px;
     gap: 16px;
   }
@@ -2590,8 +2597,11 @@ dialog::backdrop {
   }
   .gbar {
     height: auto;
-    min-height: 67px;
-    padding: 13px 18px;
+    min-height: 60px;
+    padding: 11px 16px;
+    margin: 10px auto 0;
+    width: calc(100% - 36px);
+    border-radius: 18px;
     gap: 12px;
     flex-wrap: wrap;
   }
@@ -2861,7 +2871,7 @@ dialog::backdrop {
   pointer-events: none;
   background: linear-gradient(150deg, rgba(242,247,250,.97) 8%, rgba(238,244,248,.88) 44%, rgba(232,239,244,.56) 100%), url("../images/dash-hero-bg.jpg") right bottom / cover no-repeat;
 }
-.main .gbar { background: #f7fafde8; border-bottom-color: #ffffffa8; }
+.main .gbar { background: #f7fafde8; border-color: #ffffffa8; }
 .main :is(.card,.hc,.kpis,.report-metric) {
   background: #fffffff0;
   border-color: #ffffffc9;
@@ -2871,7 +2881,7 @@ html:not([data-theme="dark"]) .main { --muted: #627189; --line: #d6e0e999; }
 html[data-theme="dark"] .main::before {
   background: linear-gradient(150deg, rgba(9,20,35,.97) 8%, rgba(11,25,42,.88) 44%, rgba(12,27,43,.65) 100%), url("../images/dash-hero-bg.jpg") right bottom / cover no-repeat;
 }
-html[data-theme="dark"] .main .gbar { background: #142337ed; border-bottom-color: #d6eaff14; }
+html[data-theme="dark"] .main .gbar { background: #142337ed; border-color: #d6eaff14; }
 html[data-theme="dark"] .main :is(.card,.hc,.kpis,.report-metric) {
   background: #17273aef;
   border-color: #c8dcf224;
@@ -3074,7 +3084,7 @@ html[data-theme="dark"] .sidebar {
 }
 
 /* Persistent workspace bar and global command search. */
-.main .gbar { position: sticky; top: 0; z-index: 40; box-shadow: 0 5px 22px #1425360a; }
+.main .gbar { position: sticky; top: 12px; z-index: 40; box-shadow: 0 5px 22px #1425360a; }
 .gbar-left { position: relative; }
 .sidebar .side-nav { margin-top: 19px; }
 .breadcrumb { display: flex; align-items: center; }
@@ -3088,3 +3098,31 @@ html[data-theme="dark"] .sidebar {
 #gResults [aria-selected="true"] { background: var(--surface-soft); outline: 2px solid var(--blue); outline-offset: -2px; }
 .search-heading { padding: 12px 15px 8px; font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
 @media(max-width:760px) { #gResults { width: 100%; } .breadcrumb { font-size: 10px; } .breadcrumb>span { margin: 0 7px; } }
+
+/* ——— Profile card: member-since + role editor ——— */
+#settingsSince { margin: 2px 0 0; }
+.settings-profile > .role-pencil {
+  margin-left: -8px;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--muted);
+  border-radius: 6px;
+  line-height: 0;
+}
+.settings-profile > .role-pencil:hover { color: var(--blue); background: color-mix(in srgb, var(--blue) 10%, transparent); }
+.settings-profile > .role-pencil:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+#roleEditor { display: inline-flex; gap: 6px; align-items: center; margin-left: -8px; }
+#roleEditor[hidden] { display: none; }
+#roleEditor .role-select {
+  font-size: 13px; padding: 3px 6px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
+}
+#roleEditor .role-save, #roleEditor .role-cancel {
+  font-size: 12px; padding: 4px 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line);
+}
+#roleEditor .role-save { background: var(--blue); border-color: var(--blue); color: #fff; }
+#roleEditor .role-save:disabled { opacity: .6; cursor: wait; }
+#roleEditor .role-cancel { background: none; color: inherit; }

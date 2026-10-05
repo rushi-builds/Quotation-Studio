@@ -21,9 +21,11 @@ html[data-appearance="system"] .main::after {
   background: radial-gradient(ellipse at 88% 15%, #fff0c280, transparent 48%), radial-gradient(ellipse at 20% 60%, #b2d6ee45, transparent 56%);
 }
 html[data-appearance="system"] .gbar {
-  background: #ffffff66;
-  border-bottom: 1px solid #ffffffd9;
-  box-shadow: 0 4px 26px #41658a04;
+  background: linear-gradient(130deg, #ffffff80, #ffffff45);
+  border: 1px solid #fffffff0;
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 #ffffff80, 0 6px 14px #28496c04, 0 22px 55px -22px #294f752b;
+  -webkit-backdrop-filter: blur(14px) saturate(110%);
+  backdrop-filter: blur(14px) saturate(110%);
 }
 html[data-appearance="system"] :is(.gsearch,.search-field) {
   background: #f0f5f98f;

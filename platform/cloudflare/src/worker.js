@@ -9,6 +9,7 @@
 
 import { reserveCloudReference } from '../../reference-numbers.mjs';
 import { handleOAuth } from './oauth.mjs';
+import { handlePhoneAuth } from './phone.mjs';
 import { d1OAuthStore } from '../../oauth-store.mjs';
 
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
@@ -48,6 +49,7 @@ function json(data, status = 200, headers = {}) {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'no-referrer',
       ...headers
     }
   });
@@ -62,8 +64,20 @@ function text(body, status = 200, headers = {}) {
     }
   });
 }
+const MAX_JSON_BYTES = 8 * 1024 * 1024; /* same bound as the local server */
 async function readBody(request) {
+  const declared = Number(request.headers.get('Content-Length'));
+  if (Number.isFinite(declared) && declared > MAX_JSON_BYTES) {
+    const e = new Error('Body too large');
+    e.status = 413;
+    throw e;
+  }
   const t = await request.text();
+  if (t.length > MAX_JSON_BYTES) {
+    const e = new Error('Body too large');
+    e.status = 413;
+    throw e;
+  }
   if (!t) return {};
   try { return JSON.parse(t); }
   catch (_) {
@@ -71,6 +85,58 @@ async function readBody(request) {
     e.status = 400;
     throw e;
   }
+}
+
+/* CSRF: session cookies are SameSite=None so preview iframes keep working,
+   which means browsers will send them on cross-site requests too. A state-
+   changing /api call that carries a foreign Origin/Referer is a forged
+   cross-site request and must be rejected. Absent or unparseable values come
+   from non-browser clients (curl, scripts, tests) and are allowed through;
+   real browsers always send a valid Origin on cross-site POST/PUT/DELETE.
+   OAuth callbacks are exempt: Apple POSTs from appleid.apple.com and that
+   flow has its own state/binding verification. */
+function crossSiteBlocked(request, url) {
+  const claimed = String(
+    request.headers.get('Origin') || request.headers.get('Referer') || ''
+  ).trim();
+  if (!claimed) return false;
+  try {
+    return new URL(claimed).host.toLowerCase() !== url.host.toLowerCase();
+  } catch (_) {
+    return false;
+  }
+}
+
+/* Customer portal event metadata is untrusted bearer-token input. Strict
+   allowlist + per-field caps so a shared link cannot bloat the database or
+   smuggle payloads into notification emails. Keys mirror what portal.js
+   actually sends (format/stage/wants/loc) plus note/section fields. */
+function sanitizePortalMeta(meta) {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return {};
+  const out = {};
+  if (typeof meta.note === 'string' && meta.note) {
+    out.note = meta.note.slice(0, 500);
+  }
+  for (const key of ['sectionId', 'choice', 'label', 'format', 'stage', 'wants', 'loc']) {
+    if (typeof meta[key] === 'string' && meta[key]) {
+      out[key] = meta[key].slice(0, 120);
+    }
+  }
+  for (const key of ['index', 'progress', 'sectionIndex']) {
+    if (typeof meta[key] === 'number' && Number.isFinite(meta[key])) {
+      out[key] = meta[key];
+    }
+  }
+  return out;
+}
+
+const PROPOSAL_STATUSES = new Set([
+  'draft', 'internal_review', 'ready', 'sent', 'viewed',
+  'negotiation', 'accepted', 'rejected', 'expired', 'archived'
+]);
+function proposalStatusError(status) {
+  if (status == null || status === '') return null;
+  return PROPOSAL_STATUSES.has(status) ? null : 'Unknown proposal status';
 }
 function parseCookies(request) {
   const out = {};
@@ -177,7 +243,8 @@ function publicUser(u) {
     name: u.name,
     role: u.role,
     roleCustom: u.role_custom || null,
-    roleLabel: roleDisplay(u)
+    roleLabel: roleDisplay(u),
+    createdAt: u.created_at || null
   };
 }
 function permissionRole(user) {
@@ -374,12 +441,16 @@ function digitsForWhatsApp(value) {
   return d;
 }
 function parseExpiryDays(body) {
-  if (body.expiresAt) {
+  /* Same defensive defaults as the local server: explicit future dates win,
+     anything invalid falls back to 30 days, capped at 365. Never silently
+     mint a non-expiring link from bad input. */
+  if (body && body.expiresAt) {
     const t = Date.parse(body.expiresAt);
-    if (Number.isFinite(t)) return new Date(t).toISOString();
+    if (Number.isFinite(t) && t > Date.now()) return new Date(t).toISOString();
   }
-  const days = Number(body.expiresInDays != null ? body.expiresInDays : 30);
-  if (!Number.isFinite(days) || days <= 0) return null;
+  let days = body && body.expiresInDays != null ? Number(body.expiresInDays) : 30;
+  if (!Number.isFinite(days) || days <= 0) days = 30;
+  if (days > 365) days = 365;
   return new Date(Date.now() + days * 864e5).toISOString();
 }
 
@@ -408,7 +479,7 @@ async function run(db, sql, ...binds) {
   return db.prepare(sql).bind(...binds).run();
 }
 
-async function requireUser(request, db) {
+async function requireUser(request, db, env) {
   const token = sessionTokenFrom(request);
   if (!token) return null;
   const session = await one(
@@ -418,7 +489,24 @@ async function requireUser(request, db) {
     nowISO()
   );
   if (!session) return null;
-  return one(db, 'SELECT * FROM users WHERE id = ?', session.user_id);
+  const user = await one(db, 'SELECT * FROM users WHERE id = ?', session.user_id);
+  if (user) await ensureBootstrapOwner(db, env, user);
+  return user;
+}
+/* Bootstrap owner: the deployed workspace designates one login email via the
+   OWNER_EMAIL variable. That account is promoted to owner (persisted) on any
+   authenticated request. One-way: removing the variable does not demote. */
+async function ensureBootstrapOwner(db, env, user) {
+  const designated = String((env && env.OWNER_EMAIL) || '').trim().toLowerCase();
+  if (!designated || !user || user.role === 'owner') return;
+  if (String(user.email || '').trim().toLowerCase() !== designated) return;
+  await run(
+    db,
+    'UPDATE users SET role = ?, role_custom = NULL, updated_at = ? WHERE id = ?',
+    'owner', nowISO(), user.id
+  );
+  user.role = 'owner';
+  user.role_custom = null;
 }
 async function createSession(db, user) {
   const token = randomBytes(24).toString('hex');
@@ -436,6 +524,94 @@ async function revokeUserSessions(db, userId, keepToken) {
   } else {
     await run(db, 'DELETE FROM sessions WHERE user_id = ?', userId);
   }
+}
+
+/* Auth throttling: fixed IP ceiling + per-email exponential backoff, stored in
+   D1 so every Worker isolate shares the same counters. Same semantics and
+   response body as the local server: the 429 body never reveals whether an
+   account exists, and limits apply on the attempt path before user lookup.
+   The table self-creates on first use (also declared in schema.sql), so no
+   manual D1 migration is required. Concurrent same-millisecond failures may
+   undercount by a little; the IP ceiling bounds total abuse regardless. */
+const AUTH_429_BODY = 'Too many sign-in attempts. Try again in a few minutes.';
+const AUTH_THROTTLE_DDL = `CREATE TABLE IF NOT EXISTS auth_throttles (
+  scope TEXT PRIMARY KEY,
+  fails INTEGER NOT NULL DEFAULT 0,
+  blocked_until INTEGER NOT NULL DEFAULT 0,
+  window_start INTEGER NOT NULL DEFAULT 0,
+  window_count INTEGER NOT NULL DEFAULT 0
+)`;
+const throttleReadyDbs = new WeakSet();
+async function ensureAuthThrottle(db) {
+  if (throttleReadyDbs.has(db)) return;
+  await run(db, AUTH_THROTTLE_DDL);
+  throttleReadyDbs.add(db);
+}
+function clientIp(request) {
+  /* Prefer Cloudflare's verified edge header; do not trust X-Forwarded-For
+     alone (it is attacker-controlled unless the edge strips/overwrites it). */
+  return String(request.headers.get('CF-Connecting-IP') || '').trim() || 'unknown';
+}
+/** Returns null if allowed, or retry-after seconds if blocked. */
+async function authThrottleCheck(db, request, email) {
+  await ensureAuthThrottle(db);
+  const now = Date.now();
+  const ip = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', 'ip:' + clientIp(request));
+  if (ip && ip.window_start && now - ip.window_start <= 15 * 60 * 1000 && ip.window_count >= 40) {
+    return Math.max(1, Math.ceil((ip.window_start + 15 * 60 * 1000 - now) / 1000));
+  }
+  const em = String(email || '').trim().toLowerCase();
+  if (em) {
+    const eb = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', 'email:' + em);
+    if (eb && eb.blocked_until && now < eb.blocked_until) {
+      return Math.max(1, Math.ceil((eb.blocked_until - now) / 1000));
+    }
+  }
+  return null;
+}
+async function authThrottleFail(db, request, email) {
+  await ensureAuthThrottle(db);
+  const now = Date.now();
+  const ipKey = 'ip:' + clientIp(request);
+  const ip = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', ipKey);
+  let ws = (ip && ip.window_start) || 0;
+  let wc = (ip && ip.window_count) || 0;
+  if (!ws || now - ws > 15 * 60 * 1000) { ws = now; wc = 0; }
+  wc += 1;
+  await run(
+    db,
+    `INSERT INTO auth_throttles (scope, fails, blocked_until, window_start, window_count)
+     VALUES (?, 0, 0, ?, ?)
+     ON CONFLICT(scope) DO UPDATE SET window_start = excluded.window_start, window_count = excluded.window_count`,
+    ipKey, ws, wc
+  );
+  const em = String(email || '').trim().toLowerCase();
+  if (!em) return;
+  const eb = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', 'email:' + em);
+  const fails = ((eb && eb.fails) || 0) + 1;
+  let blocked = (eb && eb.blocked_until) || 0;
+  /* Exponential backoff after the 5th failure: 2s, 4s, 8s… capped at 15 min. */
+  if (fails >= 5) {
+    blocked = now + Math.min(15 * 60, Math.pow(2, Math.min(fails - 4, 10))) * 1000;
+  }
+  await run(
+    db,
+    `INSERT INTO auth_throttles (scope, fails, blocked_until, window_start, window_count)
+     VALUES (?, ?, ?, 0, 0)
+     ON CONFLICT(scope) DO UPDATE SET fails = excluded.fails, blocked_until = excluded.blocked_until`,
+    'email:' + em, fails, blocked
+  );
+}
+async function authThrottleSuccess(db, email) {
+  const em = String(email || '').trim().toLowerCase();
+  if (!em) return;
+  await ensureAuthThrottle(db);
+  await run(db, 'DELETE FROM auth_throttles WHERE scope = ?', 'email:' + em);
+}
+function authLimited(retryAfterSec) {
+  return json({ error: AUTH_429_BODY }, 429, {
+    'Retry-After': String(Math.max(1, retryAfterSec || 60))
+  });
 }
 async function issuePasswordReset(db, user) {
   const raw = randomBytes(4).toString('hex'); /* 8 hex chars */
@@ -590,15 +766,29 @@ async function handleApi(request, env, url) {
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
 
   try {
+    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' &&
+        !(parts[0] === 'auth' && parts[1] === 'oauth') && crossSiteBlocked(request, url)) {
+      return json({
+        error: 'Cross-site request blocked. Open Studio from the application website and try again.',
+        code: 'ORIGIN_BLOCKED'
+      }, 403);
+    }
     if (parts[0] === 'auth' && parts[1] === 'oauth') {
       return handleOAuth(request, env, d1OAuthStore(db), {
-        user: r => requireUser(r, db), token: sessionTokenFrom, rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
-        userByToken: token => requireUser(new Request(request.url, {headers:{Authorization:'Bearer '+token}}), db),
+        user: r => requireUser(r, db, env), token: sessionTokenFrom, rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
+        userByToken: token => requireUser(new Request(request.url, {headers:{Authorization:'Bearer '+token}}), db, env),
         canLink: async (user, password, r) => {
           if (!String(user.password_hash).startsWith('oauth-only$')) return password.length <= 128 && verifyPassword(password, user.password_hash);
           const session = await one(db, 'SELECT created_at FROM sessions WHERE token = ? AND user_id = ?', sessionTokenFrom(r), user.id);
           return !!session && Date.parse(session.created_at) > Date.now() - 300000;
         },
+        session: user => createSession(db, user),
+        cookie: (token, r) => sessionCookie(token, SESSION_DAYS * 86400, r)
+      });
+    }
+    if (parts[0] === 'auth' && parts[1] === 'phone') {
+      return handlePhoneAuth(request, env, d1OAuthStore(db), {
+        rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
         session: user => createSession(db, user),
         cookie: (token, r) => sessionCookie(token, SESSION_DAYS * 86400, r)
       });
@@ -609,19 +799,30 @@ async function handleApi(request, env, url) {
       const email = String(body.email || '').trim().toLowerCase();
       const name = String(body.name || '').trim() || email.split('@')[0] || 'User';
       const password = String(body.password || '');
+      /* Throttle before existence checks so 429 timing/body cannot reveal accounts. */
+      const regBlocked = await authThrottleCheck(db, request, email);
+      if (regBlocked != null) return authLimited(regBlocked);
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        await authThrottleFail(db, request, email);
         return json({ error: 'Enter a valid email address (for example name@company.com).' }, 400);
       }
       const policy = passwordPolicyError(password);
-      if (policy) return json({ error: policy }, 400);
+      if (policy) {
+        await authThrottleFail(db, request, email);
+        return json({ error: policy }, 400);
+      }
       const existing = await one(db, 'SELECT id FROM users WHERE email = ? COLLATE NOCASE', email);
       if (existing) {
+        await authThrottleFail(db, request, email);
         return json({
           error: 'An account with this email already exists. Sign in instead, or use Forgot password if you cannot access it.'
         }, 409);
       }
       const parsed = parseSignupRole(body.role != null ? body.role : body.roleCustom);
-      if (parsed.error) return json({ error: parsed.error }, 400);
+      if (parsed.error) {
+        await authThrottleFail(db, request, email);
+        return json({ error: parsed.error }, 400);
+      }
       const user = {
         id: uid('usr'),
         email,
@@ -641,6 +842,8 @@ async function handleApi(request, env, url) {
         user.id, user.email, user.name, user.password_hash, user.role, user.role_custom,
         user.created_at, user.updated_at
       );
+      await ensureBootstrapOwner(db, env, user);
+      await authThrottleSuccess(db, email);
       const sess = await createSession(db, user);
       return json(
         { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt },
@@ -653,11 +856,19 @@ async function handleApi(request, env, url) {
       const body = await readBody(request);
       const email = String(body.email || '').trim().toLowerCase();
       const password = String(body.password || '');
-      if (!email || !password) return json({ error: 'Invalid email or password' }, 401);
-      const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
-      if (!user || !verifyPassword(password, user.password_hash)) {
+      const loginBlocked = await authThrottleCheck(db, request, email);
+      if (loginBlocked != null) return authLimited(loginBlocked);
+      if (!email || !password) {
+        await authThrottleFail(db, request, email);
         return json({ error: 'Invalid email or password' }, 401);
       }
+      const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
+      if (!user || !verifyPassword(password, user.password_hash)) {
+        await authThrottleFail(db, request, email);
+        return json({ error: 'Invalid email or password' }, 401);
+      }
+      await authThrottleSuccess(db, email);
+      await ensureBootstrapOwner(db, env, user);
       const sess = await createSession(db, user);
       return json(
         { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt },
@@ -673,7 +884,7 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'auth' && parts[1] === 'me' && method === 'GET') {
-      const user = await requireUser(request, db);
+      const user = await requireUser(request, db, env);
       if (!user) return json({ error: 'Not signed in' }, 401);
       return json({ user: publicUser(user) });
     }
@@ -689,7 +900,7 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
-      const sessionUser = await requireUser(request, db);
+      const sessionUser = await requireUser(request, db, env);
       if (!sessionUser) return json({ error: 'Sign in required' }, 401);
       const body = await readBody(request);
       const currentPassword = String(body.currentPassword || '');
@@ -716,7 +927,7 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'auth' && parts[1] === 'profile' && method === 'POST') {
-      const sessionUser = await requireUser(request, db);
+      const sessionUser = await requireUser(request, db, env);
       if (!sessionUser) return json({ error: 'Sign in required' }, 401);
       const body = await readBody(request);
       if (body.name != null) {
@@ -817,56 +1028,18 @@ async function handleApi(request, env, url) {
       });
     }
 
-    if (parts[0] === 'portal' && parts[1] === 'open' && method === 'POST') {
-      const body = await readBody(request);
-      const raw = String(body.token || body.t || '').trim();
-      if (!raw) return json({ error: 'Missing portal token' }, 400);
-      const tok = await one(db, 'SELECT * FROM access_tokens WHERE token_hash = ?', hashToken(raw));
-      if (!tok || !tokenIsActive(tok)) {
-        return json({ error: 'This link is invalid, expired, or revoked.' }, 404);
-      }
-      const version = await one(db, 'SELECT * FROM proposal_versions WHERE id = ?', tok.version_id);
-      if (!version) return json({ error: 'Published version not found' }, 404);
-      let snapshot = null;
-      try { snapshot = JSON.parse(version.snapshot_json); } catch (_) {}
-      const ua = request.headers.get('user-agent') || '';
-      const isBot = /bot|crawl|spider|preview|slack|whatsapp|telegram|facebookexternalhit|twitterbot|linkedinbot/i.test(ua);
-      const eventType = isBot ? 'suspected_prefetch' : 'link_opened';
-      const now = nowISO();
-      if (!isBot) {
-        await run(
-          db,
-          `UPDATE access_tokens SET
-             open_count = open_count + 1,
-             first_opened_at = COALESCE(first_opened_at, ?),
-             last_opened_at = ?
-           WHERE id = ?`,
-          now, now, tok.id
-        );
-      }
-      const ev = await recordEvent(db, {
-        token_id: tok.id,
-        version_id: tok.version_id,
-        proposal_id: tok.proposal_id,
-        owner_id: tok.owner_id,
-        event_type: eventType,
-        meta: { ua: ua.slice(0, 200) }
-      });
-      await notifyFromPortalEvent(db, ev);
-      return json({
-        ok: true,
-        snapshot,
-        version: publicVersion(version),
-        eventType
-      });
-    }
-
     if (parts[0] === 'portal' && parts[1] === 'event' && method === 'POST') {
       const body = await readBody(request);
       const raw = String(body.token || body.t || '').trim();
       const eventType = String(body.eventType || body.type || '').trim();
       if (!raw || !eventType) return json({ error: 'token and eventType required' }, 400);
-      const allowed = { survey_requested: true, pdf_download_requested: true };
+      /* Same allowlist as the local server. */
+      const allowed = {
+        pdf_download_requested: true,
+        section_view: true,
+        interest_recorded: true,
+        survey_requested: true
+      };
       if (!allowed[eventType]) return json({ error: 'Unsupported portal event' }, 400);
       const tok = await one(db, 'SELECT * FROM access_tokens WHERE token_hash = ?', hashToken(raw));
       if (!tok || !tokenIsActive(tok)) return json({ error: 'Invalid token' }, 404);
@@ -876,14 +1049,14 @@ async function handleApi(request, env, url) {
         proposal_id: tok.proposal_id,
         owner_id: tok.owner_id,
         event_type: eventType,
-        meta: body.meta && typeof body.meta === 'object' ? body.meta : {}
+        meta: sanitizePortalMeta(body.meta)
       });
       await notifyFromPortalEvent(db, ev);
       return json({ ok: true });
     }
 
     /* Staff session required below */
-    const user = await requireUser(request, db);
+    const user = await requireUser(request, db, env);
     if (!user) return json({ error: 'Sign in required' }, 401);
     const canWrite = requireRole(user, 'sales');
     const canAdmin = requireRole(user, 'owner');
@@ -932,6 +1105,10 @@ async function handleApi(request, env, url) {
       if (!canWrite) return json({ error: 'Your role can view data but cannot upload photos.' }, 403);
       const safe = safeGalleryName(request.headers.get('X-Filename'));
       if (!safe) return json({ error: 'Allowed types: png, jpg, webp.' }, 400);
+      const declaredUpload = Number(request.headers.get('Content-Length'));
+      if (Number.isFinite(declaredUpload) && declaredUpload > GALLERY_MAX_BYTES) {
+        return json({ error: 'Photo must stay under ~900 KB so storage stays on the free tier forever.' }, 413);
+      }
       const buf = await request.arrayBuffer();
       if (!buf || !buf.byteLength) return json({ error: 'Empty file.' }, 400);
       if (buf.byteLength > GALLERY_MAX_BYTES) {
@@ -1028,6 +1205,8 @@ async function handleApi(request, env, url) {
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot create or edit proposals.' }, 403);
       const body = await readBody(request);
+      const badStatus = proposalStatusError(body.status);
+      if (badStatus) return json({ error: badStatus }, 400);
       const meta = metaFromBody(body, null);
       if (!String(meta.ref || '').trim()) meta.ref = await reserveCloudReference(db);
       meta.form = { ...meta.form, propRef: meta.ref };
@@ -1081,6 +1260,8 @@ async function handleApi(request, env, url) {
       const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const body = await readBody(request);
+      const badUpdateStatus = proposalStatusError(body.status);
+      if (badUpdateStatus) return json({ error: badUpdateStatus }, 400);
       const meta = metaFromBody(body, row);
       const status = body.status != null ? body.status : row.status;
       const customerId = body.customerId !== undefined ? body.customerId : row.customer_id;
@@ -1598,6 +1779,14 @@ async function handleApi(request, env, url) {
         const t = Date.parse(body.dueAt);
         if (!Number.isFinite(t)) return json({ error: 'Invalid due date' }, 400);
         dueAt = new Date(t).toISOString();
+      } else if (body.dueInDays != null) {
+        const d = Number(body.dueInDays);
+        if (!Number.isFinite(d) || d < 0) return json({ error: 'Invalid dueInDays' }, 400);
+        dueAt = new Date(Date.now() + d * 864e5).toISOString();
+      }
+      if (body.proposalId) {
+        const linked = await one(db, 'SELECT id FROM proposals WHERE id = ? AND owner_id = ?', body.proposalId, user.id);
+        if (!linked) return json({ error: 'Proposal not found for this task' }, 404);
       }
       const task = {
         id: uid('tsk'),

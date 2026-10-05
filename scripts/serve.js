@@ -115,7 +115,10 @@ if (!Number.isInteger(port) || port < 0 || port > 65535) {
   throw new Error(`Invalid PORT value: ${configuredPort}`);
 }
 
-server.listen(port, '0.0.0.0', () => {
+/* Loopback by default: this QA/preview server serves the working tree, so it
+   must not listen on the LAN unless the operator explicitly asks for it. */
+const host = process.env.HOST || '127.0.0.1';
+server.listen(port, host, () => {
   const address = server.address();
   console.log(`Quotation Studio preview: http://localhost:${address.port}/`);
 });

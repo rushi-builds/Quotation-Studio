@@ -1,5 +1,5 @@
 import {spawn} from 'node:child_process';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createServer} from 'node:net';
@@ -15,6 +15,9 @@ try {
  assert.equal((await api('assistant/chat',{message:'Hi',consent:true})).status,401);
  const register=async(email)=> (await api('auth/register',{email,name:'Test',password:'TestPass!123',role:'sales'})).data;
  const a=await register('a@example.test'),b=await register('b@example.test');
+ /* Fresh signups are viewers (least privilege); promote the fixtures in the
+    temp store so they can own proposals for the cross-owner assertions. */
+ {const p=join(data,'db.json');const db=JSON.parse(await readFile(p,'utf8'));for(const u of db.users)if(u.id===a.user.id||u.id===b.user.id)u.role='sales';await writeFile(p,JSON.stringify(db));}
  const proposal=await api('proposals',{form:{custName:'Private customer',capacity:'100'}},b.token);
  assert.equal((await api('assistant/status',undefined,a.token)).data.enabled,true);
  assert.equal((await api('assistant/chat',{message:'Summarise',consent:true,proposalId:proposal.data.proposal.id},a.token)).status,404,'cannot read another owner record');

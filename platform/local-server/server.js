@@ -597,6 +597,8 @@ function safeGalleryName(name) {
 function send(res, status, body, headers) {
   const h = Object.assign({
     'X-Content-Type-Options': 'nosniff',
+    /* Portal links carry ?t= bearer tokens; never leak them to third parties. */
+    'Referrer-Policy': 'no-referrer',
     'Cache-Control': 'no-store'
   }, headers || {});
   res.writeHead(status, h);
@@ -687,7 +689,8 @@ function publicUser(u) {
     name: u.name,
     role: u.role,
     roleCustom: u.role_custom || null,
-    roleLabel: roleDisplay(u)
+    roleLabel: roleDisplay(u),
+    createdAt: u.created_at || null
   };
 }
 /** Permission rank: custom titles act as Sales (can write, cannot manage team). */
@@ -755,6 +758,17 @@ function sessionTokenFrom(req) {
   const cookies = parseCookies(req);
   return cookies[COOKIE] || cookies['qs_client'] || null;
 }
+/* Bootstrap owner (local parity with worker): OWNER_EMAIL designates one login
+   email; that account is promoted to owner (persisted). One-way. */
+function applyBootstrapOwner(user) {
+  const designated = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
+  if (!designated || !user || user.role === 'owner') return false;
+  if (String(user.email || '').trim().toLowerCase() !== designated) return false;
+  user.role = 'owner';
+  user.role_custom = null;
+  user.updated_at = nowISO();
+  return true;
+}
 function requireUser(req, db) {
   scrubExpiredSessions(db);
   const token = sessionTokenFrom(req);
@@ -763,6 +777,7 @@ function requireUser(req, db) {
   if (!session) return null;
   if (Date.parse(session.expires_at) <= Date.now()) return null;
   const user = (db.users || []).find((u) => u.id === session.user_id);
+  if (user && applyBootstrapOwner(user)) saveDb(db);
   return user || null;
 }
 function createSession(db, user) {
@@ -783,6 +798,92 @@ function safePath(urlPath) {
   return full;
 }
 
+/* Public static surface. Everything else under ROOT — platform source,
+   platform/data (the JSON database), .git, docs, qa, scripts, tmp, .env —
+   is never served over HTTP. Gallery files keep random unguessable names and
+   act as capability URLs for <img> tags, which cannot send Bearer tokens. */
+const PUBLIC_HTML = new Set([
+  'index.html', 'dashboard.html', 'quotation.html', 'portal.html',
+  'share.html', 'gallery.html', 'oauth-complete.html'
+]);
+/* Dev-only UI: the bag-reference drop box (anonymous file upload) and the
+   login design preview have no production purpose and stay dark unless the
+   operator explicitly enables dev routes on a trusted local machine. */
+const DEV_HTML = new Set(['drop-bag-ref.html', 'preview-solar-login.html']);
+function devRoutesEnabled() {
+  return process.env.QS_ENABLE_DEV_ROUTES === '1';
+}
+function isPublicPath(urlPath) {
+  const clean = String(urlPath || '').split('?')[0];
+  if (clean === '/' || clean === '/dashboard') return true;
+  if (clean.startsWith('/assets/')) return true;
+  if (clean.startsWith('/platform/data/gallery/')) return true;
+  if (clean.startsWith('/tmp/bag-reference/')) return devRoutesEnabled();
+  if (clean.startsWith('/') && !clean.slice(1).includes('/')) {
+    const name = clean.slice(1);
+    if (PUBLIC_HTML.has(name)) return true;
+    if (DEV_HTML.has(name)) return devRoutesEnabled();
+  }
+  return false;
+}
+
+/* CSRF: session cookies are SameSite=None so preview iframes keep working,
+   which means browsers will send them on cross-site requests too. A state-
+   changing /api call that carries a foreign Origin/Referer is a forged
+   cross-site request and must be rejected. Absent or unparseable values come
+   from non-browser clients (curl, scripts, tests) and are allowed through;
+   real browsers always send a valid Origin on cross-site POST/PUT/DELETE.
+   OAuth callbacks are exempt: Apple POSTs from appleid.apple.com and that
+   flow has its own state/binding verification. */
+function crossSiteBlocked(req) {
+  const claimed = String(
+    req.headers.origin || req.headers.referer || ''
+  ).trim();
+  if (!claimed) return false;
+  const host = String(req.headers.host || '').split(',')[0].trim().toLowerCase();
+  try {
+    return new URL(claimed).host.toLowerCase() !== host;
+  } catch (_) {
+    return false;
+  }
+}
+function isMutating(method) {
+  return method === 'POST' || method === 'PUT' ||
+    method === 'PATCH' || method === 'DELETE';
+}
+
+/* Customer portal event metadata is untrusted bearer-token input. Strict
+   allowlist + per-field caps so a shared link cannot bloat the database or
+   smuggle payloads into notification emails. Keys mirror what portal.js
+   actually sends (format/stage/wants/loc) plus note/section fields. */
+function sanitizePortalMeta(meta) {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return {};
+  const out = {};
+  if (typeof meta.note === 'string' && meta.note) {
+    out.note = meta.note.slice(0, 500);
+  }
+  for (const key of ['sectionId', 'choice', 'label', 'format', 'stage', 'wants', 'loc']) {
+    if (typeof meta[key] === 'string' && meta[key]) {
+      out[key] = meta[key].slice(0, 120);
+    }
+  }
+  for (const key of ['index', 'progress', 'sectionIndex']) {
+    if (typeof meta[key] === 'number' && Number.isFinite(meta[key])) {
+      out[key] = meta[key];
+    }
+  }
+  return out;
+}
+
+const PROPOSAL_STATUSES = new Set([
+  'draft', 'internal_review', 'ready', 'sent', 'viewed',
+  'negotiation', 'accepted', 'rejected', 'expired', 'archived'
+]);
+function proposalStatusError(status) {
+  if (status == null || status === '') return null;
+  return PROPOSAL_STATUSES.has(status) ? null : 'Unknown proposal status';
+}
+
 /* ---------- API handlers ---------- */
 async function handleApi(req, res, url) {
   const db = loadDb();
@@ -790,7 +891,19 @@ async function handleApi(req, res, url) {
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
 
   try {
-    /* DEV: bag login animation reference upload (local only, no auth) */
+    if (isMutating(method) && !(parts[0] === 'auth' && parts[1] === 'oauth') && crossSiteBlocked(req)) {
+      return sendJson(res, 403, {
+        error: 'Cross-site request blocked. Open Studio from the application website and try again.',
+        code: 'ORIGIN_BLOCKED'
+      });
+    }
+
+    /* DEV: bag animation reference drops. Disabled by default — a
+       network-reachable server must not offer anonymous 80 MB file hosting.
+       Enable locally with QS_ENABLE_DEV_ROUTES=1. */
+    if (parts[0] === 'dev' && (parts[1] === 'bag-ref-list' || parts[1] === 'bag-ref-upload') && !devRoutesEnabled()) {
+      return sendJson(res, 404, { error: 'Unknown API route' });
+    }
     if (parts[0] === 'dev' && parts[1] === 'bag-ref-list' && method === 'GET') {
       ensureBagRefDir();
       const names = fs.readdirSync(BAG_REF_DIR).filter((n) => BAG_REF_EXT.has(path.extname(n).toLowerCase()));
@@ -851,6 +964,22 @@ async function handleApi(req, res, url) {
       const cookies=result.headers.getSetCookie();if(cookies.length)res.setHeader('Set-Cookie',cookies);
       res.writeHead(result.status);return res.end(await result.text());
     }
+    if (parts[0] === 'auth' && parts[1] === 'phone') {
+      const {handlePhoneAuth} = await import('../cloudflare/src/phone.mjs');
+      const {localOAuthStore} = await import('../oauth-store.mjs');
+      const proto = String(req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+      const requestUrl = proto + '://' + req.headers.host + url.pathname + url.search;
+      const raw = ['POST','PUT'].includes(method) ? await readRawBody(req, 20000) : undefined;
+      const request = new Request(requestUrl, {method, headers:req.headers, ...(raw ? {body:raw} : {})});
+      const result = await handlePhoneAuth(request, process.env, localOAuthStore(loadDb, saveDb), {
+        rateKey: req.socket.remoteAddress || 'unknown',
+        session: async user => {const latest=loadDb();const session=createSession(latest,user);saveDb(latest);return session;},
+        cookie: token => sessionCookie(token, SESSION_DAYS * 86400, req)
+      });
+      result.headers.forEach((value,key) => {if(key!=='set-cookie')res.setHeader(key,value);});
+      const cookies=result.headers.getSetCookie();if(cookies.length)res.setHeader('Set-Cookie',cookies);
+      res.writeHead(result.status);return res.end(await result.text());
+    }
     /* AUTH */
     if (parts[0] === 'auth' && parts[1] === 'register' && method === 'POST') {
       const body = await readBody(req);
@@ -895,6 +1024,7 @@ async function handleApi(req, res, url) {
         updated_at: nowISO()
       };
       db.users.push(user);
+      applyBootstrapOwner(user);
       authThrottleSuccess(email);
       const sess = createSession(db, user);
       saveDb(db);
@@ -918,6 +1048,7 @@ async function handleApi(req, res, url) {
         authThrottleFail(req, email);
         return sendJson(res, 401, { error: 'Invalid email or password' });
       }
+      applyBootstrapOwner(user);
       authThrottleSuccess(email);
       const sess = createSession(db, user);
       saveDb(db);
@@ -1096,7 +1227,7 @@ async function handleApi(req, res, url) {
         proposal_id: tok.proposal_id,
         owner_id: tok.owner_id,
         event_type: type,
-        meta: body.meta && typeof body.meta === 'object' ? body.meta : {}
+        meta: sanitizePortalMeta(body.meta)
       });
       notifyFromPortalEvent(db, ev);
       saveDb(db);
@@ -1249,6 +1380,8 @@ async function handleApi(req, res, url) {
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot create or edit proposals.' });
       const body = await readBody(req);
+      const badStatus = proposalStatusError(body.status);
+      if (badStatus) return sendJson(res, 400, { error: badStatus });
       Object.assign(db, loadDb()); // readBody awaited; retain other concurrent creations.
       const meta = metaFromBody(body, null);
       if (!String(meta.ref || '').trim()) meta.ref = reserveLocalReference(db);
@@ -1292,6 +1425,8 @@ async function handleApi(req, res, url) {
       const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
+      const badUpdateStatus = proposalStatusError(body.status);
+      if (badUpdateStatus) return sendJson(res, 400, { error: badUpdateStatus });
       /* Conflict guard: monotonic server revision (not client clocks). Client
          sends baseRevision from the last load/save; mismatch → 409, work kept. */
       if (body.baseRevision != null && body.baseRevision !== '') {
@@ -2076,6 +2211,9 @@ async function handleApi(req, res, url) {
 
 /* ---------- static + router ---------- */
 function serveStatic(req, res, urlPath) {
+  if (!isPublicPath(urlPath)) {
+    return send(res, 404, 'Not found', { 'Content-Type': 'text/plain; charset=utf-8' });
+  }
   let rel = urlPath === '/' ? '/index.html' : urlPath;
   /* dashboard pretty path */
   if (rel === '/dashboard') rel = '/dashboard.html';
@@ -2092,7 +2230,8 @@ function serveStatic(req, res, urlPath) {
     res.writeHead(200, {
       'Content-Type': type,
       'Cache-Control': cache,
-      'X-Content-Type-Options': 'nosniff'
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'no-referrer'
     });
     fs.createReadStream(full).pipe(res);
   });
@@ -2144,6 +2283,8 @@ server.listen(PORT, HOST, () => {
   console.log('  Dash:   http://' + HOST + ':' + PORT + '/dashboard.html');
   console.log('  Portal: http://' + HOST + ':' + PORT + '/portal.html?t=<token>');
   console.log('  API:    http://' + HOST + ':' + PORT + '/api/health');
-  console.log('  Drop:   http://' + HOST + ':' + PORT + '/drop-bag-ref.html');
+  if (devRoutesEnabled()) {
+    console.log('  Drop:   http://' + HOST + ':' + PORT + '/drop-bag-ref.html');
+  }
   console.log('  Data:   ' + DB_PATH);
 });

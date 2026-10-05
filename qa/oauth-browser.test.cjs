@@ -17,12 +17,13 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   await page.goto(base+'/index.html?oauth_error=ACCOUNT_EXISTS');await page.waitForFunction(()=>!document.getElementById('socialMessage').hidden);assert.match(await page.locator('#socialMessage').innerText(),/never merged automatically/);assert.ok(!page.url().includes('oauth_error'));
   await page.evaluate(async()=>{const r=await PlatformAPI.register('Original Profile','browser@example.test','BrowserTest123!','Owner');PlatformAPI.setSessionToken(r.token);});
   await page.goto(base+'/dashboard.html');await page.waitForFunction(()=>window.QSDash?.user());
-  await page.evaluate(()=>QSDash.show('settings'));await page.waitForFunction(()=>document.getElementById('socialConnections').textContent.includes('Setup required'));
-  assert.equal(await page.locator('#socialConnections button:disabled').count(),3);assert.equal(await page.evaluate(()=>QSDash.user().role),'viewer');
+  await page.evaluate(()=>QSDash.show('settings'));await page.waitForFunction(()=>document.getElementById('settingsSince').textContent.startsWith('Member since'));
+  assert.equal(await page.locator('#socialConnections').count(),0);assert.equal(await page.evaluate(()=>QSDash.user().role),'viewer');
+  await page.locator('#btnRoleEdit').click();await page.waitForFunction(()=>document.getElementById('toast').textContent.includes('Only the workspace owner'));
   await page.evaluate(()=>PlatformAPI.setSessionToken('invalid-previous-account-token'));
   await page.goto(base+'/oauth-complete.html');await page.waitForURL('**/dashboard.html');await page.waitForFunction(()=>window.QSDash?.user());
   assert.equal(await page.evaluate(()=>localStorage.getItem('qs.sessionToken')),null);assert.equal(await page.evaluate(()=>QSDash.user().email),'browser@example.test');
   assert.deepEqual(errors,[]);
-  console.log('PASS: real local routes fail closed without provider setup; all three buttons give honest status; mobile/error guidance; Profile connections; cookie completion clears stale bearer token and preserves account permissions. No live provider contacted.');
+  console.log('PASS: real local routes fail closed without provider setup; both OAuth buttons + phone button give honest status; Apple removed; mobile/error guidance; profile card without provider-connect block (member-since + gated role pencil); cookie completion clears stale bearer token and preserves account permissions. No live provider contacted.');
  }finally{if(browser)await browser.close();server.kill();await new Promise(r=>server.exitCode!==null?r():server.once('exit',r));fs.rmSync(dir,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

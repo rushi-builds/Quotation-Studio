@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
     <title>Dashboard — KTM Quotation Studio</title>
     <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png" />
     <script>
@@ -772,8 +773,11 @@
                     <div>
                       <h2 id="settingsName">—</h2>
                       <p id="settingsEmail" class="muted">—</p>
+                      <p id="settingsSince" class="micro muted"></p>
                     </div>
                     <span id="settingsRole" class="count-pill">—</span>
+                    <button type="button" id="btnRoleEdit" class="role-pencil" aria-label="Edit role" title="Edit role"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+                    <span id="roleEditor" hidden></span>
                   </div>
                   <div class="field">
                     <label for="profileName">Display name</label
@@ -799,8 +803,6 @@
                     </button>
                   </div>
                   <p id="profileSaveMsg" class="micro" role="status"></p>
-                  <div id="socialConnections"></div>
-                  <p id="socialMessage" class="micro" role="status" hidden></p>
                   <details class="help-details">
                     <summary>Connection details</summary>
                     <p id="settingsHealth" class="micro muted">Checking…</p>

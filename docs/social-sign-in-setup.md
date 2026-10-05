@@ -12,6 +12,15 @@ Never paste client secrets, private keys, passwords or recovery codes into chat 
 
 Open Cloudflare → the existing **studio** Worker → Settings → Variables and Secrets. Keep the existing database, account ownership and production URL.
 
+Stuck on "not live yet"? Run the diagnostic locally (it reads the same variable
+names and reports which requirement fails; it never prints secret values):
+
+```
+node platform/cloudflare/scripts/oauth-setup-check.mjs
+```
+
+It exits non-zero when an enabled provider is misconfigured.
+
 Set a regular variable:
 
 ```
@@ -108,6 +117,14 @@ For each enabled provider:
 - Confirm provider secret expiry, production audience/test-user restrictions and company consent policy.
 
 To pause a provider safely, set its enable flag to `false`. Do not delete users or identity records. Preserve another working sign-in method before disabling the only provider for a provider-only account.
+
+## Local development (Google/Microsoft only)
+
+`OAUTH_PUBLIC_ORIGIN=http://localhost:PORT` (or `http://127.0.0.1:PORT`) is
+accepted so Google and Microsoft flows can be tested against the local server;
+both providers allow `http://localhost` callbacks in their consoles. Any other
+`http` origin stays unconfigured, and Apple requires `https`, so Apple remains
+production-only. The browser, binding cookie and state rules are unchanged.
 
 ## Implementation and automated tests
 

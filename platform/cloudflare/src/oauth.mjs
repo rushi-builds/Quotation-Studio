@@ -10,16 +10,39 @@ const response = (body,status=200) => new Response(JSON.stringify(body),{status,
 const redirect = (path,cookies=[]) => {const headers=new Headers({'Location':path,'Cache-Control':'no-store','Referrer-Policy':'no-referrer'});cookies.forEach(c=>headers.append('Set-Cookie',c));return new Response(null,{status:303,headers});};
 const error = code => Object.assign(new Error(code),{oauthCode:code});
 const keys = new Map();
+/* Granular setup diagnostics. configuration() stays fail-closed: any issue
+   means unconfigured. Localhost http is allowed ONLY for local development
+   (Google/Microsoft accept http://localhost callbacks; Apple requires https,
+   so Apple stays production-only). Never log secret values, only presence. */
+export function configurationIssues(env, provider) {
+ const issues=[];
+ if(!providers.includes(provider))return ['unknown provider'];
+ let origin='';
+ try {
+  const u=new URL(env.OAUTH_PUBLIC_ORIGIN||'');
+  const host=(u.hostname||'').toLowerCase();
+  const loopback=u.protocol==='http:'&&(host==='localhost'||host==='127.0.0.1'||host==='::1');
+  if(!(u.protocol==='https:'||loopback)||u.username||u.password||u.pathname!=='/'||u.search||u.hash)issues.push('OAUTH_PUBLIC_ORIGIN must be the canonical https origin (http only for localhost dev)');
+  else origin=u.origin;
+ }catch{issues.push('OAUTH_PUBLIC_ORIGIN is missing or not a URL');}
+ const prefix=provider.toUpperCase();
+ if(env['OAUTH_'+prefix+'_ENABLED']!=='true')issues.push('OAUTH_'+prefix+'_ENABLED is not true');
+ if(!String(env[prefix+'_CLIENT_ID']||''))issues.push(prefix+'_CLIENT_ID is missing');
+ const secret=String(env[prefix+'_CLIENT_SECRET']||'');
+ if(!secret)issues.push(prefix+'_CLIENT_SECRET is missing');
+ const tenant=String(env.MICROSOFT_TENANT_ID||'common');
+ if(provider==='microsoft'&&!/^(common|organizations|consumers|[a-f0-9-]{36})$/i.test(tenant))issues.push('MICROSOFT_TENANT_ID must be common, organizations, consumers, or a tenant GUID');
+ if(provider==='apple'&&secret){try{const exp=decodeJwt(secret).exp;if(!Number.isFinite(exp)||exp<=Date.now()/1000+60)issues.push('APPLE_CLIENT_SECRET JWT is expired or near expiry — regenerate it');}catch{issues.push('APPLE_CLIENT_SECRET is not a valid JWT — regenerate it with the helper script');}}
+ if(provider==='apple'&&origin.startsWith('http://'))issues.push('Apple requires an https callback origin; localhost works for Google/Microsoft only');
+ return issues;
+}
 function configuration(env, provider) {
  if(!providers.includes(provider))return null;
- let origin;
- try {const u=new URL(env.OAUTH_PUBLIC_ORIGIN);if(u.protocol!=='https:'||u.username||u.password||u.pathname!=='/'||u.search||u.hash)return null;origin=u.origin;}catch{return null;}
+ if(configurationIssues(env, provider).length)return null;
+ const origin=new URL(env.OAUTH_PUBLIC_ORIGIN).origin;
  const prefix=provider.toUpperCase();
  const clientId=String(env[prefix+'_CLIENT_ID']||''),secret=String(env[prefix+'_CLIENT_SECRET']||'');
- if(env['OAUTH_'+prefix+'_ENABLED']!=='true'||!clientId||!secret)return null;
  const tenant=String(env.MICROSOFT_TENANT_ID||'common');
- if(provider==='microsoft'&&!/^(common|organizations|consumers|[a-f0-9-]{36})$/i.test(tenant))return null;
- if(provider==='apple'){try{const exp=decodeJwt(secret).exp;if(!Number.isFinite(exp)||exp<=Date.now()/1000+60)return null;}catch{return null;}}
  const definitions={
   google:{authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',jwks:'https://www.googleapis.com/oauth2/v3/certs'},
   microsoft:{authorize:`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize`,token:`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`,jwks:`https://login.microsoftonline.com/${tenant}/discovery/v2.0/keys`},

@@ -139,6 +139,8 @@
     $('settingsName').textContent = user.name || '—';
     $('settingsEmail').textContent = user.email || '—';
     if ($('settingsRole')) $('settingsRole').textContent = roleLabel(user);
+    if ($('settingsSince')) $('settingsSince').textContent = memberSince(user);
+    wireRolePencil();
     if ($('profileName')) $('profileName').value = user.name || '';
     if ($('profileSaveMsg')) $('profileSaveMsg').textContent = '';
     if ($('currPassword')) $('currPassword').value = '';
@@ -370,6 +372,64 @@
     } catch (err) {
       banner('err', err.message || 'Could not load reports');
     }
+  }
+
+  function memberSince(u) {
+    const t = u && u.createdAt ? new Date(u.createdAt) : null;
+    if (!t || isNaN(t)) return '';
+    return 'Member since ' + t.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+  }
+
+  function wireRolePencil() {
+    const btn = $('btnRoleEdit');
+    const box = $('roleEditor');
+    if (!btn || !box || btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+      if (!user || user.role !== 'owner') {
+        toast('Only the workspace owner can change roles.');
+        return;
+      }
+      if (!box.hidden) { box.hidden = true; box.replaceChildren(); return; }
+      box.hidden = false;
+      const sel = document.createElement('select');
+      sel.className = 'role-select';
+      sel.setAttribute('aria-label', 'Your role');
+      if (user.role === 'custom' || user.roleCustom) {
+        const c = document.createElement('option');
+        c.value = 'custom'; c.textContent = user.roleLabel || user.roleCustom || 'Custom';
+        c.selected = true; c.disabled = true;
+        sel.append(c);
+      }
+      ['owner', 'sales', 'viewer'].forEach((r) => {
+        const o = document.createElement('option');
+        o.value = r; o.textContent = roleLabel(r);
+        if (user.role === r) o.selected = true;
+        sel.append(o);
+      });
+      const save = document.createElement('button');
+      save.type = 'button'; save.className = 'role-save'; save.textContent = 'Save';
+      const cancel = document.createElement('button');
+      cancel.type = 'button'; cancel.className = 'role-cancel'; cancel.textContent = 'Cancel';
+      cancel.addEventListener('click', () => { box.hidden = true; box.replaceChildren(); btn.focus(); });
+      save.addEventListener('click', async () => {
+        if (sel.value === user.role || sel.value === 'custom') { box.hidden = true; box.replaceChildren(); return; }
+        save.disabled = true;
+        try {
+          await api.setTeamRole(user.id, sel.value);
+          user.role = sel.value; user.roleCustom = null; user.roleLabel = roleLabel(sel.value);
+          box.hidden = true; box.replaceChildren();
+          showApp();
+          refreshTeamPanel();
+          toast('Role updated');
+        } catch (err) {
+          save.disabled = false;
+          toast(err.message || 'Could not change role');
+        }
+      });
+      box.replaceChildren(sel, save, cancel);
+      sel.focus();
+    });
   }
 
   async function refreshTeamPanel() {
