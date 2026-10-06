@@ -94,8 +94,11 @@ The Worker now throttles auth in D1, but edge rules are still worthwhile:
   Microsoft (Apple button removed; backend dormant). Follow
   `docs/phone-auth-setup.md`: enable the Phone provider in Firebase
   console, authorize the worker host, set `PHONE_ENABLED`,
-
-Role and visibility behaviour (designated owner, designated admin, typed
-titles, owner-sees-all) is documented in [docs/workspace-roles.md](workspace-roles.md).
   `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, redeploy, then test with a
   real phone. `GET /api/auth/phone/config` shows live status.
+- **Roles need two Worker variables and one migration.** `OWNER_EMAIL` and
+  `ADMIN_EMAIL` decide who runs the workspace, and `users.is_admin` makes an
+  elevation permanent — apply `platform/migrations/005-is-admin.sql` (back up
+  the `users` table first) before relying on it. Designated owner, designated
+  admin, elevation, typed titles and owner-sees-all are all documented in
+  [docs/workspace-roles.md](workspace-roles.md).

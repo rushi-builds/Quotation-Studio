@@ -1,0 +1,55 @@
+-- Round-1 elevation model: one additive column on `users`.
+--
+--   is_admin  0 = ordinary account (owner / sales / viewer / custom title)
+--             1 = elevated. Carries more reach than `role = 'owner'`.
+--
+-- Elevation is deliberately NOT a role value: `users.role` keeps its existing
+-- CHECK constraint and is never touched by an elevation, so nothing that reads
+-- `role` changes meaning and no display label moves.
+--
+-- ---------------------------------------------------------------------------
+-- BACK UP FIRST (opencode, per the standing rule):
+--
+--   cd platform/cloudflare
+--   npx wrangler d1 execute quotation-studio-db --remote \
+--     --command "SELECT id, email, role, role_custom FROM users" \
+--     > ../backup-users-before-is-admin.json
+--
+-- APPLY:
+--
+--   npx wrangler d1 execute quotation-studio-db --remote \
+--     --file=../migrations/005-is-admin.sql
+--
+-- VERIFY (see 005-is-admin-verify.sql — one statement, safe with --command):
+--
+--   npx wrangler d1 execute quotation-studio-db --remote \
+--     --file=../migrations/005-is-admin-verify.sql
+--
+-- ---------------------------------------------------------------------------
+-- IDEMPOTENCY: SQLite has no `ADD COLUMN IF NOT EXISTS`, so re-running this
+-- file fails with "duplicate column name: is_admin". That error is harmless and
+-- means the column is already present — run the verify file to confirm rather
+-- than re-applying. Nothing in this round creates the column implicitly, so the
+-- migration is REQUIRED before elevation will work.
+--
+-- Until it is applied the deployment still serves traffic: every read of the
+-- column is defensive, and GET /api/health reports a warning naming the missing
+-- column so the state is visible instead of silent.
+--
+-- ---------------------------------------------------------------------------
+-- ROLLBACK / LEAVING IT IN PLACE: the column is harmless if left. It is
+-- NOT NULL DEFAULT 0, so it cannot hold a surprising value, no index and no
+-- CHECK constraint references it, and SQLite applies a constant default without
+-- rewriting existing rows. To stop using elevation, clear it and ignore it:
+--
+--   UPDATE users SET is_admin = 0;
+--
+-- SQLite cannot drop a column without a table rebuild (create-new / copy /
+-- drop / rename), which is not worth the risk for an inert integer. Leave it.
+--
+-- Rolling back the CODE instead needs no DDL at all: the pre-migration Worker
+-- never reads is_admin, so an old deployment runs fine against a migrated
+-- database. The migration is forward- and backward-safe.
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0;

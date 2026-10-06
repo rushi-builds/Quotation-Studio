@@ -427,6 +427,10 @@ function proposalQuotedValue(row) {
 }
 
 function roleRank(role) {
+  /* Elevated sits ABOVE owner. Because requireRole is a rank comparison, every
+     existing gate — canWrite (sales), canAdmin/canManageTeam (owner), seesAll —
+     inherits the elevation with no further change. */
+  if (role === 'admin') return 4;
   if (role === 'owner') return 3;
   if (role === 'sales') return 2;
   if (role === 'viewer') return 1;
@@ -683,7 +687,7 @@ function parseSignupRole(raw) {
    conflicting pair is worth reporting.
 
    Why it exists: a typo in ADMIN_EMAIL does not error anywhere — it silently
-   grants nobody, and the founder self-heal never runs. That is a deploy-time
+   grants nobody, and the admin self-heal never runs. That is a deploy-time
    mistake an operator cannot see from the UI, so /api/health says so.
 
    Never returns an email address or a count of admins: this route is public. */
@@ -694,14 +698,14 @@ function rolesIssues() {
   const o = ownerEmail(env), a = adminEmail(env);
   if (o && !EMAIL_SHAPE.test(o)) issues.push('OWNER_EMAIL is set but is not a valid email address, so the workspace owner bootstrap cannot match any account');
   if (a && !EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address, so the designated admin login cannot match any account');
-  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox. The founder self-heal is disabled so the role cannot oscillate; set ADMIN_EMAIL to the personal mailbox and OWNER_EMAIL to the company mailbox.');
+  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox. The admin self-heal is disabled so the role cannot oscillate; set ADMIN_EMAIL to the personal mailbox and OWNER_EMAIL to the company mailbox.');
   return issues;
 }
 /* Typed title wins over the power word — parity with the Cloudflare worker.
-   A hidden admin carries owner powers with a stored role of `owner` but is
-   never labelled "Admin", and the founder self-heal stores
-   role_custom='Founder' on a `viewer` row, so the typed title must be what the
-   UI shows. Power is decided by permissionRole, never by this string. */
+   The designated admin login carries owner-and-above powers while its stored
+   role reads `viewer`, and the self-heal deliberately writes NO title, so the
+   typed title is always the only thing the UI shows. Elevation never touches
+   it. Power is decided by permissionRole, never by this string. */
 /* A typed role title, validated exactly like the one on Create account
    (non-empty, <= 60 chars, whitespace collapsed) but WITHOUT the keyword
    mapping. Deliberate: a title is display text and must never decide access.
@@ -724,6 +728,7 @@ function roleDisplay(u) {
 }
 function publicUser(u) {
   const admin = canManageTeam(u);
+  const elevated = isAdminRow(u) || isHiddenAdmin(u);
   return {
     id: u.id,
     email: u.email,
@@ -737,12 +742,90 @@ function publicUser(u) {
     canWrite: roleRank(permissionRole(u)) >= roleRank('sales'),
     canManageTeam: admin,
     seesAll: seesAll(u),
+    /* Elevation capability. Sent to the signed-in user only, so it cannot
+       disclose who else is elevated. The front end uses it to decide whether
+       the word "Admin" may appear in a dropdown at all — no name-plate reads
+       it, so elevation changes no chip or profile label. */
+    isAdmin: elevated,
+    canElevate: canElevate(u),
     createdAt: u.created_at || null
   };
 }
-/* ---------- hidden admin (ADMIN_EMAIL) — local parity ----------
-   Same semantics as the worker: computed per request from the environment and
-   the account email, never persisted, never shown as a label. */
+/* The badge word for a row, derived from the STORED role only — deliberately
+   blind to is_admin. See memberPayload (S1). */
+function storedRoleWord(u) {
+  const r = String((u && u.role) || '').toLowerCase();
+  if (r === 'owner') return 'owner';
+  if (r === 'viewer') return 'viewer';
+  return 'sales'; /* sales, and every custom title, act as Sales */
+}
+/* One team-panel row — shared by GET /api/team/members and the response of
+   POST /api/team/role so the two cannot drift apart.
+
+   S1 — the badge is the STORED role and never reflects elevation. Every member
+   can see the team panel (read-only), so a badge reading "Admin" would announce
+   the elevation to the whole workspace and defeat the purpose of it. `power` is
+   derived from `role` alone; permissionRole, which does account for elevation,
+   is never used to produce a label anywhere in this file.
+
+   S2 — nothing that discloses elevation is sent about ANOTHER member's row.
+   isAdmin and canElevate are absent here entirely and canWrite/canManageTeam
+   are the stored-role values, so a viewer-level elevated account is
+   byte-identical to an ordinary viewer in every other member's payload — in
+   the network tab as well as on screen. Only the actor's own row carries the
+   extra fields, via selfMemberPayload(). */
+function memberPayload(u, lastLogin, opts) {
+  const stored = storedRoleWord(u);
+  const login = lastLogin || u.created_at || null;
+  const o = opts || {};
+  return {
+    id: u.id,
+    name: u.name,
+    /* Contact detail is owner / designated-admin only — parity with the
+       worker. Omitted rather than blanked, so there is nothing to unhide. */
+    ...(o.contact ? { email: u.email } : {}),
+    role: u.role,
+    roleCustom: u.role_custom || null,
+    /* Typed title. Elevation never writes it, so this string is identical
+       before and after. */
+    roleLabel: roleDisplay(u),
+    power: stored,
+    canWrite: roleRank(stored) >= roleRank('sales'),
+    canManageTeam: roleRank(stored) >= roleRank('owner'),
+    lastLogin: login,
+    lastLoginLabel: login ? new Date(login).toISOString() : null,
+    createdAt: u.created_at
+  };
+}
+/* The actor's OWN row: the same payload plus what only they may know about
+   themselves. GET /api/auth/me is already self-only, so this discloses nothing
+   new. The effective flags are named apart from the stored-role ones: a
+   viewer-level elevated account reads canWrite false (badge) and
+   effectiveCanWrite true (what it may actually do). */
+function selfMemberPayload(u, lastLogin, opts) {
+  /* Own row: always allowed its own contact detail. */
+  return Object.assign(memberPayload(u, lastLogin, Object.assign({ contact: true }, opts || {})), {
+    isAdmin: isAdminRow(u) || isHiddenAdmin(u),
+    canElevate: canElevate(u),
+    effectiveCanWrite: requireRole(u, 'sales'),
+    effectiveCanManageTeam: requireRole(u, 'owner')
+  });
+}
+/* ---------- the designated admin (ADMIN_EMAIL) — local parity ----------
+   Two separate ideas, as in the worker:
+
+     ADMIN_EMAIL  who MAY elevate. Computed per request from the environment
+                  and the account email, never persisted, and enough on its own
+                  to clear every gate.
+
+     is_admin     who IS elevated. A stored flag that outranks owner and
+                  survives a change of the variable.
+
+   Neither produces a label: roleDisplay does not read them and the heal writes
+   no title, so nothing says "Admin" to a member. */
+function isAdminRow(user) {
+  return Number((user && user.is_admin) || 0) === 1;
+}
 function normalizeEmail(v) {
   return String(v == null ? '' : v).trim().toLowerCase();
 }
@@ -758,15 +841,15 @@ function isHiddenAdmin(user) {
   return normalizeEmail(user.email) === designated;
 }
 /* P1 guard: both variables naming one mailbox would make the bootstrap and the
-   founder heal target the same row, so the heal yields and health reports it. */
+   admin heal target the same row, so the heal yields and health reports it. */
 function adminOwnerConflict() {
   const a = adminEmail(), o = ownerEmail();
   return !!a && a === o;
 }
 /** Permission rank: custom titles act as Sales (can write, cannot manage team).
- *  A designated ADMIN_EMAIL login ranks as Owner on every gate. */
+ *  An elevated row and the designated ADMIN_EMAIL login both rank above Owner. */
 function permissionRole(user) {
-  if (isHiddenAdmin(user)) return 'owner';
+  if (isAdminRow(user) || isHiddenAdmin(user)) return 'admin';
   const r = String((user && user.role) || '').toLowerCase();
   if (r === 'owner') return 'owner';
   if (r === 'viewer') return 'viewer';
@@ -775,8 +858,12 @@ function permissionRole(user) {
 function canManageTeam(user) {
   return requireRole(user, 'owner');
 }
-/* Owner-sees-all: owner and hidden admin read every row; members stay scoped
-   to their own owner_id exactly as before. */
+/* Who may elevate: the ADMIN_EMAIL login only, never "any elevated row". */
+function canElevate(user) {
+  return isHiddenAdmin(user);
+}
+/* Owner-sees-all: owner, elevated and the designated admin read every row;
+   members stay scoped to their own owner_id exactly as before. */
 function seesAll(user) {
   return requireRole(user, 'owner');
 }
@@ -849,7 +936,7 @@ function sessionTokenFrom(req) {
 /* Bootstrap owner (local parity with worker): OWNER_EMAIL designates one login
    email; that account is promoted to owner (persisted). One-way.
    UNCONDITIONAL — no typed-title gate, so the company mailbox becomes the
-   visible Owner even if it signed up with a title. It cannot fight the founder
+   visible Owner even if it signed up with a title. It cannot fight the admin
    heal below because the two target different rows. */
 function applyBootstrapOwner(user) {
   const designated = ownerEmail();
@@ -860,40 +947,48 @@ function applyBootstrapOwner(user) {
   user.updated_at = nowISO();
   return true;
 }
-/* Founder self-heal — parity with the worker. Runs only when the hidden admin
-   (ADMIN_EMAIL) signs in, and only once.
+/* One-time heal — parity with the worker. Runs only when the ADMIN_EMAIL login
+   signs in.
 
-   TARGET: the ADMIN_EMAIL user's OWN row (today role='owner',
-   role_custom=NULL, so it shows as a second visible Owner). Afterwards it is
-   role='viewer' + role_custom='Founder': the team panel shows the typed title
-   "Founder" with a viewer power badge while its real powers stay at owner
-   level through ADMIN_EMAIL.
+   TARGET: that account's OWN row, which today holds role='owner' with
+   role_custom=NULL and therefore shows as a second visible Owner. The heal
+   changes the role ONLY:
+
+       owner / NULL   →   viewer / NULL
+
+   role_custom stays NULL on purpose — no title is stamped, because a big
+   self-declared name on a hidden account is not what this round is for. The
+   display becomes neutral ("Viewer"); the account's reach comes from
+   ADMIN_EMAIL and, once used, from is_admin.
 
    It NEVER touches the OWNER_EMAIL row — the company mailbox keeps the visible
-   Owner role via the unconditional bootstrap. Disjoint targets, so no
-   oscillation. The role_custom check is the one-time latch, tested as NULL-ness
-   and NOT truthiness ('' is falsy in JS): NULL re-arms it, while '' — stored by
-   setTeamRole on a deliberate visible promotion of this account — keeps it
-   closed and still displays "Owner". */
-function healFounderRole(user) {
+   Owner role via the unconditional bootstrap. Disjoint targets, so the pair is
+   safe to run on every request and cannot oscillate.
+
+   One-time: the latch is `role === 'owner' && role_custom == null`, tested for
+   NULL-ness rather than truthiness ('' is falsy in JavaScript and would
+   otherwise be indistinguishable from NULL). Once the role is viewer the
+   condition can never be true again.
+
+   An elevated row is skipped as well: elevation is a deliberate act and the
+   heal is a default, so the default must not undo the decision. */
+function healAdminRow(user) {
   if (!user || !isHiddenAdmin(user)) return false;
-  /* P1 guard: same mailbox in both variables means this row is also the
-     bootstrap target, so the heal yields and the role cannot flip. */
+  /* P1 guard: the same mailbox in both variables makes this row the bootstrap
+     target too, so the heal yields and the role cannot flip every request. */
   if (adminOwnerConflict()) return false;
-  /* The latch is NULL-ness, NOT truthiness: '' is falsy in JavaScript, so a
-     bare `if (user.role_custom)` would treat the empty string stored by a
-     deliberate visible promotion exactly like NULL and undo it. */
+  if (isAdminRow(user)) return false;
   if (user.role !== 'owner' || user.role_custom != null) return false;
   user.role = 'viewer';
-  user.role_custom = 'Founder';
   user.updated_at = nowISO();
   return true;
 }
-/* Both designated-email transitions, in order. Returns true when either
-   mutated the row so the caller can persist. */
+/* Both designated-email transitions, in order: promote the company owner
+   first, then let a signing-in ADMIN_EMAIL login settle its own row. Returns
+   true when either mutated the row so the caller can persist. */
 function applyOwnerBootstrap(user) {
   const a = applyBootstrapOwner(user);
-  const b = healFounderRole(user);
+  const b = healAdminRow(user);
   return a || b;
 }
 function requireUser(req, db) {
@@ -1147,6 +1242,9 @@ async function handleApi(req, res, url) {
         // Existing accounts are unchanged; only an existing owner may promote.
         role: 'viewer',
         role_custom: String(body.role != null ? body.role : body.roleCustom).trim(),
+        /* Elevation is never granted at signup, and the flag is written
+           explicitly so local JSON rows carry it like the SQL rows do. */
+        is_admin: 0,
         created_at: nowISO(),
         updated_at: nowISO()
       };
@@ -1274,9 +1372,16 @@ async function handleApi(req, res, url) {
           notifications: true,
           tasks: true,
           reports: true,
+          /* 'admin' is deliberately absent: elevation is a stored flag, not a
+             role value, and no row ever carries role = 'admin'. */
           roles: ['owner', 'sales', 'viewer', 'custom'],
           roleCustomTitles: true,
-          ownerSeesAll: true
+          ownerSeesAll: true,
+          /* Parity with the worker's features.elevation. The worker has to
+             probe pragma_table_info because the column arrives by migration;
+             local storage is a JSON document that always holds the field, so
+             elevation is always available here. */
+          elevation: true
         },
         warnings
       });
@@ -2282,43 +2387,35 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'team' && parts[1] === 'members' && method === 'GET') {
-      if (!canAdmin) {
-        return sendJson(res, 403, { error: 'Only the workspace owner can view team members.' });
-      }
-      /* Local single-tenant: list accounts on this server. Company org scoping comes later.
-         Last login comes from the sessions table (most recent session issued),
-         falling back to account creation when no session row survives. */
+      /* Every signed-in member may READ the team panel; only an owner or the
+         designated admin may change anything (POST /api/team/role keeps its own
+         gate) and only they receive contact detail. `canManageTeam` tells the
+         front end which of the two to render. */
+      /* Local single-tenant: list accounts on this server. Company org scoping
+         comes later. Last login comes from the sessions list (most recent
+         session issued), falling back to account creation. */
       const members = (db.users || []).map((u) => {
         const logins = (db.sessions || [])
-          .filter((s) => s.user_id === u.id)
-          .map((s) => String(s.created_at || ''));
-        const lastLogin = (logins.sort().pop()) || u.created_at || null;
-        return {
-          id: u.id,
-          name: u.name,
-          /* Contact details: this route is gated by canAdmin, so only an owner
-             or hidden admin ever receives another member's email. */
-          email: u.email,
-          role: u.role,
-          roleCustom: u.role_custom || null,
-          /* Typed title — never "Admin" for a designated admin. */
-          roleLabel: roleDisplay(u),
-          /* Power badge — the truth about what this member can do. */
-          power: permissionRole(u),
-          canWrite: roleRank(permissionRole(u)) >= roleRank('sales'),
-          canManageTeam: requireRole(u, 'owner'),
-          lastLogin,
-          lastLoginLabel: lastLogin ? new Date(lastLogin).toISOString() : null,
-          createdAt: u.created_at
-        };
+          .filter((x) => x.user_id === u.id)
+          .map((x) => String(x.created_at || ''));
+        const login = logins.sort().pop() || null;
+        /* S2: only the actor's own row carries an elevation field. */
+        return u.id === user.id
+          ? selfMemberPayload(u, login)
+          : memberPayload(u, login, { contact: canAdmin });
       });
       return sendJson(res, 200, {
         members,
+        canManageTeam: canAdmin,
         roles: [
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
           { id: 'sales', label: 'Sales', canWrite: true, canManageTeam: false },
           { id: 'viewer', label: 'Viewer', canWrite: false, canManageTeam: false },
-          { id: 'custom', label: 'Custom title', canWrite: true, canManageTeam: false, acceptsTitle: true }
+          { id: 'custom', label: 'Custom title', canWrite: true, canManageTeam: false, acceptsTitle: true },
+          /* Not a role value — elevation. Accepted only from the designated
+             ADMIN_EMAIL login and only for its own row. The front end renders
+             this label only when canElevate is true. */
+          { id: 'admin', label: 'Admin', canWrite: true, canManageTeam: true, selfOnly: true, elevation: true }
         ]
       });
     }
@@ -2329,13 +2426,50 @@ async function handleApi(req, res, url) {
       }
       const body = await readBody(req);
       const targetId = String(body.userId || '');
-      /* A role may arrive as a power key (owner/sales/viewer) or as a typed
-         title. `roleCustom` is accepted alongside `role` so the dropdown can
-         offer "custom title" without a separate endpoint. */
-      /* An explicit `roleCustom` is a typed title, so it is parsed as a title
-         and never mapped onto a power keyword. Otherwise `role` selects a power
-         key, or asks for a custom title via `title`. */
-      const wantsCustom = String(body.role || '').toLowerCase() === 'custom';
+      const wanted = String(body.role || '').trim().toLowerCase();
+      const target = (db.users || []).find((u) => u.id === targetId);
+      if (!target) return sendJson(res, 404, { error: 'User not found' });
+
+      const actorIsAdmin = canElevate(user);
+      const targetElevated = isAdminRow(target);
+
+      /* An elevated row is out of reach for everyone except the designated
+         admin.
+
+         The refusal is deliberately INDISTINGUISHABLE from "you may not
+         elevate": same status, same message, same code. A distinct code here
+         would tell any owner exactly which row is elevated, which is the one
+         thing the model exists to keep quiet. */
+      if (targetElevated && !actorIsAdmin) {
+        return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
+      }
+
+      /* Elevation. Self-service for the designated admin ONLY: same mailbox,
+         same row. An elevated row cannot create another elevated row. */
+      if (wanted === 'admin' || wanted === 'unadmin') {
+        if (!actorIsAdmin) {
+          return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
+        }
+        if (target.id !== user.id) {
+          return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_NOT_SELF' });
+        }
+        const next = wanted === 'admin' ? 1 : 0;
+        /* Display untouched: role and role_custom keep their values, so no
+           chip, name-plate, badge or typed title moves. */
+        target.is_admin = next;
+        target.updated_at = nowISO();
+        saveDb(db);
+        return sendJson(res, 200, {
+          member: selfMemberPayload(target),
+          note: next
+            ? 'Elevated. Nothing about how this account is displayed has changed.'
+            : 'Elevation removed. Nothing about how this account is displayed has changed.'
+        });
+      }
+
+      /* An explicit `roleCustom` is a typed title, parsed as a title and never
+         mapped onto a power keyword, so a title cannot grant access. */
+      const wantsCustom = wanted === 'custom';
       const explicitTitle = body.roleCustom != null && body.roleCustom !== '';
       let parsed;
       if (explicitTitle || (wantsCustom && body.title != null)) {
@@ -2346,12 +2480,11 @@ async function handleApi(req, res, url) {
         parsed = parseSignupRole(body.role);
       }
       if (parsed.error) return sendJson(res, 400, { error: parsed.error });
-      const target = (db.users || []).find((u) => u.id === targetId);
-      if (!target) return sendJson(res, 404, { error: 'User not found' });
-      /* Losing the stored owner role needs another owner first. A designated
-         ADMIN_EMAIL login is exempt: its powers come from the environment, not
-         this row, so it cannot lock the workspace out. */
-      if (target.id === user.id && parsed.role !== 'owner' && !isHiddenAdmin(user)) {
+
+      /* Losing the stored owner role needs another owner first. The designated
+         admin and any elevated row are exempt: their reach does not come from
+         this column, so they cannot lock the workspace out. */
+      if (target.id === user.id && parsed.role !== 'owner' && !actorIsAdmin && !targetElevated) {
         const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
         if (!otherOwners.length) {
           return sendJson(res, 400, {
@@ -2359,37 +2492,17 @@ async function handleApi(req, res, url) {
           });
         }
       }
-      /* Latch repair — see the same block in platform/cloudflare/src/worker.js.
-         Promoting the designated admin to a visible Owner stores '' rather than
-         NULL so the founder self-heal (latch: role_custom IS NULL) cannot undo
-         it on their next sign-in, while '' still displays as "Owner" because
-         every reader is truthiness-based. Promotion only; demotion untouched. */
-      const storedCustom = (parsed.role === 'owner' && isHiddenAdmin(target))
-        ? ''
-        : parsed.roleCustom;
+
+      /* A role change never touches elevation, and never stores the empty
+         string: NULL is the only "no title" value. */
       target.role = parsed.role;
-      target.role_custom = storedCustom;
+      target.role_custom = parsed.roleCustom;
       target.updated_at = nowISO();
       saveDb(db);
-      /* Honest note, not a block: the OWNER_EMAIL bootstrap is unconditional,
-         so a demotion of that mailbox is restored on its next request. */
       const note = normalizeEmail(target.email) === ownerEmail() && parsed.role !== 'owner'
         ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in. To make this change stick, remove or change OWNER_EMAIL in the server environment.'
         : null;
-      return sendJson(res, 200, {
-        member: {
-          id: target.id,
-          name: target.name,
-          email: target.email,
-          role: target.role,
-          roleCustom: target.role_custom || null,
-          roleLabel: roleDisplay(target),
-          power: permissionRole(target),
-          canWrite: roleRank(permissionRole(target)) >= roleRank('sales'),
-          canManageTeam: requireRole(target, 'owner')
-        },
-        note
-      });
+      return sendJson(res, 200, { member: memberPayload(target), note });
     }
 
     return sendJson(res, 404, { error: 'Unknown API route' });
