@@ -3160,3 +3160,18 @@ html[data-theme="dark"] .sidebar {
 .badge-power[data-power="viewer"] { background: var(--surface-soft); color: var(--muted); }
 /* Health warnings in Settings · Profile · Connection details. */
 #settingsHealth .warn { color: var(--red); }
+
+/* Red dot: the self-only tell that this account is in elevated admin mode.
+   Rendered beside the role on the top chip and in Settings, driven by the
+   stored `elevated` flag, which only ever appears in the actor's own payload —
+   so nobody else sees it and it changes no badge, chip text or typed title. */
+.admin-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--red, #e5484d);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--red, #e5484d) 22%, transparent);
+  vertical-align: middle;
+}

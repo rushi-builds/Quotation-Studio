@@ -86,13 +86,16 @@ reasons:
 
 So the `OWNER_EMAIL` bootstrap is now the **only** automatic role transition in
 the product. It is unconditional and one-way: that mailbox is promoted to
-`owner` (and its typed title cleared) on any authenticated request.
+`owner` on any authenticated request — and its **typed title is preserved**, not
+cleared, so an owner can carry a display title (powers = Owner, chip = the
+title).
 
 | You want the personal mailbox to show… | Do this | Does it stick? |
 |---|---|---|
 | `Owner` | leave it alone, or choose Owner in the team panel | **yes** |
 | `Viewer` | choose Viewer once — from the team panel or its own pencil | **yes** |
-| a typed title (e.g. `Director`) | choose Custom title and type it | **yes** |
+| a typed title (e.g. `Project lead`) | choose Custom title and type it | **yes** |
+| owner powers with a custom chip (e.g. `Director`) | choose Owner and type a display title | **yes** |
 
 Nothing writes any of those back. Hiding the Owner badge is therefore a
 **one-click, permanent** choice rather than something the system does behind
@@ -100,8 +103,8 @@ your back — and after that demotion the account still has full reach, because
 reach was never in the `role` column.
 
 Two mechanisms that existed to make a promotion survive the heal are gone with
-it: the `role_custom = ''` latch, and the `Founder` stamp. A promotion stores
-plain NULL. (`''` is falsy in JavaScript, so it displayed as "Owner" while
+it: the `role_custom = ''` latch, and the `Founder` stamp. A promotion with no
+title stores plain NULL. (`''` is falsy in JavaScript, so it displayed as "Owner" while
 defeating a NULL test — clever, and the wrong thing to be clever about.)
 
 ## Elevation
@@ -122,19 +125,24 @@ it, and no badge renders it.
 
 ### Who may do what
 
-| Actor | Target | Result |
-|---|---|---|
-| `ADMIN_EMAIL` login | itself | `is_admin = 1` (or `0` for `unadmin`) |
-| `ADMIN_EMAIL` login | anyone else | **403** — elevation is self-service |
-| `ADMIN_EMAIL` login | an `owner` row | allowed — elevation outranks owner |
-| owner (not `ADMIN_EMAIL`) | an elevated row | **403** |
-| owner (not `ADMIN_EMAIL`) | `role: "admin"` for anyone | **403** |
-| any member | `role: "admin"` for itself | **403** |
+Elevation has **no dropdown and no role value**. The designated admin types
+`admin` (any casing) into the **custom-title** box on its **own** row and saves —
+that is the whole trigger.
 
-The two refusals an owner can receive are **byte-identical** — same status, same
-`error: "Ask admin"`, same `code: "ELEVATION_FORBIDDEN"`. That is deliberate: if
-"this row is elevated" and "you may not elevate" were distinguishable, the
-difference itself would reveal which row is elevated.
+| Actor | Action | Result |
+|---|---|---|
+| `ADMIN_EMAIL` login | types `admin` as its own title | `is_admin = 1`, display unchanged |
+| `ADMIN_EMAIL` login | types `admin` on anyone else | **403** `ELEVATION_NOT_SELF` |
+| `ADMIN_EMAIL` login | sets its own role to anything else | `is_admin = 0` (the R2 off-switch) |
+| `ADMIN_EMAIL` login | changes an `owner` row | allowed — elevation outranks owner |
+| owner (not `ADMIN_EMAIL`) | touches an elevated row | **403** `ELEVATION_FORBIDDEN` |
+| anyone else | types `admin` as a title | a harmless custom title, sales power, `is_admin` stays 0 |
+
+The refusals an owner receives for touching an elevated row are
+**byte-identical** whatever it tried — same status, same `error: "Ask admin"`,
+same `code: "ELEVATION_FORBIDDEN"`. That is deliberate: if changing the power
+and retitling the row were answered differently, the difference itself would
+reveal which row is elevated.
 
 ### Stealth is the point
 
@@ -153,14 +161,18 @@ Only the actor's **own** row carries `isAdmin` / `canElevate` /
 `effectiveCanWrite` / `effectiveCanManageTeam`, on `/api/auth/me` and on the
 actor's own entry in the team list — data about yourself, sent to yourself.
 
-The word "Admin" is rendered in exactly **one** place in the whole front end:
-the option in the own-role pencil dropdown, and only when the server says
-`canElevate` for the signed-in user. The team panel's per-member role dropdown
-never contains it, so no owner can raise or lower anyone else.
+There is **no "Admin" option anywhere** — not in the own-role pencil, not in the
+team panel. Elevation is a typed title, so the word never appears as a choice and
+no owner can raise or lower anyone else's elevation.
 
-**Typing "Admin" as a title is allowed and does nothing.** Titles are
-unrestricted display text; a title of "Admin" stores a custom title with
-sales-level power and leaves `is_admin` at `0`.
+The only tell is a **small red dot** beside the signed-in user's own role (the
+top chip and Settings), driven by the stored `elevated` flag. It is self-only:
+that flag appears in nobody else's payload, so no other member ever sees the dot,
+and it changes no badge, chip text or typed title.
+
+**Typing "Admin" as a title does nothing for anyone but the designated admin.**
+Titles are unrestricted display text; for every other account a title of "Admin"
+stores a custom title with sales-level power and leaves `is_admin` at `0`.
 
 ### A documented edge
 
@@ -171,6 +183,26 @@ row keeps owner-and-above powers but **cannot de-elevate itself**; only the new
 row is a one-line D1 update: `UPDATE users SET is_admin = 0 WHERE id = '…'`.
 This is the intended trade for "an elevated account cannot mint another".
 
+### Turning elevation off (R2)
+
+There is no toggle word and no `unadmin`. The designated admin turns elevation
+off the same way it turned it on — by setting its **own** role to anything else
+(Sales, Viewer, Owner, or a different title) and saving. Any self role change
+that is not the `admin` title clears `is_admin` to `0`; re-typing `admin` keeps
+it on (idempotent, not a flip). It is symmetric, user-controlled, and needs no D1
+edit.
+
+### Owner with a display title (the boss case)
+
+`role: "owner"` **with** a title keeps owner power and stores the title as the
+chip: powers = Owner, chip = e.g. `Director`. Display is title-first, so the chip
+reads the title while the team-panel power badge still reads `Owner` — the badge
+is the power truth, and stealth is personal only. The own-role pencil and the
+team panel both offer an optional title beside the Owner choice; blank means the
+chip shows "Owner". The `OWNER_EMAIL` bootstrap preserves this title rather than
+clearing it, so a self-demoted company mailbox comes back as Owner wearing the
+same chip.
+
 ## Team panel
 
 Every signed-in member may **read** it. Only an owner or the designated admin
@@ -180,7 +212,8 @@ unhide client-side. The response carries `canManageTeam` and the front end
 renders either the editable table or a read-only one.
 
 Columns: contact, typed title, power badge, last sign-in (most recent session
-issued, else account creation), and the role control.
+issued, else account creation), and the role control. The title is editable for a
+custom role (required) and for `owner` (an optional display title).
 
 ## Typed titles never grant power
 
@@ -211,24 +244,29 @@ authorization grant.
 
 ```jsonc
 { "userId": "usr_…", "role": "owner" }                                  // power key
-{ "userId": "usr_…", "role": "custom", "roleCustom": "Project lead" }   // typed title
-{ "userId": "usr_…", "role": "admin" }                                  // elevate SELF
-{ "userId": "usr_…", "role": "unadmin" }                                // de-elevate SELF
+{ "userId": "usr_…", "role": "owner", "roleCustom": "Director" }        // owner power + chip title
+{ "userId": "usr_…", "role": "custom", "roleCustom": "Project lead" }   // typed title (sales power)
+{ "userId": "usr_…", "role": "custom", "roleCustom": "admin" }          // elevate SELF (designated admin only)
 ```
 
-`admin` / `unadmin` are explicit values rather than a toggle, so a repeated
-request cannot flip the flag by accident. They are handled before any title
-parsing and ignore `roleCustom`. An explicit `roleCustom` on a normal role
-change is always parsed as a title, never as a power keyword; `role: "custom"`
-with no title is rejected rather than silently stored empty.
+Elevation is decided **before** title parsing: a `roleCustom` of `admin` (any
+casing) from the designated `ADMIN_EMAIL` login on its **own** row sets
+`is_admin = 1` and writes nothing else, so the display does not move. For any
+other actor, or on any other row, `admin` is just a title. Setting any other role
+on the designated admin's own row clears `is_admin` — the R2 off-switch. There is
+no `admin`/`unadmin` role value and no toggle. `role: "owner"` with a
+`roleCustom` keeps owner power and stores the title; an explicit `roleCustom` on
+any other role is parsed as a title, never as a power keyword; `role: "custom"`
+with no title is rejected rather than stored empty.
 
 `GET /api/team/members` — any signed-in member. Each row carries `roleLabel`
 (typed title), `power` (stored role), `canWrite`, `canManageTeam`, `lastLogin`,
 and `email` only for a manager. The actor's own row additionally carries
-`isAdmin`, `canElevate`, `effectiveCanWrite` and `effectiveCanManageTeam`.
+`isAdmin`, `elevated` (the stored `is_admin`, which drives the red dot),
+`canElevate`, `effectiveCanWrite` and `effectiveCanManageTeam`.
 
 `GET /api/auth/me` — self only. Carries the same capability flags, including
-`isAdmin` and `canElevate`.
+`isAdmin`, `elevated` and `canElevate`.
 
 `GET /api/health` — public. Adds `codeVersion` (`roles-r1`), `features.elevation`
 and `warnings`. Warnings report **configuration state only**: they never print an
@@ -258,8 +296,10 @@ curl -s https://<worker-host>/api/health | jq '{codeVersion, features, warnings}
 
 Then confirm with actions, not screens: sign in as the designated admin and
 create a quotation (sales gate), open the team panel (owner gate), open a
-quotation belonging to another member (owner-sees-all), and elevate yourself —
-then check that your name-plate and badge did **not** change.
+quotation belonging to another member (owner-sees-all), then type `admin` into
+your own title box and save to elevate — check that your name-plate and badge did
+**not** change and that the only difference is the small red dot beside your own
+role. Set any other role to turn it back off.
 
 The `ADMIN_EMAIL` row is **not** demoted automatically. If that mailbox
 currently reads `Owner` and you would rather it read `Viewer`, change it once
@@ -286,26 +326,31 @@ those two flags are the stored-role values; the effective ones are named
 
 ```bash
 npm --prefix qa test
-node qa/roles-access.test.js    # behaviour, end-to-end on the local server  (142 assertions)
-node qa/roles-parity.test.js    # worker/server parity, stealth, frozen files (218 assertions)
+node qa/roles-access.test.js    # behaviour, end-to-end on the local server  (143 assertions)
+node qa/roles-parity.test.js    # worker/server parity, stealth, frozen files (227 assertions)
 ```
 
-`roles-access` covers the elevate/de-elevate roundtrip, the zero display delta,
-owner-cannot-touch-elevated 403, non-admin cannot self-elevate 403, the
-indistinguishability of the two refusals, that **nothing** changes the
+`roles-access` covers elevation by typing `admin` (zero display delta), the R2
+off-switch (any other self role clears `is_admin`), owner-cannot-touch-elevated
+403, the indistinguishability of the refusals, that a non-designated actor typing
+`admin` gets a harmless sales-power title and never `is_admin`, the boss case
+(owner power with a preserved chip title), that **nothing** changes the
 `ADMIN_EMAIL` row automatically — a promotion, a demotion and a typed title all
 stick across repeated sign-ins — C3 proven on a row demoted to `viewer`, the P1
-collision (bootstrap warns, no oscillation), a malformed `ADMIN_EMAIL` failing
-closed, and the panel's read-only + contact-stripped behaviour for a member.
+collision (bootstrap warns, preserves the title, no oscillation), a malformed
+`ADMIN_EMAIL` failing closed, and the panel's read-only + contact-stripped
+behaviour for a member.
 
 `roles-parity` covers the same contract structurally in the worker (which cannot
 be executed here), including that no automatic demotion exists at all: no
-`healAdminRow`, no SQL writing `role = 'viewer'`, and every SQL write of `role`
-also deciding `role_custom`.
+`healAdminRow`, no SQL writing `role = 'viewer'`, every SQL write of `role`
+either deciding `role_custom` or being the title-preserving bootstrap, the
+typed-`admin` elevation trigger, the R2 off-switch, the owner-with-title path,
+and the absence of any `admin` entry in `roles[]` or the front end.
 
 Browser suites are **not run** — no CI browser here. The team panel's rendered
-columns (title / badge / last sign-in / contact) and the elevation dropdown are
-therefore untested visually.
+columns (title / badge / last sign-in / contact), the optional owner display
+title, and the red dot are therefore untested visually.
 
 ## Not touched by this round
 

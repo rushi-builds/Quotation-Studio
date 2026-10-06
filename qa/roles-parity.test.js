@@ -9,7 +9,8 @@
      - nothing demotes or retitles the ADMIN_EMAIL row automatically
      - S1: no badge / label is ever derived from is_admin
      - S2: no elevation field is emitted about another member's row
-     - the front end renders the word "Admin" in exactly one gated place
+     - the front end has NO "Admin" option; elevation is a typed title with a
+       self-only red dot, and owner can carry an optional display title
      - every owner-scoped SQL query is still rewritten and bound correctly
      - the token-based portal query is NOT rewritten (no user context there)
      - the migration file and schema.sql agree on the column
@@ -27,6 +28,7 @@ const WORKER = path.join(ROOT, 'platform/cloudflare/src/worker.js');
 const SERVER = path.join(ROOT, 'platform/local-server/server.js');
 const DASH = path.join(ROOT, 'assets/js/dashboard.js');
 const DASH_PUB = path.join(ROOT, 'platform/cloudflare/public/assets/js/dashboard.js');
+const DASH_HOME = path.join(ROOT, 'assets/js/dashboard-home.js');
 const CSS = path.join(ROOT, 'assets/css/dashboard.css');
 const HTML = path.join(ROOT, 'dashboard.html');
 const MIGRATION = path.join(ROOT, 'platform/migrations/005-is-admin.sql');
@@ -42,6 +44,7 @@ const t = (name, cond, extra) => {
 const worker = fs.readFileSync(WORKER, 'utf8');
 const server = fs.readFileSync(SERVER, 'utf8');
 const dash = fs.readFileSync(DASH, 'utf8');
+const dashHome = fs.readFileSync(DASH_HOME, 'utf8');
 const BOTH = [['worker', worker], ['server', server]];
 
 /* strip block and line comments, so an assertion about CODE is not answered by
@@ -163,8 +166,12 @@ for (const [label, src] of BOTH) {
      the local server mutates a JSON row and has no SQL at all. */
   const setRole = (src.match(/SET role[^'"]*/g) || []);
   if (label === 'worker') {
-    t('worker: every SQL role write also writes role_custom',
-      setRole.length > 0 && setRole.every((x) => x.includes('role_custom')), JSON.stringify(setRole));
+    /* Every role write decides role_custom too, EXCEPT the bootstrap promotion,
+       which deliberately PRESERVES the title (no role_custom in its SET). */
+    const noCustom = setRole.filter((x) => !x.includes('role_custom'));
+    t('worker: every SQL role write either writes role_custom or is the title-preserving bootstrap',
+      setRole.length > 0 && noCustom.length === 1 && /^SET role = \?, updated_at = \?/.test(noCustom[0].trim()),
+      JSON.stringify(setRole));
     t('worker: no SQL writes role = viewer', !/SET role = 'viewer'/.test(src));
   } else {
     t('server: no SQL at all (JSON backend), and no role write outside a route',
@@ -191,8 +198,10 @@ const bootW = fn(worker, 'ensureBootstrapOwner', ['healAdminRow']);
 const bootS = fn(server, 'applyBootstrapOwner', ['healAdminRow']);
 t('C2 worker: bootstrap matches on OWNER_EMAIL', /ownerEmail\(env\)/.test(bootW));
 t('C2 worker: bootstrap has NO typed-title gate', !/if \(user\.role_custom\)/.test(bootW) && !/role_custom\) return/.test(bootW));
-t('C2 worker: bootstrap clears the title on promotion', /role_custom = NULL/.test(bootW));
+t('C2 worker: bootstrap PRESERVES the title on promotion (no role_custom = NULL)',
+  !/role_custom = NULL/.test(bootW) && /SET role = \?, updated_at = \?/.test(bootW));
 t('C2 server: bootstrap has NO typed-title gate', !/if \(user\.role_custom\)/.test(bootS) && !/role_custom\) return/.test(bootS));
+t('C2 server: bootstrap PRESERVES the title (no role_custom = null)', !/role_custom = null/.test(bootS));
 t('worker: the bootstrap is the only transition applyOwnerBootstrap performs',
   /async function applyOwnerBootstrap\(db, env, user\) \{\s*\n\s*await ensureBootstrapOwner\(db, env, user\);\s*\n\s*\}/.test(worker));
 t('server: the bootstrap is the only transition applyOwnerBootstrap performs',
@@ -202,22 +211,29 @@ t('server: the bootstrap is the only transition applyOwnerBootstrap performs',
 for (const [label, src] of BOTH) {
   const route = src.slice(src.indexOf("'team' && parts[1] === 'role'"));
   const body = route.slice(0, route.indexOf("'Unknown API route'") > 0 ? route.indexOf("'Unknown API route'") : 6000);
-  t(label + ': elevation accepts the explicit values admin / unadmin',
-    /wanted === 'admin' \|\| wanted === 'unadmin'/.test(body));
-  t(label + ': elevation is refused for a non-designated actor',
-    /ELEVATION_FORBIDDEN/.test(body));
+  t(label + ': elevation triggers on a TYPED "admin" title (case-insensitive), not a role value',
+    /typedAdmin/.test(body) && /rawTitle\.trim\(\)\.toLowerCase\(\) === 'admin'/.test(body) && !/unadmin/.test(body));
+  t(label + ': elevation requires the designated admin actor',
+    /actorIsAdmin/.test(body) && /ELEVATION_FORBIDDEN/.test(body));
   t(label + ': elevation is self-only', /ELEVATION_NOT_SELF/.test(body) && /target\.id !== user\.id/.test(body));
   t(label + ': an elevated target is out of reach for a non-admin actor',
     /targetElevated && !actorIsAdmin/.test(body));
-  t(label + ': BOTH refusals are byte-identical, so neither identifies the elevated row',
-    !/ELEVATED_TARGET/.test(src) && (src.match(/code: 'ELEVATION_FORBIDDEN'/g) || []).length >= 2,
-    (src.match(/code: 'ELEVATION_FORBIDDEN'/g) || []).length + ' occurrences');
-  t(label + ': elevation writes ONLY is_admin', /SET is_admin = \?|target\.is_admin = next/.test(body) &&
-    !/SET is_admin = \?, role/.test(body));
-  t(label + ': a role change never touches elevation', /target\.role_custom = parsed\.roleCustom/.test(body) &&
-    !/parsed\.roleCustom[\s\S]{0,120}is_admin/.test(body));
+  t(label + ': the refusal never names the elevated row (no ELEVATED_TARGET; uniform ELEVATION_FORBIDDEN)',
+    !/ELEVATED_TARGET/.test(src) && /code: 'ELEVATION_FORBIDDEN'/.test(body));
+  t(label + ': elevation writes ONLY is_admin = 1 (display untouched, idempotent — not a toggle)',
+    label === 'worker'
+      ? /SET is_admin = 1, updated_at = \? WHERE id = \?/.test(body) && !/is_admin = \?/.test(body)
+      : /target\.is_admin = 1;/.test(body) && !/target\.is_admin = next/.test(body));
+  t(label + ': R2 off-switch — any OTHER self role change by the designated admin de-elevates (is_admin = 0)',
+    label === 'worker'
+      ? /clearingElevation/.test(body) && /is_admin = 0/.test(body)
+      : /target\.is_admin = 0/.test(body));
+  t(label + ': boss scenario — role "owner" WITH a title keeps owner power and stores the chip title',
+    /wantsOwner \? \{ role: 'owner', roleCustom: t\.roleCustom \}/.test(body));
   t(label + ': the self-demotion guard exempts an elevated actor and target',
     /!actorIsAdmin && !targetElevated/.test(body));
+  t(label + ': self-demotion is allowed whenever the OWNER_EMAIL backstop exists',
+    label === 'worker' ? /if \(!ownerEmail\(env\)\)/.test(body) : /if \(!ownerEmail\(\)\)/.test(body));
   t(label + ': the elevation note states the display did not change',
     /Nothing about how this account is displayed has changed/.test(body));
   t(label + ': the write gate is still owner-level', /if \(!canAdmin\)/.test(body));
@@ -237,9 +253,11 @@ for (const [label, src] of BOTH) {
   t('S2 ' + label + ': memberPayload emits NO isAdmin', !/isAdmin/.test(noComments(mp)), (noComments(mp).match(/.{0,40}isAdmin.{0,40}/) || [''])[0]);
   t('S2 ' + label + ': memberPayload emits NO canElevate', !/canElevate/.test(noComments(mp)));
   t('S2 ' + label + ': memberPayload emits NO effective* field', !/effective/i.test(noComments(mp)));
+  t('S2 ' + label + ': memberPayload emits NO elevated flag (the red-dot tell is self-only)',
+    !/elevated:/.test(noComments(mp)));
   t('S2 ' + label + ': contact detail is opt-in per row', /\.\.\.\(o\.contact \? \{ email: u\.email \} : \{\}\)/.test(mp));
   t('S2 ' + label + ': selfMemberPayload is the only emitter of the elevation fields',
-    /isAdmin:/.test(smp) && /canElevate:/.test(smp) && /effectiveCanWrite:/.test(smp) && /effectiveCanManageTeam:/.test(smp));
+    /isAdmin:/.test(smp) && /elevated:/.test(smp) && /canElevate:/.test(smp) && /effectiveCanWrite:/.test(smp) && /effectiveCanManageTeam:/.test(smp));
   t('S2 ' + label + ': selfMemberPayload builds on memberPayload (no shape drift)',
     /Object\.assign\(memberPayload\(/.test(smp));
   t('S1 ' + label + ': roleDisplay never produces the literal "Admin"',
@@ -259,13 +277,14 @@ for (const [label, src] of BOTH) {
     !/if \(!canAdmin\)/.test(listBody), (listBody.match(/.{0,60}canAdmin.{0,60}/) || [''])[0]);
   t('item 5 ' + label + ': the response tells the actor whether it manages the team',
     /canManageTeam: canAdmin/.test(listBody));
-  t('item 5 ' + label + ': roles[] exposes the elevation entry as selfOnly',
-    /id: 'admin', label: 'Admin'[\s\S]{0,120}selfOnly: true, elevation: true/.test(listBody));
+  t('item 5 ' + label + ': roles[] has NO admin/elevation entry (no Admin dropdown anywhere)',
+    !/id: 'admin'/.test(listBody) && !/elevation: true/.test(listBody) && !/label: 'Admin'/.test(listBody));
 }
 /* publicUser is self-only by construction, so it may carry the flags. */
 for (const [label, src] of BOTH) {
   const pu = fn(src, 'publicUser', ['storedRoleWord']);
-  t(label + ': publicUser exposes isAdmin + canElevate (self-only route)', /isAdmin:/.test(pu) && /canElevate:/.test(pu));
+  t(label + ': publicUser exposes isAdmin + elevated + canElevate (self-only route)',
+    /isAdmin:/.test(pu) && /elevated: isAdminRow\(u\)/.test(pu) && /canElevate:/.test(pu));
   t(label + ': publicUser still exposes canWrite + canManageTeam + seesAll',
     /canWrite:/.test(pu) && /canManageTeam:/.test(pu) && /seesAll:/.test(pu));
   t('S1 ' + label + ': publicUser roleLabel comes from roleDisplay, not from elevation',
@@ -314,13 +333,18 @@ t('schema.sql does not add "admin" as a role value', !/role[^\n]*admin/i.test(sc
 
 /* ---------- 9. front-end stealth ---------- */
 const adminLiterals = (dash.match(/textContent = 'Admin'|>\s*Admin\s*</g) || []).length;
-t('dashboard.js renders the literal "Admin" in exactly ONE place', adminLiterals === 1, adminLiterals + ' occurrences');
-t('that place is the elevation editor', (() => {
-  const ed = fn(dash, 'wireElevationEditor', ['wireRoleEditor']);
-  return ed.includes("textContent = 'Admin'");
-})());
-t('the elevation editor is gated on canElevate', /function canElevateSelf\(\) \{\s*\n\s*return !!\(user && user\.canElevate\);/.test(dash));
-t('the role editor never offers Admin', !/Admin/.test(fn(dash, 'wireRoleEditor', ['refreshTeamPanel']).replace(/\/\*[\s\S]*?\*\//g, '')));
+t('dashboard.js never renders "Admin" as a role option (elevation is a typed title)',
+  adminLiterals === 0, adminLiterals + ' occurrences');
+t('wireElevationEditor + canElevateSelf are gone (no elevation dropdown/control)',
+  !/wireElevationEditor/.test(dash) && !/canElevateSelf/.test(dash));
+t('the role editor never OFFERS Admin as a selectable value',
+  !/value = 'admin'|textContent = 'Admin'|>\s*Admin\s*</.test(fn(dash, 'wireRoleEditor', ['refreshTeamPanel'])));
+t('the role editor sends a typed title for custom AND owner (boss display title)',
+  /v === 'custom' \|\| v === 'owner'/.test(fn(dash, 'wireRoleEditor', ['refreshTeamPanel'])));
+t('the red dot is driven by the stored `elevated` flag (self-only tell)',
+  /admin-dot/.test(dash) && /user\.elevated/.test(dash));
+t('dashboard-home renders the red dot on the top chip from u.elevated',
+  /admin-dot/.test(dashHome) && /u\.elevated/.test(dashHome));
 t('the team panel role select never offers Admin', (() => {
   const panel = fn(dash, 'refreshTeamPanel', ['fillSendSelect']);
   return !/'admin'/.test(panel.replace(/\/\*[\s\S]*?\*\//g, ''));

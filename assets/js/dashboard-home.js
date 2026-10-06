@@ -58,7 +58,7 @@
     const thisM = P.filter((p) => { const d = new Date(p.createdAt); return d >= mStart && d <= now; }).length;
     const waiting = P.filter((p) => ['sent', 'viewed'].includes(p.status)), unread = X.unread;
     if ($('bellCount')) { $('bellCount').textContent = failures.has('notes') ? '!' : unread > 9 ? '9+' : unread; $('bellCount').hidden = !failures.has('notes') && !unread; }
-    if ($('chipName')) { $('chipName').textContent = u.name || 'User'; $('chipRole').textContent = u.roleLabel || u.role || ''; $('userAv').textContent = (u.name || 'U').trim().charAt(0).toUpperCase(); }
+    if ($('chipName')) { $('chipName').textContent = u.name || 'User'; $('chipRole').textContent = u.roleLabel || u.role || ''; if (u.elevated) { const d = document.createElement('span'); d.className = 'admin-dot'; d.title = 'Admin mode'; d.setAttribute('aria-label', 'Admin mode'); $('chipRole').appendChild(d); } $('userAv').textContent = (u.name || 'U').trim().charAt(0).toUpperCase(); }
     if ($('homeDate')) $('homeDate').textContent = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
     if ($('homeSub')) $('homeSub').textContent = P.length ? 'Here’s what’s moving in your workspace today.' : 'Your next great customer conversation starts here.';
     const kpi = (ic, c, label, val, hint, act) => '<button type="button" class="kpi2 ' + c + '" ' + act + '><span class="kic">' + svg(ic) + '</span><span><i>' + label + '</i><b>' + val + '</b><em>' + hint + '</em></span></button>';

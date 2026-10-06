@@ -747,6 +747,9 @@ function publicUser(u) {
        the word "Admin" may appear in a dropdown at all — no name-plate reads
        it, so elevation changes no chip or profile label. */
     isAdmin: elevated,
+    /* Stored is_admin — the user's own secret toggle; drives the red dot.
+       Self-only (publicUser is the /me shape). */
+    elevated: isAdminRow(u),
     canElevate: canElevate(u),
     createdAt: u.created_at || null
   };
@@ -806,6 +809,7 @@ function selfMemberPayload(u, lastLogin, opts) {
   /* Own row: always allowed its own contact detail. */
   return Object.assign(memberPayload(u, lastLogin, Object.assign({ contact: true }, opts || {})), {
     isAdmin: isAdminRow(u) || isHiddenAdmin(u),
+    elevated: isAdminRow(u),
     canElevate: canElevate(u),
     effectiveCanWrite: requireRole(u, 'sales'),
     effectiveCanManageTeam: requireRole(u, 'owner')
@@ -947,8 +951,10 @@ function applyBootstrapOwner(user) {
   const designated = ownerEmail();
   if (!designated || !user || user.role === 'owner') return false;
   if (normalizeEmail(user.email) !== designated) return false;
+  /* Promote the ROLE only; role_custom is PRESERVED so an owner can carry a
+     display title (powers = Owner, chip = the title) without the unconditional
+     bootstrap erasing it on the next request. */
   user.role = 'owner';
-  user.role_custom = null;
   user.updated_at = nowISO();
   return true;
 }
@@ -2396,11 +2402,7 @@ async function handleApi(req, res, url) {
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
           { id: 'sales', label: 'Sales', canWrite: true, canManageTeam: false },
           { id: 'viewer', label: 'Viewer', canWrite: false, canManageTeam: false },
-          { id: 'custom', label: 'Custom title', canWrite: true, canManageTeam: false, acceptsTitle: true },
-          /* Not a role value — elevation. Accepted only from the designated
-             ADMIN_EMAIL login and only for its own row. The front end renders
-             this label only when canElevate is true. */
-          { id: 'admin', label: 'Admin', canWrite: true, canManageTeam: true, selfOnly: true, elevation: true }
+          { id: 'custom', label: 'Custom title', canWrite: true, canManageTeam: false, acceptsTitle: true }
         ]
       });
     }
@@ -2419,75 +2421,78 @@ async function handleApi(req, res, url) {
       const targetElevated = isAdminRow(target);
 
       /* An elevated row is out of reach for everyone except the designated
-         admin.
-
-         The refusal is deliberately INDISTINGUISHABLE from "you may not
-         elevate": same status, same message, same code. A distinct code here
-         would tell any owner exactly which row is elevated, which is the one
-         thing the model exists to keep quiet. */
+         admin. The refusal is deliberately indistinguishable from any other
+         "you may not do this", so it never reveals which row is elevated. */
       if (targetElevated && !actorIsAdmin) {
         return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
       }
 
-      /* Elevation. Self-service for the designated admin ONLY: same mailbox,
-         same row. An elevated row cannot create another elevated row. */
-      if (wanted === 'admin' || wanted === 'unadmin') {
-        if (!actorIsAdmin) {
-          return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
-        }
+      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
+        ? String(body.roleCustom)
+        : (body.title != null && body.title !== '') ? String(body.title) : null;
+
+      /* ---- ELEVATION by typing "admin" ----
+         Self-service for the designated ADMIN_EMAIL login only, on its own row.
+         No dropdown, no role value: admin / Admin / ADMIN typed into the
+         custom-title box is the trigger. For anyone else it is a harmless
+         custom title (sales power), so this branch is skipped. */
+      const typedAdmin = rawTitle != null && rawTitle.trim().toLowerCase() === 'admin';
+      if ((typedAdmin || wanted === 'admin') && actorIsAdmin) {
         if (target.id !== user.id) {
           return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_NOT_SELF' });
         }
-        const next = wanted === 'admin' ? 1 : 0;
-        /* Display untouched: role and role_custom keep their values, so no
-           chip, name-plate, badge or typed title moves. */
-        target.is_admin = next;
+        /* Display untouched; re-typing "admin" stays ON (idempotent). */
+        target.is_admin = 1;
         target.updated_at = nowISO();
         saveDb(db);
         return sendJson(res, 200, {
           member: selfMemberPayload(target),
-          note: next
-            ? 'Elevated. Nothing about how this account is displayed has changed.'
-            : 'Elevation removed. Nothing about how this account is displayed has changed.'
+          note: 'Saved. Nothing about how this account is displayed has changed.'
         });
       }
 
-      /* An explicit `roleCustom` is a typed title, parsed as a title and never
-         mapped onto a power keyword, so a title cannot grant access. */
+      /* Power key or typed title. The boss case: role 'owner' WITH a title keeps
+         owner power and stores the title as the chip. */
       const wantsCustom = wanted === 'custom';
-      const explicitTitle = body.roleCustom != null && body.roleCustom !== '';
+      const wantsOwner = wanted === 'owner';
       let parsed;
-      if (explicitTitle || (wantsCustom && body.title != null)) {
-        parsed = parseRoleTitle(explicitTitle ? body.roleCustom : body.title);
+      if (rawTitle != null) {
+        const t = parseRoleTitle(rawTitle);
+        if (t.error) return sendJson(res, 400, { error: t.error });
+        parsed = wantsOwner ? { role: 'owner', roleCustom: t.roleCustom } : t;
       } else if (wantsCustom) {
-        parsed = { error: 'Choose a power level, or send roleCustom with the title to show.' };
+        parsed = { error: 'Choose a power level, or send a title to show.' };
       } else {
         parsed = parseSignupRole(body.role);
       }
       if (parsed.error) return sendJson(res, 400, { error: parsed.error });
 
-      /* Losing the stored owner role needs another owner first. The designated
-         admin and any elevated row are exempt: their reach does not come from
-         this column, so they cannot lock the workspace out. */
+      /* Self-demotion allowed whenever the OWNER_EMAIL backstop exists (it
+         always restores the company owner), or another owner exists. Designated
+         admin and elevated rows are exempt. */
       if (target.id === user.id && parsed.role !== 'owner' && !actorIsAdmin && !targetElevated) {
-        const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
-        if (!otherOwners.length) {
-          return sendJson(res, 400, {
-            error: 'Promote another owner before changing your own role away from owner.'
-          });
+        if (!ownerEmail()) {
+          const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
+          if (!otherOwners.length) {
+            return sendJson(res, 400, { error: 'Promote another owner before changing your own role away from owner.' });
+          }
         }
       }
 
-      /* A role change never touches elevation, and never stores the empty
-         string: NULL is the only "no title" value. */
+      /* R2 OFF-switch: the designated admin setting its OWN role to anything but
+         "admin" de-elevates. */
+      if (target.id === user.id && actorIsAdmin && targetElevated) {
+        target.is_admin = 0;
+      }
       target.role = parsed.role;
       target.role_custom = parsed.roleCustom;
       target.updated_at = nowISO();
       saveDb(db);
       const note = normalizeEmail(target.email) === ownerEmail() && parsed.role !== 'owner'
-        ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in. To make this change stick, remove or change OWNER_EMAIL in the server environment.'
+        ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in (its display title is kept). To make this change stick, remove or change OWNER_EMAIL in the server environment.'
         : null;
-      return sendJson(res, 200, { member: memberPayload(target), note });
+      const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target);
+      return sendJson(res, 200, { member: outMember, note });
     }
 
     return sendJson(res, 404, { error: 'Unknown API route' });

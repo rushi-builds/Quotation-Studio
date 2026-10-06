@@ -297,6 +297,11 @@ function publicUser(u, env) {
        whether the word "Admin" may appear in a dropdown at all — the label
        never reaches anyone else, and no name-plate reads it. */
     isAdmin: elevated,
+    /* `elevated` is the STORED is_admin flag — the user's own secret toggle
+       (typing "admin"). It drives the small red dot beside their own role and
+       is distinct from isAdmin, which also covers the ADMIN_EMAIL designation.
+       Self-only: publicUser is the /me shape. */
+    elevated: isAdminRow(u),
     canElevate: canElevate(u, env),
     createdAt: u.created_at || null
   };
@@ -357,6 +362,7 @@ function selfMemberPayload(u, env, lastLogin, opts) {
   /* Own row: always allowed its own contact detail. */
   return Object.assign(memberPayload(u, env, lastLogin, Object.assign({ contact: true }, opts || {})), {
     isAdmin: isAdminRow(u) || isHiddenAdmin(u, env),
+    elevated: isAdminRow(u),
     canElevate: canElevate(u, env),
     effectiveCanWrite: requireRole(u, 'sales', env),
     effectiveCanManageTeam: requireRole(u, 'owner', env)
@@ -701,13 +707,17 @@ async function ensureBootstrapOwner(db, env, user) {
   const designated = ownerEmail(env);
   if (!designated || !user || user.role === 'owner') return;
   if (normalizeEmail(user.email) !== designated) return;
+  /* Promote the ROLE only. role_custom is deliberately PRESERVED, not wiped:
+     an owner may carry a display title (powers = Owner, chip = "Director"), and
+     the unconditional bootstrap must not erase it on the next request. Display
+     is title-first, so the chip reads the title while the power badge reads
+     Owner. */
   await run(
     db,
-    'UPDATE users SET role = ?, role_custom = NULL, updated_at = ? WHERE id = ?',
+    'UPDATE users SET role = ?, updated_at = ? WHERE id = ?',
     'owner', nowISO(), user.id
   );
   user.role = 'owner';
-  user.role_custom = null;
 }
 /* There is deliberately NO automatic demotion of the ADMIN_EMAIL row.
 
@@ -2214,11 +2224,6 @@ async function handleApi(request, env, url) {
              member typed. Titles are unrestricted — the power badge above is
              the truth, so no blocklist is needed or wanted. */
           { id: 'custom', label: 'Custom title', canWrite: true, canManageTeam: false, acceptsTitle: true },
-          /* Not a role value — elevation. Accepted only from the designated
-             ADMIN_EMAIL login and only for its own row, so `selfOnly` is a
-             contract, not a hint. The front end renders this label only when
-             canElevate is true. */
-          { id: 'admin', label: 'Admin', canWrite: true, canManageTeam: true, selfOnly: true, elevation: true }
         ]
       });
     }
@@ -2235,90 +2240,103 @@ async function handleApi(request, env, url) {
       const targetElevated = isAdminRow(target);
 
       /* An elevated row is out of reach for everyone except the designated
-         admin.
-
-         The refusal is deliberately INDISTINGUISHABLE from "you may not
-         elevate": same status, same message, same code. A distinct code here
-         would tell any owner exactly which row is elevated, which is the one
-         thing the model exists to keep quiet. "admin" is not a label this
-         product shows, so the message says who to ask without teaching the
-         word. */
+         admin. The refusal is deliberately INDISTINGUISHABLE from any other
+         "you may not do this": same status, message and code, so it never
+         reveals WHICH row is elevated. */
       if (targetElevated && !actorIsAdmin) {
         return json({ error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' }, 403);
       }
 
-      /* Elevation. Self-service for the designated admin ONLY: the same
-         mailbox, the same row. An elevated row cannot create another elevated
-         row, and nobody can elevate anybody else. */
-      if (wanted === 'admin' || wanted === 'unadmin') {
-        if (!actorIsAdmin) {
-          return json({ error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' }, 403);
-        }
+      /* The typed title, whether it arrived as roleCustom or title. */
+      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
+        ? String(body.roleCustom)
+        : (body.title != null && body.title !== '') ? String(body.title) : null;
+
+      /* ---- ELEVATION by typing "admin" ----
+         Self-service for the designated ADMIN_EMAIL login ONLY, and only on its
+         own row. There is no "Admin" dropdown and no role value: the actor
+         types admin / Admin / ADMIN into the custom-title box, and that is the
+         trigger. For anyone else the same word is a harmless custom title with
+         sales power (C6: a title never grants access), so this branch is
+         skipped and the word falls through to normal parsing. */
+      const typedAdmin = rawTitle != null && rawTitle.trim().toLowerCase() === 'admin';
+      if ((typedAdmin || wanted === 'admin') && actorIsAdmin) {
         if (target.id !== user.id) {
           return json({ error: 'Ask admin', code: 'ELEVATION_NOT_SELF' }, 403);
         }
-        const next = wanted === 'admin' ? 1 : 0;
-        /* Display is untouched: `role` and `role_custom` keep their values, so
-           no chip, name-plate, badge or typed title moves. Elevation changes
-           reach, not identity. */
-        await run(db, 'UPDATE users SET is_admin = ?, updated_at = ? WHERE id = ?', next, nowISO(), target.id);
-        target.is_admin = next;
+        /* Display is untouched: role and role_custom keep their values, so no
+           chip, name-plate, badge or typed title moves. Re-typing "admin" is
+           idempotent — it stays ON, it is not a toggle. */
+        await run(db, 'UPDATE users SET is_admin = 1, updated_at = ? WHERE id = ?', nowISO(), target.id);
+        target.is_admin = 1;
         return json({
           member: selfMemberPayload(target, env),
-          note: next
-            ? 'Elevated. Nothing about how this account is displayed has changed.'
-            : 'Elevation removed. Nothing about how this account is displayed has changed.'
+          note: 'Saved. Nothing about how this account is displayed has changed.'
         });
       }
 
-      /* A role may arrive as a power key (owner/sales/viewer) or as a typed
-         title. An explicit `roleCustom` is parsed as a title and never mapped
-         onto a power keyword, so a title cannot grant access. */
+      /* A role may arrive as a power key (owner / sales / viewer) or as a typed
+         title. An explicit title is parsed as a title and never mapped onto a
+         power keyword, EXCEPT the boss case: role 'owner' WITH a title keeps
+         owner power and stores the title as the chip (powers = Owner, chip =
+         the title). */
       const wantsCustom = wanted === 'custom';
-      const explicitTitle = body.roleCustom != null && body.roleCustom !== '';
+      const wantsOwner = wanted === 'owner';
       let parsed;
-      if (explicitTitle || (wantsCustom && body.title != null)) {
-        parsed = parseRoleTitle(explicitTitle ? body.roleCustom : body.title);
+      if (rawTitle != null) {
+        const t = parseRoleTitle(rawTitle);
+        if (t.error) return json({ error: t.error }, 400);
+        parsed = wantsOwner ? { role: 'owner', roleCustom: t.roleCustom } : t;
       } else if (wantsCustom) {
-        parsed = { error: 'Choose a power level, or send roleCustom with the title to show.' };
+        parsed = { error: 'Choose a power level, or send a title to show.' };
       } else {
         parsed = parseSignupRole(body.role);
       }
       if (parsed.error) return json({ error: parsed.error }, 400);
 
-      /* Losing the stored owner role needs another owner to exist first. The
-         designated admin and any elevated row are exempt: their reach does not
-         come from this column, so they cannot lock the workspace out. */
+      /* Self-demotion. Allowed whenever a backstop exists: the OWNER_EMAIL
+         bootstrap always restores the company owner, so the workspace can never
+         be left without one. The designated admin and any elevated row are
+         exempt (their reach is not in this column). Only when there is no
+         OWNER_EMAIL backstop AND no other owner do we refuse, to avoid a genuine
+         lockout. */
       if (target.id === user.id && parsed.role !== 'owner' && !actorIsAdmin && !targetElevated) {
-        const otherOwners = await all(
-          db,
-          "SELECT id FROM users WHERE id != ? AND role = 'owner'",
-          user.id
-        );
-        if (!otherOwners.length) {
-          return json({
-            error: 'Promote another owner before changing your own role away from owner.'
-          }, 400);
+        if (!ownerEmail(env)) {
+          const otherOwners = await all(db, "SELECT id FROM users WHERE id != ? AND role = 'owner'", user.id);
+          if (!otherOwners.length) {
+            return json({ error: 'Promote another owner before changing your own role away from owner.' }, 400);
+          }
         }
       }
 
-      /* A role change never touches elevation, and never stores the empty
-         string: NULL is the only "no title" value, and '' is falsy in
-         JavaScript, so storing it would make "no title" indistinguishable
-         from a typed title in every display reader. */
-      await run(
-        db,
-        'UPDATE users SET role = ?, role_custom = ?, updated_at = ? WHERE id = ?',
-        parsed.role, parsed.roleCustom, nowISO(), target.id
-      );
+      /* R2 OFF-switch: the designated admin setting its OWN role to anything
+         other than "admin" de-elevates (is_admin = 0). is_admin is written only
+         when there is something to clear, so an ordinary role change never
+         touches the column and keeps working before the migration is applied. */
+      const clearingElevation = target.id === user.id && actorIsAdmin && targetElevated;
+      if (clearingElevation) {
+        await run(
+          db,
+          'UPDATE users SET role = ?, role_custom = ?, is_admin = 0, updated_at = ? WHERE id = ?',
+          parsed.role, parsed.roleCustom, nowISO(), target.id
+        );
+        target.is_admin = 0;
+      } else {
+        await run(
+          db,
+          'UPDATE users SET role = ?, role_custom = ?, updated_at = ? WHERE id = ?',
+          parsed.role, parsed.roleCustom, nowISO(), target.id
+        );
+      }
       target.role = parsed.role;
       target.role_custom = parsed.roleCustom;
-      /* Honest note, not a block: the OWNER_EMAIL bootstrap is unconditional,
-         so a demotion of that mailbox is restored on its next request. */
+      /* Honest note, not a block: the OWNER_EMAIL bootstrap is unconditional, so
+         a demotion of that mailbox is restored (role only, title kept) next. */
       const note = normalizeEmail(target.email) === ownerEmail(env) && parsed.role !== 'owner'
-        ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in. To make this change stick, remove or change OWNER_EMAIL in the Worker variables.'
+        ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in (its display title is kept). To make the change stick, remove or change OWNER_EMAIL in the Worker variables.'
         : null;
-      return json({ member: memberPayload(target, env), note });
+      const outMember = (target.id === user.id) ? selfMemberPayload(target, env) : memberPayload(target, env);
+      return json({ member: outMember, note });
     }
 
     return json({ error: 'Unknown API route' }, 404);
