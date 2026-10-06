@@ -10,10 +10,12 @@
 
      OWNER_EMAIL  the company mailbox. Promoted to owner unconditionally on
                   every request, so it is always the visible Owner.
-     ADMIN_EMAIL  a personal mailbox that MAY elevate. Its own row is healed
-                  owner -> viewer on sign-in and gets NO title, so nothing about
-                  it says "admin". Reach comes from ADMIN_EMAIL, and permanently
-                  from the stored is_admin flag once it elevates itself.
+     ADMIN_EMAIL  a personal mailbox that MAY elevate. Its stored row is left
+                  EXACTLY as it is - nothing demotes or retitles it
+                  automatically - and reach comes from ADMIN_EMAIL, and
+                  permanently from the stored is_admin flag once it elevates
+                  itself. The OWNER_EMAIL bootstrap is the only automatic role
+                  transition left in the product.
      is_admin     stored elevation. Outranks owner. Changes no display field.
 
    Deliberately NOT covered here: Firebase / phone auth (untouched by this
@@ -115,12 +117,13 @@ async function main() {
   const readRow = (email) => JSON.parse(fs.readFileSync(fixturePath, 'utf8')).users.find((u) => u.email === email);
 
   try {
-    console.log('\nroles-access (elevation model: is_admin, heal-with-no-title, stealth)');
+    console.log('\nroles-access (elevation model: is_admin, no auto-demotion, stealth)');
 
     /* ---- fixture: four accounts ----
        Registration is open and never grants power. The ADMIN_EMAIL row is then
-       forced to owner with a NULL title to reproduce today's D1 exactly, which
-       is the state the one-time heal is meant to settle. */
+       forced to owner with a NULL title to reproduce today's live D1 exactly:
+       that is the state the removed heal used to demote, and it must now
+       survive untouched. */
     const adminReg = await register(PORT, ADMIN, 'Personal Mailbox', 'Sales');
     const salesReg = await register(PORT, SALES, 'Second Owner', 'Sales');
     const memberReg = await register(PORT, MEMBER, 'Sales Member', 'Sales');
@@ -149,20 +152,29 @@ async function main() {
     t('health has no warning when ADMIN_EMAIL != OWNER_EMAIL', r.status === 200 && Array.isArray(r.json.warnings) && r.json.warnings.length === 0, JSON.stringify(r.json && r.json.warnings));
     t('health never names either mailbox', r.status === 200 && !JSON.stringify(r.json).includes(ADMIN) && !JSON.stringify(r.json).includes(OWNER));
 
-    /* ---- item 1: the heal. owner -> viewer, and NO title is stamped ---- */
+    /* ---- item 1: NOTHING is automatic. The ADMIN_EMAIL row is left alone ----
+       This is the behaviour the spec owner asked for: whatever role that row
+       holds, it keeps. An earlier revision demoted owner -> viewer on sign-in,
+       which also silently undid a deliberate promotion, so it is gone. */
     const adminSess = await login(PORT, ADMIN);
     let adminRow = readRow(ADMIN);
-    const beforeHeal = 'owner|null|Owner';
-    t('heal: ADMIN_EMAIL own row demoted owner -> viewer', adminRow.role === 'viewer', adminRow.role);
-    t('heal: role_custom stays NULL — no title is stamped', adminRow.role_custom === null, JSON.stringify(adminRow.role_custom));
-    t('heal: SALES owner row untouched (C1 — only the admin own row)', readRow(SALES).role === 'owner', readRow(SALES).role);
-    t('heal: the word Founder appears nowhere in the row', !/founder/i.test(JSON.stringify(adminRow)), JSON.stringify(adminRow).slice(0, 200));
+    t('no auto-demotion: the ADMIN_EMAIL row keeps its stored role', adminRow.role === 'owner', adminRow.role);
+    t('no auto-demotion: role_custom stays NULL — no title is stamped', adminRow.role_custom === null, JSON.stringify(adminRow.role_custom));
+    t('no auto-demotion: other owner rows are untouched too', readRow(SALES).role === 'owner', readRow(SALES).role);
+    t('the word Founder appears nowhere in the row', !/founder/i.test(JSON.stringify(adminRow)), JSON.stringify(adminRow).slice(0, 200));
+    for (let i = 0; i < 4; i++) { await login(PORT, ADMIN); await req(PORT, 'GET', '/api/auth/me', null, adminSess.token); }
+    t('no auto-demotion across repeated sign-ins and requests (no oscillation)',
+      readRow(ADMIN).role === 'owner' && readRow(ADMIN).role_custom === null,
+      readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).role_custom));
 
     let me = await req(PORT, 'GET', '/api/auth/me', null, adminSess.token);
-    t('heal: display is the neutral stored role ("Viewer")', me.json.user.roleLabel === 'Viewer', me.json.user.roleLabel);
-    t('heal: no display field reads Admin', !hasAdminWord(me.json.user), displayOf(me.json.user));
+    t('display is the stored role, unchanged ("Owner")', me.json.user.roleLabel === 'Owner', me.json.user.roleLabel);
+    t('no display field reads Admin', !hasAdminWord(me.json.user), displayOf(me.json.user));
 
-    /* ---- C3: the designated admin clears BOTH gate levels from a viewer row ---- */
+    /* ---- C3 flags on this row. The row is owner, so this proves the flags are
+           present and correct, not yet that ADMIN_EMAIL overrides anything. The
+           override is proven properly further down, on a row demoted to viewer:
+           see "C3 proof, on a row that is NOT owner". ---- */
     t('C3 both levels: canWrite (sales gate) is true', me.json.user.canWrite === true, JSON.stringify(me.json.user));
     t('C3 both levels: canManageTeam (owner gate) is true', me.json.user.canManageTeam === true, JSON.stringify(me.json.user));
     t('C3 both levels: seesAll is true', me.json.user.seesAll === true);
@@ -179,11 +191,15 @@ async function main() {
 
     /* ---- item 3/4/5: ELEVATION roundtrip, and the zero display delta ---- */
     const preElevate = displayOf(me.json.user);
+    /* Snapshot the stored columns so the assertions below compare against what
+       the row actually held, not against a hardcoded role. */
+    const preRole = readRow(ADMIN).role;
+    const preCustom = readRow(ADMIN).role_custom;
     r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'admin' }, adminSess.token);
     t('elevate: self-elevation returns 200', r.status === 200, r.status + ' ' + JSON.stringify(r.json).slice(0, 200));
     t('elevate: stored is_admin = 1', readRow(ADMIN).is_admin === 1, JSON.stringify(readRow(ADMIN).is_admin));
-    t('elevate: role and role_custom were NOT written', readRow(ADMIN).role === 'viewer' && readRow(ADMIN).role_custom === null,
-      readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).role_custom));
+    t('elevate: role and role_custom were NOT written', readRow(ADMIN).role === preRole && readRow(ADMIN).role_custom === preCustom,
+      preRole + '/' + JSON.stringify(preCustom) + ' -> ' + readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).role_custom));
     t('elevate: ZERO display delta in the response', displayOf(r.json.member) === preElevate, preElevate + ' -> ' + displayOf(r.json.member));
     t('elevate: response note says the display did not change', typeof r.json.note === 'string' && /display/i.test(r.json.note), r.json.note);
     t('elevate: own row reports isAdmin true', r.json.member.isAdmin === true);
@@ -194,11 +210,10 @@ async function main() {
     t('elevate: ZERO display delta on the next /me', displayOf(me.json.user) === preElevate, preElevate + ' -> ' + displayOf(me.json.user));
     t('elevate: powers are intact', me.json.user.canWrite === true && me.json.user.canManageTeam === true && me.json.user.seesAll === true);
 
-    /* The heal must now leave a deliberately elevated row alone, even though it
-       is still a viewer: elevation is a decision, the heal is only a default. */
+    /* Nothing writes the role back, elevated or not. */
     await login(PORT, ADMIN);
     await req(PORT, 'GET', '/api/auth/me', null, adminSess.token);
-    t('heal skips an is_admin = 1 row (elevation is deliberate)', readRow(ADMIN).role === 'viewer' && readRow(ADMIN).is_admin === 1,
+    t('an elevated row keeps its stored role across further requests', readRow(ADMIN).role === 'owner' && readRow(ADMIN).is_admin === 1,
       readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).is_admin));
 
     /* ---- item 4 EXTRA: elevated outranks owner, so an admin can edit owners ---- */
@@ -249,7 +264,8 @@ async function main() {
     r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'unadmin' }, adminSess.token);
     t('de-elevate: 200 and stored is_admin = 0', r.status === 200 && readRow(ADMIN).is_admin === 0, r.status + ' ' + JSON.stringify(readRow(ADMIN).is_admin));
     t('de-elevate: ZERO display delta', displayOf(r.json.member) === preElevate, preElevate + ' -> ' + displayOf(r.json.member));
-    t('de-elevate: role and role_custom still untouched', readRow(ADMIN).role === 'viewer' && readRow(ADMIN).role_custom === null);
+    t('de-elevate: role and role_custom still untouched', readRow(ADMIN).role === preRole && readRow(ADMIN).role_custom === preCustom,
+      preRole + '/' + JSON.stringify(preCustom) + ' -> ' + readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).role_custom));
     me = await req(PORT, 'GET', '/api/auth/me', null, adminSess.token);
     t('de-elevate: /me isAdmin reports the stored flag now', me.json.user.isAdmin === true, JSON.stringify(me.json.user.isAdmin));
     t('de-elevate: reach persists from ADMIN_EMAIL alone', me.json.user.canManageTeam === true && me.json.user.canWrite === true);
@@ -262,27 +278,65 @@ async function main() {
     r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'custom', roleCustom: 'Director' }, ownerSess.token);
     t('owner can set a deliberate typed title once elevation is gone', r.status === 200 && r.json.member.roleCustom === 'Director', JSON.stringify(r.json).slice(0, 200));
     await login(PORT, ADMIN);
-    t('heal does NOT re-fire while a deliberate title is set', readRow(ADMIN).role === 'custom' && readRow(ADMIN).role_custom === 'Director',
+    t('a deliberate typed title sticks (nothing writes the role or title back)',
+      readRow(ADMIN).role === 'custom' && readRow(ADMIN).role_custom === 'Director',
       readRow(ADMIN).role + '/' + readRow(ADMIN).role_custom);
 
-    /* ---- promoting the designated admin to visible Owner is display-only and
-           the heal settles it again; permanent reach is is_admin, not a role ---- */
+    /* ---- a deliberate promote to visible Owner STICKS ----
+       This is the behaviour the spec owner asked for. It used to be undone on
+       the next sign-in by the heal; nothing undoes it now. */
     r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'owner' }, ownerSess.token);
     t('owner can promote the designated admin row to owner', r.status === 200 && r.json.member.role === 'owner', r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
     t('promotion stores NULL, never an empty string', r.json.member.roleCustom === null, JSON.stringify(r.json.member.roleCustom));
     t('promotion displays "Owner"', r.json.member.roleLabel === 'Owner', r.json.member.roleLabel);
     t('promotion badge is the stored role', r.json.member.power === 'owner' && r.json.member.canManageTeam === true, JSON.stringify(r.json.member));
-    await login(PORT, ADMIN);
-    t('heal re-fires on the next sign-in (reach comes from ADMIN_EMAIL, not the role)',
+    for (let i = 0; i < 3; i++) await login(PORT, ADMIN);
+    t('PROMOTION STICKS: the row is still owner after repeated ADMIN_EMAIL sign-ins',
+      readRow(ADMIN).role === 'owner' && readRow(ADMIN).role_custom === null,
+      readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).role_custom));
+    const promoted = await req(PORT, 'GET', '/api/auth/me', null, (await login(PORT, ADMIN)).token);
+    t('and the promoted login displays "Owner" with full powers',
+      promoted.json.user.roleLabel === 'Owner' && promoted.json.user.canWrite === true &&
+      promoted.json.user.canManageTeam === true && promoted.json.user.seesAll === true,
+      JSON.stringify(promoted.json.user).slice(0, 200));
+
+    /* ---- C3 proof, on a row that is NOT owner ----
+       Demote the designated admin to viewer. The demotion must stick (nothing
+       restores it), and the account must STILL clear both gate levels - that is
+       what proves ADMIN_EMAIL grants powers rather than the role column. */
+    r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'viewer' }, ownerSess.token);
+    t('an owner can demote the designated admin row once it is not elevated', r.status === 200 && r.json.member.role === 'viewer',
+      r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
+    for (let i = 0; i < 3; i++) await login(PORT, ADMIN);
+    t('the demotion STICKS too - nothing restores the role automatically',
       readRow(ADMIN).role === 'viewer' && readRow(ADMIN).role_custom === null,
       readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).role_custom));
-    const healed = await req(PORT, 'GET', '/api/auth/me', null, (await login(PORT, ADMIN)).token);
-    t('and the promoted login still has full powers afterwards', healed.json.user.canWrite === true && healed.json.user.canManageTeam === true && healed.json.user.seesAll === true);
 
-    /* Elevate again: from now on the row is out of the owner's reach and the
-       heal leaves it alone. */
-    r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'admin' }, (await login(PORT, ADMIN)).token);
-    t('re-elevate after the heal', r.status === 200 && readRow(ADMIN).is_admin === 1, r.status + ' ' + JSON.stringify(readRow(ADMIN).is_admin));
+    const demotedSess = await login(PORT, ADMIN);
+    const demotedMe = await req(PORT, 'GET', '/api/auth/me', null, demotedSess.token);
+    t('C3 on a viewer row: canWrite (sales gate) is true', demotedMe.json.user.canWrite === true, JSON.stringify(demotedMe.json.user).slice(0, 200));
+    t('C3 on a viewer row: canManageTeam (owner gate) is true', demotedMe.json.user.canManageTeam === true, JSON.stringify(demotedMe.json.user).slice(0, 200));
+    t('C3 on a viewer row: seesAll is true', demotedMe.json.user.seesAll === true);
+    t('C3 on a viewer row: the display is honestly "Viewer"', demotedMe.json.user.roleLabel === 'Viewer', demotedMe.json.user.roleLabel);
+    r = await req(PORT, 'POST', '/api/proposals', { title: 'Demoted designated admin can still create', customer_name: 'C3 Client' }, demotedSess.token);
+    t('C3 proof: a viewer-row designated admin can CREATE a proposal (sales gate)', r.status === 200 || r.status === 201, r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
+    r = await req(PORT, 'POST', '/api/team/role', { userId: viewerReg.user.id, role: 'viewer' }, demotedSess.token);
+    t('C3 proof: a viewer-row designated admin passes the OWNER write gate', r.status === 200, r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
+
+    /* Elevate from the viewer row: this is where rank 4 earns its keep. */
+    const viewerDisplay = displayOf(demotedMe.json.user);
+    r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'admin' }, demotedSess.token);
+    t('re-elevate from a viewer row', r.status === 200 && readRow(ADMIN).is_admin === 1, r.status + ' ' + JSON.stringify(readRow(ADMIN).is_admin));
+    t('re-elevate changed no display field', displayOf(r.json.member) === viewerDisplay, viewerDisplay + ' -> ' + displayOf(r.json.member));
+    t('re-elevate left the stored role as viewer', readRow(ADMIN).role === 'viewer' && readRow(ADMIN).role_custom === null,
+      readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).role_custom));
+    /* And now promote it while elevated: an owner could not, but it can. */
+    r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'owner' }, demotedSess.token);
+    t('an elevated actor can promote its OWN row to a visible Owner', r.status === 200 && readRow(ADMIN).role === 'owner',
+      r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
+    for (let i = 0; i < 3; i++) await login(PORT, ADMIN);
+    t('and that promotion sticks as well', readRow(ADMIN).role === 'owner' && readRow(ADMIN).is_admin === 1,
+      readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).is_admin));
 
     /* ---- an ordinary member's promotion must not inherit any of this ---- */
     r = await req(PORT, 'POST', '/api/team/role', { userId: memberReg.user.id, role: 'owner' }, ownerSess.token);
@@ -316,7 +370,9 @@ async function main() {
     let members = (r.json && r.json.members) || [];
     t('team list returns every member', members.length === 5, members.length);
     const adminMember = members.find((m) => m.email === ADMIN);
-    t('S1: the elevated row badge reads viewer, NOT admin', adminMember && adminMember.power === 'viewer', adminMember && adminMember.power);
+    t('S1: the elevated row badge reads its STORED role, never admin',
+      adminMember && adminMember.power === (readRow(ADMIN).role === 'owner' ? 'owner' : readRow(ADMIN).role === 'viewer' ? 'viewer' : 'sales'),
+      adminMember && adminMember.power + ' vs stored ' + readRow(ADMIN).role);
     t('S1: the elevated row label is neutral', adminMember && !hasAdminWord(adminMember), adminMember && displayOf(adminMember));
     t('S1: no team row is ever labelled Admin', !members.some((m) => hasAdminWord(m)), members.map(displayOf).join(' ; '));
     t('S1: no team row power is ever "admin"', !members.some((m) => String(m.power).toLowerCase() === 'admin'), members.map((m) => m.power).join(','));
@@ -404,13 +460,15 @@ async function main() {
       t('P1 warning reported when ADMIN_EMAIL == OWNER_EMAIL', r.status === 200 && Array.isArray(r.json.warnings) && r.json.warnings.length === 1, JSON.stringify(r.json && r.json.warnings));
       t('P1 warning text names no email address', !JSON.stringify(r.json.warnings).includes(ADMIN));
       t('P1 warning contains no Founder wording', !/founder/i.test(JSON.stringify(r.json.warnings)), JSON.stringify(r.json.warnings));
+      t('P1 warning no longer claims a heal is disabled', !/heal/i.test(JSON.stringify(r.json.warnings)), JSON.stringify(r.json.warnings));
+      t('P1 warning explains the redundancy instead', /redundant/i.test(JSON.stringify(r.json.warnings)), JSON.stringify(r.json.warnings));
 
       await register(PORT2, ADMIN, 'Conflict User', 'Sales');
       const c1 = await login(PORT2, ADMIN);
       const row2 = () => JSON.parse(fs.readFileSync(path.join(DATA2, 'db.json'), 'utf8')).users.find((u) => u.email === ADMIN);
       t('P1: bootstrap promotes the shared mailbox to owner', row2().role === 'owner', row2().role);
       for (let i = 0; i < 5; i++) { await req(PORT2, 'GET', '/api/auth/me', null, c1.token); await login(PORT2, ADMIN); }
-      t('P1: role stays owner after repeated logins (heal skipped, no oscillation)', row2().role === 'owner', row2().role);
+      t('P1: role stays owner after repeated logins (nothing is automatic, no oscillation)', row2().role === 'owner', row2().role);
       t('P1: no title stamped on the shared mailbox', !row2().role_custom, String(row2().role_custom));
       const cMe = await req(PORT2, 'GET', '/api/auth/me', null, c1.token);
       t('P1: shared mailbox keeps owner powers', cMe.json.user.canManageTeam === true && cMe.json.user.canWrite === true);
@@ -424,8 +482,7 @@ async function main() {
     }
 
     /* ---- malformed ADMIN_EMAIL: the silent-lockout case the diagnostic exists
-           for. A typo grants nobody, the heal never runs, and nobody may
-           elevate. ---- */
+           for. A typo grants nobody and nobody may elevate. ---- */
     const PORT3 = PORT + 500;
     const DATA3 = path.join(ROOT, 'platform/data-roles-typo');
     const srv3 = startServer(PORT3, DATA3, { OWNER_EMAIL: OWNER, ADMIN_EMAIL: 'admin-personal@ktm' });
@@ -447,7 +504,7 @@ async function main() {
       r = await req(PORT3, 'POST', '/api/team/role', { userId: typoMe.json.user.id, role: 'admin' }, typoSess.token);
       t('with a typo, self-elevation is refused (403)', r.status === 403 && r.json.code === 'ELEVATION_FORBIDDEN', r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
       fx = JSON.parse(fs.readFileSync(fp3, 'utf8'));
-      t('the heal never runs for a malformed ADMIN_EMAIL', fx.users.find((x) => x.email === ADMIN).role === 'owner');
+      t('a malformed ADMIN_EMAIL changes no row either', fx.users.find((x) => x.email === ADMIN).role === 'owner');
     } finally {
       srv3.child.kill('SIGTERM');
       try { fs.rmSync(DATA3, { recursive: true, force: true }); } catch (_) {}

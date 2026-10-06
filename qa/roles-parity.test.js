@@ -6,7 +6,7 @@
      - the permission core is present in both backends, and elevation overrides
        at exactly ONE place per backend
      - is_admin outranks owner, and every gate inherits it by rank comparison
-     - the heal writes NO title and skips a deliberately elevated row
+     - nothing demotes or retitles the ADMIN_EMAIL row automatically
      - S1: no badge / label is ever derived from is_admin
      - S2: no elevation field is emitted about another member's row
      - the front end renders the word "Admin" in exactly one gated place
@@ -108,7 +108,7 @@ const WORKER_CORE = [
   'isAdminRow', 'permissionRole', 'roleRank', 'requireRole', 'canManageTeam', 'canElevate',
   'seesAll', 'rolesIssues', 'parseRoleTitle', 'roleDisplay', 'publicUser',
   'storedRoleWord', 'memberPayload', 'selfMemberPayload',
-  'ensureBootstrapOwner', 'healAdminRow', 'applyOwnerBootstrap'
+  'ensureBootstrapOwner', 'applyOwnerBootstrap'
 ];
 const SERVER_CORE = WORKER_CORE.map((n) => (n === 'ensureBootstrapOwner' ? 'applyBootstrapOwner' : n));
 WORKER_CORE.forEach((name) => t('worker defines ' + name + '()', new RegExp('function\\s+' + name + '\\b').test(worker)));
@@ -148,29 +148,43 @@ t('server: every gate routes through requireRole -> permissionRole',
   /function canManageTeam\(user\) \{\s*\n\s*return requireRole\(user, 'owner'\)/.test(server) &&
   /function seesAll\(user\) \{\s*\n\s*return requireRole\(user, 'owner'\)/.test(server));
 
-/* ---------- 3. the heal: no title, own row only, skips an elevated row ---------- */
-const healW = fn(worker, 'healAdminRow', ['applyOwnerBootstrap']);
-const healS = fn(server, 'healAdminRow', ['applyOwnerBootstrap']);
-t('worker: heal exists and is async', /async function healAdminRow/.test(worker) && healW.length > 0);
-t('server: heal exists', healS.length > 0);
-for (const [label, heal] of [['worker', healW], ['server', healS]]) {
-  t(label + ': heal is gated on isHiddenAdmin', /isHiddenAdmin\(/.test(heal));
-  t(label + ': heal keeps the P1 conflict guard', /adminOwnerConflict\(/.test(heal));
-  t(label + ': heal SKIPS a deliberately elevated row', /if \(isAdminRow\(/.test(heal));
-  t(label + ': heal demotes only role === owner', /role !== 'owner'/.test(heal));
-  t(label + ': heal latch tests NULL-ness, not truthiness', /role_custom != null\) return false/.test(heal),
-    'expected `... role_custom != null) return false`');
-  t(label + ': heal latch is not a bare truthiness check', !/\|\| (actor|user)\.role_custom\) return false/.test(heal));
-  t(label + ': heal WRITES NO TITLE — role_custom is never assigned', !/role_custom\s*=/.test(heal),
-    (heal.match(/.{0,50}role_custom\s*=.{0,50}/) || [''])[0]);
-  t(label + ': heal never selects by OWNER_EMAIL', !/ownerEmail\(/.test(heal) && !/OWNER_EMAIL/.test(heal));
+/* ---------- 3. NO automatic demotion of the ADMIN_EMAIL row ----------
+   An earlier revision healed that row owner -> viewer on sign-in. It was
+   removed at the spec owner's request: it also silently undid a deliberate
+   promotion, and it was never needed for safety because reach comes from
+   ADMIN_EMAIL and is_admin, not from the role column. These assertions exist
+   so the heal cannot be reintroduced quietly. */
+for (const [label, src] of BOTH) {
+  t(label + ': healAdminRow is gone', !/healAdminRow/.test(src));
+  t(label + ': no code demotes a row to viewer automatically',
+    !/role = 'viewer', updated_at/.test(src) && !/user\.role = 'viewer'/.test(src));
+  /* A write of `role` must always decide `role_custom` too, so nothing can
+     silently strip or stamp a title as a side effect. The worker writes SQL;
+     the local server mutates a JSON row and has no SQL at all. */
+  const setRole = (src.match(/SET role[^'"]*/g) || []);
+  if (label === 'worker') {
+    t('worker: every SQL role write also writes role_custom',
+      setRole.length > 0 && setRole.every((x) => x.includes('role_custom')), JSON.stringify(setRole));
+    t('worker: no SQL writes role = viewer', !/SET role = 'viewer'/.test(src));
+  } else {
+    t('server: no SQL at all (JSON backend), and no role write outside a route',
+      setRole.length === 0 && (src.match(/\.role = 'viewer'/g) || []).length === 0);
+    t('server: a role change always assigns role_custom alongside role',
+      /target\.role = parsed\.role;\s*\n\s*target\.role_custom = parsed\.roleCustom;/.test(src));
+  }
+  t(label + ': nothing stamps a title on the designated admin',
+    !/role_custom = 'Founder'/.test(src) && !/role_custom = ''/.test(src));
+  const boot = fn(src, 'applyOwnerBootstrap', ['createSession', 'requireUser', 'revokeUserSessions']);
+  t(label + ': applyOwnerBootstrap only promotes the OWNER_EMAIL row',
+    /ensureBootstrapOwner\(db, env, user\);|return applyBootstrapOwner\(user\);/.test(boot) && boot.split('\n').length < 12,
+    boot.slice(0, 220));
+  t(label + ': the removal is documented in the source so it is not "fixed" back in',
+    /deliberately NO automatic demotion/.test(src));
+  t(label + ': the P1 warning no longer claims a heal is disabled',
+    !/heal is disabled/.test(src) && !/self-heal/.test(src) && !/one-time heal/.test(src),
+    (src.match(/.{0,50}heal.{0,50}/) || [''])[0]);
+  t(label + ': adminOwnerConflict survives as a config diagnostic', /function adminOwnerConflict/.test(src));
 }
-t('C1 worker: heal UPDATE targets actor.id (its OWN row)', /WHERE id = \?/.test(healW) && /actor\.id/.test(healW));
-t('worker: heal UPDATE repeats the guard in SQL so two racing sessions cannot double-apply',
-  /WHERE id = \? AND role = 'owner' AND role_custom IS NULL AND COALESCE\(is_admin, 0\) = 0/.test(healW),
-  (healW.match(/UPDATE users SET[\s\S]{0,160}/) || [''])[0]);
-t('C1 server: heal mutates the passed-in user only', /user\.role = 'viewer'/.test(healS));
-t('server: heal does not persist a flag write of its own', !/is_admin\s*=/.test(healS));
 
 /* ---------- 4. C2: the owner bootstrap is unconditional ---------- */
 const bootW = fn(worker, 'ensureBootstrapOwner', ['healAdminRow']);
@@ -179,8 +193,10 @@ t('C2 worker: bootstrap matches on OWNER_EMAIL', /ownerEmail\(env\)/.test(bootW)
 t('C2 worker: bootstrap has NO typed-title gate', !/if \(user\.role_custom\)/.test(bootW) && !/role_custom\) return/.test(bootW));
 t('C2 worker: bootstrap clears the title on promotion', /role_custom = NULL/.test(bootW));
 t('C2 server: bootstrap has NO typed-title gate', !/if \(user\.role_custom\)/.test(bootS) && !/role_custom\) return/.test(bootS));
-t('worker: bootstrap runs BEFORE the heal', worker.indexOf('ensureBootstrapOwner(db, env, user)') < worker.indexOf('healAdminRow(db, env, user)'));
-t('server: bootstrap runs BEFORE the heal', /function applyOwnerBootstrap\(user\) \{\s*\n\s*const a = applyBootstrapOwner\(user\);\s*\n\s*const b = healAdminRow\(user\);/.test(server));
+t('worker: the bootstrap is the only transition applyOwnerBootstrap performs',
+  /async function applyOwnerBootstrap\(db, env, user\) \{\s*\n\s*await ensureBootstrapOwner\(db, env, user\);\s*\n\s*\}/.test(worker));
+t('server: the bootstrap is the only transition applyOwnerBootstrap performs',
+  /function applyOwnerBootstrap\(user\) \{\s*\n\s*return applyBootstrapOwner\(user\);\s*\n\s*\}/.test(server));
 
 /* ---------- 5. setTeamRole: the elevation path, identical in both ---------- */
 for (const [label, src] of BOTH) {

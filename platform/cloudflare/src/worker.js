@@ -238,7 +238,7 @@ function parseSignupRole(raw) {
    conflicting pair is worth reporting.
 
    Why it exists: a typo in ADMIN_EMAIL does not error anywhere — it silently
-   grants nobody, and the one-time heal never runs. That is a deploy-time
+   grants nobody. That is a deploy-time
    mistake an operator cannot see from the UI, so /api/health says so.
 
    Never returns an email address or a count of admins: this route is public. */
@@ -248,7 +248,7 @@ function rolesIssues(env) {
   const o = ownerEmail(env), a = adminEmail(env);
   if (o && !EMAIL_SHAPE.test(o)) issues.push('OWNER_EMAIL is set but is not a valid email address, so the workspace owner bootstrap cannot match any account');
   if (a && !EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address, so the designated admin login cannot match any account');
-  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox. The one-time heal is disabled so the role cannot oscillate; set ADMIN_EMAIL to the personal mailbox and OWNER_EMAIL to the company mailbox.');
+  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox, so the ADMIN_EMAIL designation is redundant: the bootstrap already makes that account a visible Owner. Set ADMIN_EMAIL to the personal mailbox and OWNER_EMAIL to the company mailbox.');
   return issues;
 }
 /* Typed title wins over the power word. Power is decided by permissionRole,
@@ -373,8 +373,8 @@ function selfMemberPayload(u, env, lastLogin, opts) {
      is_admin     who IS elevated. A stored column that outranks owner, and the
                   only elevation state that survives a change of the variable.
 
-   Neither ever produces a label. `roleDisplay` does not read them, and the
-   heal below writes no title, so nothing in the product says "Admin" to a
+   Neither ever produces a label. `roleDisplay` does not read them, and nothing
+   in the product writes a title on their account, so nothing says "Admin" to a
    member — the word appears only in a dropdown that canElevate unlocks. */
 function normalizeEmail(v) {
   return String(v == null ? '' : v).trim().toLowerCase();
@@ -390,14 +390,16 @@ function isHiddenAdmin(user, env) {
   if (!designated || !user) return false;
   return normalizeEmail(user.email) === designated;
 }
-/* P1 guard — the one case where the two designated emails collide.
-   With ADMIN_EMAIL == OWNER_EMAIL both transitions aim at the SAME row:
-   the bootstrap promotes it to owner and clears the title, the heal demotes
-   it to viewer. Run both and the row flips on every request (promote → demote
-   → promote …), so the heal yields — the bootstrap wins — and /api/health
-   reports the misconfiguration instead.
-   With two different mailboxes the targets are disjoint, this is false, and
-   both transitions run freely — the bootstrap stays unconditional. */
+/* P1 — the case where the two designated emails collide. With
+   ADMIN_EMAIL == OWNER_EMAIL both variables aim at the SAME row: the bootstrap
+   promotes that account to owner and clears its title, which makes the
+   ADMIN_EMAIL designation redundant rather than harmful — the account is
+   already a visible Owner, and it may still elevate itself.
+
+   Nothing oscillates, because the bootstrap is the only automatic role
+   transition left in the product. This exists purely so /api/health can report
+   what is almost certainly a deploy-time mistake. With two different mailboxes
+   this is false. */
 function adminOwnerConflict(env) {
   const a = adminEmail(env), o = ownerEmail(env);
   return !!a && a === o;
@@ -690,9 +692,11 @@ async function requireUser(request, db, env) {
 
    UNCONDITIONAL — no role_custom / typed-title gate. The company mailbox must
    become the visible Owner even if that row signed up with a typed title, so
-   nothing here may refuse to promote it. It cannot fight the one-time heal
-   below because the two functions target different rows: this one only ever
-   touches OWNER_EMAIL, the heal only ever touches the ADMIN_EMAIL login. */
+   nothing here may refuse to promote it.
+
+   This is the ONLY automatic role transition in the product. The ADMIN_EMAIL
+   row is deliberately left exactly as it is stored — see the note above
+   applyOwnerBootstrap. */
 async function ensureBootstrapOwner(db, env, user) {
   const designated = ownerEmail(env);
   if (!designated || !user || user.role === 'owner') return;
@@ -705,62 +709,28 @@ async function ensureBootstrapOwner(db, env, user) {
   user.role = 'owner';
   user.role_custom = null;
 }
-/* One-time heal — runs only when the ADMIN_EMAIL login signs in.
+/* There is deliberately NO automatic demotion of the ADMIN_EMAIL row.
 
-   TARGET: that account's OWN row. Today the personal mailbox holds
-   role='owner' with role_custom=NULL, so it shows up as a second visible
-   Owner. The heal changes the role ONLY:
+   An earlier revision healed that row owner -> viewer on sign-in so the
+   personal mailbox would not show up as a second visible Owner. It is gone,
+   and it should not come back:
 
-       owner / NULL   →   viewer / NULL
+     - it fought deliberate promotions. Promoting the designated admin to a
+       visible Owner stored owner/NULL, which re-armed the heal, so the next
+       request from that mailbox silently undid what an owner had just done on
+       purpose. A role that cannot be set is a bug wearing a feature's clothes.
+     - it was never needed for safety. This account's reach comes from
+       ADMIN_EMAIL and, once used, from is_admin - not from its role column.
+       Demotion changed the display and nothing else.
 
-   role_custom stays NULL on purpose — no title is stamped, because a big
-   self-declared name on a hidden account is exactly what this round is not.
-   The display therefore becomes neutral ("Viewer"), and the account's real
-   reach comes from ADMIN_EMAIL and, once used, from is_admin.
-
-   It NEVER touches the OWNER_EMAIL row — the company mailbox keeps the visible
-   Owner role via the unconditional bootstrap above. Disjoint targets, so the
-   pair is safe to run on every request and cannot oscillate.
-
-   One-time: the latch is `role = 'owner' AND role_custom IS NULL`, tested for
-   NULL-ness rather than truthiness ('' is falsy in JavaScript and would
-   otherwise be indistinguishable from NULL). Once the role is viewer the
-   condition can never be true again, so the heal cannot fire twice and cannot
-   overwrite a title someone typed from the team panel.
-
-   An elevated row is skipped as well. Elevation is a deliberate act, and the
-   heal is a default; a default must not silently undo a decision the admin
-   made on purpose.
-
-   No manual D1 edit is needed: the patch performs this on first admin login. */
-async function healAdminRow(db, env, actor) {
-  if (!actor || !isHiddenAdmin(actor, env)) return false;
-  /* P1 guard: the same mailbox in both variables makes this row the bootstrap
-     target too, so the heal yields and the role cannot flip every request.
-     The bootstrap wins and /api/health reports the misconfiguration. */
-  if (adminOwnerConflict(env)) return false;
-  if (isAdminRow(actor)) return false;
-  if (actor.role !== 'owner' || actor.role_custom != null) return false;
-  /* Guarded UPDATE: the same condition is repeated in SQL, so the heal is
-     atomic and idempotent even if two admin sessions race. */
-  const res = await run(
-    db,
-    "UPDATE users SET role = 'viewer', updated_at = ? WHERE id = ? AND role = 'owner' AND role_custom IS NULL AND COALESCE(is_admin, 0) = 0",
-    nowISO(), actor.id
-  );
-  const applied = !!(res && res.meta && typeof res.meta.changes === 'number'
-    ? res.meta.changes > 0
-    : true);
-  if (!applied) return false;
-  actor.role = 'viewer';
-  return true;
-}
-/* Both designated-email transitions, in order: promote the company owner
-   first, then let a signing-in ADMIN_EMAIL login settle its own row.
-   Called from requireUser, login and register. */
+   If the account should read "Viewer" instead of "Owner", change its role once
+   from the team panel (or its own pencil) and it sticks: nothing here writes
+   the role back. The OWNER_EMAIL bootstrap below is the only automatic role
+   transition left in the product. */
+/* Kept as a thin wrapper so the three call sites (requireUser, login,
+   register) read as one named transition. */
 async function applyOwnerBootstrap(db, env, user) {
   await ensureBootstrapOwner(db, env, user);
-  await healAdminRow(db, env, user);
 }
 async function createSession(db, user) {
   const token = randomBytes(24).toString('hex');
@@ -2333,8 +2303,9 @@ async function handleApi(request, env, url) {
       }
 
       /* A role change never touches elevation, and never stores the empty
-         string: NULL is the only "no title" value, so the heal latch and the
-         display fall-through stay unambiguous. */
+         string: NULL is the only "no title" value, and '' is falsy in
+         JavaScript, so storing it would make "no title" indistinguishable
+         from a typed title in every display reader. */
       await run(
         db,
         'UPDATE users SET role = ?, role_custom = ?, updated_at = ? WHERE id = ?',

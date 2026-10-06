@@ -67,51 +67,42 @@ column is defensive (`COALESCE`/`|| 0`) — but elevation cannot work,
 `GET /api/health` reports a warning naming the migration, and
 `features.elevation` is `false`.
 
-## The heal: `ADMIN_EMAIL` settles its own row
+## Nothing demotes the `ADMIN_EMAIL` row
 
-Today the personal mailbox holds `role='owner'` with `role_custom` NULL, so it
-appears as a second visible Owner. On any authenticated request from the
-`ADMIN_EMAIL` account:
+The `ADMIN_EMAIL` account keeps **whatever role it is stored with**. No
+automatic transition touches it — not on sign-in, not on any other request.
 
-```
-personal row:  owner / NULL   →   viewer / NULL
-```
+An earlier revision healed that row `owner → viewer` on sign-in, so the personal
+mailbox would not show up as a second visible Owner. It is **removed**, for two
+reasons:
 
-- **Target is the `ADMIN_EMAIL` account's own row.** The `OWNER_EMAIL` row is
-  never touched — the company mailbox keeps the visible Owner role.
-- **No title is written.** `role_custom` stays exactly NULL, so the row displays
-  the neutral stored role ("Viewer"). No name is stamped on anyone: if the
-  account wants a title, someone types one, and a typed title is display text
-  that grants nothing.
-- **No manual D1 edit is needed.**
-- **It only fires while `role='owner'` AND `role_custom IS NULL` AND
-  `is_admin = 0`.** The last condition is the important one: a row someone
-  deliberately elevated is left alone, because elevation is a decision and the
-  heal is only a default.
-- The second owner (`sales@…`) is not touched by this. Demote that account from
-  the team panel in the UI.
+- **It fought deliberate promotions.** Promoting the designated admin to a
+  visible Owner stored `owner` with a NULL title, which re-armed the heal, so
+  that mailbox's next request silently undid what an owner had just done on
+  purpose. A role that cannot be set is a bug wearing a feature's clothes.
+- **It was never needed for safety.** This account's reach comes from
+  `ADMIN_EMAIL` and, once used, from `is_admin` — not from the `role` column.
+  The demotion changed the display and nothing else.
 
-The latch tests **NULL-ness explicitly** (`role_custom != null`), not
-truthiness. In the worker the heal is additionally a guarded UPDATE —
-`WHERE id = ? AND role = 'owner' AND role_custom IS NULL AND COALESCE(is_admin,0) = 0`
-— so two racing admin sessions cannot both apply it.
+So the `OWNER_EMAIL` bootstrap is now the **only** automatic role transition in
+the product. It is unconditional and one-way: that mailbox is promoted to
+`owner` (and its typed title cleared) on any authenticated request.
 
-### Promoting the designated admin to a visible Owner does not stick
+| You want the personal mailbox to show… | Do this | Does it stick? |
+|---|---|---|
+| `Owner` | leave it alone, or choose Owner in the team panel | **yes** |
+| `Viewer` | choose Viewer once — from the team panel or its own pencil | **yes** |
+| a typed title (e.g. `Director`) | choose Custom title and type it | **yes** |
 
-An owner can still choose `Owner` for that row, and it stores `owner` with a
-NULL title like any other promotion. But because the heal's conditions are then
-met again, the **next authenticated request from that mailbox settles it back to
-`viewer`**. This is intended, and it is the one behaviour change worth knowing
-about:
+Nothing writes any of those back. Hiding the Owner badge is therefore a
+**one-click, permanent** choice rather than something the system does behind
+your back — and after that demotion the account still has full reach, because
+reach was never in the `role` column.
 
-> Permanent reach comes from `is_admin`, not from the `role` column. If the
-> personal mailbox should be a *visible* Owner, point `OWNER_EMAIL` at it (and
-> move `ADMIN_EMAIL` elsewhere), or accept the healed display and elevate.
-
-An earlier revision stored an empty string in `role_custom` to hold the latch
-closed so such a promotion would persist. That mechanism is **removed**. `''` is
-falsy in JavaScript, so it displayed as "Owner" while defeating a NULL test —
-clever, and the wrong thing to be clever about. Promotion now stores plain NULL.
+Two mechanisms that existed to make a promotion survive the heal are gone with
+it: the `role_custom = ''` latch, and the `Founder` stamp. A promotion stores
+plain NULL. (`''` is falsy in JavaScript, so it displayed as "Owner" while
+defeating a NULL test — clever, and the wrong thing to be clever about.)
 
 ## Elevation
 
@@ -247,8 +238,8 @@ exists.
 | Warning | Meaning |
 |---|---|
 | `users.is_admin` column is missing | The migration has not been applied. Elevation is unavailable; the warning names `005-is-admin.sql`. |
-| `ADMIN_EMAIL` and `OWNER_EMAIL` name the same mailbox | The heal is disabled so the role cannot oscillate between owner and viewer on every request — the bootstrap wins. Split the two variables. |
-| `OWNER_EMAIL`/`ADMIN_EMAIL` is set but is not a valid email address | A typo. Nothing errors — the variable simply matches no account, so the bootstrap or the heal silently never runs, and nobody may elevate. |
+| `ADMIN_EMAIL` and `OWNER_EMAIL` name the same mailbox | The `ADMIN_EMAIL` designation is redundant — the bootstrap already makes that account a visible Owner, and it may still elevate itself. Nothing oscillates. Almost certainly a deploy-time mistake, so split the two variables. |
+| `OWNER_EMAIL`/`ADMIN_EMAIL` is set but is not a valid email address | A typo. Nothing errors — the variable simply matches no account, so the bootstrap silently never runs, or nobody may elevate. |
 
 ## Deploy
 
@@ -269,6 +260,10 @@ Then confirm with actions, not screens: sign in as the designated admin and
 create a quotation (sales gate), open the team panel (owner gate), open a
 quotation belonging to another member (owner-sees-all), and elevate yourself —
 then check that your name-plate and badge did **not** change.
+
+The `ADMIN_EMAIL` row is **not** demoted automatically. If that mailbox
+currently reads `Owner` and you would rather it read `Viewer`, change it once
+from the team panel — it sticks, and the account keeps full reach either way.
 
 ## Parity
 
@@ -291,16 +286,22 @@ those two flags are the stored-role values; the effective ones are named
 
 ```bash
 npm --prefix qa test
-node qa/roles-access.test.js    # behaviour, end-to-end on the local server  (127 assertions)
-node qa/roles-parity.test.js    # worker/server parity, stealth, frozen files (224 assertions)
+node qa/roles-access.test.js    # behaviour, end-to-end on the local server  (142 assertions)
+node qa/roles-parity.test.js    # worker/server parity, stealth, frozen files (218 assertions)
 ```
 
 `roles-access` covers the elevate/de-elevate roundtrip, the zero display delta,
 owner-cannot-touch-elevated 403, non-admin cannot self-elevate 403, the
-indistinguishability of the two refusals, the heal leaving `role_custom` NULL,
-the heal skipping an elevated row, the P1 collision (bootstrap wins, warns, no
-oscillation), a malformed `ADMIN_EMAIL` failing closed, and the panel's
-read-only + contact-stripped behaviour for a member.
+indistinguishability of the two refusals, that **nothing** changes the
+`ADMIN_EMAIL` row automatically — a promotion, a demotion and a typed title all
+stick across repeated sign-ins — C3 proven on a row demoted to `viewer`, the P1
+collision (bootstrap warns, no oscillation), a malformed `ADMIN_EMAIL` failing
+closed, and the panel's read-only + contact-stripped behaviour for a member.
+
+`roles-parity` covers the same contract structurally in the worker (which cannot
+be executed here), including that no automatic demotion exists at all: no
+`healAdminRow`, no SQL writing `role = 'viewer'`, and every SQL write of `role`
+also deciding `role_custom`.
 
 Browser suites are **not run** — no CI browser here. The team panel's rendered
 columns (title / badge / last sign-in / contact) and the elevation dropdown are
