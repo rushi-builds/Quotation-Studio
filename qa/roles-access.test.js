@@ -204,21 +204,68 @@ async function main() {
     t('heal does NOT re-fire while a deliberate title is set', latched.role === 'custom' && latched.role_custom === 'Director', latched.role + '/' + latched.role_custom);
     t('hidden admin keeps owner powers on a custom row', (await req(PORT, 'GET', '/api/auth/me', null, (await login(PORT, ADMIN)).token)).json.user.canManageTeam === true);
 
-    /* FINDING (behaviour locked by the spec's `only if role_custom null` latch,
-       asserted here so a future change cannot alter it silently): promoting the
-       founder row to Owner CLEARS its typed title, which re-arms the heal, so
-       the next ADMIN_EMAIL sign-in stamps Founder again. The hidden admin never
-       loses access - its powers come from ADMIN_EMAIL, not from the row - but a
-       permanent visible second Owner needs a latch that survives role changes
-       (a dedicated column or a settled flag). Flagged for the spec owner. */
+    /* ---- LATCH FIX: a deliberate promote to visible Owner STICKS ----
+       The order was about DISPLAY (do not show a second "Owner" by default),
+       not a permanent ban on promoting the designated admin. setTeamRole stores
+       '' rather than NULL when it promotes this account, so the heal's latch
+       (`role_custom IS NULL`) stays closed, while '' is falsy for every display
+       reader and therefore still shows "Owner". No schema change. */
     r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'owner' }, ownerSess.token);
     t('owner can promote the hidden admin row to owner', r.status === 200 && r.json.member.role === 'owner', r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
-    t('promoting to owner clears the typed title (re-arms the heal latch)', r.json.member.roleCustom === null, String(r.json.member.roleCustom));
+    t('promote response reports no typed title (normalised to null)', r.json.member.roleCustom === null, String(r.json.member.roleCustom));
+    t('promote response displays "Owner"', r.json.member.roleLabel === 'Owner', r.json.member.roleLabel);
+    t('promote response keeps owner power', r.json.member.power === 'owner' && r.json.member.canManageTeam === true);
+
+    fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+    const stored = fixture.users.find((u) => u.email === ADMIN);
+    t('latch fix: stored role_custom is EMPTY STRING, not NULL', stored.role_custom === '', JSON.stringify(stored.role_custom));
+    t('latch fix: stored role is owner', stored.role === 'owner', stored.role);
+
+    // Hammer the ADMIN_EMAIL sign-in: the heal must never undo this.
+    for (let i = 0; i < 3; i++) await login(PORT, ADMIN);
+    fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+    const afterRelogin = fixture.users.find((u) => u.email === ADMIN);
+    t('latch fix: heal does NOT re-fire across repeated ADMIN_EMAIL logins',
+      afterRelogin.role === 'owner' && afterRelogin.role_custom === '',
+      afterRelogin.role + '/' + JSON.stringify(afterRelogin.role_custom));
+
+    const promoted = await login(PORT, ADMIN);
+    const promotedMe = await req(PORT, 'GET', '/api/auth/me', null, promoted.token);
+    t('latch fix: deliberate visible Owner displays "Owner"', promotedMe.json.user.roleLabel === 'Owner', promotedMe.json.user.roleLabel);
+    t('latch fix: powers still full', promotedMe.json.user.canWrite === true && promotedMe.json.user.canManageTeam === true && promotedMe.json.user.seesAll === true);
+    t('latch fix: the word "admin" still appears nowhere', !JSON.stringify(promotedMe.json).toLowerCase().includes('admin'));
+
+    // A second owner does not disturb the OWNER_EMAIL row either.
+    fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+    t('latch fix: OWNER_EMAIL row is still the bootstrap owner, untouched',
+      fixture.users.find((u) => u.email === OWNER).role === 'owner');
+
+    /* ---- re-hide is a manual act: demote to viewer and type the title back.
+           The row loses the visible Owner label; the powers persist from
+           ADMIN_EMAIL regardless of what the row says. ---- */
+    r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'custom', roleCustom: 'Founder' }, ownerSess.token);
+    t('re-hide: typed title stores custom + Founder', r.status === 200 && r.json.member.role === 'custom' && r.json.member.roleCustom === 'Founder', JSON.stringify(r.json.member).slice(0, 200));
+    r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'viewer' }, ownerSess.token);
+    t('re-hide: demote path is unchanged (viewer + NULL title)', r.status === 200 && r.json.member.role === 'viewer' && r.json.member.roleCustom === null, JSON.stringify(r.json.member).slice(0, 200));
     await login(PORT, ADMIN);
     fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
-    const refired = fixture.users.find((u) => u.email === ADMIN);
-    t('FINDING: heal re-fires after the title was cleared, restamping Founder', refired.role === 'viewer' && refired.role_custom === 'Founder', refired.role + '/' + refired.role_custom);
-    t('FINDING is access-safe: the hidden admin still has owner powers', (await req(PORT, 'GET', '/api/auth/me', null, (await login(PORT, ADMIN)).token)).json.user.canManageTeam === true);
+    const rehidden = fixture.users.find((u) => u.email === ADMIN);
+    t('re-hide: heal does NOT re-stamp over a demoted row (role is not owner)', rehidden.role === 'viewer' && rehidden.role_custom === null, rehidden.role + '/' + JSON.stringify(rehidden.role_custom));
+    const rehiddenMe = await req(PORT, 'GET', '/api/auth/me', null, (await login(PORT, ADMIN)).token);
+    t('re-hide: powers persist from ADMIN_EMAIL even on a viewer row', rehiddenMe.json.user.canManageTeam === true && rehiddenMe.json.user.canWrite === true);
+    t('re-hide: a viewer row is not displayed as Owner', rehiddenMe.json.user.roleLabel === 'Viewer', rehiddenMe.json.user.roleLabel);
+
+    /* ---- the '' latch must not leak into an ordinary member's promotion ---- */
+    r = await req(PORT, 'POST', '/api/team/role', { userId: memberReg.user.id, role: 'owner' }, ownerSess.token);
+    t('ordinary member promoted to owner stores NULL, not empty string', r.status === 200 && r.json.member.roleCustom === null && r.json.member.roleLabel === 'Owner', JSON.stringify(r.json.member).slice(0, 200));
+
+    /* Restore the fixture to the post-heal state the rest of this suite
+       asserts against (founder hidden, title 'Founder'), and put the member
+       back to sales so the member-visibility checks below stay meaningful. */
+    r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'custom', roleCustom: 'Founder' }, ownerSess.token);
+    t('fixture restore: founder row is back to viewer-equivalent custom + Founder', r.status === 200 && r.json.member.roleCustom === 'Founder', JSON.stringify(r.json.member).slice(0, 160));
+    r = await req(PORT, 'POST', '/api/team/role', { userId: memberReg.user.id, role: 'sales' }, ownerSess.token);
+    t('fixture restore: member row is back to sales', r.status === 200 && r.json.member.role === 'sales', JSON.stringify(r.json.member).slice(0, 160));
 
     /* ---- item 6: team panel payload = badge + title + last login + contact ---- */
     r = await req(PORT, 'GET', '/api/team/members', null, ownerSess.token);

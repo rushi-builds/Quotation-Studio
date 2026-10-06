@@ -871,13 +871,19 @@ function applyBootstrapOwner(user) {
 
    It NEVER touches the OWNER_EMAIL row — the company mailbox keeps the visible
    Owner role via the unconditional bootstrap. Disjoint targets, so no
-   oscillation. The role_custom check is the one-time latch. */
+   oscillation. The role_custom check is the one-time latch, tested as NULL-ness
+   and NOT truthiness ('' is falsy in JS): NULL re-arms it, while '' — stored by
+   setTeamRole on a deliberate visible promotion of this account — keeps it
+   closed and still displays "Owner". */
 function healFounderRole(user) {
   if (!user || !isHiddenAdmin(user)) return false;
   /* P1 guard: same mailbox in both variables means this row is also the
      bootstrap target, so the heal yields and the role cannot flip. */
   if (adminOwnerConflict()) return false;
-  if (user.role !== 'owner' || user.role_custom) return false;
+  /* The latch is NULL-ness, NOT truthiness: '' is falsy in JavaScript, so a
+     bare `if (user.role_custom)` would treat the empty string stored by a
+     deliberate visible promotion exactly like NULL and undo it. */
+  if (user.role !== 'owner' || user.role_custom != null) return false;
   user.role = 'viewer';
   user.role_custom = 'Founder';
   user.updated_at = nowISO();
@@ -2353,8 +2359,16 @@ async function handleApi(req, res, url) {
           });
         }
       }
+      /* Latch repair — see the same block in platform/cloudflare/src/worker.js.
+         Promoting the designated admin to a visible Owner stores '' rather than
+         NULL so the founder self-heal (latch: role_custom IS NULL) cannot undo
+         it on their next sign-in, while '' still displays as "Owner" because
+         every reader is truthiness-based. Promotion only; demotion untouched. */
+      const storedCustom = (parsed.role === 'owner' && isHiddenAdmin(target))
+        ? ''
+        : parsed.roleCustom;
       target.role = parsed.role;
-      target.role_custom = parsed.roleCustom;
+      target.role_custom = storedCustom;
       target.updated_at = nowISO();
       saveDb(db);
       /* Honest note, not a block: the OWNER_EMAIL bootstrap is unconditional,

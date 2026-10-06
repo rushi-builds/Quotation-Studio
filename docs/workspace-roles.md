@@ -39,21 +39,51 @@ personal row:  owner / NULL   →   viewer / 'Founder'
 - **Target is the `ADMIN_EMAIL` account's own row.** The `OWNER_EMAIL` row is
   never touched — the company mailbox keeps the visible Owner role.
 - **No manual D1 edit is needed.** The patch performs this on first admin login.
-- **One-time latch:** it only fires while `role_custom` is NULL. Once `Founder`
-  is stamped it never runs again.
+- **One-time latch:** it only fires while `role_custom` is **NULL**. Once
+  `Founder` is stamped it never runs again. The latch is NULL-ness, not
+  truthiness — that distinction matters, see below.
 - The second owner (`sales@…`) is not touched by this. Demote that account from
   the team panel in the UI later.
 
-### Known behaviour worth knowing before you rely on it
+### Promoting the designated admin to a visible Owner sticks
 
-Promoting the founder row to Owner from the team panel **clears** its typed
-title, which re-arms the latch — so the next `ADMIN_EMAIL` sign-in stamps
-`Founder` again. The designated admin never loses access (powers come from the
-variable), but a *permanent visible second Owner* is not achievable while the
-latch is `role_custom IS NULL`. Making it permanent needs a latch that survives
-role changes (a dedicated column or a settled flag). Flagged for the spec owner;
-`qa/roles-access.test.js` asserts the current behaviour so it cannot change
-silently.
+The self-heal hides the personal mailbox **by default**. That is a display
+decision, not a ban: an owner may deliberately promote that account to a visible
+Owner from the team panel, and the promotion **persists**.
+
+`setTeamRole` makes this work by storing an **empty string** in `role_custom`
+instead of NULL when it promotes the designated admin to `owner`:
+
+| Stored `role_custom` | Heal latch | Displayed |
+|---|---|---|
+| `NULL` | armed — the heal fires | the power word (`Owner` / `Viewer` / `Sales`) |
+| `''` | **closed** — the heal skips | the power word, because `''` is falsy |
+| `'Founder'` | closed | `Founder` |
+
+So `''` keeps the latch closed while still displaying "Owner", and **no schema
+change is needed** — the existing `role_custom` column carries it.
+
+> **Why the latch must test NULL-ness explicitly.** `''` is falsy in JavaScript,
+> so a latch written as `if (user.role_custom) return` treats the empty string
+> exactly like NULL and undoes the promotion on the next sign-in. Both backends
+> compare against `null` instead (`role_custom != null`). In the worker the heal
+> is additionally a guarded UPDATE —
+> `WHERE id = ? AND role = 'owner' AND role_custom IS NULL` — so two admin
+> sessions racing cannot double-stamp, and SQL `'' IS NULL` is false, which
+> agrees with the JavaScript test.
+
+Demotion paths are unchanged: they store NULL like any other role change.
+
+### Re-hiding is manual
+
+To hide the designated admin again, set their role to `viewer` and type the title
+back (`Founder`). Their powers persist from `ADMIN_EMAIL` regardless of what the
+row says — the row only drives the label and the badge. There is no automatic
+re-hide.
+
+`qa/roles-access.test.js` asserts all of this: the promotion survives repeated
+`ADMIN_EMAIL` sign-ins and displays "Owner", an ordinary member's promotion still
+stores NULL, and a re-hidden admin keeps full powers on a `viewer` row.
 
 ## Typed titles never grant power
 

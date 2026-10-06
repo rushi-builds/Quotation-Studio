@@ -626,18 +626,35 @@ async function ensureBootstrapOwner(db, env, user) {
    the heal is a no-op forever, and it also never overwrites a title someone
    chose deliberately from the team panel.
 
+   The latch is NULL-ness, NOT truthiness — '' is falsy in JavaScript, so it has
+   to be compared against null explicitly. setTeamRole stores '' (not NULL) when
+   it promotes this account to a visible Owner: '' keeps the latch closed while
+   still displaying "Owner" (every display reader is truthiness-based, and ''
+   falls through to the power word), so a deliberate promotion sticks instead of
+   being undone on the next sign-in.
+
    No manual D1 edit is needed: the patch performs this on first admin login. */
 async function healFounderRole(db, env, actor) {
   if (!actor || !isHiddenAdmin(actor, env)) return false;
   /* P1 guard: same mailbox in both variables means this row is also the
      bootstrap target — heal yields so the role cannot oscillate. */
   if (adminOwnerConflict(env)) return false;
-  if (actor.role !== 'owner' || actor.role_custom) return false;
-  await run(
+  /* The latch is NULL-ness, NOT truthiness: '' is falsy in JavaScript, so a
+     bare `if (actor.role_custom)` would treat the empty string stored by a
+     deliberate visible promotion exactly like NULL and undo it. Compare
+     against null explicitly. */
+  if (actor.role !== 'owner' || actor.role_custom != null) return false;
+  /* Guarded UPDATE, so the heal is atomic and idempotent even if two admin
+     sessions race: it only writes a row that is still owner/NULL. */
+  const res = await run(
     db,
-    "UPDATE users SET role = 'viewer', role_custom = 'Founder', updated_at = ? WHERE id = ?",
+    "UPDATE users SET role = 'viewer', role_custom = 'Founder', updated_at = ? WHERE id = ? AND role = 'owner' AND role_custom IS NULL",
     nowISO(), actor.id
   );
+  const applied = !!(res && res.meta && typeof res.meta.changes === 'number'
+    ? res.meta.changes > 0
+    : true);
+  if (!applied) return false;
   actor.role = 'viewer';
   actor.role_custom = 'Founder';
   return true;
@@ -2168,13 +2185,31 @@ async function handleApi(request, env, url) {
           }, 400);
         }
       }
+      /* Latch repair. A deliberate promote from the team panel clears a typed
+         title to NULL, and the founder self-heal's latch is `role_custom IS
+         NULL` — so without this, promoting the designated admin to a visible
+         Owner would be undone on their next sign-in, when the heal restamps
+         'Founder'. The order was about DISPLAY (do not show a second "Owner"
+         by default), not a permanent ban on promoting them.
+
+         Storing an EMPTY STRING keeps the latch closed while still displaying
+         "Owner": every reader here is truthiness-based, so '' falls through to
+         the power word in roleDisplay() and is normalised to null by
+         publicUser()/the member payload. No schema change is needed.
+
+         Promotion only — demotion paths are untouched, and re-hiding the admin
+         stays a manual act (set viewer, type 'Founder'); their powers persist
+         from ADMIN_EMAIL either way. */
+      const storedCustom = (parsed.role === 'owner' && isHiddenAdmin(target, env))
+        ? ''
+        : parsed.roleCustom;
       await run(
         db,
         'UPDATE users SET role = ?, role_custom = ?, updated_at = ? WHERE id = ?',
-        parsed.role, parsed.roleCustom, nowISO(), target.id
+        parsed.role, storedCustom, nowISO(), target.id
       );
       target.role = parsed.role;
-      target.role_custom = parsed.roleCustom;
+      target.role_custom = storedCustom;
       /* Honest note, not a block: the OWNER_EMAIL bootstrap is unconditional,
          so a demotion of that mailbox is restored on its next request. */
       const note = normalizeEmail(target.email) === ownerEmail(env) && parsed.role !== 'owner'

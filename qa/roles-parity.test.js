@@ -158,6 +158,31 @@ t('C4: portal query keeps its literal owner_id filter', portalBody.includes('own
 t('C4: portal query has NO scope guard', !portalBody.includes('OWN_SCOPE'));
 t('C4: portal function has no user/env in scope', !/\(db, ev, (user|env)/.test(portalBody) && /function notifyFromPortalEvent\(db, ev\)/.test(portalBody));
 
+/* ---------- 5b. latch fix: a deliberate visible promote of the designated
+           admin must STICK, with no schema change ---------- */
+for (const [label, src] of [['worker', worker], ['server', server]]) {
+  /* The heal latch has to be an explicit NULL test. '' is falsy in JavaScript,
+     so a truthiness latch would treat a deliberate promotion exactly like NULL
+     and undo it on the next sign-in. */
+  t(label + ': heal latch tests NULL-ness, not truthiness',
+    /role_custom != null\) return false/.test(src),
+    'expected `... || <actor|user>.role_custom != null) return false`');
+  t(label + ': heal latch is not a bare truthiness check',
+    !/\|\| (actor|user)\.role_custom\) return false/.test(src));
+  /* setTeamRole stores '' (not NULL) when it promotes the designated admin. */
+  t(label + ': setTeamRole stores \'\' when promoting the designated admin to owner',
+    /const storedCustom = \(parsed\.role === 'owner' && isHiddenAdmin\(target(, env)?\)\)\s*\n\s*\? ''\s*\n\s*: parsed\.roleCustom;/.test(src));
+  t(label + ': the stored value is written, not the parsed one',
+    /role_custom = storedCustom|target\.role_custom = storedCustom/.test(src));
+  /* No schema change: the latch fix must not add a column or a migration. */
+  t(label + ': latch fix needs no new column', !/settled|heal_done|latch_|founder_healed/i.test(src));
+}
+t('worker: heal UPDATE is guarded so concurrent admin sessions cannot double-stamp',
+  /WHERE id = \? AND role = 'owner' AND role_custom IS NULL/.test(worker));
+t('display: roleDisplay still falls through on an empty title',
+  /if \(u\.role_custom\) return String\(u\.role_custom\);/.test(worker) &&
+  /if \(u\.role_custom\) return String\(u\.role_custom\);/.test(server));
+
 /* ---------- 6. server.js in-memory parity ---------- */
 /* 47 call sites, plus the one occurrence inside the inScope() definition
    itself (`row.owner_id === scope`), which is not a call site. */
@@ -209,8 +234,12 @@ try {
   t('FROZEN calc/pricing/finance/export files untouched', frozen.length === 0, frozen.join(', '));
   t('phone button + Firebase untouched', !changed.some((f) => /phone/i.test(f)));
   t('wrangler config / zone / NS untouched', !changed.some((f) => /wrangler|vercel\.json/.test(f)));
-  t('changed files are the intended set', changed.every((f) =>
-    /platform\/cloudflare\/src\/worker\.js$|platform\/local-server\/server\.js$|assets\/js\/(dashboard|dashboard-home|platform-api|cloud-bridge)\.js$|assets\/css\/dashboard\.css$|^dashboard\.html$|^qa\//.test(f)), changed.join(', '));
+  /* Allowlist of files this round may touch. Anything outside it means the
+     patch wandered - notably into the frozen calculation/finance/export set,
+     the phone/Firebase code, or a deploy config. */
+  const ALLOWED = /^(platform\/cloudflare\/src\/worker\.js|platform\/local-server\/server\.js|assets\/js\/(dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|dashboard\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;
+  t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
+    changed.filter((f) => !ALLOWED.test(f)).join(', '));
 } catch (e) {
   t('git diff available to check the frozen list', false, e.message);
 }
