@@ -3126,3 +3126,29 @@ html[data-theme="dark"] .sidebar {
 #roleEditor .role-save { background: var(--blue); border-color: var(--blue); color: #fff; }
 #roleEditor .role-save:disabled { opacity: .6; cursor: wait; }
 #roleEditor .role-cancel { background: none; color: inherit; }
+/* Typed-title input inside the own-role editor. Shown only for "Custom title". */
+#roleEditor .role-title {
+  font-size: 13px; padding: 3px 6px; border-radius: 8px; width: 190px;
+  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
+}
+#roleEditor .role-title[hidden] { display: none; }
+#roleEditor .role-title:disabled { opacity: .55; cursor: not-allowed; }
+/* Own pencil stays visible for members but reads as "not yours to change".
+   It is never hidden, so nobody has to guess why an owner can and they cannot. */
+.settings-profile > .role-pencil.is-locked { opacity: .45; cursor: help; }
+.settings-profile > .role-pencil.is-locked:hover {
+  color: var(--muted);
+  background: none;
+}
+/* Team panel: typed title per member, and the power badge that is the truth
+   about access. Badge and title are deliberately separate columns. */
+.team-title-input {
+  font-size: 12px; padding: 3px 6px; border-radius: 8px; width: 100%; min-width: 120px;
+  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
+}
+.team-title-input:disabled { opacity: .5; cursor: not-allowed; }
+.badge-power[data-power="owner"] { background: #469e8512; color: var(--green); }
+.badge-power[data-power="sales"] { background: color-mix(in srgb, var(--blue) 12%, transparent); color: var(--blue); }
+.badge-power[data-power="viewer"] { background: var(--surface-soft); color: var(--muted); }
+/* Health warnings in Settings · Profile · Connection details. */
+#settingsHealth .warn { color: var(--red); }

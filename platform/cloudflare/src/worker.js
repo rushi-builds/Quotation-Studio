@@ -20,6 +20,11 @@ const SESSION_DAYS = 30;
 const COOKIE = 'qs_session';
 const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
+/* Deployed code marker. /api/health reports it so an operator can prove the
+   running Worker is actually the build that contains the role changes,
+   instead of inferring it from behaviour. Bump on every behaviour change. */
+const CODE_VERSION = 'roles-r1';
+
 const SEND_CHANNELS = {
   whatsapp_manual: true,
   email_manual: true,
@@ -226,17 +231,53 @@ function parseSignupRole(raw) {
   if (key === 'viewer') return { role: 'viewer', roleCustom: null, roleLabel: 'Viewer' };
   return { role: 'custom', roleCustom: typed, roleLabel: typed };
 }
+/* Role configuration diagnostics — the same fail-open-but-reported shape as
+   phoneIssues() in src/phone.mjs, with one difference: nothing here disables a
+   feature. A missing variable is a legitimate state (the workspace simply runs
+   without a designated owner or admin), so only a MALFORMED value or a
+   conflicting pair is worth reporting.
+
+   Why it exists: a typo in ADMIN_EMAIL does not error anywhere — it silently
+   grants nobody, and the founder self-heal never runs. That is a deploy-time
+   mistake an operator cannot see from the UI, so /api/health says so.
+
+   Never returns an email address or a count of admins: this route is public. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function rolesIssues(env) {
+  const issues = [];
+  const o = ownerEmail(env), a = adminEmail(env);
+  if (o && !EMAIL_SHAPE.test(o)) issues.push('OWNER_EMAIL is set but is not a valid email address, so the workspace owner bootstrap cannot match any account');
+  if (a && !EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address, so the designated admin login cannot match any account');
+  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox. The founder self-heal is disabled so the role cannot oscillate; set ADMIN_EMAIL to the personal mailbox and OWNER_EMAIL to the company mailbox.');
+  return issues;
+}
+/* Typed title wins over the power word. A hidden admin carries owner powers
+   with a stored role of `owner` but must never be labelled "Admin" — and the
+   founder self-heal stores role_custom='Founder' on a `viewer` row, so the
+   typed title has to be what the UI shows. Power is decided by permissionRole,
+   never by this string. */
+/* A typed role title, validated exactly like the one on Create account
+   (non-empty, <= 60 chars, whitespace collapsed) but WITHOUT the keyword
+   mapping. Deliberate: a title is display text and must never decide access.
+   Typing "Owner" therefore stores a custom title with sales-level power; only
+   choosing the Owner power key grants owner. The power badge is the truth. */
+function parseRoleTitle(raw) {
+  const typed = String(raw || '').trim().replace(/\s+/g, ' ');
+  if (!typed) return { error: 'Enter a title (for example Project lead).' };
+  if (typed.length > 60) return { error: 'Role must be at most 60 characters.' };
+  return { role: 'custom', roleCustom: typed, roleLabel: typed };
+}
 function roleDisplay(u) {
   if (!u) return '';
+  if (u.role_custom) return String(u.role_custom);
   const r = String(u.role || '').toLowerCase();
-  if (r === 'custom' && u.role_custom) return String(u.role_custom);
   if (r === 'owner') return 'Owner';
   if (r === 'sales') return 'Sales';
   if (r === 'viewer') return 'Viewer';
-  if (u.role_custom) return String(u.role_custom);
   return u.role || '';
 }
-function publicUser(u) {
+function publicUser(u, env) {
+  const admin = canManageTeam(u, env);
   return {
     id: u.id,
     email: u.email,
@@ -244,10 +285,50 @@ function publicUser(u) {
     role: u.role,
     roleCustom: u.role_custom || null,
     roleLabel: roleDisplay(u),
+    /* Capability flags, not titles. The UI gates on these instead of
+       re-deriving `role === 'owner'`, so a hidden admin passes every gate
+       while still displaying only their typed title. Deliberately absent:
+       any "admin" / "hidden" wording — it must not leak into the display. */
+    canWrite: roleRank(permissionRole(u, env)) >= roleRank('sales'),
+    canManageTeam: admin,
+    seesAll: seesAll(u, env),
     createdAt: u.created_at || null
   };
 }
-function permissionRole(user) {
+/* ---------- hidden admin (ADMIN_EMAIL) ----------
+   A second designated login that carries owner powers on EVERY gate without
+   ever being shown as an admin. Computed per request from env + email; it is
+   never persisted to D1 and never appears in any label. */
+function normalizeEmail(v) {
+  return String(v == null ? '' : v).trim().toLowerCase();
+}
+function adminEmail(env) {
+  return normalizeEmail(env && env.ADMIN_EMAIL);
+}
+function ownerEmail(env) {
+  return normalizeEmail(env && env.OWNER_EMAIL);
+}
+function isHiddenAdmin(user, env) {
+  const designated = adminEmail(env);
+  if (!designated || !user) return false;
+  return normalizeEmail(user.email) === designated;
+}
+/* P1 guard — the one case where the two designated emails collide.
+   With ADMIN_EMAIL == OWNER_EMAIL both transitions aim at the SAME row:
+   bootstrap promotes it to owner (and clears the title), the founder heal
+   demotes it to viewer + 'Founder'. Run both and the row flips on every
+   request (promote → demote → promote …), so the heal yields and
+   /api/health reports the misconfiguration instead.
+   With two different mailboxes the targets are disjoint, this is false, and
+   both transitions run freely — the bootstrap stays unconditional. */
+function adminOwnerConflict(env) {
+  const a = adminEmail(env), o = ownerEmail(env);
+  return !!a && a === o;
+}
+/* Single source of truth for permission. Every gate in this worker calls
+   requireRole/canManageTeam, so overriding here overrides everywhere. */
+function permissionRole(user, env) {
+  if (isHiddenAdmin(user, env)) return 'owner';
   const r = String((user && user.role) || '').toLowerCase();
   if (r === 'owner') return 'owner';
   if (r === 'viewer') return 'viewer';
@@ -259,9 +340,22 @@ function roleRank(role) {
   if (role === 'viewer') return 1;
   return 0;
 }
-function requireRole(user, minRole) {
-  return roleRank(permissionRole(user)) >= roleRank(minRole);
+function requireRole(user, minRole, env) {
+  return roleRank(permissionRole(user, env)) >= roleRank(minRole);
 }
+function canManageTeam(user, env) {
+  return requireRole(user, 'owner', env);
+}
+/* Owner-sees-all: owner and hidden admin read every row; members stay scoped
+   to their own owner_id exactly as before. */
+function seesAll(user, env) {
+  return requireRole(user, 'owner', env);
+}
+/* Owner-sees-all SQL guard. Bound TWICE with the same value (plain `?`, no
+   numbered params — D1 binds positionally). When the first bind is NULL the
+   owner_id test short-circuits and every row is returned; when it is a user id
+   the query behaves exactly like the old `owner_id = ?`. */
+const OWN_SCOPE = '(? IS NULL OR owner_id = ?)';
 function proposalRevision(row) {
   return Number(row.revision) || 1;
 }
@@ -490,16 +584,22 @@ async function requireUser(request, db, env) {
   );
   if (!session) return null;
   const user = await one(db, 'SELECT * FROM users WHERE id = ?', session.user_id);
-  if (user) await ensureBootstrapOwner(db, env, user);
+  if (user) await applyOwnerBootstrap(db, env, user);
   return user;
 }
 /* Bootstrap owner: the deployed workspace designates one login email via the
    OWNER_EMAIL variable. That account is promoted to owner (persisted) on any
-   authenticated request. One-way: removing the variable does not demote. */
+   authenticated request. One-way: removing the variable does not demote.
+
+   UNCONDITIONAL — no role_custom / typed-title gate. The company mailbox must
+   become the visible Owner even if that row signed up with a typed title, so
+   nothing here may refuse to promote it. It cannot fight the founder
+   self-heal below because the two functions target different rows: this one
+   only ever touches OWNER_EMAIL, the heal only ever touches ADMIN_EMAIL. */
 async function ensureBootstrapOwner(db, env, user) {
-  const designated = String((env && env.OWNER_EMAIL) || '').trim().toLowerCase();
+  const designated = ownerEmail(env);
   if (!designated || !user || user.role === 'owner') return;
-  if (String(user.email || '').trim().toLowerCase() !== designated) return;
+  if (normalizeEmail(user.email) !== designated) return;
   await run(
     db,
     'UPDATE users SET role = ?, role_custom = NULL, updated_at = ? WHERE id = ?',
@@ -507,6 +607,47 @@ async function ensureBootstrapOwner(db, env, user) {
   );
   user.role = 'owner';
   user.role_custom = null;
+}
+/* Founder self-heal — runs only when the hidden admin (ADMIN_EMAIL) signs in,
+   and only once.
+
+   TARGET: the ADMIN_EMAIL user's OWN row. Today the personal mailbox holds
+   role='owner' with role_custom=NULL, so it shows up as a second visible
+   Owner. After the heal it is role='viewer' + role_custom='Founder': the team
+   panel shows the typed title "Founder" with a viewer power badge, while its
+   real powers stay at owner level through ADMIN_EMAIL (env, not D1).
+
+   It NEVER touches the OWNER_EMAIL row — the company mailbox keeps the
+   visible Owner role via the unconditional bootstrap above. That is what makes
+   the pair safe to run on every request: disjoint targets, so no oscillation
+   and no need for a conflict precondition.
+
+   One-time: the `role_custom` check is the latch. Once 'Founder' is stamped
+   the heal is a no-op forever, and it also never overwrites a title someone
+   chose deliberately from the team panel.
+
+   No manual D1 edit is needed: the patch performs this on first admin login. */
+async function healFounderRole(db, env, actor) {
+  if (!actor || !isHiddenAdmin(actor, env)) return false;
+  /* P1 guard: same mailbox in both variables means this row is also the
+     bootstrap target — heal yields so the role cannot oscillate. */
+  if (adminOwnerConflict(env)) return false;
+  if (actor.role !== 'owner' || actor.role_custom) return false;
+  await run(
+    db,
+    "UPDATE users SET role = 'viewer', role_custom = 'Founder', updated_at = ? WHERE id = ?",
+    nowISO(), actor.id
+  );
+  actor.role = 'viewer';
+  actor.role_custom = 'Founder';
+  return true;
+}
+/* Both designated-email transitions, in order: promote the company owner
+   first, then let a signing-in hidden admin settle its own founder row.
+   Called from requireUser, login and register. */
+async function applyOwnerBootstrap(db, env, user) {
+  await ensureBootstrapOwner(db, env, user);
+  await healFounderRole(db, env, user);
 }
 async function createSession(db, user) {
   const token = randomBytes(24).toString('hex');
@@ -842,11 +983,11 @@ async function handleApi(request, env, url) {
         user.id, user.email, user.name, user.password_hash, user.role, user.role_custom,
         user.created_at, user.updated_at
       );
-      await ensureBootstrapOwner(db, env, user);
+      await applyOwnerBootstrap(db, env, user);
       await authThrottleSuccess(db, email);
       const sess = await createSession(db, user);
       return json(
-        { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt },
+        { user: publicUser(user, env), token: sess.token, expiresAt: sess.expiresAt },
         201,
         authHeaders(sess.token, request)
       );
@@ -868,10 +1009,10 @@ async function handleApi(request, env, url) {
         return json({ error: 'Invalid email or password' }, 401);
       }
       await authThrottleSuccess(db, email);
-      await ensureBootstrapOwner(db, env, user);
+      await applyOwnerBootstrap(db, env, user);
       const sess = await createSession(db, user);
       return json(
-        { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt },
+        { user: publicUser(user, env), token: sess.token, expiresAt: sess.expiresAt },
         200,
         authHeaders(sess.token, request)
       );
@@ -886,7 +1027,7 @@ async function handleApi(request, env, url) {
     if (parts[0] === 'auth' && parts[1] === 'me' && method === 'GET') {
       const user = await requireUser(request, db, env);
       if (!user) return json({ error: 'Not signed in' }, 401);
-      return json({ user: publicUser(user) });
+      return json({ user: publicUser(user, env) });
     }
 
     // Public recovery is fail-closed until a verified delivery channel exists.
@@ -940,14 +1081,20 @@ async function handleApi(request, env, url) {
         );
         sessionUser.name = name.slice(0, 120);
       }
-      return json({ user: publicUser(sessionUser) });
+      return json({ user: publicUser(sessionUser, env) });
     }
 
     if (parts[0] === 'health' && method === 'GET') {
+      /* Role configuration warnings (P1 conflict + malformed values).
+         Deliberately reports STATE ONLY: no email address, no count of admins,
+         and no hint that a designated admin exists — this route is
+         unauthenticated, so anything it says is public. */
+      const warnings = rolesIssues(env);
       return json({
         ok: true,
         phase: 'E',
         build: 'workspace-5',
+        codeVersion: CODE_VERSION,
         storage: 'cloudflare-d1',
         time: nowISO(),
         project: 'quotation-studio',
@@ -963,8 +1110,14 @@ async function handleApi(request, env, url) {
           notifications: true,
           tasks: true,
           reports: true,
-          roles: ['owner', 'sales', 'viewer', 'custom']
-        }
+          roles: ['owner', 'sales', 'viewer', 'custom'],
+          /* Two power levels, exposed as capabilities rather than titles:
+             canWrite is sales-and-above, canManageTeam is owner-and-above.
+             A designated ADMIN_EMAIL login satisfies both. */
+          roleCustomTitles: true,
+          ownerSeesAll: true
+        },
+        warnings
       });
     }
 
@@ -1058,8 +1211,13 @@ async function handleApi(request, env, url) {
     /* Staff session required below */
     const user = await requireUser(request, db, env);
     if (!user) return json({ error: 'Sign in required' }, 401);
-    const canWrite = requireRole(user, 'sales');
-    const canAdmin = requireRole(user, 'owner');
+    const canWrite = requireRole(user, 'sales', env);
+    const canAdmin = requireRole(user, 'owner', env);
+    /* Owner-sees-all. Bound into every OWN_SCOPE guard below as the FIRST of
+       its two placeholders: null for owner/hidden admin (the `? IS NULL` arm
+       wins, so every row is returned), the user's own id for members (the
+       `owner_id = ?` arm applies, exactly as before this change). */
+    const scope = seesAll(user, env) ? null : user.id;
 
     /* Gemini: no browser-supplied context or mutation tools. */
     if (parts[0] === 'assistant' && parts.length === 2) {
@@ -1083,11 +1241,11 @@ async function handleApi(request, env, url) {
         },
         loadContext: async proposalId => {
           const [counts, proposals, tasks, events, selected] = await Promise.all([
-            all(db, 'SELECT status, COUNT(*) AS count FROM proposals WHERE owner_id = ? GROUP BY status', user.id),
-            all(db, 'SELECT id,owner_id,ref,title,status,capacity,customer_name,updated_at,created_at,form_json FROM proposals WHERE owner_id = ? ORDER BY updated_at DESC LIMIT 31', user.id),
-            all(db, "SELECT id,owner_id,proposal_id,title,due_at,status FROM tasks WHERE owner_id = ? AND status = 'open' ORDER BY due_at IS NULL,due_at ASC LIMIT 31", user.id),
-            all(db, "SELECT owner_id,proposal_id,event_type,created_at FROM portal_events WHERE owner_id = ? AND event_type != 'suspected_prefetch' ORDER BY created_at DESC LIMIT 16", user.id),
-            proposalId ? one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', proposalId,user.id) : null
+            all(db, 'SELECT status, COUNT(*) AS count FROM proposals WHERE ' + OWN_SCOPE + ' GROUP BY status', scope, user.id),
+            all(db, 'SELECT id,owner_id,ref,title,status,capacity,customer_name,updated_at,created_at,form_json FROM proposals WHERE ' + OWN_SCOPE + ' ORDER BY updated_at DESC LIMIT 31', scope, user.id),
+            all(db, "SELECT id,owner_id,proposal_id,title,due_at,status FROM tasks WHERE " + OWN_SCOPE + " AND status = 'open' ORDER BY due_at IS NULL,due_at ASC LIMIT 31", scope, user.id),
+            all(db, "SELECT owner_id,proposal_id,event_type,created_at FROM portal_events WHERE " + OWN_SCOPE + " AND event_type != 'suspected_prefetch' ORDER BY created_at DESC LIMIT 16", scope, user.id),
+            proposalId ? one(db, 'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE, proposalId, scope, user.id) : null
           ]);
           const byStatus = {}; counts.forEach(r => { byStatus[r.status || 'draft'] = Number(r.count) || 0; });
           return { total: counts.reduce((sum,r) => sum + Number(r.count),0), byStatus, proposals,tasks,events,selected };
@@ -1155,7 +1313,7 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'dashboard' && parts[1] === 'summary' && method === 'GET') {
-      const mine = await all(db, 'SELECT * FROM proposals WHERE owner_id = ?', user.id);
+      const mine = await all(db, 'SELECT * FROM proposals WHERE ' + OWN_SCOPE, scope, user.id);
       const counts = { total: mine.length, draft: 0, ready: 0, accepted: 0, sent: 0, won: 0, lost: 0, byStatus: {} };
       mine.forEach((p) => {
         const s = p.status || 'draft';
@@ -1168,13 +1326,13 @@ async function handleApi(request, env, url) {
       });
       const unreadRow = await one(
         db,
-        'SELECT COUNT(*) AS c FROM notifications WHERE owner_id = ? AND read_at IS NULL',
-        user.id
+        'SELECT COUNT(*) AS c FROM notifications WHERE ' + OWN_SCOPE + ' AND read_at IS NULL',
+        scope, user.id
       );
       const openTasks = await all(
         db,
-        "SELECT * FROM tasks WHERE owner_id = ? AND status = 'open'",
-        user.id
+        "SELECT * FROM tasks WHERE " + OWN_SCOPE + " AND status = 'open'",
+        scope, user.id
       );
       const overdue = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
       counts.unreadNotifications = Number(unreadRow && unreadRow.c) || 0;
@@ -1191,8 +1349,8 @@ async function handleApi(request, env, url) {
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'GET') {
       const list = await all(
         db,
-        'SELECT * FROM proposals WHERE owner_id = ? ORDER BY updated_at DESC',
-        user.id
+        'SELECT * FROM proposals WHERE ' + OWN_SCOPE + ' ORDER BY updated_at DESC',
+        scope, user.id
       );
       return json({ proposals: list.map(proposalSummary) });
     }
@@ -1250,14 +1408,14 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts.length === 2 && method === 'GET') {
-      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       return json({ proposal: proposalFull(row) });
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts.length === 2 && method === 'PUT') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot edit proposals.' }, 403);
-      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const body = await readBody(request);
       const badUpdateStatus = proposalStatusError(body.status);
@@ -1303,14 +1461,14 @@ async function handleApi(request, env, url) {
 
     if (parts[0] === 'proposals' && parts[1] && parts.length === 2 && method === 'DELETE') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot delete proposals.' }, 403);
-      const r = await run(db, 'DELETE FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const r = await run(db, 'DELETE FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!r.meta || r.meta.changes === 0) return json({ error: 'Proposal not found' }, 404);
       return json({ ok: true });
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'duplicate' && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot duplicate proposals.' }, 403);
-      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       let form = {};
       try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
@@ -1358,7 +1516,7 @@ async function handleApi(request, env, url) {
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'publish' && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot publish proposals.' }, 403);
-      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const body = await readBody(request);
       const snapshot = customerSnapshotFromProposal(row);
@@ -1403,44 +1561,44 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'versions' && method === 'GET') {
-      const row = await one(db, 'SELECT id FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT id FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const list = await all(
         db,
-        'SELECT * FROM proposal_versions WHERE proposal_id = ? AND owner_id = ? ORDER BY created_at DESC',
-        parts[1], user.id
+        'SELECT * FROM proposal_versions WHERE proposal_id = ? AND ' + OWN_SCOPE + ' ORDER BY created_at DESC',
+        parts[1], scope, user.id
       );
       return json({ versions: list.map(publicVersion) });
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'links' && method === 'GET') {
-      const row = await one(db, 'SELECT id FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT id FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const list = await all(
         db,
-        'SELECT * FROM access_tokens WHERE proposal_id = ? AND owner_id = ? ORDER BY created_at DESC',
-        parts[1], user.id
+        'SELECT * FROM access_tokens WHERE proposal_id = ? AND ' + OWN_SCOPE + ' ORDER BY created_at DESC',
+        parts[1], scope, user.id
       );
       return json({ links: list.map((t) => publicToken(t)) });
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'links' && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot create customer links.' }, 403);
-      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const body = await readBody(request);
       let version = null;
       if (body.versionId) {
         version = await one(
           db,
-          'SELECT * FROM proposal_versions WHERE id = ? AND proposal_id = ? AND owner_id = ?',
-          body.versionId, row.id, user.id
+          'SELECT * FROM proposal_versions WHERE id = ? AND proposal_id = ? AND ' + OWN_SCOPE,
+          body.versionId, row.id, scope, user.id
         );
       } else {
         version = await one(
           db,
-          'SELECT * FROM proposal_versions WHERE proposal_id = ? AND owner_id = ? ORDER BY created_at DESC LIMIT 1',
-          row.id, user.id
+          'SELECT * FROM proposal_versions WHERE proposal_id = ? AND ' + OWN_SCOPE + ' ORDER BY created_at DESC LIMIT 1',
+          row.id, scope, user.id
         );
       }
       if (!version) return json({ error: 'Publish a version before creating a customer link.' }, 400);
@@ -1475,19 +1633,19 @@ async function handleApi(request, env, url) {
 
     if (parts[0] === 'links' && parts[1] && parts[2] === 'revoke' && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot revoke links.' }, 403);
-      const tok = await one(db, 'SELECT * FROM access_tokens WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const tok = await one(db, 'SELECT * FROM access_tokens WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!tok) return json({ error: 'Link not found' }, 404);
       await run(db, 'UPDATE access_tokens SET revoked_at = ? WHERE id = ?', nowISO(), tok.id);
       return json({ ok: true });
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'events' && method === 'GET') {
-      const row = await one(db, 'SELECT id FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT id FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const list = await all(
         db,
-        'SELECT * FROM portal_events WHERE proposal_id = ? AND owner_id = ? ORDER BY created_at DESC LIMIT 200',
-        parts[1], user.id
+        'SELECT * FROM portal_events WHERE proposal_id = ? AND ' + OWN_SCOPE + ' ORDER BY created_at DESC LIMIT 200',
+        parts[1], scope, user.id
       );
       return json({
         events: list.map((e) => ({
@@ -1500,19 +1658,19 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'send-preview' && method === 'GET') {
-      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       let form = {};
       try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
       const versions = await all(
         db,
-        'SELECT * FROM proposal_versions WHERE proposal_id = ? AND owner_id = ? ORDER BY created_at DESC',
-        row.id, user.id
+        'SELECT * FROM proposal_versions WHERE proposal_id = ? AND ' + OWN_SCOPE + ' ORDER BY created_at DESC',
+        row.id, scope, user.id
       );
       const links = await all(
         db,
-        'SELECT * FROM access_tokens WHERE proposal_id = ? AND owner_id = ?',
-        row.id, user.id
+        'SELECT * FROM access_tokens WHERE proposal_id = ? AND ' + OWN_SCOPE,
+        row.id, scope, user.id
       );
       const active = links.filter(tokenIsActive);
       return json({
@@ -1528,12 +1686,12 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'sends' && method === 'GET') {
-      const row = await one(db, 'SELECT id FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT id FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const list = await all(
         db,
-        'SELECT * FROM sends WHERE proposal_id = ? AND owner_id = ? ORDER BY created_at DESC',
-        parts[1], user.id
+        'SELECT * FROM sends WHERE proposal_id = ? AND ' + OWN_SCOPE + ' ORDER BY created_at DESC',
+        parts[1], scope, user.id
       );
       return json({ sends: list.map(publicSend) });
     }
@@ -1541,15 +1699,15 @@ async function handleApi(request, env, url) {
     if (parts[0] === 'sends' && parts.length === 1 && method === 'GET') {
       const list = await all(
         db,
-        'SELECT * FROM sends WHERE owner_id = ? ORDER BY created_at DESC LIMIT 100',
-        user.id
+        'SELECT * FROM sends WHERE ' + OWN_SCOPE + ' ORDER BY created_at DESC LIMIT 100',
+        scope, user.id
       );
       return json({ sends: list.map(publicSend) });
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'sends' && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot prepare sends.' }, 403);
-      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const body = await readBody(request);
       const channel = String(body.channel || 'copy_link');
@@ -1558,14 +1716,14 @@ async function handleApi(request, env, url) {
       if (body.versionId) {
         version = await one(
           db,
-          'SELECT * FROM proposal_versions WHERE id = ? AND proposal_id = ? AND owner_id = ?',
-          body.versionId, row.id, user.id
+          'SELECT * FROM proposal_versions WHERE id = ? AND proposal_id = ? AND ' + OWN_SCOPE,
+          body.versionId, row.id, scope, user.id
         );
       } else {
         version = await one(
           db,
-          'SELECT * FROM proposal_versions WHERE proposal_id = ? AND owner_id = ? ORDER BY created_at DESC LIMIT 1',
-          row.id, user.id
+          'SELECT * FROM proposal_versions WHERE proposal_id = ? AND ' + OWN_SCOPE + ' ORDER BY created_at DESC LIMIT 1',
+          row.id, scope, user.id
         );
       }
       if (!version) return json({ error: 'Publish a version before sending.' }, 400);
@@ -1574,8 +1732,8 @@ async function handleApi(request, env, url) {
       let rawToken = null;
       const existing = await all(
         db,
-        'SELECT * FROM access_tokens WHERE proposal_id = ? AND version_id = ? AND owner_id = ? AND revoked_at IS NULL',
-        row.id, version.id, user.id
+        'SELECT * FROM access_tokens WHERE proposal_id = ? AND version_id = ? AND ' + OWN_SCOPE + ' AND revoked_at IS NULL',
+        row.id, version.id, scope, user.id
       );
       tok = existing.find(tokenIsActive) || null;
       if (!tok) {
@@ -1663,7 +1821,7 @@ async function handleApi(request, env, url) {
 
     if (parts[0] === 'sends' && parts[1] && parts[2] === 'state' && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot update sends.' }, 403);
-      const sendRow = await one(db, 'SELECT * FROM sends WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const sendRow = await one(db, 'SELECT * FROM sends WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!sendRow) return json({ error: 'Send not found' }, 404);
       const body = await readBody(request);
       const state = String(body.state || '');
@@ -1694,20 +1852,20 @@ async function handleApi(request, env, url) {
       if (unreadOnly) {
         list = await all(
           db,
-          'SELECT * FROM notifications WHERE owner_id = ? AND read_at IS NULL ORDER BY created_at DESC LIMIT 100',
-          user.id
+          'SELECT * FROM notifications WHERE ' + OWN_SCOPE + ' AND read_at IS NULL ORDER BY created_at DESC LIMIT 100',
+          scope, user.id
         );
       } else {
         list = await all(
           db,
-          'SELECT * FROM notifications WHERE owner_id = ? ORDER BY created_at DESC LIMIT 100',
-          user.id
+          'SELECT * FROM notifications WHERE ' + OWN_SCOPE + ' ORDER BY created_at DESC LIMIT 100',
+          scope, user.id
         );
       }
       const unreadRow = await one(
         db,
-        'SELECT COUNT(*) AS c FROM notifications WHERE owner_id = ? AND read_at IS NULL',
-        user.id
+        'SELECT COUNT(*) AS c FROM notifications WHERE ' + OWN_SCOPE + ' AND read_at IS NULL',
+        scope, user.id
       );
       return json({
         notifications: list.map(publicNotification),
@@ -1718,8 +1876,8 @@ async function handleApi(request, env, url) {
     if (parts[0] === 'notifications' && parts[1] === 'read-all' && method === 'POST') {
       await run(
         db,
-        'UPDATE notifications SET read_at = ? WHERE owner_id = ? AND read_at IS NULL',
-        nowISO(), user.id
+        'UPDATE notifications SET read_at = ? WHERE ' + OWN_SCOPE + ' AND read_at IS NULL',
+        nowISO(), scope, user.id
       );
       return json({ ok: true });
     }
@@ -1727,8 +1885,8 @@ async function handleApi(request, env, url) {
     if (parts[0] === 'notifications' && parts[1] && parts[2] === 'read' && method === 'POST') {
       await run(
         db,
-        'UPDATE notifications SET read_at = ? WHERE id = ? AND owner_id = ?',
-        nowISO(), parts[1], user.id
+        'UPDATE notifications SET read_at = ? WHERE id = ? AND ' + OWN_SCOPE,
+        nowISO(), parts[1], scope, user.id
       );
       return json({ ok: true });
     }
@@ -1736,8 +1894,8 @@ async function handleApi(request, env, url) {
     if (parts[0] === 'activity' && method === 'GET') {
       const list = await all(
         db,
-        'SELECT * FROM portal_events WHERE owner_id = ? ORDER BY created_at DESC LIMIT 100',
-        user.id
+        'SELECT * FROM portal_events WHERE ' + OWN_SCOPE + ' ORDER BY created_at DESC LIMIT 100',
+        scope, user.id
       );
       return json({
         events: list.map((e) => ({
@@ -1756,14 +1914,15 @@ async function handleApi(request, env, url) {
       if (status) {
         list = await all(
           db,
-          'SELECT * FROM tasks WHERE owner_id = ? AND status = ? ORDER BY due_at IS NULL, due_at ASC, created_at DESC',
+          'SELECT * FROM tasks WHERE ' + OWN_SCOPE + ' AND status = ? ORDER BY due_at IS NULL, due_at ASC, created_at DESC',
+          scope,
           user.id, status
         );
       } else {
         list = await all(
           db,
-          'SELECT * FROM tasks WHERE owner_id = ? ORDER BY due_at IS NULL, due_at ASC, created_at DESC',
-          user.id
+          'SELECT * FROM tasks WHERE ' + OWN_SCOPE + ' ORDER BY due_at IS NULL, due_at ASC, created_at DESC',
+          scope, user.id
         );
       }
       return json({ tasks: list.map(publicTask) });
@@ -1785,7 +1944,7 @@ async function handleApi(request, env, url) {
         dueAt = new Date(Date.now() + d * 864e5).toISOString();
       }
       if (body.proposalId) {
-        const linked = await one(db, 'SELECT id FROM proposals WHERE id = ? AND owner_id = ?', body.proposalId, user.id);
+        const linked = await one(db, 'SELECT id FROM proposals WHERE id = ? AND ' + OWN_SCOPE, body.proposalId, scope, user.id);
         if (!linked) return json({ error: 'Proposal not found for this task' }, 404);
       }
       const task = {
@@ -1813,7 +1972,7 @@ async function handleApi(request, env, url) {
 
     if (parts[0] === 'tasks' && parts[1] && parts.length === 2 && method === 'PUT') {
       if (!canWrite) return json({ error: 'Your role can view tasks but cannot edit them.' }, 403);
-      const task = await one(db, 'SELECT * FROM tasks WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const task = await one(db, 'SELECT * FROM tasks WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!task) return json({ error: 'Task not found' }, 404);
       const body = await readBody(request);
       let title = task.title;
@@ -1854,13 +2013,13 @@ async function handleApi(request, env, url) {
 
     if (parts[0] === 'tasks' && parts[1] && parts.length === 2 && method === 'DELETE') {
       if (!canWrite) return json({ error: 'Your role can view tasks but cannot delete them.' }, 403);
-      const r = await run(db, 'DELETE FROM tasks WHERE id = ? AND owner_id = ?', parts[1], user.id);
+      const r = await run(db, 'DELETE FROM tasks WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!r.meta || r.meta.changes === 0) return json({ error: 'Task not found' }, 404);
       return json({ ok: true });
     }
 
     if (parts[0] === 'reports' && parts[1] === 'summary' && method === 'GET') {
-      const mine = await all(db, 'SELECT * FROM proposals WHERE owner_id = ?', user.id);
+      const mine = await all(db, 'SELECT * FROM proposals WHERE ' + OWN_SCOPE, scope, user.id);
       const byStatus = {};
       let quotedKnown = 0, quotedSum = 0, quotedMissing = 0;
       mine.forEach((p) => {
@@ -1870,8 +2029,8 @@ async function handleApi(request, env, url) {
         if (v != null) { quotedKnown += 1; quotedSum += v; }
         else quotedMissing += 1;
       });
-      const mySends = await all(db, 'SELECT * FROM sends WHERE owner_id = ?', user.id);
-      const myEvents = await all(db, 'SELECT * FROM portal_events WHERE owner_id = ?', user.id);
+      const mySends = await all(db, 'SELECT * FROM sends WHERE ' + OWN_SCOPE, scope, user.id);
+      const myEvents = await all(db, 'SELECT * FROM portal_events WHERE ' + OWN_SCOPE, scope, user.id);
       const opens = myEvents.filter((e) => e.event_type === 'link_opened').length;
       const prefetches = myEvents.filter((e) => e.event_type === 'suspected_prefetch').length;
       const surveys = myEvents.filter((e) => e.event_type === 'survey_requested').length;
@@ -1879,15 +2038,15 @@ async function handleApi(request, env, url) {
       const shareClicks = mySends.filter((s) => s.state === 'share_clicked' || s.share_clicked_at).length;
       const published = await one(
         db,
-        'SELECT COUNT(*) AS c FROM proposal_versions WHERE owner_id = ?',
-        user.id
+        'SELECT COUNT(*) AS c FROM proposal_versions WHERE ' + OWN_SCOPE,
+        scope, user.id
       );
-      const tokens = await all(db, 'SELECT * FROM access_tokens WHERE owner_id = ?', user.id);
+      const tokens = await all(db, 'SELECT * FROM access_tokens WHERE ' + OWN_SCOPE, scope, user.id);
       const activeLinks = tokens.filter(tokenIsActive).length;
       const openTasks = await all(
         db,
-        "SELECT * FROM tasks WHERE owner_id = ? AND status = 'open'",
-        user.id
+        "SELECT * FROM tasks WHERE " + OWN_SCOPE + " AND status = 'open'",
+        scope, user.id
       );
       const overdueTasks = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
       return json({
@@ -1928,22 +2087,45 @@ async function handleApi(request, env, url) {
 
     if (parts[0] === 'team' && parts[1] === 'members' && method === 'GET') {
       if (!canAdmin) return json({ error: 'Only the workspace owner can view team members.' }, 403);
-      const members = await all(db, 'SELECT * FROM users ORDER BY created_at ASC');
+      /* Last login comes from the sessions table (most recent session issued),
+         falling back to account creation when no session row survives. */
+      const members = await all(
+        db,
+        `SELECT u.*, (SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id = u.id) AS last_login
+         FROM users u ORDER BY u.created_at ASC`
+      );
       return json({
-        members: members.map((u) => ({
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          role: u.role,
-          roleCustom: u.role_custom || null,
-          roleLabel: roleDisplay(u),
-          createdAt: u.created_at
-        })),
+        members: members.map((u) => {
+          const lastLogin = u.last_login || u.created_at || null;
+          return {
+            id: u.id,
+            name: u.name,
+            /* Contact details are included for owner / hidden admin only —
+               this whole route is gated by canAdmin, so a member never
+               receives another member's email address. */
+            email: u.email,
+            role: u.role,
+            roleCustom: u.role_custom || null,
+            /* Typed title. Never contains "Admin" for a designated admin —
+               their powers are real, their label is the title they typed. */
+            roleLabel: roleDisplay(u),
+            /* Power badge: the truth about what this member can do. */
+            power: permissionRole(u, env),
+            canWrite: roleRank(permissionRole(u, env)) >= roleRank('sales'),
+            canManageTeam: requireRole(u, 'owner', env),
+            lastLogin,
+            lastLoginLabel: lastLogin ? new Date(lastLogin).toISOString() : null,
+            createdAt: u.created_at
+          };
+        }),
         roles: [
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
           { id: 'sales', label: 'Sales', canWrite: true, canManageTeam: false },
           { id: 'viewer', label: 'Viewer', canWrite: false, canManageTeam: false },
-          { id: 'custom', label: 'Custom', canWrite: true, canManageTeam: false }
+          /* A custom entry is sales-level write access plus whatever title the
+             member typed. Titles are unrestricted — the power badge above is
+             the truth, so no blocklist is needed or wanted. */
+          { id: 'custom', label: 'Custom title', canWrite: true, canManageTeam: false, acceptsTitle: true }
         ]
       });
     }
@@ -1952,13 +2134,29 @@ async function handleApi(request, env, url) {
       if (!canAdmin) return json({ error: 'Only the workspace owner can change roles.' }, 403);
       const body = await readBody(request);
       const targetId = String(body.userId || '');
-      const role = String(body.role || '');
-      if (!['owner', 'sales', 'viewer'].includes(role)) {
-        return json({ error: 'Role must be owner, sales, or viewer' }, 400);
+      /* A role may arrive as a power key (owner/sales/viewer) or as a typed
+         title. `roleCustom` is accepted alongside `role` so the dropdown can
+         offer "custom title" without a separate endpoint. */
+      /* An explicit `roleCustom` is a typed title, so it is parsed as a title
+         and never mapped onto a power keyword. Otherwise `role` selects a power
+         key, or asks for a custom title via `title`. */
+      const wantsCustom = String(body.role || '').toLowerCase() === 'custom';
+      const explicitTitle = body.roleCustom != null && body.roleCustom !== '';
+      let parsed;
+      if (explicitTitle || (wantsCustom && body.title != null)) {
+        parsed = parseRoleTitle(explicitTitle ? body.roleCustom : body.title);
+      } else if (wantsCustom) {
+        parsed = { error: 'Choose a power level, or send roleCustom with the title to show.' };
+      } else {
+        parsed = parseSignupRole(body.role);
       }
+      if (parsed.error) return json({ error: parsed.error }, 400);
       const target = await one(db, 'SELECT * FROM users WHERE id = ?', targetId);
       if (!target) return json({ error: 'User not found' }, 404);
-      if (target.id === user.id && role !== 'owner') {
+      /* Losing the stored owner role needs another owner to exist first.
+         A designated ADMIN_EMAIL login is exempt: its powers come from the
+         environment, not from this row, so it cannot lock the workspace out. */
+      if (target.id === user.id && parsed.role !== 'owner' && !isHiddenAdmin(user, env)) {
         const otherOwners = await all(
           db,
           "SELECT id FROM users WHERE id != ? AND role = 'owner'",
@@ -1972,20 +2170,29 @@ async function handleApi(request, env, url) {
       }
       await run(
         db,
-        'UPDATE users SET role = ?, role_custom = NULL, updated_at = ? WHERE id = ?',
-        role, nowISO(), target.id
+        'UPDATE users SET role = ?, role_custom = ?, updated_at = ? WHERE id = ?',
+        parsed.role, parsed.roleCustom, nowISO(), target.id
       );
-      target.role = role;
-      target.role_custom = null;
+      target.role = parsed.role;
+      target.role_custom = parsed.roleCustom;
+      /* Honest note, not a block: the OWNER_EMAIL bootstrap is unconditional,
+         so a demotion of that mailbox is restored on its next request. */
+      const note = normalizeEmail(target.email) === ownerEmail(env) && parsed.role !== 'owner'
+        ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in. To make this change stick, remove or change OWNER_EMAIL in the Worker variables.'
+        : null;
       return json({
         member: {
           id: target.id,
           name: target.name,
           email: target.email,
           role: target.role,
-          roleCustom: null,
-          roleLabel: roleDisplay(target)
-        }
+          roleCustom: target.role_custom || null,
+          roleLabel: roleDisplay(target),
+          power: permissionRole(target, env),
+          canWrite: roleRank(permissionRole(target, env)) >= roleRank('sales'),
+          canManageTeam: requireRole(target, 'owner', env)
+        },
+        note
       });
     }
 

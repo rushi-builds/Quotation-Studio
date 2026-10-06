@@ -29,6 +29,10 @@ let assistantLimiter;
 const SESSION_DAYS = 30;
 const COOKIE = 'qs_session';
 
+/* Deployed code marker — kept identical to platform/cloudflare/src/worker.js
+   so /api/health reports the same version whichever backend serves it. */
+const CODE_VERSION = 'roles-r1';
+
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }
 function reserveLocalReference(db) {
@@ -672,17 +676,54 @@ function parseSignupRole(raw) {
   if (key === 'viewer') return { role: 'viewer', roleCustom: null, roleLabel: 'Viewer' };
   return { role: 'custom', roleCustom: typed, roleLabel: typed };
 }
+/* Role configuration diagnostics — the same fail-open-but-reported shape as
+   phoneIssues() in src/phone.mjs, with one difference: nothing here disables a
+   feature. A missing variable is a legitimate state (the workspace simply runs
+   without a designated owner or admin), so only a MALFORMED value or a
+   conflicting pair is worth reporting.
+
+   Why it exists: a typo in ADMIN_EMAIL does not error anywhere — it silently
+   grants nobody, and the founder self-heal never runs. That is a deploy-time
+   mistake an operator cannot see from the UI, so /api/health says so.
+
+   Never returns an email address or a count of admins: this route is public. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function rolesIssues() {
+  const env = process.env;
+  const issues = [];
+  const o = ownerEmail(env), a = adminEmail(env);
+  if (o && !EMAIL_SHAPE.test(o)) issues.push('OWNER_EMAIL is set but is not a valid email address, so the workspace owner bootstrap cannot match any account');
+  if (a && !EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address, so the designated admin login cannot match any account');
+  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox. The founder self-heal is disabled so the role cannot oscillate; set ADMIN_EMAIL to the personal mailbox and OWNER_EMAIL to the company mailbox.');
+  return issues;
+}
+/* Typed title wins over the power word — parity with the Cloudflare worker.
+   A hidden admin carries owner powers with a stored role of `owner` but is
+   never labelled "Admin", and the founder self-heal stores
+   role_custom='Founder' on a `viewer` row, so the typed title must be what the
+   UI shows. Power is decided by permissionRole, never by this string. */
+/* A typed role title, validated exactly like the one on Create account
+   (non-empty, <= 60 chars, whitespace collapsed) but WITHOUT the keyword
+   mapping. Deliberate: a title is display text and must never decide access.
+   Typing "Owner" therefore stores a custom title with sales-level power; only
+   choosing the Owner power key grants owner. The power badge is the truth. */
+function parseRoleTitle(raw) {
+  const typed = String(raw || '').trim().replace(/\s+/g, ' ');
+  if (!typed) return { error: 'Enter a title (for example Project lead).' };
+  if (typed.length > 60) return { error: 'Role must be at most 60 characters.' };
+  return { role: 'custom', roleCustom: typed, roleLabel: typed };
+}
 function roleDisplay(u) {
   if (!u) return '';
+  if (u.role_custom) return String(u.role_custom);
   const r = String(u.role || '').toLowerCase();
-  if (r === 'custom' && u.role_custom) return String(u.role_custom);
   if (r === 'owner') return 'Owner';
   if (r === 'sales') return 'Sales';
   if (r === 'viewer') return 'Viewer';
-  if (u.role_custom) return String(u.role_custom);
   return u.role || '';
 }
 function publicUser(u) {
+  const admin = canManageTeam(u);
   return {
     id: u.id,
     email: u.email,
@@ -690,15 +731,62 @@ function publicUser(u) {
     role: u.role,
     roleCustom: u.role_custom || null,
     roleLabel: roleDisplay(u),
+    /* Capability flags, not titles — the UI gates on these instead of
+       re-deriving `role === 'owner'`, so a hidden admin passes every gate
+       while still displaying only their typed title. */
+    canWrite: roleRank(permissionRole(u)) >= roleRank('sales'),
+    canManageTeam: admin,
+    seesAll: seesAll(u),
     createdAt: u.created_at || null
   };
 }
-/** Permission rank: custom titles act as Sales (can write, cannot manage team). */
+/* ---------- hidden admin (ADMIN_EMAIL) — local parity ----------
+   Same semantics as the worker: computed per request from the environment and
+   the account email, never persisted, never shown as a label. */
+function normalizeEmail(v) {
+  return String(v == null ? '' : v).trim().toLowerCase();
+}
+function adminEmail() {
+  return normalizeEmail(process.env.ADMIN_EMAIL);
+}
+function ownerEmail() {
+  return normalizeEmail(process.env.OWNER_EMAIL);
+}
+function isHiddenAdmin(user) {
+  const designated = adminEmail();
+  if (!designated || !user) return false;
+  return normalizeEmail(user.email) === designated;
+}
+/* P1 guard: both variables naming one mailbox would make the bootstrap and the
+   founder heal target the same row, so the heal yields and health reports it. */
+function adminOwnerConflict() {
+  const a = adminEmail(), o = ownerEmail();
+  return !!a && a === o;
+}
+/** Permission rank: custom titles act as Sales (can write, cannot manage team).
+ *  A designated ADMIN_EMAIL login ranks as Owner on every gate. */
 function permissionRole(user) {
+  if (isHiddenAdmin(user)) return 'owner';
   const r = String((user && user.role) || '').toLowerCase();
   if (r === 'owner') return 'owner';
   if (r === 'viewer') return 'viewer';
   return 'sales'; /* sales + custom */
+}
+function canManageTeam(user) {
+  return requireRole(user, 'owner');
+}
+/* Owner-sees-all: owner and hidden admin read every row; members stay scoped
+   to their own owner_id exactly as before. */
+function seesAll(user) {
+  return requireRole(user, 'owner');
+}
+/* In-memory parity with the worker's OWN_SCOPE SQL guard: true when the row is
+   visible to this caller. `scope === null` lifts the owner_id filter. */
+function scopeOf(user) {
+  return seesAll(user) ? null : String((user && user.id) || '');
+}
+function inScope(scope, row) {
+  return scope === null || (row && row.owner_id === scope);
 }
 function proposalSummary(p) {
   return {
@@ -759,15 +847,48 @@ function sessionTokenFrom(req) {
   return cookies[COOKIE] || cookies['qs_client'] || null;
 }
 /* Bootstrap owner (local parity with worker): OWNER_EMAIL designates one login
-   email; that account is promoted to owner (persisted). One-way. */
+   email; that account is promoted to owner (persisted). One-way.
+   UNCONDITIONAL — no typed-title gate, so the company mailbox becomes the
+   visible Owner even if it signed up with a title. It cannot fight the founder
+   heal below because the two target different rows. */
 function applyBootstrapOwner(user) {
-  const designated = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
+  const designated = ownerEmail();
   if (!designated || !user || user.role === 'owner') return false;
-  if (String(user.email || '').trim().toLowerCase() !== designated) return false;
+  if (normalizeEmail(user.email) !== designated) return false;
   user.role = 'owner';
   user.role_custom = null;
   user.updated_at = nowISO();
   return true;
+}
+/* Founder self-heal — parity with the worker. Runs only when the hidden admin
+   (ADMIN_EMAIL) signs in, and only once.
+
+   TARGET: the ADMIN_EMAIL user's OWN row (today role='owner',
+   role_custom=NULL, so it shows as a second visible Owner). Afterwards it is
+   role='viewer' + role_custom='Founder': the team panel shows the typed title
+   "Founder" with a viewer power badge while its real powers stay at owner
+   level through ADMIN_EMAIL.
+
+   It NEVER touches the OWNER_EMAIL row — the company mailbox keeps the visible
+   Owner role via the unconditional bootstrap. Disjoint targets, so no
+   oscillation. The role_custom check is the one-time latch. */
+function healFounderRole(user) {
+  if (!user || !isHiddenAdmin(user)) return false;
+  /* P1 guard: same mailbox in both variables means this row is also the
+     bootstrap target, so the heal yields and the role cannot flip. */
+  if (adminOwnerConflict()) return false;
+  if (user.role !== 'owner' || user.role_custom) return false;
+  user.role = 'viewer';
+  user.role_custom = 'Founder';
+  user.updated_at = nowISO();
+  return true;
+}
+/* Both designated-email transitions, in order. Returns true when either
+   mutated the row so the caller can persist. */
+function applyOwnerBootstrap(user) {
+  const a = applyBootstrapOwner(user);
+  const b = healFounderRole(user);
+  return a || b;
 }
 function requireUser(req, db) {
   scrubExpiredSessions(db);
@@ -777,7 +898,7 @@ function requireUser(req, db) {
   if (!session) return null;
   if (Date.parse(session.expires_at) <= Date.now()) return null;
   const user = (db.users || []).find((u) => u.id === session.user_id);
-  if (user && applyBootstrapOwner(user)) saveDb(db);
+  if (user && applyOwnerBootstrap(user)) saveDb(db);
   return user || null;
 }
 function createSession(db, user) {
@@ -1024,7 +1145,7 @@ async function handleApi(req, res, url) {
         updated_at: nowISO()
       };
       db.users.push(user);
-      applyBootstrapOwner(user);
+      applyOwnerBootstrap(user);
       authThrottleSuccess(email);
       const sess = createSession(db, user);
       saveDb(db);
@@ -1048,7 +1169,7 @@ async function handleApi(req, res, url) {
         authThrottleFail(req, email);
         return sendJson(res, 401, { error: 'Invalid email or password' });
       }
-      applyBootstrapOwner(user);
+      applyOwnerBootstrap(user);
       authThrottleSuccess(email);
       const sess = createSession(db, user);
       saveDb(db);
@@ -1127,10 +1248,15 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'health' && method === 'GET') {
+      /* Role configuration warnings — STATE ONLY. This route is
+         unauthenticated, so it never names an email, counts admins, or admits
+         that a designated admin exists. */
+      const warnings = rolesIssues();
       return sendJson(res, 200, {
         ok: true,
         phase: 'E',
         build: 'workspace-5',
+        codeVersion: CODE_VERSION,
         storage: 'local-json',
         time: nowISO(),
         sending: {
@@ -1142,8 +1268,11 @@ async function handleApi(req, res, url) {
           notifications: true,
           tasks: true,
           reports: true,
-          roles: ['owner', 'sales', 'viewer']
-        }
+          roles: ['owner', 'sales', 'viewer', 'custom'],
+          roleCustomTitles: true,
+          ownerSeesAll: true
+        },
+        warnings
       });
     }
 
@@ -1240,6 +1369,10 @@ async function handleApi(req, res, url) {
 
     const canWrite = requireRole(user, 'sales'); /* owner + sales */
     const canAdmin = requireRole(user, 'owner');
+    /* Owner-sees-all — parity with the worker's OWN_SCOPE SQL guard.
+       null for owner/hidden admin (every row is in scope), the user's own id
+       for members, whose reads stay exactly as narrowly scoped as before. */
+    const scope = scopeOf(user);
 
     /* Gemini: authenticated, owner-scoped, read-only, opt-in. */
     if (parts[0] === 'assistant' && parts.length === 2) {
@@ -1261,14 +1394,14 @@ async function handleApi(req, res, url) {
         }),
         reserveQuota: assistantLimiter,
         loadContext: async proposalId => {
-          const mine = (db.proposals || []).filter(p => p.owner_id === user.id);
+          const mine = (db.proposals || []).filter(p => inScope(scope, p));
           const byStatus = {}; mine.forEach(p => { const key = p.status || 'draft'; byStatus[key] = (byStatus[key] || 0) + 1; });
           return {
             total: mine.length, byStatus,
             proposals: mine.slice().sort((a,b) => String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,31),
             selected: proposalId ? mine.find(p => p.id === proposalId) : null,
-            tasks: (db.tasks || []).filter(t => t.owner_id === user.id && t.status === 'open').sort((a,b) => String(a.due_at || '9999').localeCompare(String(b.due_at || '9999'))).slice(0,31),
-            events: (db.events || []).filter(e => e.owner_id === user.id && e.event_type !== 'suspected_prefetch').sort((a,b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0,16)
+            tasks: (db.tasks || []).filter(t => inScope(scope, t) && t.status === 'open').sort((a,b) => String(a.due_at || '9999').localeCompare(String(b.due_at || '9999'))).slice(0,31),
+            events: (db.events || []).filter(e => inScope(scope, e) && e.event_type !== 'suspected_prefetch').sort((a,b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0,16)
           };
         }
       });
@@ -1327,7 +1460,7 @@ async function handleApi(req, res, url) {
 
     /* DASHBOARD SUMMARY */
     if (parts[0] === 'dashboard' && parts[1] === 'summary' && method === 'GET') {
-      const mine = (db.proposals || []).filter((p) => p.owner_id === user.id);
+      const mine = (db.proposals || []).filter((p) => inScope(scope, p));
       const byStatus = {};
       mine.forEach((p) => {
         const s = p.status || 'draft';
@@ -1338,8 +1471,8 @@ async function handleApi(req, res, url) {
         .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
         .slice(0, 8)
         .map(proposalSummary);
-      const unread = (db.notifications || []).filter((n) => n.owner_id === user.id && !n.read_at).length;
-      const openTasks = (db.tasks || []).filter((t) => t.owner_id === user.id && t.status === 'open');
+      const unread = (db.notifications || []).filter((n) => inScope(scope, n) && !n.read_at).length;
+      const openTasks = (db.tasks || []).filter((t) => inScope(scope, t) && t.status === 'open');
       const overdueTasks = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
       return sendJson(res, 200, {
         counts: {
@@ -1363,7 +1496,7 @@ async function handleApi(req, res, url) {
     /* PROPOSALS */
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'GET') {
       const mine = (db.proposals || [])
-        .filter((p) => p.owner_id === user.id)
+        .filter((p) => inScope(scope, p))
         .slice()
         .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
         .map(proposalSummary);
@@ -1415,14 +1548,14 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts.length === 2 && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       return sendJson(res, 200, { proposal: proposalFull(row) });
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts.length === 2 && method === 'PUT') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot edit proposals.' });
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
       const badUpdateStatus = proposalStatusError(body.status);
@@ -1475,7 +1608,7 @@ async function handleApi(req, res, url) {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot delete proposals.' });
       const before = (db.proposals || []).length;
       db.proposals = (db.proposals || []).filter(
-        (p) => !(p.id === parts[1] && p.owner_id === user.id)
+        (p) => !(p.id === parts[1] && inScope(scope, p))
       );
       if (db.proposals.length === before) {
         return sendJson(res, 404, { error: 'Proposal not found' });
@@ -1486,7 +1619,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'duplicate' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot duplicate proposals.' });
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       let form = {};
       try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
@@ -1524,7 +1657,7 @@ async function handleApi(req, res, url) {
     /* ---------- Phase B: publish frozen version + secure customer link ---------- */
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'publish' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot publish proposals.' });
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
       const snapshot = customerSnapshotFromProposal(row);
@@ -1583,10 +1716,10 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'versions' && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const list = (db.versions || [])
-        .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+        .filter((v) => v.proposal_id === row.id && inScope(scope, v))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .map(publicVersion);
@@ -1594,10 +1727,10 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'links' && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const list = (db.tokens || [])
-        .filter((t) => t.proposal_id === row.id && t.owner_id === user.id)
+        .filter((t) => t.proposal_id === row.id && inScope(scope, t))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .map((t) => publicToken(t, null));
@@ -1606,17 +1739,17 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'links' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot create customer links.' });
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
       let version = null;
       if (body.versionId) {
         version = (db.versions || []).find(
-          (v) => v.id === body.versionId && v.proposal_id === row.id && v.owner_id === user.id
+          (v) => v.id === body.versionId && v.proposal_id === row.id && inScope(scope, v)
         );
       } else {
         version = (db.versions || [])
-          .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+          .filter((v) => v.proposal_id === row.id && inScope(scope, v))
           .slice()
           .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
       }
@@ -1650,7 +1783,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'links' && parts[1] && parts[2] === 'revoke' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot revoke links.' });
-      const tok = (db.tokens || []).find((t) => t.id === parts[1] && t.owner_id === user.id);
+      const tok = (db.tokens || []).find((t) => t.id === parts[1] && inScope(scope, t));
       if (!tok) return sendJson(res, 404, { error: 'Link not found' });
       if (!tok.revoked_at) tok.revoked_at = nowISO();
       recordEvent(db, {
@@ -1666,10 +1799,10 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'events' && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const list = (db.events || [])
-        .filter((e) => e.proposal_id === row.id && e.owner_id === user.id)
+        .filter((e) => e.proposal_id === row.id && inScope(scope, e))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .slice(0, 100)
@@ -1686,16 +1819,16 @@ async function handleApi(req, res, url) {
 
     /* ---------- Phase C: send centre (manual channels; honest states) ---------- */
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'send-preview' && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       let form = {};
       try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
       const latestVersion = (db.versions || [])
-        .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+        .filter((v) => v.proposal_id === row.id && inScope(scope, v))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] || null;
       const activeLink = (db.tokens || [])
-        .filter((t) => t.proposal_id === row.id && t.owner_id === user.id && tokenIsActive(t))
+        .filter((t) => t.proposal_id === row.id && inScope(scope, t) && tokenIsActive(t))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] || null;
       return sendJson(res, 200, {
@@ -1721,10 +1854,10 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'sends' && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const list = (db.sends || [])
-        .filter((s) => s.proposal_id === row.id && s.owner_id === user.id)
+        .filter((s) => s.proposal_id === row.id && inScope(scope, s))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .map(publicSend);
@@ -1733,7 +1866,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'sends' && parts.length === 1 && method === 'GET') {
       const list = (db.sends || [])
-        .filter((s) => s.owner_id === user.id)
+        .filter((s) => inScope(scope, s))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .slice(0, 100)
@@ -1743,7 +1876,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'sends' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot prepare sends.' });
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
       const channel = String(body.channel || 'whatsapp_manual');
@@ -1755,12 +1888,12 @@ async function handleApi(req, res, url) {
       let version = null;
       if (body.versionId) {
         version = (db.versions || []).find(
-          (v) => v.id === body.versionId && v.proposal_id === row.id && v.owner_id === user.id
+          (v) => v.id === body.versionId && v.proposal_id === row.id && inScope(scope, v)
         );
       }
       if (!version) {
         version = (db.versions || [])
-          .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+          .filter((v) => v.proposal_id === row.id && inScope(scope, v))
           .slice()
           .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
       }
@@ -1891,7 +2024,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'sends' && parts[1] && parts[2] === 'state' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot update sends.' });
-      const sendRow = (db.sends || []).find((s) => s.id === parts[1] && s.owner_id === user.id);
+      const sendRow = (db.sends || []).find((s) => s.id === parts[1] && inScope(scope, s));
       if (!sendRow) return sendJson(res, 404, { error: 'Send record not found' });
       const body = await readBody(req);
       const next = String(body.state || '');
@@ -1936,10 +2069,10 @@ async function handleApi(req, res, url) {
     /* ---------- Phase D: notifications + activity + follow-up tasks ---------- */
     if (parts[0] === 'notifications' && parts.length === 1 && method === 'GET') {
       const unreadOnly = url.searchParams.get('unread') === '1';
-      let list = (db.notifications || []).filter((n) => n.owner_id === user.id);
+      let list = (db.notifications || []).filter((n) => inScope(scope, n));
       if (unreadOnly) list = list.filter((n) => !n.read_at);
       list = list.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 100);
-      const unread = (db.notifications || []).filter((n) => n.owner_id === user.id && !n.read_at).length;
+      const unread = (db.notifications || []).filter((n) => inScope(scope, n) && !n.read_at).length;
       return sendJson(res, 200, {
         notifications: list.map(publicNotification),
         unread
@@ -1949,14 +2082,14 @@ async function handleApi(req, res, url) {
     if (parts[0] === 'notifications' && parts[1] === 'read-all' && method === 'POST') {
       const now = nowISO();
       (db.notifications || []).forEach((n) => {
-        if (n.owner_id === user.id && !n.read_at) n.read_at = now;
+        if (inScope(scope, n) && !n.read_at) n.read_at = now;
       });
       saveDb(db);
       return sendJson(res, 200, { ok: true });
     }
 
     if (parts[0] === 'notifications' && parts[1] && parts[2] === 'read' && method === 'POST') {
-      const n = (db.notifications || []).find((x) => x.id === parts[1] && x.owner_id === user.id);
+      const n = (db.notifications || []).find((x) => x.id === parts[1] && inScope(scope, x));
       if (!n) return sendJson(res, 404, { error: 'Notification not found' });
       if (!n.read_at) n.read_at = nowISO();
       saveDb(db);
@@ -1965,7 +2098,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'activity' && parts.length === 1 && method === 'GET') {
       const list = (db.events || [])
-        .filter((e) => e.owner_id === user.id)
+        .filter((e) => inScope(scope, e))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .slice(0, 150)
@@ -1987,7 +2120,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'tasks' && parts.length === 1 && method === 'GET') {
       const status = url.searchParams.get('status') || '';
-      let list = (db.tasks || []).filter((t) => t.owner_id === user.id);
+      let list = (db.tasks || []).filter((t) => inScope(scope, t));
       if (status) list = list.filter((t) => t.status === status);
       list = list.slice().sort((a, b) => {
         const ad = a.due_at || '9999';
@@ -2014,7 +2147,7 @@ async function handleApi(req, res, url) {
         dueAt = new Date(Date.now() + d * 864e5).toISOString();
       }
       if (body.proposalId) {
-        const p = (db.proposals || []).find((x) => x.id === body.proposalId && x.owner_id === user.id);
+        const p = (db.proposals || []).find((x) => x.id === body.proposalId && inScope(scope, x));
         if (!p) return sendJson(res, 404, { error: 'Proposal not found for this task' });
       }
       const task = {
@@ -2036,7 +2169,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'tasks' && parts[1] && parts.length === 2 && method === 'PUT') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view tasks but cannot update them.' });
-      const task = (db.tasks || []).find((t) => t.id === parts[1] && t.owner_id === user.id);
+      const task = (db.tasks || []).find((t) => t.id === parts[1] && inScope(scope, t));
       if (!task) return sendJson(res, 404, { error: 'Task not found' });
       const body = await readBody(req);
       if (body.title != null) {
@@ -2069,7 +2202,7 @@ async function handleApi(req, res, url) {
     if (parts[0] === 'tasks' && parts[1] && parts.length === 2 && method === 'DELETE') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view tasks but cannot delete them.' });
       const before = (db.tasks || []).length;
-      db.tasks = (db.tasks || []).filter((t) => !(t.id === parts[1] && t.owner_id === user.id));
+      db.tasks = (db.tasks || []).filter((t) => !(t.id === parts[1] && inScope(scope, t)));
       if (db.tasks.length === before) return sendJson(res, 404, { error: 'Task not found' });
       saveDb(db);
       return sendJson(res, 200, { ok: true });
@@ -2077,7 +2210,7 @@ async function handleApi(req, res, url) {
 
     /* ---------- Phase E: reports + team roles ---------- */
     if (parts[0] === 'reports' && parts[1] === 'summary' && method === 'GET') {
-      const mine = (db.proposals || []).filter((p) => p.owner_id === user.id);
+      const mine = (db.proposals || []).filter((p) => inScope(scope, p));
       const byStatus = {};
       let quotedKnown = 0;
       let quotedSum = 0;
@@ -2089,16 +2222,16 @@ async function handleApi(req, res, url) {
         if (v != null) { quotedKnown += 1; quotedSum += v; }
         else quotedMissing += 1;
       });
-      const mySends = (db.sends || []).filter((s) => s.owner_id === user.id);
-      const myEvents = (db.events || []).filter((e) => e.owner_id === user.id);
+      const mySends = (db.sends || []).filter((s) => inScope(scope, s));
+      const myEvents = (db.events || []).filter((e) => inScope(scope, e));
       const opens = myEvents.filter((e) => e.event_type === 'link_opened').length;
       const prefetches = myEvents.filter((e) => e.event_type === 'suspected_prefetch').length;
       const surveys = myEvents.filter((e) => e.event_type === 'survey_requested').length;
       const pdfs = myEvents.filter((e) => e.event_type === 'pdf_download_requested').length;
       const shareClicks = mySends.filter((s) => s.state === 'share_clicked' || s.share_clicked_at).length;
-      const published = (db.versions || []).filter((v) => v.owner_id === user.id).length;
-      const activeLinks = (db.tokens || []).filter((t) => t.owner_id === user.id && tokenIsActive(t)).length;
-      const openTasks = (db.tasks || []).filter((t) => t.owner_id === user.id && t.status === 'open');
+      const published = (db.versions || []).filter((v) => inScope(scope, v)).length;
+      const activeLinks = (db.tokens || []).filter((t) => inScope(scope, t) && tokenIsActive(t)).length;
+      const openTasks = (db.tasks || []).filter((t) => inScope(scope, t) && t.status === 'open');
       const overdueTasks = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
 
       /* Pipeline by salesperson is single-owner local accounts for now; multi-user
@@ -2146,22 +2279,40 @@ async function handleApi(req, res, url) {
       if (!canAdmin) {
         return sendJson(res, 403, { error: 'Only the workspace owner can view team members.' });
       }
-      /* Local single-tenant: list accounts on this server. Company org scoping comes later. */
-      const members = (db.users || []).map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        roleCustom: u.role_custom || null,
-        roleLabel: roleDisplay(u),
-        createdAt: u.created_at
-      }));
+      /* Local single-tenant: list accounts on this server. Company org scoping comes later.
+         Last login comes from the sessions table (most recent session issued),
+         falling back to account creation when no session row survives. */
+      const members = (db.users || []).map((u) => {
+        const logins = (db.sessions || [])
+          .filter((s) => s.user_id === u.id)
+          .map((s) => String(s.created_at || ''));
+        const lastLogin = (logins.sort().pop()) || u.created_at || null;
+        return {
+          id: u.id,
+          name: u.name,
+          /* Contact details: this route is gated by canAdmin, so only an owner
+             or hidden admin ever receives another member's email. */
+          email: u.email,
+          role: u.role,
+          roleCustom: u.role_custom || null,
+          /* Typed title — never "Admin" for a designated admin. */
+          roleLabel: roleDisplay(u),
+          /* Power badge — the truth about what this member can do. */
+          power: permissionRole(u),
+          canWrite: roleRank(permissionRole(u)) >= roleRank('sales'),
+          canManageTeam: requireRole(u, 'owner'),
+          lastLogin,
+          lastLoginLabel: lastLogin ? new Date(lastLogin).toISOString() : null,
+          createdAt: u.created_at
+        };
+      });
       return sendJson(res, 200, {
         members,
         roles: [
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
           { id: 'sales', label: 'Sales', canWrite: true, canManageTeam: false },
-          { id: 'viewer', label: 'Viewer', canWrite: false, canManageTeam: false }
+          { id: 'viewer', label: 'Viewer', canWrite: false, canManageTeam: false },
+          { id: 'custom', label: 'Custom title', canWrite: true, canManageTeam: false, acceptsTitle: true }
         ]
       });
     }
@@ -2172,13 +2323,29 @@ async function handleApi(req, res, url) {
       }
       const body = await readBody(req);
       const targetId = String(body.userId || '');
-      const role = String(body.role || '');
-      if (!['owner', 'sales', 'viewer'].includes(role)) {
-        return sendJson(res, 400, { error: 'Role must be owner, sales, or viewer' });
+      /* A role may arrive as a power key (owner/sales/viewer) or as a typed
+         title. `roleCustom` is accepted alongside `role` so the dropdown can
+         offer "custom title" without a separate endpoint. */
+      /* An explicit `roleCustom` is a typed title, so it is parsed as a title
+         and never mapped onto a power keyword. Otherwise `role` selects a power
+         key, or asks for a custom title via `title`. */
+      const wantsCustom = String(body.role || '').toLowerCase() === 'custom';
+      const explicitTitle = body.roleCustom != null && body.roleCustom !== '';
+      let parsed;
+      if (explicitTitle || (wantsCustom && body.title != null)) {
+        parsed = parseRoleTitle(explicitTitle ? body.roleCustom : body.title);
+      } else if (wantsCustom) {
+        parsed = { error: 'Choose a power level, or send roleCustom with the title to show.' };
+      } else {
+        parsed = parseSignupRole(body.role);
       }
+      if (parsed.error) return sendJson(res, 400, { error: parsed.error });
       const target = (db.users || []).find((u) => u.id === targetId);
       if (!target) return sendJson(res, 404, { error: 'User not found' });
-      if (target.id === user.id && role !== 'owner') {
+      /* Losing the stored owner role needs another owner first. A designated
+         ADMIN_EMAIL login is exempt: its powers come from the environment, not
+         this row, so it cannot lock the workspace out. */
+      if (target.id === user.id && parsed.role !== 'owner' && !isHiddenAdmin(user)) {
         const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
         if (!otherOwners.length) {
           return sendJson(res, 400, {
@@ -2186,19 +2353,28 @@ async function handleApi(req, res, url) {
           });
         }
       }
-      target.role = role;
-      target.role_custom = null;
+      target.role = parsed.role;
+      target.role_custom = parsed.roleCustom;
       target.updated_at = nowISO();
       saveDb(db);
+      /* Honest note, not a block: the OWNER_EMAIL bootstrap is unconditional,
+         so a demotion of that mailbox is restored on its next request. */
+      const note = normalizeEmail(target.email) === ownerEmail() && parsed.role !== 'owner'
+        ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in. To make this change stick, remove or change OWNER_EMAIL in the server environment.'
+        : null;
       return sendJson(res, 200, {
         member: {
           id: target.id,
           name: target.name,
           email: target.email,
           role: target.role,
-          roleCustom: null,
-          roleLabel: roleDisplay(target)
-        }
+          roleCustom: target.role_custom || null,
+          roleLabel: roleDisplay(target),
+          power: permissionRole(target),
+          canWrite: roleRank(permissionRole(target)) >= roleRank('sales'),
+          canManageTeam: requireRole(target, 'owner')
+        },
+        note
       });
     }
 

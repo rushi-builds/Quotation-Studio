@@ -78,7 +78,7 @@
     const acts = X.activity.filter((e) => ['link_opened', 'pdf_download_requested', 'survey_requested', 'interest_recorded', 'section_view'].includes(e.type)).slice().sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 5);
     const actHtml = acts.length ? acts.map((e) => '<button type="button" class="arow" ' + (e.proposalId ? go('open', e.proposalId) : go('go', 'activity')) + '><span class="av sm">' + esc((e.proposalTitle || '?').trim().charAt(0).toUpperCase()) + '</span><span><strong>' + esc(String(e.proposalTitle || 'Quotation').replace(/\s[—-]\s[\d.]+ kWp$/, '')) + '</strong><i>' + EVT[e.type] + '</i></span><em>' + ago(e.createdAt) + '</em></button>').join('') : empty('No customer activity yet.');
     const byId = (id) => P.find((p) => p.id === id);
-    const fu = open.slice().sort((a,b) => (Date.parse(a.dueAt) || Infinity) - (Date.parse(b.dueAt) || Infinity)).slice(0, 5), fuHtml = fu.length ? '<table class="data tight"><thead><tr><th>Customer</th><th>Task</th><th>Due</th><th>Quotation</th><th></th></tr></thead><tbody>' + fu.map((t) => { const p = byId(t.proposalId); return '<tr><td><button type="button" class="record-link" ' + (p ? go('open', p.id) : go('go', 'tasks')) + '>' + esc(p ? cust(p) : '—') + '</button></td><td>' + esc(t.title) + '</td><td class="' + (t.overdue ? 'late' : '') + '">' + esc(dueLabel(t.dueAt)) + '</td><td class="mono">' + esc(p ? p.ref || '—' : '—') + '</td><td>' + (u.role && u.role !== 'viewer' ? '<button type="button" class="btn btn-secondary btn-sm" data-done="' + esc(t.id) + '">Complete</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table>' : empty('No open follow-ups.');
+    const fu = open.slice().sort((a,b) => (Date.parse(a.dueAt) || Infinity) - (Date.parse(b.dueAt) || Infinity)).slice(0, 5), fuHtml = fu.length ? '<table class="data tight"><thead><tr><th>Customer</th><th>Task</th><th>Due</th><th>Quotation</th><th></th></tr></thead><tbody>' + fu.map((t) => { const p = byId(t.proposalId); return '<tr><td><button type="button" class="record-link" ' + (p ? go('open', p.id) : go('go', 'tasks')) + '>' + esc(p ? cust(p) : '—') + '</button></td><td>' + esc(t.title) + '</td><td class="' + (t.overdue ? 'late' : '') + '">' + esc(dueLabel(t.dueAt)) + '</td><td class="mono">' + esc(p ? p.ref || '—' : '—') + '</td><td>' + ((D.canEdit && D.canEdit()) ? '<button type="button" class="btn btn-secondary btn-sm" data-done="' + esc(t.id) + '">Complete</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table>' : empty('No open follow-ups.');
     const rq = P.slice().sort((a,b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 6);
     const rqHtml = rq.length ? '<div class="table-wrap"><table class="data tight"><thead><tr><th>Customer / reference</th><th>System</th><th>Status</th><th>Last updated</th></tr></thead><tbody>' + rq.map(p =>
       '<tr><td><div class="quote-client"><span class="client-icon" aria-hidden="true">' + esc(cust(p).slice(0,2).toUpperCase()) + '</span><div><button type="button" class="record-link" ' + go('open',p.id) + '>' + esc(cust(p)) + '</button><small>' + esc(p.ref || 'No reference') + '</small></div></div></td><td>' + esc(p.capacity ? p.capacity + ' kWp' : '—') + '</td><td><span class="badge ' + esc(p.status || 'draft') + '">' + esc(LABEL[p.status || 'draft'] || p.status) + '</span></td><td>' + esc(p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '—') + '</td></tr>'
@@ -111,7 +111,7 @@
   function settings(tab) { D.show('settings'); document.querySelector('[data-settings="'+tab+'"]').click(); }
   function closeSearch() { searchBox.classList.remove('on'); gs.setAttribute('aria-expanded','false'); gs.removeAttribute('aria-activedescendant'); activeResult=-1; }
   function commands() {
-    const writable = D.user() && D.user().role !== 'viewer';
+    const writable = !!(D.user() && D.canEdit && D.canEdit());
     const rows = pages.map(([id,label])=>({label,detail:'Page',keywords:id+' '+({home:'dashboard workspace',proposals:'quotes proposals customers customer',tasks:'tasks reminders pending calls',activity:'notifications timeline events',send:'send whatsapp email share customer',gallery:'photos images portfolio projects',reports:'reports business summary analytics',settings:'account profile preferences'}[id]||''),run:()=>D.show(id)}));
     rows.push(
       {label:'Log out',detail:'Sign out of your account',keywords:'logout log out signout sign out exit account session',run:()=>$('btnLogout').click()},
@@ -128,7 +128,7 @@
       {label:'New follow-up',detail:'Create a task or reminder',keywords:'new task followup follow up reminder add create',run:()=>{D.showTasks('all');$('taskTitle').focus();}},
       {label:'Upload photo',detail:'Project gallery',keywords:'upload image photo gallery project',run:()=>{D.show('gallery');$('galleryFile').focus();}}
     );
-    if(D.user()?.role==='owner')rows.push({label:'Manage team',detail:'Settings · Team',keywords:'team roles permission members users',run:()=>settings('team')});
+    if(D.canManage && D.canManage())rows.push({label:'Manage team',detail:'Settings · Team',keywords:'team roles permission members users',run:()=>settings('team')});
     return rows;
   }
   const normalise=value=>String(value||'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();

@@ -91,7 +91,21 @@
     }[c]));
   }
 
-  function canEdit() { return !!user && user.role !== 'viewer'; }
+  /* Capability helpers. The server sends canWrite / canManageTeam on the
+     signed-in user, computed from EFFECTIVE powers (a designated ADMIN_EMAIL
+     login satisfies both even when its stored role is `viewer`), so the UI
+     never re-derives them from a role string. The fallbacks only apply to an
+     older backend that does not send the flags yet. */
+  function canEdit() {
+    if (!user) return false;
+    return user.canWrite != null ? !!user.canWrite : user.role !== 'viewer';
+  }
+  function canManage() {
+    if (!user) return false;
+    return user.canManageTeam != null ? !!user.canManageTeam : user.role === 'owner';
+  }
+  const POWER_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Viewer' };
+  function powerLabel(p) { return POWER_LABEL[String(p || '').toLowerCase()] || 'Member'; }
   function emptyState(title, detail, icon = '◇') {
     return '<div class="hempty"><span class="empty-icon" aria-hidden="true">' + icon + '</span><strong>' + escapeHtml(title) + '</strong>' + escapeHtml(detail || '') + '</div>';
   }
@@ -141,6 +155,13 @@
     if ($('settingsRole')) $('settingsRole').textContent = roleLabel(user);
     if ($('settingsSince')) $('settingsSince').textContent = memberSince(user);
     wireRolePencil();
+    /* Own pencil stays visible for everyone; only the affordance changes. */
+    if ($('btnRoleEdit')) {
+      const mine = canManage();
+      $('btnRoleEdit').title = mine ? 'Edit your role' : 'Ask owner to change it';
+      $('btnRoleEdit').setAttribute('aria-label', mine ? 'Edit your role' : 'Ask owner to change it');
+      $('btnRoleEdit').classList.toggle('is-locked', !mine);
+    }
     if ($('profileName')) $('profileName').value = user.name || '';
     if ($('profileSaveMsg')) $('profileSaveMsg').textContent = '';
     if ($('currPassword')) $('currPassword').value = '';
@@ -380,44 +401,75 @@
     return 'Member since ' + t.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
   }
 
+  /* Own-role pencil — visible to everyone (item: own pencil sabko dikhe).
+     An owner / hidden admin edits their own title inline; anyone else gets a
+     disabled pencil that says who to ask. Team-wide pencils live in the team
+     panel and are owner / hidden admin only. */
   function wireRolePencil() {
     const btn = $('btnRoleEdit');
     const box = $('roleEditor');
     if (!btn || !box || btn.dataset.wired) return;
     btn.dataset.wired = '1';
     btn.addEventListener('click', () => {
-      if (!user || user.role !== 'owner') {
-        toast('Only the workspace owner can change roles.');
+      if (!canManage()) {
+        btn.title = 'Ask owner to change it';
+        toast('Ask owner to change it');
         return;
       }
       if (!box.hidden) { box.hidden = true; box.replaceChildren(); return; }
       box.hidden = false;
+
       const sel = document.createElement('select');
       sel.className = 'role-select';
       sel.setAttribute('aria-label', 'Your role');
+
+      const title = document.createElement('input');
+      title.type = 'text';
+      title.className = 'role-title';
+      title.maxLength = 60;
+      title.placeholder = 'Typed title (for example Project lead)';
+      title.setAttribute('aria-label', 'Your typed title');
+      title.value = user.roleCustom || '';
+
+      /* Power keys. A stored custom title is offered too so it stays selected
+         instead of silently becoming one of the three built-ins. */
       if (user.role === 'custom' || user.roleCustom) {
         const c = document.createElement('option');
-        c.value = 'custom'; c.textContent = user.roleLabel || user.roleCustom || 'Custom';
-        c.selected = true; c.disabled = true;
+        c.value = 'custom';
+        c.textContent = user.roleLabel || user.roleCustom || 'Custom title';
+        c.selected = true;
         sel.append(c);
       }
       ['owner', 'sales', 'viewer'].forEach((r) => {
         const o = document.createElement('option');
         o.value = r; o.textContent = roleLabel(r);
-        if (user.role === r) o.selected = true;
+        if (user.role === r && !user.roleCustom) o.selected = true;
         sel.append(o);
       });
+
+      const syncTitle = () => {
+        /* Any typed title is allowed - no blocklist. The power badge in the
+           team panel is the truth about what a member can do. */
+        title.disabled = sel.value !== 'custom';
+        title.hidden = sel.value !== 'custom';
+      };
+      sel.addEventListener('change', syncTitle);
+      syncTitle();
+
       const save = document.createElement('button');
       save.type = 'button'; save.className = 'role-save'; save.textContent = 'Save';
       const cancel = document.createElement('button');
       cancel.type = 'button'; cancel.className = 'role-cancel'; cancel.textContent = 'Cancel';
       cancel.addEventListener('click', () => { box.hidden = true; box.replaceChildren(); btn.focus(); });
+
       save.addEventListener('click', async () => {
-        if (sel.value === user.role || sel.value === 'custom') { box.hidden = true; box.replaceChildren(); return; }
         save.disabled = true;
         try {
-          await api.setTeamRole(user.id, sel.value);
-          user.role = sel.value; user.roleCustom = null; user.roleLabel = roleLabel(sel.value);
+          const roleCustom = sel.value === 'custom' ? title.value.trim() : '';
+          await api.setTeamRole(user.id, sel.value, roleCustom);
+          user.role = roleCustom ? 'custom' : sel.value;
+          user.roleCustom = roleCustom || null;
+          user.roleLabel = roleCustom || roleLabel(sel.value);
           box.hidden = true; box.replaceChildren();
           showApp();
           refreshTeamPanel();
@@ -427,60 +479,101 @@
           toast(err.message || 'Could not change role');
         }
       });
-      box.replaceChildren(sel, save, cancel);
+
+      box.replaceChildren(sel, title, save, cancel);
       sel.focus();
     });
   }
 
+  /* Team panel - owner / hidden admin only. Columns: contact, typed title,
+     power badge, last sign-in (from the sessions table), and the role control.
+     Power badge and title are separate on purpose: the title is what a member
+     typed, the badge is what they can actually do. */
   async function refreshTeamPanel() {
     const body = $('teamBody');
     if (!body) return;
-    if (!user || user.role !== 'owner') {
-      body.innerHTML = '<tr><td colspan="3" class="empty">Only the workspace owner can manage team roles. Your role: ' +
-        escapeHtml(roleLabel(user && user.role)) + '.</td></tr>';
+    const COLS = 6;
+    if (!canManage()) {
+      body.innerHTML = '<tr><td colspan="' + COLS + '" class="empty">Only the workspace owner can manage team roles. Your title: ' +
+        escapeHtml(roleLabel(user)) + '.</td></tr>';
       return;
     }
     try {
       const r = await api.listTeam();
       const members = (r && r.members) || [];
-      body.innerHTML = members.map((m) => (
-        '<tr>' +
+      body.innerHTML = members.map((m) => {
+        const pwr = m.power || (m.role === 'owner' ? 'owner' : (m.role === 'viewer' ? 'viewer' : 'sales'));
+        const isCustom = m.role === 'custom' || !!m.roleCustom;
+        const titleId = 'teamTitle_' + m.id;
+        let opts = ['owner', 'sales', 'viewer'].map((role) => (
+          '<option value="' + role + '"' + (!isCustom && m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
+        )).join('');
+        opts = '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom title</option>' + opts;
+        return '<tr data-member="' + escapeHtml(m.id) + '">' +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
-          '<td class="muted">' + escapeHtml(m.email) + '</td>' +
-          '<td><select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select">' +
-            (function () {
-              const opts = ['owner', 'sales', 'viewer'];
-              let html = opts.map((role) => (
-                '<option value="' + role + '"' + (m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
-              )).join('');
-              if (m.role === 'custom' || m.roleCustom) {
-                html = '<option value="custom" selected>' + escapeHtml(m.roleLabel || m.roleCustom || 'Custom') + '</option>' + html;
-              }
-              return html;
-            })() +
-          '</select></td></tr>'
-      )).join('') || '<tr><td colspan="3" class="empty">No members.</td></tr>';
+          '<td class="muted">' + escapeHtml(m.email || '') + '</td>' +
+          '<td><input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
+            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
+            (isCustom ? '' : ' disabled') + ' aria-label="Typed title for ' + escapeHtml(m.name) + '" /></td>' +
+          '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span></td>' +
+          '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
+          '<td><select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
+            opts + '</select></td>' +
+        '</tr>';
+      }).join('') || '<tr><td colspan="' + COLS + '" class="empty">No members.</td></tr>';
+
+      const applyRole = async (memberId, role, titleVal) => {
+        const out = await api.setTeamRole(memberId, role, role === 'custom' ? titleVal : '');
+        if (out && out.note) toast(out.note);
+        if (memberId === user.id && out && out.member) {
+          user.role = out.member.role;
+          user.roleCustom = out.member.roleCustom || null;
+          user.roleLabel = out.member.roleLabel || roleLabel(out.member.role);
+          user.canWrite = out.member.canWrite;
+          user.canManageTeam = out.member.canManageTeam;
+          showApp();
+        }
+        return out;
+      };
+
       body.querySelectorAll('.team-role-select').forEach((sel) => {
         sel.addEventListener('change', async () => {
+          const id = sel.getAttribute('data-team-user');
+          const row = sel.closest('tr');
+          const input = row ? row.querySelector('.team-title-input') : null;
+          if (input) input.disabled = sel.value !== 'custom';
           try {
-            await api.setTeamRole(sel.getAttribute('data-team-user'), sel.value);
+            await applyRole(id, sel.value, input ? input.value.trim() : '');
             toast('Role updated');
-            if (sel.getAttribute('data-team-user') === user.id) {
-              user.role = sel.value;
-              user.roleCustom = null;
-              user.roleLabel = roleLabel(sel.value);
-              showApp();
-            }
+            await refreshTeamPanel();
           } catch (err) {
             toast(err.message || 'Could not change role');
             await refreshTeamPanel();
           }
         });
       });
+
+      body.querySelectorAll('.team-title-input').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const id = input.getAttribute('data-team-title');
+          const row = input.closest('tr');
+          const sel = row ? row.querySelector('.team-role-select') : null;
+          if (!sel || sel.value !== 'custom') return;
+          try {
+            await applyRole(id, 'custom', input.value.trim());
+            toast('Title updated');
+            await refreshTeamPanel();
+          } catch (err) {
+            toast(err.message || 'Could not change title');
+            await refreshTeamPanel();
+          }
+        });
+      });
     } catch (err) {
-      body.innerHTML = '<tr><td colspan="3" class="empty">' + escapeHtml(err.message || 'Could not load team') + '</td></tr>';
+      body.innerHTML = '<tr><td colspan="' + COLS + '" class="empty">' + escapeHtml(err.message || 'Could not load team') + '</td></tr>';
     }
   }
+
 
   function fillSendSelect(preferId) {
     const sel = $('sendSelect');
@@ -1027,7 +1120,14 @@
     }
     el.innerHTML =
       'API <strong>ok</strong> · phase <strong>' + escapeHtml(h.phase || '?') + '</strong> · storage <strong>' +
-      escapeHtml(h.storage || '?') + '</strong> · ' + escapeHtml(h.time || '');
+      escapeHtml(h.storage || '?') + '</strong> · code <strong>' + escapeHtml(h.codeVersion || '?') +
+      '</strong> · ' + escapeHtml(h.time || '');
+    /* Health warnings are configuration state only - they never name an email
+       or admit that a designated admin exists. */
+    const warns = (h.warnings || []).filter(Boolean);
+    if (warns.length) {
+      el.innerHTML += '<br><span class="warn">' + warns.map(escapeHtml).join('<br>') + '</span>';
+    }
   }
 
   /* ---------- project gallery (staff uploads) ---------- */
@@ -1159,7 +1259,7 @@
     }
   }
 
-  window.QSDash = { proposals: () => allProposals, setProposals: rows => { allProposals = rows; renderPropTable(); renderPropStats(); }, user: () => user, refresh: () => refreshAll(), show: (name, id) => showPanel(name, id), open: (id) => openInStudio(id), toast,
+  window.QSDash = { proposals: () => allProposals, setProposals: rows => { allProposals = rows; renderPropTable(); renderPropStats(); }, user: () => user, canEdit, canManage, powerLabel, refresh: () => refreshAll(), show: (name, id) => showPanel(name, id), open: (id) => openInStudio(id), toast,
     showTasks(filter) { if ($('taskFilter')) $('taskFilter').value = filter || 'all'; showPanel('tasks'); },
     filterStatus(status) { if ($('filterStatus')) $('filterStatus').value = status || ''; if ($('filterQ')) $('filterQ').value = ''; showPanel('proposals'); }
   };

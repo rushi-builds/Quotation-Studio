@@ -346,7 +346,11 @@
     } catch (_) {}
     // A genuinely fresh direct-Studio draft gets a server number when signed in.
     // Never renumber an existing proposal or a manually edited reference.
-    if (!openId && user && user.role !== 'viewer' && root.__qsFreshLocalId) {
+    /* Write-capability gate. Uses the server's canWrite flag (effective powers,
+       so a designated ADMIN_EMAIL login passes even on a `viewer` row) with a
+       role fallback for an older backend. */
+    const canWriteNow = !!user && (user.canWrite != null ? !!user.canWrite : user.role !== 'viewer');
+    if (!openId && canWriteNow && root.__qsFreshLocalId) {
       const id = root.__qsFreshLocalId, blob = root.Proposals.get(id), oldRef = blob?.autoAssignedRef;
       root.__qsFreshLocalId = null;
       try {
