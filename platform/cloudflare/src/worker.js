@@ -398,7 +398,7 @@ function isHiddenAdmin(user, env) {
 }
 /* P1 — the case where the two designated emails collide. With
    ADMIN_EMAIL == OWNER_EMAIL both variables aim at the SAME row: the bootstrap
-   promotes that account to owner and clears its title, which makes the
+   promotes that account to owner (preserving any display title), which makes the
    ADMIN_EMAIL designation redundant rather than harmful — the account is
    already a visible Owner, and it may still elevate itself.
 
