@@ -326,7 +326,7 @@ those two flags are the stored-role values; the effective ones are named
 
 ```bash
 npm --prefix qa test
-node qa/roles-access.test.js    # behaviour, end-to-end on the local server  (143 assertions)
+node qa/roles-access.test.js    # behaviour, end-to-end on the local server  (147 assertions)
 node qa/roles-parity.test.js    # worker/server parity, stealth, frozen files (227 assertions)
 ```
 
@@ -334,7 +334,8 @@ node qa/roles-parity.test.js    # worker/server parity, stealth, frozen files (2
 off-switch (any other self role clears `is_admin`), owner-cannot-touch-elevated
 403, the indistinguishability of the refusals, that a non-designated actor typing
 `admin` gets a harmless sales-power title and never `is_admin`, the boss case
-(owner power with a preserved chip title), that **nothing** changes the
+(**chip/badge split** — owner power keeps the `Owner` badge while the chip reads
+the typed title, and the title survives the bootstrap), that **nothing** changes the
 `ADMIN_EMAIL` row automatically — a promotion, a demotion and a typed title all
 stick across repeated sign-ins — C3 proven on a row demoted to `viewer`, the P1
 collision (bootstrap warns, preserves the title, no oscillation), a malformed

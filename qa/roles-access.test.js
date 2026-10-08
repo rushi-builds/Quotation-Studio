@@ -440,6 +440,26 @@ async function main() {
     t('over-long typed title is rejected', r.status === 400, r.status);
     r = await req(PORT, 'POST', '/api/team/role', { userId: viewerReg.user.id, role: 'owner' }, viewerSess.token);
     t('a member cannot change roles', r.status === 403, r.status);
+
+    /* ---- boss case: owner POWER with a custom CHIP title (the chip/badge
+       split). {role:'owner', roleCustom:'Director'} must keep owner power
+       (badge = Owner) while the chip reads the title (roleLabel is title-first
+       = Director). Stealth is personal only; the team badge stays the power
+       truth. ---- */
+    r = await req(PORT, 'POST', '/api/team/role', { userId: viewerReg.user.id, role: 'owner', roleCustom: 'Director' }, ownerSess.token);
+    t('boss: {role:owner, title} keeps OWNER power (badge = Owner, canManageTeam)',
+      r.status === 200 && r.json.member.role === 'owner' && r.json.member.power === 'owner' && r.json.member.canManageTeam === true,
+      JSON.stringify(r.json.member).slice(0, 200));
+    t('boss: ...and stores the title as the chip (roleLabel is title-first = Director)',
+      r.json.member.roleCustom === 'Director' && r.json.member.roleLabel === 'Director',
+      JSON.stringify(r.json.member).slice(0, 200));
+    t('boss: chip/badge SPLIT — badge reads Owner while the chip reads Director',
+      r.json.member.power === 'owner' && r.json.member.roleLabel === 'Director',
+      'badge=' + r.json.member.power + ' chip=' + r.json.member.roleLabel);
+    t('boss: the stored row is owner + Director (the title was not wiped)',
+      readRow(VIEWER).role === 'owner' && readRow(VIEWER).role_custom === 'Director',
+      readRow(VIEWER).role + '/' + readRow(VIEWER).role_custom);
+
     r = await req(PORT, 'POST', '/api/team/role', { userId: viewerReg.user.id, role: 'viewer' }, ownerSess.token);
     t('fixture restore: viewer row back to viewer', r.status === 200 && r.json.member.role === 'viewer', JSON.stringify(r.json.member).slice(0, 160));
 
