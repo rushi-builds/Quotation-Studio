@@ -29,6 +29,10 @@ let assistantLimiter;
 const SESSION_DAYS = 30;
 const COOKIE = 'qs_session';
 
+/* Deployed code marker — kept identical to platform/cloudflare/src/worker.js
+   so /api/health reports the same version whichever backend serves it. */
+const CODE_VERSION = 'roles-r1';
+
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }
 function reserveLocalReference(db) {
@@ -423,6 +427,10 @@ function proposalQuotedValue(row) {
 }
 
 function roleRank(role) {
+  /* Elevated sits ABOVE owner. Because requireRole is a rank comparison, every
+     existing gate — canWrite (sales), canAdmin/canManageTeam (owner), seesAll —
+     inherits the elevation with no further change. */
+  if (role === 'admin') return 4;
   if (role === 'owner') return 3;
   if (role === 'sales') return 2;
   if (role === 'viewer') return 1;
@@ -672,17 +680,55 @@ function parseSignupRole(raw) {
   if (key === 'viewer') return { role: 'viewer', roleCustom: null, roleLabel: 'Viewer' };
   return { role: 'custom', roleCustom: typed, roleLabel: typed };
 }
+/* Role configuration diagnostics — the same fail-open-but-reported shape as
+   phoneIssues() in src/phone.mjs, with one difference: nothing here disables a
+   feature. A missing variable is a legitimate state (the workspace simply runs
+   without a designated owner or admin), so only a MALFORMED value or a
+   conflicting pair is worth reporting.
+
+   Why it exists: a typo in ADMIN_EMAIL does not error anywhere — it silently
+   grants nobody. That is a deploy-time
+   mistake an operator cannot see from the UI, so /api/health says so.
+
+   Never returns an email address or a count of admins: this route is public. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function rolesIssues() {
+  const env = process.env;
+  const issues = [];
+  const o = ownerEmail(env), a = adminEmail(env);
+  if (o && !EMAIL_SHAPE.test(o)) issues.push('OWNER_EMAIL is set but is not a valid email address, so the workspace owner bootstrap cannot match any account');
+  if (a && !EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address, so the designated admin login cannot match any account');
+  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox, so the ADMIN_EMAIL designation is redundant: the bootstrap already makes that account a visible Owner. Set ADMIN_EMAIL to the personal mailbox and OWNER_EMAIL to the company mailbox.');
+  return issues;
+}
+/* Typed title wins over the power word — parity with the Cloudflare worker.
+   The designated admin login carries owner-and-above powers whatever its
+   stored role reads, and nothing in the product writes a title on that
+   account, so a typed title is always display text and nothing more.
+   Power is decided by permissionRole, never by this string. */
+/* A typed role title, validated exactly like the one on Create account
+   (non-empty, <= 60 chars, whitespace collapsed) but WITHOUT the keyword
+   mapping. Deliberate: a title is display text and must never decide access.
+   Typing "Owner" therefore stores a custom title with sales-level power; only
+   choosing the Owner power key grants owner. The power badge is the truth. */
+function parseRoleTitle(raw) {
+  const typed = String(raw || '').trim().replace(/\s+/g, ' ');
+  if (!typed) return { error: 'Enter a title (for example Project lead).' };
+  if (typed.length > 60) return { error: 'Role must be at most 60 characters.' };
+  return { role: 'custom', roleCustom: typed, roleLabel: typed };
+}
 function roleDisplay(u) {
   if (!u) return '';
+  if (u.role_custom) return String(u.role_custom);
   const r = String(u.role || '').toLowerCase();
-  if (r === 'custom' && u.role_custom) return String(u.role_custom);
   if (r === 'owner') return 'Owner';
   if (r === 'sales') return 'Sales';
   if (r === 'viewer') return 'Viewer';
-  if (u.role_custom) return String(u.role_custom);
   return u.role || '';
 }
 function publicUser(u) {
+  const admin = canManageTeam(u);
+  const elevated = isAdminRow(u) || isHiddenAdmin(u);
   return {
     id: u.id,
     email: u.email,
@@ -690,15 +736,150 @@ function publicUser(u) {
     role: u.role,
     roleCustom: u.role_custom || null,
     roleLabel: roleDisplay(u),
+    /* Capability flags, not titles — the UI gates on these instead of
+       re-deriving `role === 'owner'`, so a hidden admin passes every gate
+       while still displaying only their typed title. */
+    canWrite: roleRank(permissionRole(u)) >= roleRank('sales'),
+    canManageTeam: admin,
+    seesAll: seesAll(u),
+    /* Elevation capability. Sent to the signed-in user only, so it cannot
+       disclose who else is elevated. The front end uses it to decide whether
+       the word "Admin" may appear in a dropdown at all — no name-plate reads
+       it, so elevation changes no chip or profile label. */
+    isAdmin: elevated,
+    /* Stored is_admin — the user's own secret toggle; drives the red dot.
+       Self-only (publicUser is the /me shape). */
+    elevated: isAdminRow(u),
+    canElevate: canElevate(u),
     createdAt: u.created_at || null
   };
 }
-/** Permission rank: custom titles act as Sales (can write, cannot manage team). */
+/* The badge word for a row, derived from the STORED role only — deliberately
+   blind to is_admin. See memberPayload (S1). */
+function storedRoleWord(u) {
+  const r = String((u && u.role) || '').toLowerCase();
+  if (r === 'owner') return 'owner';
+  if (r === 'viewer') return 'viewer';
+  return 'sales'; /* sales, and every custom title, act as Sales */
+}
+/* One team-panel row — shared by GET /api/team/members and the response of
+   POST /api/team/role so the two cannot drift apart.
+
+   S1 — the badge is the STORED role and never reflects elevation. Every member
+   can see the team panel (read-only), so a badge reading "Admin" would announce
+   the elevation to the whole workspace and defeat the purpose of it. `power` is
+   derived from `role` alone; permissionRole, which does account for elevation,
+   is never used to produce a label anywhere in this file.
+
+   S2 — nothing that discloses elevation is sent about ANOTHER member's row.
+   isAdmin and canElevate are absent here entirely and canWrite/canManageTeam
+   are the stored-role values, so a viewer-level elevated account is
+   byte-identical to an ordinary viewer in every other member's payload — in
+   the network tab as well as on screen. Only the actor's own row carries the
+   extra fields, via selfMemberPayload(). */
+function memberPayload(u, lastLogin, opts) {
+  const stored = storedRoleWord(u);
+  const login = lastLogin || u.created_at || null;
+  const o = opts || {};
+  return {
+    id: u.id,
+    name: u.name,
+    /* Contact detail is owner / designated-admin only — parity with the
+       worker. Omitted rather than blanked, so there is nothing to unhide. */
+    ...(o.contact ? { email: u.email } : {}),
+    role: u.role,
+    roleCustom: u.role_custom || null,
+    /* Typed title. Elevation never writes it, so this string is identical
+       before and after. */
+    roleLabel: roleDisplay(u),
+    power: stored,
+    canWrite: roleRank(stored) >= roleRank('sales'),
+    canManageTeam: roleRank(stored) >= roleRank('owner'),
+    lastLogin: login,
+    lastLoginLabel: login ? new Date(login).toISOString() : null,
+    createdAt: u.created_at
+  };
+}
+/* The actor's OWN row: the same payload plus what only they may know about
+   themselves. GET /api/auth/me is already self-only, so this discloses nothing
+   new. The effective flags are named apart from the stored-role ones: a
+   viewer-level elevated account reads canWrite false (badge) and
+   effectiveCanWrite true (what it may actually do). */
+function selfMemberPayload(u, lastLogin, opts) {
+  /* Own row: always allowed its own contact detail. */
+  return Object.assign(memberPayload(u, lastLogin, Object.assign({ contact: true }, opts || {})), {
+    isAdmin: isAdminRow(u) || isHiddenAdmin(u),
+    elevated: isAdminRow(u),
+    canElevate: canElevate(u),
+    effectiveCanWrite: requireRole(u, 'sales'),
+    effectiveCanManageTeam: requireRole(u, 'owner')
+  });
+}
+/* ---------- the designated admin (ADMIN_EMAIL) — local parity ----------
+   Two separate ideas, as in the worker:
+
+     ADMIN_EMAIL  who MAY elevate. Computed per request from the environment
+                  and the account email, never persisted, and enough on its own
+                  to clear every gate.
+
+     is_admin     who IS elevated. A stored flag that outranks owner and
+                  survives a change of the variable.
+
+   Neither produces a label: roleDisplay does not read them, and nothing writes
+   a title on that account, so nothing says "Admin" to a member. */
+function isAdminRow(user) {
+  return Number((user && user.is_admin) || 0) === 1;
+}
+function normalizeEmail(v) {
+  return String(v == null ? '' : v).trim().toLowerCase();
+}
+function adminEmail() {
+  return normalizeEmail(process.env.ADMIN_EMAIL);
+}
+function ownerEmail() {
+  return normalizeEmail(process.env.OWNER_EMAIL);
+}
+function isHiddenAdmin(user) {
+  const designated = adminEmail();
+  if (!designated || !user) return false;
+  return normalizeEmail(user.email) === designated;
+}
+/* P1: both variables naming one mailbox makes the ADMIN_EMAIL designation
+   redundant — the bootstrap already makes that account a visible Owner, and
+   nothing oscillates because the bootstrap is the only automatic role
+   transition left. Reported by /api/health as a likely deploy-time mistake. */
+function adminOwnerConflict() {
+  const a = adminEmail(), o = ownerEmail();
+  return !!a && a === o;
+}
+/** Permission rank: custom titles act as Sales (can write, cannot manage team).
+ *  An elevated row and the designated ADMIN_EMAIL login both rank above Owner. */
 function permissionRole(user) {
+  if (isAdminRow(user) || isHiddenAdmin(user)) return 'admin';
   const r = String((user && user.role) || '').toLowerCase();
   if (r === 'owner') return 'owner';
   if (r === 'viewer') return 'viewer';
   return 'sales'; /* sales + custom */
+}
+function canManageTeam(user) {
+  return requireRole(user, 'owner');
+}
+/* Who may elevate: the ADMIN_EMAIL login only, never "any elevated row". */
+function canElevate(user) {
+  return isHiddenAdmin(user);
+}
+/* Owner-sees-all: owner, elevated and the designated admin read every row;
+   members stay scoped to their own owner_id exactly as before. */
+function seesAll(user) {
+  return requireRole(user, 'owner');
+}
+/* In-memory parity with the worker's OWN_SCOPE SQL guard: true when the row is
+   visible to this caller. `scope === null` lifts the owner_id filter. */
+function scopeOf(user) {
+  return seesAll(user) ? null : String((user && user.id) || '');
+}
+function inScope(scope, row) {
+  return scope === null || (row && row.owner_id === scope);
 }
 function proposalSummary(p) {
   return {
@@ -759,15 +940,47 @@ function sessionTokenFrom(req) {
   return cookies[COOKIE] || cookies['qs_client'] || null;
 }
 /* Bootstrap owner (local parity with worker): OWNER_EMAIL designates one login
-   email; that account is promoted to owner (persisted). One-way. */
+   email; that account is promoted to owner (persisted). One-way.
+   UNCONDITIONAL — no typed-title gate, so the company mailbox becomes the
+   visible Owner even if it signed up with a title.
+
+   This is the ONLY automatic role transition in the product; the ADMIN_EMAIL
+   row is deliberately left exactly as it is stored — see the note above
+   applyOwnerBootstrap. */
 function applyBootstrapOwner(user) {
-  const designated = String(process.env.OWNER_EMAIL || '').trim().toLowerCase();
+  const designated = ownerEmail();
   if (!designated || !user || user.role === 'owner') return false;
-  if (String(user.email || '').trim().toLowerCase() !== designated) return false;
+  if (normalizeEmail(user.email) !== designated) return false;
+  /* Promote the ROLE only; role_custom is PRESERVED so an owner can carry a
+     display title (powers = Owner, chip = the title) without the unconditional
+     bootstrap erasing it on the next request. */
   user.role = 'owner';
-  user.role_custom = null;
   user.updated_at = nowISO();
   return true;
+}
+/* There is deliberately NO automatic demotion of the ADMIN_EMAIL row.
+
+   An earlier revision healed that row owner -> viewer on sign-in so the
+   personal mailbox would not show up as a second visible Owner. It is gone,
+   and it should not come back:
+
+     - it fought deliberate promotions. Promoting the designated admin to a
+       visible Owner stored owner/NULL, which re-armed the heal, so the next
+       request from that mailbox silently undid what an owner had just done on
+       purpose. A role that cannot be set is a bug wearing a feature's clothes.
+     - it was never needed for safety. This account's reach comes from
+       ADMIN_EMAIL and, once used, from is_admin - not from its role column.
+       Demotion changed the display and nothing else.
+
+   If the account should read "Viewer" instead of "Owner", change its role once
+   from the team panel (or its own pencil) and it sticks: nothing here writes
+   the role back. The OWNER_EMAIL bootstrap below is the only automatic role
+   transition left in the product. */
+/* Kept as a thin wrapper so the three call sites (requireUser, login,
+   register) read as one named transition. Returns true when it mutated the row
+   so the caller can persist. */
+function applyOwnerBootstrap(user) {
+  return applyBootstrapOwner(user);
 }
 function requireUser(req, db) {
   scrubExpiredSessions(db);
@@ -777,7 +990,7 @@ function requireUser(req, db) {
   if (!session) return null;
   if (Date.parse(session.expires_at) <= Date.now()) return null;
   const user = (db.users || []).find((u) => u.id === session.user_id);
-  if (user && applyBootstrapOwner(user)) saveDb(db);
+  if (user && applyOwnerBootstrap(user)) saveDb(db);
   return user || null;
 }
 function createSession(db, user) {
@@ -1020,11 +1233,14 @@ async function handleApi(req, res, url) {
         // Existing accounts are unchanged; only an existing owner may promote.
         role: 'viewer',
         role_custom: String(body.role != null ? body.role : body.roleCustom).trim(),
+        /* Elevation is never granted at signup, and the flag is written
+           explicitly so local JSON rows carry it like the SQL rows do. */
+        is_admin: 0,
         created_at: nowISO(),
         updated_at: nowISO()
       };
       db.users.push(user);
-      applyBootstrapOwner(user);
+      applyOwnerBootstrap(user);
       authThrottleSuccess(email);
       const sess = createSession(db, user);
       saveDb(db);
@@ -1048,7 +1264,7 @@ async function handleApi(req, res, url) {
         authThrottleFail(req, email);
         return sendJson(res, 401, { error: 'Invalid email or password' });
       }
-      applyBootstrapOwner(user);
+      applyOwnerBootstrap(user);
       authThrottleSuccess(email);
       const sess = createSession(db, user);
       saveDb(db);
@@ -1127,10 +1343,15 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'health' && method === 'GET') {
+      /* Role configuration warnings — STATE ONLY. This route is
+         unauthenticated, so it never names an email, counts admins, or admits
+         that a designated admin exists. */
+      const warnings = rolesIssues();
       return sendJson(res, 200, {
         ok: true,
         phase: 'E',
         build: 'workspace-5',
+        codeVersion: CODE_VERSION,
         storage: 'local-json',
         time: nowISO(),
         sending: {
@@ -1142,8 +1363,18 @@ async function handleApi(req, res, url) {
           notifications: true,
           tasks: true,
           reports: true,
-          roles: ['owner', 'sales', 'viewer']
-        }
+          /* 'admin' is deliberately absent: elevation is a stored flag, not a
+             role value, and no row ever carries role = 'admin'. */
+          roles: ['owner', 'sales', 'viewer', 'custom'],
+          roleCustomTitles: true,
+          ownerSeesAll: true,
+          /* Parity with the worker's features.elevation. The worker has to
+             probe pragma_table_info because the column arrives by migration;
+             local storage is a JSON document that always holds the field, so
+             elevation is always available here. */
+          elevation: true
+        },
+        warnings
       });
     }
 
@@ -1240,6 +1471,10 @@ async function handleApi(req, res, url) {
 
     const canWrite = requireRole(user, 'sales'); /* owner + sales */
     const canAdmin = requireRole(user, 'owner');
+    /* Owner-sees-all — parity with the worker's OWN_SCOPE SQL guard.
+       null for owner/hidden admin (every row is in scope), the user's own id
+       for members, whose reads stay exactly as narrowly scoped as before. */
+    const scope = scopeOf(user);
 
     /* Gemini: authenticated, owner-scoped, read-only, opt-in. */
     if (parts[0] === 'assistant' && parts.length === 2) {
@@ -1261,14 +1496,14 @@ async function handleApi(req, res, url) {
         }),
         reserveQuota: assistantLimiter,
         loadContext: async proposalId => {
-          const mine = (db.proposals || []).filter(p => p.owner_id === user.id);
+          const mine = (db.proposals || []).filter(p => inScope(scope, p));
           const byStatus = {}; mine.forEach(p => { const key = p.status || 'draft'; byStatus[key] = (byStatus[key] || 0) + 1; });
           return {
             total: mine.length, byStatus,
             proposals: mine.slice().sort((a,b) => String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,31),
             selected: proposalId ? mine.find(p => p.id === proposalId) : null,
-            tasks: (db.tasks || []).filter(t => t.owner_id === user.id && t.status === 'open').sort((a,b) => String(a.due_at || '9999').localeCompare(String(b.due_at || '9999'))).slice(0,31),
-            events: (db.events || []).filter(e => e.owner_id === user.id && e.event_type !== 'suspected_prefetch').sort((a,b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0,16)
+            tasks: (db.tasks || []).filter(t => inScope(scope, t) && t.status === 'open').sort((a,b) => String(a.due_at || '9999').localeCompare(String(b.due_at || '9999'))).slice(0,31),
+            events: (db.events || []).filter(e => inScope(scope, e) && e.event_type !== 'suspected_prefetch').sort((a,b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0,16)
           };
         }
       });
@@ -1327,7 +1562,7 @@ async function handleApi(req, res, url) {
 
     /* DASHBOARD SUMMARY */
     if (parts[0] === 'dashboard' && parts[1] === 'summary' && method === 'GET') {
-      const mine = (db.proposals || []).filter((p) => p.owner_id === user.id);
+      const mine = (db.proposals || []).filter((p) => inScope(scope, p));
       const byStatus = {};
       mine.forEach((p) => {
         const s = p.status || 'draft';
@@ -1338,8 +1573,8 @@ async function handleApi(req, res, url) {
         .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
         .slice(0, 8)
         .map(proposalSummary);
-      const unread = (db.notifications || []).filter((n) => n.owner_id === user.id && !n.read_at).length;
-      const openTasks = (db.tasks || []).filter((t) => t.owner_id === user.id && t.status === 'open');
+      const unread = (db.notifications || []).filter((n) => inScope(scope, n) && !n.read_at).length;
+      const openTasks = (db.tasks || []).filter((t) => inScope(scope, t) && t.status === 'open');
       const overdueTasks = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
       return sendJson(res, 200, {
         counts: {
@@ -1363,7 +1598,7 @@ async function handleApi(req, res, url) {
     /* PROPOSALS */
     if (parts[0] === 'proposals' && parts.length === 1 && method === 'GET') {
       const mine = (db.proposals || [])
-        .filter((p) => p.owner_id === user.id)
+        .filter((p) => inScope(scope, p))
         .slice()
         .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
         .map(proposalSummary);
@@ -1415,14 +1650,14 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts.length === 2 && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       return sendJson(res, 200, { proposal: proposalFull(row) });
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts.length === 2 && method === 'PUT') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot edit proposals.' });
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
       const badUpdateStatus = proposalStatusError(body.status);
@@ -1475,7 +1710,7 @@ async function handleApi(req, res, url) {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot delete proposals.' });
       const before = (db.proposals || []).length;
       db.proposals = (db.proposals || []).filter(
-        (p) => !(p.id === parts[1] && p.owner_id === user.id)
+        (p) => !(p.id === parts[1] && inScope(scope, p))
       );
       if (db.proposals.length === before) {
         return sendJson(res, 404, { error: 'Proposal not found' });
@@ -1486,7 +1721,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'duplicate' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot duplicate proposals.' });
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       let form = {};
       try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
@@ -1524,7 +1759,7 @@ async function handleApi(req, res, url) {
     /* ---------- Phase B: publish frozen version + secure customer link ---------- */
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'publish' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot publish proposals.' });
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
       const snapshot = customerSnapshotFromProposal(row);
@@ -1583,10 +1818,10 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'versions' && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const list = (db.versions || [])
-        .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+        .filter((v) => v.proposal_id === row.id && inScope(scope, v))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .map(publicVersion);
@@ -1594,10 +1829,10 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'links' && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const list = (db.tokens || [])
-        .filter((t) => t.proposal_id === row.id && t.owner_id === user.id)
+        .filter((t) => t.proposal_id === row.id && inScope(scope, t))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .map((t) => publicToken(t, null));
@@ -1606,17 +1841,17 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'links' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot create customer links.' });
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
       let version = null;
       if (body.versionId) {
         version = (db.versions || []).find(
-          (v) => v.id === body.versionId && v.proposal_id === row.id && v.owner_id === user.id
+          (v) => v.id === body.versionId && v.proposal_id === row.id && inScope(scope, v)
         );
       } else {
         version = (db.versions || [])
-          .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+          .filter((v) => v.proposal_id === row.id && inScope(scope, v))
           .slice()
           .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
       }
@@ -1650,7 +1885,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'links' && parts[1] && parts[2] === 'revoke' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot revoke links.' });
-      const tok = (db.tokens || []).find((t) => t.id === parts[1] && t.owner_id === user.id);
+      const tok = (db.tokens || []).find((t) => t.id === parts[1] && inScope(scope, t));
       if (!tok) return sendJson(res, 404, { error: 'Link not found' });
       if (!tok.revoked_at) tok.revoked_at = nowISO();
       recordEvent(db, {
@@ -1666,10 +1901,10 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'events' && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const list = (db.events || [])
-        .filter((e) => e.proposal_id === row.id && e.owner_id === user.id)
+        .filter((e) => e.proposal_id === row.id && inScope(scope, e))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .slice(0, 100)
@@ -1686,16 +1921,16 @@ async function handleApi(req, res, url) {
 
     /* ---------- Phase C: send centre (manual channels; honest states) ---------- */
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'send-preview' && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       let form = {};
       try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
       const latestVersion = (db.versions || [])
-        .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+        .filter((v) => v.proposal_id === row.id && inScope(scope, v))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] || null;
       const activeLink = (db.tokens || [])
-        .filter((t) => t.proposal_id === row.id && t.owner_id === user.id && tokenIsActive(t))
+        .filter((t) => t.proposal_id === row.id && inScope(scope, t) && tokenIsActive(t))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] || null;
       return sendJson(res, 200, {
@@ -1721,10 +1956,10 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'sends' && method === 'GET') {
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const list = (db.sends || [])
-        .filter((s) => s.proposal_id === row.id && s.owner_id === user.id)
+        .filter((s) => s.proposal_id === row.id && inScope(scope, s))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .map(publicSend);
@@ -1733,7 +1968,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'sends' && parts.length === 1 && method === 'GET') {
       const list = (db.sends || [])
-        .filter((s) => s.owner_id === user.id)
+        .filter((s) => inScope(scope, s))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .slice(0, 100)
@@ -1743,7 +1978,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'proposals' && parts[1] && parts[2] === 'sends' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot prepare sends.' });
-      const row = (db.proposals || []).find((p) => p.id === parts[1] && p.owner_id === user.id);
+      const row = (db.proposals || []).find((p) => p.id === parts[1] && inScope(scope, p));
       if (!row) return sendJson(res, 404, { error: 'Proposal not found' });
       const body = await readBody(req);
       const channel = String(body.channel || 'whatsapp_manual');
@@ -1755,12 +1990,12 @@ async function handleApi(req, res, url) {
       let version = null;
       if (body.versionId) {
         version = (db.versions || []).find(
-          (v) => v.id === body.versionId && v.proposal_id === row.id && v.owner_id === user.id
+          (v) => v.id === body.versionId && v.proposal_id === row.id && inScope(scope, v)
         );
       }
       if (!version) {
         version = (db.versions || [])
-          .filter((v) => v.proposal_id === row.id && v.owner_id === user.id)
+          .filter((v) => v.proposal_id === row.id && inScope(scope, v))
           .slice()
           .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
       }
@@ -1891,7 +2126,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'sends' && parts[1] && parts[2] === 'state' && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot update sends.' });
-      const sendRow = (db.sends || []).find((s) => s.id === parts[1] && s.owner_id === user.id);
+      const sendRow = (db.sends || []).find((s) => s.id === parts[1] && inScope(scope, s));
       if (!sendRow) return sendJson(res, 404, { error: 'Send record not found' });
       const body = await readBody(req);
       const next = String(body.state || '');
@@ -1936,10 +2171,10 @@ async function handleApi(req, res, url) {
     /* ---------- Phase D: notifications + activity + follow-up tasks ---------- */
     if (parts[0] === 'notifications' && parts.length === 1 && method === 'GET') {
       const unreadOnly = url.searchParams.get('unread') === '1';
-      let list = (db.notifications || []).filter((n) => n.owner_id === user.id);
+      let list = (db.notifications || []).filter((n) => inScope(scope, n));
       if (unreadOnly) list = list.filter((n) => !n.read_at);
       list = list.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 100);
-      const unread = (db.notifications || []).filter((n) => n.owner_id === user.id && !n.read_at).length;
+      const unread = (db.notifications || []).filter((n) => inScope(scope, n) && !n.read_at).length;
       return sendJson(res, 200, {
         notifications: list.map(publicNotification),
         unread
@@ -1949,14 +2184,14 @@ async function handleApi(req, res, url) {
     if (parts[0] === 'notifications' && parts[1] === 'read-all' && method === 'POST') {
       const now = nowISO();
       (db.notifications || []).forEach((n) => {
-        if (n.owner_id === user.id && !n.read_at) n.read_at = now;
+        if (inScope(scope, n) && !n.read_at) n.read_at = now;
       });
       saveDb(db);
       return sendJson(res, 200, { ok: true });
     }
 
     if (parts[0] === 'notifications' && parts[1] && parts[2] === 'read' && method === 'POST') {
-      const n = (db.notifications || []).find((x) => x.id === parts[1] && x.owner_id === user.id);
+      const n = (db.notifications || []).find((x) => x.id === parts[1] && inScope(scope, x));
       if (!n) return sendJson(res, 404, { error: 'Notification not found' });
       if (!n.read_at) n.read_at = nowISO();
       saveDb(db);
@@ -1965,7 +2200,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'activity' && parts.length === 1 && method === 'GET') {
       const list = (db.events || [])
-        .filter((e) => e.owner_id === user.id)
+        .filter((e) => inScope(scope, e))
         .slice()
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .slice(0, 150)
@@ -1987,7 +2222,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'tasks' && parts.length === 1 && method === 'GET') {
       const status = url.searchParams.get('status') || '';
-      let list = (db.tasks || []).filter((t) => t.owner_id === user.id);
+      let list = (db.tasks || []).filter((t) => inScope(scope, t));
       if (status) list = list.filter((t) => t.status === status);
       list = list.slice().sort((a, b) => {
         const ad = a.due_at || '9999';
@@ -2014,7 +2249,7 @@ async function handleApi(req, res, url) {
         dueAt = new Date(Date.now() + d * 864e5).toISOString();
       }
       if (body.proposalId) {
-        const p = (db.proposals || []).find((x) => x.id === body.proposalId && x.owner_id === user.id);
+        const p = (db.proposals || []).find((x) => x.id === body.proposalId && inScope(scope, x));
         if (!p) return sendJson(res, 404, { error: 'Proposal not found for this task' });
       }
       const task = {
@@ -2036,7 +2271,7 @@ async function handleApi(req, res, url) {
 
     if (parts[0] === 'tasks' && parts[1] && parts.length === 2 && method === 'PUT') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view tasks but cannot update them.' });
-      const task = (db.tasks || []).find((t) => t.id === parts[1] && t.owner_id === user.id);
+      const task = (db.tasks || []).find((t) => t.id === parts[1] && inScope(scope, t));
       if (!task) return sendJson(res, 404, { error: 'Task not found' });
       const body = await readBody(req);
       if (body.title != null) {
@@ -2069,7 +2304,7 @@ async function handleApi(req, res, url) {
     if (parts[0] === 'tasks' && parts[1] && parts.length === 2 && method === 'DELETE') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view tasks but cannot delete them.' });
       const before = (db.tasks || []).length;
-      db.tasks = (db.tasks || []).filter((t) => !(t.id === parts[1] && t.owner_id === user.id));
+      db.tasks = (db.tasks || []).filter((t) => !(t.id === parts[1] && inScope(scope, t)));
       if (db.tasks.length === before) return sendJson(res, 404, { error: 'Task not found' });
       saveDb(db);
       return sendJson(res, 200, { ok: true });
@@ -2077,7 +2312,7 @@ async function handleApi(req, res, url) {
 
     /* ---------- Phase E: reports + team roles ---------- */
     if (parts[0] === 'reports' && parts[1] === 'summary' && method === 'GET') {
-      const mine = (db.proposals || []).filter((p) => p.owner_id === user.id);
+      const mine = (db.proposals || []).filter((p) => inScope(scope, p));
       const byStatus = {};
       let quotedKnown = 0;
       let quotedSum = 0;
@@ -2089,16 +2324,16 @@ async function handleApi(req, res, url) {
         if (v != null) { quotedKnown += 1; quotedSum += v; }
         else quotedMissing += 1;
       });
-      const mySends = (db.sends || []).filter((s) => s.owner_id === user.id);
-      const myEvents = (db.events || []).filter((e) => e.owner_id === user.id);
+      const mySends = (db.sends || []).filter((s) => inScope(scope, s));
+      const myEvents = (db.events || []).filter((e) => inScope(scope, e));
       const opens = myEvents.filter((e) => e.event_type === 'link_opened').length;
       const prefetches = myEvents.filter((e) => e.event_type === 'suspected_prefetch').length;
       const surveys = myEvents.filter((e) => e.event_type === 'survey_requested').length;
       const pdfs = myEvents.filter((e) => e.event_type === 'pdf_download_requested').length;
       const shareClicks = mySends.filter((s) => s.state === 'share_clicked' || s.share_clicked_at).length;
-      const published = (db.versions || []).filter((v) => v.owner_id === user.id).length;
-      const activeLinks = (db.tokens || []).filter((t) => t.owner_id === user.id && tokenIsActive(t)).length;
-      const openTasks = (db.tasks || []).filter((t) => t.owner_id === user.id && t.status === 'open');
+      const published = (db.versions || []).filter((v) => inScope(scope, v)).length;
+      const activeLinks = (db.tokens || []).filter((t) => inScope(scope, t) && tokenIsActive(t)).length;
+      const openTasks = (db.tasks || []).filter((t) => inScope(scope, t) && t.status === 'open');
       const overdueTasks = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
 
       /* Pipeline by salesperson is single-owner local accounts for now; multi-user
@@ -2143,25 +2378,31 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'team' && parts[1] === 'members' && method === 'GET') {
-      if (!canAdmin) {
-        return sendJson(res, 403, { error: 'Only the workspace owner can view team members.' });
-      }
-      /* Local single-tenant: list accounts on this server. Company org scoping comes later. */
-      const members = (db.users || []).map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        roleCustom: u.role_custom || null,
-        roleLabel: roleDisplay(u),
-        createdAt: u.created_at
-      }));
+      /* Every signed-in member may READ the team panel; only an owner or the
+         designated admin may change anything (POST /api/team/role keeps its own
+         gate) and only they receive contact detail. `canManageTeam` tells the
+         front end which of the two to render. */
+      /* Local single-tenant: list accounts on this server. Company org scoping
+         comes later. Last login comes from the sessions list (most recent
+         session issued), falling back to account creation. */
+      const members = (db.users || []).map((u) => {
+        const logins = (db.sessions || [])
+          .filter((x) => x.user_id === u.id)
+          .map((x) => String(x.created_at || ''));
+        const login = logins.sort().pop() || null;
+        /* S2: only the actor's own row carries an elevation field. */
+        return u.id === user.id
+          ? selfMemberPayload(u, login)
+          : memberPayload(u, login, { contact: canAdmin });
+      });
       return sendJson(res, 200, {
         members,
+        canManageTeam: canAdmin,
         roles: [
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
           { id: 'sales', label: 'Sales', canWrite: true, canManageTeam: false },
-          { id: 'viewer', label: 'Viewer', canWrite: false, canManageTeam: false }
+          { id: 'viewer', label: 'Viewer', canWrite: false, canManageTeam: false },
+          { id: 'custom', label: 'Custom title', canWrite: true, canManageTeam: false, acceptsTitle: true }
         ]
       });
     }
@@ -2172,34 +2413,86 @@ async function handleApi(req, res, url) {
       }
       const body = await readBody(req);
       const targetId = String(body.userId || '');
-      const role = String(body.role || '');
-      if (!['owner', 'sales', 'viewer'].includes(role)) {
-        return sendJson(res, 400, { error: 'Role must be owner, sales, or viewer' });
-      }
+      const wanted = String(body.role || '').trim().toLowerCase();
       const target = (db.users || []).find((u) => u.id === targetId);
       if (!target) return sendJson(res, 404, { error: 'User not found' });
-      if (target.id === user.id && role !== 'owner') {
-        const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
-        if (!otherOwners.length) {
-          return sendJson(res, 400, {
-            error: 'Promote another owner before changing your own role away from owner.'
-          });
+
+      const actorIsAdmin = canElevate(user);
+      const targetElevated = isAdminRow(target);
+
+      /* An elevated row is out of reach for everyone except the designated
+         admin. The refusal is deliberately indistinguishable from any other
+         "you may not do this", so it never reveals which row is elevated. */
+      if (targetElevated && !actorIsAdmin) {
+        return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
+      }
+
+      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
+        ? String(body.roleCustom)
+        : (body.title != null && body.title !== '') ? String(body.title) : null;
+
+      /* ---- ELEVATION by typing "admin" ----
+         Self-service for the designated ADMIN_EMAIL login only, on its own row.
+         No dropdown, no role value: admin / Admin / ADMIN typed into the
+         custom-title box is the trigger. For anyone else it is a harmless
+         custom title (sales power), so this branch is skipped. */
+      const typedAdmin = rawTitle != null && rawTitle.trim().toLowerCase() === 'admin';
+      if ((typedAdmin || wanted === 'admin') && actorIsAdmin) {
+        if (target.id !== user.id) {
+          return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_NOT_SELF' });
+        }
+        /* Display untouched; re-typing "admin" stays ON (idempotent). */
+        target.is_admin = 1;
+        target.updated_at = nowISO();
+        saveDb(db);
+        return sendJson(res, 200, {
+          member: selfMemberPayload(target),
+          note: 'Saved. Nothing about how this account is displayed has changed.'
+        });
+      }
+
+      /* Power key or typed title. The boss case: role 'owner' WITH a title keeps
+         owner power and stores the title as the chip. */
+      const wantsCustom = wanted === 'custom';
+      const wantsOwner = wanted === 'owner';
+      let parsed;
+      if (rawTitle != null) {
+        const t = parseRoleTitle(rawTitle);
+        if (t.error) return sendJson(res, 400, { error: t.error });
+        parsed = wantsOwner ? { role: 'owner', roleCustom: t.roleCustom } : t;
+      } else if (wantsCustom) {
+        parsed = { error: 'Choose a power level, or send a title to show.' };
+      } else {
+        parsed = parseSignupRole(body.role);
+      }
+      if (parsed.error) return sendJson(res, 400, { error: parsed.error });
+
+      /* Self-demotion allowed whenever the OWNER_EMAIL backstop exists (it
+         always restores the company owner), or another owner exists. Designated
+         admin and elevated rows are exempt. */
+      if (target.id === user.id && parsed.role !== 'owner' && !actorIsAdmin && !targetElevated) {
+        if (!ownerEmail()) {
+          const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
+          if (!otherOwners.length) {
+            return sendJson(res, 400, { error: 'Promote another owner before changing your own role away from owner.' });
+          }
         }
       }
-      target.role = role;
-      target.role_custom = null;
+
+      /* R2 OFF-switch: the designated admin setting its OWN role to anything but
+         "admin" de-elevates. */
+      if (target.id === user.id && actorIsAdmin && targetElevated) {
+        target.is_admin = 0;
+      }
+      target.role = parsed.role;
+      target.role_custom = parsed.roleCustom;
       target.updated_at = nowISO();
       saveDb(db);
-      return sendJson(res, 200, {
-        member: {
-          id: target.id,
-          name: target.name,
-          email: target.email,
-          role: target.role,
-          roleCustom: null,
-          roleLabel: roleDisplay(target)
-        }
-      });
+      const note = normalizeEmail(target.email) === ownerEmail() && parsed.role !== 'owner'
+        ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in (its display title is kept). To make this change stick, remove or change OWNER_EMAIL in the server environment.'
+        : null;
+      const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target);
+      return sendJson(res, 200, { member: outMember, note });
     }
 
     return sendJson(res, 404, { error: 'Unknown API route' });

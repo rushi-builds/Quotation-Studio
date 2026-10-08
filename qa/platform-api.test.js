@@ -423,8 +423,22 @@ async function main() {
     r = await req('GET', '/api/proposals', null, viewerCookie);
     t('viewer can list own proposals', r.status === 200);
 
+    /* CHANGED by the elevation round (item 5): the team panel is now readable
+       by every member, and only the ability to CHANGE a role plus the contact
+       column stay owner/designated-admin only. This assertion used to be
+       `r.status === 403`. The write gate is still proven below and in
+       qa/roles-access.test.js. */
     r = await req('GET', '/api/team/members', null, viewerCookie);
-    t('viewer cannot list team', r.status === 403);
+    t('viewer may READ the team panel (view-only)', r.status === 200 && Array.isArray(r.json.members), r.status);
+    t('viewer is told it does not manage the team', r.json.canManageTeam === false, JSON.stringify(r.json.canManageTeam));
+    t('viewer gets no contact detail for another member',
+      !r.json.members.some((m) => m.email === 'owner@example.com'), JSON.stringify(r.json.members.map((m) => m.email)));
+    t('viewer still sees its own email', r.json.members.some((m) => m.email === 'viewer@example.com'));
+    t('viewer sees no elevation field on another row',
+      !r.json.members.filter((m) => m.email !== 'viewer@example.com').some((m) => 'isAdmin' in m || 'canElevate' in m));
+
+    r = await req('POST', '/api/team/role', { userId: 'someone-else', role: 'viewer' }, viewerCookie);
+    t('viewer still cannot CHANGE a role', r.status === 403, r.status);
 
     r = await req('GET', '/api/health');
     t('health phase E', r.status === 200 && r.json.phase === 'E');

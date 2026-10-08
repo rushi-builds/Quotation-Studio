@@ -91,7 +91,33 @@
     }[c]));
   }
 
-  function canEdit() { return !!user && user.role !== 'viewer'; }
+  /* Capability helpers. The server sends canWrite / canManageTeam on the
+     signed-in user, computed from EFFECTIVE powers (a designated ADMIN_EMAIL
+     login satisfies both even when its stored role is `viewer`), so the UI
+     never re-derives them from a role string. The fallbacks only apply to an
+     older backend that does not send the flags yet. */
+  function canEdit() {
+    if (!user) return false;
+    return user.canWrite != null ? !!user.canWrite : user.role !== 'viewer';
+  }
+  function canManage() {
+    if (!user) return false;
+    return user.canManageTeam != null ? !!user.canManageTeam : user.role === 'owner';
+  }
+  const POWER_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Viewer' };
+  /* S1 — the badge is the STORED role, so it can never read "Admin". The
+     backend already sends `power` derived from `role` alone; this clamps it a
+     second time so that no future backend change can put the word on screen.
+     Every member can see this panel, and an Admin badge would announce the
+     elevation to all of them. Note there is deliberately no 'admin' key in
+     POWER_LABEL either. */
+  function storedPowerWord(m) {
+    const r = String((m && m.role) || '').toLowerCase();
+    if (r === 'owner') return 'owner';
+    if (r === 'viewer') return 'viewer';
+    return 'sales'; /* sales, and every custom title, act as Sales */
+  }
+  function powerLabel(p) { return POWER_LABEL[String(p || '').toLowerCase()] || 'Member'; }
   function emptyState(title, detail, icon = '◇') {
     return '<div class="hempty"><span class="empty-icon" aria-hidden="true">' + icon + '</span><strong>' + escapeHtml(title) + '</strong>' + escapeHtml(detail || '') + '</div>';
   }
@@ -138,9 +164,26 @@
     $('userEmail').textContent = user.email || '';
     $('settingsName').textContent = user.name || '—';
     $('settingsEmail').textContent = user.email || '—';
-    if ($('settingsRole')) $('settingsRole').textContent = roleLabel(user);
+    if ($('settingsRole')) {
+      $('settingsRole').textContent = roleLabel(user);
+      /* Red dot: self-only tell that this account is in elevated admin mode.
+         Driven by the stored `elevated` flag; nobody else's payload has it. */
+      if (user && user.elevated) {
+        const d = document.createElement('span');
+        d.className = 'admin-dot'; d.title = 'Admin mode';
+        d.setAttribute('aria-label', 'Admin mode');
+        $('settingsRole').appendChild(d);
+      }
+    }
     if ($('settingsSince')) $('settingsSince').textContent = memberSince(user);
     wireRolePencil();
+    /* Own pencil stays visible for everyone; only the affordance changes. */
+    if ($('btnRoleEdit')) {
+      const mine = canManage();
+      $('btnRoleEdit').title = mine ? 'Edit your role' : 'Ask owner to change it';
+      $('btnRoleEdit').setAttribute('aria-label', mine ? 'Edit your role' : 'Ask owner to change it');
+      $('btnRoleEdit').classList.toggle('is-locked', !mine);
+    }
     if ($('profileName')) $('profileName').value = user.name || '';
     if ($('profileSaveMsg')) $('profileSaveMsg').textContent = '';
     if ($('currPassword')) $('currPassword').value = '';
@@ -380,107 +423,270 @@
     return 'Member since ' + t.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
   }
 
+  /* Own-role pencil — visible to everyone.
+
+     ONE editor, gated by capability and never by a role string. canManage() is
+     true for an owner and for the designated ADMIN_EMAIL login (whose effective
+     powers already clear the owner gate). Anyone else gets a disabled pencil
+     that says who to ask.
+
+     There is NO "Admin" dropdown option and no elevation control. Elevation is a
+     TYPED TITLE: the designated admin types admin / Admin / ADMIN into the title
+     box and saves; the backend sets is_admin = 1 and leaves the display
+     untouched. For anyone else the same word is just a custom title with sales
+     power (a title never grants access). Setting ANY other role de-elevates. The
+     only tell is the small red dot beside your own role, which nobody else can
+     see and which is driven by the stored `elevated` flag. */
   function wireRolePencil() {
     const btn = $('btnRoleEdit');
     const box = $('roleEditor');
     if (!btn || !box || btn.dataset.wired) return;
     btn.dataset.wired = '1';
     btn.addEventListener('click', () => {
-      if (!user || user.role !== 'owner') {
-        toast('Only the workspace owner can change roles.');
+      if (!canManage() && !(user && user.canElevate)) {
+        btn.title = 'Ask owner to change it';
+        toast('Ask owner to change it');
         return;
       }
       if (!box.hidden) { box.hidden = true; box.replaceChildren(); return; }
       box.hidden = false;
-      const sel = document.createElement('select');
-      sel.className = 'role-select';
-      sel.setAttribute('aria-label', 'Your role');
-      if (user.role === 'custom' || user.roleCustom) {
-        const c = document.createElement('option');
-        c.value = 'custom'; c.textContent = user.roleLabel || user.roleCustom || 'Custom';
-        c.selected = true; c.disabled = true;
-        sel.append(c);
-      }
-      ['owner', 'sales', 'viewer'].forEach((r) => {
-        const o = document.createElement('option');
-        o.value = r; o.textContent = roleLabel(r);
-        if (user.role === r) o.selected = true;
-        sel.append(o);
-      });
-      const save = document.createElement('button');
-      save.type = 'button'; save.className = 'role-save'; save.textContent = 'Save';
-      const cancel = document.createElement('button');
-      cancel.type = 'button'; cancel.className = 'role-cancel'; cancel.textContent = 'Cancel';
-      cancel.addEventListener('click', () => { box.hidden = true; box.replaceChildren(); btn.focus(); });
-      save.addEventListener('click', async () => {
-        if (sel.value === user.role || sel.value === 'custom') { box.hidden = true; box.replaceChildren(); return; }
-        save.disabled = true;
-        try {
-          await api.setTeamRole(user.id, sel.value);
-          user.role = sel.value; user.roleCustom = null; user.roleLabel = roleLabel(sel.value);
-          box.hidden = true; box.replaceChildren();
-          showApp();
-          refreshTeamPanel();
-          toast('Role updated');
-        } catch (err) {
-          save.disabled = false;
-          toast(err.message || 'Could not change role');
-        }
-      });
-      box.replaceChildren(sel, save, cancel);
-      sel.focus();
+      wireRoleEditor(box, btn);
     });
   }
 
+  /* Role + typed-title editor.
+       custom  -> title REQUIRED (sales power + that chip)
+       owner   -> title OPTIONAL (owner power; blank chip shows "Owner")
+       sales / viewer -> no title
+     Typing "admin" as a custom title elevates the designated admin on the
+     backend with ZERO display change; the returned member is the source of
+     truth, so the chip does not move and only the red dot appears. */
+  function wireRoleEditor(box, btn) {
+    const sel = document.createElement('select');
+    sel.className = 'role-select';
+    sel.setAttribute('aria-label', 'Your role');
+
+    const title = document.createElement('input');
+    title.type = 'text';
+    title.className = 'role-title';
+    title.maxLength = 60;
+    title.setAttribute('aria-label', 'Display title');
+
+    /* Power keys. A stored custom title is offered too so it stays selected
+       instead of silently becoming one of the three built-ins. */
+    if (user.role === 'custom' || (user.roleCustom && user.role !== 'owner')) {
+      const c = document.createElement('option');
+      c.value = 'custom';
+      c.textContent = user.roleLabel || user.roleCustom || 'Custom title';
+      c.selected = true;
+      sel.append(c);
+    }
+    ['owner', 'sales', 'viewer'].forEach((r) => {
+      const o = document.createElement('option');
+      o.value = r; o.textContent = roleLabel(r);
+      if (user.role === r) o.selected = true;
+      sel.append(o);
+    });
+
+    function syncTitle() {
+      const v = sel.value;
+      if (v === 'custom') {
+        title.hidden = false; title.disabled = false;
+        title.placeholder = 'Typed title (for example Project lead)';
+        title.value = user.role === 'custom' ? (user.roleCustom || '') : title.value;
+      } else if (v === 'owner') {
+        title.hidden = false; title.disabled = false;
+        title.placeholder = 'Display title (optional — blank shows "Owner")';
+        title.value = user.role === 'owner' ? (user.roleCustom || '') : '';
+      } else {
+        title.hidden = true; title.disabled = true; title.value = '';
+      }
+    }
+    sel.addEventListener('change', syncTitle);
+    syncTitle();
+
+    const save = document.createElement('button');
+    save.type = 'button'; save.className = 'role-save'; save.textContent = 'Save';
+    const cancel = document.createElement('button');
+    cancel.type = 'button'; cancel.className = 'role-cancel'; cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', () => { box.hidden = true; box.replaceChildren(); btn.focus(); });
+
+    save.addEventListener('click', async () => {
+      const v = sel.value;
+      const t = title.value.trim();
+      if (v === 'custom' && !t) { toast('Enter a title, or pick a power level'); return; }
+      const titleToSend = (v === 'custom' || v === 'owner') ? t : '';
+      save.disabled = true;
+      try {
+        const out = await api.setTeamRole(user.id, v, titleToSend);
+        const m = (out && out.member) || null;
+        /* The returned member is the source of truth. On elevation the display
+           fields come back UNCHANGED, so copying them keeps the chip identical
+           while `elevated` flips the red dot on. */
+        if (m) {
+          user.role = m.role;
+          user.roleCustom = m.roleCustom || null;
+          user.roleLabel = m.roleLabel || roleLabel(m.role);
+          if (m.isAdmin != null) user.isAdmin = !!m.isAdmin;
+          if (m.elevated != null) user.elevated = !!m.elevated;
+          if (m.canElevate != null) user.canElevate = !!m.canElevate;
+          user.canWrite = m.effectiveCanWrite != null ? !!m.effectiveCanWrite : (m.canWrite != null ? !!m.canWrite : user.canWrite);
+          user.canManageTeam = m.effectiveCanManageTeam != null ? !!m.effectiveCanManageTeam : (m.canManageTeam != null ? !!m.canManageTeam : user.canManageTeam);
+        } else {
+          user.role = (v === 'custom' && t) ? 'custom' : v;
+          user.roleCustom = ((v === 'owner' || v === 'custom') && t) ? t : null;
+          user.roleLabel = user.roleCustom || roleLabel(v);
+        }
+        box.hidden = true; box.replaceChildren();
+        showApp();
+        refreshTeamPanel();
+        toast((out && out.note) || 'Saved');
+      } catch (err) {
+        save.disabled = false;
+        toast(err.message || 'Could not change role');
+      }
+    });
+
+    box.replaceChildren(sel, title, save, cancel);
+    sel.focus();
+  }
+
+  /* Team panel. Columns: contact, typed title, power badge, last sign-in (from
+     the sessions table), and the role control.
+
+     Every member may READ it; only an owner or the designated admin gets the
+     role control and the contact column. The server enforces both halves — it
+     omits `email` from other members' rows for a non-manager, and POST
+     /api/team/role keeps its own owner gate — so this is presentation, not the
+     boundary. `canManageTeam` in the response says which view to render.
+
+     Power badge and title are separate on purpose: the title is what a member
+     typed, the badge is their STORED role. Neither ever reflects elevation. */
   async function refreshTeamPanel() {
     const body = $('teamBody');
     if (!body) return;
-    if (!user || user.role !== 'owner') {
-      body.innerHTML = '<tr><td colspan="3" class="empty">Only the workspace owner can manage team roles. Your role: ' +
-        escapeHtml(roleLabel(user && user.role)) + '.</td></tr>';
-      return;
-    }
+    const COLS = 6;
     try {
       const r = await api.listTeam();
       const members = (r && r.members) || [];
-      body.innerHTML = members.map((m) => (
-        '<tr>' +
+      /* Read-only unless the server says this actor manages the team. Falling
+         back to the local flag keeps an older backend behaving as before. */
+      const manage = r && r.canManageTeam != null ? !!r.canManageTeam : canManage();
+      /* The heading pill and the intro line follow the same server flag, so a
+         member is never told this screen is theirs to control. */
+      if ($('teamAccessPill')) $('teamAccessPill').textContent = manage ? 'Owner access' : 'Read-only';
+      if ($('teamPanelSub')) {
+        $('teamPanelSub').textContent = manage
+          ? 'Control who can create, share and manage. The power badge shows the stored role; the title beside it is wording a member typed, which is never used to decide access.'
+          : 'Read-only. The power badge shows the stored role; the title beside it is wording a member typed, which is never used to decide access. Only the workspace owner can change a role.';
+      }
+      body.innerHTML = members.map((m) => {
+        const pwr = storedPowerWord(m);
+        const isCustom = m.role === 'custom' || !!m.roleCustom;
+        /* A title is editable for custom (required) and owner (optional display
+           title: powers stay Owner, the chip shows the title). */
+        const titleable = isCustom || m.role === 'owner';
+        const titleId = 'teamTitle_' + m.id;
+        if (!manage) {
+          /* View-only: no contact column content and no control. Six cells so
+             the header still lines up. */
+          return '<tr data-member="' + escapeHtml(m.id) + '" class="team-readonly">' +
+            '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
+            '<td class="muted">—</td>' +
+            '<td>' + escapeHtml(m.roleCustom || roleLabel(m.role)) + '</td>' +
+            '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span></td>' +
+            '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
+            '<td class="muted micro">Owner only</td>' +
+          '</tr>';
+        }
+        let opts = ['owner', 'sales', 'viewer'].map((role) => (
+          '<option value="' + role + '"' + (!isCustom && m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
+        )).join('');
+        opts = '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom title</option>' + opts;
+        /* Never an "Admin" entry here: elevation is self-service and lives in
+           the own-role pencil, so no owner can raise or lower anyone else. */
+        return '<tr data-member="' + escapeHtml(m.id) + '">' +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
-          '<td class="muted">' + escapeHtml(m.email) + '</td>' +
-          '<td><select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select">' +
-            (function () {
-              const opts = ['owner', 'sales', 'viewer'];
-              let html = opts.map((role) => (
-                '<option value="' + role + '"' + (m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
-              )).join('');
-              if (m.role === 'custom' || m.roleCustom) {
-                html = '<option value="custom" selected>' + escapeHtml(m.roleLabel || m.roleCustom || 'Custom') + '</option>' + html;
-              }
-              return html;
-            })() +
-          '</select></td></tr>'
-      )).join('') || '<tr><td colspan="3" class="empty">No members.</td></tr>';
+          '<td class="muted">' + escapeHtml(m.email || '') + '</td>' +
+          '<td><input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
+            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
+            ' placeholder="' + (m.role === 'owner' ? 'Display title (optional)' : 'Typed title') + '"' +
+            (titleable ? '' : ' disabled') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" /></td>' +
+          '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span></td>' +
+          '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
+          '<td><select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
+            opts + '</select></td>' +
+        '</tr>';
+      }).join('') || '<tr><td colspan="' + COLS + '" class="empty">No members.</td></tr>';
+      if (!manage && members.length) {
+        body.insertAdjacentHTML('beforeend',
+          '<tr><td colspan="' + COLS + '" class="empty micro">Read-only. Only the workspace owner can change roles. Your title: ' +
+          escapeHtml(roleLabel(user)) + '.</td></tr>');
+      }
+      if (!manage) return;
+
+      const applyRole = async (memberId, role, titleVal) => {
+        const out = await api.setTeamRole(memberId, role, (role === 'custom' || role === 'owner') ? titleVal : '');
+        if (out && out.note) toast(out.note);
+        if (memberId === user.id && out && out.member) {
+          user.role = out.member.role;
+          user.roleCustom = out.member.roleCustom || null;
+          user.roleLabel = out.member.roleLabel || roleLabel(out.member.role);
+          /* S2 changed what a member row carries: canWrite/canManageTeam on a
+             team-panel row are now the STORED-role values, and the effective
+             ones arrive as effectiveCanWrite/effectiveCanManageTeam on the
+             actor's own row only. Reading the stored pair here would silently
+             strip a viewer-level elevated account of its reach after any role
+             edit, so the effective fields win whenever the backend sends them. */
+          user.canWrite = out.member.effectiveCanWrite != null
+            ? !!out.member.effectiveCanWrite : out.member.canWrite;
+          user.canManageTeam = out.member.effectiveCanManageTeam != null
+            ? !!out.member.effectiveCanManageTeam : out.member.canManageTeam;
+          if (out.member.isAdmin != null) user.isAdmin = !!out.member.isAdmin;
+          if (out.member.canElevate != null) user.canElevate = !!out.member.canElevate;
+          showApp();
+        }
+        return out;
+      };
+
       body.querySelectorAll('.team-role-select').forEach((sel) => {
         sel.addEventListener('change', async () => {
+          const id = sel.getAttribute('data-team-user');
+          const row = sel.closest('tr');
+          const input = row ? row.querySelector('.team-title-input') : null;
+          if (input) input.disabled = sel.value !== 'custom' && sel.value !== 'owner';
           try {
-            await api.setTeamRole(sel.getAttribute('data-team-user'), sel.value);
+            await applyRole(id, sel.value, input ? input.value.trim() : '');
             toast('Role updated');
-            if (sel.getAttribute('data-team-user') === user.id) {
-              user.role = sel.value;
-              user.roleCustom = null;
-              user.roleLabel = roleLabel(sel.value);
-              showApp();
-            }
+            await refreshTeamPanel();
           } catch (err) {
             toast(err.message || 'Could not change role');
             await refreshTeamPanel();
           }
         });
       });
+
+      body.querySelectorAll('.team-title-input').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const id = input.getAttribute('data-team-title');
+          const row = input.closest('tr');
+          const sel = row ? row.querySelector('.team-role-select') : null;
+          if (!sel || (sel.value !== 'custom' && sel.value !== 'owner')) return;
+          try {
+            await applyRole(id, sel.value, input.value.trim());
+            toast('Title updated');
+            await refreshTeamPanel();
+          } catch (err) {
+            toast(err.message || 'Could not change title');
+            await refreshTeamPanel();
+          }
+        });
+      });
     } catch (err) {
-      body.innerHTML = '<tr><td colspan="3" class="empty">' + escapeHtml(err.message || 'Could not load team') + '</td></tr>';
+      body.innerHTML = '<tr><td colspan="' + COLS + '" class="empty">' + escapeHtml(err.message || 'Could not load team') + '</td></tr>';
     }
   }
+
 
   function fillSendSelect(preferId) {
     const sel = $('sendSelect');
@@ -1027,7 +1233,14 @@
     }
     el.innerHTML =
       'API <strong>ok</strong> · phase <strong>' + escapeHtml(h.phase || '?') + '</strong> · storage <strong>' +
-      escapeHtml(h.storage || '?') + '</strong> · ' + escapeHtml(h.time || '');
+      escapeHtml(h.storage || '?') + '</strong> · code <strong>' + escapeHtml(h.codeVersion || '?') +
+      '</strong> · ' + escapeHtml(h.time || '');
+    /* Health warnings are configuration state only - they never name an email
+       or admit that a designated admin exists. */
+    const warns = (h.warnings || []).filter(Boolean);
+    if (warns.length) {
+      el.innerHTML += '<br><span class="warn">' + warns.map(escapeHtml).join('<br>') + '</span>';
+    }
   }
 
   /* ---------- project gallery (staff uploads) ---------- */
@@ -1159,7 +1372,7 @@
     }
   }
 
-  window.QSDash = { proposals: () => allProposals, setProposals: rows => { allProposals = rows; renderPropTable(); renderPropStats(); }, user: () => user, refresh: () => refreshAll(), show: (name, id) => showPanel(name, id), open: (id) => openInStudio(id), toast,
+  window.QSDash = { proposals: () => allProposals, setProposals: rows => { allProposals = rows; renderPropTable(); renderPropStats(); }, user: () => user, canEdit, canManage, powerLabel, refresh: () => refreshAll(), show: (name, id) => showPanel(name, id), open: (id) => openInStudio(id), toast,
     showTasks(filter) { if ($('taskFilter')) $('taskFilter').value = filter || 'all'; showPanel('tasks'); },
     filterStatus(status) { if ($('filterStatus')) $('filterStatus').value = status || ''; if ($('filterQ')) $('filterQ').value = ''; showPanel('proposals'); }
   };

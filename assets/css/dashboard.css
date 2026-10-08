@@ -3126,3 +3126,52 @@ html[data-theme="dark"] .sidebar {
 #roleEditor .role-save { background: var(--blue); border-color: var(--blue); color: #fff; }
 #roleEditor .role-save:disabled { opacity: .6; cursor: wait; }
 #roleEditor .role-cancel { background: none; color: inherit; }
+/* Elevation editor hint. Shown only to the designated ADMIN_EMAIL login, next
+   to the one dropdown in the product that renders the word "Admin". */
+#roleEditor .role-hint {
+  font-size: 11.5px; line-height: 1.45; margin: 0; max-width: 320px;
+  color: var(--muted, #6b7280);
+}
+/* View-only team rows: no contact, no control, so nothing invites a click. */
+#teamBody tr.team-readonly td { cursor: default; }
+/* Typed-title input inside the own-role editor. Shown only for "Custom title". */
+#roleEditor .role-title {
+  font-size: 13px; padding: 3px 6px; border-radius: 8px; width: 190px;
+  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
+}
+#roleEditor .role-title[hidden] { display: none; }
+#roleEditor .role-title:disabled { opacity: .55; cursor: not-allowed; }
+/* Own pencil stays visible for members but reads as "not yours to change".
+   It is never hidden, so nobody has to guess why an owner can and they cannot. */
+.settings-profile > .role-pencil.is-locked { opacity: .45; cursor: help; }
+.settings-profile > .role-pencil.is-locked:hover {
+  color: var(--muted);
+  background: none;
+}
+/* Team panel: typed title per member, and the power badge that is the truth
+   about access. Badge and title are deliberately separate columns. */
+.team-title-input {
+  font-size: 12px; padding: 3px 6px; border-radius: 8px; width: 100%; min-width: 120px;
+  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
+}
+.team-title-input:disabled { opacity: .5; cursor: not-allowed; }
+.badge-power[data-power="owner"] { background: #469e8512; color: var(--green); }
+.badge-power[data-power="sales"] { background: color-mix(in srgb, var(--blue) 12%, transparent); color: var(--blue); }
+.badge-power[data-power="viewer"] { background: var(--surface-soft); color: var(--muted); }
+/* Health warnings in Settings · Profile · Connection details. */
+#settingsHealth .warn { color: var(--red); }
+
+/* Red dot: the self-only tell that this account is in elevated admin mode.
+   Rendered beside the role on the top chip and in Settings, driven by the
+   stored `elevated` flag, which only ever appears in the actor's own payload —
+   so nobody else sees it and it changes no badge, chip text or typed title. */
+.admin-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--red, #e5484d);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--red, #e5484d) 22%, transparent);
+  vertical-align: middle;
+}

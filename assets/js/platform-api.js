@@ -262,8 +262,14 @@
     listTeam() {
       return request('GET', '/api/team/members');
     },
-    setTeamRole(userId, role) {
-      return request('POST', '/api/team/role', { userId, role });
+    /** role may be a power key (owner/sales/viewer) or 'custom'.
+     *  roleCustom carries the typed title; it is sent only when non-empty so
+     *  an older backend that ignores it keeps working. */
+    setTeamRole(userId, role, roleCustom) {
+      const body = { userId, role };
+      const title = String(roleCustom == null ? '' : roleCustom).trim();
+      if (title) body.roleCustom = title;
+      return request('POST', '/api/team/role', body);
     },
     socialProviders() { return request('GET', '/api/auth/oauth/providers'); },
     startSocial(provider, link = false, currentPassword = '') { return request('POST', '/api/auth/oauth/' + encodeURIComponent(provider) + '/start', {link, currentPassword}); },

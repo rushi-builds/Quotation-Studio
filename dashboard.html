@@ -867,21 +867,32 @@
                 >
                   <div class="card-head">
                     <h2>Your team</h2>
-                    <span class="count-pill">Owner access</span>
+                    <!-- Set by refreshTeamPanel(): "Owner access" for an owner
+                         or the designated admin, "Read-only" for everyone else.
+                         Every member may see this panel; only managers change
+                         anything or see contact detail. -->
+                    <span id="teamAccessPill" class="count-pill">Read-only</span>
                   </div>
-                  <p class="sub">Control who can create, share and manage.</p>
+                  <p class="sub" id="teamPanelSub">
+                    The power badge is a member's stored role; the title beside
+                    it is the wording they typed, which is never used to decide
+                    access.
+                  </p>
                   <div class="table-wrap">
                     <table class="data">
                       <thead>
                         <tr>
                           <th>NAME</th>
-                          <th>EMAIL</th>
+                          <th>CONTACT</th>
+                          <th>TITLE</th>
+                          <th>POWER</th>
+                          <th>LAST SIGN-IN</th>
                           <th>ROLE</th>
                         </tr>
                       </thead>
                       <tbody id="teamBody">
                         <tr>
-                          <td colspan="3" class="empty">Loading team…</td>
+                          <td colspan="6" class="empty">Loading team…</td>
                         </tr>
                       </tbody>
                     </table>

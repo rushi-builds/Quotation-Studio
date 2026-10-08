@@ -8,6 +8,9 @@ This app gets its **own** Worker + D1:
 | Worker | `quotation-studio` |
 | D1 database | `quotation-studio-db` |
 
+Who runs the workspace is decided by two Worker variables, `OWNER_EMAIL` and
+`ADMIN_EMAIL` — see [docs/workspace-roles.md](workspace-roles.md).
+
 Personal Cloudflare account first (`rushidhumal.04@…`) is fine. Company mail transfer later.
 
 ---

@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS users (
   role          TEXT NOT NULL DEFAULT 'sales'
                 CHECK (role IN ('owner', 'sales', 'viewer', 'custom')),
   role_custom   TEXT,
+  /* Elevation flag, deliberately NOT a `role` value: it outranks owner without
+     changing the role, so no label and no role-reading code moves when it is
+     set. Only the designated ADMIN_EMAIL login may set or clear it, and only on
+     its own row. Existing databases gain it via migrations/005-is-admin.sql. */
+  is_admin      INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );
