@@ -530,5 +530,46 @@ try {
   t('git diff available to check the frozen list', false, e.message);
 }
 
+/* ---------- 15. team profile round: the two backends agree ----------
+   qa/team-profile.test.js proves the behaviour end to end on the local
+   server; this proves the Worker ships the same contract, since running a
+   Worker here needs wrangler. */
+{
+  const both = (needle, label) =>
+    t(label, worker.includes(needle) && server.includes(needle), needle);
+
+  both("phone: u.phone || ''", 'parity: /me emits the contact number in both backends');
+  both('profileDone: Number(u.profile_done || 0) === 1', 'parity: /me emits the profile-nudge flag in both backends');
+  both("...(o.contact ? { phone: u.phone || '' } : {}),",
+    'parity: the contact number rides the same per-row opt-in as the address, in both backends');
+  both("parts[2] && parts.length === 3 && method === 'DELETE'",
+    'parity: both expose DELETE /api/team/members/:id');
+  both('Only the workspace owner can remove members.', 'parity: both gate removal behind the owner gate');
+  both('You cannot remove the account you are signed in with.', 'parity: both refuse your own row');
+  both('This mailbox is the workspace OWNER_EMAIL, so it cannot be removed.',
+    'parity: both refuse the OWNER_EMAIL backstop row');
+  both('ELEVATION_FORBIDDEN', 'parity: both refuse an elevated row with the uniform refusal');
+  both("'auth' && parts[1] === 'profile' && method === 'POST'",
+    'parity: both expose the profile save route');
+
+  /* The one SQL statement that decides what a self-service profile edit can
+     ever write, asserted as a whole string so a future column cannot slip
+     into it without failing here first. */
+  const profileSql = ((worker.match(/UPDATE users SET name = \?[^\n`]*/) || [''])[0] || '').trim();
+  t('worker: the profile UPDATE is exactly the four display columns',
+    profileSql === 'UPDATE users SET name = ?, phone = ?, role_custom = ?, profile_done = 1, updated_at = ? WHERE id = ?',
+    profileSql);
+  t('worker: the profile UPDATE carries no permission column',
+    !/(?:^|,)\s*(?:role|is_admin)\s*=/.test(profileSql), profileSql);
+
+  const profileStart = server.indexOf("'auth' && parts[1] === 'profile' && method === 'POST'");
+  const profileEnd = server.indexOf("'health' && method === 'GET'", profileStart);
+  const serverProfile = profileStart > 0 && profileEnd > profileStart
+    ? server.slice(profileStart, profileEnd) : '';
+  t('server: the profile save assigns no permission field',
+    !!serverProfile && !/user\.(?:role|is_admin)\s*=/.test(serverProfile),
+    serverProfile ? 'found' : 'profile handler slice not located');
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
