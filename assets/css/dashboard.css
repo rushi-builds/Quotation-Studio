@@ -3174,7 +3174,15 @@ html[data-theme="dark"] .sidebar {
   background: color-mix(in srgb, var(--red, #e5484d) 60%, transparent);
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--red, #e5484d) 12%, transparent);
   vertical-align: middle;
+  /* Hover-only. The flag behind it is self-only already — no other payload
+     ever carries it — and now the MARK is invisible until the actor points at
+     it, so a glance at the screen shows nothing to catch. */
+  opacity: 0;
+  transition: opacity .15s ease;
 }
+#chipRole:hover .admin-dot,
+#settingsRole:hover .admin-dot,
+.admin-dot:focus-visible { opacity: 1; }
 
 /* ---------- team panel: one panel, vertical scroll only ----------
    The team table is laid out to the panel's width (fixed columns, wrapping

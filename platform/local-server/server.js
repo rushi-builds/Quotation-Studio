@@ -719,8 +719,13 @@ function parseRoleTitle(raw) {
 }
 function roleDisplay(u) {
   if (!u) return '';
-  if (u.role_custom) return String(u.role_custom);
   const r = String(u.role || '').toLowerCase();
+  /* The typed title is the LABEL only where a title is a real thing: owner and
+     custom. A Sales / Engineer row still keeps its wording in role_custom — so
+     it is shown as the job title and returns the moment the member comes back
+     to a titleable role — but it is labelled by its power, like every other
+     row. */
+  if (u.role_custom && (r === 'owner' || r === 'custom')) return String(u.role_custom);
   if (r === 'owner') return 'Owner';
   if (r === 'sales') return 'Sales';
   if (r === 'viewer') return 'Viewer';
@@ -2513,7 +2518,14 @@ async function handleApi(req, res, url) {
       if (rawTitle != null) {
         const t = parseRoleTitle(rawTitle);
         if (t.error) return sendJson(res, 400, { error: t.error });
-        parsed = wantsOwner ? { role: 'owner', roleCustom: t.roleCustom } : t;
+        /* A title rides ALONGSIDE a power key instead of replacing it: owner
+           keeps owner power with the title as its chip, and Sales/Engineer
+           keeps the wording in role_custom — that is the title preserve, so a
+           role change edits ACCESS and never the wording. Only `custom` takes
+           its power from a title arriving with no explicit power key. */
+        parsed = wantsOwner ? { role: 'owner', roleCustom: t.roleCustom }
+          : (wanted === 'sales' || wanted === 'viewer') ? { role: wanted, roleCustom: t.roleCustom }
+          : t;
       } else if (wantsCustom) {
         parsed = { error: 'Choose a power level, or send a title to show.' };
       } else {

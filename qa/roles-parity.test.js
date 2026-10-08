@@ -262,8 +262,8 @@ for (const [label, src] of BOTH) {
     /Object\.assign\(memberPayload\(/.test(smp));
   t('S1 ' + label + ': roleDisplay never produces the literal "Admin"',
     !/return\s+'Admin'|roleLabel:\s*'Admin'|=\s*'Admin'/.test(src));
-  t('S1 ' + label + ': roleDisplay still prefers the typed title',
-    /if \(u\.role_custom\) return String\(u\.role_custom\);/.test(src));
+  t('S1 ' + label + ': roleDisplay still prefers the typed title, for owner/custom only',
+    /if \(u\.role_custom && \(r === 'owner' \|\| r === 'custom'\)\) return String\(u\.role_custom\);/.test(src));
 }
 /* The team routes must actually use the split. */
 for (const [label, src] of BOTH) {
@@ -598,8 +598,10 @@ try {
     /SERVER_ROLE_LABEL\[roleOrUser\.roleLabel\] \|\| roleOrUser\.roleLabel/.test(dash));
   t('ui: dashboard-home maps the same word on the top chip',
     /CHIP_ROLE\[u\.roleLabel\] \|\| u\.roleLabel \|\| u\.role/.test(dashHome));
-  t('backend: no server was renamed — Engineer appears in neither backend',
-    !/Engineer/.test(worker) && !/Engineer/.test(server));
+  t('backend: no backend role word was renamed — the Engineer label is display-only',
+    /if \(r === 'viewer'\) return 'Viewer';/.test(worker) &&
+    /if \(r === 'viewer'\) return 'Viewer';/.test(server) &&
+    !/['"]engineer['"]/i.test(worker + server));
 
   const buildIdx = teamFn.indexOf("['owner', 'sales', 'viewer']");
   const customIdx = teamFn.indexOf('opts += \'<option value="custom"\'');
@@ -622,6 +624,9 @@ try {
     /\.table-wrap \{\s+overflow-x: auto;/.test(css));
   t('css: the elevation dot is the smaller, lower-contrast one',
     /width: 5px/.test(adminDot) && /60%/.test(adminDot), adminDot);
+  t('css: the elevation dot is HOVER-ONLY, so a glance at the screen shows nothing',
+    /opacity: 0;/.test(adminDot) &&
+    /#chipRole:hover \.admin-dot,\s*#settingsRole:hover \.admin-dot/.test(css));
 
   /* This round: a wider panel so addresses do not wrap, softer corners on the
      little white boxes, and the honest words in a read-only Edit cell. */
@@ -635,6 +640,21 @@ try {
     /muted micro">Only owner access</.test(dash) && !/Owner only</.test(dash));
   t('ui: the read-only row shows the same contact detail as every other row',
     /'<td class="muted">' \+ contact \+ '<\/td>'/.test(teamFn));
+
+  /* Title preserve: a role change edits ACCESS, never the wording. The title
+     rides beside the power key in BOTH backends, and the client sends it for
+     every role instead of blanking it. */
+  const ridesBeside = "(wanted === 'sales' || wanted === 'viewer') ? { role: wanted, roleCustom: t.roleCustom }";
+  t('parity: both backends let a title ride beside a Sales/Engineer power key',
+    worker.includes(ridesBeside) && server.includes(ridesBeside), ridesBeside);
+  t('ui: applyRole sends the title with every role, not just custom/owner',
+    /api\.setTeamRole\(memberId, role, titleVal\)/.test(dash) &&
+    !/role === 'custom' \|\| role === 'owner'\) \? titleVal/.test(dash));
+  t('ui: the team row sends whatever the (possibly hidden) box still holds',
+    /applyRole\(id, sel\.value, input \? input\.value\.trim\(\) : ''\)/.test(dash));
+  const pencil = fn(dash, 'wireRoleEditor', ['refreshTeamPanel']);
+  t('ui: the own-role editor never blanks the title box when a role hides it',
+    !/title\.value = ''/.test(pencil) && /title\.value = user\.roleCustom \|\| ''/.test(pencil));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

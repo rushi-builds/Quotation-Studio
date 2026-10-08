@@ -206,6 +206,34 @@ async function main() {
     /* Put it back so the card has something to show. */
     await req(PORT, 'POST', '/api/auth/profile', { title: 'Project lead' }, targetSess.token);
 
+    /* ================= a role change edits ACCESS, never the wording ============
+       The title rides along with the power key, so moving a member to Engineer
+       keeps it in the row — and it is the label again the moment they come back
+       to a titleable role. The badge meanwhile never reads the wording. */
+    r = await req(PORT, 'POST', '/api/team/role',
+      { userId: targetReg.user.id, role: 'owner', roleCustom: 'Project lead' }, ownerSess.token);
+    t('the owner gives the member a title alongside the Owner role',
+      r.status === 200 && readRow(TARGET).role === 'owner' && readRow(TARGET).role_custom === 'Project lead',
+      r.status + ' ' + JSON.stringify([readRow(TARGET).role, readRow(TARGET).role_custom]));
+    r = await req(PORT, 'POST', '/api/team/role',
+      { userId: targetReg.user.id, role: 'viewer', roleCustom: 'Project lead' }, ownerSess.token);
+    t('moving them to Engineer KEEPS the wording instead of wiping it',
+      r.status === 200 && readRow(TARGET).role === 'viewer' && readRow(TARGET).role_custom === 'Project lead',
+      JSON.stringify([readRow(TARGET).role, readRow(TARGET).role_custom]));
+    t('...while the badge and the label still read the power, not the wording',
+      r.json.member && r.json.member.power === 'viewer' && r.json.member.roleLabel === 'Viewer',
+      JSON.stringify(r.json.member && [r.json.member.power, r.json.member.roleLabel]));
+    r = await req(PORT, 'POST', '/api/team/role',
+      { userId: targetReg.user.id, role: 'owner', roleCustom: 'Project lead' }, ownerSess.token);
+    t('back to Owner, the title is there again',
+      readRow(TARGET).role === 'owner' && readRow(TARGET).role_custom === 'Project lead',
+      JSON.stringify([readRow(TARGET).role, readRow(TARGET).role_custom]));
+    await req(PORT, 'POST', '/api/team/role',
+      { userId: targetReg.user.id, role: 'sales', roleCustom: 'Project lead' }, ownerSess.token);
+    t('fixture restored: a sales row that still carries its wording',
+      readRow(TARGET).role === 'sales' && readRow(TARGET).role_custom === 'Project lead',
+      JSON.stringify([readRow(TARGET).role, readRow(TARGET).role_custom]));
+
     /* ================= everyone reads the same contact detail ================= */
     let list = await req(PORT, 'GET', '/api/team/members', null, ownerSess.token);
     const ownerView = (list.json && list.json.members) || [];

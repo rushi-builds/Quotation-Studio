@@ -538,19 +538,18 @@
       sel.append(c);
     }
 
+    /* Whatever title the account already has is loaded ONCE and never blanked
+       by a role choice: a hidden box still holds its text, so saving after a
+       move to Sales or Engineer sends the wording back and preserves it. */
+    title.value = user.roleCustom || '';
     function syncTitle() {
       const v = sel.value;
-      if (v === 'custom') {
-        title.hidden = false; title.disabled = false;
-        title.placeholder = 'Typed title (for example Project lead)';
-        title.value = user.role === 'custom' ? (user.roleCustom || '') : title.value;
-      } else if (v === 'owner') {
-        title.hidden = false; title.disabled = false;
-        title.placeholder = 'Display title (optional — blank shows "Owner")';
-        title.value = user.role === 'owner' ? (user.roleCustom || '') : '';
-      } else {
-        title.hidden = true; title.disabled = true; title.value = '';
-      }
+      const titleable = v === 'custom' || v === 'owner';
+      title.hidden = !titleable;
+      title.disabled = false;
+      title.placeholder = v === 'custom'
+        ? 'Typed title (for example Project lead)'
+        : 'Display title (optional — blank shows "Owner")';
     }
     sel.addEventListener('change', syncTitle);
     syncTitle();
@@ -565,7 +564,7 @@
       const v = sel.value;
       const t = title.value.trim();
       if (v === 'custom' && !t) { toast('Enter a title, or pick a power level'); return; }
-      const titleToSend = (v === 'custom' || v === 'owner') ? t : '';
+      const titleToSend = t;
       save.disabled = true;
       try {
         const out = await api.setTeamRole(user.id, v, titleToSend);
@@ -797,7 +796,10 @@
       if (!manage) return;
 
       const applyRole = async (memberId, role, titleVal) => {
-        const out = await api.setTeamRole(memberId, role, (role === 'custom' || role === 'owner') ? titleVal : '');
+        /* The title travels with EVERY role, Sales and Engineer included: that
+           is what preserves the wording across a role change instead of
+           wiping it. The badge still comes from the power key alone. */
+        const out = await api.setTeamRole(memberId, role, titleVal);
         if (out && out.note) toast(out.note);
         if (memberId === user.id && out && out.member) {
           user.role = out.member.role;
@@ -830,7 +832,7 @@
           const wantsTitle = sel.value === 'custom' || sel.value === 'owner';
           if (input) { input.hidden = !wantsTitle; input.disabled = !wantsTitle; }
           try {
-            await applyRole(id, sel.value, wantsTitle && input ? input.value.trim() : '');
+            await applyRole(id, sel.value, input ? input.value.trim() : '');
             toast('Role updated');
             await refreshTeamPanel();
           } catch (err) {
