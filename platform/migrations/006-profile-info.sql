@@ -1,0 +1,64 @@
+-- Round-2 team profile: two additive columns on `users`.
+--
+--   phone         the member's contact number. Display data only — it is shown
+--                 in the team panel's contact column and in the member-info
+--                 panel, and it is NEVER a credential: nothing reads it during
+--                 authentication, and no gate depends on it.
+--   profile_done  0 = the member has never saved their profile.
+--                 1 = they have saved it at least once.
+--                 Drives the one-time "update your role and info from Settings"
+--                 nudge on the dashboard. Writing it is a display concern only:
+--                 it changes no permission, no role and no reach.
+--
+-- Neither column is read by the permission core. `role` keeps its CHECK
+-- constraint, `is_admin` keeps its meaning, and a row that gains these two
+-- values reads exactly the same to every gate as one that does not.
+--
+-- ---------------------------------------------------------------------------
+-- BACK UP FIRST (per the standing rule):
+--
+--   cd platform/cloudflare
+--   $env:CLOUDFLARE_API_TOKEN = <ktm-scoped token>
+--   $env:CLOUDFLARE_ACCOUNT_ID = 'e43beb41b3e88e546967398e5767800c'
+--   npx wrangler d1 execute -c wrangler.company.toml --remote quotation-studio-db \
+--     --command "SELECT id, email, role, is_admin FROM users"
+--
+-- APPLY:
+--
+--   npx wrangler d1 execute -c wrangler.company.toml --remote quotation-studio-db \
+--     --file=../migrations/006-profile-info.sql
+--
+-- VERIFY (see 006-profile-info-verify.sql — one statement, safe with --command):
+--
+--   npx wrangler d1 execute -c wrangler.company.toml --remote quotation-studio-db \
+--     --file=../migrations/006-profile-info-verify.sql
+--
+-- ---------------------------------------------------------------------------
+-- IDEMPOTENCY: SQLite has no `ADD COLUMN IF NOT EXISTS`, so re-running this file
+-- fails with "duplicate column name: phone" (or `profile_done`). That error is
+-- harmless and means the column is already present — run the verify file to
+-- confirm rather than re-applying.
+--
+-- Until it is applied the deployment still serves traffic: every read of these
+-- columns is defensive, so an old database simply reports an empty contact
+-- number and treats the profile as not-yet-saved. GET /api/health keeps
+-- reporting the elevation-column probe as before; this migration does not
+-- change the health contract.
+--
+-- ---------------------------------------------------------------------------
+-- ROLLBACK / LEAVING IT IN PLACE: both columns are inert if left. They are
+-- NOT NULL with a constant default, so they cannot hold a surprising value, and
+-- no index, CHECK constraint or foreign key references them. SQLite applies the
+-- defaults without rewriting existing rows.
+--
+-- SQLite cannot drop a column without a table rebuild (create-new / copy /
+-- drop / rename), which is not worth the risk for a display string and a flag.
+-- Leave them.
+--
+-- Rolling back the CODE instead needs no DDL at all: the pre-migration Worker
+-- never selects these columns, so an old deployment runs fine against a
+-- migrated database. The migration is forward- and backward-safe.
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN profile_done INTEGER NOT NULL DEFAULT 0;

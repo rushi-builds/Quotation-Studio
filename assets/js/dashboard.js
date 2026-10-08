@@ -185,6 +185,9 @@
       $('btnRoleEdit').classList.toggle('is-locked', !mine);
     }
     if ($('profileName')) $('profileName').value = user.name || '';
+    if ($('profilePhone')) $('profilePhone').value = user.phone || '';
+    if ($('profileTitle')) $('profileTitle').value = user.roleCustom || '';
+    refreshProfileNudge();
     if ($('profileSaveMsg')) $('profileSaveMsg').textContent = '';
     if ($('currPassword')) $('currPassword').value = '';
     if ($('newPassword')) $('newPassword').value = '';
@@ -200,6 +203,46 @@
     /* No session — back to the sign-in page. */
     user = null;
     location.href = 'index.html';
+  }
+
+  /* The one-time first-sign-in nudge. It reads `profile_done`, which the
+     server flips the first time the member saves Settings → Profile: a display
+     flag that appears in no gate, so showing or hiding it grants nothing. */
+  function refreshProfileNudge() {
+    const el = $('profileNudge');
+    if (!el) return;
+    el.hidden = !user || !!user.profileDone;
+  }
+
+  /* One English confirmation modal, used wherever a change deserves a pause.
+     It resolves true only on the confirming click, so nothing is written and
+     nothing is sent until the second one. Falls back to the native prompt only
+     if the browser has no <dialog>, which no supported browser lacks. */
+  function confirmDialog(opts) {
+    const o = opts || {};
+    const dlg = $('confirmBox');
+    if (!dlg) return Promise.resolve(window.confirm(o.body || 'Are you sure?'));
+    return new Promise((resolve) => {
+      const set = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+      set('cfTitle', o.title || 'Are you sure?');
+      set('cfBody', o.body || '');
+      set('cfOk', o.confirm || 'Confirm');
+      set('cfCancel', o.cancel || 'Cancel');
+      const done = (val) => {
+        closeDialog('confirmBox');
+        resolve(val);
+      };
+      const ok = $('cfOk');
+      const cancel = $('cfCancel');
+      if (ok) {
+        ok.onclick = () => done(true);
+        ok.focus();
+      }
+      if (cancel) cancel.onclick = () => done(false);
+      dlg.onclose = () => done(false);
+      if (typeof dlg.showModal === 'function') dlg.showModal();
+      else dlg.setAttribute('open', '');
+    });
   }
 
   /* ---------- navigation ---------- */
@@ -551,7 +594,7 @@
     sel.focus();
   }
 
-  /* Team panel. Columns: contact, typed title, power badge, last sign-in (from
+  /* Team panel. Columns: name, contact, stored-role badge, last sign-in (from
      the sessions table), and the role control.
 
      Every member may READ it; only an owner or the designated admin gets the
@@ -560,8 +603,111 @@
      /api/team/role keeps its own owner gate — so this is presentation, not the
      boundary. `canManageTeam` in the response says which view to render.
 
-     Power badge and title are separate on purpose: the title is what a member
-     typed, the badge is their STORED role. Neither ever reflects elevation. */
+     The EDIT cell holds the role select and, for a titleable row, the title
+     input — separate on purpose: the title is what a member typed, the badge
+     is their STORED role, and neither ever reflects elevation. The INFO cell
+     opens the member card, which every member may open and only a manager may
+     act from. */
+  /* ---------- member info card ----------
+     The eye at the end of a team row opens one card with everything the server
+     is willing to show THIS actor about that member: display details for
+     everyone, and the remove button only when the server said this actor
+     manages the team.
+
+     The card is presentation, not the boundary. DELETE /api/team/members/:id
+     keeps its own owner gate and refuses your own row, the OWNER_EMAIL row and
+     an elevated row, so a client that forges the manage flag gets nothing but
+     a refusal. */
+  let teamMembers = [];
+  let teamCanManage = false;
+  let memberInFocus = null;
+
+  function memberById(id) {
+    return teamMembers.find((m) => m && m.id === id) || null;
+  }
+
+  function closeDialog(id) {
+    const dlg = $(id);
+    if (!dlg) return;
+    if (typeof dlg.close === 'function' && dlg.open) dlg.close();
+    else dlg.removeAttribute('open');
+  }
+
+  function openMemberInfo(memberId) {
+    const m = memberById(memberId);
+    const dlg = $('memberInfo');
+    if (!m || !dlg) return;
+    memberInFocus = m;
+    /* Badge word, never a label derived from elevation: the card shows the
+       stored role like every other surface does. */
+    const pwr = storedPowerWord(m);
+    const set = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+    set('miAvatar', (String(m.name || '?').trim().charAt(0) || '?').toUpperCase());
+    set('miName', m.name || '—');
+    set('miSubtitle', powerLabel(pwr));
+    /* A non-manager never receives these fields at all — the server omits them
+       rather than blanking — so "Not shared" is the honest reading, and there
+       is nothing here to unhide. */
+    set('miEmail', m.email || 'Not shared');
+    set('miPhone', m.phone || 'Not added yet');
+    set('miTitle', m.roleCustom || '—');
+    set('miRole', powerLabel(pwr));
+    set('miFirst', m.createdAt ? fmtDate(m.createdAt) : '—');
+    set('miLast', m.lastLogin ? fmtDate(m.lastLogin) : '—');
+    set('miNote', '');
+    const manage = $('miManage');
+    if (manage) manage.hidden = !teamCanManage;
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', '');
+  }
+
+  /* Removal is irreversible, so the warning is a real dialog that names the
+     account and spells out what leaves with it, and NOTHING is sent until the
+     second click. The counts come back in the response and are read out in the
+     toast, so the scope is confirmed after the fact as well as before. */
+  function askRemoveMember() {
+    const m = memberInFocus;
+    const dlg = $('deleteConfirm');
+    if (!m || !dlg) return;
+    const set = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+    set('dcName', m.name || '—');
+    set('dcEmail', m.email || '');
+    set('dcNote', '');
+    const btn = $('dcConfirm');
+    if (btn) { btn.disabled = false; btn.textContent = 'Delete permanently'; }
+    closeDialog('memberInfo');
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', '');
+  }
+
+  async function confirmRemoveMember() {
+    const m = memberInFocus;
+    const note = $('dcNote');
+    const btn = $('dcConfirm');
+    if (!m) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+    if (note) note.textContent = '';
+    try {
+      const out = await api.deleteTeamMember(m.id);
+      const rc = (out && out.removed) || {};
+      const bits = [];
+      const push = (n, one, many) => { if (n) bits.push(n + ' ' + (n === 1 ? one : many)); };
+      push(rc.proposals, 'quotation', 'quotations');
+      push(rc.customers, 'customer', 'customers');
+      push(rc.tasks, 'task', 'tasks');
+      push(rc.galleryUploads, 'photo', 'photos');
+      push(rc.sessions, 'active session', 'active sessions');
+      closeDialog('deleteConfirm');
+      memberInFocus = null;
+      toast('Removed ' + (m.name || 'member') + (bits.length ? ' — ' + bits.join(', ') : ''));
+      await refreshTeamPanel();
+    } catch (err) {
+      if (note) note.textContent = err.message || 'Could not remove this member';
+      if (btn) { btn.disabled = false; btn.textContent = 'Delete permanently'; }
+      toast(err.message || 'Could not remove this member');
+    }
+  }
+
   async function refreshTeamPanel() {
     const body = $('teamBody');
     if (!body) return;
@@ -569,16 +715,20 @@
     try {
       const r = await api.listTeam();
       const members = (r && r.members) || [];
+      /* The member card reads from here, because it opens after this function
+         has returned. */
+      teamMembers = members;
       /* Read-only unless the server says this actor manages the team. Falling
          back to the local flag keeps an older backend behaving as before. */
       const manage = r && r.canManageTeam != null ? !!r.canManageTeam : canManage();
+      teamCanManage = manage;
       /* The heading pill and the intro line follow the same server flag, so a
          member is never told this screen is theirs to control. */
       if ($('teamAccessPill')) $('teamAccessPill').textContent = manage ? 'Owner access' : 'Read-only';
       if ($('teamPanelSub')) {
         $('teamPanelSub').textContent = manage
-          ? 'Control who can create, share and manage. The power badge shows the stored role; the title beside it is wording a member typed, which is never used to decide access.'
-          : 'Read-only. The power badge shows the stored role; the title beside it is wording a member typed, which is never used to decide access. Only the workspace owner can change a role.';
+          ? 'Everyone can open a member\'s card with the eye to see their details. You can change a role under Edit — it changes access only, never the work already saved.'
+          : 'Everyone can open a member\'s card with the eye to see their details. Only the workspace owner can change a role under Edit.';
       }
       body.innerHTML = members.map((m) => {
         const pwr = storedPowerWord(m);
@@ -587,16 +737,19 @@
            title: powers stay Owner, the chip shows the title). */
         const titleable = isCustom || m.role === 'owner';
         const titleId = 'teamTitle_' + m.id;
+        /* The eye is the one control every row carries, manager or not. */
+        const eye = '<td class="team-info-cell"><button type="button" class="team-info-btn" data-info="' + escapeHtml(m.id) +
+          '" aria-label="View info for ' + escapeHtml(m.name) + '" title="View info">👁</button></td>';
         if (!manage) {
-          /* View-only: no contact column content and no control. Six cells so
-             the header still lines up. */
+          /* View-only: no contact column content and no control, but the
+             member card still opens. Six cells so the header lines up. */
           return '<tr data-member="' + escapeHtml(m.id) + '" class="team-readonly">' +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">—</td>' +
-            '<td>' + escapeHtml(m.roleCustom || roleLabel(m.role)) + '</td>' +
             '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span></td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
             '<td class="muted micro">Owner only</td>' +
+            eye +
           '</tr>';
         }
         let opts = ['owner', 'sales', 'viewer'].map((role) => (
@@ -605,17 +758,24 @@
         opts = '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom title</option>' + opts;
         /* Never an "Admin" entry here: elevation is self-service and lives in
            the own-role pencil, so no owner can raise or lower anyone else. */
+        /* Contact detail rides the server's opt-in: absent for a non-manager,
+           never blank-then-unhidden. The number sits beneath the address. */
+        const contact = escapeHtml(m.email || '') +
+          (m.phone ? '<span class="contact-sub">' + escapeHtml(m.phone) + '</span>' : '');
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
-          '<td class="muted">' + escapeHtml(m.email || '') + '</td>' +
-          '<td><input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
-            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
-            ' placeholder="' + (m.role === 'owner' ? 'Display title (optional)' : 'Typed title') + '"' +
-            (titleable ? '' : ' disabled') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" /></td>' +
+          '<td class="muted">' + contact + '</td>' +
           '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span></td>' +
           '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
-          '<td><select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
-            opts + '</select></td>' +
+          '<td class="team-edit-cell">' +
+            '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
+            opts + '</select>' +
+            '<input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
+            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
+            ' placeholder="' + (m.role === 'owner' ? 'Display title (optional)' : 'Typed title') + '"' +
+            (titleable ? '' : ' disabled') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" />' +
+          '</td>' +
+          eye +
         '</tr>';
       }).join('') || '<tr><td colspan="' + COLS + '" class="empty">No members.</td></tr>';
       if (!manage && members.length) {
@@ -681,6 +841,13 @@
             await refreshTeamPanel();
           }
         });
+      });
+
+      /* The card opens for everyone; what it offers inside is decided from
+         teamCanManage, which the server set — this listener is only the
+         click, never the permission. */
+      body.querySelectorAll('.team-info-btn').forEach((btn) => {
+        btn.addEventListener('click', () => openMemberInfo(btn.getAttribute('data-info')));
       });
     } catch (err) {
       body.innerHTML = '<tr><td colspan="' + COLS + '" class="empty">' + escapeHtml(err.message || 'Could not load team') + '</td></tr>';
@@ -1421,6 +1588,8 @@
     if ($('btnSaveProfile')) {
       $('btnSaveProfile').addEventListener('click', async () => {
         const name = ($('profileName') && $('profileName').value || '').trim();
+        const phone = ($('profilePhone') && $('profilePhone').value || '').trim();
+        const title = ($('profileTitle') && $('profileTitle').value || '').trim();
         const msg = $('profileSaveMsg');
         if (msg) msg.textContent = '';
         if (!name) {
@@ -1428,20 +1597,51 @@
           toast('Name cannot be empty');
           return;
         }
+        /* Read back in English before anything is written. This updates
+           display details only — the job title never decides access. */
+        const ok = await confirmDialog({
+          title: 'Save your profile?',
+          body: 'Your display name, contact number and job title will be updated across the workspace. Your access does not change.',
+          confirm: 'Save changes'
+        });
+        if (!ok) return;
         $('btnSaveProfile').disabled = true;
         try {
-          const r = await api.updateProfile({ name });
+          const r = await api.updateProfile({ name, phone, title });
           user = r.user;
           showApp();
           await renderHome();
-          if (msg) msg.textContent = 'Name saved.';
-          toast('Name saved');
+          refreshProfileNudge();
+          if (msg) msg.textContent = 'Profile saved.';
+          toast('Profile saved');
         } catch (err) {
-          if (msg) msg.textContent = err.message || 'Could not update name';
-          toast(err.message || 'Could not update name');
+          if (msg) msg.textContent = err.message || 'Could not save profile';
+          toast(err.message || 'Could not save profile');
         } finally {
           $('btnSaveProfile').disabled = false;
         }
+      });
+    }
+
+    /* Member card, removal warning and the one-time nudge — bound once, so a
+       re-render of the table can never stack a second listener. */
+    if ($('memberInfoClose')) $('memberInfoClose').addEventListener('click', () => closeDialog('memberInfo'));
+    if ($('miDelete')) $('miDelete').addEventListener('click', askRemoveMember);
+    if ($('dcCancel')) $('dcCancel').addEventListener('click', () => closeDialog('deleteConfirm'));
+    if ($('dcConfirm')) $('dcConfirm').addEventListener('click', confirmRemoveMember);
+    if ($('btnNudgeClose')) {
+      $('btnNudgeClose').addEventListener('click', () => {
+        const el = $('profileNudge');
+        if (el) el.hidden = true;
+      });
+    }
+    if ($('btnNudgeGo')) {
+      $('btnNudgeGo').addEventListener('click', () => {
+        showPanel('settings');
+        document.querySelectorAll('[data-settings]').forEach((n) => n.classList.toggle('selected', n.dataset.settings === 'profile'));
+        document.querySelectorAll('[data-settings-section]').forEach((n) => { n.hidden = n.dataset.settingsSection !== 'profile'; });
+        const focusField = $('profilePhone') || $('profileName');
+        if (focusField) focusField.focus();
       });
     }
 

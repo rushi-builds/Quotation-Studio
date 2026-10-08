@@ -177,6 +177,19 @@
         </header>
         <div class="workspace-content">
           <div id="banner" class="banner" role="status"></div>
+          <!-- One-time first-sign-in nudge. Shown by refreshProfileNudge()
+               while the account has never saved its profile, and removed for
+               good the first time the member saves Settings → Profile. It asks
+               for display details only — access is never chosen here. -->
+          <div id="profileNudge" class="banner banner-nudge" role="status" hidden>
+            <span class="nudge-mark" aria-hidden="true">✦</span>
+            <p>
+              <strong>Welcome! Please update your role and info from Settings.</strong>
+              Add your contact number and job title so the team can reach you.
+            </p>
+            <button type="button" id="btnNudgeGo" class="btn btn-secondary btn-sm">Open Profile</button>
+            <button type="button" id="btnNudgeClose" class="nudge-close" aria-label="Dismiss">×</button>
+          </div>
           <section id="panel-home" class="panel on">
             <div class="hero2 solar-hero">
               <div class="hero-copy">
@@ -785,7 +798,35 @@
                       type="text"
                       id="profileName"
                       placeholder="Your name"
+                      maxlength="120"
                     />
+                  </div>
+                  <div class="field">
+                    <label for="profilePhone">Contact number</label
+                    ><input
+                      type="tel"
+                      id="profilePhone"
+                      placeholder="+91 98765 43210"
+                      autocomplete="tel"
+                      maxlength="30"
+                    />
+                    <p class="micro muted">
+                      Shared with the team in the contact column. Leave it
+                      empty if you would rather not publish it.
+                    </p>
+                  </div>
+                  <div class="field">
+                    <label for="profileTitle">Job title</label
+                    ><input
+                      type="text"
+                      id="profileTitle"
+                      placeholder="For example Project lead"
+                      maxlength="60"
+                    />
+                    <p class="micro muted">
+                      Wording only — it is shown beside your name and never
+                      decides what you can do. The owner sets access.
+                    </p>
                   </div>
                   <div class="settings-actions">
                     <button
@@ -884,10 +925,10 @@
                         <tr>
                           <th>NAME</th>
                           <th>CONTACT</th>
-                          <th>TITLE</th>
-                          <th>POWER</th>
-                          <th>LAST SIGN-IN</th>
                           <th>ROLE</th>
+                          <th>LAST SIGN-IN</th>
+                          <th>EDIT</th>
+                          <th>INFO</th>
                         </tr>
                       </thead>
                       <tbody id="teamBody">
@@ -999,6 +1040,76 @@
         ×</button
       ><img id="galleryLarge" alt="" />
       <p id="galleryViewerCap"></p>
+    </dialog>
+    <!-- Member info panel, opened from the eye at the end of a team row.
+         Every member may open it: it shows display details only. The role
+         control and the remove button are rendered inside it solely when the
+         server said this actor manages the team — the same split the table
+         uses, and the server enforces it again on the write. -->
+    <dialog id="memberInfo" class="member-dialog" aria-label="Member information">
+      <button type="button" class="dlg-close" id="memberInfoClose" aria-label="Close">×</button>
+      <div class="mi-head">
+        <span class="mi-avatar" id="miAvatar" aria-hidden="true">U</span>
+        <div>
+          <h2 id="miName">—</h2>
+          <p id="miSubtitle" class="micro muted"></p>
+        </div>
+      </div>
+      <dl class="mi-facts">
+        <div><dt>Email</dt><dd id="miEmail">—</dd></div>
+        <div><dt>Contact number</dt><dd id="miPhone">—</dd></div>
+        <div><dt>Job title</dt><dd id="miTitle">—</dd></div>
+        <div><dt>Role</dt><dd id="miRole">—</dd></div>
+        <div><dt>First sign-in</dt><dd id="miFirst">—</dd></div>
+        <div><dt>Last sign-in</dt><dd id="miLast">—</dd></div>
+      </dl>
+      <div id="miManage" hidden>
+        <button type="button" id="miDelete" class="btn btn-danger">Delete this User</button>
+        <p class="micro muted">
+          Only the workspace owner and the designated admin can remove a
+          member. Changing a role elsewhere in this table changes access only —
+          the member keeps every quotation, task and file they created.
+        </p>
+      </div>
+      <p id="miNote" class="micro" role="status"></p>
+    </dialog>
+
+    <!-- Removal warning. Shown BEFORE any request is sent, naming the account
+         and spelling out what goes with it, because a removal cannot be undone
+         from Studio. -->
+    <dialog id="deleteConfirm" class="member-dialog danger" aria-label="Confirm removal">
+      <h2>Delete this User?</h2>
+      <p class="sub">
+        <strong id="dcName">—</strong><br /><span id="dcEmail" class="muted"></span>
+      </p>
+      <p class="sub">Deleting removes all of the following permanently:</p>
+      <ul class="dc-list">
+        <li>Their Studio account, password and every signed-in session</li>
+        <li>Their Google / Microsoft sign-in link</li>
+        <li>Every quotation and customer they created, with its versions and share links</li>
+        <li>Their tasks, notifications and uploaded photos</li>
+      </ul>
+      <p class="micro muted">
+        Their email address itself is never touched — only this Studio account.
+        This cannot be undone from Studio.
+      </p>
+      <div class="dc-actions">
+        <button type="button" id="dcCancel" class="btn btn-ghost">Cancel</button>
+        <button type="button" id="dcConfirm" class="btn btn-danger">Delete permanently</button>
+      </div>
+      <p id="dcNote" class="micro" role="status"></p>
+    </dialog>
+
+    <!-- Generic English confirmation. Every irreversible or workspace-wide
+         change is read back here first, and nothing is sent on the first
+         click. -->
+    <dialog id="confirmBox" class="member-dialog" aria-label="Confirm">
+      <h2 id="cfTitle">Are you sure?</h2>
+      <p class="sub" id="cfBody"></p>
+      <div class="dc-actions">
+        <button type="button" id="cfCancel" class="btn btn-ghost">Cancel</button>
+        <button type="button" id="cfOk" class="btn btn-primary">Confirm</button>
+      </div>
     </dialog>
     <div id="toast" role="status"></div>
     <script src="assets/js/platform-api.js?v=oauth1"></script>

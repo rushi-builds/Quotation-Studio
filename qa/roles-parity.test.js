@@ -331,6 +331,33 @@ t('schema.sql declares the same column with the same shape',
   (schema.match(/[^\n]*is_admin[^\n]*/) || [''])[0]);
 t('schema.sql does not add "admin" as a role value', !/role[^\n]*admin/i.test(schema.replace(/--[^\n]*/g, '')));
 
+/* ---------- 8b. migration 006: two additive display columns ---------- */
+const mig6 = fs.readFileSync(path.join(ROOT, 'platform/migrations/006-profile-info.sql'), 'utf8');
+/* Comments first, then split: a sentence in the header legitimately contains a
+   semicolon, and splitting before stripping would tear an ALTER in half. */
+const mig6Statements = mig6.replace(/--[^\n]*/g, '').split(';').map((x) => x.trim()).filter(Boolean);
+t('migration 006 contains exactly TWO statements', mig6Statements.length === 2,
+  mig6Statements.length + ': ' + JSON.stringify(mig6Statements));
+t('migration 006 is the expected additive ALTER TABLE pair',
+  mig6Statements[0] === "ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT ''" &&
+  mig6Statements[1] === 'ALTER TABLE users ADD COLUMN profile_done INTEGER NOT NULL DEFAULT 0',
+  JSON.stringify(mig6Statements));
+t('migration 006 adds columns only — no elevation, no role write, no other table',
+  !/DROP|CREATE TABLE|UPDATE|DELETE|INSERT|is_admin/i.test(mig6Statements.join(' ')),
+  mig6Statements.join(' | '));
+t('migration 006 tells the operator to back up first', /back\s*up|backup/i.test(mig6));
+t('migration 006 documents the harmless re-run (SQLite has no IF NOT EXISTS for columns)',
+  /duplicate column name/i.test(mig6));
+t('migration 006 documents rollback', /rollback|roll back/i.test(mig6));
+const usersBlock = schema.slice(
+  schema.indexOf('CREATE TABLE IF NOT EXISTS users'),
+  schema.indexOf('CREATE TABLE IF NOT EXISTS password_resets')
+);
+t('schema.sql declares both new columns inside the users table',
+  /phone\s+TEXT NOT NULL DEFAULT ''/.test(usersBlock) &&
+  /profile_done\s+INTEGER NOT NULL DEFAULT 0/.test(usersBlock),
+  (usersBlock.match(/[^\n]*(?:phone|profile_done)[^\n]*/) || [''])[0]);
+
 /* ---------- 9. front-end stealth ---------- */
 const adminLiterals = (dash.match(/textContent = 'Admin'|>\s*Admin\s*</g) || []).length;
 t('dashboard.js never renders "Admin" as a role option (elevation is a typed title)',
@@ -454,17 +481,50 @@ try {
   const FROZEN = /assets\/js\/(finance|export|render|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$|^quotation\.html$/;
   frozen = changed.filter((f) => FROZEN.test(f));
   t('FROZEN calc/pricing/finance/export files untouched', frozen.length === 0, frozen.join(', '));
-  t('phone button + Firebase untouched', !changed.some((f) => /phone/i.test(f)));
+  /* The phone sign-in BUTTON and Firebase must not move. The rule is now
+     expressed on what it actually protects — the phone UI and its client
+     script — rather than on any path that happens to contain the word, because
+     this round carries the same one-line Workers-fetch fix as src/oauth.mjs
+     into src/phone.mjs: `redirect:'error'` is not a legal value on Workers, so
+     the token exchange threw before sending a single byte. That is a dormant
+     copy of the very bug that broke Google sign-in, and the phone button,
+     phone-auth.js and the PHONE_ENABLED default are all still untouched. */
+  t('phone button + Firebase untouched',
+    !changed.some((f) => /firebase/i.test(f) || /phone-auth\.js$/.test(f) || /index\.html$/.test(f)) &&
+    !changed.some((f) => /phone/i.test(f) && f !== 'platform/cloudflare/src/phone.mjs'),
+    changed.filter((f) => /phone|firebase/i.test(f)).join(', '));
   t('wrangler config / zone / NS untouched', !changed.some((f) => /wrangler|vercel\.json/.test(f)));
   /* Allowlist of files this round may touch. Anything outside it means the
-     patch wandered - notably into the frozen calculation/finance/export set,
-     the phone/Firebase code, or a deploy config. platform/migrations is
-     included because the elevation flag is a deliberate, single-column
-     migration and nothing else in that directory may change. */
-  const ALLOWED = /^(platform\/cloudflare\/src\/worker\.js|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|assets\/js\/(dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|dashboard\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;
+     patch wandered — notably into the frozen calculation/finance/export set,
+     a deploy config, or a deploy config. The set below is this round's scope
+     in full:
+
+       the Google sign-in root-cause fix   src/oauth.mjs + src/phone.mjs
+       the team/profile/delete feature    worker.js, server.js, schema.sql,
+                                          dashboard.js, platform-api.js,
+                                          dashboard.css, dashboard.html
+       the C5 mirror of the three files   platform/cloudflare/public/**
+       migration 006 (contact + nudge)    platform/migrations/006-profile-info*
+       this guard and the feature's tests qa/**
+       the stale callback documentation   docs/**
+     platform/migrations is limited to 005 (round 1) and 006 (this round); the
+     elevation column of round 1 must not be rewritten by either. */
+  const ALLOWED = new RegExp('^(?:' + [
+    'platform/cloudflare/src/(?:worker\\.js|oauth\\.mjs|phone\\.mjs)',
+    'platform/local-server/server\\.js',
+    'platform/schema\\.sql',
+    'platform/migrations/(?:005-is-admin(?:-verify)?|006-profile-info(?:-verify)?)\\.sql',
+    'platform/cloudflare/public/.+',
+    'assets/js/(?:dashboard|dashboard-home|platform-api|cloud-bridge)\\.js',
+    'assets/css/dashboard\\.css',
+    'dashboard\\.html',
+    'qa/[^/]+',
+    'docs/[^/]+\\.md'
+  ].join('|') + ')$');
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
-  t('no earlier migration was modified', !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin/.test(f)),
+  t('no earlier migration was modified',
+    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-profile-info/.test(f)),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 } catch (e) {
   t('git diff available to check the frozen list', false, e.message);

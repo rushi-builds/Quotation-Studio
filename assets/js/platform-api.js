@@ -271,6 +271,12 @@
       if (title) body.roleCustom = title;
       return request('POST', '/api/team/role', body);
     },
+    /** Remove a member and everything they own. Owner/admin only; the server
+     *  refuses your own row, the OWNER_EMAIL row and an elevated row, and
+     *  answers with the counts of what it removed. */
+    deleteTeamMember(userId) {
+      return request('DELETE', '/api/team/members/' + encodeURIComponent(userId));
+    },
     socialProviders() { return request('GET', '/api/auth/oauth/providers'); },
     startSocial(provider, link = false, currentPassword = '') { return request('POST', '/api/auth/oauth/' + encodeURIComponent(provider) + '/start', {link, currentPassword}); },
     phoneVerify(idToken) { return request('POST', '/api/auth/phone/verify', {idToken}); },

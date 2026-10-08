@@ -751,6 +751,10 @@ function publicUser(u) {
        Self-only (publicUser is the /me shape). */
     elevated: isAdminRow(u),
     canElevate: canElevate(u),
+    /* Contact number and the profile-nudge flag — parity with the worker.
+       Self-only by construction: publicUser is the GET /api/auth/me shape. */
+    phone: u.phone || '',
+    profileDone: Number(u.profile_done || 0) === 1,
     createdAt: u.created_at || null
   };
 }
@@ -785,8 +789,11 @@ function memberPayload(u, lastLogin, opts) {
     id: u.id,
     name: u.name,
     /* Contact detail is owner / designated-admin only — parity with the
-       worker. Omitted rather than blanked, so there is nothing to unhide. */
+       worker. Omitted rather than blanked, so there is nothing to unhide.
+       The contact number rides the exact same opt-in, so the two can never
+       drift apart: whoever may see the address may see the number. */
     ...(o.contact ? { email: u.email } : {}),
+    ...(o.contact ? { phone: u.phone || '' } : {}),
     role: u.role,
     roleCustom: u.role_custom || null,
     /* Typed title. Elevation never writes it, so this string is identical
@@ -1236,6 +1243,10 @@ async function handleApi(req, res, url) {
         /* Elevation is never granted at signup, and the flag is written
            explicitly so local JSON rows carry it like the SQL rows do. */
         is_admin: 0,
+        /* Contact number and the profile-nudge flag, written explicitly so a
+           local JSON row matches what migration 006 gives a SQL row. */
+        phone: '',
+        profile_done: 0,
         created_at: nowISO(),
         updated_at: nowISO()
       };
@@ -1331,12 +1342,53 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       const user = (db.users || []).find((u) => u.id === sessionUser.id);
       if (!user) return sendJson(res, 401, { error: 'Sign in required' });
+      /* Display data only, and deliberately so — parity with the worker: this
+         writes name, contact number, the display title and the profile-nudge
+         flag, and never `role` or `is_admin`. A member editing their own
+         profile can no more grant themselves reach than they can reach another
+         row: permission is written in exactly one place, POST /api/team/role,
+         which keeps its own owner gate. */
+      const next = {
+        name: user.name,
+        phone: user.phone || '',
+        roleCustom: user.role_custom || null
+      };
       if (body.name != null) {
-        const name = String(body.name || '').trim();
+        const name = String(body.name || '').trim().replace(/\s+/g, ' ');
         if (!name) return sendJson(res, 400, { error: 'Name cannot be empty.' });
-        user.name = name.slice(0, 120);
+        next.name = name.slice(0, 120);
       }
-      /* Role is set at Create account (or Team). Profile only updates name. */
+      if (body.phone != null) {
+        /* A contact number is display data, so the shape check only rejects
+           what a stray paste would carry. Empty is valid — declining to
+           publish a number is a choice, not an incomplete profile. */
+        const phone = String(body.phone || '').trim().slice(0, 30);
+        if (phone && !/^[0-9+\-().\s]{3,30}$/.test(phone)) {
+          return sendJson(res, 400, { error: 'A phone number may contain digits and the characters + - ( ) only.' });
+        }
+        next.phone = phone;
+      }
+      /* The display title, accepted as `title` or `roleCustom`. Validated by
+         parseRoleTitle, which maps NOTHING: a title is wording and can never
+         decide power. An explicitly empty value clears it rather than
+         erroring, which is how a member undoes a title they no longer want. */
+      const rawTitle = body.title != null ? body.title : body.roleCustom;
+      if (rawTitle != null) {
+        const typed = String(rawTitle).trim();
+        if (!typed) {
+          next.roleCustom = null;
+        } else {
+          const parsed = parseRoleTitle(typed);
+          if (parsed.error) return sendJson(res, 400, { error: parsed.error });
+          next.roleCustom = parsed.roleCustom;
+        }
+      }
+      user.name = next.name;
+      user.phone = next.phone;
+      user.role_custom = next.roleCustom;
+      /* profile_done flips on any successful save: it hides the one-time
+         "update your role and info" nudge and appears in no gate. */
+      user.profile_done = 1;
       user.updated_at = nowISO();
       saveDb(db);
       return sendJson(res, 200, { user: publicUser(user) });
@@ -2493,6 +2545,62 @@ async function handleApi(req, res, url) {
         : null;
       const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target);
       return sendJson(res, 200, { member: outMember, note });
+    }
+
+    /* Removing a member — parity with the worker: owner or designated admin
+       only, the same three rows unreachable, and the same counts returned so
+       the confirmation can read them out loud before anything is sent.
+
+       The JSON store has no foreign keys, so the cascade the worker gets from
+       ON DELETE CASCADE is performed here by hand, in dependency order:
+       proposal children first, then the owner's own rows, then the account. */
+    if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts.length === 3 && method === 'DELETE') {
+      if (!canAdmin) return sendJson(res, 403, { error: 'Only the workspace owner can remove members.' });
+      const target = (db.users || []).find((u) => u.id === String(parts[2]));
+      if (!target) return sendJson(res, 404, { error: 'User not found' });
+      if (target.id === user.id) {
+        return sendJson(res, 403, { error: 'You cannot remove the account you are signed in with.' });
+      }
+      if (ownerEmail() && normalizeEmail(target.email) === ownerEmail()) {
+        return sendJson(res, 403, {
+          error: 'This mailbox is the workspace OWNER_EMAIL, so it cannot be removed. Change or remove that server variable first.'
+        });
+      }
+      if (isAdminRow(target) && !canElevate(user)) {
+        return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
+      }
+
+      const mine = (row) => row && row.owner_id === target.id;
+      const ownedProposalIds = new Set((db.proposals || []).filter(mine).map((p) => p.id));
+      const ownedVersionIds = new Set((db.versions || []).filter((v) => mine(v) || ownedProposalIds.has(v.proposal_id)).map((v) => v.id));
+      const ownsProposal = (row) => row && (ownedProposalIds.has(row.proposal_id) || ownedVersionIds.has(row.version_id));
+
+      const owned = {
+        proposals: ownedProposalIds.size,
+        customers: (db.customers || []).filter(mine).length,
+        tasks: (db.tasks || []).filter(mine).length,
+        notifications: (db.notifications || []).filter(mine).length,
+        galleryUploads: (db.gallery || []).filter((g) => g && g.created_by === target.id).length,
+        sessions: (db.sessions || []).filter((s) => s && s.user_id === target.id).length
+      };
+
+      db.tokens = (db.tokens || []).filter((t) => !mine(t) && !ownsProposal(t));
+      db.events = (db.events || []).filter((e) => !ownsProposal(e));
+      db.sends = (db.sends || []).filter((s) => !mine(s) && !ownsProposal(s));
+      db.versions = (db.versions || []).filter((v) => !mine(v) && !ownedProposalIds.has(v.proposal_id));
+      db.proposals = (db.proposals || []).filter((p) => !mine(p));
+      db.customers = (db.customers || []).filter((c) => !mine(c));
+      db.tasks = (db.tasks || []).filter((t) => !mine(t));
+      db.notifications = (db.notifications || []).filter((n) => !mine(n));
+      db.gallery = (db.gallery || []).filter((g) => !(g && g.created_by === target.id));
+      db.sessions = (db.sessions || []).filter((s) => !(s && s.user_id === target.id));
+      db.password_resets = (db.password_resets || []).filter((r) => !(r && r.user_id === target.id));
+      db.users = (db.users || []).filter((u) => u.id !== target.id);
+      saveDb(db);
+      return sendJson(res, 200, {
+        ok: true,
+        removed: Object.assign({ email: target.email, name: target.name }, owned)
+      });
     }
 
     return sendJson(res, 404, { error: 'Unknown API route' });

@@ -303,6 +303,10 @@ function publicUser(u, env) {
        Self-only: publicUser is the /me shape. */
     elevated: isAdminRow(u),
     canElevate: canElevate(u, env),
+    /* Contact number and the profile-nudge flag. Self-only by construction —
+       publicUser is what GET /api/auth/me returns about the actor. */
+    phone: u.phone || '',
+    profileDone: Number(u.profile_done || 0) === 1,
     createdAt: u.created_at || null
   };
 }
@@ -338,8 +342,11 @@ function memberPayload(u, env, lastLogin, opts) {
     name: u.name,
     /* Contact detail is owner / designated-admin only. Every member can see
        the panel, but a member never receives another member's email — the
-       field is omitted rather than blanked, so there is nothing to unhide. */
+       field is omitted rather than blanked, so there is nothing to unhide.
+       The contact number rides the exact same opt-in, so the two can never
+       drift apart: whoever may see the address may see the number. */
     ...(o.contact ? { email: u.email } : {}),
+    ...(o.contact ? { phone: u.phone || '' } : {}),
     role: u.role,
     roleCustom: u.role_custom || null,
     /* Typed title. Elevation leaves it alone, so this string is identical
@@ -1164,16 +1171,60 @@ async function handleApi(request, env, url) {
       const sessionUser = await requireUser(request, db, env);
       if (!sessionUser) return json({ error: 'Sign in required' }, 401);
       const body = await readBody(request);
+      /* Display data only, and deliberately so: this route writes `name`,
+         `phone`, `role_custom` and the profile-nudge flag — `role` and
+         `is_admin` never appear in its UPDATE, so a member editing their own
+         profile can no more grant themselves reach than they can reach another
+         member's row. Permission is written in exactly one place,
+         POST /api/team/role, which keeps its own owner gate. */
+      const next = {
+        name: sessionUser.name,
+        phone: sessionUser.phone || '',
+        roleCustom: sessionUser.role_custom || null
+      };
       if (body.name != null) {
-        const name = String(body.name || '').trim();
+        const name = String(body.name || '').trim().replace(/\s+/g, ' ');
         if (!name) return json({ error: 'Name cannot be empty.' }, 400);
-        await run(
-          db,
-          'UPDATE users SET name = ?, updated_at = ? WHERE id = ?',
-          name.slice(0, 120), nowISO(), sessionUser.id
-        );
-        sessionUser.name = name.slice(0, 120);
+        next.name = name.slice(0, 120);
       }
+      if (body.phone != null) {
+        /* A contact number is display data, so the shape check only rejects
+           what a stray paste would carry. Empty is valid — declining to publish
+           a number is a choice, not an incomplete profile. */
+        const phone = String(body.phone || '').trim().slice(0, 30);
+        if (phone && !/^[0-9+\-().\s]{3,30}$/.test(phone)) {
+          return json({ error: 'A phone number may contain digits and the characters + - ( ) only.' }, 400);
+        }
+        next.phone = phone;
+      }
+      /* The display title, accepted as `title` or `roleCustom`. Validated by
+         parseRoleTitle, which maps NOTHING: a title is wording and can never
+         decide power, so typing "owner" or "admin" here changes a label. An
+         explicitly empty value clears the title rather than erroring, which is
+         how a member undoes a title they no longer want. */
+      const rawTitle = body.title != null ? body.title : body.roleCustom;
+      if (rawTitle != null) {
+        const typed = String(rawTitle).trim();
+        if (!typed) {
+          next.roleCustom = null;
+        } else {
+          const parsed = parseRoleTitle(typed);
+          if (parsed.error) return json({ error: parsed.error }, 400);
+          next.roleCustom = parsed.roleCustom;
+        }
+      }
+      /* profile_done flips on any successful save. It is what hides the
+         one-time "update your role and info" nudge, and it is a display flag:
+         it appears in no gate and no query that decides permission. */
+      await run(
+        db,
+        `UPDATE users SET name = ?, phone = ?, role_custom = ?, profile_done = 1, updated_at = ? WHERE id = ?`,
+        next.name, next.phone, next.roleCustom, nowISO(), sessionUser.id
+      );
+      sessionUser.name = next.name;
+      sessionUser.phone = next.phone;
+      sessionUser.role_custom = next.roleCustom;
+      sessionUser.profile_done = 1;
       return json({ user: publicUser(sessionUser, env) });
     }
 
@@ -2337,6 +2388,59 @@ async function handleApi(request, env, url) {
         : null;
       const outMember = (target.id === user.id) ? selfMemberPayload(target, env) : memberPayload(target, env);
       return json({ member: outMember, note });
+    }
+
+    /* Removing a member — owner or designated admin only.
+
+       What goes: the account row, every session it holds, its provider
+       sign-in links and its failed-sign-in throttle, plus everything it owns
+       (customers, proposals and their versions/links/sends, tasks,
+       notifications and gallery uploads) — the schema declares ON DELETE
+       CASCADE on all of them, so one statement removes the set rather than
+       leaving orphaned rows behind. auth_throttles is keyed by scope instead
+       of by user id, and gallery.created_by is SET NULL, so those two are
+       handled explicitly.
+
+       What does NOT go: three rows are unreachable — your own, the
+       OWNER_EMAIL backstop, and an elevated row unless the designated admin
+       is removing it. Each answers with the same shape as its neighbours, so
+       a refusal never discloses which of the three it hit.
+
+       This is irreversible from the product, so the counts are returned and
+       the confirmation dialog reads them out loud BEFORE the request is sent. */
+    if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts.length === 3 && method === 'DELETE') {
+      if (!canAdmin) return json({ error: 'Only the workspace owner can remove members.' }, 403);
+      const target = await one(db, 'SELECT * FROM users WHERE id = ?', String(parts[2]));
+      if (!target) return json({ error: 'User not found' }, 404);
+      if (target.id === user.id) {
+        return json({ error: 'You cannot remove the account you are signed in with.' }, 403);
+      }
+      if (ownerEmail(env) && normalizeEmail(target.email) === ownerEmail(env)) {
+        return json({
+          error: 'This mailbox is the workspace OWNER_EMAIL, so it cannot be removed. Change or remove that Worker variable first.'
+        }, 403);
+      }
+      if (isAdminRow(target) && !canElevate(user, env)) {
+        return json({ error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' }, 403);
+      }
+      const countOwned = async (table, column) => {
+        const r = await one(db, 'SELECT COUNT(*) AS n FROM ' + table + ' WHERE ' + column + ' = ?', target.id);
+        return Number((r && r.n) || 0);
+      };
+      const owned = {
+        proposals: await countOwned('proposals', 'owner_id'),
+        customers: await countOwned('customers', 'owner_id'),
+        tasks: await countOwned('tasks', 'owner_id'),
+        notifications: await countOwned('notifications', 'owner_id'),
+        galleryUploads: await countOwned('gallery', 'created_by'),
+        sessions: await countOwned('sessions', 'user_id')
+      };
+      await ensureAuthThrottle(db);
+      await run(db, 'DELETE FROM auth_throttles WHERE scope = ?', 'email:' + normalizeEmail(target.email));
+      await run(db, 'DELETE FROM gallery WHERE created_by = ?', target.id);
+      const removed = await run(db, 'DELETE FROM users WHERE id = ?', target.id);
+      if (!removed.meta || removed.meta.changes === 0) return json({ error: 'User not found' }, 404);
+      return json({ ok: true, removed: Object.assign({ email: target.email, name: target.name }, owned) });
     }
 
     return json({ error: 'Unknown API route' }, 404);

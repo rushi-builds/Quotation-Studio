@@ -3175,3 +3175,90 @@ html[data-theme="dark"] .sidebar {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--red, #e5484d) 22%, transparent);
   vertical-align: middle;
 }
+
+/* ---------- team panel: contact number, edit cell, info button ---------- */
+.contact-sub {
+  display: block; font-size: 11px; color: var(--muted); margin-top: 2px;
+}
+.team-edit-cell { min-width: 170px; }
+.team-edit-cell .team-role-select {
+  font-size: 12px; padding: 3px 6px; border-radius: 8px; width: 100%;
+  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
+  margin-bottom: 4px;
+}
+.team-info-cell { text-align: center; }
+.team-info-btn {
+  width: 30px; height: 30px; border-radius: 9px; line-height: 1; font-size: 14px;
+  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
+  cursor: pointer; transition: background .15s, border-color .15s;
+}
+.team-info-btn:hover {
+  background: var(--surface-soft);
+  border-color: color-mix(in srgb, var(--blue) 35%, transparent);
+}
+.team-readonly .team-info-btn { opacity: .85; }
+
+/* The one-time first-sign-in nudge. Deliberately gentle: it asks for display
+   details and never a permission, and it is gone the first time the member
+   saves their profile. */
+.banner-nudge {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+  padding: 10px 14px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--blue) 26%, transparent);
+  background: color-mix(in srgb, var(--blue) 7%, transparent);
+}
+.banner-nudge[hidden] { display: none; }
+.banner-nudge p { flex: 1; margin: 0; font-size: 13px; }
+.banner-nudge p strong { display: block; font-size: 13.5px; }
+.nudge-mark { color: var(--blue); }
+.nudge-close {
+  border: 0; background: none; color: var(--muted); cursor: pointer;
+  font-size: 20px; line-height: 1; padding: 0 4px;
+}
+.nudge-close:hover { color: var(--ink); }
+
+/* ---------- member card, removal warning, generic confirmation ---------- */
+.member-dialog {
+  position: relative; max-width: 440px; width: calc(100% - 32px);
+  padding: 22px; border-radius: 16px;
+  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .22);
+}
+.member-dialog::backdrop { background: rgba(12, 16, 24, .55); }
+.member-dialog h2 { margin: 0 0 4px; font-size: 18px; }
+.member-dialog .sub { margin: 6px 0 10px; font-size: 13px; color: var(--muted); }
+.member-dialog .dlg-close {
+  position: absolute; top: 12px; right: 14px; padding: 0;
+  border: 0; background: none; color: var(--muted); cursor: pointer;
+  font-size: 22px; line-height: 1;
+}
+.member-dialog .dlg-close:hover { color: var(--ink); }
+.mi-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-right: 26px; }
+.mi-avatar {
+  flex: none; width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 18px;
+  background: color-mix(in srgb, var(--blue) 14%, transparent); color: var(--blue);
+}
+.mi-head h2 { margin: 0; }
+.mi-facts { display: grid; gap: 10px; margin: 0; }
+.mi-facts > div {
+  display: flex; justify-content: space-between; gap: 16px; align-items: baseline;
+}
+.mi-facts dt {
+  flex: none; color: var(--muted); font-size: 11px;
+  text-transform: uppercase; letter-spacing: .07em;
+}
+.mi-facts dd { margin: 0; font-size: 13.5px; text-align: right; word-break: break-word; }
+#miManage {
+  margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line);
+}
+#miManage .micro { margin: 8px 0 12px; }
+.dc-list { margin: 8px 0 12px; padding-left: 18px; font-size: 13px; }
+.dc-list li { margin-bottom: 5px; }
+.dc-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.btn-danger {
+  background: var(--red, #e5484d); border-color: var(--red, #e5484d); color: #fff;
+}
+.btn-danger:hover { filter: brightness(.94); }
+.btn-danger[disabled] { opacity: .6; cursor: wait; }
+.member-dialog.danger h2 { color: var(--red, #e5484d); }

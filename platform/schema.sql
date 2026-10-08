@@ -17,6 +17,13 @@ CREATE TABLE IF NOT EXISTS users (
      set. Only the designated ADMIN_EMAIL login may set or clear it, and only on
      its own row. Existing databases gain it via migrations/005-is-admin.sql. */
   is_admin      INTEGER NOT NULL DEFAULT 0,
+  /* Contact number for the team panel. Display data only: never read during
+     authentication, never part of a gate. Existing databases gain it via
+     migrations/006-profile-info.sql. */
+  phone         TEXT NOT NULL DEFAULT '',
+  /* 0 until the member has saved their profile once, then 1. Drives the
+     one-time "update your role and info" nudge. Changes no permission. */
+  profile_done  INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );
