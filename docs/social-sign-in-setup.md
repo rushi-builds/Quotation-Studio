@@ -118,6 +118,58 @@ For each enabled provider:
 
 To pause a provider safely, set its enable flag to `false`. Do not delete users or identity records. Preserve another working sign-in method before disabling the only provider for a provider-only account.
 
+## Troubleshooting: “Provider sign-in could not be completed” (SIGNIN_FAILED)
+
+This message is generic **by design** — the server never sends provider payloads,
+authorization codes, secrets or database errors to the browser. The real reason
+is written to the server log only, as structured lines:
+
+```
+[oauth] token_exchange status=400
+[oauth] google callback -> SIGNIN_FAILED code=SIGNIN_FAILED stage=token_exchange http=400 provider_error=invalid_client msg=...
+```
+
+Read them from the local server console, or `npx wrangler tail` for the Worker.
+The log never prints `client_secret`, authorization codes, ID/access tokens,
+`state`, `binding` or `verifier` values — `msg=` is redacted (sensitive
+`key=value` pairs are masked) and truncated to 200 characters, and
+`provider_error` is limited to the provider's own error code.
+
+The failure happens after Google's consent screen, so the registered callback
+matched. Ranked causes:
+
+1. **`stage=token_exchange` + `provider_error=invalid_client`** — the
+   `GOOGLE_CLIENT_SECRET` is wrong, regenerated, or belongs to a different
+   OAuth client than `GOOGLE_CLIENT_ID`. Re-copy both from the **same** Google
+   Cloud OAuth client (type *Web application*), no trailing spaces.
+2. **`stage=token_exchange` + `provider_error=invalid_grant`** — the
+   authorization code expired (~10 minutes) or was already redeemed, e.g. the
+   callback URL was refreshed or the flow was submitted twice. Retry once from
+   the sign-in page.
+3. **`stage=token_exchange` + `provider_error=redirect_uri_mismatch`** — the
+   `redirect_uri` sent in the token request differs from the one registered at
+   the provider. `OAUTH_PUBLIC_ORIGIN` must equal the origin in the address bar
+   **exactly** — note this repo references both
+   `studio.rushidhumal-04.workers.dev` (older docs) and
+   `quotation-studio.rushidhumal-04.workers.dev` (wrangler.toml / vercel.json).
+   The registered callback must match the origin actually in use, character for
+   character, including the subdomain. For local testing, `localhost` and
+   `127.0.0.1` are different origins to Google.
+4. **`stage=id_token_verify`** — the verified ID token was rejected: the env
+   `GOOGLE_CLIENT_ID` differs from the client that issued the token (audience
+   mismatch), the server clock is skewed (tolerance is 30 seconds), or the
+   Google account's email is not verified. Sync the system clock and confirm
+   the client ID matches the registered client.
+5. **`stage=callback_params`** — Google returned no authorization code. Retry;
+   if it repeats, check that no browser extension or proxy strips the query
+   string on the callback redirect.
+
+Other messages have distinct causes: `SIGNIN_EXPIRED` means the state expired
+or the binding cookie was blocked (use a normal browser tab, allow cookies);
+`SIGNIN_CANCELLED` means the consent was declined; `ACCOUNT_EXISTS` means the
+email already has a password account — sign in with the existing method and
+connect the provider from Settings → Profile.
+
 ## Local development (Google/Microsoft only)
 
 `OAUTH_PUBLIC_ORIGIN=http://localhost:PORT` (or `http://127.0.0.1:PORT`) is
