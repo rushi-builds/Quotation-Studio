@@ -124,7 +124,13 @@ export async function handleOAuth(request,env,store,auth,dependencies={}) {
   if(attempt.linkUserId){const user=await auth.userByToken(attempt.linkToken);if(!user||user.id!==attempt.linkUserId)throw error('LINK_SESSION_EXPIRED');}
   const form=new URLSearchParams({client_id:c.clientId,client_secret:c.secret,code,redirect_uri:c.callback,grant_type:'authorization_code'});
   if(provider!=='apple')form.set('code_verifier',attempt.verifier);
-  const tokenResponse=await (dependencies.fetch||fetch)(c.token,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:form,redirect:'error',signal:AbortSignal.timeout(10000)});
+  // redirect:'manual' — the Workers fetch implementation rejects 'error' with a
+  // TypeError before any request is sent (it only accepts 'follow' | 'manual'),
+  // which silently killed the token exchange on every sign-in. 'manual' keeps the
+  // same security intent: a redirect is never followed, and a 3xx would surface
+  // as !ok below and map to SIGNIN_FAILED. Google's token endpoint replies 200 or
+  // 4xx only, so the normal path is unchanged.
+  const tokenResponse=await (dependencies.fetch||fetch)(c.token,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:form,redirect:'manual',signal:AbortSignal.timeout(10000)});
   // DIAGNOSTIC ONLY — HTTP status only; never log the request body (it carries
   // the client secret) or the response body (it carries tokens).
   console.error('[oauth] token_exchange status='+tokenResponse.status);
