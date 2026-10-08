@@ -396,7 +396,7 @@ t('css: the elevation hint and read-only rows are styled',
 
 /* ---------- 10. C5: the deployed copy matches the repo root ---------- */
 t('C5: platform/cloudflare/public exists', fs.existsSync(path.join(ROOT, 'platform/cloudflare/public')));
-for (const [rel, rootFile] of [['assets/js/dashboard.js', DASH], ['assets/css/dashboard.css', CSS], ['dashboard.html', HTML]]) {
+for (const [rel, rootFile] of [['assets/js/dashboard.js', DASH], ['assets/js/dashboard-home.js', DASH_HOME], ['assets/css/dashboard.css', CSS], ['dashboard.html', HTML]]) {
   const pub = path.join(ROOT, 'platform/cloudflare/public', rel);
   t('C5: public/' + rel + ' is byte-identical to the root copy',
     fs.existsSync(pub) && fs.readFileSync(pub, 'utf8') === fs.readFileSync(rootFile, 'utf8'));
@@ -569,6 +569,59 @@ try {
   t('server: the profile save assigns no permission field',
     !!serverProfile && !/user\.(?:role|is_admin)\s*=/.test(serverProfile),
     serverProfile ? 'found' : 'profile handler slice not located');
+}
+
+/* ---------- 16. team panel layout + the role vocabulary ----------
+   Two things this round had to get exactly right, both presentation:
+
+   (a) The team table must fit ONE panel. There is no left/right scrolling:
+       fixed columns keep it at the panel's width, and once the team outgrows
+       the panel the ROWS scroll vertically under a pinned header. Scoped to
+       .team-wrap so every other data table keeps its own horizontal scroll.
+
+   (b) `viewer` reads "Engineer" on screen — in the badge, the dropdown, the
+       Settings chip and the top chip — and nowhere else. It is a label
+       rename: no server source may contain the word, so the stored role, its
+       rank and every gate are untouched. */
+{
+  const css = fs.readFileSync(CSS, 'utf8');
+  const html = fs.readFileSync(HTML, 'utf8');
+  const powerMap = (/const POWER_LABEL = \{[^}]*\}/.exec(dash) || [''])[0];
+  const roleMap = (/const ROLE_LABEL = \{[^}]*\}/.exec(dash) || [''])[0];
+  const adminDot = (/\.admin-dot \{[^}]*\}/.exec(css) || [''])[0];
+  const teamFn = fn(dash, 'refreshTeamPanel', ['fillSendSelect']);
+
+  t('ui: ROLE_LABEL calls the stored viewer role Engineer', /viewer: 'Engineer'/.test(roleMap), roleMap);
+  t('ui: POWER_LABEL (the badge) calls it Engineer too', /viewer: 'Engineer'/.test(powerMap), powerMap);
+  t('ui: the server word Viewer is mapped once, for display only', /Viewer: 'Engineer'/.test(dash));
+  t('ui: a typed title passes through that map untouched',
+    /SERVER_ROLE_LABEL\[roleOrUser\.roleLabel\] \|\| roleOrUser\.roleLabel/.test(dash));
+  t('ui: dashboard-home maps the same word on the top chip',
+    /CHIP_ROLE\[u\.roleLabel\] \|\| u\.roleLabel \|\| u\.role/.test(dashHome));
+  t('backend: no server was renamed — Engineer appears in neither backend',
+    !/Engineer/.test(worker) && !/Engineer/.test(server));
+
+  const buildIdx = teamFn.indexOf("['owner', 'sales', 'viewer']");
+  const customIdx = teamFn.indexOf('opts += \'<option value="custom"\'');
+  t('ui: the team role dropdown puts Custom LAST', buildIdx > -1 && customIdx > buildIdx,
+    buildIdx + ' vs ' + customIdx);
+  t('ui: a Sales / Engineer row renders no typed-title box at all',
+    /\(titleable \? '' : ' hidden'\)/.test(dash) && !/\(titleable \? '' : ' disabled'\)/.test(dash));
+  t('ui: choosing Custom or Owner opens the box; the other roles remove it',
+    /input\.hidden = !wantsTitle/.test(dash) && /const wantsTitle = sel\.value === 'custom' \|\| sel\.value === 'owner'/.test(dash));
+
+  t('html: the team table is the one wrapped for single-panel layout',
+    /table-wrap team-wrap/.test(html));
+  t('css: the team panel never scrolls sideways and scrolls its rows instead',
+    /\.table-wrap\.team-wrap \{[\s\S]{0,200}?overflow-x: hidden;[\s\S]{0,80}?overflow-y: auto;/.test(css));
+  t('css: the team header stays pinned while the rows scroll',
+    /\.table-wrap\.team-wrap table\.data th \{[\s\S]{0,160}?position: sticky;/.test(css));
+  t('css: the team columns are fixed, so six of them always fit the panel',
+    /\.table-wrap\.team-wrap table\.data \{ table-layout: fixed; \}/.test(css));
+  t('css: every OTHER data table keeps its own horizontal scroll',
+    /\.table-wrap \{\s+overflow-x: auto;/.test(css));
+  t('css: the elevation dot is the smaller, lower-contrast one',
+    /width: 5px/.test(adminDot) && /60%/.test(adminDot), adminDot);
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

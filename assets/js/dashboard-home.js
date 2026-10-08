@@ -8,6 +8,9 @@
   const STAGES = [['draft', 'Draft', '#94A3B8'], ['internal_review', 'In review', '#60A5FA'], ['ready', 'Ready', '#F59E0B'], ['sent', 'Sent', '#8B5CF6'], ['viewed', 'Viewed', '#14B8A6'], ['negotiation', 'Negotiation', '#EC4899'], ['accepted', 'Accepted', '#22C55E']];
   const EXTRA = [['rejected', 'Rejected', '#EF4444'], ['expired', 'Expired', '#A8A29E'], ['archived', 'Archived', '#CBD5E1']];
   const LABEL = {}; STAGES.concat(EXTRA).forEach((s) => { LABEL[s[0]] = s[1]; });
+  /* Built-in role words as this UI shows them — the stored role never changes,
+     only the vocabulary. `viewer` reads "Engineer"; typed titles pass through. */
+  const CHIP_ROLE = { Viewer: 'Engineer' };
   const EVT = { link_opened: 'Opened the quotation', pdf_download_requested: 'Requested a PDF', survey_requested: 'Requested a survey', interest_recorded: 'Showed interest', version_published: 'Version published', share_clicked: 'Share started', link_revoked: 'Link revoked', section_view: 'Viewed a section' };
   const ICON = { home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10', proposals: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M8 13h8 M8 17h8', gallery: 'M3 3h18v18H3z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3 M21 15l-5-5L5 21', publish: 'M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7 M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7', send: 'M22 2L11 13 M22 2l-7 20-4-9-9-4z', activity: 'M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9 M13.7 21a2 2 0 0 1-3.4 0', tasks: 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', reports: 'M18 20V10 M12 20V4 M6 20v-6', settings: 'M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6' };
   const svg = (d) => '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
@@ -58,7 +61,7 @@
     const thisM = P.filter((p) => { const d = new Date(p.createdAt); return d >= mStart && d <= now; }).length;
     const waiting = P.filter((p) => ['sent', 'viewed'].includes(p.status)), unread = X.unread;
     if ($('bellCount')) { $('bellCount').textContent = failures.has('notes') ? '!' : unread > 9 ? '9+' : unread; $('bellCount').hidden = !failures.has('notes') && !unread; }
-    if ($('chipName')) { $('chipName').textContent = u.name || 'User'; $('chipRole').textContent = u.roleLabel || u.role || ''; if (u.elevated) { const d = document.createElement('span'); d.className = 'admin-dot'; d.title = 'Admin mode'; d.setAttribute('aria-label', 'Admin mode'); $('chipRole').appendChild(d); } $('userAv').textContent = (u.name || 'U').trim().charAt(0).toUpperCase(); }
+    if ($('chipName')) { $('chipName').textContent = u.name || 'User'; $('chipRole').textContent = CHIP_ROLE[u.roleLabel] || u.roleLabel || u.role || ''; if (u.elevated) { const d = document.createElement('span'); d.className = 'admin-dot'; d.title = 'Admin mode'; d.setAttribute('aria-label', 'Admin mode'); $('chipRole').appendChild(d); } $('userAv').textContent = (u.name || 'U').trim().charAt(0).toUpperCase(); }
     if ($('homeDate')) $('homeDate').textContent = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
     if ($('homeSub')) $('homeSub').textContent = P.length ? 'Here’s what’s moving in your workspace today.' : 'Your next great customer conversation starts here.';
     const kpi = (ic, c, label, val, hint, act) => '<button type="button" class="kpi2 ' + c + '" ' + act + '><span class="kic">' + svg(ic) + '</span><span><i>' + label + '</i><b>' + val + '</b><em>' + hint + '</em></span></button>';

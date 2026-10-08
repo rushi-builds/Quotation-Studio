@@ -3151,7 +3151,7 @@ html[data-theme="dark"] .sidebar {
 /* Team panel: typed title per member, and the power badge that is the truth
    about access. Badge and title are deliberately separate columns. */
 .team-title-input {
-  font-size: 12px; padding: 3px 6px; border-radius: 8px; width: 100%; min-width: 120px;
+  font-size: 12px; padding: 3px 6px; border-radius: 8px; width: 100%; min-width: 0;
   border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
 }
 .team-title-input:disabled { opacity: .5; cursor: not-allowed; }
@@ -3167,14 +3167,41 @@ html[data-theme="dark"] .sidebar {
    so nobody else sees it and it changes no badge, chip text or typed title. */
 .admin-dot {
   display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-left: 6px;
+  width: 5px;
+  height: 5px;
+  margin-left: 5px;
   border-radius: 50%;
-  background: var(--red, #e5484d);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--red, #e5484d) 22%, transparent);
+  background: color-mix(in srgb, var(--red, #e5484d) 60%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--red, #e5484d) 12%, transparent);
   vertical-align: middle;
 }
+
+/* ---------- team panel: one panel, vertical scroll only ----------
+   The team table is laid out to the panel's width (fixed columns, wrapping
+   cells) so it never grows a left/right scrollbar. Once the team outgrows the
+   panel the ROWS scroll instead, with the header pinned. Scoped to .team-wrap
+   so every other data table keeps its own horizontal scroll. */
+.table-wrap.team-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 62vh;
+}
+.table-wrap.team-wrap table.data { table-layout: fixed; }
+.table-wrap.team-wrap table.data th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  white-space: normal;
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.table-wrap.team-wrap table.data td { overflow-wrap: anywhere; }
+.table-wrap.team-wrap .team-edit-cell { min-width: 0; }
+.table-wrap.team-wrap th:nth-child(1) { width: 20%; } /* NAME */
+.table-wrap.team-wrap th:nth-child(2) { width: 22%; } /* CONTACT */
+.table-wrap.team-wrap th:nth-child(3) { width: 13%; } /* ROLE */
+.table-wrap.team-wrap th:nth-child(4) { width: 15%; } /* LAST SIGN-IN */
+.table-wrap.team-wrap th:nth-child(5) { width: 21%; } /* EDIT */
+.table-wrap.team-wrap th:nth-child(6) { width: 9%; }  /* INFO */
 
 /* ---------- team panel: contact number, edit cell, info button ---------- */
 .contact-sub {

@@ -14,10 +14,16 @@
   let allProposals = [];
   let toastTimer = null;
 
-  const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Viewer', custom: 'Custom' };
+  const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Engineer', custom: 'Custom' };
+  /* The four built-in words the SERVER may send, in the vocabulary this UI
+     shows. `viewer` reads "Engineer" on screen everywhere — a label rename
+     only: the stored role, its rank and every gate are untouched. Anything
+     a member typed passes through verbatim, so a custom title is never
+     rewritten. */
+  const SERVER_ROLE_LABEL = { Owner: 'Owner', Sales: 'Sales', Viewer: 'Engineer', Custom: 'Custom' };
   function roleLabel(roleOrUser) {
     if (roleOrUser && typeof roleOrUser === 'object') {
-      if (roleOrUser.roleLabel) return roleOrUser.roleLabel;
+      if (roleOrUser.roleLabel) return SERVER_ROLE_LABEL[roleOrUser.roleLabel] || roleOrUser.roleLabel;
       if (roleOrUser.role === 'custom' && roleOrUser.roleCustom) return roleOrUser.roleCustom;
       return roleLabel(roleOrUser.role);
     }
@@ -104,7 +110,7 @@
     if (!user) return false;
     return user.canManageTeam != null ? !!user.canManageTeam : user.role === 'owner';
   }
-  const POWER_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Viewer' };
+  const POWER_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Engineer' };
   /* S1 — the badge is the STORED role, so it can never read "Admin". The
      backend already sends `power` derived from `role` alone; this clamps it a
      second time so that no future backend change can put the word on screen.
@@ -515,21 +521,22 @@
     title.maxLength = 60;
     title.setAttribute('aria-label', 'Display title');
 
-    /* Power keys. A stored custom title is offered too so it stays selected
-       instead of silently becoming one of the three built-ins. */
-    if (user.role === 'custom' || (user.roleCustom && user.role !== 'owner')) {
-      const c = document.createElement('option');
-      c.value = 'custom';
-      c.textContent = user.roleLabel || user.roleCustom || 'Custom title';
-      c.selected = true;
-      sel.append(c);
-    }
+    /* Power keys, in order — Custom sits LAST because picking it is what opens
+       the typed-title box. A stored custom title is offered too so it stays
+       selected instead of silently becoming one of the three built-ins. */
     ['owner', 'sales', 'viewer'].forEach((r) => {
       const o = document.createElement('option');
       o.value = r; o.textContent = roleLabel(r);
       if (user.role === r) o.selected = true;
       sel.append(o);
     });
+    if (user.role === 'custom' || (user.roleCustom && user.role !== 'owner')) {
+      const c = document.createElement('option');
+      c.value = 'custom';
+      c.textContent = user.roleCustom || user.roleLabel || 'Custom title';
+      c.selected = true;
+      sel.append(c);
+    }
 
     function syncTitle() {
       const v = sel.value;
@@ -733,8 +740,10 @@
       body.innerHTML = members.map((m) => {
         const pwr = storedPowerWord(m);
         const isCustom = m.role === 'custom' || !!m.roleCustom;
-        /* A title is editable for custom (required) and owner (optional display
-           title: powers stay Owner, the chip shows the title). */
+        /* A typed title exists only where it means something: a row saved as
+           owner carries the wording shown under the name, and a custom role is
+           nothing without the words typed for it. A Sales or Engineer row
+           renders no typed-title box at all. */
         const titleable = isCustom || m.role === 'owner';
         const titleId = 'teamTitle_' + m.id;
         /* The eye is the one control every row carries, manager or not. */
@@ -755,7 +764,8 @@
         let opts = ['owner', 'sales', 'viewer'].map((role) => (
           '<option value="' + role + '"' + (!isCustom && m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
         )).join('');
-        opts = '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom title</option>' + opts;
+        /* Custom sits LAST: pick it and the typed-title box appears. */
+        opts += '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom title</option>';
         /* Never an "Admin" entry here: elevation is self-service and lives in
            the own-role pencil, so no owner can raise or lower anyone else. */
         /* Contact detail rides the server's opt-in: absent for a non-manager,
@@ -773,7 +783,7 @@
             '<input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
             '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
             ' placeholder="' + (m.role === 'owner' ? 'Display title (optional)' : 'Typed title') + '"' +
-            (titleable ? '' : ' disabled') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" />' +
+            (titleable ? '' : ' hidden') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" />' +
           '</td>' +
           eye +
         '</tr>';
@@ -814,9 +824,12 @@
           const id = sel.getAttribute('data-team-user');
           const row = sel.closest('tr');
           const input = row ? row.querySelector('.team-title-input') : null;
-          if (input) input.disabled = sel.value !== 'custom' && sel.value !== 'owner';
+          /* The box appears only for the two roles that carry wording; on
+             Sales / Engineer it is gone rather than greyed out. */
+          const wantsTitle = sel.value === 'custom' || sel.value === 'owner';
+          if (input) { input.hidden = !wantsTitle; input.disabled = !wantsTitle; }
           try {
-            await applyRole(id, sel.value, input ? input.value.trim() : '');
+            await applyRole(id, sel.value, wantsTitle && input ? input.value.trim() : '');
             toast('Role updated');
             await refreshTeamPanel();
           } catch (err) {
