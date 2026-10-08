@@ -271,8 +271,8 @@ for (const [label, src] of BOTH) {
   const listBody = list.slice(0, list.indexOf("'team' && parts[1] === 'role'"));
   t('S2 ' + label + ': the team list picks selfMemberPayload only for the actor',
     /u\.id === user\.id/.test(listBody) && /selfMemberPayload\(/.test(listBody) && /memberPayload\(/.test(listBody));
-  t('S2 ' + label + ': other rows get contact detail only for a manager',
-    /contact: canAdmin/.test(listBody));
+  t('team ' + label + ': every member\'s row carries contact detail (the eye opens the same card for all)',
+    /contact: true/.test(listBody) && !/contact: canAdmin/.test(listBody));
   t('item 5 ' + label + ': every member may READ the team panel (no canAdmin gate on GET)',
     !/if \(!canAdmin\)/.test(listBody), (listBody.match(/.{0,60}canAdmin.{0,60}/) || [''])[0]);
   t('item 5 ' + label + ': the response tells the actor whether it manages the team',
@@ -622,6 +622,19 @@ try {
     /\.table-wrap \{\s+overflow-x: auto;/.test(css));
   t('css: the elevation dot is the smaller, lower-contrast one',
     /width: 5px/.test(adminDot) && /60%/.test(adminDot), adminDot);
+
+  /* This round: a wider panel so addresses do not wrap, softer corners on the
+     little white boxes, and the honest words in a read-only Edit cell. */
+  t('css: the settings panel is wide enough for an address to read on one line',
+    /grid-template-columns: 190px minmax\(0, 900px\)/.test(css));
+  t('css: the role box, title box and eye button share the softer 12px corners',
+    /\.team-edit-cell \.team-role-select \{[^}]*border-radius: 12px/.test(css) &&
+    /\.team-title-input \{[^}]*border-radius: 12px/.test(css) &&
+    /\.team-info-btn \{[^}]*border-radius: 12px/.test(css));
+  t('ui: a read-only Edit cell says "Only owner access", not a dead control',
+    /muted micro">Only owner access</.test(dash) && !/Owner only</.test(dash));
+  t('ui: the read-only row shows the same contact detail as every other row',
+    /'<td class="muted">' \+ contact \+ '<\/td>'/.test(teamFn));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

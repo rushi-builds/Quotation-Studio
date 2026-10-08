@@ -2265,7 +2265,7 @@ async function handleApi(request, env, url) {
         /* S2: only the actor's own row carries an elevation field. */
         members: members.map((u) => (u.id === user.id
           ? selfMemberPayload(u, env, u.last_login)
-          : memberPayload(u, env, u.last_login, { contact: canAdmin }))),
+          : memberPayload(u, env, u.last_login, { contact: true }))),
         canManageTeam: canAdmin,
         roles: [
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },

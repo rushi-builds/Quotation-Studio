@@ -1875,7 +1875,7 @@ dialog::backdrop {
 }
 .settings-layout {
   display: grid;
-  grid-template-columns: 190px minmax(0, 740px);
+  grid-template-columns: 190px minmax(0, 900px);
   gap: 30px;
   align-items: start;
 }
@@ -3151,7 +3151,7 @@ html[data-theme="dark"] .sidebar {
 /* Team panel: typed title per member, and the power badge that is the truth
    about access. Badge and title are deliberately separate columns. */
 .team-title-input {
-  font-size: 12px; padding: 3px 6px; border-radius: 8px; width: 100%; min-width: 0;
+  font-size: 12px; padding: 4px 8px; border-radius: 12px; width: 100%; min-width: 0;
   border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
 }
 .team-title-input:disabled { opacity: .5; cursor: not-allowed; }
@@ -3209,13 +3209,13 @@ html[data-theme="dark"] .sidebar {
 }
 .team-edit-cell { min-width: 170px; }
 .team-edit-cell .team-role-select {
-  font-size: 12px; padding: 3px 6px; border-radius: 8px; width: 100%;
+  font-size: 12px; padding: 4px 8px; border-radius: 12px; width: 100%;
   border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
   margin-bottom: 4px;
 }
 .team-info-cell { text-align: center; }
 .team-info-btn {
-  width: 30px; height: 30px; border-radius: 9px; line-height: 1; font-size: 14px;
+  width: 30px; height: 30px; border-radius: 12px; line-height: 1; font-size: 14px;
   border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
   cursor: pointer; transition: background .15s, border-color .15s;
 }

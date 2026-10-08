@@ -423,16 +423,17 @@ async function main() {
     r = await req('GET', '/api/proposals', null, viewerCookie);
     t('viewer can list own proposals', r.status === 200);
 
-    /* CHANGED by the elevation round (item 5): the team panel is now readable
-       by every member, and only the ability to CHANGE a role plus the contact
-       column stay owner/designated-admin only. This assertion used to be
-       `r.status === 403`. The write gate is still proven below and in
-       qa/roles-access.test.js. */
+    /* CHANGED by the elevation round (item 5): the team panel is readable by
+       every member, and only the ability to CHANGE a role plus the Remove
+       button stay owner/designated-admin only. Contact detail now rides every
+       row too, because the eye opens the same card for everyone. This
+       assertion used to be `r.status === 403`. The write gate is still proven
+       below and in qa/roles-access.test.js. */
     r = await req('GET', '/api/team/members', null, viewerCookie);
     t('viewer may READ the team panel (view-only)', r.status === 200 && Array.isArray(r.json.members), r.status);
     t('viewer is told it does not manage the team', r.json.canManageTeam === false, JSON.stringify(r.json.canManageTeam));
-    t('viewer gets no contact detail for another member',
-      !r.json.members.some((m) => m.email === 'owner@example.com'), JSON.stringify(r.json.members.map((m) => m.email)));
+    t('viewer sees the same contact detail as the owner (the eye shows it to all)',
+      r.json.members.some((m) => m.email === 'owner@example.com'), JSON.stringify(r.json.members.map((m) => m.email)));
     t('viewer still sees its own email', r.json.members.some((m) => m.email === 'viewer@example.com'));
     t('viewer sees no elevation field on another row',
       !r.json.members.filter((m) => m.email !== 'viewer@example.com').some((m) => 'isAdmin' in m || 'canElevate' in m));

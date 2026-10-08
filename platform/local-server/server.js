@@ -2442,10 +2442,12 @@ async function handleApi(req, res, url) {
           .filter((x) => x.user_id === u.id)
           .map((x) => String(x.created_at || ''));
         const login = logins.sort().pop() || null;
-        /* S2: only the actor's own row carries an elevation field. */
+        /* S2: only the actor's own row carries an elevation field. Contact
+           detail, by contrast, goes to every member — the eye opens the same
+           card for everyone — so only the CONTROLS stay behind the gate. */
         return u.id === user.id
           ? selfMemberPayload(u, login)
-          : memberPayload(u, login, { contact: canAdmin });
+          : memberPayload(u, login, { contact: true });
       });
       return sendJson(res, 200, {
         members,

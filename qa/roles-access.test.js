@@ -412,7 +412,8 @@ async function main() {
     t('item 5: every member may READ the team panel', r.status === 200 && Array.isArray(r.json.members), r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
     members = (r.json && r.json.members) || [];
     t('a member is told it does not manage the team', r.json.canManageTeam === false, JSON.stringify(r.json.canManageTeam));
-    t('item 5: contact detail is owner/admin only — no email on another row', !members.filter((m) => m.email !== MEMBER).some((m) => 'email' in m && m.email),
+    t('item 5: every row carries contact detail — the eye opens the same card for all',
+      members.filter((m) => m.email !== MEMBER).every((m) => 'email' in m && !!m.email),
       JSON.stringify(members.map((m) => m.email)));
     t('a member keeps its own email', (members.find((m) => m.id === memberReg.user.id) || {}).email === MEMBER);
     t('S1 holds for a member viewer too: no Admin badge', !members.some((m) => hasAdminWord(m) || String(m.power).toLowerCase() === 'admin'), members.map(displayOf).join(' ; '));

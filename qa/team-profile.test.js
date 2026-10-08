@@ -13,10 +13,11 @@
                               self-service edit can grant reach. profile_done
                               drives the first-sign-in nudge and gates nothing.
 
-     GET /api/team/members    the contact number rides the same opt-in as the
-                              email: present for an owner / designated admin,
-                              OMITTED (not blanked) for anyone else, so a
-                              member has nothing to unhide.
+     GET /api/team/members    every member's row carries the full contact
+                              detail (address + number), because the eye opens
+                              the same card for everyone. Only the CONTROLS —
+                              the role change under Edit and the Remove button
+                              — stay behind the owner / admin gate.
 
      DELETE /api/team/members/:id
                               owner / designated admin only. Refuses your own
@@ -205,7 +206,7 @@ async function main() {
     /* Put it back so the card has something to show. */
     await req(PORT, 'POST', '/api/auth/profile', { title: 'Project lead' }, targetSess.token);
 
-    /* ================= the contact number rides the email's opt-in ================= */
+    /* ================= everyone reads the same contact detail ================= */
     let list = await req(PORT, 'GET', '/api/team/members', null, ownerSess.token);
     const ownerView = (list.json && list.json.members) || [];
     const targetRow = ownerView.find((m) => m.id === targetReg.user.id);
@@ -221,17 +222,18 @@ async function main() {
     const seen = viewerView.find((m) => m.id === targetReg.user.id);
     t('a non-manager still reads the panel (no gate on GET)',
       list.status === 200 && viewerView.length === 4, list.status + ' ' + viewerView.length);
-    t('a non-manager is never handed another member\'s contact number',
-      seen && !Object.prototype.hasOwnProperty.call(seen, 'phone'),
-      JSON.stringify(seen && Object.keys(seen)));
-    t('a non-manager is never handed another member\'s address either',
-      seen && !Object.prototype.hasOwnProperty.call(seen, 'email'),
-      JSON.stringify(seen && Object.keys(seen)));
-    t('the row is omitted rather than blanked, so there is nothing to unhide',
-      seen && !('phone' in seen && seen.phone === ''));
+    t('a non-manager reads the same contact number the eye card shows',
+      seen && seen.phone === '+91 98765 43210',
+      JSON.stringify(seen && seen.phone));
+    t('a non-manager reads the same address the eye card shows',
+      seen && typeof seen.email === 'string' && seen.email.length > 0,
+      JSON.stringify(seen && seen.email));
     t('the row still carries what the card shows to everyone: name, role, first sign-in',
       seen && !!seen.name && !!seen.role && !!seen.createdAt,
       JSON.stringify(seen && [seen.name, seen.role, seen.createdAt]));
+    t('...but a non-manager still gets no manage flag, so Edit cannot render',
+      seen && seen.canManageTeam === false,
+      JSON.stringify(seen && seen.canManageTeam));
 
     /* ================= removal guards ================= */
     r = await req(PORT, 'DELETE', '/api/team/members/' + targetReg.user.id, null, viewerSess.token);

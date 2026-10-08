@@ -652,9 +652,8 @@
     set('miAvatar', (String(m.name || '?').trim().charAt(0) || '?').toUpperCase());
     set('miName', m.name || '—');
     set('miSubtitle', powerLabel(pwr));
-    /* A non-manager never receives these fields at all — the server omits them
-       rather than blanking — so "Not shared" is the honest reading, and there
-       is nothing here to unhide. */
+    /* Every member receives these fields — the eye opens the same card for
+       everyone — so this is an honest reading of the row, never an unhide. */
     set('miEmail', m.email || 'Not shared');
     set('miPhone', m.phone || 'Not added yet');
     set('miTitle', m.roleCustom || '—');
@@ -734,8 +733,8 @@
       if ($('teamAccessPill')) $('teamAccessPill').textContent = manage ? 'Owner access' : 'Read-only';
       if ($('teamPanelSub')) {
         $('teamPanelSub').textContent = manage
-          ? 'Everyone can open a member\'s card with the eye to see their details. You can change a role under Edit — it changes access only, never the work already saved.'
-          : 'Everyone can open a member\'s card with the eye to see their details. Only the workspace owner can change a role under Edit.';
+          ? 'Everyone sees every member\'s details here, and the eye opens the full card. You can change a role under Edit — it changes access only, never the work already saved. Removing a member is owner and admin only.'
+          : 'Everyone sees every member\'s details here, and the eye opens the full card. Under Edit it reads "Only owner access" — only the workspace owner can change a role.';
       }
       body.innerHTML = members.map((m) => {
         const pwr = storedPowerWord(m);
@@ -746,18 +745,24 @@
            renders no typed-title box at all. */
         const titleable = isCustom || m.role === 'owner';
         const titleId = 'teamTitle_' + m.id;
+        /* Contact detail goes to EVERY member now: the eye opens the full card
+           for anyone, so the address and number ride the same row. Only the
+           controls differ — Edit and Remove stay with the manager. */
+        const contact = escapeHtml(m.email || '') +
+          (m.phone ? '<span class="contact-sub">' + escapeHtml(m.phone) + '</span>' : '');
         /* The eye is the one control every row carries, manager or not. */
         const eye = '<td class="team-info-cell"><button type="button" class="team-info-btn" data-info="' + escapeHtml(m.id) +
           '" aria-label="View info for ' + escapeHtml(m.name) + '" title="View info">👁</button></td>';
         if (!manage) {
-          /* View-only: no contact column content and no control, but the
-             member card still opens. Six cells so the header lines up. */
+          /* View-only: the same information, no control. The EDIT cell says
+             what it says on the tin instead of offering a dead affordance.
+             Six cells so the header lines up. */
           return '<tr data-member="' + escapeHtml(m.id) + '" class="team-readonly">' +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
-            '<td class="muted">—</td>' +
+            '<td class="muted">' + contact + '</td>' +
             '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span></td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
-            '<td class="muted micro">Owner only</td>' +
+            '<td class="muted micro">Only owner access</td>' +
             eye +
           '</tr>';
         }
@@ -768,10 +773,6 @@
         opts += '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom title</option>';
         /* Never an "Admin" entry here: elevation is self-service and lives in
            the own-role pencil, so no owner can raise or lower anyone else. */
-        /* Contact detail rides the server's opt-in: absent for a non-manager,
-           never blank-then-unhidden. The number sits beneath the address. */
-        const contact = escapeHtml(m.email || '') +
-          (m.phone ? '<span class="contact-sub">' + escapeHtml(m.phone) + '</span>' : '');
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
           '<td class="muted">' + contact + '</td>' +
@@ -790,7 +791,7 @@
       }).join('') || '<tr><td colspan="' + COLS + '" class="empty">No members.</td></tr>';
       if (!manage && members.length) {
         body.insertAdjacentHTML('beforeend',
-          '<tr><td colspan="' + COLS + '" class="empty micro">Read-only. Only the workspace owner can change roles. Your title: ' +
+          '<tr><td colspan="' + COLS + '" class="empty micro">Read-only — Only owner access: only the workspace owner can change roles. Your role: ' +
           escapeHtml(roleLabel(user)) + '.</td></tr>');
       }
       if (!manage) return;
