@@ -903,8 +903,13 @@
           '<tr><td colspan="' + COLS + '" class="empty micro">Read-only — Only owner access: only the workspace owner can change roles. Your role: ' +
           escapeHtml(roleLabel(user)) + '.</td></tr>');
       }
-      if (!manage) return;
-
+      /* No `if (!manage) return` here, and that is deliberate. Everything below
+         binds controls that exist ONLY on a manager's rows — a read-only row
+         has no role select and no title box, so those querySelectorAll calls
+         simply find nothing and cost nothing. The eye, by contrast, is on EVERY
+         row: returning early here used to render the button for every role and
+         then leave it with no listener, so the click went nowhere and only a
+         manager could actually open a card. */
       const applyRole = async (memberId, role, titleVal) => {
         /* The title travels with EVERY role, Sales and Engineer included: that
            is what preserves the wording across a role change instead of

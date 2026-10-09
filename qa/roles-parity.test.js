@@ -515,13 +515,14 @@ try {
        migration 006 (contact + nudge)    platform/migrations/006-profile-info*
        this guard and the feature's tests qa/**
        the stale callback documentation   docs/**
-     platform/migrations is limited to 005 (round 1) and 006 (this round); the
-     elevation column of round 1 must not be rewritten by either. */
+     platform/migrations is limited to 005 (round 1), 006 (contact) and 007
+     (member links + kudos); the elevation column of round 1 must not be
+     rewritten by any of them. */
   const ALLOWED = new RegExp('^(?:' + [
     'platform/cloudflare/src/(?:worker\\.js|oauth\\.mjs|phone\\.mjs)',
     'platform/local-server/server\\.js',
     'platform/schema\\.sql',
-    'platform/migrations/(?:005-is-admin(?:-verify)?|006-profile-info(?:-verify)?)\\.sql',
+    'platform/migrations/(?:005-is-admin(?:-verify)?|006-profile-info(?:-verify)?|007-member-links-likes(?:-verify)?)\\.sql',
     'platform/cloudflare/public/.+',
     'assets/js/(?:dashboard|dashboard-home|platform-api|cloud-bridge)\\.js',
     'assets/css/dashboard\\.css',
@@ -532,7 +533,7 @@ try {
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
   t('no earlier migration was modified',
-    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-profile-info/.test(f)),
+    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-profile-info|007-member-links-likes/.test(f)),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 } catch (e) {
   t('git diff available to check the frozen list', false, e.message);
@@ -658,6 +659,17 @@ try {
     /muted micro">Only owner access</.test(dash) && !/Owner only</.test(dash));
   t('ui: the read-only row shows the same contact detail as every other row',
     /'<td class="muted">' \+ contact \+ '<\/td>'/.test(teamFn));
+
+  /* Regression — THE EYE MUST OPEN FOR EVERYONE. The button is rendered on
+     BOTH sides of the manager check, so its listener has to be bound on both
+     sides too. An early `if (!manage) return` sat between the two: the row
+     drew a perfectly good eye for every role and email, and then the binding
+     never ran, so the click went nowhere and only a manager could open a
+     card. Comments are stripped first so the fix's own explanation cannot
+     answer this test. */
+  t('ui: the eye listener is bound for every role, not only for managers',
+    !/if \(!manage\) return/.test(noComments(teamFn)) &&
+    /body\.querySelectorAll\('\.team-info-btn'\)\.forEach/.test(noComments(teamFn)));
 
   /* Title preserve: a role change edits ACCESS, never the wording. The title
      rides beside the power key in BOTH backends, and the client sends it for
