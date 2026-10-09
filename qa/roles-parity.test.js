@@ -691,6 +691,19 @@ try {
     /\['miStatusRow', 'miFirstRow', 'miLastRow'\]/.test(noComments(cardFn)));
   t('ui: the gate removes those rows outright rather than styling them away',
     /el\.hidden = !seeSignIn/.test(noComments(cardFn)));
+  t('ui: an account always keeps its own sign-in time on its own card',
+    /seeSignIn = !!teamCanManage \|\| !!\(user && m && m\.id === user\.id\)/.test(noComments(cardFn)));
+  t('parity: both backends omit sign-in times unless a route opts in',
+    BOTH.every(([, src]) => /\.\.\.\(o\.signin \? \{ lastLogin: login \}/.test(src) &&
+      /\.\.\.\(o\.signin \? \{ createdAt: u\.created_at \}/.test(src)));
+  t('parity: both backends key the team list on the CALLER\'s manage flag',
+    BOTH.every(([, src]) => /signin: canAdmin/.test(src)) &&
+    BOTH.every(([, src]) => {
+      /* The caller's own row must NOT be re-gated: it keeps its sign-in times
+         by default, so the self branch of the ternary carries no `signin`. */
+      const selfCall = (/\? selfMemberPayload\(u, [^)]*\)/.exec(src) || [''])[0];
+      return !!selfCall && !/signin/.test(selfCall);
+    }));
 
   /* The card's facts read as chips and the three platform marks keep their
      brand colour, because at 16px a recognisable colour IS the label. The two

@@ -767,13 +767,13 @@
     paintLike(m);
     const manage = $('miManage');
     if (manage) manage.hidden = !teamCanManage;
-    /* Sign-in times answer "when was this person last active", which is an
-       owner/admin question. The status line and both sign-in rows are removed
-       entirely for anyone else — not greyed out. teamCanManage is the SERVER's
-       flag, the same one the EDIT cell and the role control follow, and it is
-       false until the team list has loaded, so a viewer fails closed rather
-       than open. */
-    const seeSignIn = !!teamCanManage;
+    /* Sign-in times answer "when was this person last active". An owner/admin
+       may read everyone's; every other account reads its OWN row and nothing
+       else — so whoever signed in can still see when they signed in. For
+       anyone else the status line and both rows are removed outright, not
+       greyed. teamCanManage is the SERVER's flag, the same one the EDIT cell
+       and the role control follow, and it starts false, so this fails closed. */
+    const seeSignIn = !!teamCanManage || !!(user && m && m.id === user.id);
     ['miStatusRow', 'miFirstRow', 'miLastRow'].forEach((id) => {
       const el = $(id);
       if (el) el.hidden = !seeSignIn;

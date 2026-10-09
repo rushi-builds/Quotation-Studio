@@ -256,9 +256,12 @@ async function main() {
     t('a non-manager reads the same address the eye card shows',
       seen && typeof seen.email === 'string' && seen.email.length > 0,
       JSON.stringify(seen && seen.email));
-    t('the row still carries what the card shows to everyone: name, role, first sign-in',
-      seen && !!seen.name && !!seen.role && !!seen.createdAt,
-      JSON.stringify(seen && [seen.name, seen.role, seen.createdAt]));
+    t('the row still carries what the card shows to everyone: name and role',
+      seen && !!seen.name && !!seen.role,
+      JSON.stringify(seen && [seen.name, seen.role]));
+    t("...but another member's first sign-in is owner/admin only — absent, not blanked",
+      seen && !('createdAt' in seen) && !('lastLogin' in seen),
+      JSON.stringify(seen && Object.keys(seen).filter((k) => /login|created/i.test(k))));
     t('...but a non-manager still gets no manage flag, so Edit cannot render',
       seen && seen.canManageTeam === false,
       JSON.stringify(seen && seen.canManageTeam));
@@ -450,6 +453,36 @@ async function main() {
     r = await req(PORT, 'POST', '/api/team/members/no-such-id/like', {}, ownerSess.token);
     t('kudos on an unknown account is a 404, not a silent success',
       r.status === 404, r.status + ' ' + JSON.stringify(r.json));
+
+    /* ---- sign-in times: your OWN row, or everyone's if you manage ----
+       An account may always read when it itself signed in; anyone ELSE's
+       sign-in time is owner/admin only. The field is omitted rather than
+       blanked, so there is nothing to unhide in the network tab either. */
+    r = await req(PORT, 'GET', '/api/team/members', null, viewerSess.token);
+    const vRows = r.json.members || [];
+    const vMine = vRows.find((m) => m.email === VIEWER);
+    const vTheirs = vRows.find((m) => m.email !== VIEWER);
+    t('a viewer still receives its own sign-in time',
+      !!vMine && vMine.lastLogin !== undefined && vMine.createdAt !== undefined,
+      JSON.stringify(vMine && { lastLogin: vMine.lastLogin, createdAt: vMine.createdAt }));
+    t("nobody ELSE's sign-in time reaches a viewer — absent, not blanked",
+      !!vTheirs && !('lastLogin' in vTheirs) && !('createdAt' in vTheirs) && !('lastLoginLabel' in vTheirs),
+      JSON.stringify(vTheirs && Object.keys(vTheirs).filter((k) => /login|created/i.test(k))));
+    t('the fields a viewer does still get are all present',
+      !!vTheirs && ['id', 'name', 'email', 'phone', 'role', 'power', 'likes'].every((k) => k in vTheirs),
+      JSON.stringify(vTheirs && Object.keys(vTheirs)));
+
+    r = await req(PORT, 'GET', '/api/team/members', null, ownerSess.token);
+    const oRows = r.json.members || [];
+    t('an owner receives every row\'s sign-in time',
+      oRows.length > 1 && oRows.every((m) => m.lastLogin !== undefined && m.createdAt !== undefined),
+      JSON.stringify(oRows.map((m) => m.lastLogin)));
+
+    r = await req(PORT, 'GET', '/api/team/members', null, adminSess.token);
+    const aRows = r.json.members || [];
+    t('the elevated account receives them too',
+      aRows.length > 1 && aRows.every((m) => m.lastLogin !== undefined),
+      JSON.stringify(aRows.map((m) => m.lastLogin)));
   } finally {
     srv.child.kill();
     fs.rmSync(DATA, { recursive: true, force: true });

@@ -377,9 +377,15 @@ function memberPayload(u, env, lastLogin, opts) {
     power: stored,
     canWrite: roleRank(stored) >= roleRank('sales'),
     canManageTeam: roleRank(stored) >= roleRank('owner'),
-    lastLogin: login,
-    lastLoginLabel: login ? new Date(login).toISOString() : null,
-    createdAt: u.created_at
+    /* Sign-in times answer "when was this person last active", which is an
+       owner/admin question. They are OMITTED for everyone else — the same
+       move as S2, so a row carries no date to unhide. `login` is still
+       computed above so the creation-time fallback stays in one place. The
+       team list passes `signin` from the CALLER's manage flag; the
+       role-change route passes true because its gate is already owner/admin. */
+    ...(o.signin ? { lastLogin: login } : {}),
+    ...(o.signin ? { lastLoginLabel: login ? new Date(login).toISOString() : null } : {}),
+    ...(o.signin ? { createdAt: u.created_at } : {})
   };
 }
 /* The actor's OWN row: the same payload plus what only they may know about
@@ -388,8 +394,11 @@ function memberPayload(u, env, lastLogin, opts) {
    viewer-level elevated account reads canWrite false (badge) and
    effectiveCanWrite true (what it may actually do). */
 function selfMemberPayload(u, env, lastLogin, opts) {
-  /* Own row: always allowed its own contact detail. */
-  return Object.assign(memberPayload(u, env, lastLogin, Object.assign({ contact: true }, opts || {})), {
+  /* Own row: always allowed its own contact detail AND its own sign-in times —
+     an account may always read when IT last signed in. The team list keeps
+     this default for the caller's own row and overrides `signin` with the
+     manage flag for everyone else's. */
+  return Object.assign(memberPayload(u, env, lastLogin, Object.assign({ contact: true, signin: true }, opts || {})), {
     isAdmin: isAdminRow(u),
     elevated: isAdminRow(u),
     canElevate: canElevate(u, env),
@@ -2358,10 +2367,13 @@ async function handleApi(request, env, url) {
       }
       const kudos = (u) => ({ likes: likeCount.get(u.id) || 0, likedByMe: mine.has(u.id) });
       return json({
-        /* S2: only the actor's own row carries an elevation field. */
+        /* S2: only the actor's own row carries an elevation field. Sign-in
+           times ride the caller's manage flag for everyone ELSE's row, while
+           the caller's own row keeps them unconditionally — an account may
+           always read when it itself last signed in. */
         members: members.map((u) => (u.id === user.id
           ? selfMemberPayload(u, env, u.last_login, kudos(u))
-          : memberPayload(u, env, u.last_login, Object.assign({ contact: true }, kudos(u))))),
+          : memberPayload(u, env, u.last_login, Object.assign({ contact: true, signin: canAdmin }, kudos(u))))),
         canManageTeam: canAdmin,
         roles: [
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
@@ -2498,7 +2510,9 @@ async function handleApi(request, env, url) {
       const note = normalizeEmail(target.email) === ownerEmail(env) && parsed.role !== 'owner'
         ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in (its display title is kept). To make the change stick, remove or change OWNER_EMAIL in the Worker variables.'
         : null;
-      const outMember = (target.id === user.id) ? selfMemberPayload(target, env) : memberPayload(target, env);
+      /* This route is owner / designated-admin gated, so the returned row keeps
+         its sign-in times and never drifts from the team list's shape. */
+      const outMember = (target.id === user.id) ? selfMemberPayload(target, env) : memberPayload(target, env, undefined, { signin: true });
       return json({ member: outMember, note });
     }
 

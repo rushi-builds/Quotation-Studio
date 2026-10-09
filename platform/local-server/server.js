@@ -823,9 +823,15 @@ function memberPayload(u, lastLogin, opts) {
     power: stored,
     canWrite: roleRank(stored) >= roleRank('sales'),
     canManageTeam: roleRank(stored) >= roleRank('owner'),
-    lastLogin: login,
-    lastLoginLabel: login ? new Date(login).toISOString() : null,
-    createdAt: u.created_at
+    /* Sign-in times answer "when was this person last active", which is an
+       owner/admin question. They are OMITTED for everyone else — parity with
+       the worker's S2 move, so a row carries no date to unhide. `login` is
+       still computed above so the creation-time fallback stays in one place.
+       The team list passes `signin` from the CALLER's manage flag; the
+       role-change route passes true because its gate is already owner/admin. */
+    ...(o.signin ? { lastLogin: login } : {}),
+    ...(o.signin ? { lastLoginLabel: login ? new Date(login).toISOString() : null } : {}),
+    ...(o.signin ? { createdAt: u.created_at } : {})
   };
 }
 /* The actor's OWN row: the same payload plus what only they may know about
@@ -834,8 +840,10 @@ function memberPayload(u, lastLogin, opts) {
    viewer-level elevated account reads canWrite false (badge) and
    effectiveCanWrite true (what it may actually do). */
 function selfMemberPayload(u, lastLogin, opts) {
-  /* Own row: always allowed its own contact detail. */
-  return Object.assign(memberPayload(u, lastLogin, Object.assign({ contact: true }, opts || {})), {
+  /* Own row: always allowed its own contact detail AND its own sign-in times —
+     parity with the worker. An account may always read when IT last signed in;
+     the team list overrides `signin` with the manage flag for every other row. */
+  return Object.assign(memberPayload(u, lastLogin, Object.assign({ contact: true, signin: true }, opts || {})), {
     isAdmin: isAdminRow(u),
     elevated: isAdminRow(u),
     canElevate: canElevate(u),
@@ -2526,10 +2534,13 @@ async function handleApi(req, res, url) {
         const login = logins.sort().pop() || null;
         /* S2: only the actor's own row carries an elevation field. Contact
            detail, by contrast, goes to every member — the eye opens the same
-           card for everyone — so only the CONTROLS stay behind the gate. */
+           card for everyone — so only the CONTROLS stay behind the gate.
+           Sign-in times ride the caller's manage flag for everyone ELSE's
+           row; the caller's own row keeps them, because an account may always
+           read when it itself last signed in. */
         return u.id === user.id
           ? selfMemberPayload(u, login, kudos(u))
-          : memberPayload(u, login, Object.assign({ contact: true }, kudos(u)));
+          : memberPayload(u, login, Object.assign({ contact: true, signin: canAdmin }, kudos(u)));
       });
       return sendJson(res, 200, {
         members,
@@ -2643,7 +2654,9 @@ async function handleApi(req, res, url) {
       const note = normalizeEmail(target.email) === ownerEmail() && parsed.role !== 'owner'
         ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in (its display title is kept). To make this change stick, remove or change OWNER_EMAIL in the server environment.'
         : null;
-      const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target);
+      /* This route is owner / designated-admin gated, so the returned row keeps
+         its sign-in times and never drifts from the team list's shape. */
+      const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target, undefined, { signin: true });
       return sendJson(res, 200, { member: outMember, note });
     }
 
