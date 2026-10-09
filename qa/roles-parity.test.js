@@ -34,6 +34,7 @@ const HTML = path.join(ROOT, 'dashboard.html');
 const MIGRATION = path.join(ROOT, 'platform/migrations/005-is-admin.sql');
 const VERIFY_SQL = path.join(ROOT, 'platform/migrations/005-is-admin-verify.sql');
 const SCHEMA = path.join(ROOT, 'platform/schema.sql');
+const OAUTH = path.join(ROOT, 'platform/cloudflare/src/oauth.mjs');
 
 let pass = 0, fail = 0;
 const t = (name, cond, extra) => {
@@ -655,6 +656,33 @@ try {
   const pencil = fn(dash, 'wireRoleEditor', ['refreshTeamPanel']);
   t('ui: the own-role editor never blanks the title box when a role hides it',
     !/title\.value = ''/.test(pencil) && /title\.value = user\.roleCustom \|\| ''/.test(pencil));
+
+  /* SIGNIN_EXPIRED graceful replay: the callback asks ONE question before it
+     scares a visitor — is this browser already signed in? — and walks a valid
+     session straight to the dashboard. The error itself is untouched. */
+  const oauth = fs.readFileSync(OAUTH, 'utf8');
+  const replay = oauth.indexOf("if(code==='SIGNIN_EXPIRED')");
+  t('oauth: the callback has a graceful-replay branch on SIGNIN_EXPIRED',
+    replay > 0, replay);
+  t('oauth: the branch reads the EXISTING session with the dashboard\'s own check',
+    replay > 0 && /const signedIn=await auth\.user\(request\);/.test(oauth.slice(replay, replay + 400)),
+    oauth.slice(replay, replay + 400));
+  t('oauth: a still-signed-in visitor is taken to the dashboard, not an error page',
+    /if\(signedIn\)return redirect\('\/dashboard\.html',\[cookie\(provider,'',0\)\]\);/.test(oauth));
+  t('oauth: the honest error survives for a visitor with no session at all',
+    /return redirect\('\/index\.html\?oauth_error='\+code,\[cookie\(provider,'',0\)\]\);/.test(oauth));
+  t('oauth: the replay grants nothing — it reads, and writes only the expired binding cookie',
+    !/auth\.session\(|await store\.resolve\(|setSession|is_admin/.test(oauth.slice(replay, replay + 700)));
+
+  /* The panel intro is ONE fixed theme line now: the gate speaks for itself
+     through the access pill and the "Only owner access" cell. */
+  t('ui: the team intro is a fixed theme line, not a paragraph of rules',
+    /Your members, their roles, everything that matters — in one place\./.test(html));
+  t('ui: refreshTeamPanel no longer writes the intro — the copy lives in the page',
+    !/teamPanelSub/.test(dash), 'dashboard.js still writes teamPanelSub');
+  t('ui: the old rules paragraph is gone from both the page and the script',
+    !/Removing a member is owner and admin only/.test(dash + html) &&
+    !/Under Edit it reads/.test(dash + html));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

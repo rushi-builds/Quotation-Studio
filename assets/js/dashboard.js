@@ -727,14 +727,12 @@
          back to the local flag keeps an older backend behaving as before. */
       const manage = r && r.canManageTeam != null ? !!r.canManageTeam : canManage();
       teamCanManage = manage;
-      /* The heading pill and the intro line follow the same server flag, so a
-         member is never told this screen is theirs to control. */
+      /* The heading pill follows the same server flag, so a member is never
+         told this screen is theirs to control. The intro line under the heading
+         is fixed copy in dashboard.html — one theme line for everyone, because
+         the gate speaks for itself: the pill says who may act and the EDIT cell
+         says "Only owner access" on every row a member cannot change. */
       if ($('teamAccessPill')) $('teamAccessPill').textContent = manage ? 'Owner access' : 'Read-only';
-      if ($('teamPanelSub')) {
-        $('teamPanelSub').textContent = manage
-          ? 'Everyone sees every member\'s details here, and the eye opens the full card. You can change a role under Edit — it changes access only, never the work already saved. Removing a member is owner and admin only.'
-          : 'Everyone sees every member\'s details here, and the eye opens the full card. Under Edit it reads "Only owner access" — only the workspace owner can change a role.';
-      }
       body.innerHTML = members.map((m) => {
         const pwr = storedPowerWord(m);
         const isCustom = m.role === 'custom' || !!m.roleCustom;

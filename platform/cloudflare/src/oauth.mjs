@@ -166,7 +166,26 @@ export async function handleOAuth(request,env,store,auth,dependencies={}) {
    e.oauthHttpStatus?('http='+e.oauthHttpStatus):'',
    e.oauthProviderError?('provider_error='+e.oauthProviderError):'',
    'msg='+redactLog(e.message));}catch{}
-  if(action==='callback')return redirect('/index.html?oauth_error='+code,[cookie(provider,'',0)]);
+  if(action==='callback'){
+   // GRACEFUL REPLAY. The one-time state can age out on a slow round-trip, in a
+   // storage-blocked browser or on a second tab — and when it does, this visitor
+   // is frequently ALREADY signed in. Telling someone standing in the doorway to
+   // "sign in again" is worse than useless: it sends them to go and do the very
+   // thing they just finished doing. So before showing the error, ask the one
+   // question that settles it — is this browser's Studio session still good? —
+   // and walk them straight in when it is.
+   //
+   // This grants NOTHING. auth.user() is the same check the dashboard itself sits
+   // behind; no session, role or identity is created here, and the only write is
+   // the expiry of this provider's own one-time binding cookie. The worst a
+   // stolen state buys is a redirect to a page these cookies already allow, so
+   // the error survives exactly where it belongs: a visitor with no valid
+   // session at all.
+   if(code==='SIGNIN_EXPIRED'){
+    try{const signedIn=await auth.user(request);if(signedIn)return redirect('/dashboard.html',[cookie(provider,'',0)]);}catch{}
+   }
+   return redirect('/index.html?oauth_error='+code,[cookie(provider,'',0)]);
+  }
   return response({error:'Could not start sign-in. Please try again.',code},400);
  }
 }
