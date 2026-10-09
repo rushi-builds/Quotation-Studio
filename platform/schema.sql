@@ -30,6 +30,11 @@ CREATE TABLE IF NOT EXISTS users (
      migrations/007-member-links-likes.sql. */
   instagram_url TEXT NOT NULL DEFAULT '',
   linkedin_url  TEXT NOT NULL DEFAULT '',
+  /* The member's own "any other link" — neither Instagram nor LinkedIn.
+     Same contract as the two above: display data, team-wide, never read at
+     sign-in and never part of a gate. Existing databases gain it via
+     migrations/008-member-custom-link.sql. */
+  custom_url    TEXT NOT NULL DEFAULT '',
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );

@@ -195,6 +195,7 @@
     if ($('profileTitle')) $('profileTitle').value = user.roleCustom || '';
     if ($('profileInstagram')) $('profileInstagram').value = user.instagram || '';
     if ($('profileLinkedin')) $('profileLinkedin').value = user.linkedin || '';
+    if ($('profileCustom')) $('profileCustom').value = user.custom || '';
     refreshProfileNudge();
     if ($('profileSaveMsg')) $('profileSaveMsg').textContent = '';
     if ($('currPassword')) $('currPassword').value = '';
@@ -717,16 +718,6 @@
     }
   }
 
-  async function copyText(text, label) {
-    try {
-      if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('no clipboard');
-      await navigator.clipboard.writeText(text);
-      toast(label + ' copied');
-    } catch (e) {
-      toast('Could not copy ' + String(label).toLowerCase());
-    }
-  }
-
   function openMemberInfo(memberId) {
     const m = memberById(memberId);
     const dlg = $('memberInfo');
@@ -758,8 +749,9 @@
     set('miNote', '');
     /* Reach-out row and present state. The links are what this member chose to
        publish about themselves in Settings, so showing them to the team is not
-       an unhide; the copy buttons and the WhatsApp pill work off the contact
-       detail the row already carries. */
+       an unhide. Each pill is drawn from the saved profile value: the number
+       becomes WhatsApp, the account address becomes the mail link, and an
+       empty value hides the pill rather than greying it out. */
     applyAvatarTint($('miAvatar'), m.email || m.name);
     const st = statusOf(m.lastLogin);
     if ($('miStatus')) $('miStatus').textContent = st.text;
@@ -767,7 +759,11 @@
     setLink('miWa', waHref(m.phone));
     setLink('miIg', m.instagram);
     setLink('miLi', m.linkedin);
-    if ($('miCopyPhone')) $('miCopyPhone').hidden = !m.phone;
+    setLink('miCustom', m.custom);
+    /* "Contact him directly" opens the member's own address in the reader's
+       mail app. It is the same contact detail the row already carries, so it
+       confers nothing new — it is a button where the copy pill used to be. */
+    setLink('miContact', m.email ? 'mailto:' + m.email : '');
     paintLike(m);
     const manage = $('miManage');
     if (manage) manage.hidden = !teamCanManage;
@@ -1723,6 +1719,7 @@
         const title = ($('profileTitle') && $('profileTitle').value || '').trim();
         const instagram = (($('profileInstagram') && $('profileInstagram').value) || '').trim();
         const linkedin = (($('profileLinkedin') && $('profileLinkedin').value) || '').trim();
+        const custom = (($('profileCustom') && $('profileCustom').value) || '').trim();
         const msg = $('profileSaveMsg');
         if (msg) msg.textContent = '';
         if (!name) {
@@ -1740,7 +1737,7 @@
         if (!ok) return;
         $('btnSaveProfile').disabled = true;
         try {
-          const r = await api.updateProfile({ name, phone, title, instagram, linkedin });
+          const r = await api.updateProfile({ name, phone, title, instagram, linkedin, custom });
           user = r.user;
           showApp();
           await renderHome();
@@ -1760,15 +1757,11 @@
        re-render of the table can never stack a second listener. */
     if ($('memberInfoClose')) $('memberInfoClose').addEventListener('click', () => closeDialog('memberInfo'));
     if ($('miDelete')) $('miDelete').addEventListener('click', askRemoveMember);
-    /* The heart and the copy pills live in the card, which is rebuilt only as
-       HTML — so these are bound once, here, and read memberInFocus on click. */
+    /* The heart lives in the card, which is rebuilt only as HTML — so it is
+       bound once, here, and reads memberInFocus on click. Every other pill in
+       the reach-out row is a plain <a>, so the browser does the navigating and
+       none of them need a listener (the two copy buttons are gone). */
     if ($('miLike')) $('miLike').addEventListener('click', toggleLike);
-    if ($('miCopyEmail')) $('miCopyEmail').addEventListener('click', () => {
-      if (memberInFocus) copyText(memberInFocus.email || '', 'Email');
-    });
-    if ($('miCopyPhone')) $('miCopyPhone').addEventListener('click', () => {
-      if (memberInFocus) copyText(memberInFocus.phone || '', 'Number');
-    });
     if ($('dcCancel')) $('dcCancel').addEventListener('click', () => closeDialog('deleteConfirm'));
     if ($('dcConfirm')) $('dcConfirm').addEventListener('click', confirmRemoveMember);
     if ($('btnNudgeClose')) {

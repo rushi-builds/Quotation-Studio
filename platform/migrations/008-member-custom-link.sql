@@ -1,0 +1,66 @@
+-- Round-4 member card: one additive column on `users`.
+--
+--   users.custom_url    the member's OWN "any other link" — the button that is
+--                       neither Instagram nor LinkedIn. Display data only,
+--                       shown as a button on the member card exactly like
+--                       instagram_url / linkedin_url. Never a credential:
+--                       nothing reads it at sign-in and no gate depends on it.
+--
+-- This column is inert to the permission core. `role` keeps its CHECK
+-- constraint, `is_admin` keeps its meaning, and a row that gains this value
+-- reads exactly the same to every gate as one that does not.
+--
+-- VISIBILITY: team-wide on purpose, same contract as the other two links —
+-- the member chose to publish it in their own Settings, and the point of the
+-- card is being able to reach the person. Edit and Delete remain owner/admin
+-- exactly as before; this migration adds no gate and removes none.
+--
+-- The same paste rule as the other links applies in the Worker: only an
+-- http(s) URL is accepted, so a stray paste cannot smuggle a javascript: or
+-- data: scheme into an <a href>. Unlike the two platform links there is no
+-- "bare handle to complete" — a custom link has no platform to complete to,
+-- so it must already be a URL.
+--
+-- ---------------------------------------------------------------------------
+-- BACK UP FIRST (per the standing rule):
+--
+--   cd platform/cloudflare
+--   $env:CLOUDFLARE_API_TOKEN = <ktm-scoped token>
+--   $env:CLOUDFLARE_ACCOUNT_ID = 'e43beb41b3e88e546967398e5767800c'
+--   npx wrangler d1 execute -c wrangler.company.toml --remote quotation-studio-db \
+--     --command "SELECT id, email, role, is_admin FROM users"
+--
+-- APPLY:
+--
+--   npx wrangler d1 execute -c wrangler.company.toml --remote quotation-studio-db \
+--     --file=../migrations/008-member-custom-link.sql
+--
+-- VERIFY (see 008-member-custom-link-verify.sql):
+--
+--   npx wrangler d1 execute -c wrangler.company.toml --remote quotation-studio-db \
+--     --file=../migrations/008-member-custom-link-verify.sql
+--
+-- ---------------------------------------------------------------------------
+-- IDEMPOTENCY: SQLite has no `ADD COLUMN IF NOT EXISTS`, so re-running this
+-- file fails with "duplicate column name: custom_url". That is harmless and
+-- means the column is already present — run the verify file instead.
+--
+-- Until it is applied the deployment still serves traffic: every read of this
+-- column is defensive (`u.custom_url || ''`), so an old database simply
+-- reports no custom link. The Worker tolerates a missing column the same way
+-- it tolerated a missing instagram_url before 007: the value stays empty and
+-- no route crashes. Apply 008 before enabling the save field in production.
+--
+-- ---------------------------------------------------------------------------
+-- ROLLBACK / LEAVING IT IN PLACE: the column is inert if left. It is TEXT
+-- with a constant default, no index, CHECK constraint or foreign key
+-- references it.
+--
+-- SQLite cannot drop a column without a table rebuild (create-new / copy /
+-- drop / rename), which is not worth the risk for one display string. Leave
+-- it. Rolling back the CODE instead needs no DDL at all: the pre-migration
+-- Worker never selects this column, so an old deployment runs fine against a
+-- migrated database. The migration is forward- and backward-safe.
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE users ADD COLUMN custom_url TEXT NOT NULL DEFAULT '';

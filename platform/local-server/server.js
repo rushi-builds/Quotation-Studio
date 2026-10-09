@@ -765,6 +765,7 @@ function publicUser(u) {
     phone: u.phone || '',
     instagram: u.instagram_url || '',
     linkedin: u.linkedin_url || '',
+    custom: u.custom_url || '',
     profileDone: Number(u.profile_done || 0) === 1,
     createdAt: u.created_at || null
   };
@@ -811,6 +812,7 @@ function memberPayload(u, lastLogin, opts) {
        nothing — it is a count of clicks, never a permission. */
     instagram: u.instagram_url || '',
     linkedin: u.linkedin_url || '',
+    custom: u.custom_url || '',
     likes: Number(o.likes || 0),
     likedByMe: !!o.likedByMe,
     role: u.role,
@@ -1377,7 +1379,8 @@ async function handleApi(req, res, url) {
         phone: user.phone || '',
         roleCustom: user.role_custom || null,
         instagram: user.instagram_url || '',
-        linkedin: user.linkedin_url || ''
+        linkedin: user.linkedin_url || '',
+        custom: user.custom_url || ''
       };
       if (body.name != null) {
         const name = String(body.name || '').trim().replace(/\s+/g, ' ');
@@ -1420,6 +1423,18 @@ async function handleApi(req, res, url) {
         if (parsed.error) return sendJson(res, 400, { error: 'That does not look like a LinkedIn link.' });
         next.linkedin = parsed.value;
       }
+      /* The "any other link" field — parity with the worker. Same contract as
+         the two platform links, but no bare-handle completion: a custom link
+         has no platform to complete to, so it must already be an http(s) URL.
+         The scheme check is what stops a stray paste smuggling javascript: or
+         data: into the button's href. */
+      if (body.custom != null) {
+        const v = String(body.custom || '').trim().slice(0, 300);
+        if (v && !/^https?:\/\/[^\s]+$/i.test(v)) {
+          return sendJson(res, 400, { error: 'That does not look like a link. Start it with https://' });
+        }
+        next.custom = v;
+      }
       /* The display title, accepted as `title` or `roleCustom`. Validated by
          parseRoleTitle, which maps NOTHING: a title is wording and can never
          decide power. An explicitly empty value clears it rather than
@@ -1440,6 +1455,7 @@ async function handleApi(req, res, url) {
       user.role_custom = next.roleCustom;
       user.instagram_url = next.instagram;
       user.linkedin_url = next.linkedin;
+      user.custom_url = next.custom;
       /* profile_done flips on any successful save: it hides the one-time
          "update your role and info" nudge and appears in no gate. */
       user.profile_done = 1;

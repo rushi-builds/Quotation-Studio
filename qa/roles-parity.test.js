@@ -515,14 +515,15 @@ try {
        migration 006 (contact + nudge)    platform/migrations/006-profile-info*
        this guard and the feature's tests qa/**
        the stale callback documentation   docs/**
-     platform/migrations is limited to 005 (round 1), 006 (contact) and 007
-     (member links + kudos); the elevation column of round 1 must not be
+     platform/migrations is limited to 005 (round 1), 006 (contact), 007
+     (member links + kudos) and 008 (member custom link); the elevation
+     column of round 1 must not be
      rewritten by any of them. */
   const ALLOWED = new RegExp('^(?:' + [
     'platform/cloudflare/src/(?:worker\\.js|oauth\\.mjs|phone\\.mjs)',
     'platform/local-server/server\\.js',
     'platform/schema\\.sql',
-    'platform/migrations/(?:005-is-admin(?:-verify)?|006-profile-info(?:-verify)?|007-member-links-likes(?:-verify)?)\\.sql',
+    'platform/migrations/(?:005-is-admin(?:-verify)?|006-profile-info(?:-verify)?|007-member-links-likes(?:-verify)?|008-member-custom-link(?:-verify)?)\\.sql',
     'platform/cloudflare/public/.+',
     'assets/js/(?:dashboard|dashboard-home|platform-api|cloud-bridge)\\.js',
     'assets/css/dashboard\\.css',
@@ -533,7 +534,7 @@ try {
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
   t('no earlier migration was modified',
-    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-profile-info|007-member-links-likes/.test(f)),
+    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-profile-info|007-member-links-likes|008-member-custom-link/.test(f)),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 } catch (e) {
   t('git diff available to check the frozen list', false, e.message);
@@ -560,13 +561,19 @@ try {
   both('ELEVATION_FORBIDDEN', 'parity: both refuse an elevated row with the uniform refusal');
   both("'auth' && parts[1] === 'profile' && method === 'POST'",
     'parity: both expose the profile save route');
+  both("custom: u.custom_url || ''",
+    'parity: both publish the custom link on the same payload shape');
+  both('That does not look like a link. Start it with https://',
+    'parity: both refuse a custom link that is not an http(s) URL');
+  both('.custom_url = next.custom',
+    'parity: both persist the custom link');
 
   /* The one SQL statement that decides what a self-service profile edit can
      ever write, asserted as a whole string so a future column cannot slip
      into it without failing here first. */
   const profileSql = ((worker.match(/UPDATE users SET name = \?[^\n`]*/) || [''])[0] || '').trim();
-  t('worker: the profile UPDATE is exactly the six display columns',
-    profileSql === 'UPDATE users SET name = ?, phone = ?, role_custom = ?, instagram_url = ?, linkedin_url = ?, profile_done = 1, updated_at = ? WHERE id = ?',
+  t('worker: the profile UPDATE is exactly the seven display columns',
+    profileSql === 'UPDATE users SET name = ?, phone = ?, role_custom = ?, instagram_url = ?, linkedin_url = ?, custom_url = ?, profile_done = 1, updated_at = ? WHERE id = ?',
     profileSql);
   t('worker: the profile UPDATE carries no permission column',
     !/(?:^|,)\s*(?:role|is_admin)\s*=/.test(profileSql), profileSql);

@@ -318,6 +318,7 @@ function publicUser(u, env) {
     phone: u.phone || '',
     instagram: u.instagram_url || '',
     linkedin: u.linkedin_url || '',
+    custom: u.custom_url || '',
     profileDone: Number(u.profile_done || 0) === 1,
     createdAt: u.created_at || null
   };
@@ -365,6 +366,7 @@ function memberPayload(u, env, lastLogin, opts) {
        nothing — it is a count of clicks, never a permission. */
     instagram: u.instagram_url || '',
     linkedin: u.linkedin_url || '',
+    custom: u.custom_url || '',
     likes: Number(o.likes || 0),
     likedByMe: !!o.likedByMe,
     role: u.role,
@@ -1039,7 +1041,14 @@ async function handleApi(request, env, url) {
       }, 403);
     }
     if (parts[0] === 'auth' && parts[1] === 'oauth') {
-      return handleOAuth(request, env, d1OAuthStore(db), {
+      /* The `await` is not decoration: `return somePromise` inside a try block
+         does NOT route that promise's rejection through the catch below. An
+         error thrown anywhere in the OAuth flow would have escaped handleApi,
+         rejected the fetch handler itself, and Cloudflare would answer the
+         browser with a bare 502 carrying no JSON — which is exactly what the
+         dashboard renders as "Request failed (502)". Awaited, the rejection
+         lands in the catch and the client gets JSON with a real status. */
+      return await handleOAuth(request, env, d1OAuthStore(db), {
         user: r => requireUser(r, db, env), token: sessionTokenFrom, rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
         userByToken: token => requireUser(new Request(request.url, {headers:{Authorization:'Bearer '+token}}), db, env),
         canLink: async (user, password, r) => {
@@ -1052,7 +1061,10 @@ async function handleApi(request, env, url) {
       });
     }
     if (parts[0] === 'auth' && parts[1] === 'phone') {
-      return handlePhoneAuth(request, env, d1OAuthStore(db), {
+      /* Same reason as the OAuth call above: without the await a rejection in
+         the phone flow bypasses the catch and reaches Cloudflare as a bare
+         502. */
+      return await handlePhoneAuth(request, env, d1OAuthStore(db), {
         rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
         session: user => createSession(db, user),
         cookie: (token, r) => sessionCookie(token, SESSION_DAYS * 86400, r)
@@ -1206,7 +1218,8 @@ async function handleApi(request, env, url) {
         phone: sessionUser.phone || '',
         roleCustom: sessionUser.role_custom || null,
         instagram: sessionUser.instagram_url || '',
-        linkedin: sessionUser.linkedin_url || ''
+        linkedin: sessionUser.linkedin_url || '',
+        custom: sessionUser.custom_url || ''
       };
       if (body.name != null) {
         const name = String(body.name || '').trim().replace(/\s+/g, ' ');
@@ -1249,6 +1262,19 @@ async function handleApi(request, env, url) {
         if (parsed.error) return json({ error: 'That does not look like a LinkedIn link.' }, 400);
         next.linkedin = parsed.value;
       }
+      /* The "any other link" field. Same contract as the two platform links —
+         display data, team-visible, empty means "not shared" rather than an
+         error — but with NO bare-handle completion, because a custom link has
+         no platform to complete to: it must already be an http(s) URL. The
+         scheme check is what stops a stray paste smuggling javascript: or
+         data: into the button's href. */
+      if (body.custom != null) {
+        const v = String(body.custom || '').trim().slice(0, 300);
+        if (v && !/^https?:\/\/[^\s]+$/i.test(v)) {
+          return json({ error: 'That does not look like a link. Start it with https://' }, 400);
+        }
+        next.custom = v;
+      }
       /* The display title, accepted as `title` or `roleCustom`. Validated by
          parseRoleTitle, which maps NOTHING: a title is wording and can never
          decide power, so typing "owner" or "admin" here changes a label. An
@@ -1270,14 +1296,15 @@ async function handleApi(request, env, url) {
          it appears in no gate and no query that decides permission. */
       await run(
         db,
-        `UPDATE users SET name = ?, phone = ?, role_custom = ?, instagram_url = ?, linkedin_url = ?, profile_done = 1, updated_at = ? WHERE id = ?`,
-        next.name, next.phone, next.roleCustom, next.instagram, next.linkedin, nowISO(), sessionUser.id
+        `UPDATE users SET name = ?, phone = ?, role_custom = ?, instagram_url = ?, linkedin_url = ?, custom_url = ?, profile_done = 1, updated_at = ? WHERE id = ?`,
+        next.name, next.phone, next.roleCustom, next.instagram, next.linkedin, next.custom, nowISO(), sessionUser.id
       );
       sessionUser.name = next.name;
       sessionUser.phone = next.phone;
       sessionUser.role_custom = next.roleCustom;
       sessionUser.instagram_url = next.instagram;
       sessionUser.linkedin_url = next.linkedin;
+      sessionUser.custom_url = next.custom;
       sessionUser.profile_done = 1;
       return json({ user: publicUser(sessionUser, env) });
     }
@@ -2570,7 +2597,16 @@ async function handleApi(request, env, url) {
 
     return json({ error: 'Unknown API route' }, 404);
   } catch (err) {
-    const status = err && err.status ? err.status : 500;
+    /* The status is CLAMPED, and the clamp is the whole point. This catch is
+       the last line of defence: if constructing its own Response were to throw,
+       nothing downstream could recover and the browser would get Cloudflare's
+       bare 502 with no JSON body — the "Request failed (502)" the dashboard
+       shows. A thrown error may carry a `.status` that is not a legal HTTP
+       status at all (a string, a float, an out-of-range value), and
+       `new Response()` rejects every one of those with a RangeError. Anything
+       that is not an integer in 400..599 becomes a 500 instead. */
+    const raw = Number(err && err.status);
+    const status = (Number.isInteger(raw) && raw >= 400 && raw <= 599) ? raw : 500;
     return json({ error: (err && err.message) || 'Server error' }, status);
   }
 }

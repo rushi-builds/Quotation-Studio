@@ -388,6 +388,36 @@ async function main() {
       !!vRow && vRow.likes === 0 && vRow.likedByMe === false,
       JSON.stringify(vRow && { likes: vRow.likes, likedByMe: vRow.likedByMe }));
 
+    /* ---- the "any other link" field ----
+       Same contract as the two platform links (display data, team-visible,
+       never a gate) but a STRICTER paste rule: a custom link has no platform
+       to complete a bare handle to, so anything that is not already an
+       http(s) URL is refused rather than rewritten. That refusal is what
+       keeps a javascript: paste out of the card button's href. */
+    r = await req(PORT, 'POST', '/api/auth/profile', { custom: 'https://rushidhumal.me/work' }, viewerSess.token);
+    t('a custom link is saved and returned on the profile',
+      r.status === 200 && r.json.user.custom === 'https://rushidhumal.me/work',
+      r.status + ' ' + JSON.stringify(r.json && r.json.user && r.json.user.custom));
+    t('saving the custom link moved no permission field',
+      readRow(VIEWER).role === vRoleBefore && readRow(VIEWER).is_admin === vAdminBefore,
+      readRow(VIEWER).role + '/' + readRow(VIEWER).is_admin);
+
+    r = await req(PORT, 'POST', '/api/auth/profile', { custom: 'javascript:alert(1)' }, viewerSess.token);
+    t('a custom link that is not an http(s) URL is REFUSED, never stored',
+      r.status === 400,
+      r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req(PORT, 'GET', '/api/team/members', null, ownerSess.token);
+    const cRow = (r.json.members || []).find((m) => m.email === VIEWER);
+    t('the team list carries the custom link to every member',
+      !!cRow && cRow.custom === 'https://rushidhumal.me/work',
+      JSON.stringify(cRow && { custom: cRow.custom }));
+
+    r = await req(PORT, 'POST', '/api/auth/profile', { custom: '' }, viewerSess.token);
+    t('an empty custom link clears it rather than erroring',
+      r.status === 200 && (r.json.user.custom || '') === '',
+      r.status + ' ' + JSON.stringify(r.json && r.json.user && r.json.user.custom));
+
     /* ---- kudos: one vote per member per member ---- */
     r = await req(PORT, 'POST', '/api/team/members/' + vRow.id + '/like', {}, viewerSess.token);
     t('a member may give kudos to this card',

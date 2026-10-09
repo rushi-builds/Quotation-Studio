@@ -810,10 +810,6 @@
                       autocomplete="tel"
                       maxlength="30"
                     />
-                    <p class="micro muted">
-                      Shared with the team in the contact column. Leave it
-                      empty if you would rather not publish it.
-                    </p>
                   </div>
                   <div class="field">
                     <label for="profileTitle">Job title</label
@@ -823,10 +819,6 @@
                       placeholder="For example Project lead"
                       maxlength="60"
                     />
-                    <p class="micro muted">
-                      Wording only — it is shown beside your name and never
-                      decides what you can do. The owner sets access.
-                    </p>
                   </div>
                   <div class="field">
                     <label for="profileInstagram">Instagram</label
@@ -836,10 +828,6 @@
                       placeholder="https://instagram.com/yourname or just @yourname"
                       maxlength="300"
                     />
-                    <p class="micro muted">
-                      Shown as a button on your member card, visible to the
-                      team. Leave it empty to show nothing.
-                    </p>
                   </div>
                   <div class="field">
                     <label for="profileLinkedin">LinkedIn</label
@@ -849,10 +837,15 @@
                       placeholder="https://www.linkedin.com/in/yourname"
                       maxlength="300"
                     />
-                    <p class="micro muted">
-                      A link or just your handle — both work. Empty hides the
-                      button.
-                    </p>
+                  </div>
+                  <div class="field">
+                    <label for="profileCustom">Custom link</label
+                    ><input
+                      type="text"
+                      id="profileCustom"
+                      placeholder="https://yourlink.com"
+                      maxlength="300"
+                    />
                   </div>
                   <div class="settings-actions">
                     <button
@@ -1107,12 +1100,12 @@
         <a class="mi-link" id="miLi" hidden target="_blank" rel="noopener noreferrer"
           >LinkedIn</a
         >
-        <button type="button" class="mi-link mi-copy" id="miCopyEmail">
-          Copy email
-        </button>
-        <button type="button" class="mi-link mi-copy" id="miCopyPhone" hidden>
-          Copy number
-        </button>
+        <a class="mi-link" id="miContact" target="_blank" rel="noopener noreferrer"
+          >Contact him directly</a
+        >
+        <a class="mi-link" id="miCustom" hidden target="_blank" rel="noopener noreferrer"
+          >Custom link</a
+        >
       </div>
       <dl class="mi-facts">
         <div><dt>Email</dt><dd id="miEmail">—</dd></div>

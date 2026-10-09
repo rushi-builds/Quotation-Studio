@@ -3253,8 +3253,17 @@ html[data-theme="dark"] .sidebar {
 .nudge-close:hover { color: var(--ink); }
 
 /* ---------- member card, removal warning, generic confirmation ---------- */
+/* FIXED, not relative: a modal dialog belongs to the VIEWPORT, so it stays in
+   the middle of the screen however far the page is scrolled. `position: relative`
+   put it back into the document flow instead, which is why a confirm box opened
+   on the far-down Settings form slid up under the top bar and showed only its
+   buttons. inset:0 + margin:auto centres it in both axes; max-height keeps a
+   tall card like the member card scrollable inside rather than off-screen. */
 .member-dialog {
-  position: relative; max-width: 440px; width: calc(100% - 32px);
+  position: fixed; inset: 0; margin: auto;
+  max-width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
   padding: 22px; border-radius: 16px;
   border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
   box-shadow: 0 24px 60px rgba(0, 0, 0, .22);
