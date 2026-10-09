@@ -24,9 +24,28 @@ CREATE TABLE IF NOT EXISTS users (
   /* 0 until the member has saved their profile once, then 1. Drives the
      one-time "update your role and info" nudge. Changes no permission. */
   profile_done  INTEGER NOT NULL DEFAULT 0,
+  /* Social profile links for the member card. Display data only, team-wide on
+     purpose (a social profile is public anyway): never read at sign-in,
+     never part of a gate. Existing databases gain them via
+     migrations/007-member-links-likes.sql. */
+  instagram_url TEXT NOT NULL DEFAULT '',
+  linkedin_url  TEXT NOT NULL DEFAULT '',
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );
+
+/* The heart on the member card: one row per (liker, target). The composite
+   PRIMARY KEY is what makes it exactly ONE vote per member per member — a
+   second insert for the same pair is rejected by SQLite, so the count cannot
+   be inflated by a double click or a replayed request. Kudos confer NOTHING:
+   they are a count of clicks, read only by the team list. */
+CREATE TABLE IF NOT EXISTS member_likes (
+  liker_id   TEXT NOT NULL,
+  target_id  TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (liker_id, target_id)
+);
+CREATE INDEX IF NOT EXISTS idx_member_likes_target ON member_likes (target_id);
 
 -- One-time password recovery codes (hash only; raw code shown once, never emailed yet)
 CREATE TABLE IF NOT EXISTS password_resets (

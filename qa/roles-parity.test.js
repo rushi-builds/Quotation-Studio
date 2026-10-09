@@ -564,11 +564,21 @@ try {
      ever write, asserted as a whole string so a future column cannot slip
      into it without failing here first. */
   const profileSql = ((worker.match(/UPDATE users SET name = \?[^\n`]*/) || [''])[0] || '').trim();
-  t('worker: the profile UPDATE is exactly the four display columns',
-    profileSql === 'UPDATE users SET name = ?, phone = ?, role_custom = ?, profile_done = 1, updated_at = ? WHERE id = ?',
+  t('worker: the profile UPDATE is exactly the six display columns',
+    profileSql === 'UPDATE users SET name = ?, phone = ?, role_custom = ?, instagram_url = ?, linkedin_url = ?, profile_done = 1, updated_at = ? WHERE id = ?',
     profileSql);
   t('worker: the profile UPDATE carries no permission column',
     !/(?:^|,)\s*(?:role|is_admin)\s*=/.test(profileSql), profileSql);
+  /* The kudos toggle is a click counter and must never look like a write to
+     permission. Asserted on both backends so neither can drift into using it. */
+  t('both: the member kudos toggle route exists in worker and server',
+    /parts\[3\] === 'like'/.test(worker) && /parts\[3\] === 'like'/.test(server),
+    (/parts\[3\] === 'like'/.test(worker) ? 'worker:found' : 'worker:MISSING') + ' ' +
+    (/parts\[3\] === 'like'/.test(server) ? 'server:found' : 'server:MISSING'));
+  t('neither backend grants anything from member_likes',
+    !/(?:role|is_admin|canManageTeam|permissionRole)[^\n]{0,80}member_likes/.test(worker) &&
+    !/(?:role|is_admin|canManageTeam|permissionRole)[^\n]{0,80}member_likes/.test(server),
+    'kudos must stay out of every permission expression');
 
   const profileStart = server.indexOf("'auth' && parts[1] === 'profile' && method === 'POST'");
   const profileEnd = server.indexOf("'health' && method === 'GET'", profileStart);

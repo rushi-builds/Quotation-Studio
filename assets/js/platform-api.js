@@ -277,6 +277,12 @@
     deleteTeamMember(userId) {
       return request('DELETE', '/api/team/members/' + encodeURIComponent(userId));
     },
+    /** Toggle the heart on the member card. One vote per member per member is
+     *  enforced server-side by the unique pair, so the reply is the truth:
+     *  the new count and whether this member is now counted. */
+    toggleMemberLike(userId) {
+      return request('POST', '/api/team/members/' + encodeURIComponent(userId) + '/like', {});
+    },
     socialProviders() { return request('GET', '/api/auth/oauth/providers'); },
     startSocial(provider, link = false, currentPassword = '') { return request('POST', '/api/auth/oauth/' + encodeURIComponent(provider) + '/start', {link, currentPassword}); },
     phoneVerify(idToken) { return request('POST', '/api/auth/phone/verify', {idToken}); },

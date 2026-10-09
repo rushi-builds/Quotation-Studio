@@ -351,6 +351,75 @@ async function main() {
       r.status + ' ' + JSON.stringify((r.json.members || []).map((m) => m.email)));
     t('the other three members are untouched',
       r.json.members.length === 3, r.json.members.length);
+
+    /* ================= member card: links + kudos =================
+       Social links are published by the member THEMSELVES in Settings and
+       read back on the card; kudos are a click counter that decides nothing.
+       Both are team-visible, and neither may move a permission field. */
+    const vRoleBefore = readRow(VIEWER).role;
+    const vAdminBefore = readRow(VIEWER).is_admin;
+
+    r = await req(PORT, 'POST', '/api/auth/profile', { instagram: '@ktm.energy', linkedin: 'rushi-dhumal' }, viewerSess.token);
+    t('profile save stores the links, completing a bare handle to its platform URL',
+      r.status === 200 && r.json.user.instagram === 'https://instagram.com/ktm.energy' &&
+      r.json.user.linkedin === 'https://www.linkedin.com/in/rushi-dhumal',
+      r.status + ' ' + JSON.stringify(r.json));
+    t('saving links moved no permission field',
+      readRow(VIEWER).role === vRoleBefore && readRow(VIEWER).is_admin === vAdminBefore,
+      readRow(VIEWER).role + '/' + readRow(VIEWER).is_admin);
+
+    r = await req(PORT, 'POST', '/api/auth/profile', { instagram: 'javascript:alert(1)' }, viewerSess.token);
+    t('a non-URL is completed to a safe https URL, never executed as a scheme',
+      r.status === 200 && /^https:\/\/instagram\.com\//.test(r.json.user.instagram || '') &&
+      !/^javascript:/i.test(r.json.user.instagram || ''),
+      r.status + ' ' + JSON.stringify(r.json && r.json.user && r.json.user.instagram));
+
+    r = await req(PORT, 'POST', '/api/auth/profile', { instagram: 'https://a b.com' }, viewerSess.token);
+    t('a URL containing a space is refused rather than stored broken',
+      r.status === 400, r.status + ' ' + JSON.stringify(r.json));
+
+    /* Links and kudos reach the whole team: the card is the same for everyone. */
+    r = await req(PORT, 'GET', '/api/team/members', null, ownerSess.token);
+    const vRow = (r.json.members || []).find((m) => m.email === VIEWER);
+    t('the team list carries both links to every member',
+      !!vRow && !!vRow.instagram && !!vRow.linkedin,
+      JSON.stringify(vRow && { instagram: vRow.instagram, linkedin: vRow.linkedin }));
+    t('the team list carries the kudos fields as zero and unmarked',
+      !!vRow && vRow.likes === 0 && vRow.likedByMe === false,
+      JSON.stringify(vRow && { likes: vRow.likes, likedByMe: vRow.likedByMe }));
+
+    /* ---- kudos: one vote per member per member ---- */
+    r = await req(PORT, 'POST', '/api/team/members/' + vRow.id + '/like', {}, viewerSess.token);
+    t('a member may give kudos to this card',
+      r.status === 200 && r.json.likes === 1 && r.json.likedByMe === true,
+      r.status + ' ' + JSON.stringify(r.json));
+    r = await req(PORT, 'POST', '/api/team/members/' + vRow.id + '/like', {}, viewerSess.token);
+    t('the same press again takes the count back to zero (toggle)',
+      r.status === 200 && r.json.likes === 0 && r.json.likedByMe === false,
+      r.status + ' ' + JSON.stringify(r.json));
+    r = await req(PORT, 'POST', '/api/team/members/' + vRow.id + '/like', {}, viewerSess.token);
+    t('and on again, so the count is reproducible',
+      r.json.likes === 1 && r.json.likedByMe === true, JSON.stringify(r.json));
+
+    r = await req(PORT, 'POST', '/api/team/members/' + vRow.id + '/like', {}, adminSess.token);
+    t('a second member adds exactly one, never two',
+      r.status === 200 && r.json.likes === 2, JSON.stringify(r.json));
+    r = await req(PORT, 'POST', '/api/team/members/' + vRow.id + '/like', {}, adminSess.token);
+    t('and its own press back takes only its own vote away',
+      r.json.likes === 1 && r.json.likedByMe === false, JSON.stringify(r.json));
+
+    r = await req(PORT, 'GET', '/api/team/members', null, viewerSess.token);
+    const vSelf = (r.json.members || []).find((m) => m.email === VIEWER);
+    t('the caller sees its own vote marked and the shared count',
+      !!vSelf && vSelf.likedByMe === true && vSelf.likes === 1,
+      JSON.stringify(vSelf && { likes: vSelf.likes, likedByMe: vSelf.likedByMe }));
+    t('kudos left every permission field exactly where it was',
+      readRow(VIEWER).role === vRoleBefore && readRow(VIEWER).is_admin === vAdminBefore,
+      readRow(VIEWER).role + '/' + readRow(VIEWER).is_admin);
+
+    r = await req(PORT, 'POST', '/api/team/members/no-such-id/like', {}, ownerSess.token);
+    t('kudos on an unknown account is a 404, not a silent success',
+      r.status === 404, r.status + ' ' + JSON.stringify(r.json));
   } finally {
     srv.child.kill();
     fs.rmSync(DATA, { recursive: true, force: true });

@@ -3275,6 +3275,50 @@ html[data-theme="dark"] .sidebar {
   background: color-mix(in srgb, var(--blue) 14%, transparent); color: var(--blue);
 }
 .mi-head h2 { margin: 0; }
+/* The card head reads left to right: avatar, identity, then the kudos pushed
+   into the far corner. `.mi-id` takes the slack so the heart never crowds a
+   long name, and the name itself ellipses instead of wrapping. */
+.mi-id { flex: 1; min-width: 0; }
+.mi-head h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi-status { display: flex; align-items: center; gap: 6px; margin: 5px 0 0; }
+.status-dot {
+  flex: none; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--muted, #9aa3ad); opacity: .6;
+}
+.status-dot.is-live {
+  background: #2fbf71; opacity: 1;
+  box-shadow: 0 0 0 3px rgba(47, 191, 113, .18);
+}
+/* Kudos: a blank heart that fills red once THIS member has voted, with the
+   count beside it. The count belongs to everyone; only the fill is personal. */
+.mi-kudos { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.heart-btn {
+  padding: 4px 6px; line-height: 1; border: 0; border-radius: 10px;
+  background: none; cursor: pointer; color: var(--muted, #9aa3ad);
+  transition: transform .12s ease, color .12s ease;
+}
+.heart-btn:hover { color: var(--red, #e5484d); transform: scale(1.1); }
+.heart-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.heart-glyph { font-size: 22px; line-height: 1; }
+.heart-btn.is-liked { color: var(--red, #e5484d); }
+/* The outline heart is swapped for the solid one rather than recoloured, so
+   "mine" reads at a glance even at this size. font-size:0 hides the outline
+   glyph; the ::after sets its own size. */
+.heart-btn.is-liked .heart-glyph { font-size: 0; }
+.heart-btn.is-liked .heart-glyph::after { content: "\2665"; font-size: 22px; }
+.mi-like-count { font-size: 13px; font-weight: 700; color: var(--ink); min-width: 1ch; }
+/* Reach-out row: one pill per action, every one of them team-visible. Anchors
+   and buttons are styled together so the card reads as a single line of
+   options, and anything a member has not shared is simply not rendered. */
+.mi-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.mi-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border: 1px solid var(--line); border-radius: 12px;
+  background: transparent; color: var(--ink); cursor: pointer;
+  font-family: inherit; font-size: 12.5px; text-decoration: none;
+}
+.mi-link:hover { border-color: var(--blue); color: var(--blue); }
+.mi-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .mi-facts { display: grid; gap: 10px; margin: 0; }
 .mi-facts > div {
   display: flex; justify-content: space-between; gap: 16px; align-items: baseline;

@@ -763,6 +763,8 @@ function publicUser(u) {
     /* Contact number and the profile-nudge flag — parity with the worker.
        Self-only by construction: publicUser is the GET /api/auth/me shape. */
     phone: u.phone || '',
+    instagram: u.instagram_url || '',
+    linkedin: u.linkedin_url || '',
     profileDone: Number(u.profile_done || 0) === 1,
     createdAt: u.created_at || null
   };
@@ -803,6 +805,14 @@ function memberPayload(u, lastLogin, opts) {
        drift apart: whoever may see the address may see the number. */
     ...(o.contact ? { email: u.email } : {}),
     ...(o.contact ? { phone: u.phone || '' } : {}),
+    /* Profile links and kudos are TEAM-visible by design: a social profile is
+       public anyway and the point of the card is being able to reach the
+       person. `likedByMe` is the caller's own vote only, and the pair confers
+       nothing — it is a count of clicks, never a permission. */
+    instagram: u.instagram_url || '',
+    linkedin: u.linkedin_url || '',
+    likes: Number(o.likes || 0),
+    likedByMe: !!o.likedByMe,
     role: u.role,
     roleCustom: u.role_custom || null,
     /* Typed title. Elevation never writes it, so this string is identical
@@ -1365,7 +1375,9 @@ async function handleApi(req, res, url) {
       const next = {
         name: user.name,
         phone: user.phone || '',
-        roleCustom: user.role_custom || null
+        roleCustom: user.role_custom || null,
+        instagram: user.instagram_url || '',
+        linkedin: user.linkedin_url || ''
       };
       if (body.name != null) {
         const name = String(body.name || '').trim().replace(/\s+/g, ' ');
@@ -1381,6 +1393,32 @@ async function handleApi(req, res, url) {
           return sendJson(res, 400, { error: 'A phone number may contain digits and the characters + - ( ) only.' });
         }
         next.phone = phone;
+      }
+      /* Social profile links. Display data only — shown as buttons on the
+         member card, team-wide, because a social profile is public anyway and
+         the point is reaching the person. An empty value simply means "not
+         shared", never an error. A bare handle is completed to that platform's
+         own URL; anything else must already be an http(s) URL, so a stray paste
+         cannot smuggle a javascript: or data: scheme into an <a href>. */
+      const socialLink = (kind, raw) => {
+        const v = String(raw || '').trim().slice(0, 300);
+        if (!v) return { value: '' };
+        const base = kind === 'instagram' ? 'https://instagram.com/' : 'https://www.linkedin.com/in/';
+        const url = v.charAt(0) === '@'
+          ? base + v.replace(/^@+/, '')
+          : (/^https?:\/\//i.test(v) ? v : base + v.replace(/^\/+/, ''));
+        if (!/^https?:\/\/[^\s]+$/i.test(url)) return { error: true };
+        return { value: url };
+      };
+      if (body.instagram != null) {
+        const parsed = socialLink('instagram', body.instagram);
+        if (parsed.error) return sendJson(res, 400, { error: 'That does not look like an Instagram link.' });
+        next.instagram = parsed.value;
+      }
+      if (body.linkedin != null) {
+        const parsed = socialLink('linkedin', body.linkedin);
+        if (parsed.error) return sendJson(res, 400, { error: 'That does not look like a LinkedIn link.' });
+        next.linkedin = parsed.value;
       }
       /* The display title, accepted as `title` or `roleCustom`. Validated by
          parseRoleTitle, which maps NOTHING: a title is wording and can never
@@ -1400,6 +1438,8 @@ async function handleApi(req, res, url) {
       user.name = next.name;
       user.phone = next.phone;
       user.role_custom = next.roleCustom;
+      user.instagram_url = next.instagram;
+      user.linkedin_url = next.linkedin;
       /* profile_done flips on any successful save: it hides the one-time
          "update your role and info" nudge and appears in no gate. */
       user.profile_done = 1;
@@ -2451,6 +2491,18 @@ async function handleApi(req, res, url) {
       /* Local single-tenant: list accounts on this server. Company org scoping
          comes later. Last login comes from the sessions list (most recent
          session issued), falling back to account creation. */
+      /* Kudos: one pass over the likes rather than a lookup per row. The
+         array is optional — an older data file simply has no hearts. */
+      const likeRows = db.member_likes || [];
+      const likeCount = new Map();
+      likeRows.forEach((r) => {
+        if (!r || !r.target_id) return;
+        likeCount.set(r.target_id, (likeCount.get(r.target_id) || 0) + 1);
+      });
+      const mineSet = new Set(
+        likeRows.filter((r) => r && r.liker_id === user.id).map((r) => r.target_id)
+      );
+      const kudos = (u) => ({ likes: likeCount.get(u.id) || 0, likedByMe: mineSet.has(u.id) });
       const members = (db.users || []).map((u) => {
         const logins = (db.sessions || [])
           .filter((x) => x.user_id === u.id)
@@ -2460,8 +2512,8 @@ async function handleApi(req, res, url) {
            detail, by contrast, goes to every member — the eye opens the same
            card for everyone — so only the CONTROLS stay behind the gate. */
         return u.id === user.id
-          ? selfMemberPayload(u, login)
-          : memberPayload(u, login, { contact: true });
+          ? selfMemberPayload(u, login, kudos(u))
+          : memberPayload(u, login, Object.assign({ contact: true }, kudos(u)));
       });
       return sendJson(res, 200, {
         members,
@@ -2586,6 +2638,32 @@ async function handleApi(req, res, url) {
        The JSON store has no foreign keys, so the cascade the worker gets from
        ON DELETE CASCADE is performed here by hand, in dependency order:
        proposal children first, then the owner's own rows, then the account. */
+    /* ---- the heart on the member card: ONE vote per member per member ----
+       Anyone signed in may press it — it is a count of clicks and decides
+       nothing — but the unique pair is what makes it exactly one: a row for an
+       already-voted pair is never appended twice, so a double click or a
+       replayed request cannot inflate the counter. The route is a TOGGLE, so
+       the front end sends the same POST either way and the reply says which
+       state it landed in. */
+    if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts[3] === 'like' && method === 'POST') {
+      const targetId = String(parts[2]);
+      const target = (db.users || []).find((u) => u.id === targetId);
+      if (!target) return sendJson(res, 404, { error: 'User not found' });
+      db.member_likes = db.member_likes || [];
+      const at = db.member_likes.findIndex((r) => r && r.liker_id === user.id && r.target_id === targetId);
+      let liked;
+      if (at >= 0) {
+        db.member_likes.splice(at, 1);
+        liked = false;
+      } else {
+        db.member_likes.push({ liker_id: user.id, target_id: targetId, created_at: nowISO() });
+        liked = true;
+      }
+      saveDb(db);
+      const count = db.member_likes.filter((r) => r && r.target_id === targetId).length;
+      return sendJson(res, 200, { ok: true, likes: count, likedByMe: liked });
+    }
+
     if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts.length === 3 && method === 'DELETE') {
       if (!canAdmin) return sendJson(res, 403, { error: 'Only the workspace owner can remove members.' });
       const target = (db.users || []).find((u) => u.id === String(parts[2]));
@@ -2627,6 +2705,11 @@ async function handleApi(req, res, url) {
       db.gallery = (db.gallery || []).filter((g) => !(g && g.created_by === target.id));
       db.sessions = (db.sessions || []).filter((s) => !(s && s.user_id === target.id));
       db.password_resets = (db.password_resets || []).filter((r) => !(r && r.user_id === target.id));
+      /* Kudos rows point both ways — the ones this member gave and the ones it
+         received — and only the team list reads them, so they go with the
+         account instead of surviving as a count of a ghost. */
+      db.member_likes = (db.member_likes || [])
+        .filter((r) => !(r && (r.liker_id === target.id || r.target_id === target.id)));
       db.users = (db.users || []).filter((u) => u.id !== target.id);
       saveDb(db);
       return sendJson(res, 200, {

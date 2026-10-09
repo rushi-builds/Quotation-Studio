@@ -307,14 +307,17 @@ function publicUser(u, env) {
        never reaches anyone else, and no name-plate reads it. */
     isAdmin: elevated,
     /* `elevated` is the STORED is_admin flag — the user's own secret toggle
-       (typing "admin"). It drives the small red dot beside their own role and
-       is distinct from isAdmin, which also covers the ADMIN_EMAIL designation.
-       Self-only: publicUser is the /me shape. */
+       (typing "admin"). It drives the small red dot beside their own role.
+       Both fields read the STORED flag; the ADMIN_EMAIL address decides only
+       WHO may type that word, never who holds rank. Self-only: publicUser is
+       the /me shape. */
     elevated: isAdminRow(u),
     canElevate: canElevate(u, env),
-    /* Contact number and the profile-nudge flag. Self-only by construction —
+    /* Contact number and the profile-nudge flag. Self-only by construction:
        publicUser is what GET /api/auth/me returns about the actor. */
     phone: u.phone || '',
+    instagram: u.instagram_url || '',
+    linkedin: u.linkedin_url || '',
     profileDone: Number(u.profile_done || 0) === 1,
     createdAt: u.created_at || null
   };
@@ -356,6 +359,14 @@ function memberPayload(u, env, lastLogin, opts) {
        drift apart: whoever may see the address may see the number. */
     ...(o.contact ? { email: u.email } : {}),
     ...(o.contact ? { phone: u.phone || '' } : {}),
+    /* Profile links and kudos are TEAM-visible by design: a social profile is
+       public anyway and the point of the card is being able to reach the
+       person. `likedByMe` is the caller's own vote only, and the pair confers
+       nothing — it is a count of clicks, never a permission. */
+    instagram: u.instagram_url || '',
+    linkedin: u.linkedin_url || '',
+    likes: Number(o.likes || 0),
+    likedByMe: !!o.likedByMe,
     role: u.role,
     roleCustom: u.role_custom || null,
     /* Typed title. Elevation leaves it alone, so this string is identical
@@ -1193,7 +1204,9 @@ async function handleApi(request, env, url) {
       const next = {
         name: sessionUser.name,
         phone: sessionUser.phone || '',
-        roleCustom: sessionUser.role_custom || null
+        roleCustom: sessionUser.role_custom || null,
+        instagram: sessionUser.instagram_url || '',
+        linkedin: sessionUser.linkedin_url || ''
       };
       if (body.name != null) {
         const name = String(body.name || '').trim().replace(/\s+/g, ' ');
@@ -1209,6 +1222,32 @@ async function handleApi(request, env, url) {
           return json({ error: 'A phone number may contain digits and the characters + - ( ) only.' }, 400);
         }
         next.phone = phone;
+      }
+      /* Social profile links. Display data only — shown as buttons on the
+         member card, team-wide, because a social profile is public anyway and
+         the point is reaching the person. An empty value simply means "not
+         shared", never an error. A bare handle is completed to that platform's
+         own URL; anything else must already be an http(s) URL, so a stray paste
+         cannot smuggle a javascript: or data: scheme into an <a href>. */
+      const socialLink = (kind, raw) => {
+        const v = String(raw || '').trim().slice(0, 300);
+        if (!v) return { value: '' };
+        const base = kind === 'instagram' ? 'https://instagram.com/' : 'https://www.linkedin.com/in/';
+        const url = v.charAt(0) === '@'
+          ? base + v.replace(/^@+/, '')
+          : (/^https?:\/\//i.test(v) ? v : base + v.replace(/^\/+/, ''));
+        if (!/^https?:\/\/[^\s]+$/i.test(url)) return { error: true };
+        return { value: url };
+      };
+      if (body.instagram != null) {
+        const parsed = socialLink('instagram', body.instagram);
+        if (parsed.error) return json({ error: 'That does not look like an Instagram link.' }, 400);
+        next.instagram = parsed.value;
+      }
+      if (body.linkedin != null) {
+        const parsed = socialLink('linkedin', body.linkedin);
+        if (parsed.error) return json({ error: 'That does not look like a LinkedIn link.' }, 400);
+        next.linkedin = parsed.value;
       }
       /* The display title, accepted as `title` or `roleCustom`. Validated by
          parseRoleTitle, which maps NOTHING: a title is wording and can never
@@ -1231,12 +1270,14 @@ async function handleApi(request, env, url) {
          it appears in no gate and no query that decides permission. */
       await run(
         db,
-        `UPDATE users SET name = ?, phone = ?, role_custom = ?, profile_done = 1, updated_at = ? WHERE id = ?`,
-        next.name, next.phone, next.roleCustom, nowISO(), sessionUser.id
+        `UPDATE users SET name = ?, phone = ?, role_custom = ?, instagram_url = ?, linkedin_url = ?, profile_done = 1, updated_at = ? WHERE id = ?`,
+        next.name, next.phone, next.roleCustom, next.instagram, next.linkedin, nowISO(), sessionUser.id
       );
       sessionUser.name = next.name;
       sessionUser.phone = next.phone;
       sessionUser.role_custom = next.roleCustom;
+      sessionUser.instagram_url = next.instagram;
+      sessionUser.linkedin_url = next.linkedin;
       sessionUser.profile_done = 1;
       return json({ user: publicUser(sessionUser, env) });
     }
@@ -2274,11 +2315,26 @@ async function handleApi(request, env, url) {
         `SELECT u.*, (SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id = u.id) AS last_login
          FROM users u ORDER BY u.created_at ASC`
       );
+      /* Kudos: one aggregate for the panel and one set for the caller, rather
+         than a query per row. Both are wrapped because 007 may not have been
+         applied yet — the panel must still open, with empty hearts. */
+      let likeCount = new Map();
+      let mine = new Set();
+      try {
+        const likeRows = await all(db, 'SELECT target_id, COUNT(*) AS n FROM member_likes GROUP BY target_id');
+        likeCount = new Map(likeRows.map((r) => [r.target_id, Number(r.n) || 0]));
+        const mineRows = await all(db, 'SELECT target_id FROM member_likes WHERE liker_id = ?', user.id);
+        mine = new Set(mineRows.map((r) => r.target_id));
+      } catch (e) {
+        likeCount = new Map();
+        mine = new Set();
+      }
+      const kudos = (u) => ({ likes: likeCount.get(u.id) || 0, likedByMe: mine.has(u.id) });
       return json({
         /* S2: only the actor's own row carries an elevation field. */
         members: members.map((u) => (u.id === user.id
-          ? selfMemberPayload(u, env, u.last_login)
-          : memberPayload(u, env, u.last_login, { contact: true }))),
+          ? selfMemberPayload(u, env, u.last_login, kudos(u))
+          : memberPayload(u, env, u.last_login, Object.assign({ contact: true }, kudos(u))))),
         canManageTeam: canAdmin,
         roles: [
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
@@ -2437,6 +2493,38 @@ async function handleApi(request, env, url) {
 
        This is irreversible from the product, so the counts are returned and
        the confirmation dialog reads them out loud BEFORE the request is sent. */
+    /* ---- the heart on the member card: ONE vote per member per member ----
+       Anyone signed in may press it — it is a count of clicks and decides
+       nothing — but the composite PRIMARY KEY is what makes it exactly one:
+       an insert for an already-voted pair is refused by SQLite, so a double
+       click or a replayed request cannot inflate the counter. The route is a
+       TOGGLE, so the front end sends the same POST either way and the reply
+       says which state it landed in. */
+    if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts[3] === 'like' && method === 'POST') {
+      const targetId = String(parts[2]);
+      const target = await one(db, 'SELECT id FROM users WHERE id = ?', targetId);
+      if (!target) return json({ error: 'User not found' }, 404);
+      let liked;
+      try {
+        const existing = await one(
+          db, 'SELECT liker_id FROM member_likes WHERE liker_id = ? AND target_id = ?', user.id, targetId
+        );
+        if (existing) {
+          await run(db, 'DELETE FROM member_likes WHERE liker_id = ? AND target_id = ?', user.id, targetId);
+          liked = false;
+        } else {
+          await run(db, 'INSERT INTO member_likes (liker_id, target_id, created_at) VALUES (?, ?, ?)',
+            user.id, targetId, nowISO());
+          liked = true;
+        }
+      } catch (e) {
+        /* 007 not applied yet: say so plainly rather than pretending it counted. */
+        return json({ error: 'Kudos are not available on this workspace yet.' }, 503);
+      }
+      const c = await one(db, 'SELECT COUNT(*) AS n FROM member_likes WHERE target_id = ?', targetId);
+      return json({ ok: true, likes: Number((c && c.n) || 0), likedByMe: liked });
+    }
+
     if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts.length === 3 && method === 'DELETE') {
       if (!canAdmin) return json({ error: 'Only the workspace owner can remove members.' }, 403);
       const target = await one(db, 'SELECT * FROM users WHERE id = ?', String(parts[2]));
@@ -2466,6 +2554,14 @@ async function handleApi(request, env, url) {
       };
       await ensureAuthThrottle(db);
       await run(db, 'DELETE FROM auth_throttles WHERE scope = ?', 'email:' + normalizeEmail(target.email));
+      /* Kudos rows point both ways — the ones this member gave and the ones it
+         received — and only the team list reads them, so they go with the
+         account instead of surviving as a count of a ghost. */
+      try {
+        await run(db, 'DELETE FROM member_likes WHERE liker_id = ? OR target_id = ?', target.id, target.id);
+      } catch (e) {
+        /* 007 not applied: there is nothing to purge. */
+      }
       await run(db, 'DELETE FROM gallery WHERE created_by = ?', target.id);
       const removed = await run(db, 'DELETE FROM users WHERE id = ?', target.id);
       if (!removed.meta || removed.meta.changes === 0) return json({ error: 'User not found' }, 404);

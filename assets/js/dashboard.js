@@ -193,6 +193,8 @@
     if ($('profileName')) $('profileName').value = user.name || '';
     if ($('profilePhone')) $('profilePhone').value = user.phone || '';
     if ($('profileTitle')) $('profileTitle').value = user.roleCustom || '';
+    if ($('profileInstagram')) $('profileInstagram').value = user.instagram || '';
+    if ($('profileLinkedin')) $('profileLinkedin').value = user.linkedin || '';
     refreshProfileNudge();
     if ($('profileSaveMsg')) $('profileSaveMsg').textContent = '';
     if ($('currPassword')) $('currPassword').value = '';
@@ -645,6 +647,86 @@
     else dlg.removeAttribute('open');
   }
 
+  /* --- member card: reach-out helpers ------------------------------------
+     Everything below reads display data the member published about
+     THEMSELVES in Settings, plus one bit of present-tense state. The card is
+     presentation; the server remains the boundary, so nothing here decides
+     who may see what. */
+
+  /* A stable hue from a string, so the same person is the same colour on every
+     screen and nothing has to be stored or agreed on. */
+  function tintFrom(seed) {
+    let h = 0;
+    const s = String(seed || '?');
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h % 360;
+  }
+  function applyAvatarTint(el, seed) {
+    if (!el) return;
+    const hue = tintFrom(seed);
+    el.style.background = 'hsl(' + hue + ' 62% 88%)';
+    el.style.color = 'hsl(' + hue + ' 58% 26%)';
+  }
+
+  /* Ten minutes reads as "here now"; before that the honest minute count, and
+     before that the sign-in date. It uses only lastLogin, which the team list
+     already carries, so there is no new endpoint and nothing to keep fresh. */
+  function statusOf(lastLogin) {
+    const t = lastLogin ? new Date(lastLogin).getTime() : 0;
+    if (!t || isNaN(t)) return { live: false, text: 'No sign-in recorded' };
+    const mins = (Date.now() - t) / 60000;
+    if (mins < 10) return { live: true, text: 'Active now' };
+    if (mins < 60) return { live: false, text: 'Last seen ' + Math.max(1, Math.round(mins)) + ' min ago' };
+    return { live: false, text: 'Last sign-in ' + fmtDate(lastLogin) };
+  }
+
+  /* wa.me wants the international number with no + and no spaces. A bare
+     10-digit number is read as this workspace's own country code; a number
+     that already carries one is left exactly as the member typed it. */
+  function waHref(phone) {
+    const digits = String(phone || '').replace(/[^0-9]/g, '');
+    if (digits.length < 10) return '';
+    return 'https://wa.me/' + (digits.length === 10 ? '91' + digits : digits);
+  }
+
+  function paintLike(m) {
+    const b = $('miLike');
+    if (b) {
+      const on = !!(m && m.likedByMe);
+      b.classList.toggle('is-liked', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.title = on ? 'Remove your kudos' : 'Give kudos';
+    }
+    const c = $('miLikeCount');
+    if (c) c.textContent = String((m && Number(m.likes)) || 0);
+  }
+
+  /* One vote per member per member is enforced by the server's unique pair;
+     this only paints whatever answer comes back, so a double click simply
+     flips twice and lands where the server says it should. */
+  async function toggleLike() {
+    const m = memberInFocus;
+    if (!m) return;
+    try {
+      const out = await api.toggleMemberLike(m.id);
+      m.likes = Number(out && out.likes) || 0;
+      m.likedByMe = !!(out && out.likedByMe);
+      paintLike(m);
+    } catch (err) {
+      toast(err.message || 'Could not save that');
+    }
+  }
+
+  async function copyText(text, label) {
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('no clipboard');
+      await navigator.clipboard.writeText(text);
+      toast(label + ' copied');
+    } catch (e) {
+      toast('Could not copy ' + String(label).toLowerCase());
+    }
+  }
+
   function openMemberInfo(memberId) {
     const m = memberById(memberId);
     const dlg = $('memberInfo');
@@ -654,6 +736,14 @@
        stored role like every other surface does. */
     const pwr = storedPowerWord(m);
     const set = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+    /* A link the member has not published is removed rather than greyed out:
+       there is nothing to click, and a dead pill is worse than no pill. */
+    const setLink = (id, href) => {
+      const el = $(id);
+      if (!el) return;
+      if (href) { el.href = href; el.hidden = false; }
+      else { el.removeAttribute('href'); el.hidden = true; }
+    };
     set('miAvatar', (String(m.name || '?').trim().charAt(0) || '?').toUpperCase());
     set('miName', m.name || '—');
     set('miSubtitle', powerLabel(pwr));
@@ -666,6 +756,19 @@
     set('miFirst', m.createdAt ? fmtDate(m.createdAt) : '—');
     set('miLast', m.lastLogin ? fmtDate(m.lastLogin) : '—');
     set('miNote', '');
+    /* Reach-out row and present state. The links are what this member chose to
+       publish about themselves in Settings, so showing them to the team is not
+       an unhide; the copy buttons and the WhatsApp pill work off the contact
+       detail the row already carries. */
+    applyAvatarTint($('miAvatar'), m.email || m.name);
+    const st = statusOf(m.lastLogin);
+    if ($('miStatus')) $('miStatus').textContent = st.text;
+    if ($('miStatusDot')) $('miStatusDot').classList.toggle('is-live', st.live);
+    setLink('miWa', waHref(m.phone));
+    setLink('miIg', m.instagram);
+    setLink('miLi', m.linkedin);
+    if ($('miCopyPhone')) $('miCopyPhone').hidden = !m.phone;
+    paintLike(m);
     const manage = $('miManage');
     if (manage) manage.hidden = !teamCanManage;
     if (typeof dlg.showModal === 'function') dlg.showModal();
@@ -1613,6 +1716,8 @@
         const name = ($('profileName') && $('profileName').value || '').trim();
         const phone = ($('profilePhone') && $('profilePhone').value || '').trim();
         const title = ($('profileTitle') && $('profileTitle').value || '').trim();
+        const instagram = (($('profileInstagram') && $('profileInstagram').value) || '').trim();
+        const linkedin = (($('profileLinkedin') && $('profileLinkedin').value) || '').trim();
         const msg = $('profileSaveMsg');
         if (msg) msg.textContent = '';
         if (!name) {
@@ -1624,13 +1729,13 @@
            display details only — the job title never decides access. */
         const ok = await confirmDialog({
           title: 'Save your profile?',
-          body: 'Your display name, contact number and job title will be updated across the workspace. Your access does not change.',
+          body: 'Your display name, contact number, job title and social links will be updated across the workspace. Your access does not change.',
           confirm: 'Save changes'
         });
         if (!ok) return;
         $('btnSaveProfile').disabled = true;
         try {
-          const r = await api.updateProfile({ name, phone, title });
+          const r = await api.updateProfile({ name, phone, title, instagram, linkedin });
           user = r.user;
           showApp();
           await renderHome();
@@ -1650,6 +1755,15 @@
        re-render of the table can never stack a second listener. */
     if ($('memberInfoClose')) $('memberInfoClose').addEventListener('click', () => closeDialog('memberInfo'));
     if ($('miDelete')) $('miDelete').addEventListener('click', askRemoveMember);
+    /* The heart and the copy pills live in the card, which is rebuilt only as
+       HTML — so these are bound once, here, and read memberInFocus on click. */
+    if ($('miLike')) $('miLike').addEventListener('click', toggleLike);
+    if ($('miCopyEmail')) $('miCopyEmail').addEventListener('click', () => {
+      if (memberInFocus) copyText(memberInFocus.email || '', 'Email');
+    });
+    if ($('miCopyPhone')) $('miCopyPhone').addEventListener('click', () => {
+      if (memberInFocus) copyText(memberInFocus.phone || '', 'Number');
+    });
     if ($('dcCancel')) $('dcCancel').addEventListener('click', () => closeDialog('deleteConfirm'));
     if ($('dcConfirm')) $('dcConfirm').addEventListener('click', confirmRemoveMember);
     if ($('btnNudgeClose')) {

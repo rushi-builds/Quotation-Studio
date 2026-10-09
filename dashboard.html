@@ -828,6 +828,32 @@
                       decides what you can do. The owner sets access.
                     </p>
                   </div>
+                  <div class="field">
+                    <label for="profileInstagram">Instagram</label
+                    ><input
+                      type="text"
+                      id="profileInstagram"
+                      placeholder="https://instagram.com/yourname or just @yourname"
+                      maxlength="300"
+                    />
+                    <p class="micro muted">
+                      Shown as a button on your member card, visible to the
+                      team. Leave it empty to show nothing.
+                    </p>
+                  </div>
+                  <div class="field">
+                    <label for="profileLinkedin">LinkedIn</label
+                    ><input
+                      type="text"
+                      id="profileLinkedin"
+                      placeholder="https://www.linkedin.com/in/yourname"
+                      maxlength="300"
+                    />
+                    <p class="micro muted">
+                      A link or just your handle — both work. Empty hides the
+                      button.
+                    </p>
+                  </div>
                   <div class="settings-actions">
                     <button
                       type="button"
@@ -1052,7 +1078,41 @@
         <div>
           <h2 id="miName">—</h2>
           <p id="miSubtitle" class="micro muted"></p>
+          <p class="mi-status">
+            <span class="status-dot" id="miStatusDot" aria-hidden="true"></span
+            ><span id="miStatus" class="micro muted"></span>
+          </p>
         </div>
+        <div class="mi-kudos">
+          <button
+            type="button"
+            id="miLike"
+            class="heart-btn"
+            aria-pressed="false"
+            title="Give kudos"
+            aria-label="Give kudos"
+          >
+            <span class="heart-glyph" aria-hidden="true">&#9825;</span>
+          </button>
+          <span id="miLikeCount" class="mi-like-count">0</span>
+        </div>
+      </div>
+      <div class="mi-links">
+        <a class="mi-link" id="miWa" hidden target="_blank" rel="noopener noreferrer"
+          >WhatsApp</a
+        >
+        <a class="mi-link" id="miIg" hidden target="_blank" rel="noopener noreferrer"
+          >Instagram</a
+        >
+        <a class="mi-link" id="miLi" hidden target="_blank" rel="noopener noreferrer"
+          >LinkedIn</a
+        >
+        <button type="button" class="mi-link mi-copy" id="miCopyEmail">
+          Copy email
+        </button>
+        <button type="button" class="mi-link mi-copy" id="miCopyPhone" hidden>
+          Copy number
+        </button>
       </div>
       <dl class="mi-facts">
         <div><dt>Email</dt><dd id="miEmail">—</dd></div>
