@@ -683,6 +683,21 @@ try {
   t('ui: the old rules paragraph is gone from both the page and the script',
     !/Removing a member is owner and admin only/.test(dash + html) &&
     !/Under Edit it reads/.test(dash + html));
+
+  /* The EDIT dropdown selects on the POWER KEY. Since a title now survives a
+     role change, a Sales row can carry role_custom — and that must never
+     re-label it: the bug this guards is a badge reading "Sales" while the
+     dropdown read "Custom title" and the typed-title box sat open underneath. */
+  t('ui: the EDIT dropdown selects on the power key, never on whether a title exists',
+    /const isCustom = m\.role === 'custom';/.test(dash) &&
+    !/m\.role === 'custom' \|\| !!m\.roleCustom/.test(dash));
+  t('ui: the typed-title box therefore opens for owner and custom only',
+    /const titleable = isCustom \|\| m\.role === 'owner';/.test(dash));
+  t('ui: the last option reads as an instruction, not a stored value',
+    />Custom — type here<\/option>/.test(dash) && !/>Custom title<\/option>/.test(dash));
+  t('ui: the own-role pencil follows the power key too',
+    /if \(user\.role === 'custom'\)/.test(dash) &&
+    !/user\.roleCustom && user\.role !== 'owner'/.test(dash));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

@@ -522,18 +522,20 @@
     title.setAttribute('aria-label', 'Display title');
 
     /* Power keys, in order — Custom sits LAST because picking it is what opens
-       the typed-title box. A stored custom title is offered too so it stays
-       selected instead of silently becoming one of the three built-ins. */
+       the typed-title box. It is offered as an INSTRUCTION, not as a stored
+       value: the wording lives in the box underneath, and a Sales or Engineer
+       row never grows a custom entry just because a title survived a role
+       change. */
     ['owner', 'sales', 'viewer'].forEach((r) => {
       const o = document.createElement('option');
       o.value = r; o.textContent = roleLabel(r);
       if (user.role === r) o.selected = true;
       sel.append(o);
     });
-    if (user.role === 'custom' || (user.roleCustom && user.role !== 'owner')) {
+    if (user.role === 'custom') {
       const c = document.createElement('option');
       c.value = 'custom';
-      c.textContent = user.roleCustom || user.roleLabel || 'Custom title';
+      c.textContent = 'Custom — type here';
       c.selected = true;
       sel.append(c);
     }
@@ -735,11 +737,12 @@
       if ($('teamAccessPill')) $('teamAccessPill').textContent = manage ? 'Owner access' : 'Read-only';
       body.innerHTML = members.map((m) => {
         const pwr = storedPowerWord(m);
-        const isCustom = m.role === 'custom' || !!m.roleCustom;
-        /* A typed title exists only where it means something: a row saved as
-           owner carries the wording shown under the name, and a custom role is
-           nothing without the words typed for it. A Sales or Engineer row
-           renders no typed-title box at all. */
+        /* Selection follows the POWER KEY alone. A Sales or Engineer row may
+           legitimately carry a preserved title now (role_custom rides along a
+           role change), and that must not re-label the row as a custom role:
+           the wording lives on the member card, not in this dropdown. The
+           typed-title box therefore appears only for owner and custom. */
+        const isCustom = m.role === 'custom';
         const titleable = isCustom || m.role === 'owner';
         const titleId = 'teamTitle_' + m.id;
         /* Contact detail goes to EVERY member now: the eye opens the full card
@@ -766,8 +769,10 @@
         let opts = ['owner', 'sales', 'viewer'].map((role) => (
           '<option value="' + role + '"' + (!isCustom && m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
         )).join('');
-        /* Custom sits LAST: pick it and the typed-title box appears. */
-        opts += '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom title</option>';
+        /* Custom sits LAST, and its label is an INSTRUCTION rather than a
+           stored value: pick it and the box below is where you type. The
+           wording itself never lives in the dropdown. */
+        opts += '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom — type here</option>';
         /* Never an "Admin" entry here: elevation is self-service and lives in
            the own-role pencil, so no owner can raise or lower anyone else. */
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
