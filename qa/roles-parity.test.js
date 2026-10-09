@@ -678,6 +678,32 @@ try {
     !/if \(!manage\) return/.test(noComments(teamFn)) &&
     /body\.querySelectorAll\('\.team-info-btn'\)\.forEach/.test(noComments(teamFn)));
 
+  /* Sign-in times answer "when was this person last active", which is an
+     owner/admin question. The status line and both sign-in rows are removed
+     from the card — hidden, not greyed — for anyone the server does not
+     report as managing the team. The gate reads teamCanManage, which starts
+     false and is only set once the team list returns, so it fails closed. */
+  const cardFn = fn(dash, 'openMemberInfo', ['askRemoveMember']);
+  t('ui: the card exposes its status line and both sign-in dates as rows',
+    ['id="miStatusRow"', 'id="miFirstRow"', 'id="miLastRow"'].every((s) => html.includes(s)));
+  t('ui: sign-in times render only for whoever the server says manages the team',
+    /seeSignIn = !!teamCanManage/.test(noComments(cardFn)) &&
+    /\['miStatusRow', 'miFirstRow', 'miLastRow'\]/.test(noComments(cardFn)));
+  t('ui: the gate removes those rows outright rather than styling them away',
+    /el\.hidden = !seeSignIn/.test(noComments(cardFn)));
+
+  /* The card's facts read as chips and the three platform marks keep their
+     brand colour, because at 16px a recognisable colour IS the label. The two
+     utility glyphs are not brands and must stay on the theme colour. */
+  t('css: the card facts are tinted 12px chips, not loose label/value pairs',
+    /\.mi-facts > div \{[^}]*border-radius: 12px/.test(css));
+  t('css: the platform marks carry brand colour while the utilities do not',
+    /\.mi-link--wa \{ color: #25d366/.test(css) &&
+    /\.mi-link--li \{ color: #0a66c2/.test(css) &&
+    /linearGradient id="miIgGrad"/.test(html) &&
+    /class="mi-link" id="miContact"/.test(html) &&
+    /class="mi-link" id="miCustom"/.test(html));
+
   /* Title preserve: a role change edits ACCESS, never the wording. The title
      rides beside the power key in BOTH backends, and the client sends it for
      every role instead of blanking it. */

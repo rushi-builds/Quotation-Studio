@@ -1910,6 +1910,41 @@ dialog::backdrop {
 .settings-section {
   padding: 28px;
 }
+/* The profile form is six inputs. Stacked they read as a tower, so this one
+   section is laid out as two columns with the header, the buttons, the status
+   line and the details spanning both: same fields, same order, roughly half
+   the height. Falls back to a single column when the viewport cannot hold
+   two. Nothing is hidden, shrunk or moved — the grid only stops the form
+   from being six separate full-width bands. */
+.settings-section[data-settings-section="profile"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 14px;
+  align-content: start;
+  padding: 20px;
+}
+/* Two columns only when the PANEL can afford them, which on this layout means
+   a viewport of 1150px or more (the left nav and the section tabs together
+   take roughly 565px). Below that the form stays in one column so an input
+   never drops under ~400px and a pasted URL does not become a scrollbar. */
+@media (min-width: 1150px) {
+  .settings-section[data-settings-section="profile"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.settings-section[data-settings-section="profile"] > .settings-profile,
+.settings-section[data-settings-section="profile"] > .settings-actions,
+.settings-section[data-settings-section="profile"] > p,
+.settings-section[data-settings-section="profile"] > details {
+  grid-column: 1 / -1;
+}
+.settings-section[data-settings-section="profile"] > .settings-profile {
+  padding-bottom: 16px;
+  margin-bottom: 0;
+}
+.settings-section[data-settings-section="profile"] .field { margin-bottom: 0; }
+.settings-section[data-settings-section="profile"] .field label { margin-bottom: 6px; }
 .settings-profile {
   display: flex;
   align-items: center;
@@ -3320,23 +3355,53 @@ html[data-theme="dark"] .sidebar {
    and buttons are styled together so the card reads as a single line of
    options, and anything a member has not shared is simply not rendered. */
 .mi-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+/* Icon-only, no word on the pill: the glyph is the label, and the name rides
+   title/aria-label so hover and screen readers still get it. Fixed 34px box
+   so a row of five is an even strip rather than five different widths. */
 .mi-link {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 11px; border: 1px solid var(--line); border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; line-height: 0;
+  border: 1px solid var(--line); border-radius: 12px;
   background: transparent; color: var(--ink); cursor: pointer;
-  font-family: inherit; font-size: 12.5px; text-decoration: none;
+  text-decoration: none;
 }
-.mi-link:hover { border-color: var(--blue); color: var(--blue); }
+.mi-link svg { width: 16px; height: 16px; flex: none; }
+.mi-link:hover {
+  border-color: var(--blue); color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 8%, transparent);
+}
 .mi-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-.mi-facts { display: grid; gap: 10px; margin: 0; }
+/* The three platform marks keep their own brand colour, because that is what
+   makes them identifiable at 16px, and the border and tint follow it on
+   hover. The two utility glyphs are not brands, so they stay on the theme
+   colour and shift with every other control. */
+.mi-link--wa { color: #25d366; }
+.mi-link--ig { color: #d62976; }
+.mi-link--li { color: #0a66c2; }
+.mi-link--wa:hover { border-color: #25d366; background: color-mix(in srgb, #25d366 14%, transparent); }
+.mi-link--ig:hover { border-color: #d62976; background: color-mix(in srgb, #d62976 14%, transparent); }
+.mi-link--li:hover { border-color: #0a66c2; background: color-mix(in srgb, #0a66c2 14%, transparent); }
+/* Facts read as chips rather than loose label/value pairs: one tinted row per
+   field with the 12px corners this screen uses for every small box, the label
+   left in small caps and the value right in ink. The tint is mixed from
+   --muted so it stays a chip in the light theme and in the dark one. The two
+   sign-in rows are removed by the gate in openMemberInfo, not styled away
+   here. */
+.mi-facts { display: grid; gap: 6px; margin: 0; }
 .mi-facts > div {
   display: flex; justify-content: space-between; gap: 16px; align-items: baseline;
+  padding: 9px 12px;
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
+  border-radius: 12px;
 }
 .mi-facts dt {
-  flex: none; color: var(--muted); font-size: 11px;
+  flex: none; color: var(--muted); font-size: 10.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .07em;
 }
-.mi-facts dd { margin: 0; font-size: 13.5px; text-align: right; word-break: break-word; }
+.mi-facts dd {
+  margin: 0; font-size: 13px; font-weight: 600; color: var(--ink);
+  text-align: right; word-break: break-word;
+}
 #miManage {
   margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line);
 }
