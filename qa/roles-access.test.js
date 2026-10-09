@@ -179,7 +179,9 @@ async function main() {
     t('C3 both levels: canManageTeam (owner gate) is true', me.json.user.canManageTeam === true, JSON.stringify(me.json.user));
     t('C3 both levels: seesAll is true', me.json.user.seesAll === true);
     t('/me reports canElevate for the designated mailbox', me.json.user.canElevate === true, JSON.stringify(me.json.user.canElevate));
-    t('/me reports isAdmin before elevating (ADMIN_EMAIL alone counts)', me.json.user.isAdmin === true, JSON.stringify(me.json.user.isAdmin));
+    /* The address is NOT elevation: on an owner row that has not typed
+       "admin", isAdmin is honestly false — only is_admin = 1 makes it true. */
+    t('/me reports isAdmin false before elevating (the address alone is not power)', me.json.user.isAdmin === false, JSON.stringify(me.json.user.isAdmin));
 
     r = await req(PORT, 'POST', '/api/proposals', { title: 'Designated admin can create', customer_name: 'Admin Client' }, adminSess.token);
     t('C3 proof: designated admin (viewer row) can CREATE a proposal', r.status === 200 || r.status === 201, r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
@@ -276,7 +278,13 @@ async function main() {
       readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).role_custom));
     me = await req(PORT, 'GET', '/api/auth/me', null, adminSess.token);
     t('de-elevate: /me `elevated` (the red-dot flag) is now false', me.json.user.elevated === false, JSON.stringify(me.json.user.elevated));
-    t('de-elevate: isAdmin stays true — reach persists from ADMIN_EMAIL alone', me.json.user.isAdmin === true && me.json.user.canManageTeam === true && me.json.user.canWrite === true);
+    /* The address holds NO power of its own. With is_admin cleared, everything
+       it had collapses back to the stored role — that is the whole contract:
+       power sits on the ROLE, the mailbox only deciding who may type "admin". */
+    t('de-elevate: the address holds no power — isAdmin and canManageTeam both drop',
+      me.json.user.isAdmin === false && me.json.user.canManageTeam === false, JSON.stringify(me.json.user));
+    t('de-elevate: canWrite survives because the stored role is sales (power follows the ROLE)',
+      me.json.user.canWrite === true, JSON.stringify(me.json.user.canWrite));
     r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'viewer' }, ownerSess.token);
     t('after de-elevating, an owner CAN change the row again', r.status === 200, r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
     t('roundtrip complete: back to viewer with no title', readRow(ADMIN).role === 'viewer' && readRow(ADMIN).role_custom === null && readRow(ADMIN).is_admin === 0,
@@ -322,14 +330,17 @@ async function main() {
 
     const demotedSess = await login(PORT, ADMIN);
     const demotedMe = await req(PORT, 'GET', '/api/auth/me', null, demotedSess.token);
-    t('C3 on a viewer row: canWrite (sales gate) is true', demotedMe.json.user.canWrite === true, JSON.stringify(demotedMe.json.user).slice(0, 200));
-    t('C3 on a viewer row: canManageTeam (owner gate) is true', demotedMe.json.user.canManageTeam === true, JSON.stringify(demotedMe.json.user).slice(0, 200));
-    t('C3 on a viewer row: seesAll is true', demotedMe.json.user.seesAll === true);
+    /* THE POINT OF THE NEW MODEL: a viewer row that has not typed "admin" is
+       exactly a viewer. The mailbox name on it changes nothing — it only
+       decides who MAY type "admin", never what they hold before doing so. */
+    t('C3 on a viewer row: canWrite is FALSE — the address grants no rank', demotedMe.json.user.canWrite === false, JSON.stringify(demotedMe.json.user).slice(0, 200));
+    t('C3 on a viewer row: canManageTeam is FALSE — team edit/delete is role-only', demotedMe.json.user.canManageTeam === false, JSON.stringify(demotedMe.json.user).slice(0, 200));
+    t('C3 on a viewer row: seesAll stays true — visibility is not power', demotedMe.json.user.seesAll === true);
     t('C3 on a viewer row: the display is honestly "Viewer"', demotedMe.json.user.roleLabel === 'Viewer', demotedMe.json.user.roleLabel);
-    r = await req(PORT, 'POST', '/api/proposals', { title: 'Demoted designated admin can still create', customer_name: 'C3 Client' }, demotedSess.token);
-    t('C3 proof: a viewer-row designated admin can CREATE a proposal (sales gate)', r.status === 200 || r.status === 201, r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
+    r = await req(PORT, 'POST', '/api/proposals', { title: 'Viewer row must not create', customer_name: 'C3 Client' }, demotedSess.token);
+    t('C3 proof: the same mailbox is REFUSED a create (sales gate closed)', r.status === 403, r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
     r = await req(PORT, 'POST', '/api/team/role', { userId: viewerReg.user.id, role: 'viewer' }, demotedSess.token);
-    t('C3 proof: a viewer-row designated admin passes the OWNER write gate', r.status === 200, r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
+    t('C3 proof: it is refused the OWNER write gate too', r.status === 403, r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
 
     /* Elevate from the viewer row: this is where rank 4 earns its keep. */
     const viewerDisplay = displayOf(demotedMe.json.user);

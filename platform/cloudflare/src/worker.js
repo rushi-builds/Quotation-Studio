@@ -282,7 +282,11 @@ function roleDisplay(u) {
 }
 function publicUser(u, env) {
   const admin = canManageTeam(u, env);
-  const elevated = isAdminRow(u) || isHiddenAdmin(u, env);
+  /* The red-dot flag is the STORED elevation ONLY. The designated mailbox is
+     not elevated by virtue of its address — the address only decides who MAY
+     type "admin" (canElevate) — so the dot appears once, and only once, admin
+     has actually been set. */
+  const elevated = isAdminRow(u);
   return {
     id: u.id,
     email: u.email,
@@ -373,7 +377,7 @@ function memberPayload(u, env, lastLogin, opts) {
 function selfMemberPayload(u, env, lastLogin, opts) {
   /* Own row: always allowed its own contact detail. */
   return Object.assign(memberPayload(u, env, lastLogin, Object.assign({ contact: true }, opts || {})), {
-    isAdmin: isAdminRow(u) || isHiddenAdmin(u, env),
+    isAdmin: isAdminRow(u),
     elevated: isAdminRow(u),
     canElevate: canElevate(u, env),
     effectiveCanWrite: requireRole(u, 'sales', env),
@@ -432,10 +436,12 @@ function isAdminRow(user) {
 }
 /* Single source of truth for permission. Every gate in this worker calls
    requireRole/canManageTeam, so overriding here overrides everywhere.
-   'admin' is returned for an elevated row and for the designated ADMIN_EMAIL
-   login, so both spellings of "the admin" reach the same rank. */
+   POWER follows the ROLE: an elevated row (one that typed "admin") or a stored
+   Owner. The ADMIN_EMAIL address itself grants NOTHING — it only decides who
+   MAY type "admin" (see canElevate), so signing in with that mailbox leaves
+   you at your stored rank until you do. */
 function permissionRole(user, env) {
-  if (isAdminRow(user) || isHiddenAdmin(user, env)) return 'admin';
+  if (isAdminRow(user)) return 'admin';
   const r = String((user && user.role) || '').toLowerCase();
   if (r === 'owner') return 'owner';
   if (r === 'viewer') return 'viewer';
@@ -464,9 +470,11 @@ function canElevate(user, env) {
   return isHiddenAdmin(user, env);
 }
 /* Owner-sees-all: owner, elevated and the designated admin read every row;
-   members stay scoped to their own owner_id exactly as before. */
+   members stay scoped to their own owner_id exactly as before. VISIBILITY IS
+   NOT POWER — the designated mailbox keeps reading this workspace's rows, but
+   team edit/delete comes from permissionRole, i.e. from the ROLE. */
 function seesAll(user, env) {
-  return requireRole(user, 'owner', env);
+  return requireRole(user, 'owner', env) || isHiddenAdmin(user, env);
 }
 /* Owner-sees-all SQL guard. Bound TWICE with the same value (plain `?`, no
    numbered params — D1 binds positionally). When the first bind is NULL the
@@ -2285,10 +2293,24 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'team' && parts[1] === 'role' && method === 'POST') {
-      if (!canAdmin) return json({ error: 'Only the workspace owner can change roles.' }, 403);
       const body = await readBody(request);
       const targetId = String(body.userId || '');
       const wanted = String(body.role || '').trim().toLowerCase();
+      /* The typed title, whether it arrived as roleCustom or title. */
+      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
+        ? String(body.roleCustom)
+        : (body.title != null && body.title !== '') ? String(body.title) : null;
+      /* THE SELF-ELEVATION DOOR. Power follows the ROLE now, so the designated
+         mailbox reaches this route at its stored rank with nothing to its name
+         — and the owner gate below would refuse it, which would mean elevation
+         could never be STARTED. So before that gate, exactly one passage is
+         open: the designated address, naming its OWN row, asking for the word
+         "admin". It opens nothing else — every other row and every other
+         command stops at the gate — and once inside, the checks that already
+         exist (ELEVATION_NOT_SELF, self-only elevation) apply unchanged. */
+      const wantsAdminWord = (rawTitle != null && rawTitle.trim().toLowerCase() === 'admin') || wanted === 'admin';
+      const selfElevationDoor = canElevate(user, env) && targetId === user.id && wantsAdminWord;
+      if (!canAdmin && !selfElevationDoor) return json({ error: 'Only the workspace owner can change roles.' }, 403);
       const target = await one(db, 'SELECT * FROM users WHERE id = ?', targetId);
       if (!target) return json({ error: 'User not found' }, 404);
 
@@ -2302,11 +2324,6 @@ async function handleApi(request, env, url) {
       if (targetElevated && !actorIsAdmin) {
         return json({ error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' }, 403);
       }
-
-      /* The typed title, whether it arrived as roleCustom or title. */
-      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
-        ? String(body.roleCustom)
-        : (body.title != null && body.title !== '') ? String(body.title) : null;
 
       /* ---- ELEVATION by typing "admin" ----
          Self-service for the designated ADMIN_EMAIL login ONLY, and only on its

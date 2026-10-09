@@ -733,7 +733,11 @@ function roleDisplay(u) {
 }
 function publicUser(u) {
   const admin = canManageTeam(u);
-  const elevated = isAdminRow(u) || isHiddenAdmin(u);
+  /* The red-dot flag is the STORED elevation ONLY. The designated mailbox is
+     not elevated by virtue of its address — the address only decides who MAY
+     type "admin" (canElevate) — so the dot appears once, and only once, admin
+     has actually been set. */
+  const elevated = isAdminRow(u);
   return {
     id: u.id,
     email: u.email,
@@ -820,7 +824,7 @@ function memberPayload(u, lastLogin, opts) {
 function selfMemberPayload(u, lastLogin, opts) {
   /* Own row: always allowed its own contact detail. */
   return Object.assign(memberPayload(u, lastLogin, Object.assign({ contact: true }, opts || {})), {
-    isAdmin: isAdminRow(u) || isHiddenAdmin(u),
+    isAdmin: isAdminRow(u),
     elevated: isAdminRow(u),
     canElevate: canElevate(u),
     effectiveCanWrite: requireRole(u, 'sales'),
@@ -865,9 +869,12 @@ function adminOwnerConflict() {
   return !!a && a === o;
 }
 /** Permission rank: custom titles act as Sales (can write, cannot manage team).
- *  An elevated row and the designated ADMIN_EMAIL login both rank above Owner. */
+ *  POWER follows the ROLE — an elevated row (one that typed "admin") or a
+ *  stored Owner. The ADMIN_EMAIL address itself grants NOTHING: it only decides
+ *  who MAY type "admin" (see canElevate). Logging in with that mailbox leaves
+ *  you at your stored rank until you do. */
 function permissionRole(user) {
-  if (isAdminRow(user) || isHiddenAdmin(user)) return 'admin';
+  if (isAdminRow(user)) return 'admin';
   const r = String((user && user.role) || '').toLowerCase();
   if (r === 'owner') return 'owner';
   if (r === 'viewer') return 'viewer';
@@ -881,9 +888,11 @@ function canElevate(user) {
   return isHiddenAdmin(user);
 }
 /* Owner-sees-all: owner, elevated and the designated admin read every row;
-   members stay scoped to their own owner_id exactly as before. */
+   members stay scoped to their own owner_id exactly as before. VISIBILITY IS
+   NOT POWER — the designated mailbox keeps reading this workspace's rows, but
+   team edit/delete comes from permissionRole, i.e. from the ROLE. */
 function seesAll(user) {
-  return requireRole(user, 'owner');
+  return requireRole(user, 'owner') || isHiddenAdmin(user);
 }
 /* In-memory parity with the worker's OWN_SCOPE SQL guard: true when the row is
    visible to this caller. `scope === null` lifts the owner_id filter. */
@@ -2467,12 +2476,25 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'team' && parts[1] === 'role' && method === 'POST') {
-      if (!canAdmin) {
-        return sendJson(res, 403, { error: 'Only the workspace owner can change roles.' });
-      }
       const body = await readBody(req);
       const targetId = String(body.userId || '');
       const wanted = String(body.role || '').trim().toLowerCase();
+      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
+        ? String(body.roleCustom)
+        : (body.title != null && body.title !== '') ? String(body.title) : null;
+      /* THE SELF-ELEVATION DOOR. Power follows the ROLE now, so the designated
+         mailbox reaches this route at its stored rank with nothing to its name
+         — and the owner gate below would refuse it, which would mean elevation
+         could never be STARTED. So before that gate, exactly one passage is
+         open: the designated address, naming its OWN row, asking for the word
+         "admin". It opens nothing else — every other row and every other
+         command stops at the gate — and once inside, the checks that already
+         exist (ELEVATION_NOT_SELF, self-only elevation) apply unchanged. */
+      const wantsAdminWord = (rawTitle != null && rawTitle.trim().toLowerCase() === 'admin') || wanted === 'admin';
+      const selfElevationDoor = canElevate(user) && targetId === user.id && wantsAdminWord;
+      if (!canAdmin && !selfElevationDoor) {
+        return sendJson(res, 403, { error: 'Only the workspace owner can change roles.' });
+      }
       const target = (db.users || []).find((u) => u.id === targetId);
       if (!target) return sendJson(res, 404, { error: 'User not found' });
 
@@ -2485,10 +2507,6 @@ async function handleApi(req, res, url) {
       if (targetElevated && !actorIsAdmin) {
         return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
       }
-
-      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
-        ? String(body.roleCustom)
-        : (body.title != null && body.title !== '') ? String(body.title) : null;
 
       /* ---- ELEVATION by typing "admin" ----
          Self-service for the designated ADMIN_EMAIL login only, on its own row.

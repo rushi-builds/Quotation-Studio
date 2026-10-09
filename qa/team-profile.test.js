@@ -277,6 +277,15 @@ async function main() {
       r.status === 403 && /signed in with/.test(r.json.error || ''),
       r.status + ' ' + JSON.stringify(r.json));
 
+    /* The designated admin elevates itself first: under the role model its
+       mailbox arrives with NO power of its own, so it has to open the
+       self-elevation door before it clears the owner gate that stands in
+       front of every removal below. */
+    r = await req(PORT, 'POST', '/api/team/role',
+      { userId: adminReg.user.id, role: 'custom', roleCustom: 'admin' }, adminSess.token);
+    t('the designated admin elevates its own row', r.status === 200 && readRow(ADMIN).is_admin === 1,
+      r.status + ' ' + JSON.stringify(readRow(ADMIN).is_admin));
+
     r = await req(PORT, 'DELETE', '/api/team/members/' + ownerReg.user.id, null, adminSess.token);
     t('the OWNER_EMAIL backstop row cannot be removed by the designated admin either',
       r.status === 403 && /OWNER_EMAIL/.test(r.json.error || ''),
@@ -285,12 +294,6 @@ async function main() {
     r = await req(PORT, 'DELETE', '/api/team/members/does-not-exist', null, ownerSess.token);
     t('an unknown account is a 404, not a silent success',
       r.status === 404, r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
-
-    /* The designated admin elevates itself: a row the owner must not reach. */
-    r = await req(PORT, 'POST', '/api/team/role',
-      { userId: adminReg.user.id, role: 'custom', roleCustom: 'admin' }, adminSess.token);
-    t('the designated admin elevates its own row', r.status === 200 && readRow(ADMIN).is_admin === 1,
-      r.status + ' ' + JSON.stringify(readRow(ADMIN).is_admin));
 
     r = await req(PORT, 'DELETE', '/api/team/members/' + adminReg.user.id, null, ownerSess.token);
     t('the owner cannot remove an elevated row', r.status === 403, r.status + ' ' + JSON.stringify(r.json));

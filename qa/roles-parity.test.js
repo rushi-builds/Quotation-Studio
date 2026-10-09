@@ -133,9 +133,16 @@ for (const [label, src] of BOTH) {
 /* ---------- 2. elevation overrides at exactly ONE place per backend ---------- */
 for (const [label, src] of BOTH) {
   const env = label === 'worker' ? ', env' : '';
-  t(label + ': permissionRole returns \'admin\' for an elevated OR designated row',
-    new RegExp("function permissionRole\\(user" + env + "\\) \\{\\s*\\n\\s*if \\(isAdminRow\\(user\\) \\|\\| isHiddenAdmin\\(user" + env + "\\)\\) return 'admin';").test(src),
+  /* POWER follows the ROLE: only a row that has actually been elevated ranks
+     above the rest. The ADMIN_EMAIL address returns NO rank here at all — it
+     only decides who MAY type "admin" (canElevate) — so this assertion is the
+     machine-checked form of "the mailbox is not power". */
+  t(label + ': permissionRole returns \'admin\' for an elevated row ONLY (the address grants no rank)',
+    new RegExp("function permissionRole\\(user" + env + "\\) \\{\\s*\\n\\s*if \\(isAdminRow\\(user\\)\\) return 'admin';").test(src),
     fn(src, 'permissionRole', ['roleRank', 'canManageTeam']).slice(0, 160));
+  t(label + ': the mailbox still only decides who MAY type admin (canElevate keeps isHiddenAdmin)',
+    new RegExp("function canElevate\\(user" + env + "\\) \\{\\s*\\n\\s*return isHiddenAdmin\\(user" + env + "\\);").test(src),
+    fn(src, 'canElevate', ['permissionRole', 'seesAll']).slice(0, 160));
   t(label + ': isAdminRow is the single stored-flag reader',
     /function isAdminRow\(user\) \{\s*\n\s*return Number\(\(user && user\.is_admin\) \|\| 0\) === 1;/.test(src));
   t(label + ': roleRank puts admin ABOVE owner',

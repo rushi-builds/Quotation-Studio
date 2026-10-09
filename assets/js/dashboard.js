@@ -532,13 +532,17 @@
       if (user.role === r) o.selected = true;
       sel.append(o);
     });
-    if (user.role === 'custom') {
-      const c = document.createElement('option');
-      c.value = 'custom';
-      c.textContent = 'Custom — type here';
-      c.selected = true;
-      sel.append(c);
-    }
+    /* Custom sits LAST, worded exactly as the team table words it, and its
+       label is an INSTRUCTION rather than a stored value: pick it and the box
+       below is where you type. It is offered on EVERY row, not only one
+       already stored as custom — this pencil is where the designated mailbox
+       types "admin", and a row that starts at Sales would otherwise have no
+       way to reach that door at all. */
+    const customOpt = document.createElement('option');
+    customOpt.value = 'custom';
+    customOpt.textContent = 'Custom — type here';
+    if (user.role === 'custom') customOpt.selected = true;
+    sel.append(customOpt);
 
     /* Whatever title the account already has is loaded ONCE and never blanked
        by a role choice: a hidden box still holds its text, so saving after a
