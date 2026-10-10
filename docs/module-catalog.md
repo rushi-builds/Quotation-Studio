@@ -20,10 +20,12 @@ bin as a distinct manufacturer part number. Likewise, Jinko's source is a
 580 W bin.
 
 The reference data includes each product's published STC Voc/Vmp/Isc/Imp,
-dimensions and available temperature coefficients. A coefficient not stated
-in the source stays blank in the form and is not supplied from a technology
-label. The engineering screen has its own disclosed fallback when a coefficient
-is blank; that fallback is not printed as a manufacturer product value.
+dimensions and available temperature coefficients. When an exact model is
+selected, a coefficient not stated in its source is cleared and is not supplied
+from a technology label. The untouched template's Voc/Vmp coefficient values
+are explicitly labelled screening assumptions, not product claims; a blank
+also uses the engineering screen's disclosed calculation fallback. Neither is
+presented as manufacturer data in the quotation.
 
 For bifacial products, the datasheet's front-side STC nameplate power and
 module efficiency remain the quoted values. Bifaciality is printed separately;
