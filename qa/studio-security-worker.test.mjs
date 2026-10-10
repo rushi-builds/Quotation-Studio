@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import worker from '../platform/cloudflare/src/worker.js';
+import worker, { buildMailMessage, htmlToText } from '../platform/cloudflare/src/worker.js';
 import indexWorker from '../platform/cloudflare/src/index.js';
 // Worker route/SQL contract test; D1 is a labelled in-memory adapter, not production.
 for (const [name, app] of [['worker',worker],['index',indexWorker]]) {
@@ -110,3 +110,61 @@ for (const [name, app] of [['worker',worker],['index',indexWorker]]) {
     'the wrapper must not intercept handleApi\'s own error responses');
 }
 console.log('PASS: Worker never rejects — every escape becomes a 500, API callers get JSON with a code, browsers get HTML, and the guard stays transparent to replies that did not throw.');
+
+/* The recovery mail delivered to Spam while still being a perfectly legitimate
+   message, because it carried no Date, no Message-ID and an HTML-only body.
+   Those are three of the oldest spam signals there are, and none of them says
+   anything about whether the message is real — which is exactly why a filter
+   leans on them. The DATA payload is therefore built where a test can read it,
+   and what goes on the wire is asserted rather than assumed. */
+{
+  const html = [
+    '<!doctype html><html><body>',
+    '<p>KTM Energy Experts</p>',
+    '<p>Hello Rushi,</p>',
+    '<p><span>042913</span></p>',
+    '<p>Expires in 10 minutes.</p>',
+    '<p>Signature line.',
+    '\n.leading dot</p>',
+    '</body></html>'
+  ].join('');
+  const msg = buildMailMessage(
+    'ktmenergyexperts@gmail.com', 'rushi@example.test',
+    'KTM Studio — password reset code', html
+  );
+
+  const cut = msg.indexOf('\r\n\r\n');
+  assert.ok(cut > 0, 'headers and body must be separated by exactly one blank line');
+  const head = msg.slice(0, cut);
+  const body = msg.slice(cut + 4);
+
+  assert.match(head, /^From: KTM Studio <ktmenergyexperts@gmail\.com>$/m, 'From must name the sending mailbox');
+  assert.match(head, /^Date: \w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} \+0000$/m,
+    'Date is RFC 5322-required and must use a numeric zone, not the obsolete GMT');
+  assert.match(head, /^Message-ID: <[0-9a-f]+\.[0-9a-z]+@gmail\.com>$/m,
+    'Message-ID must be present and aligned with the From domain');
+  assert.match(head, /^MIME-Version: 1\.0$/m, 'MIME-Version must be declared');
+  assert.match(head, /^Auto-Submitted: auto-generated$/m, 'must not invite an auto-reply');
+
+  const ct = head.match(/^Content-Type: multipart\/alternative; boundary="([^"]+)"$/m);
+  assert.ok(ct, 'an HTML-only body is the single most reliable route to Spam — must be multipart/alternative');
+  const b = ct[1];
+
+  const plainAt = body.indexOf('Content-Type: text/plain');
+  const htmlAt = body.indexOf('Content-Type: text/html');
+  assert.ok(plainAt > -1 && htmlAt > -1, 'both alternatives must be present');
+  assert.ok(plainAt < htmlAt, 'the plain part must come first: it is what a filter reads to classify the mail');
+  assert.ok(body.includes('--' + b + '\r\n'), 'every part must open with the declared boundary');
+  assert.ok(msg.endsWith('--' + b + '--\r\n.\r\n'), 'must close the boundary and end with the SMTP end-of-data sequence');
+  assert.ok(!/(?<!\r)\n/.test(msg), 'every line break on the wire must be CRLF');
+
+  const plainText = body.slice(plainAt, htmlAt).split('\r\n\r\n').slice(1).join('\r\n\r\n');
+  assert.ok(plainText.includes('042913'), 'the code must be readable in the plain alternative');
+  assert.ok(!/<[a-z/]/i.test(plainText), 'the plain alternative must carry no markup');
+  assert.ok(htmlToText(html).includes('042913'), 'the derived text must not lose the code');
+  assert.ok(body.slice(htmlAt).includes('042913'), 'the code must still be in the HTML alternative');
+
+  assert.ok(body.includes('\r\n..leading dot'),
+    'a body line starting with "." must be dot-stuffed or it ends the message early');
+}
+console.log('PASS: Recovery mail carries Date, Message-ID and a plain-first multipart/alternative with the code intact, CRLF throughout, dot-stuffed, and correctly terminated.');

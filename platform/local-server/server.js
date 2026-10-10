@@ -364,6 +364,37 @@ function recoveryEmailHtml(origin, displayName, otp) {
    Returns { ok: true } or { ok: false, reason }. The reason is for logs and
    /api/health only; it is never echoed to a caller, because a delivery-specific
    error would only ever fire for real accounts and would become an oracle. */
+/* RFC 5322 requires a Date, and most filters treat a message without one —
+   or without a Message-ID — as forged. Both are exactly the kind of omission
+   that sends a legitimate code to Spam. The zone is written +0000 rather than
+   the "GMT" toUTCString emits, because GMT is the obsolete form. */
+function mailDate() {
+  return new Date().toUTCString().replace(/GMT$/, '+0000');
+}
+function mailMessageId() {
+  return crypto.randomBytes(12).toString('hex') + '.' + Date.now().toString(36) + '@gmail.com';
+}
+/* The plain-text alternative is DERIVED from the HTML rather than written a
+   second time. Two copies of this copy would drift, and the OTP is the one
+   line that must never be allowed to go stale in one of them. */
+function htmlToText(html) {
+  return String(html)
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<img[^>]*\balt="([^"]*)"[^>]*>/gi, '$1')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|tr|td|h[1-6]|li|table)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&mdash;|&#8212;/g, '\u2014')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+    .split('\n')
+    .map((l) => l.replace(/[ \t\u00a0]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+}
 async function smtpSend(toAddress, subject, htmlBody) {
   const user = String(process.env.SMTP_USER || '').trim() || RECOVERY_MAIL_FROM;
   /* Every whitespace is removed, not just the ends: Gmail shows an App
@@ -457,25 +488,40 @@ async function smtpSend(toAddress, subject, htmlBody) {
     await expect('DATA', 354);
 
     /* Dot-stuffing: a body line starting with "." would otherwise end the
-       message early. Normalise to CRLF, which SMTP requires. */
-    const body = String(htmlBody)
-      .replace(/\r\n?/g, '\n')
-      .split('\n')
-      .map((l) => (l.charAt(0) === '.' ? '.' + l : l))
-      .join('\r\n');
+       message early. Normalise to CRLF, which SMTP requires.
+       multipart/alternative, plain FIRST: an HTML-only message is one of the
+       oldest spam signals there is, and the plain part is what a filter reads
+       to decide what this even is. Date and Message-ID go in the headers for
+       the same reason — a legitimate code should not look forged. */
+    const boundary = '----=_Part_' + crypto.randomBytes(12).toString('hex');
+    const onePart = (label, value) => [
+      '--' + boundary,
+      'Content-Type: ' + label + '; charset=UTF-8',
+      'Content-Transfer-Encoding: 8bit',
+      '',
+      String(value).replace(/\r\n?/g, '\n').replace(/\n+$/, '')
+    ].join('\n');
+    const data = [
+      onePart('text/plain', htmlToText(htmlBody)),
+      '',
+      onePart('text/html', htmlBody),
+      '',
+      '--' + boundary + '--'
+    ].join('\n');
+    const stuffed = data.split('\n').map((l) => (l.charAt(0) === '.' ? '.' + l : l)).join('\n');
     const message = [
       'From: KTM Studio <' + user + '>',
       'To: <' + to + '>',
       'Subject: ' + encodeSubject(subject),
+      'Date: ' + mailDate(),
+      'Message-ID: <' + mailMessageId() + '>',
       'MIME-Version: 1.0',
-      'Content-Type: text/html; charset=UTF-8',
-      'Content-Transfer-Encoding: 8bit',
+      'Content-Type: multipart/alternative; boundary="' + boundary + '"',
       'X-Auto-Response-Suppress: All',
+      'Auto-Submitted: auto-generated',
       '',
-      body,
-      '',
-      '.'
-    ].join('\r\n');
+      stuffed.replace(/\n/g, '\r\n')
+    ].join('\r\n') + '\r\n.\r\n';
     await write(message);
     const accepted = await readReply();
     if (accepted.code !== 250) throw new Error('message rejected: ' + accepted.text.slice(0, 200));
