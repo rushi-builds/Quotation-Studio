@@ -407,7 +407,7 @@ t('worker: per-request scope is declared at the staff gate',
 /* Exactly ONE raw filter may remain: the token-based portal query, which has no
    user context and is deliberately excluded (C4). */
 t('worker: only the excluded portal query keeps a raw owner_id filter', rawLeft === 1, rawLeft + ' raw owner_id = ? remain');
-t('worker: 52 owner-scoped queries rewritten', scopeSites === 52, scopeSites);
+t('worker: 55 owner-scoped queries rewritten', scopeSites === 55, scopeSites);
 t('worker: all rewritten queries bind scope + user.id correctly', badBinds.length === 0, JSON.stringify(badBinds.slice(0, 5)));
 
 const portalFn = worker.slice(worker.indexOf('async function notifyFromPortalEvent'));
@@ -417,10 +417,10 @@ t('C4: portal query has NO scope guard', !portalBody.includes('OWN_SCOPE'));
 t('C4: portal function has no user/env in scope', !/\(db, ev, (user|env)/.test(portalBody) && /function notifyFromPortalEvent\(db, ev\)/.test(portalBody));
 
 /* ---------- 12. server.js in-memory parity ---------- */
-/* 47 call sites, plus the one occurrence inside the inScope() definition
+/* 49 call sites, plus the one occurrence inside the inScope() definition
    itself (`row.owner_id === scope`), which is not a call site. */
 const inScopeCount = (server.match(/inScope\(scope, /g) || []).length - 1;
-t('server: 47 staff ownership tests routed through inScope', inScopeCount === 47, inScopeCount);
+t('server: 49 staff ownership tests routed through inScope', inScopeCount === 49, inScopeCount);
 t('server: no raw `owner_id === user.id` staff filter left', !/owner_id === user\.id/.test(server));
 t('server: per-request scope declared at the staff gate', /const scope = scopeOf\(user\);/.test(server));
 t('server: token-context owner_id untouched', (server.match(/owner_id: tok\.owner_id/g) || []).length === 3);
@@ -451,17 +451,28 @@ let frozen = [];
 try {
   const out = execFileSync('git', ['diff', '--name-only', 'origin/main'], { cwd: ROOT, encoding: 'utf8' });
   const changed = out.split('\n').filter(Boolean);
-  const FROZEN = /assets\/js\/(finance|export|render|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$|^quotation\.html$/;
+  const FROZEN = /assets\/js\/(finance|export|render|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$/;
   frozen = changed.filter((f) => FROZEN.test(f));
-  t('FROZEN calc/pricing/finance/export files untouched', frozen.length === 0, frozen.join(', '));
+  t('FROZEN calculation/finance/export engine files untouched', frozen.length === 0, frozen.join(', '));
+  const cloudBar = /<div class=\"studio-cloud-bar\" id=\"studioCloudBar\" hidden>[\s\S]*?<\/div>/;
+  const baselineQuotation = execFileSync('git', ['show', 'origin/main:quotation.html'], { cwd: ROOT, encoding: 'utf8' });
+  const currentQuotation = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8');
+  const barPlaceholder = '<div class=\"studio-cloud-bar\" id=\"studioCloudBar\" hidden></div>';
+  const normalizeQuotation = html => html.replace(cloudBar, barPlaceholder)
+    .replace(/assets\/css\/app\.css\?v=[^\"']+/g, 'assets/css/app.css?v=<cache-key>')
+    .replace(/assets\/js\/platform-api\.js\?v=[^\"']+/g, 'assets/js/platform-api.js?v=<cache-key>')
+    .replace(/assets\/js\/cloud-bridge\.js\?v=[^\"']+/g, 'assets/js/cloud-bridge.js?v=<cache-key>');
+  t('quotation changes are limited to the Studio cloud-sync bar and its asset cache keys',
+    cloudBar.test(baselineQuotation) && cloudBar.test(currentQuotation) &&
+    normalizeQuotation(baselineQuotation) === normalizeQuotation(currentQuotation));
   t('phone button + Firebase untouched', !changed.some((f) => /phone/i.test(f)));
-  t('wrangler config / zone / NS untouched', !changed.some((f) => /wrangler|vercel\.json/.test(f)));
-  /* Allowlist of files this round may touch. Anything outside it means the
-     patch wandered - notably into the frozen calculation/finance/export set,
-     the phone/Firebase code, or a deploy config. platform/migrations is
-     included because the elevation flag is a deliberate, single-column
-     migration and nothing else in that directory may change. */
-  const ALLOWED = /^(platform\/cloudflare\/src\/worker\.js|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|assets\/js\/(dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|dashboard\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;
+  const wranglerDiff = execFileSync('git', ['diff', '--unified=0', 'origin/main', '--', 'platform/cloudflare/wrangler.toml'], { cwd: ROOT, encoding: 'utf8' });
+  const wranglerEdits = wranglerDiff.split('\n').filter((line) => /^[+-][^-+]/.test(line));
+  t('wrangler only configures the verified app origin; zone/NS untouched',
+    wranglerEdits.length === 1 && wranglerEdits[0] === '+APP_URL = \"https://quotation-studio-taupe.vercel.app\"', wranglerEdits.join(' | '));
+  /* Allowlist of files this task may touch; finance/rendering engines,
+     phone/Firebase login, and unrelated deployment configuration stay frozen. */
+  const ALLOWED = /^(platform\/cloudflare\/(src\/worker\.js|wrangler\.toml)|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|assets\/js\/(dashboard|dashboard-home|platform-api|cloud-bridge|portal)\.js|assets\/css\/(app|dashboard)\.css|dashboard\.html|quotation\.html|portal\.html|index\.html|oauth-complete\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
   t('no earlier migration was modified', !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin/.test(f)),

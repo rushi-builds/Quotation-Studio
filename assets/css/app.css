@@ -1759,3 +1759,5 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 .cloud-chip[data-state="err"]{background:#FDECEA;color:#9B1C1C;}
 .cloud-chip[data-state="off"]{background:#EEF1F5;color:#5B6B80;}
 .studio-cloud-bar .link-btn{flex:0 0 auto;padding:5px 10px;font-size:11px;}
+.cloud-sync-hint{flex:1 0 100%;font-size:10.5px;line-height:1.45;color:var(--navy-soft);}
+.cloud-sync-hint:empty{display:none;}

@@ -26,7 +26,10 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   fs.writeFileSync(dbPath,JSON.stringify(db));
   const second=await api('auth/register',{email:'new-'+randomUUID()+'@example.test',name:'New signup',password:randomUUID()+'Cc3!',role:'Owner',roleCustom:'owner',permissionRole:'owner'});
   assert.equal(second.body.user.role,'viewer');assert.equal(second.body.user.roleCustom,'Owner');
-  assert.equal((await api('team/members',undefined,second.body.token)).status,403);
+  const readonlyTeam=await api('team/members',undefined,second.body.token);
+  assert.equal(readonlyTeam.status,200,'members may read the team panel');
+  assert.equal(readonlyTeam.body.canManageTeam,false,'a viewer cannot manage team roles');
+  assert.equal((readonlyTeam.body.members||[]).some(m=>m.id===first.body.user.id&&m.email),false,'another member email stays hidden');
   assert.equal((await api('team/role',{userId:first.body.user.id,role:'viewer'},second.body.token)).status,403);
   assert.equal((await api('proposals',{title:'Unauthorized draft'},second.body.token)).status,403);
   assert.equal((await api('auth/profile',{role:'owner'},second.body.token)).body.user.role,'viewer');

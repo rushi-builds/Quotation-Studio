@@ -31,7 +31,7 @@ const COOKIE = 'qs_session';
 
 /* Deployed code marker — kept identical to platform/cloudflare/src/worker.js
    so /api/health reports the same version whichever backend serves it. */
-const CODE_VERSION = 'roles-r1';
+const CODE_VERSION = 'studio-flows-r1';
 
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }
@@ -193,6 +193,7 @@ function publicToken(t, rawToken) {
     firstOpenedAt: t.first_opened_at || null,
     lastOpenedAt: t.last_opened_at || null,
     openCount: t.open_count || 0,
+    active: !t.revoked_at && (!t.expires_at || Date.parse(t.expires_at) > Date.now()),
     portalPath: '/portal.html?t='
   };
   if (rawToken) {
@@ -272,8 +273,8 @@ const SEND_CHANNELS = {
   other: { label: 'Other / offline', provider: 'manual' }
 };
 const SEND_STATES = {
-  draft: 'Draft',
-  share_clicked: 'Share opened (not delivery-confirmed)',
+  draft: 'Draft (not shared)',
+  share_clicked: 'Share action started (not delivery-confirmed)',
   submitted_to_provider: 'Submitted to provider',
   delivered: 'Delivered (provider-confirmed only)',
   failed: 'Failed',
@@ -334,6 +335,24 @@ function buildDefaultMessage(row, portalUrl) {
     form.companyEmail ? String(form.companyEmail) : ''
   ].filter((line, i, arr) => !(line === '' && arr[i - 1] === ''));
   return lines.join('\n');
+}
+function messageWithPortalLink(value, row, portalUrl) {
+  const placeholder = '[A secure link will be inserted when you prepare the send]';
+  const linkedUrl = /https?:\/\/[^\s"'<>]*\/portal\.html\?t=[^\s"'<>]*/g;
+  let message = String(value || '').trim() || buildDefaultMessage(row, portalUrl);
+  message = message.replaceAll(placeholder, portalUrl);
+  if (linkedUrl.test(message)) message = message.replace(linkedUrl, portalUrl);
+  if (!message.includes(portalUrl)) {
+    const suffix = '\n\nSecure proposal link (read-only):\n' + portalUrl;
+    message = message.slice(0, Math.max(0, 4000 - suffix.length)).trimEnd() + suffix;
+  }
+  if (message.length > 4000) {
+    const linkAt = message.lastIndexOf(portalUrl);
+    message = linkAt >= 0 && linkAt + portalUrl.length > 4000
+      ? message.slice(0, Math.max(0, 4000 - portalUrl.length - 1)).trimEnd() + '\n' + portalUrl
+      : message.slice(0, 4000);
+  }
+  return message;
 }
 function digitsForWhatsApp(value) {
   const raw = String(value || '').trim();
@@ -1948,10 +1967,10 @@ async function handleApi(req, res, url) {
           id,
           label: SEND_CHANNELS[id].label,
           provider: SEND_CHANNELS[id].provider,
-          recordsAs: 'share_clicked',
+          recordsAs: 'draft',
           deliveryVerified: false
         })),
-        honestyNote: 'Opening WhatsApp or your mail app only records that you started sharing. It does not prove the message was sent or delivered.'
+        honestyNote: 'Preparing a message does not mark it shared. A WhatsApp, email or copy action records only that you started sharing; delivery is unconfirmed.'
       });
     }
 
@@ -1984,6 +2003,17 @@ async function handleApi(req, res, url) {
       const channel = String(body.channel || 'whatsapp_manual');
       if (!SEND_CHANNELS[channel]) {
         return sendJson(res, 400, { error: 'Unsupported send channel' });
+      }
+      const recipientTo = String(body.recipientTo || '').trim().slice(0, 200);
+      const recipientName = String(body.recipientName || row.customer_name || '').trim().slice(0, 200);
+      const waDigits = channel === 'whatsapp_manual' ? digitsForWhatsApp(recipientTo) : '';
+      if (channel === 'whatsapp_manual' && !waDigits) {
+        return sendJson(res, 400, {
+          error: 'Enter a valid WhatsApp mobile number with country code (for example +91 98765 43210).'
+        });
+      }
+      if (channel === 'email_manual' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientTo)) {
+        return sendJson(res, 400, { error: 'Enter a valid email address.' });
       }
 
       /* Ensure a published version + fresh customer link so the message has a real portal URL. */
@@ -2045,20 +2075,7 @@ async function handleApi(req, res, url) {
       const host = req.headers.host || ('localhost:' + PORT);
       const proto = (req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim() || 'http';
       const portalUrl = proto + '://' + host + '/portal.html?t=' + encodeURIComponent(rawToken);
-      const messageBody = String(body.messageBody || buildDefaultMessage(row, portalUrl)).slice(0, 4000);
-      const recipientTo = String(body.recipientTo || '').trim().slice(0, 200);
-      const recipientName = String(body.recipientName || row.customer_name || '').trim().slice(0, 200);
-
-      if (channel === 'whatsapp_manual' && recipientTo && !digitsForWhatsApp(recipientTo)) {
-        return sendJson(res, 400, {
-          error: 'Enter a valid WhatsApp mobile number with country code (for example +91 98765 43210).'
-        });
-      }
-      if (channel === 'email_manual' && recipientTo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientTo)) {
-        return sendJson(res, 400, { error: 'Enter a valid email address.' });
-      }
-
-      const markShared = body.markShareClicked !== false;
+      const messageBody = messageWithPortalLink(body.messageBody || body.message, row, portalUrl);
       const sendRow = {
         id: uid('snd'),
         proposal_id: row.id,
@@ -2066,7 +2083,7 @@ async function handleApi(req, res, url) {
         token_id: tokenRow.id,
         owner_id: user.id,
         channel,
-        state: markShared ? 'share_clicked' : 'draft',
+        state: 'draft',
         recipient_name: recipientName,
         recipient_to: recipientTo,
         message_body: messageBody,
@@ -2076,29 +2093,22 @@ async function handleApi(req, res, url) {
         note: String(body.note || '').slice(0, 500),
         created_at: nowISO(),
         updated_at: nowISO(),
-        share_clicked_at: markShared ? nowISO() : null,
+        share_clicked_at: null,
         submitted_at: null,
         delivered_at: null
       };
       db.sends.push(sendRow);
-
-      if (row.status === 'draft' || row.status === 'ready' || row.status === 'internal_review') {
-        row.status = 'sent';
-        if (!row.sent_at) row.sent_at = nowISO();
-        row.updated_at = nowISO();
-      }
 
       recordEvent(db, {
         token_id: tokenRow.id,
         version_id: version.id,
         proposal_id: row.id,
         owner_id: user.id,
-        event_type: markShared ? 'share_clicked' : 'send_drafted',
+        event_type: 'send_drafted',
         meta: { channel, sendId: sendRow.id }
       });
       saveDb(db);
 
-      const waDigits = channel === 'whatsapp_manual' ? digitsForWhatsApp(recipientTo) : '';
       const launch = {
         whatsappUrl: waDigits
           ? ('https://wa.me/' + waDigits + '?text=' + encodeURIComponent(messageBody))
@@ -2110,10 +2120,10 @@ async function handleApi(req, res, url) {
             ) +
             '&body=' + encodeURIComponent(messageBody))
           : null,
-        copyText: messageBody,
+        copyText: channel === 'copy_link' ? portalUrl : messageBody,
         portalUrl,
         /* Explicit: these launches are not provider delivery receipts */
-        honesty: 'Launching WhatsApp or mail only means the share flow was opened. Delivery is unconfirmed until a provider reports it.'
+        honesty: 'The share action is not started yet. Launching WhatsApp/email or copying the message records only that action, not delivery.'
       };
 
       return sendJson(res, 201, {
@@ -2152,7 +2162,16 @@ async function handleApi(req, res, url) {
       }
       sendRow.state = next;
       sendRow.updated_at = nowISO();
-      if (next === 'share_clicked' && !sendRow.share_clicked_at) sendRow.share_clicked_at = nowISO();
+      if (next === 'share_clicked' && !sendRow.share_clicked_at) {
+        sendRow.share_clicked_at = nowISO();
+        const proposal = (db.proposals || []).find((p) => p.id === sendRow.proposal_id && inScope(scope, p));
+        if (proposal && ['draft', 'ready', 'internal_review'].includes(proposal.status)) {
+          proposal.status = 'sent';
+          if (!proposal.sent_at) proposal.sent_at = nowISO();
+          proposal.updated_at = nowISO();
+          proposal.revision = proposalRevision(proposal) + 1;
+        }
+      }
       if (next === 'submitted_to_provider' && !sendRow.submitted_at) sendRow.submitted_at = nowISO();
       if (next === 'delivered' && !sendRow.delivered_at) sendRow.delivered_at = nowISO();
       if (body.note) sendRow.note = String(body.note).slice(0, 500);
@@ -2280,6 +2299,17 @@ async function handleApi(req, res, url) {
         task.title = title.slice(0, 200);
       }
       if (body.notes != null) task.notes = String(body.notes).slice(0, 2000);
+      if (body.proposalId !== undefined) {
+        const proposalId = body.proposalId == null ? '' : String(body.proposalId).trim();
+        const existingProposalId = task.proposal_id == null ? '' : String(task.proposal_id);
+        /* Keep an existing link when the task is editable but that proposal is
+           no longer visible to this user. New/replacement links must be in scope. */
+        if (proposalId && proposalId !== existingProposalId &&
+            !(db.proposals || []).some((p) => p.id === proposalId && inScope(scope, p))) {
+          return sendJson(res, 404, { error: 'Proposal not found for this task' });
+        }
+        task.proposal_id = proposalId || null;
+      }
       if (body.dueAt !== undefined) {
         if (body.dueAt === null || body.dueAt === '') task.due_at = null;
         else {

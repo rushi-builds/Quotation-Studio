@@ -9,6 +9,19 @@
 
 (function (root) {
   const BASE = ''; /* same-origin */
+  const PRODUCTION_VERCEL_HOST = 'quotation-studio-taupe.vercel.app';
+  function isUnisolatedVercelPreview() {
+    try {
+      const host = String(location.hostname || '').toLowerCase();
+      return host.endsWith('.vercel.app') && host !== PRODUCTION_VERCEL_HOST;
+    } catch (_) { return false; }
+  }
+  function assertPreviewBackendSafe() {
+    if (!isUnisolatedVercelPreview()) return;
+    const err = new Error('Cloud data actions are disabled in Vercel Preview because its API rewrite points at production.');
+    err.code = 'PREVIEW_BACKEND_DISABLED';
+    throw err;
+  }
 
   /* Session token: memory + localStorage + sessionStorage.
      Preview iframes often block cookies; some also restrict sessionStorage.
@@ -56,6 +69,7 @@
   function clearToken() { writeToken(''); }
 
   async function request(method, path, body, timeoutMs = 0) {
+    assertPreviewBackendSafe();
     const opts = {
       method,
       credentials: 'same-origin',
@@ -97,6 +111,7 @@
   }
 
   async function requestRaw(method, path, buf, extraHeaders) {
+    assertPreviewBackendSafe();
     const opts = {
       method,
       credentials: 'same-origin',
@@ -291,6 +306,7 @@
     },
     /** True when /api/health answers. */
     async isAvailable() {
+      if (isUnisolatedVercelPreview()) return false;
       const h = await this.health();
       return !!(h && h.ok);
     }

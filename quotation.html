@@ -16,7 +16,7 @@
 <meta name="twitter:description" content="Build a premium 15-page rooftop solar EPC proposal with live A4 preview, financial analytics and one-click PDF export.">
 <meta name="twitter:image" content="assets/images/page-cover-v2-portrait.jpg">
 <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png">
-<link rel="stylesheet" href="assets/css/app.css?v=finance-fixes1">
+<link rel="stylesheet" href="assets/css/app.css?v=cloud-primary1">
 <link rel="stylesheet" href="assets/css/bess.css">
 <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1">
 <link rel="stylesheet" href="assets/css/control-panel.css?v=engineering-panel2">
@@ -37,9 +37,10 @@
     </div>
 
     <div class="studio-cloud-bar" id="studioCloudBar" hidden>
-      <a class="cloud-dash-link" href="dashboard.html" title="Staff dashboard">Dashboard</a>
-      <span class="cloud-chip" id="cloudChip" data-state="off">Browser only</span>
-      <button type="button" class="link-btn" id="cloudSaveBtn" hidden title="Save this proposal to your cloud workspace">Save to cloud</button>
+      <a class="cloud-dash-link" id="cloudDashboardLink" href="dashboard.html" title="Save the latest changes before opening Dashboard">Dashboard</a>
+      <span class="cloud-chip" id="cloudChip" data-state="off">Local backup only</span>
+      <button type="button" class="link-btn" id="cloudSaveBtn" hidden title="Save this proposal to cloud now">Save now</button>
+      <span class="cloud-sync-hint" id="cloudSyncHint" role="status" aria-live="polite">This browser keeps an offline backup.</span>
     </div>
 
     <form id="quoteForm" autocomplete="off">
@@ -1404,8 +1405,8 @@
 <script src="assets/js/briefing.js"></script>
 <script src="assets/js/export.js?v=power-six-audit1"></script>
 <script src="assets/js/workspace-prefs.js"></script>
-<script src="assets/js/platform-api.js?v=knowledge3"></script>
-<script src="assets/js/cloud-bridge.js?v=knowledge3"></script>
+<script src="assets/js/platform-api.js?v=preview-isolation1"></script>
+<script src="assets/js/cloud-bridge.js?v=cloud-primary1"></script>
 <script src="assets/js/app.js?v=rwa1"></script>
 <script src="assets/js/control-panel.js?v=engineering-panel2"></script>
 <script src="assets/js/assistant-actions.js?v=knowledge3"></script>

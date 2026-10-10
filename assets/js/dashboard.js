@@ -203,7 +203,7 @@
   }
 
   /* ---------- navigation ---------- */
-  let lastLaunch = null;
+  let lastLaunch = null, lastSendId = null, lastSendChannel = null;
 
   const PAGE_LABELS = {home:'Overview',proposals:'Quotations',tasks:'Follow-ups',activity:'Customer activity',send:'Sharing',publish:'Sharing',gallery:'Project gallery',reports:'Analytics',settings:'Settings'};
   function showPanel(name, preferId) {
@@ -284,7 +284,39 @@
     body.querySelectorAll('[data-open-activity]').forEach(b=>b.addEventListener('click',()=>openInStudio(b.dataset.openActivity)));
   }
 
-  let taskLoad = 0;
+  let taskLoad = 0, taskRows = [], editingTaskId = null;
+  function localDateInput(value) {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return '';
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  }
+  function localDateKey(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  }
+  function resetTaskEditor() {
+    editingTaskId = null;
+    ['taskTitle', 'taskNotes', 'taskDue'].forEach(id => { if ($(id)) $(id).value = ''; });
+    if ($('taskProposal')) $('taskProposal').value = '';
+    if ($('btnTaskAdd')) $('btnTaskAdd').textContent = 'Create follow-up';
+    if ($('btnTaskCancelEdit')) $('btnTaskCancelEdit').hidden = true;
+  }
+  function startTaskEdit(id) {
+    const task = taskRows.find(row => row.id === id);
+    if (!task || !canEdit()) return;
+    fillTaskProposalSelect(task.proposalId || '');
+    editingTaskId = task.id;
+    $('taskTitle').value = task.title || '';
+    $('taskNotes').value = task.notes || '';
+    $('taskDue').value = localDateInput(task.dueAt);
+    $('taskProposal').value = task.proposalId || '';
+    $('btnTaskAdd').textContent = 'Save changes';
+    if ($('btnTaskCancelEdit')) $('btnTaskCancelEdit').hidden = false;
+    const editor = document.querySelector('.task-compose');
+    if (editor) editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('taskTitle').focus();
+  }
   async function refreshTasksPanel() {
     const requestId = ++taskLoad;
     fillTaskProposalSelect();
@@ -296,11 +328,15 @@
     }
   }
 
-  function fillTaskProposalSelect() {
+  function fillTaskProposalSelect(preserveId) {
     const sel = $('taskProposal');
     if (!sel) return;
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">No linked proposal</option>' +
+    const cur = preserveId || sel.value;
+    const accessible = allProposals.some(p => p.id === cur);
+    const missing = cur && !accessible
+      ? '<option value="' + escapeHtml(cur) + '">Linked quotation unavailable — keep existing link</option>'
+      : '';
+    sel.innerHTML = '<option value="">No linked quotation</option>' + missing +
       allProposals.map((p) => (
         '<option value="' + escapeHtml(p.id) + '">' +
         escapeHtml((p.customer || 'Untitled') + (p.ref ? ' · ' + p.ref : '')) +
@@ -311,22 +347,37 @@
 
   function renderTasks(rows) {
     const body = $('tasksBody'); if (!body) return;
+    taskRows = Array.isArray(rows) ? rows.slice() : [];
+    const openRows = taskRows.filter(t => t.status === 'open');
+    const overdue = openRows.filter(t => !!t.overdue);
+    const todayKey = localDateKey(new Date());
+    const dueToday = openRows.filter(t => !!t.dueAt && localDateKey(t.dueAt) === todayKey && !t.overdue);
+    const reminder = $('taskReminderSummary');
+    if (reminder) {
+      const parts = [];
+      if (overdue.length) parts.push(overdue.length + ' overdue');
+      if (dueToday.length) parts.push(dueToday.length + ' due today');
+      reminder.hidden = !parts.length;
+      reminder.className = 'task-reminder' + (overdue.length ? ' overdue' : '');
+      reminder.textContent = parts.length ? parts.join(' · ') + '. In-app only; no automatic WhatsApp or email reminders are sent.' : '';
+    }
     const filter = $('taskFilter')?.value || 'all';
-    rows = rows.filter(t => {
+    const visibleRows = taskRows.filter(t => {
       if (filter === 'all') return true;
       if (filter === 'done') return t.status === 'done';
       if (t.status !== 'open') return false;
       if (filter === 'open') return true;
       if (filter === 'overdue') return !!t.overdue;
-      return !!t.dueAt && new Date(t.dueAt).toDateString() === new Date().toDateString();
+      return !!t.dueAt && localDateKey(t.dueAt) === todayKey;
     }).sort((a,b)=> (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || (Date.parse(a.dueAt) || Infinity) - (Date.parse(b.dueAt) || Infinity));
-    if ($('taskCount')) $('taskCount').textContent = String(rows.length);
-    if (!rows.length) { body.innerHTML = emptyState('A clear list. A fresh start.','No follow-ups in this view. Plan your next step on the right.','✓'); return; }
-    body.innerHTML = rows.map(t => {
+    if ($('taskCount')) $('taskCount').textContent = String(visibleRows.length);
+    if (!visibleRows.length) { body.innerHTML = emptyState('A clear list. A fresh start.','No follow-ups in this view. Plan your next step on the right.','✓'); return; }
+    body.innerHTML = visibleRows.map(t => {
       const prop = allProposals.find(p=>p.id===t.proposalId);
       const action = (act,label,cls='') => '<button type="button" class="' + cls + '" data-act="' + act + '" data-id="' + escapeHtml(t.id) + '">' + label + '</button>';
-      const check = canEdit() ? action(t.status === 'open' ? 'task-done' : 'task-reopen', t.status === 'done' ? '✓' : '<span class="sr-only">' + (t.status === 'open' ? 'Complete task' : 'Reopen task') + '</span>', 'task-check') : '<span class="task-check" aria-label="' + escapeHtml(t.status) + '">' + (t.status === 'done' ? '✓' : '') + '</span>';
-      return '<article class="task-item ' + escapeHtml(t.status) + '">' + check + '<div class="task-copy"><h3>' + escapeHtml(t.title) + '</h3><div class="task-meta"><span class="' + (t.overdue ? 'late' : '') + '">' + escapeHtml(t.dueAt ? fmtDate(t.dueAt) : 'No due date') + '</span>' + (prop ? '<button type="button" class="text-link" data-task-quote="' + escapeHtml(prop.id) + '">' + escapeHtml(prop.customer || prop.ref || 'Quotation') + '</button>' : '') + (t.status === 'cancelled' ? '<span>Cancelled</span>' : '') + '</div>' + (t.notes ? '<p>' + escapeHtml(t.notes) + '</p>' : '') + '</div>' + (canEdit() ? '<details class="row-menu"><summary aria-label="Task actions">⋯</summary><div class="row-menu-list">' + (t.status === 'open' ? action('task-cancel','Cancel task') : action('task-reopen','Reopen task')) + action('task-del','Delete task','danger') + '</div></details>' : '') + '</article>';
+      const checkLabel = t.status === 'open' ? 'Complete task' : 'Reopen task';
+      const check = canEdit() ? action(t.status === 'open' ? 'task-done' : 'task-reopen', '<span class="sr-only">' + checkLabel + '</span>', 'task-check') : '<span class="task-check" aria-label="' + escapeHtml(t.status) + '">' + (t.status === 'done' ? '✓' : '') + '</span>';
+      return '<article class="task-item ' + escapeHtml(t.status) + '">' + check + '<div class="task-copy"><h3>' + escapeHtml(t.title) + '</h3><div class="task-meta"><span class="' + (t.overdue ? 'late' : '') + '">' + escapeHtml(t.dueAt ? fmtDate(t.dueAt) : 'No due date') + '</span>' + (prop ? '<button type="button" class="text-link" data-task-quote="' + escapeHtml(prop.id) + '">' + escapeHtml(prop.customer || prop.ref || 'Quotation') + '</button>' : (t.proposalId ? '<span>Linked quotation unavailable</span>' : '')) + (t.status === 'cancelled' ? '<span>Cancelled</span>' : '') + '</div>' + (t.notes ? '<p>' + escapeHtml(t.notes) + '</p>' : '') + '</div>' + (canEdit() ? '<details class="row-menu"><summary aria-label="Task actions">⋯</summary><div class="row-menu-list">' + action('task-edit','Edit details') + (t.status === 'open' ? action('task-cancel','Cancel task') : action('task-reopen','Reopen task')) + action('task-del','Delete task','danger') + '</div></details>' : '') + '</article>';
     }).join('');
     body.querySelectorAll('[data-act]').forEach(btn=>btn.addEventListener('click',onTaskAction));
     body.querySelectorAll('[data-task-quote]').forEach(btn=>btn.addEventListener('click',()=>openInStudio(btn.dataset.taskQuote)));
@@ -336,15 +387,17 @@
     const btn = ev.currentTarget;
     const act = btn.getAttribute('data-act');
     const id = btn.getAttribute('data-id');
+    if (act === 'task-edit') {
+      startTaskEdit(id);
+      return;
+    }
+    if (act === 'task-del' && !confirm('Delete this follow-up task?')) return;
     btn.disabled = true;
     try {
       if (act === 'task-done') await api.updateTask(id, { status: 'done' });
       else if (act === 'task-cancel') await api.updateTask(id, { status: 'cancelled' });
       else if (act === 'task-reopen') await api.updateTask(id, { status: 'open' });
-      else if (act === 'task-del') {
-        if (!confirm('Delete this follow-up task?')) return;
-        await api.deleteTask(id);
-      }
+      else if (act === 'task-del') await api.deleteTask(id);
       await refreshTasksPanel();
       await refreshAll();
     } catch (err) {
@@ -361,20 +414,29 @@
       return;
     }
     const due = $('taskDue') && $('taskDue').value;
+    const payload = {
+      title,
+      notes: ($('taskNotes') && $('taskNotes').value) || '',
+      proposalId: ($('taskProposal') && $('taskProposal').value) || null,
+      dueAt: due ? new Date(due + 'T23:59:59.999').toISOString() : null
+    };
+    const btn = $('btnTaskAdd');
+    if (btn) btn.disabled = true;
     try {
-      await api.createTask({
-        title,
-        notes: ($('taskNotes') && $('taskNotes').value) || '',
-        proposalId: ($('taskProposal') && $('taskProposal').value) || undefined,
-        dueAt: due ? new Date(due + 'T17:00:00').toISOString() : undefined
-      });
-      if ($('taskTitle')) $('taskTitle').value = '';
-      if ($('taskNotes')) $('taskNotes').value = '';
-      toast('Follow-up added');
+      if (editingTaskId) {
+        await api.updateTask(editingTaskId, payload);
+        toast('Follow-up updated');
+      } else {
+        await api.createTask(payload);
+        toast('Follow-up added');
+      }
+      resetTaskEditor();
       await refreshTasksPanel();
       await refreshAll();
     } catch (err) {
-      toast(err.message || 'Could not add task');
+      toast(err.message || (editingTaskId ? 'Could not update follow-up' : 'Could not add task'));
+    } finally {
+      if (btn) btn.disabled = !canEdit();
     }
   }
 
@@ -710,6 +772,8 @@
     const id = $('sendSelect') && $('sendSelect').value;
     if (sendLoadedId !== id) { ['sendMessage','sendRecipientName','sendRecipientTo'].forEach(key=>{ if ($(key)) $(key).value=''; }); sendLoadedId=id; }
     lastLaunch = null;
+    lastSendId = null;
+    lastSendChannel = null;
     if ($('btnSendLaunch')) $('btnSendLaunch').hidden = true;
     if ($('btnSendCopy')) $('btnSendCopy').hidden = true;
     if ($('sendResult')) {
@@ -753,7 +817,7 @@
           'Kind regards';
       }
       if ($('sendHonesty') && preview.honestyNote) {
-        $('sendHonesty').textContent = 'Sharing opens your app; delivery is not confirmed.';
+        $('sendHonesty').textContent = 'Preparing does not share the message. Launching WhatsApp/email or copying records only that action; delivery is not confirmed.';
       }
       renderSends((sends && sends.sends) || []);
     } catch (err) {
@@ -764,8 +828,23 @@
   function renderSends(rows) {
     const body = $('sendsBody'); if (!body) return;
     if (!rows.length) { body.innerHTML = emptyState('Nothing shared yet.','Prepare a message to start the conversation.','↗'); return; }
-    body.innerHTML = rows.map(s => '<article class="send-item"><span class="client-icon" aria-hidden="true">↗</span><div><strong>' + escapeHtml(s.recipientName || s.recipientTo || 'Customer') + '</strong><p>' + escapeHtml(s.channelLabel || s.channel) + '</p><span class="badge ' + (s.state === 'failed' || s.state === 'cancelled' ? 'rejected' : 'sent') + '">' + escapeHtml(s.stateLabel || s.state) + '</span><p><small>' + escapeHtml(fmtDate(s.createdAt)) + '</small></p></div>' + (canEdit() && !['cancelled','failed'].includes(s.state) ? '<button type="button" class="text-link" data-cancel-send="' + escapeHtml(s.id) + '">Cancel</button>' : '') + '</article>').join('');
+    body.innerHTML = rows.map(s => '<article class="send-item"><span class="client-icon" aria-hidden="true">↗</span><div><strong>' + escapeHtml(s.recipientName || s.recipientTo || 'Customer') + '</strong><p>' + escapeHtml(s.channelLabel || s.channel) + '</p><span class="badge ' + (s.state === 'failed' || s.state === 'cancelled' ? 'rejected' : s.state === 'share_clicked' ? 'sent' : '') + '">' + escapeHtml(s.stateLabel || s.state) + '</span><p><small>' + escapeHtml(fmtDate(s.createdAt)) + '</small></p></div>' + (canEdit() && !['cancelled','failed'].includes(s.state) ? '<button type="button" class="text-link" data-cancel-send="' + escapeHtml(s.id) + '">Cancel</button>' : '') + '</article>').join('');
     body.querySelectorAll('[data-cancel-send]').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;try{await api.updateSendState(btn.dataset.cancelSend,'cancelled');await refreshSendPanelKeepMessage();toast('Send cancelled');}catch(err){toast(err.message || 'Could not cancel');btn.disabled=false;}}));
+  }
+
+  function invalidatePreparedSend() {
+    if (!lastSendId) return;
+    lastLaunch = null;
+    lastSendId = null;
+    lastSendChannel = null;
+    if ($('btnSendLaunch')) $('btnSendLaunch').hidden = true;
+    if ($('btnSendCopy')) $('btnSendCopy').hidden = true;
+    const box = $('sendResult');
+    if (box) {
+      box.style.display = 'block';
+      box.className = 'banner info';
+      box.textContent = 'The recipient, channel, or message changed. Prepare it again before sharing or copying.';
+    }
   }
 
   async function prepareSend() {
@@ -776,23 +855,42 @@
     }
     const btn = $('btnSendPrepare');
     if (btn) btn.disabled = true;
+    const draft = {
+      channel: ($('sendChannel') && $('sendChannel').value) || 'whatsapp_manual',
+      recipientName: ($('sendRecipientName') && $('sendRecipientName').value) || '',
+      recipientTo: ($('sendRecipientTo') && $('sendRecipientTo').value) || '',
+      messageBody: ($('sendMessage') && $('sendMessage').value) || ''
+    };
     try {
-      let message = ($('sendMessage') && $('sendMessage').value) || '';
-      /* Placeholder replaced server-side if empty link line; keep user edits. */
+      /* The server inserts the real link into the placeholder without losing
+         any surrounding user-written text. */
       const r = await api.createSend(id, {
-        channel: ($('sendChannel') && $('sendChannel').value) || 'whatsapp_manual',
-        recipientName: ($('sendRecipientName') && $('sendRecipientName').value) || '',
-        recipientTo: ($('sendRecipientTo') && $('sendRecipientTo').value) || '',
-        messageBody: message.includes('[A secure link will be inserted')
-          ? undefined
-          : message,
+        ...draft,
+        messageBody: draft.messageBody.trim() ? draft.messageBody : undefined,
         publishFirst: true,
-        expiresInDays: 30,
-        markShareClicked: true
+        expiresInDays: 30
       });
-      if ($('sendSelect').value !== id) { toast('Sharing prepared for the previous quotation'); await refreshAll(); return; }
+      const formChanged = $('sendSelect').value !== id ||
+        ($('sendChannel') && $('sendChannel').value !== draft.channel) ||
+        ($('sendRecipientName') && $('sendRecipientName').value !== draft.recipientName) ||
+        ($('sendRecipientTo') && $('sendRecipientTo').value !== draft.recipientTo) ||
+        ($('sendMessage') && $('sendMessage').value !== draft.messageBody);
+      if (formChanged) {
+        lastLaunch = null;
+        lastSendId = null;
+        lastSendChannel = null;
+        if ($('btnSendLaunch')) $('btnSendLaunch').hidden = true;
+        if ($('btnSendCopy')) $('btnSendCopy').hidden = true;
+        toast('A draft was prepared, but the form changed while it was saving. Review it and prepare again.');
+        await refreshAll();
+        return;
+      }
       lastLaunch = r.launch || null;
-      if ($('sendMessage') && r.launch && r.launch.copyText) {
+      lastSendId = r.send && r.send.id || null;
+      lastSendChannel = draft.channel;
+      if ($('sendMessage') && r.send && r.send.messageBody) {
+        $('sendMessage').value = r.send.messageBody;
+      } else if ($('sendMessage') && r.launch && r.launch.copyText) {
         $('sendMessage').value = r.launch.copyText;
       }
       const box = $('sendResult');
@@ -800,11 +898,11 @@
         box.style.display = 'block';
         box.className = 'banner on ok';
         box.innerHTML =
-          '<strong>Ready to share.</strong> State recorded as <em>share opened (not delivery-confirmed)</em>.<br />' +
-          'Portal: <code style="word-break:break-all;font-size:12px">' +
+          '<strong>Message prepared — not shared yet.</strong> State is <em>Draft</em> until you launch WhatsApp/email or copy the message.<br />' +
+          'Customer link: <code style="word-break:break-all;font-size:12px">' +
           escapeHtml((r.launch && r.launch.portalUrl) || '') + '</code>' +
           '<div class="muted" style="margin-top:6px;font-size:12px">' +
-          escapeHtml((r.launch && r.launch.honesty) || '') + '</div>';
+          escapeHtml((r.launch && r.launch.honesty) || 'Delivery is not confirmed.') + '</div>';
       }
       if ($('btnSendLaunch')) {
         const canLaunch = !!(lastLaunch && (lastLaunch.whatsappUrl || lastLaunch.mailtoUrl));
@@ -813,8 +911,11 @@
           lastLaunch && lastLaunch.whatsappUrl ? 'Open WhatsApp' :
           lastLaunch && lastLaunch.mailtoUrl ? 'Open email app' : 'Open channel';
       }
-      if ($('btnSendCopy')) $('btnSendCopy').hidden = false;
-      toast('Send prepared');
+      if ($('btnSendCopy')) {
+        $('btnSendCopy').textContent = lastSendChannel === 'copy_link' ? 'Copy link' : 'Copy message';
+        $('btnSendCopy').hidden = false;
+      }
+      toast('Message prepared — not shared yet');
       await refreshAll();
       fillSendSelect(id);
       await refreshSendPanelKeepMessage();
@@ -840,11 +941,38 @@
     if ($('sendRecipientName') && name) $('sendRecipientName').value = name;
     if ($('sendRecipientTo') && to) $('sendRecipientTo').value = to;
     if (lastLaunch) {
-      if ($('btnSendCopy')) $('btnSendCopy').hidden = false;
+      if ($('btnSendCopy')) {
+        $('btnSendCopy').textContent = lastSendChannel === 'copy_link' ? 'Copy link' : 'Copy message';
+        $('btnSendCopy').hidden = false;
+      }
       if ($('btnSendLaunch')) {
         const canLaunch = !!(lastLaunch.whatsappUrl || lastLaunch.mailtoUrl);
         $('btnSendLaunch').hidden = !canLaunch;
       }
+    }
+  }
+
+  async function recordShareAction(note) {
+    if (!lastSendId) {
+      toast('Prepare a message first');
+      return false;
+    }
+    try {
+      const result = await api.updateSendState(lastSendId, 'share_clicked', note);
+      const box = $('sendResult');
+      if (box) {
+        box.style.display = 'block';
+        box.className = 'banner on ok';
+        const actionText = lastSendChannel === 'copy_link' ? 'copied the customer link' : 'launched the channel or copied the message';
+        box.innerHTML = '<strong>Share action started.</strong> This only records that you ' + actionText + '; delivery is not confirmed.';
+      }
+      toast('Share action started — delivery not confirmed');
+      await refreshAll();
+      await refreshSendPanelKeepMessage();
+      return !!(result && result.send);
+    } catch (err) {
+      toast('The action was started, but its status could not sync. ' + (err.message || 'Try again when online.'));
+      return false;
     }
   }
 
@@ -858,7 +986,12 @@
       toast('This channel has no external launch URL — use Copy message');
       return;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      void recordShareAction(lastLaunch.whatsappUrl ? 'User initiated WhatsApp share' : 'User initiated email share');
+    } catch (_) {
+      toast('Could not launch the share app. The send remains a draft.');
+    }
   }
 
   async function copySendMessage() {
@@ -870,9 +1003,11 @@
     }
     try {
       await navigator.clipboard.writeText(text);
-      toast('Message copied');
+      await recordShareAction(lastSendChannel === 'copy_link'
+        ? 'User copied the customer link to clipboard'
+        : 'User copied the message to clipboard');
     } catch (_) {
-      toast('Copy failed — select the message text manually');
+      toast('Copy failed — select the message text manually. The send remains a draft.');
     }
   }
 
@@ -1474,6 +1609,9 @@
     if ($('btnSendPrepare')) $('btnSendPrepare').addEventListener('click', prepareSend);
     if ($('btnSendLaunch')) $('btnSendLaunch').addEventListener('click', launchChannel);
     if ($('btnSendCopy')) $('btnSendCopy').addEventListener('click', copySendMessage);
+    ['sendMessage', 'sendRecipientName', 'sendRecipientTo'].forEach(id => {
+      if ($(id)) $(id).addEventListener('input', invalidatePreparedSend);
+    });
     if ($('sendSelect')) {
       $('sendSelect').addEventListener('change', () => {
         if ($('sendMessage')) $('sendMessage').value = '';
@@ -1484,6 +1622,7 @@
     }
     if ($('sendChannel')) {
       $('sendChannel').addEventListener('change', () => {
+        invalidatePreparedSend();
         /* Refresh defaults for the new channel without wiping a custom message. */
         const id = $('sendSelect') && $('sendSelect').value;
         if (!id) return;
@@ -1511,12 +1650,17 @@
     }
     if ($('taskFilter')) $('taskFilter').addEventListener('change', refreshTasksPanel);
     if ($('btnTaskAdd')) $('btnTaskAdd').addEventListener('click', addTask);
+    if ($('btnTaskCancelEdit')) $('btnTaskCancelEdit').addEventListener('click', resetTaskEditor);
     if ($('btnReportRefresh')) $('btnReportRefresh').addEventListener('click', refreshReportsPanel);
     if ($('btnGalleryUpload')) $('btnGalleryUpload').addEventListener('click', uploadGalleryPhoto);
     if ($('galleryViewerClose')) $('galleryViewerClose').addEventListener('click', () => { const d = $('galleryViewer'); if (d && d.open) d.close(); });
     if ($('galleryViewer')) $('galleryViewer').addEventListener('click', (e) => { const d = $('galleryViewer'); if (e.target === d && d.open) d.close(); });
 
-    const resync = () => { if (user && !document.hidden) refreshAll(); };
+    const resync = () => {
+      if (!user || document.hidden) return;
+      refreshAll();
+      if ($('panel-tasks')?.classList.contains('on')) refreshTasksPanel();
+    };
     document.addEventListener('visibilitychange', resync);
     window.addEventListener('pageshow', (e) => { if (e.persisted) resync(); });
     setInterval(resync, 60000);
@@ -1524,7 +1668,7 @@
     try {
       const avail = await api.isAvailable();
       if (!avail) {
-        showAuthError('Can\u2019t reach the platform server. This link is a static preview (no backend) \u2014 open the live :8787 server preview to sign in.');
+        showAuthError('This static preview has no connected backend and cannot access production records. Use a configured local API server or a staging backend for data workflows.');
         return;
       }
       user = await api.currentUser();

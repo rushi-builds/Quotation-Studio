@@ -1342,8 +1342,29 @@ table.data td.empty {
   margin-bottom: 25px;
   font-size: 11px;
 }
-.task-compose > .btn {
+.task-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.task-form-actions .btn {
+  flex: 1;
   width: 100%;
+}
+.task-reminder {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #f0c57a;
+  border-radius: 10px;
+  background: #fff8e9;
+  color: #80540e;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.task-reminder.overdue {
+  border-color: #efb5b1;
+  background: #fff1f0;
+  color: #9b1c1c;
 }
 .task-board .card-head {
   padding-bottom: 17px;
@@ -2533,7 +2554,7 @@ dialog::backdrop {
     width: calc(50% - 12px);
     margin-right: 8px;
   }
-  .task-compose > .btn,
+  .task-form-actions .btn,
   .upload-card > .btn {
     width: auto;
   }
