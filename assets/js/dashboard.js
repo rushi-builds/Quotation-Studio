@@ -171,7 +171,11 @@
     $('settingsName').textContent = user.name || '—';
     $('settingsEmail').textContent = user.email || '—';
     if ($('settingsRole')) {
-      $('settingsRole').textContent = roleLabel(user);
+      /* What a member typed when they signed up IS their role on screen. The
+         stored permission word only stands in when that field was left blank —
+         access is identical either way, because this is a label and not a
+         grant: `viewer` still gates every write wherever it is displayed. */
+      $('settingsRole').textContent = user.roleCustom || roleLabel(user);
       /* Red dot: self-only tell that this account is in elevated admin mode.
          Driven by the stored `elevated` flag; nobody else's payload has it. */
       if (user && user.elevated) {

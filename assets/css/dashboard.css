@@ -791,6 +791,17 @@ textarea {
   font-size: 12px;
   outline: none;
 }
+/* A value the account cannot change itself must read as settled rather than
+   as a control that is mysteriously stuck. The role is one of these: it is
+   set at sign-up and an owner moves it from the team list. */
+input[readonly] {
+  opacity: .72;
+  cursor: default;
+}
+input[readonly]:focus {
+  border-color: var(--line);
+  box-shadow: none;
+}
 input:focus,
 select:focus,
 textarea:focus {
