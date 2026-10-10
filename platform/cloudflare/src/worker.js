@@ -1347,7 +1347,8 @@ async function smtpSend(env, toAddress, subject, htmlBody, origin) {
     await expect('RCPT TO:<' + to + '>', 250);
     await expect('DATA', 354);
 
-    await writer.write(out.encode(buildMailMessage(user, to, subject, html, related)));
+    const message = buildMailMessage(user, to, subject, html, related);
+    await writer.write(out.encode(message));
     const accepted = await readReply();
     if (accepted.code !== 250) throw new Error('message rejected: ' + accepted.text.slice(0, 200));
     try { await writer.write(out.encode('QUIT\r\n')); } catch (_) { /* closing anyway */ }
