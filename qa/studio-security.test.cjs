@@ -55,15 +55,20 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   await page.goto(base+'/index.html#forgotPassword');
   await page.locator('#f-rp').waitFor({state:'visible'});
   /* Three steps share the sign-in panel (owner decision, 2026-10-10): the email,
-     then the code with its resend counter, then a new password. Opening it must
-     ask the server nothing at all — no address is submitted until the user types
-     one, so merely arriving on the page cannot confirm an account exists. */
+     then the code with its resend counter, then a new password. All three stand
+     on the card so the shape of the task reads at a glance — steps 2 and 3 are
+     dimmed, inert and disabled until the step before them has done its job, so
+     a code box cannot be typed into before any code exists. Opening it must ask
+     the server nothing at all: merely arriving cannot confirm an account exists. */
   assert.ok(await page.locator('#r-e').isVisible());
-  assert.equal(await page.evaluate(()=>document.querySelector('[data-rstep="2"]').hasAttribute('hidden')),true);
-  assert.equal(await page.evaluate(()=>document.querySelector('[data-rstep="3"]').hasAttribute('hidden')),true);
+  assert.equal(await page.evaluate(()=>document.querySelector('[data-rstep="2"]').hasAttribute('data-locked')),true);
+  assert.equal(await page.evaluate(()=>document.querySelector('[data-rstep="3"]').hasAttribute('data-locked')),true);
+  assert.ok(await page.evaluate(()=>Array.from(document.querySelectorAll('[data-rstep="2"] input,[data-rstep="2"] button,[data-rstep="3"] input,[data-rstep="3"] button')).every(el=>el.disabled)),'a locked step must not be typeable or submittable');
   assert.ok(await page.evaluate(()=>{const m=document.querySelector('#f-rp .rmeta');return !!document.getElementById('rp-resend')&&!!document.getElementById('rp-timer')&&!!document.getElementById('rp-attempts')&&/resend/i.test(document.getElementById('rp-resend').textContent)&&!!m;}));
   assert.ok(await page.evaluate(()=>!/\b\d{6}\b/.test(document.getElementById('f-rp').textContent)),'no code may be rendered in the panel');
-  await page.getByRole('button',{name:'Back to sign in'}).click();
+  /* Two controls now answer to that name — the header arrow and the footer
+     link — so the arrow is named directly rather than left ambiguous. */
+  await page.locator('#f-rp .rpback').click();
   await page.locator('#forgotPassword').click();
   assert.equal(await page.locator('#f-rp').isVisible(),true);
   assert.equal(recoveryCalls,0,'UI must not issue or expose reset secrets');

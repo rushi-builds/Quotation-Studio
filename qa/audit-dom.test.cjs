@@ -140,10 +140,16 @@ async function loadPage(base, pagePath, { cookie = '', preset = null } = {}) {
       const rp = doc.getElementById('f-rp');
       t('recovery deep link opens the reset panel', rp && rp.hidden === false, rp && rp.hidden);
       t('sign-in panel is swapped out', doc.getElementById('f-in').hidden === true);
-      t('only step 1 (email) is shown',
-        !!doc.querySelector('[data-rstep="1"]:not([hidden])') &&
-        !doc.querySelector('[data-rstep="2"]:not([hidden])') &&
-        !doc.querySelector('[data-rstep="3"]:not([hidden])'));
+      /* All three steps now stand on the card, so the guarantee is no longer
+         "the others are absent" but "the others cannot be used": a code box
+         is visible before any code exists, and must be inert until then. */
+      t('step 1 is live while steps 2 and 3 are locked',
+        !!doc.querySelector('[data-rstep="1"]:not([data-locked])') &&
+        !!doc.querySelector('[data-rstep="2"][data-locked]') &&
+        !!doc.querySelector('[data-rstep="3"][data-locked]'));
+      t('a locked step cannot be typed into or submitted',
+        Array.from(doc.querySelectorAll('[data-rstep="2"] input,[data-rstep="2"] button,[data-rstep="3"] input,[data-rstep="3"] button'))
+          .every((el) => el.disabled));
       t('email step asks for the address',
         !!doc.getElementById('r-e') && !!doc.querySelector('#f-rp [data-rstep="1"] .cta2'));
       t('code step carries the resend control and its counter',

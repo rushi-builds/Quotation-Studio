@@ -89,10 +89,13 @@ input,button,a{font-family:var(--f)}
 .up .sb:focus-visible,.up .fg:focus-visible,.up .sw a:focus-visible{outline:.15cqw solid var(--or)}
 .up .e{margin-top:.2cqw}
 #f-in .up{justify-content:center;gap:1.05cqw}
-/* password recovery: the three steps share the sign-in panel, so one step is
-   visible at a time inside the same centred column. */
-#f-rp .up{justify-content:center;gap:1.05cqw}
-.up .rps{display:flex;flex-direction:column;gap:1.05cqw}
+/* password recovery: the three steps share the sign-in panel as one stacked
+   card, so the person can see the whole shape of the task before starting it.
+   A step that has not been earned yet is dimmed and inert rather than absent —
+   hiding it left the column jumping between states with no way to read ahead. */
+#f-rp .up{justify-content:center;gap:.95cqw;overflow-y:auto;overscroll-behavior:contain;padding-bottom:.5cqw}
+.up .rps{display:flex;flex-direction:column;gap:.62cqw;transition:opacity .25s}
+.up .rps[data-locked]{opacity:.4;pointer-events:none}
 #f-rp .fg{align-self:center;margin:0}
 .up .fg[disabled]{opacity:.6;cursor:default}
 .up .otp{letter-spacing:.5cqw;text-align:center;font-weight:700}
@@ -109,6 +112,46 @@ input,button,a{font-family:var(--f)}
    sitting there as a permanent scolding. */
 .up .rmeta .attempts.pop{animation:attPop 3s ease forwards}
 @keyframes attPop{0%{opacity:0;filter:blur(6px);transform:translateY(2px)}10%{opacity:1;filter:blur(0);transform:none}72%{opacity:1;filter:blur(0)}100%{opacity:0;filter:blur(6px);transform:translateY(-1px)}}
+/* Reset card: a back arrow that returns to sign-in without a guess, and a
+   locked padlock as the card's one piece of ornament. */
+.up .rph{display:flex;align-items:center;justify-content:space-between}
+.up .rpback{width:2.4cqw;height:2.4cqw;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);color:#e8ecf3;cursor:pointer;display:grid;place-items:center;font-size:1.15cqw;line-height:1;padding:0;transition:background .2s}
+.up .rpback:hover{background:rgba(255,255,255,.14)}
+.up .rpback:focus-visible{outline:.15cqw solid var(--or)}
+.up .rpglyph{width:3.4cqw;height:3.4cqw;border-radius:50%;border:1px solid rgba(253,193,83,.45);background:radial-gradient(circle at 32% 26%,rgba(253,193,83,.26),rgba(253,193,83,.05));display:grid;place-items:center;flex:none}
+.up .rpglyph svg{width:1.7cqw;height:1.7cqw;fill:var(--or)}
+/* Each step is titled by a numbered badge so the three read as one path. */
+.up .rps h3{display:flex;align-items:center;gap:.6cqw;font-size:1.05cqw;font-weight:700;color:#f4f7fb;margin:0}
+.up .rps h3 .n{flex:none;width:1.6cqw;height:1.6cqw;border-radius:50%;background:var(--or);color:#1b1206;font:700 .9cqw/1 var(--f);font-style:normal;display:grid;place-items:center}
+.up .sub2{font-size:.88cqw;color:#b7bfcd;margin:-.2cqw 0 -.05cqw}
+.up .sub2 b{color:#fff;font-weight:600;word-break:break-all}
+/* An envelope/lock glyph sitting inside the field, with the padding that keeps
+   the typed text clear of it. The password row reuses `.pwrap` so the existing
+   eye toggle keeps working. */
+.up .iwrap{position:relative;display:flex;align-items:center}
+.up .iwrap .iw,.up .pwrap .iw{position:absolute;left:1.1cqw;top:50%;transform:translateY(-50%);width:1.15cqw;height:1.15cqw;fill:#9aa2b2;pointer-events:none;z-index:1}
+.up .iwrap .f{padding-left:3cqw}
+.up .pwrap.pi .f{padding-left:3cqw}
+.up .pwrap.pi .eye{right:.35cqw}
+/* Six boxes rather than one field: a single text input hides which digit went
+   wrong, while auto-advance, backspace-back and paste-fill keep it no harder
+   than typing the code in one go. */
+.up .otp6{display:flex;gap:.55cqw;justify-content:center}
+.up .ob{width:3cqw;height:3.4cqw;text-align:center;font:700 1.5cqw var(--f);border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;border-radius:.6cqw;padding:0;transition:border-color .15s,box-shadow .15s}
+.up .ob::placeholder{color:rgba(255,255,255,.28);font-weight:600}
+.up .ob:focus{border-color:var(--or);outline:none;box-shadow:0 0 0 .2cqw rgba(253,193,83,.2)}
+.up .ob.filled{border-color:rgba(253,193,83,.55)}
+/* The checklist reports progress; it does not gate. The server keeps the real
+   rule (8+ characters and two of the four character types), so the button
+   follows the server — these marks can never reject a password the server
+   would have taken, and an unlit mark never blocks the submit. */
+.up .pwreq{list-style:none;margin:-.15cqw 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:.4cqw .9cqw;font-size:.82cqw;color:#98a0af}
+.up .pwreq li{position:relative;padding-left:1.4cqw;line-height:1.3}
+.up .pwreq li:before{content:"";position:absolute;left:0;top:.16cqw;width:.85cqw;height:.85cqw;border-radius:50%;border:1px solid rgba(255,255,255,.3);box-sizing:border-box}
+.up .pwreq li:after{content:"";position:absolute;left:.2cqw;top:.4cqw;width:.42cqw;height:.2cqw;border-left:1.5px solid transparent;border-bottom:1.5px solid transparent;transform:rotate(-45deg);transition:.15s}
+.up .pwreq li.ok{color:#8ed6a4}
+.up .pwreq li.ok:before{border-color:#8ed6a4;background:rgba(142,214,164,.18)}
+.up .pwreq li.ok:after{border-left-color:#8ed6a4;border-bottom-color:#8ed6a4}
 </style>
 </head>
 <body>
@@ -141,23 +184,34 @@ input,button,a{font-family:var(--f)}
 
  <form id="f-rp" class="ov" data-mode="rp" novalidate hidden>
   <div class="up" style="left:63.457%;top:14.772%;width:30.263%;height:69.501%">
-   <div><h2>Reset Password</h2></div>
-   <div class="rps" data-rstep="1">
-    <p class="sub">We&rsquo;ll email a 6-digit code to <b id="rp-who"></b>.</p>
-    <div id="rp-mail" hidden><label for="r-e">Email</label><input class="f" id="r-e" name="email" type="email" autocomplete="email" placeholder="Enter your email"><div class="e"></div></div>
-    <button class="cta2" type="submit">Send OTP</button>
-   </div>
-   <div class="rps" data-rstep="2" hidden>
-    <p class="sub">Enter the code we sent to your inbox.</p>
-    <div><input class="f otp" id="r-c" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="6-digit code"><div class="e"></div></div>
-    <p class="rmeta"><button class="lnk" id="rp-resend" type="button">Resend OTP</button><span class="clk" id="rp-timer"></span><span class="attempts" id="rp-attempts" hidden></span></p>
-    <button class="cta2" type="submit">Verify OTP</button>
-   </div>
-   <div class="rps" data-rstep="3" hidden>
-    <p class="sub">Choose a new password for your account.</p>
-    <div><label for="r-p">New password</label><div class="pwrap"><input class="f" id="r-p" name="password" type="password" autocomplete="new-password" placeholder="New password"><button class="eye" type="button" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M12 6.5c4.2 0 7.4 3 8.700 5.500-.5 1-1.300 2-2.200 2.800l1.400 1.400c1.400-1.300 2.500-2.900 3.100-4.200C21.800 8.800 17.600 4.500 12 4.500c-1.400 0-2.700.3-3.900.8l1.600 1.600c.7-.3 1.500-.4 2.300-.4zM2.100 3.500 3.500 2.100l18.400 18.400-1.400 1.400-3-3c-1.400.6-3 .9-5.500.9C6.400 19.800 2.200 15.200.9 12c.7-1.700 1.900-3.300 3.500-4.600zm5.200 5.200a5 5 0 0 0 6.900 6.900l-1.500-1.500a3 3 0 0 1-3.900-3.900z"/></svg></button></div><div class="e"></div></div>
-    <button class="cta2" type="submit">Reset Password</button>
-   </div>
+   <div class="rph"><button class="rpback" type="button" data-go="in" tabindex="0" role="button" aria-label="Back to sign in">&larr;</button><span class="rpglyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 9V7a5 5 0 0 0-10 0v2H5v12h14V9h-2zm-8-2a3 3 0 0 1 6 0v2H9V7zm4 12h-2v-2h2v2z"/></svg></span></div>
+   <div><h2>Reset Password</h2></div><p class="sub">We&rsquo;ll send a 6-digit code to your email to verify it&rsquo;s you.</p>
+
+   <section class="rps" data-rstep="1">
+    <h3><i class="n">1</i>Enter your email</h3>
+    <div class="iwrap"><svg class="iw" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4.23-8 4.99-8-4.99V6.6l8 4.99 8-4.99v1.63z"/></svg><input class="f" id="r-e" name="email" type="email" autocomplete="email" placeholder="Enter your email address" aria-label="Email address"></div>
+    <div class="e"></div>
+    <button class="cta2" type="submit">Send OTP &rarr;</button>
+   </section>
+
+   <section class="rps" data-rstep="2" data-locked="1">
+    <h3><i class="n">2</i>Enter the verification code</h3>
+    <p class="sub2">We&rsquo;ve sent a 6-digit code to <b id="rp-who"></b></p>
+    <div class="otp6" id="rp-otp"><input class="ob" maxlength="1" inputmode="numeric" autocomplete="one-time-code" placeholder="0" aria-label="Digit 1 of 6"><input class="ob" maxlength="1" inputmode="numeric" placeholder="0" aria-label="Digit 2 of 6"><input class="ob" maxlength="1" inputmode="numeric" placeholder="0" aria-label="Digit 3 of 6"><input class="ob" maxlength="1" inputmode="numeric" placeholder="0" aria-label="Digit 4 of 6"><input class="ob" maxlength="1" inputmode="numeric" placeholder="0" aria-label="Digit 5 of 6"><input class="ob" maxlength="1" inputmode="numeric" placeholder="0" aria-label="Digit 6 of 6"></div>
+    <input class="sr" id="r-c" name="code" type="text" readonly tabindex="-1" aria-hidden="true">
+    <p class="rmeta"><span class="clk" id="rp-timer"></span><button class="lnk" id="rp-resend" type="button">Resend OTP</button><span class="attempts" id="rp-attempts" hidden></span></p>
+    <div class="e"></div>
+    <button class="cta2" type="submit" id="rp-verify">Verify OTP &rarr;</button>
+   </section>
+
+   <section class="rps" data-rstep="3" data-locked="1">
+    <h3><i class="n">3</i>Set a new password</h3>
+    <div class="pwrap pi"><svg class="iw" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6zm9 14H6V10h12v10zm-6-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg><input class="f" id="r-p" name="password" type="password" autocomplete="new-password" placeholder="New password" aria-label="New password"><button class="eye" type="button" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M12 6.5c4.2 0 7.4 3 8.700 5.500-.5 1-1.300 2-2.200 2.800l1.400 1.400c1.400-1.300 2.500-2.900 3.100-4.200C21.800 8.800 17.600 4.500 12 4.500c-1.400 0-2.700.3-3.900.8l1.600 1.600c.7-.3 1.500-.4 2.300-.4zM2.100 3.500 3.500 2.100l18.400 18.400-1.400 1.400-3-3c-1.400.6-3 .9-5.500.9C6.400 19.800 2.200 15.200.9 12c.7-1.700 1.900-3.300 3.500-4.600zm5.200 5.200a5 5 0 0 0 6.900 6.900l-1.500-1.500a3 3 0 0 1-3.900-3.900z"/></svg></button></div>
+    <div class="e"></div>
+    <ul class="pwreq" id="rp-req"><li data-req="len">At least 8 characters</li><li data-req="up">One uppercase letter</li><li data-req="num">One number</li><li data-req="sym">One special character</li></ul>
+    <button class="cta2" type="submit">Reset Password &rarr;</button>
+   </section>
+
    <p class="sw"><a data-go="in" tabindex="0" role="button">Back to sign in</a></p>
   </div>
  </form>
@@ -183,17 +237,24 @@ const RP={step:1,email:'',code:'',left:3,total:3,tries:5,until:0,timer:null};
 /* Declared here, not at the bottom: rpOpen() runs on a deep link before the
    script reaches the old position, and a const in that state is a ReferenceError. */
 const rx=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/* Steps are not swapped in and out — all three stand on the card. What changes
+   is which ones are live: a step whose turn has not come is dimmed, inert and
+   disabled, so a code box cannot be typed into before any code exists. */
 function rpShow(n){
   RP.step=n;
-  FRP.querySelectorAll('.rps').forEach(d=>{d.hidden=Number(d.dataset.rstep)!==n;});
-  const step=FRP.querySelector('.rps:not([hidden])');
+  FRP.querySelectorAll('.rps').forEach(s=>{
+    const lock=Number(s.dataset.rstep)>n;
+    if(lock)s.setAttribute('data-locked','1');else s.removeAttribute('data-locked');
+    s.querySelectorAll('input,button').forEach(el=>{el.disabled=lock;});
+  });
+  const step=FRP.querySelector('.rps[data-rstep="'+n+'"]');
   if(!step)return;
-  /* Focus the field that is actually on screen. Step 1 hides the address box
-     whenever the sign-in card already holds one, so "first input" would grab a
-     hidden field and leave the keyboard nowhere. */
-  const vis=Array.prototype.find.call(step.querySelectorAll('input'),i=>!i.closest('[hidden]'));
+  /* Focus the field the eye is actually on: the hidden mirror that holds the
+     assembled code is not a place anyone can type. */
+  const vis=Array.prototype.find.call(step.querySelectorAll('input'),
+    i=>!i.disabled&&!i.readOnly&&!i.closest('[hidden]'));
   const target=vis||step.querySelector('.cta2');
-  if(target)target.focus();
+  if(target&&target.focus)target.focus();
 }
 function rpErr(id,msg){
   const i=document.getElementById(id);
@@ -203,7 +264,7 @@ function rpErr(id,msg){
   i.setAttribute('aria-invalid',msg?'true':'false');
 }
 function rpSub(n,msg){
-  const d=FRP.querySelector('.rps[data-rstep="'+n+'"] .sub');
+  const d=FRP.querySelector('.rps[data-rstep="'+n+'"] .sub,.rps[data-rstep="'+n+'"] .sub2');
   if(d)d.textContent=msg;
 }
 /* Resend label carries the live 45-second countdown, then the running count of
@@ -247,23 +308,82 @@ function rpStartCooldown(sec){
   RP.until=Date.now()+Math.max(1,Number(sec)||45)*1000;
   rpResendLabel();
 }
-function rpMailBox(ask){
-  const box=document.getElementById('rp-mail'),who=document.getElementById('rp-who');
-  if(!box||!who)return false;
-  box.hidden=!ask;who.hidden=ask;
-  return !ask;
+/* The six boxes read back as one code, and the single hidden mirror keeps
+   `name="code"` populated for autofill and for anything that still reads the
+   field directly. Nothing is ever written into the boxes by us — only the
+   person's own typing or their own paste gets there. */
+const otpBoxes=()=>Array.prototype.slice.call(FRP.querySelectorAll('#rp-otp .ob'));
+function rpCode(){return otpBoxes().map(b=>b.value).join('');}
+function rpSyncCode(){
+  const m=document.getElementById('r-c');
+  if(m)m.value=rpCode();
+  otpBoxes().forEach(b=>b.classList.toggle('filled',!!b.value));
+}
+function rpClearOtp(){otpBoxes().forEach(b=>{b.value='';b.classList.remove('filled');});rpSyncCode();}
+/* Auto-advance, backspace-back, arrow keys and paste-fill: six boxes must be
+   no harder than one field, or the treatment is only decoration. An autofill
+   that drops the whole code onto the first box lands all six rather than
+   being truncated to a single digit. */
+function rpWireOtp(){
+  otpBoxes().forEach((b,idx,arr)=>{
+    b.addEventListener('input',()=>{
+      const raw=b.value.replace(/\D/g,'');
+      if(raw.length>1){
+        raw.split('').slice(0,6-idx).forEach((ch,k)=>{if(arr[idx+k])arr[idx+k].value=ch;});
+        rpSyncCode();
+        const to=arr[Math.min(idx+raw.length,5)];
+        if(to){to.focus();if(to.select)to.select();}
+        return;
+      }
+      b.value=raw;rpSyncCode();
+      if(raw&&arr[idx+1])arr[idx+1].focus();
+    });
+    b.addEventListener('keydown',e=>{
+      if(e.key==='Backspace'&&!b.value&&arr[idx-1]){e.preventDefault();arr[idx-1].focus();arr[idx-1].value='';rpSyncCode();}
+      else if(e.key==='ArrowLeft'&&arr[idx-1]){e.preventDefault();arr[idx-1].focus();}
+      else if(e.key==='ArrowRight'&&arr[idx+1]){e.preventDefault();arr[idx+1].focus();}
+    });
+    b.addEventListener('paste',e=>{
+      const t=((e.clipboardData||window.clipboardData).getData('text')||'').replace(/\D/g,'');
+      if(!t)return;
+      e.preventDefault();
+      arr.forEach(x=>{x.value='';});
+      t.split('').slice(0,6).forEach((ch,k)=>{if(arr[k])arr[k].value=ch;});
+      rpSyncCode();
+      const to=arr[Math.min(t.length,5)];
+      if(to){to.focus();if(to.select)to.select();}
+    });
+    b.addEventListener('focus',()=>{if(b.select)b.select();});
+  });
+}
+/* A progress read-out beside the password, not a second validator. The server
+   owns the real rule (8+ characters, no spaces, two of the four types), so
+   these marks report and never gate — an unlit mark does not stop the submit,
+   and a lit one never claims a pass the server has not given. */
+function rpReq(){
+  const v=(document.getElementById('r-p')||{}).value||'';
+  const ok={len:v.length>=8,up:/[A-Z]/.test(v),num:/[0-9]/.test(v),sym:/[^A-Za-z0-9\s]/.test(v)};
+  FRP.querySelectorAll('#rp-req li').forEach(li=>{li.classList.toggle('ok',!!ok[li.dataset.req]);});
 }
 function rpOpen(){
   rpErr('r-e','');rpErr('r-c','');rpErr('r-p','');
   rpSub(2,'Enter the code we sent to your inbox.');
+  rpAttempts(0);
+  rpClearOtp();
+  const p=document.getElementById('r-p');
+  if(p){p.value='';}
+  rpReq();
   FRP.hidden=false;F.in.hidden=true;F.up.hidden=true;
-  /* The address is already on the sign-in card, and it is the very account
-     being recovered — retyping it is the one field this flow can do without.
-     A card opened cold (bookmark, deep link, nothing typed above) falls back
-     to asking, so the step is never a dead end. */
+  /* Step 1 shows the address as the design asks, but arrives already filled
+     from the sign-in card: it is the very account being recovered, so the one
+     field this flow could do without is one nobody has to retype. Opened cold
+     (bookmark, deep link, nothing typed above) it stands empty and asks. */
   const typed=(document.getElementById('i-e').value||'').trim();
-  const known=rpMailBox(!rx.test(typed));
-  document.getElementById('rp-who').textContent=known?typed:'';
+  const known=rx.test(typed);
+  const i=document.getElementById('r-e');
+  if(i)i.value=known?typed:'';
+  const who=document.getElementById('rp-who');
+  if(who)who.textContent=known?typed:'your email';
   rpShow(1);
 }
 async function rpBusy(btn,label,work){
@@ -278,27 +398,32 @@ FRP.addEventListener('submit',async e=>{
   if(!btn)return;
   if(RP.step===1){
     const i=document.getElementById('r-e');
-    const fromCard=document.getElementById('rp-mail').hidden;
-    const v=((fromCard?(document.getElementById('i-e').value||''):i.value)||'').trim();
+    const v=(i.value||'').trim();
     if(!rx.test(v)){
-      /* Either the card was opened cold, or the address above was cleared while
-         it stood. Ask in place rather than refuse with nowhere to go. */
-      rpMailBox(true);rpErr('r-e','Enter a valid email address.');i.focus();return;
+      rpErr('r-e','Enter a valid email address.');i.focus();return;
     }
     rpErr('r-e','');
     try{
       const r=await rpBusy(btn,'Sending\u2026',()=>window.PlatformAPI.forgotPassword(v));
       RP.email=v;RP.left=RP.total;RP.tries=5;rpAttempts(0);
+      rpClearOtp();
+      const who=document.getElementById('rp-who');
+      if(who)who.textContent=v;
       rpSub(2,(r&&r.message)||'If that email has an account, a reset code is on its way. Check your inbox and spam folder.');
       rpShow(2);rpStartCooldown(45);
     }catch(err){
-      rpMailBox(true);rpErr('r-e',honestError(err));
+      rpErr('r-e',honestError(err));
     }
     return;
   }
   if(RP.step===2){
-    const i=document.getElementById('r-c'),v=i.value.replace(/\s+/g,'');
-    if(!/^\d{6}$/.test(v)){rpErr('r-c','Enter the 6-digit code from your email.');i.focus();return;}
+    const v=rpCode();
+    if(!/^\d{6}$/.test(v)){
+      rpErr('r-c','Enter the 6-digit code from your email.');
+      const first=otpBoxes().find(b=>!b.value)||otpBoxes()[0];
+      if(first)first.focus();
+      return;
+    }
     rpErr('r-c','');
     try{
       await rpBusy(btn,'Verifying\u2026',()=>window.PlatformAPI.verifyCode(RP.email,v));
@@ -309,7 +434,11 @@ FRP.addEventListener('submit',async e=>{
          after five misses whatever this believes. */
       if(RP.tries>0)RP.tries-=1;
       rpAttempts(RP.tries);
-      if(RP.tries<=0)i.value='';
+      if(RP.tries<=0){
+        rpClearOtp();
+        const first=otpBoxes()[0];
+        if(first)first.focus();
+      }
     }
     return;
   }
@@ -334,9 +463,13 @@ document.getElementById('rp-resend').addEventListener('click',async()=>{
   try{
     await window.PlatformAPI.forgotPassword(RP.email);
     if(RP.left>0)RP.left-=1;
-    /* A fresh code means a fresh allowance of tries. */
-    RP.tries=5;rpAttempts(0);
+    /* A fresh code means a fresh allowance of tries, and the old digits are
+       worth nothing now — clearing them leaves the boxes ready for the new
+       code instead of half a stale one. */
+    RP.tries=5;rpAttempts(0);rpClearOtp();
     rpStartCooldown(45);
+    const first=otpBoxes()[0];
+    if(first)first.focus();
   }catch(err){
     const code=err&&err.data&&err.data.code;
     if(code==='RESEND_LIMIT'){RP.left=0;rpResendLabel();return;}
@@ -345,6 +478,9 @@ document.getElementById('rp-resend').addEventListener('click',async()=>{
     rpResendLabel();
   }
 });
+rpWireOtp();
+const rpi=document.getElementById('r-p');
+if(rpi)rpi.addEventListener('input',rpReq);
 document.querySelector('[data-act=forgot]').onclick=rpOpen;
 if(location.hash==='#forgotPassword')rpOpen();
 window.addEventListener('hashchange',()=>{if(location.hash==='#forgotPassword')rpOpen();});
