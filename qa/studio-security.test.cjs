@@ -26,7 +26,12 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   fs.writeFileSync(dbPath,JSON.stringify(db));
   const second=await api('auth/register',{email:'new-'+randomUUID()+'@example.test',name:'New signup',password:randomUUID()+'Cc3!',role:'Owner',roleCustom:'owner',permissionRole:'owner'});
   assert.equal(second.body.user.role,'viewer');assert.equal(second.body.user.roleCustom,'Owner');
-  assert.equal((await api('team/members',undefined,second.body.token)).status,403);
+  /* Read is open to every signed-in member (see worker.js on GET /team/members,
+     and platform-api / team-profile asserting 200 view-only) — so this signup
+     that asked for permissionRole:'owner' proves least privilege by being able
+     to READ below while the three WRITES after it stay 403. This asserted 403
+     before viewer read-only shipped, and has been stale since. */
+  assert.equal((await api('team/members',undefined,second.body.token)).status,200);
   assert.equal((await api('team/role',{userId:first.body.user.id,role:'viewer'},second.body.token)).status,403);
   assert.equal((await api('proposals',{title:'Unauthorized draft'},second.body.token)).status,403);
   assert.equal((await api('auth/profile',{role:'owner'},second.body.token)).body.user.role,'viewer');

@@ -177,6 +177,24 @@ async function loadPage(base, pagePath, { cookie = '', preset = null } = {}) {
       t('sign-in submit button present', !!window.document.querySelector('#f-in button.cta2'));
       t('create-account link present', !!window.document.querySelector('#f-in [data-go="up"]'));
       t('forgot-password control present', !!window.document.getElementById('forgotPassword'));
+      /* "Remember me" (owner request, 2026-10-10) sits LEFT of Forgot password
+         on one row, UNCHECKED by default so a sign-in is browser-session-only
+         unless the user asks to be remembered. */
+      const reco = window.document.querySelector('#f-in .reco');
+      t('remember-me row present', !!reco, reco ? '' : 'no .reco row');
+      const remember = window.document.getElementById('rememberMe');
+      t('remember-me checkbox present and UNCHECKED by default',
+        !!remember && remember.type === 'checkbox' && !remember.checked,
+        remember ? 'type=' + remember.type + ' checked=' + remember.checked : 'missing');
+      t('remember-me and Forgot password share one row',
+        !!reco && !!reco.querySelector('#rememberMe') && !!reco.querySelector('#forgotPassword'));
+      /* Flex row reads left-to-right, so DOM order IS visual order here —
+         measurable in any environment, unlike layout rects under jsdom. */
+      t('remember-me is to the LEFT of Forgot password',
+        !!reco &&
+        reco.innerHTML.indexOf('rememberMe') < reco.innerHTML.indexOf('id="forgotPassword"'));
+      t('remember-me is opted IN to the form (name="remember")',
+        !!remember && remember.getAttribute('name') === 'remember');
       window.close();
     }
     {

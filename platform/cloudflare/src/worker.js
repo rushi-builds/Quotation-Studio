@@ -17,6 +17,11 @@ import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
 import { scryptSync, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 
 const SESSION_DAYS = 30;
+/* "Remember me" is OFF by default (owner decision, 2026-10-10): the sign-in
+   then returns a session cookie with NO Max-Age, so the browser drops it when
+   it closes, and the server-side session row is capped at 12 hours as defence
+   in depth. Ticking the box restores the 30-day behaviour. */
+const SESSION_HOURS_SHORT = 12;
 const COOKIE = 'qs_session';
 const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
@@ -174,14 +179,21 @@ function sessionCookie(token, maxAgeSec, request) {
     COOKIE + '=' + encodeURIComponent(token || ''),
     'Path=/',
     'HttpOnly',
-    'SameSite=' + (isHttps ? 'None' : 'Lax'),
-    'Max-Age=' + String(maxAgeSec)
+    'SameSite=' + (isHttps ? 'None' : 'Lax')
   ];
+  /* maxAgeSec === null means "session cookie": no Max-Age, so the browser
+     discards it when it closes. That is what makes "Remember me" being OFF
+     mean anything. 0 is still emitted — logout relies on it to clear. */
+  if (maxAgeSec !== null && maxAgeSec !== undefined) parts.push('Max-Age=' + String(maxAgeSec));
   if (isHttps) parts.push('Secure');
   return parts.join('; ');
 }
-function authHeaders(token, request) {
-  return { 'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400, request) };
+function authHeaders(token, request, remember) {
+  /* remember === true → 30-day cookie. Anything else → a session cookie (no
+     Max-Age) that the browser discards when it closes. */
+  return {
+    'Set-Cookie': sessionCookie(token, remember ? SESSION_DAYS * 86400 : null, request)
+  };
 }
 
 function hashPassword(password, salt) {
@@ -218,6 +230,12 @@ function passwordPolicyError(password) {
   if (p.length < 8) return 'Password must be at least 8 characters.';
   if (p.length > 128) return 'Password must be at most 128 characters.';
   if (/\s/.test(p)) return 'Password cannot contain spaces.';
+  /* Mixed characters (owner request, 2026-10-10): at least TWO of lowercase /
+     uppercase / digits / symbols. Two, not three — the policy applies only to
+     passwords being SET (sign-up and change-password), never to sign-in, so no
+     existing account can be locked out by it. */
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((r) => r.test(p)).length;
+  if (classes < 2) return 'Password must mix at least two of: lowercase, uppercase, digits, symbols.';
   return null;
 }
 
@@ -784,9 +802,13 @@ async function ensureBootstrapOwner(db, env, user) {
 async function applyOwnerBootstrap(db, env, user) {
   await ensureBootstrapOwner(db, env, user);
 }
-async function createSession(db, user) {
+async function createSession(db, user, ttlMs) {
+  /* ttlMs is the server-side life of the session. The sign-in route passes the
+     30-day value when "Remember me" is ticked and SESSION_HOURS_SHORT otherwise;
+     callers with no such control keep the long default. */
+  const ttl = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : SESSION_DAYS * 864e5;
   const token = randomBytes(24).toString('hex');
-  const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
+  const expires = new Date(Date.now() + ttl).toISOString();
   await run(
     db,
     'INSERT INTO sessions (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)',
@@ -1130,36 +1152,47 @@ async function handleApi(request, env, url) {
       );
       await applyOwnerBootstrap(db, env, user);
       await authThrottleSuccess(db, email);
-      const sess = await createSession(db, user);
+      /* Create Account offers no "Remember me" control, so a fresh sign-up gets
+         the secure default: a session cookie plus the 12-hour server cap. */
+      const sess = await createSession(db, user, SESSION_HOURS_SHORT * 3600 * 1000);
       return json(
         { user: publicUser(user, env), token: sess.token, expiresAt: sess.expiresAt },
         201,
-        authHeaders(sess.token, request)
+        authHeaders(sess.token, request, false)
       );
     }
 
     if (parts[0] === 'auth' && parts[1] === 'login' && method === 'POST') {
+      /* ONE message for BOTH failure paths, on purpose. Saying "no such
+         account" only for an unknown address would let anyone test which
+         addresses are registered (user enumeration). Attaching the create-account
+         hint to the shared failure keeps the guidance and leaks nothing. */
+      const LOGIN_FAILED = 'Invalid email or password. Don’t have an account yet? Create one.';
       const body = await readBody(request);
       const email = String(body.email || '').trim().toLowerCase();
       const password = String(body.password || '');
+      /* "Remember me" is OFF by default: session cookie (no Max-Age) plus the
+         12-hour server cap. Ticking it restores the 30-day behaviour. */
+      const remember = body.remember === true || body.remember === 'true';
       const loginBlocked = await authThrottleCheck(db, request, email);
       if (loginBlocked != null) return authLimited(loginBlocked);
       if (!email || !password) {
         await authThrottleFail(db, request, email);
-        return json({ error: 'Invalid email or password' }, 401);
+        return json({ error: LOGIN_FAILED }, 401);
       }
       const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
       if (!user || !verifyPassword(password, user.password_hash)) {
         await authThrottleFail(db, request, email);
-        return json({ error: 'Invalid email or password' }, 401);
+        return json({ error: LOGIN_FAILED }, 401);
       }
       await authThrottleSuccess(db, email);
       await applyOwnerBootstrap(db, env, user);
-      const sess = await createSession(db, user);
+      const ttlMs = remember ? SESSION_DAYS * 864e5 : SESSION_HOURS_SHORT * 3600 * 1000;
+      const sess = await createSession(db, user, ttlMs);
       return json(
         { user: publicUser(user, env), token: sess.token, expiresAt: sess.expiresAt },
         200,
-        authHeaders(sess.token, request)
+        authHeaders(sess.token, request, remember)
       );
     }
 
@@ -2604,6 +2637,20 @@ async function handleApi(request, env, url) {
         /* 007 not applied: there is nothing to purge. */
       }
       await run(db, 'DELETE FROM gallery WHERE created_by = ?', target.id);
+      /* Sessions are auth artefacts, not business records, so they go with the
+         account. The counts above were taken first, so the response still
+         reports how many there were. requireUser already refuses a deleted
+         member (its user lookup returns nothing), so this is hygiene rather
+         than a security fix — but a live session has no business outliving the
+         person it belongs to. */
+      await run(db, 'DELETE FROM sessions WHERE user_id = ?', target.id);
+      /* password_resets too — the local server already drops them (server.js),
+         so the Worker must not be the one that keeps them. */
+      try {
+        await run(db, 'DELETE FROM password_resets WHERE user_id = ?', target.id);
+      } catch (e) {
+        /* Table not present: nothing to purge. */
+      }
       const removed = await run(db, 'DELETE FROM users WHERE id = ?', target.id);
       if (!removed.meta || removed.meta.changes === 0) return json({ error: 'User not found' }, 404);
       return json({ ok: true, removed: Object.assign({ email: target.email, name: target.name }, owned) });

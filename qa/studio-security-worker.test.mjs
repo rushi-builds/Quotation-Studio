@@ -22,7 +22,13 @@ for (const [name, app] of [['worker',worker],['index',indexWorker]]) {
  for(const role of ['owner','Owner','sales','Project lead']) {
   const result=await call('auth/register',{email:'test@example.test',password:'TestOnly123!',name:'Test',role,permissionRole:'owner'});
   assert.equal(result.status,201);const body=await result.json();assert.equal(body.user.role,'viewer');assert.equal(user.role,'viewer');assert.equal(user.role_custom,role);
-  assert.equal((await call('team/members',undefined,body.token)).status,403);
+  /* Reading the team panel is open to EVERY signed-in member — worker.js says
+     so on its GET /team/members route, and platform-api + team-profile both
+     assert 200 view-only for a viewer. So a signup that asked for
+     permissionRole:'owner' proves least privilege the other way round: the read
+     below works, the WRITE after it does not. (This line asserted 403 before
+     viewer read-only shipped, and has been stale ever since.) */
+  assert.equal((await call('team/members',undefined,body.token)).status,200);
   assert.equal((await call('team/role',{userId:'existing-owner',role:'viewer'},body.token)).status,403);
  }
  assert.ok(statements.filter(s=>s.sql.includes('INSERT INTO users')).every(s=>s.params[4]==='viewer'));

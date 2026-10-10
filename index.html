@@ -69,6 +69,10 @@ input,button,a{font-family:var(--f)}
 .hero h1 em{font-style:normal;color:#f9a02c}
 .hero .tag{font-size:1.2cqw;color:#fff}
 .up .fg{align-self:flex-end;background:transparent;border:0;color:var(--or);font:500 .95cqw var(--f);cursor:pointer;margin:-.2cqw 0 -.1cqw}
+.up .reco{display:flex;justify-content:space-between;align-items:center;gap:.6cqw}
+.up .rm{display:flex;align-items:center;gap:.4cqw;color:#c3c8d4;font:500 .95cqw var(--f);cursor:pointer;user-select:none;white-space:nowrap}
+.up .rm input{width:1.1cqw;height:1.1cqw;margin:0;accent-color:var(--or);cursor:pointer;flex:none}
+.up .reco .fg{align-self:center;margin:0}
 .up .or{display:flex;align-items:center;gap:1cqw;color:#c3c8d4;font-size:.9cqw}
 .up .or:before,.up .or:after{content:"";flex:1;height:1px;background:rgba(255,255,255,.2)}
 .up .soc{display:grid;grid-template-columns:repeat(3,1fr);gap:.9cqw}
@@ -88,7 +92,7 @@ input,button,a{font-family:var(--f)}
    <div><h2>Welcome Back</h2></div><p class="sub">Sign in to your account</p>
    <div><label for="i-e">Email</label><input class="f" id="i-e" name="email" type="email" autocomplete="email" placeholder="Enter your email"><div class="e"></div></div>
    <div><label for="i-p">Password</label><div class="pwrap"><input class="f" id="i-p" name="password" type="password" autocomplete="current-password" placeholder="Enter your password"><button class="eye" type="button" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M12 6.5c4.2 0 7.4 3 8.700 5.500-.5 1-1.300 2-2.200 2.800l1.400 1.400c1.400-1.300 2.500-2.900 3.100-4.200C21.800 8.800 17.600 4.500 12 4.500c-1.400 0-2.700.3-3.900.8l1.600 1.600c.7-.3 1.500-.4 2.300-.4zM2.100 3.500 3.500 2.100l18.400 18.400-1.400 1.400-3-3c-1.400.6-3 .9-5.500.9C6.400 19.800 2.200 15.200.9 12c.7-1.700 1.900-3.300 3.500-4.600zm5.200 5.200a5 5 0 0 0 6.900 6.900l-1.500-1.500a3 3 0 0 1-3.900-3.900z"/></svg></button></div><div class="e"></div></div>
-   <button class="fg" id="forgotPassword" type="button" data-act="forgot">Forgot password?</button>
+   <div class="reco"><label class="rm" for="rememberMe"><input type="checkbox" id="rememberMe" name="remember" value="1"><span>Remember me</span></label><button class="fg" id="forgotPassword" type="button" data-act="forgot">Forgot password?</button></div>
    <button class="cta2" type="submit">Sign In &rarr;</button>
    <p class="sw">Don&rsquo;t have an account?<a data-go="up" tabindex="0" role="button">Create one</a></p>
   </div>
@@ -149,7 +153,7 @@ async function submitAuth(mode,data){
   const P=window.PlatformAPI;
   if(!P)throw new Error('noapi');
   let r;
-  if(mode==='in')r=await P.login(data.email.trim(),data.password);
+  if(mode==='in')r=await P.login(data.email.trim(),data.password,data.remember==='1');
   else r=await P.register(data.name.trim(),data.email.trim(),data.password,(data.role||'').trim());
   if(r&&r.token&&P.setSessionToken)P.setSessionToken(r.token);
   return r;

@@ -27,6 +27,11 @@ const HOST = process.env.HOST || '0.0.0.0';
 const assistantModule = import('../gemini.mjs');
 let assistantLimiter;
 const SESSION_DAYS = 30;
+/* "Remember me" is OFF by default (owner decision, 2026-10-10): the sign-in
+   then returns a session cookie with NO Max-Age, so the browser drops it when
+   it closes, and the server-side session row is capped at 12 hours as defence
+   in depth. Ticking the box restores the 30-day behaviour. */
+const SESSION_HOURS_SHORT = 12;
 const COOKIE = 'qs_session';
 
 /* Deployed code marker — kept identical to platform/cloudflare/src/worker.js
@@ -497,6 +502,10 @@ function passwordPolicyError(password) {
   if (p.length < 8) return 'Password must be at least 8 characters';
   if (p.length > 128) return 'Password must be at most 128 characters';
   if (/\s/.test(p)) return 'Password cannot contain spaces';
+  /* Mixed characters (owner request, 2026-10-10): at least TWO of lowercase /
+     uppercase / digits / symbols. Set-password paths only, never sign-in. */
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((r) => r.test(p)).length;
+  if (classes < 2) return 'Password must mix at least two of: lowercase, uppercase, digits, symbols';
   return null;
 }
 function revokeUserSessions(db, userId, keepToken) {
@@ -661,9 +670,12 @@ function sessionCookie(token, maxAgeSec, req) {
     COOKIE + '=' + encodeURIComponent(token),
     'Path=/',
     'HttpOnly',
-    'SameSite=' + (isHttps ? 'None' : 'Lax'),
-    'Max-Age=' + String(maxAgeSec)
+    'SameSite=' + (isHttps ? 'None' : 'Lax')
   ];
+  /* maxAgeSec === null means "session cookie": no Max-Age, so the browser
+     discards it when it closes. That is what makes "Remember me" being OFF
+     mean anything. 0 is still emitted — logout relies on it to clear. */
+  if (maxAgeSec !== null && maxAgeSec !== undefined) parts.push('Max-Age=' + String(maxAgeSec));
   if (isHttps) parts.push('Secure');
   return parts.join('; ');
 }
@@ -1034,14 +1046,20 @@ function requireUser(req, db) {
   if (user && applyOwnerBootstrap(user)) saveDb(db);
   return user || null;
 }
-function createSession(db, user) {
+function createSession(db, user, ttlMs) {
+  /* ttlMs is the server-side life of the session — see worker.js. */
+  const ttl = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : SESSION_DAYS * 864e5;
   const token = crypto.randomBytes(24).toString('hex');
-  const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
+  const expires = new Date(Date.now() + ttl).toISOString();
   db.sessions.push({ token, user_id: user.id, expires_at: expires, created_at: nowISO() });
   return { token, expiresAt: expires };
 }
-function authSuccessHeaders(token, req) {
-  return { 'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400, req) };
+function authSuccessHeaders(token, req, remember) {
+  /* remember === true → 30-day cookie. Anything else → a session cookie (no
+     Max-Age) that the browser discards when it closes. */
+  return {
+    'Set-Cookie': sessionCookie(token, remember ? SESSION_DAYS * 86400 : null, req)
+  };
 }
 function safePath(urlPath) {
   const decoded = decodeURIComponent(urlPath.split('?')[0]);
@@ -1287,33 +1305,43 @@ async function handleApi(req, res, url) {
       db.users.push(user);
       applyOwnerBootstrap(user);
       authThrottleSuccess(email);
-      const sess = createSession(db, user);
+      /* Create Account offers no "Remember me" control, so a fresh sign-up gets
+         the secure default: a session cookie plus the 12-hour server cap. */
+      const sess = createSession(db, user, SESSION_HOURS_SHORT * 3600 * 1000);
       saveDb(db);
-      return sendJson(res, 201, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req));
+      return sendJson(res, 201, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req, false));
     }
 
     if (parts[0] === 'auth' && parts[1] === 'login' && method === 'POST') {
+      /* ONE message for BOTH failure paths, on purpose — see worker.js. Saying
+         "no such account" only for an unknown address would let anyone test
+         which addresses are registered (no username enumeration). */
+      const LOGIN_FAILED = 'Invalid email or password. Don’t have an account yet? Create one.';
       const body = await readBody(req);
       const email = String(body.email || '').trim().toLowerCase();
       const password = String(body.password || '');
+      /* "Remember me" is OFF by default: session cookie (no Max-Age) plus the
+         12-hour server cap. Ticking it restores the 30-day behaviour. */
+      const remember = body.remember === true || body.remember === 'true';
       const blocked = authThrottleCheck(req, email);
       if (blocked != null) return sendAuthLimited(res, blocked);
       if (!email || !password) {
         authThrottleFail(req, email);
-        return sendJson(res, 401, { error: 'Invalid email or password' });
+        return sendJson(res, 401, { error: LOGIN_FAILED });
       }
       const user = (db.users || []).find((u) => u.email.toLowerCase() === email);
       /* Uniform failure path: same status + message whether email is unknown
          or password is wrong (no username enumeration on login). */
       if (!user || !verifyPassword(password, user.password_hash)) {
         authThrottleFail(req, email);
-        return sendJson(res, 401, { error: 'Invalid email or password' });
+        return sendJson(res, 401, { error: LOGIN_FAILED });
       }
       applyOwnerBootstrap(user);
       authThrottleSuccess(email);
-      const sess = createSession(db, user);
+      const ttlMs = remember ? SESSION_DAYS * 864e5 : SESSION_HOURS_SHORT * 3600 * 1000;
+      const sess = createSession(db, user, ttlMs);
       saveDb(db);
-      return sendJson(res, 200, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req));
+      return sendJson(res, 200, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req, remember));
     }
 
     if (parts[0] === 'auth' && parts[1] === 'logout' && method === 'POST') {

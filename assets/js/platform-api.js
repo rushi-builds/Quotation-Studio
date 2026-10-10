@@ -149,8 +149,11 @@
         name, email, password, role: role || ''
       });
     },
-    login(email, password) {
-      return request('POST', '/api/auth/login', { email, password });
+    login(email, password, remember) {
+      /* remember === true ticks "Remember me": a 30-day cookie and session row.
+         Left off (the default) the server hands back a session cookie with no
+         Max-Age, so the browser drops it when it closes. */
+      return request('POST', '/api/auth/login', { email, password, remember: !!remember });
     },
     async logout() {
       try { return await request('POST', '/api/auth/logout', {}); }

@@ -104,6 +104,19 @@ async function main() {
     });
     t('reject short password', r.status === 400);
 
+    /* Mixed characters (owner request, 2026-10-10): at least two of lowercase /
+       uppercase / digits / symbols. Applies to passwords being SET only — the
+       sign-in path below never runs this policy, so no existing account can be
+       locked out by it. */
+    r = await req('POST', '/api/auth/register', {
+      name: 'Test Owner',
+      email: 'owner@example.com',
+      password: 'abcdefghijkl'
+    });
+    t('reject single-class password (no mixed characters)',
+      r.status === 400 && /mix at least two/i.test((r.json && r.json.error) || ''),
+      r.json && r.json.error);
+
     r = await req('POST', '/api/auth/register', {
       name: 'Test Owner',
       email: 'owner@example.com',
@@ -194,13 +207,47 @@ async function main() {
       password: 'wrong-password'
     });
     t('bad login 401', r.status === 401);
-    t('bad login uniform message', r.json && r.json.error === 'Invalid email or password');
+    /* The copy carries a create-account hint now, but the security property is
+       that ONE message serves BOTH failures. Capture it so the unknown-email
+       case below can be compared against it exactly. */
+    const uniformLoginError = r.json && r.json.error;
+    t('bad login message explains itself', /^Invalid email or password\./.test(uniformLoginError || ''));
+    t('bad login message invites a new account', /Create one\./.test(uniformLoginError || ''));
 
     r = await req('POST', '/api/auth/login', {
       email: 'nobody-not-registered@example.com',
       password: 'wrong-password'
     });
-    t('unknown email same 401 message', r.status === 401 && r.json.error === 'Invalid email or password');
+    /* THE anti-enumeration property: an unknown address must never be told
+       "no such account". Same status AND byte-identical message as a wrong
+       password, so nothing distinguishes the two from outside. */
+    t('unknown email same 401 message', r.status === 401 && r.json.error === uniformLoginError);
+
+    /* "Remember me" is OFF by default (owner decision, 2026-10-10): the cookie
+       carries no Max-Age, so the browser drops it when it closes, and the
+       server-side session row is capped at 12 hours. Ticking the box restores
+       the 30-day behaviour. */
+    r = await req('POST', '/api/auth/login', {
+      email: 'owner@example.com', password: 'password123'
+    });
+    const defaultCookie = (r.setCookie || []).join(' | ');
+    t('remember me OFF by default: cookie has no Max-Age',
+      r.status === 200 && !/Max-Age=/.test(defaultCookie), defaultCookie);
+    t('remember me OFF by default: session capped near 12 hours', (() => {
+      const hours = (Date.parse(r.json.expiresAt) - Date.now()) / 36e5;
+      return hours > 11.5 && hours <= 12.1;
+    })());
+
+    r = await req('POST', '/api/auth/login', {
+      email: 'owner@example.com', password: 'password123', remember: true
+    });
+    const rememberedCookie = (r.setCookie || []).join(' | ');
+    t('remember me ticked: cookie carries the 30-day Max-Age',
+      r.status === 200 && /Max-Age=2592000/.test(rememberedCookie), rememberedCookie);
+    t('remember me ticked: session expires about 30 days out', (() => {
+      const days = (Date.parse(r.json.expiresAt) - Date.now()) / 864e5;
+      return days > 29 && days <= 30.1;
+    })());
 
     /* Exhaust backoff on a throwaway email: 5 quick fails then 429. */
     const burn = 'burn-' + Date.now() + '@example.com';
