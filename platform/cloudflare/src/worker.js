@@ -55,6 +55,12 @@ const RECOVERY_MAIL_FROM = 'ktmenergyexperts@gmail.com';
 /* Subject and brand. The product is wider than the quotation builder, so the
    email carries the studio name, not just "Quotation Studio". */
 const RECOVERY_MAIL_SUBJECT = 'KTM Studio — password reset code';
+/* The client name handed to Gmail in the EHLO. It is echoed verbatim into the
+   "Received: from ..." line the reader eventually sees, and `localhost` reads
+   the way a broken laptop script reads: every filter on earth knows that
+   name, and no mail server in production ever introduces itself with it. This
+   is the host that actually sends this mail. */
+const SMTP_HELO = 'qs-studio-rushi.ktmenergyexperts.workers.dev';
 const COOKIE = 'qs_session';
 const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
@@ -1248,7 +1254,12 @@ async function smtpSend(env, toAddress, subject, htmlBody) {
 
     const banner = await readReply();
     if (banner.code !== 220) throw new Error('no SMTP banner: ' + banner.text.slice(0, 160));
-    await expect('EHLO localhost', 250);
+    /* The client name handed to Gmail in the EHLO. It is echoed verbatim into
+       the "Received: from ..." line the reader eventually sees, and `localhost`
+       reads the way a broken laptop script reads: every filter on earth knows
+       that name, and no mail server in production ever introduces itself with
+       it. This is the host that actually sends this mail. */
+    await expect('EHLO ' + SMTP_HELO, 250);
     await expect('AUTH LOGIN', 334);
     await expect(b64utf8(user), 334);
     await expect(b64utf8(pass), 235);

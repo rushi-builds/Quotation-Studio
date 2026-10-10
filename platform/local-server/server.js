@@ -479,7 +479,10 @@ async function smtpSend(toAddress, subject, htmlBody) {
 
     const banner = await readReply();
     if (banner.code !== 220) throw new Error('no SMTP banner: ' + banner.text.slice(0, 160));
-    await expect('EHLO localhost', 250);
+    /* Mirrors the Worker: the client name is echoed verbatim into the
+       "Received: from ..." line, and `localhost` reads the way a broken laptop
+       script reads — every filter knows that name. */
+    await expect('EHLO qs-studio-rushi.ktmenergyexperts.workers.dev', 250);
     await expect('AUTH LOGIN', 334);
     await expect(Buffer.from(user, 'utf8').toString('base64'), 334);
     await expect(Buffer.from(pass, 'utf8').toString('base64'), 235);

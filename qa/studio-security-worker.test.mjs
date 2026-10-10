@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import worker, { buildMailMessage, htmlToText } from '../platform/cloudflare/src/worker.js';
 import indexWorker from '../platform/cloudflare/src/index.js';
 // Worker route/SQL contract test; D1 is a labelled in-memory adapter, not production.
@@ -166,5 +167,13 @@ console.log('PASS: Worker never rejects — every escape becomes a 500, API call
 
   assert.ok(body.includes('\r\n..leading dot'),
     'a body line starting with "." must be dot-stuffed or it ends the message early');
+
+  /* The EHLO is quoted verbatim into the "Received: from ..." line the reader
+     sees, so introducing the client as `localhost` is the one part of this
+     message that still reads like a laptop script rather than a mail server. */
+  const src = readFileSync(new URL('../platform/cloudflare/src/worker.js', import.meta.url), 'utf8');
+  assert.ok(!/EHLO\s+localhost/.test(src), 'the client must not introduce itself as localhost');
+  assert.match(src, /EHLO ' \+ SMTP_HELO/, 'the EHLO must use the configured host name');
+  assert.match(src, /const SMTP_HELO = '[a-z0-9.-]+'\s*;/i, 'SMTP_HELO must be a dotted host name');
 }
 console.log('PASS: Recovery mail carries Date, Message-ID and a plain-first multipart/alternative with the code intact, CRLF throughout, dot-stuffed, and correctly terminated.');
