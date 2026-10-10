@@ -250,7 +250,7 @@ function recoveryUnavailable(res) {
   });
 }
 function recoveryConfigured() {
-  return Boolean(String(process.env.SMTP_PASSWORD || '').trim());
+  return Boolean(String(process.env.SMTP_PASSWORD || '').replace(/\s+/g, ''));
 }
 /* Compare two fixed-length hex digests without leaking how far along they are. */
 function hexEqual(a, b) {
@@ -366,7 +366,12 @@ function recoveryEmailHtml(origin, displayName, otp) {
    error would only ever fire for real accounts and would become an oracle. */
 async function smtpSend(toAddress, subject, htmlBody) {
   const user = String(process.env.SMTP_USER || '').trim() || RECOVERY_MAIL_FROM;
-  const pass = String(process.env.SMTP_PASSWORD || '').trim();
+  /* Every whitespace is removed, not just the ends: Gmail shows an App
+     Password as four groups of four (abcd efgh ijkl mnop) and people paste it
+     exactly as shown, so an inner space would otherwise reach AUTH LOGIN and
+     fail there with an unhelpful 535. The groups are purely visual — the
+     credential is the sixteen characters. */
+  const pass = String(process.env.SMTP_PASSWORD || '').replace(/\s+/g, '');
   if (!pass) return { ok: false, reason: 'SMTP_PASSWORD is not configured' };
   const to = String(toAddress || '').trim();
   if (!to) return { ok: false, reason: 'no recipient' };
@@ -1750,7 +1755,12 @@ async function handleApi(req, res, url) {
         // timing gap becomes an oracle the body no longer exposes.
         setImmediate(() => {
           smtpSend(to, RECOVERY_MAIL_SUBJECT, html).then((sent) => {
-            if (!sent.ok) {
+            if (sent.ok) {
+              // Positive evidence, mirroring the Worker: without it a
+              // successful send and one that never ran look identical in the
+              // stream, and "no error appeared" is not proof that mail left.
+              console.log('recovery.sent', JSON.stringify({ bytes: html.length }));
+            } else {
               // Deliberately NOT echoed to the caller: a delivery-specific error
               // would only ever fire for real accounts, which is an oracle.
               console.log('recovery.send_failed', JSON.stringify({ reason: sent.reason }));
@@ -1991,7 +2001,7 @@ async function handleApi(req, res, url) {
         recovery: {
           selfService: true,
           channel: 'smtp',
-          deliveryConfigured: Boolean(String(process.env.SMTP_PASSWORD || '').trim()),
+          deliveryConfigured: Boolean(String(process.env.SMTP_PASSWORD || '').replace(/\s+/g, '')),
           codeTtlMinutes: Math.round(OTP_TTL_MS / 60000),
           resendLimit: OTP_MAX_RESENDS,
           verifyAttempts: OTP_MAX_ATTEMPTS

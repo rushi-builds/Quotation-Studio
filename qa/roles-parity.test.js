@@ -522,15 +522,18 @@ try {
        this guard and the feature's tests qa/**
        the stale callback documentation   docs/**
        the sign-in button removal         index.html (+ its C5 mirror)
+       password recovery (email OTP)      worker.js, server.js, schema.sql,
+                                          index.html, platform-api.js,
+                                          migration 009, this guard's tests
      platform/migrations is limited to 005 (round 1), 006 (contact), 007
-     (member links + kudos) and 008 (member custom link); the elevation
-     column of round 1 must not be
+     (member links + kudos), 008 (member custom link) and 009 (the password
+     recovery counters); the elevation column of round 1 must not be
      rewritten by any of them. */
   const ALLOWED = new RegExp('^(?:' + [
     'platform/cloudflare/src/(?:worker\\.js|oauth\\.mjs|phone\\.mjs)',
     'platform/local-server/server\\.js',
     'platform/schema\\.sql',
-    'platform/migrations/(?:005-is-admin(?:-verify)?|006-profile-info(?:-verify)?|007-member-links-likes(?:-verify)?|008-member-custom-link(?:-verify)?)\\.sql',
+    'platform/migrations/(?:005-is-admin(?:-verify)?|006-profile-info(?:-verify)?|007-member-links-likes(?:-verify)?|008-member-custom-link(?:-verify)?|009-recovery-resend(?:-verify)?)\\.sql',
     'platform/cloudflare/public/.+',
     'assets/js/(?:dashboard|dashboard-home|platform-api|cloud-bridge)\\.js',
     'assets/css/dashboard\\.css',
@@ -542,7 +545,7 @@ try {
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
   t('no earlier migration was modified',
-    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-profile-info|007-member-links-likes|008-member-custom-link/.test(f)),
+    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-profile-info|007-member-links-likes|008-member-custom-link|009-recovery-resend/.test(f)),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 } catch (e) {
   t('git diff available to check the frozen list', false, e.message);
