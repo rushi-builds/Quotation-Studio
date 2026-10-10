@@ -67,3 +67,46 @@ for (const [name, app] of [['worker',worker],['index',indexWorker]]) {
  assert.ok(statements.filter(s=>s.sql.includes('INSERT INTO users')).every(s=>s.params[4]==='viewer'));
  console.log(`PASS: ${name} Worker rejects recovery without DB operations and persists least-privilege signup; Team access denied.`);
 }
+
+/* A 502 from this worker is never an application status — it is Cloudflare
+   reporting that an exception escaped entirely ("Error 1101: Worker threw
+   exception"), and it reaches the dashboard as "Request failed (502)" with no
+   status, no body and nothing to act on. Three defences already cover the
+   paths that were actually hit: the awaited OAuth and phone calls route their
+   rejections into handleApi's catch, the clamped status keeps a bad err.status
+   from turning that catch into a RangeError, and the literal-body fallback
+   keeps JSON.stringify from doing the same. Those are fixes for known bugs.
+   What follows proves the property instead — serve() must never be able to
+   reject, whatever it is handed, so an unknown bug degrades to a readable 500
+   rather than a silent 502. */
+{
+  const escaped = [
+    { label: 'an unparseable URL', req: { url: 'not-a-url', method: 'GET' }, api: false },
+    { label: 'a request whose method getter throws',
+      req: { url: 'https://audit.example/api/health', get method() { throw new Error('boom'); } }, api: true }
+  ];
+  for (const c of escaped) {
+    let res;
+    try {
+      res = await worker.fetch(c.req, {}, undefined);
+    } catch (e) {
+      assert.fail(c.label + ' must not reject — a rejection is a Cloudflare 502, not a 500 (' + e.message + ')');
+    }
+    assert.equal(res.status, 500, c.label + ' must degrade to 500, got ' + res.status);
+    assert.equal(res.headers.get('Cache-Control'), 'no-store', c.label + ' must not be cacheable');
+    const body = await res.text();
+    if (c.api) {
+      assert.match(body, /"code":"WORKER_ERROR"/, c.label + ' must hand an API caller JSON carrying a code');
+      assert.match(res.headers.get('Content-Type') || '', /application\/json/, c.label + ' must be JSON on an /api path');
+    } else {
+      assert.match(body, /Something went wrong/, c.label + ' must hand a browser HTML it can render');
+    }
+  }
+  /* The wrapper must be transparent: where serve() does not throw, its own
+     answer comes through untouched — the guard never rewrites a real reply. */
+  const pass = await worker.fetch(new Request('https://audit.example/api/health'), {}, undefined);
+  assert.equal(pass.status, 500, 'a non-throwing path must keep its own status');
+  assert.match((await pass.json()).error, /D1 database binding is missing/,
+    'the wrapper must not intercept handleApi\'s own error responses');
+}
+console.log('PASS: Worker never rejects — every escape becomes a 500, API callers get JSON with a code, browsers get HTML, and the guard stays transparent to replies that did not throw.');

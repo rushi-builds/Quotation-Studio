@@ -3185,13 +3185,27 @@ async function handleApi(request, env, url, ctx) {
        that is not an integer in 400..599 becomes a 500 instead. */
     const raw = Number(err && err.status);
     const status = (Number.isInteger(raw) && raw >= 400 && raw <= 599) ? raw : 500;
-    return json({ error: (err && err.message) || 'Server error' }, status);
+    try {
+      return json({ error: (err && err.message) || 'Server error' }, status);
+    } catch (_) {
+      /* Even this response can fail: JSON.stringify refuses a circular
+         structure or a BigInt, so building the error body throws for exactly
+         the payloads most likely to be broken. A body made of literals cannot
+         throw, and 500 beats Cloudflare's bare 502. */
+      return new Response('{"error":"Server error","code":"RESPONSE_FAILED"}', {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store',
+          'X-Content-Type-Options': 'nosniff'
+        }
+      });
+    }
   }
 }
 
 /* ---------- fetch handler ---------- */
-export default {
-  async fetch(request, env, ctx) {
+async function serve(request, env, ctx) {
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') {
@@ -3274,5 +3288,53 @@ export default {
       '</body></html>',
       { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
     );
+}
+
+/* A response for anything that escaped `serve`.
+   Built from literals and never from the offending object: a body that tried
+   to render the error could throw again and hand the problem straight back to
+   Cloudflare, which is the outcome this whole wrapper exists to prevent. */
+function workerEscape(request, err) {
+  let isApi = false;
+  try {
+    const u = new URL(request.url);
+    isApi = u.pathname === '/api' || u.pathname.startsWith('/api/');
+  } catch (_) { /* the URL itself was the thing that broke */ }
+  const headers = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' };
+  if (isApi) {
+    return new Response('{"error":"Server error","code":"WORKER_ERROR"}', {
+      status: 500,
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
+    });
+  }
+  return new Response(
+    '<!DOCTYPE html><html><body style="font-family:system-ui;padding:2rem;background:#111;color:#eee">' +
+    '<h1>Something went wrong</h1>' +
+    '<p>Reload the page. If this keeps happening, quote the error code <code>WORKER_ERROR</code>.</p>' +
+    '</body></html>',
+    { status: 500, headers }
+  );
+}
+
+/* THE GUARD AGAINST 502.
+   An exception that escapes this handler does not become a 500 — Cloudflare
+   catches it at the edge and answers with their bare 502 ("Error 1101:
+   Worker threw exception"), which the dashboard renders as "Request failed
+   (502)" with no status, no body and nothing to act on. Every earlier defence
+   closes one specific hole: the awaited OAuth and phone calls route their
+   rejections into handleApi's catch, the status clamp keeps a bad err.status
+   from turning that catch into a RangeError, and the literal-body fallback
+   keeps JSON.stringify from doing the same. Those are all fixes for known
+   paths. This is the property that covers the paths nobody has hit yet —
+   `getDb` and `bindingNames` sit outside handleApi's own try, the assets
+   block has no handler of its own, and any future line can throw. Nothing
+   below is allowed to reject; a bug degrades to a readable 500. */
+export default {
+  async fetch(request, env, ctx) {
+    try {
+      return await serve(request, env, ctx);
+    } catch (err) {
+      return workerEscape(request, err);
+    }
   }
 };
