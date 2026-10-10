@@ -45,10 +45,14 @@
     capacity: '7',
     genFactor: '1460',
     moduleMake: 'Panasonic / Waaree / Adani or Equivalent',
+    moduleModel: '',
     moduleWattage: '545',
+    moduleEfficiency: '',
     moduleTech: 'Mono PERC Half-Cut',
     moduleLengthMm: '2278',
     moduleWidthMm: '1134',
+    moduleType: '',
+    moduleBifaciality: '',
     inverterMake: 'Deye or Equivalent',
     inverterKw: '',
     mountMake: 'Hot-Dip GI / Aluminum-ARS Solartech make',
@@ -120,6 +124,8 @@
     moduleImp: '',
     moduleVocBetaPct: '-0.27',
     moduleVmpBetaPct: '-0.36',
+    moduleIscAlphaPct: '',
+    modulePmaxBetaPct: '',
     inverterVmaxDc: '1100',
     mpptMinV: '200',
     mpptMaxV: '1000',
@@ -184,7 +190,11 @@
       /* system-options controls store their data on the proposal blob instead */
       if (el.closest('.opt-manager')) return;
       if (!el.id || !['INPUT','SELECT','TEXTAREA'].includes(el.tagName)) return;
-      out[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+      if (el.id === 'moduleModel' && el.selectedOptions[0]?.hasAttribute('data-custom')) {
+        out[el.id] = document.getElementById('moduleModelCustom')?.value || '';
+      } else {
+        out[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+      }
     });
     return out;
   }

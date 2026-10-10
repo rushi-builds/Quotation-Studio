@@ -215,7 +215,10 @@
   /* ================================================================== */
   /* PAGE - SYSTEM OPTIONS COMPARISON (visible when 2+ options saved)    */
   /* ================================================================== */
-  const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
+  const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleModel', 'moduleWattage',
+    'moduleEfficiency', 'moduleTech', 'moduleLengthMm', 'moduleWidthMm', 'moduleType',
+    'moduleBifaciality', 'moduleVoc', 'moduleVmp', 'moduleIsc', 'moduleImp',
+    'moduleVocBetaPct', 'moduleVmpBetaPct', 'moduleIscAlphaPct', 'modulePmaxBetaPct', 'moduleWeightKg',
     'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
     'degradation', 'subsidyOverride', 'rwaEligibleKwp'];
 
@@ -410,10 +413,100 @@
           '><td class="spec-k">' + esc(k) + '</td><td class="spec-v">' + esc(val) + '</td></tr>');
       });
     };
+    const selectedModule = root.EquipmentStore?.findModule?.(s.moduleMake, s.moduleModel) || null;
+    const hasExactModel = !!String(s.moduleModel || '').trim();
+    const verifiedModel = !!(hasExactModel && selectedModule?.verified);
+    const comparisonFields = [
+      ['wp', 'moduleWattage'], ['efficiency', 'moduleEfficiency'], ['tech', 'moduleTech'],
+      ['lengthMm', 'moduleLengthMm'], ['widthMm', 'moduleWidthMm'],
+      ['moduleType', 'moduleType'], ['bifaciality', 'moduleBifaciality'],
+      ['voc', 'moduleVoc'], ['vmp', 'moduleVmp'], ['isc', 'moduleIsc'], ['imp', 'moduleImp'],
+      ['vocBetaPct', 'moduleVocBetaPct'], ['vmpBetaPct', 'moduleVmpBetaPct'],
+      ['iscAlphaPct', 'moduleIscAlphaPct'], ['pmaxBetaPct', 'modulePmaxBetaPct'],
+      ['weightKg', 'moduleWeightKg']
+    ];
+    const sameAsDatasheet = verifiedModel && comparisonFields.every(([productKey, fieldId]) => {
+      const expected = selectedModule[productKey], actual = s[fieldId];
+      if (expected === '' || expected === undefined || expected === null) {
+        return actual === '' || actual === undefined || actual === null;
+      }
+      if (actual === '' || actual === undefined || actual === null) return false;
+      const a = Number(actual), b = Number(expected);
+      return Number.isFinite(a) && Number.isFinite(b)
+        ? Math.abs(a - b) < 0.000001 : String(actual).trim() === String(expected).trim();
+    });
+    const specNumber = (value, decimals) => {
+      if (value === '' || value === null || value === undefined) return '';
+      const number = Number(value);
+      if (!Number.isFinite(number)) return String(value);
+      const digits = decimals === undefined ? 3 : decimals;
+      return number.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+    };
+    const signedCoefficient = value => {
+      if (value === '' || value === null || value === undefined || !Number.isFinite(Number(value))) return '';
+      const number = Number(value);
+      return (number > 0 ? '+' : number < 0 ? '−' : '') + specNumber(Math.abs(number), 3) + '%/°C';
+    };
+    const selectedModelName = selectedModule?.modelLabel || s.moduleModel || 'Model to be confirmed';
+    const power = s.moduleWattage ? specNumber(s.moduleWattage, 2) + ' Wp' : 'Not supplied';
+    const efficiency = s.moduleEfficiency
+      ? specNumber(s.moduleEfficiency, 3) + '% front-side STC efficiency'
+      : 'efficiency not supplied / unverified';
+    const dimensionValues = [s.moduleLengthMm, s.moduleWidthMm].map(value =>
+      value === '' || value === undefined ? '' : specNumber(value, 1));
+    let dimensionText = dimensionValues.every(Boolean) ? dimensionValues.join(' × ') + ' mm' : 'Not supplied';
+    if (sameAsDatasheet && selectedModule.thicknessMm) dimensionText =
+      [dimensionValues[0], dimensionValues[1], specNumber(selectedModule.thicknessMm, 1)].join(' × ') + ' mm (datasheet)';
+    else if (dimensionValues.every(Boolean)) dimensionText += ' (entered; verify against exact model)';
+    if (f.arrayArea) dimensionText += ' · array surface ' + Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)';
+    const electricalFields = [
+      ['Voc', s.moduleVoc, 'V'], ['Vmp', s.moduleVmp, 'V'],
+      ['Isc', s.moduleIsc, 'A'], ['Imp', s.moduleImp, 'A']
+    ];
+    const electricalValues = electricalFields.filter(([, value]) => value !== '' && value !== undefined && value !== null)
+      .map(([label, value, unit]) => label + ' ' + specNumber(value, 3) + ' ' + unit);
+    const missingElectrical = electricalFields.filter(([, value]) => value === '' || value === undefined || value === null)
+      .map(([label]) => label);
+    const electricalText = electricalValues.length
+      ? electricalValues.join(' · ') + (missingElectrical.length ? ' · not supplied: ' + missingElectrical.join(', ') : '')
+      : 'Not supplied; confirm from the exact module datasheet';
+    const coefficientFields = [
+      ['Pmax', s.modulePmaxBetaPct], ['Voc', s.moduleVocBetaPct],
+      ['Isc', s.moduleIscAlphaPct], ['Vmp', s.moduleVmpBetaPct]
+    ];
+    const coefficientValues = coefficientFields.filter(([, value]) => value !== '' && value !== undefined && value !== null)
+      .map(([label, value]) => label + ' ' + signedCoefficient(value));
+    const missingCoefficients = coefficientFields.filter(([, value]) => value === '' || value === undefined || value === null)
+      .map(([label]) => label);
+    let coefficientText = coefficientValues.length
+      ? coefficientValues.join(' · ') + (missingCoefficients.length ? ' · not supplied: ' + missingCoefficients.join(', ') : '')
+      : 'Not supplied for this module model';
+    if (!sameAsDatasheet && coefficientValues.length) coefficientText = 'Entered / not manufacturer-verified: ' + coefficientText;
+    let constructionText = String(s.moduleType || '').trim() || 'Not supplied / unverified';
+    if (s.moduleBifaciality) constructionText += ' · bifaciality ' + s.moduleBifaciality;
+    if (/bifacial/i.test(String(s.moduleType || '')) || s.moduleBifaciality) {
+      constructionText += ' · rear-side gain is not included in the quoted STC rating or output estimate';
+    } else {
+      constructionText += ' · no rear-side gain is assumed';
+    }
+    const productLimitParts = [];
+    if (selectedModule?.weightKg !== '' && selectedModule?.weightKg !== undefined && selectedModule?.weightKg !== null) {
+      productLimitParts.push('mass ' + specNumber(selectedModule.weightKg, 2) + ' kg');
+    }
+    if (selectedModule?.maxSystemVoltageV) productLimitParts.push('max system voltage ' + selectedModule.maxSystemVoltageV + ' VDC');
+    if (selectedModule?.maxSeriesFuseA) productLimitParts.push('max series fuse ' + specNumber(selectedModule.maxSeriesFuseA, 2) + ' A');
+    const productLimits = productLimitParts.join(' · ');
+    const moduleStatus = sameAsDatasheet
+      ? 'Manufacturer-datasheet values for the selected model; re-check the current revision before procurement.'
+      : verifiedModel
+        ? 'Manufacturer model selected, but one or more fields differ from its reference values. Re-check against the linked datasheet.'
+        : hasExactModel
+          ? 'Custom / company-catalog model; values are not independently manufacturer-verified.'
+          : 'No exact model selected; confirm ratings and dimensions against the manufacturer datasheet.';
     addRows('SOLAR MODULES', [
-      ['Make', s.moduleMake],
-      ['Technology', s.moduleTech || '-'],
-      ['Rated Power', f.moduleWattage + ' Wp per module'],
+      ['Make / Model', [s.moduleMake || 'Make not supplied', selectedModelName].filter(Boolean).join(' · ')],
+      ['Technology', s.moduleTech || 'Not supplied / unverified'],
+      ['STC nameplate power / efficiency', power + ' · ' + efficiency],
       ['Quantity', f.moduleCount + ' modules'],
       // Keep engineering values numeric until final formatting. fmtNum returns
       // grouped text (e.g. "1,036"), which cannot be used in arithmetic.
@@ -424,7 +517,12 @@
           (f.capacityExact ? '' : ' (contracted ' +
             Number(f.contractedKwp).toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp)')
         : '-'],
-      ['Total Module Area', f.arrayArea ? Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)' : '-'],
+      ['Module dimensions / array surface', dimensionText],
+      ['STC electrical parameters', electricalText],
+      ['Temperature coefficients', coefficientText],
+      ['Construction / bifaciality', constructionText],
+      ...(productLimits ? [[verifiedModel ? 'Manufacturer-listed mass / limits' : 'Catalogue mass / limits (unverified)', productLimits]] : []),
+      ['Module data status', moduleStatus],
       ['Performance Warranty', CONTENT.shared.warrantyLine]
     ]);
     addRows('INVERTER', [
@@ -452,20 +550,27 @@
     setHTML('v_tsTable', rows.join(''));
     set('v_tsNoteLabel', P.noteLabel);
     set('v_tsNote', P.note);
-    const refs = [
+    const designRefs = [
       [s.pvsystUrl, P.refsPvsyst, 'chart'],
       [s.arkaUrl, P.refsArka, 'sun']
-    ].map(([url, label, icon]) => [safeHttpUrl(url), label, icon]).filter(r => r[0]);
+    ].map(([url, label, icon]) => [safeHttpUrl(url), label, icon]).filter(ref => ref[0]);
+    const moduleSourceUrl = selectedModule?.verified ? safeHttpUrl(selectedModule.sourceUrl) : '';
+    const refs = designRefs.concat(moduleSourceUrl
+      ? [[moduleSourceUrl, 'Manufacturer module datasheet', 'panel']]
+      : []);
     const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return String(u).replace(/^https?:\/\//, '').split('/')[0]; } };
     show('v_tsRefsWrap', refs.length > 0);
     if (refs.length) {
-      set('v_tsRefsLabel', P.refsLabel);
+      set('v_tsRefsLabel', moduleSourceUrl ? 'MANUFACTURER DATASHEET & DESIGN REFERENCES' : P.refsLabel);
       setHTML('v_tsRefs', refs.map(([u, label, icon]) =>
         '<div class="ts-ref"><div class="tr-icon">' + I.get(icon, 14, '#D96A0E') + '</div>' +
         '<div class="tr-body"><div class="tr-l">' + esc(label) + '</div>' +
         '<div class="tr-v"><a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' +
         esc(host(u)) + '</a></div></div></div>').join(''));
-      set('v_tsRefsNote', P.refsNote);
+      const refNotes = [];
+      if (designRefs.length) refNotes.push(P.refsNote);
+      if (moduleSourceUrl) refNotes.push('Module power and efficiency are front-side STC values; any bifaciality is separate, and rear-side gain is not included.');
+      set('v_tsRefsNote', refNotes.join(' '));
     }
   }
 
@@ -1187,7 +1292,7 @@
     'windSpeed', 'terrainCategory', 'buildingHeightM', 'windK1', 'windK3', 'windK4',
     'netUpliftCp', 'roofZone', 'anchorsPerModule', 'moduleLoadClassPa',
     'moduleVoc', 'moduleVmp', 'moduleIsc', 'moduleImp',
-    'moduleVocBetaPct', 'moduleVmpBetaPct',
+    'moduleVocBetaPct', 'moduleVmpBetaPct', 'moduleIscAlphaPct', 'modulePmaxBetaPct',
     'inverterVmaxDc', 'mpptMinV', 'mpptMaxV', 'inverterMaxCurrentA',
     'minAmbientC', 'maxCellC', 'dcCableLengthM', 'dcCableSizeMm2',
     'acCableLengthM', 'acCableSizeMm2',
@@ -1210,8 +1315,11 @@
       propDate: g('propDate'), propRef: g('propRef'), propVersion: g('propVersion'),
       validityDays: g('validityDays'), monthlyBill: g('monthlyBill'),
       capacity: g('capacity'), genFactor: g('genFactor'),
-      moduleMake: g('moduleMake'), moduleWattage: g('moduleWattage'), moduleTech: g('moduleTech'),
+      moduleMake: g('moduleMake'), moduleModel: $('moduleModel')?.selectedOptions[0]?.hasAttribute('data-custom')
+        ? g('moduleModelCustom') : g('moduleModel'), moduleWattage: g('moduleWattage'),
+      moduleEfficiency: g('moduleEfficiency'), moduleTech: g('moduleTech'),
       moduleLengthMm: g('moduleLengthMm'), moduleWidthMm: g('moduleWidthMm'),
+      moduleType: g('moduleType'), moduleBifaciality: g('moduleBifaciality'),
       inverterMake: g('inverterMake'), inverterKw: g('inverterKw'),
       mountMake: g('mountMake'), cableMake: g('cableMake'),
       roofType: g('roofType'), availableArea: g('availableArea'),
