@@ -25,6 +25,33 @@ for (const [name, app] of [['worker',worker],['index',indexWorker]]) {
   }
  }
  assert.equal(statements.length,0,'recovery must not query accounts, issue codes or update passwords');
+ /* The recovery send is scheduled with ctx.waitUntil so the reply can leave
+    before the network round-trip — which needs ctx to actually REACH the API
+    handler. When the parameter was missing, forgot-password answered 500, and
+    only once a mailbox was configured: the config gate sits in front of the
+    send, so every un-configured run sailed straight past the bug. This drives
+    the configured path for real and requires both a clean 200 and a task
+    actually handed to ctx. */
+ {
+  const scheduled=[];const logs=[];const realLog=console.log;
+  console.log=(...a)=>{logs.push(a.join(' '));};
+  const recoveryUser={id:'u-recovery',email:'owner@example.test',name:'Owner',password_hash:'x',role:'owner',role_custom:''};
+  const recoveryDb={prepare(sql){return {bind(...params){return {
+   async first(){return sql.includes('FROM users WHERE email')?recoveryUser:null;},
+   async run(){return {success:true};},
+   async all(){return {results:[]};}
+  }}}}};
+  try {
+   const res=await app.fetch(
+    new Request('https://audit.example/api/auth/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'owner@example.test'})}),
+    {DB:recoveryDb,SMTP_PASSWORD:'0123 4567 89ab cdef'},
+    {waitUntil(p){scheduled.push(p);}});
+   assert.equal(res.status,200,name+' forgot-password must answer 200 once a mailbox is configured');
+   assert.equal(scheduled.length,1,name+' must hand the send to ctx.waitUntil rather than await it in the response path');
+  } finally { console.log=realLog; }
+  await Promise.allSettled(scheduled);
+  assert.ok(logs.some(l=>l.startsWith('recovery.send_failed')||l.startsWith('recovery.sent')),name+' must report the settled send');
+ }
  for(const role of ['owner','Owner','sales','Project lead']) {
   const result=await call('auth/register',{email:'test@example.test',password:'TestOnly123!',name:'Test',role,permissionRole:'owner'});
   assert.equal(result.status,201);const body=await result.json();assert.equal(body.user.role,'viewer');assert.equal(user.role,'viewer');assert.equal(user.role_custom,role);

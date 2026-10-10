@@ -1400,7 +1400,7 @@ function publicGallery(g) {
 }
 
 /* ---------- API ---------- */
-async function handleApi(request, env, url) {
+async function handleApi(request, env, url, ctx) {
   const db = getDb(env);
   if (!db) {
     return json({
@@ -3215,7 +3215,11 @@ export default {
     }
 
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-      return handleApi(request, env, url);
+      /* `ctx` is not decoration: password recovery schedules its SMTP send with
+         ctx.waitUntil so the reply can leave before the network round-trip.
+         Without the parameter that call throws — but only once a mailbox is
+         actually configured, because the config gate sits in front of it. */
+      return handleApi(request, env, url, ctx);
     }
 
     /* Static assets from Workers Assets (./public via wrangler [assets]).
