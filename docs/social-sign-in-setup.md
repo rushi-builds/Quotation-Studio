@@ -2,7 +2,9 @@
 
 ## Current status — read this first
 
-The application integration is implemented. **Live provider sign-in is not activated merely by deploying this code.** Each provider requires a real app registration, valid credentials and an explicit enable flag. No provider credentials were supplied or registered during implementation; no real Google/Microsoft/Apple account login has been certified in this session.
+**Sign-in is email and password only** (owner decision, 2026-10-10). The Google, Phone and Microsoft buttons and the "or continue with" divider were removed from the sign-in screen, `OAUTH_GOOGLE_ENABLED` is `false`, and the `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` Worker secrets were deleted — only `GEMINI_API_KEY` remains. The provider code is intact but unreachable, so this document is now the **restoration procedure**: register the app again, add the two secrets, set the flag, and restore the buttons. Phone sign-in was never enabled (`PHONE_ENABLED` stays `false`) and its button was removed with the others.
+
+The application integration is implemented. **Live provider sign-in is not activated merely by deploying this code.** Each provider requires a real app registration, valid credentials and an explicit enable flag. No provider credentials are currently supplied or registered; no real Google/Microsoft/Apple account login has been certified in this session.
 
 Configured status means the required configuration is present, not that the provider has approved the app or that a live login has passed. Complete the live checklist below for each provider.
 
