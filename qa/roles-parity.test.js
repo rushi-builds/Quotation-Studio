@@ -464,8 +464,13 @@ try {
   t('phone button + Firebase untouched', !changed.some((f) => /phone/i.test(f)));
   const wranglerDiff = execFileSync('git', ['diff', '--unified=0', 'origin/main', '--', 'platform/cloudflare/wrangler.toml'], { cwd: ROOT, encoding: 'utf8' });
   const wranglerEdits = wranglerDiff.split('\n').filter((line) => /^[+-][^-+]/.test(line));
-  t('wrangler only configures the verified app origin; zone/NS untouched',
-    wranglerEdits.length === 1 && wranglerEdits[0] === '+APP_URL = \"https://quotation-studio-taupe.vercel.app\"', wranglerEdits.join(' | '));
+  const expectedWranglerEdits = [
+    '+APP_URL = \"https://quotation-studio-taupe.vercel.app\"',
+    '+GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID = \"17V9Os-1ZV-_0dpoHQwvTcNwLdAdQz_Gh\"',
+  ];
+  t('wrangler configures the verified app origin and selected private workbook; zone/NS untouched',
+    wranglerEdits.length === expectedWranglerEdits.length && expectedWranglerEdits.every((line) => wranglerEdits.includes(line)),
+    wranglerEdits.join(' | '));
   /* Allowlist of files this task may touch; finance/rendering engines,
      phone/Firebase login, and unrelated deployment configuration stay frozen. */
   const ALLOWED = /^(platform\/cloudflare\/(package\.json|src\/(worker\.js|excel-module-catalog\.mjs)|wrangler\.toml)|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/studio-knowledge\.mjs|platform\/migrations\/006-excel-product-catalog\.sql|assets\/js\/(app|dashboard|dashboard-home|equipment|module-catalog|platform-api|cloud-bridge|portal|render|state)\.js|assets\/css\/(app|dashboard)\.css|dashboard\.html|quotation\.html|share\.html|portal\.html|index\.html|oauth-complete\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;

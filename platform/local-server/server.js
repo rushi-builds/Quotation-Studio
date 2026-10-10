@@ -582,7 +582,7 @@ async function getExcelProductCatalogLocal(force) {
       return { status: 200, body: bodyFor(cache, false, '') };
     }
     const next = {
-      fileId: result.fileId, fileName: result.fileName || 'Solar Catelogue.xlsm',
+      fileId: result.fileId, fileName: result.fileName || 'Solar_EPC_Software_FINAL_v0.2.xlsm',
       fileModifiedAt: result.fileModifiedAt || '', fileChecksum: result.fileChecksum || '',
       syncedAt: result.syncedAt || nowISO(), checkedAt: result.checkedAt || nowISO(),
       rowCount: Number(result.rowCount) || 0, rowCounts: result.rowCounts || {},

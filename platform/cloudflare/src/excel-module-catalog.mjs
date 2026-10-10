@@ -225,7 +225,7 @@ export function parseModuleCatalogWorkbook(input) {
     modules: records,
     rowCount: records.length,
     rejectedRows,
-    sourceFileName: 'Solar Catelogue.xlsm'
+    sourceFileName: 'Solar_EPC_Software_FINAL_v0.2.xlsm'
   };
 }
 

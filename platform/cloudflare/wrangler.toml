@@ -29,6 +29,7 @@ database_id = "78f2b390-8468-4250-b8fd-c7ec119b56b8"
 [vars]
 APP_NAME = "Quotation Studio"
 APP_URL = "https://quotation-studio-taupe.vercel.app"
+GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID = "17V9Os-1ZV-_0dpoHQwvTcNwLdAdQz_Gh"
 
 # Gemini enabled by owner request; encrypted GEMINI_API_KEY already configured in Worker settings.
 # Quota table is created idempotently on the first authenticated AI request.

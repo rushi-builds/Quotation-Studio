@@ -838,7 +838,7 @@ async function getExcelProductCatalog(db, env, force) {
        file_id=excluded.file_id,file_name=excluded.file_name,file_modified_at=excluded.file_modified_at,
        file_checksum=excluded.file_checksum,synced_at=excluded.synced_at,checked_at=excluded.checked_at,
        row_count=excluded.row_count,rejected_rows=excluded.rejected_rows,products_json=excluded.products_json`,
-      'products', result.fileId, result.fileName || 'Solar Catelogue.xlsm', result.fileModifiedAt || '',
+      'products', result.fileId, result.fileName || 'Solar_EPC_Software_FINAL_v0.2.xlsm', result.fileModifiedAt || '',
       result.fileChecksum || '', syncedAt, checkedAt, Number(result.rowCount) || 0,
       Number(result.rejectedRows) || 0, productsJson
     );

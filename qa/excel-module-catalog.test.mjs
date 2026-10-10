@@ -159,7 +159,7 @@ test('Drive sync uses read-only scope and fetches only the configured workbook',
     assert.equal(init.headers.Authorization, 'Bearer qa-read-only-access-token');
     assert.equal(url.pathname, '/drive/v3/files/' + fileId);
     if (!url.searchParams.has('alt')) return new Response(JSON.stringify({
-      id: fileId, name: 'Solar Catelogue.xlsm',
+      id: fileId, name: 'Solar_EPC_Software_FINAL_v0.2.xlsm',
       mimeType: 'application/vnd.ms-excel.sheet.macroenabled.12',
       modifiedTime: '2026-10-10T11:40:07.135Z', md5Checksum: 'sheet-md5', size: String(bytes.byteLength)
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -198,7 +198,7 @@ test('browser catalogue merges workbook rows without replacing curated fallback 
       source: 'excel', verified: false, sourceUrl: '' }
   ];
   const payload = { source: 'excel', modules: workbookRows, rowCount: 3,
-    sourceFileName: 'Solar Catelogue.xlsm', checkedAt: '2026-10-10T12:00:00.000Z' };
+    sourceFileName: 'Solar_EPC_Software_FINAL_v0.2.xlsm', checkedAt: '2026-10-10T12:00:00.000Z' };
   const result = await dom.window.ModuleReferenceCatalog.refreshFromExcel({
     moduleCatalog: async () => payload
   }, false);

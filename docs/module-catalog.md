@@ -39,20 +39,22 @@ no rear-side gain is silently added to the quotation or performance estimate.
 - [JinkoSolar Tiger Neo 72HL4-(V) 580–605 W monofacial datasheet](https://www.jinkosolar.com/uploads/JKM580-605N-72HL4-(V)-F8-EN.pdf)
 - [Vikram Solar ELDORA GRAND 72-cell polycrystalline datasheet](https://www.vikramsolar.com/wp-content/uploads/2015/12/DS-5BB-72-Eld-Grand-1000V-Dec18.pdf)
 
-## Solar Catelogue.xlsm review
+## Workbook catalogue review
 
-The macro-enabled workbook was inspected offline; its VBA was not run, its
-sharing settings were not changed, and the workbook was not copied into the
-repository. Its `MODULE_DB` holds 295 model/bin rows from 10 manufacturers,
-but does not give a direct manufacturer URL for each row. Other operational
-sheets are outside the quotation's equipment-catalogue scope. A wholesale or
-live Drive connection would make those unrelated workbook contents a runtime
-input and would not make the equipment data independently verifiable.
+The separate workbook-backed catalogue sync uses the private Drive file
+`Solar_EPC_Software_FINAL_v0.2.xlsm` (the local copy has a different filename
+but was verified to have the same byte size and MD5 checksum). Its `MODULE_DB` has
+295 model/bin rows from 10 manufacturers, but does not provide a direct
+manufacturer URL for each row. Only the four approved product tabs are parsed;
+other operational/customer/cost sheets, macros, and unrelated content are not
+loaded into the quotation catalogue.
 
-The workbook was therefore used as a cross-check, not imported as authoritative
-product data. At least two Waaree fields differ from the manufacturer sources
-used above (the workbook shows 32 kg where the datasheets show 32.5 kg; for
-BiN-08-580 it also shows a Voc coefficient of −0.25%/°C where the source
-sheet shows −0.26%/°C). The application keeps only the source-linked entries
-above; unverified/custom data stays editable and is not labelled manufacturer
-verified.
+Workbook rows are now available as a distinct, read-only, **unverified** source
+when a person explicitly selects a product. They are not merged into the
+manufacturer-verified table above, and the quotation asks staff to verify the
+current datasheet. For example, at least two Waaree fields differ from the
+manufacturer sources above (the workbook shows 32 kg where the datasheets show
+32.5 kg; for BiN-08-580 it shows a Voc coefficient of −0.25%/°C where the
+source sheet shows −0.26%/°C). Those discrepancies are why the workbook values
+remain visibly unverified rather than being silently treated as manufacturer
+claims.

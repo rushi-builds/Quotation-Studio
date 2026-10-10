@@ -56,7 +56,7 @@ const ROOT = path.join(__dirname, '..');
     const user = fixture.users.find(row => row.id === signup.json.user.id);
     user.role = 'viewer';
     fixture.excelProductCatalog = {
-      fileId: 'private-test-file-id', fileName: 'Solar Catelogue.xlsm',
+      fileId: 'private-test-file-id', fileName: 'Solar_EPC_Software_FINAL_v0.2.xlsm',
       fileModifiedAt: '2026-10-10T11:40:07.135Z', fileChecksum: 'test-checksum',
       syncedAt: new Date().toISOString(), checkedAt: new Date().toISOString(), rowCount: 1,
       rowCounts: { modules: 1, inverters: 1, cables: 1, protection: 1 }, rejectedRows: 0,
