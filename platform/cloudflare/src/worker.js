@@ -63,6 +63,13 @@ const RECOVERY_MAIL_SUBJECT = 'KTM Studio - password reset code';
    name, and no mail server in production ever introduces itself with it. This
    is the host that actually sends this mail. */
 const SMTP_HELO = 'qs-studio-rushi.ktmenergyexperts.workers.dev';
+/* The logo ships WITH the message instead of being pointed at. Two things made
+   that worth doing: the only URL in the mail pointed at an obscure shared host
+   (a link a filter has to weigh before it weighs anything else), and Gmail does
+   not render a remote image until the reader allows it — so the mark the brand
+   requires was simply missing in the one folder a reader actually looks in. */
+const LOGO_PATH = '/assets/images/ktm-logo-light.png';
+const LOGO_CID = 'ktm-logo';
 const COOKIE = 'qs_session';
 const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
@@ -1102,6 +1109,13 @@ function b64utf8(s) {
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
   return btoa(bin);
 }
+/* Bytes to base64 — the same btoa trick, applied to raw octets, for the image
+   part of the message. */
+function b64bytes(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
 /* RFC 2047 PERMITS an encoded-word, and its §6.2 asks you not to use one where
    US-ASCII would do the job. Encoding an all-ASCII subject anyway drops a
    base64 blob into the one header a reader glances at first — the shape a
@@ -1146,28 +1160,54 @@ function htmlToText(html) {
 }
 /* The DATA payload, built and returned rather than sent, so the exact bytes
    on the wire are something a test can read. */
-function buildMailMessage(user, to, subject, htmlBody) {
+function buildMailMessage(user, to, subject, htmlBody, related) {
   /* Dot-stuffing: a body line starting with "." would otherwise end the
      message early. Normalise to CRLF, which SMTP requires.
      multipart/alternative, plain FIRST: an HTML-only message is one of the
      oldest spam signals there is, and the plain part is what a filter reads
      to decide what this even is. Date and Message-ID go in the headers for
-     the same reason — a legitimate code should not look forged. */
-  const boundary = '----=_Part_' + randomBytes(12).toString('hex');
+     the same reason — a legitimate code should not look forged.
+     When related parts are supplied the alternatives nest INSIDE a
+     multipart/related, which is the only place a cid: image may legally live.
+     With none, this is byte-for-byte the plain alternative it always was. */
+  const outer = '----=_Part_' + randomBytes(12).toString('hex');
+  const alt = '----=_Part_' + randomBytes(12).toString('hex');
   const onePart = (label, value) => [
-    '--' + boundary,
+    '--' + alt,
     'Content-Type: ' + label + '; charset=UTF-8',
     'Content-Transfer-Encoding: 8bit',
     '',
     String(value).replace(/\r\n?/g, '\n').replace(/\n+$/, '')
   ].join('\n');
-  const data = [
+  const alternatives = [
     onePart('text/plain', htmlToText(htmlBody)),
     '',
     onePart('text/html', htmlBody),
     '',
-    '--' + boundary + '--'
+    '--' + alt + '--'
   ].join('\n');
+  const hasRelated = Array.isArray(related) && related.length > 0;
+  const data = hasRelated
+    ? [
+        '--' + outer,
+        'Content-Type: multipart/alternative; boundary="' + alt + '"',
+        '',
+        alternatives,
+        related.map((r) => [
+          '--' + outer,
+          'Content-Type: ' + r.type,
+          'Content-ID: <' + r.cid + '>',
+          'Content-Transfer-Encoding: base64',
+          '',
+          /* RFC 2045 stops base64 lines at 76 characters. */
+          String(r.data).replace(/(.{76})/g, '$1\n').replace(/\n$/, '')
+        ].join('\n')).join('\n'),
+        '--' + outer + '--'
+      ].join('\n')
+    : alternatives;
+  const contentType = hasRelated
+    ? 'multipart/related; boundary="' + outer + '"'
+    : 'multipart/alternative; boundary="' + alt + '"';
   const stuffed = data.split('\n').map((l) => (l.charAt(0) === '.' ? '.' + l : l)).join('\n');
   return [
     'From: KTM Studio <' + user + '>',
@@ -1176,14 +1216,25 @@ function buildMailMessage(user, to, subject, htmlBody) {
     'Date: ' + mailDate(),
     'Message-ID: <' + mailMessageId() + '>',
     'MIME-Version: 1.0',
-    'Content-Type: multipart/alternative; boundary="' + boundary + '"',
+    'Content-Type: ' + contentType,
     'X-Auto-Response-Suppress: All',
     'Auto-Submitted: auto-generated',
     '',
     stuffed.replace(/\n/g, '\r\n')
   ].join('\r\n') + '\r\n.\r\n';
 }
-async function smtpSend(env, toAddress, subject, htmlBody) {
+/* Point the logo's src at a cid: reference. Returns null when this message
+   carries no such image, so the caller knows it has nothing to attach. The
+   HTML is deliberately written against a remote URL so that it always stands
+   alone — this is the one place that decides whether it gets to stop. */
+function inlineLogo(html) {
+  const next = String(html).replace(
+    /(<img[^>]*\bsrc=")[^"]*ktm-logo-light\.png(")/,
+    '$1cid:' + LOGO_CID + '$2'
+  );
+  return next === String(html) ? null : next;
+}
+async function smtpSend(env, toAddress, subject, htmlBody, origin) {
   const user = String(env.SMTP_USER || '').trim() || RECOVERY_MAIL_FROM;
   /* Every whitespace is removed, not just the ends: Gmail shows an App
      Password as four groups of four (abcd efgh ijkl mnop) and people paste it
@@ -1194,6 +1245,28 @@ async function smtpSend(env, toAddress, subject, htmlBody) {
   if (!pass) return { ok: false, reason: 'SMTP_PASSWORD is not configured' };
   const to = String(toAddress || '').trim();
   if (!to) return { ok: false, reason: 'no recipient' };
+
+  /* Inline the logo, opportunistically. Only when the bytes are genuinely in
+     hand does the src become a cid: reference and the image ride along as a
+     related part. Every failure path — no ASSETS binding, a missing file, an
+     unrecognised src — leaves the message exactly as it was, because a logo
+     is never worth losing the code over. This runs inside waitUntil, so it
+     adds nothing to the response time an attacker could measure. */
+  let html = htmlBody;
+  let related = null;
+  try {
+    const inlined = inlineLogo(htmlBody);
+    if (inlined) {
+      const assets = getAssets(env);
+      const logoUrl = new URL(LOGO_PATH, String(origin || '').trim() || 'https://assets.local');
+      const res = assets ? await assets.fetch(new Request(logoUrl.toString())) : null;
+      const bytes = res && res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+      if (bytes && bytes.length) {
+        html = inlined;
+        related = [{ cid: LOGO_CID, type: 'image/png', data: b64bytes(bytes) }];
+      }
+    }
+  } catch (_) { /* keep the remote URL */ }
 
   let socket = null;
   try {
@@ -1274,11 +1347,11 @@ async function smtpSend(env, toAddress, subject, htmlBody) {
     await expect('RCPT TO:<' + to + '>', 250);
     await expect('DATA', 354);
 
-    await writer.write(out.encode(buildMailMessage(user, to, subject, htmlBody)));
+    await writer.write(out.encode(buildMailMessage(user, to, subject, html, related)));
     const accepted = await readReply();
     if (accepted.code !== 250) throw new Error('message rejected: ' + accepted.text.slice(0, 200));
     try { await writer.write(out.encode('QUIT\r\n')); } catch (_) { /* closing anyway */ }
-    return { ok: true };
+    return { ok: true, inlined: !!related };
   } catch (e) {
     return { ok: false, reason: String((e && e.message) || e).slice(0, 300) };
   } finally {
@@ -1702,14 +1775,14 @@ async function handleApi(request, env, url, ctx) {
         // address answer measurably slower than an unknown one, and that timing
         // gap would become an oracle the body no longer exposes. waitUntil keeps
         // the isolate alive until it settles, so nothing is dropped either.
-        ctx.waitUntil(smtpSend(env, to, RECOVERY_MAIL_SUBJECT, html).then((sent) => {
+        ctx.waitUntil(smtpSend(env, to, RECOVERY_MAIL_SUBJECT, html, origin).then((sent) => {
           if (sent.ok) {
             // Positive evidence for wrangler tail. Without it a successful
             // send and a send that never ran would look identical in the
             // stream, and "no error appeared" is not proof that mail left.
             // The recipient and the code are deliberately absent: the log is
             // read by the account owner, but neither belongs in one.
-            console.log('recovery.sent', JSON.stringify({ bytes: html.length }));
+            console.log('recovery.sent', JSON.stringify({ bytes: html.length, inlined: !!sent.inlined }));
           } else {
             // For wrangler tail and /api/health. Never echoed to the caller: a
             // delivery-specific error only ever fires for real accounts.
@@ -3420,4 +3493,4 @@ export default {
    without opening a socket: "it is on the wire somewhere" is not proof that
    the Date and Message-ID are in it, and those two are what put the code in
    Spam when they are missing. */
-export { buildMailMessage, htmlToText, recoveryEmailHtml };
+export { buildMailMessage, htmlToText, recoveryEmailHtml, inlineLogo };

@@ -62,6 +62,13 @@ const RECOVERY_MAIL_FROM = 'ktmenergyexperts@gmail.com';
 /* A plain hyphen, not an em dash: the em dash is the one reason this subject
    used to be base64-encoded in the header. */
 const RECOVERY_MAIL_SUBJECT = 'KTM Studio - password reset code';
+/* The logo ships WITH the message instead of being pointed at. Two things made
+   that worth doing: the only URL in the mail pointed at an obscure shared host
+   (a link a filter has to weigh before it weighs anything else), and Gmail does
+   not render a remote image until the reader allows it — so the mark the brand
+   requires was simply missing in the one folder a reader actually looks in. */
+const LOGO_PATH = '/assets/images/ktm-logo-light.png';
+const LOGO_CID = 'ktm-logo';
 const RECOVERY_429 = 'Too many requests. Please try again in a few minutes.';
 
 /* Deployed code marker — kept identical to platform/cloudflare/src/worker.js
@@ -413,7 +420,7 @@ function htmlToText(html) {
     .join('\n\n')
     .trim();
 }
-async function smtpSend(toAddress, subject, htmlBody) {
+async function smtpSend(toAddress, subject, htmlBody, origin) {
   const user = String(process.env.SMTP_USER || '').trim() || RECOVERY_MAIL_FROM;
   /* Every whitespace is removed, not just the ends: Gmail shows an App
      Password as four groups of four (abcd efgh ijkl mnop) and people paste it
@@ -424,6 +431,28 @@ async function smtpSend(toAddress, subject, htmlBody) {
   if (!pass) return { ok: false, reason: 'SMTP_PASSWORD is not configured' };
   const to = String(toAddress || '').trim();
   if (!to) return { ok: false, reason: 'no recipient' };
+
+  /* Inline the logo, opportunistically. The HTML is written against a remote
+     URL so that it stands entirely on its own; only when the bytes are
+     genuinely in hand does the src become a cid: reference and the image ride
+     along as a related part. Every failure path leaves the message exactly as
+     it was, because a logo is never worth losing the code over. */
+  let html = htmlBody;
+  let related = null;
+  try {
+    const full = path.join(ROOT, LOGO_PATH.replace(/^\//, ''));
+    const bytes = fs.existsSync(full) ? fs.readFileSync(full) : null;
+    if (bytes && bytes.length) {
+      const inlined = htmlBody.replace(
+        /(<img[^>]*\bsrc=")[^"]*ktm-logo-light\.png(")/,
+        '$1cid:' + LOGO_CID + '$2'
+      );
+      if (inlined !== htmlBody) {
+        html = inlined;
+        related = [{ cid: LOGO_CID, type: 'image/png', data: bytes.toString('base64') }];
+      }
+    }
+  } catch (_) { /* keep the remote URL */ }
 
   let socket = null;
   try {
@@ -513,22 +542,48 @@ async function smtpSend(toAddress, subject, htmlBody) {
        multipart/alternative, plain FIRST: an HTML-only message is one of the
        oldest spam signals there is, and the plain part is what a filter reads
        to decide what this even is. Date and Message-ID go in the headers for
-       the same reason — a legitimate code should not look forged. */
-    const boundary = '----=_Part_' + crypto.randomBytes(12).toString('hex');
+       the same reason — a legitimate code should not look forged.
+       When related parts are supplied the alternatives nest INSIDE a
+       multipart/related, which is the only place a cid: image may legally
+       live. With none, this is byte-for-byte the plain alternative. */
+    const outer = '----=_Part_' + crypto.randomBytes(12).toString('hex');
+    const alt = '----=_Part_' + crypto.randomBytes(12).toString('hex');
     const onePart = (label, value) => [
-      '--' + boundary,
+      '--' + alt,
       'Content-Type: ' + label + '; charset=UTF-8',
       'Content-Transfer-Encoding: 8bit',
       '',
       String(value).replace(/\r\n?/g, '\n').replace(/\n+$/, '')
     ].join('\n');
-    const data = [
-      onePart('text/plain', htmlToText(htmlBody)),
+    const alternatives = [
+      onePart('text/plain', htmlToText(html)),
       '',
-      onePart('text/html', htmlBody),
+      onePart('text/html', html),
       '',
-      '--' + boundary + '--'
+      '--' + alt + '--'
     ].join('\n');
+    const hasRelated = Array.isArray(related) && related.length > 0;
+    const data = hasRelated
+      ? [
+          '--' + outer,
+          'Content-Type: multipart/alternative; boundary="' + alt + '"',
+          '',
+          alternatives,
+          related.map((r) => [
+            '--' + outer,
+            'Content-Type: ' + r.type,
+            'Content-ID: <' + r.cid + '>',
+            'Content-Transfer-Encoding: base64',
+            '',
+            /* RFC 2045 stops base64 lines at 76 characters. */
+            String(r.data).replace(/(.{76})/g, '$1\n').replace(/\n$/, '')
+          ].join('\n')).join('\n'),
+          '--' + outer + '--'
+        ].join('\n')
+      : alternatives;
+    const contentType = hasRelated
+      ? 'multipart/related; boundary="' + outer + '"'
+      : 'multipart/alternative; boundary="' + alt + '"';
     const stuffed = data.split('\n').map((l) => (l.charAt(0) === '.' ? '.' + l : l)).join('\n');
     const message = [
       'From: KTM Studio <' + user + '>',
@@ -537,7 +592,7 @@ async function smtpSend(toAddress, subject, htmlBody) {
       'Date: ' + mailDate(),
       'Message-ID: <' + mailMessageId() + '>',
       'MIME-Version: 1.0',
-      'Content-Type: multipart/alternative; boundary="' + boundary + '"',
+      'Content-Type: ' + contentType,
       'X-Auto-Response-Suppress: All',
       'Auto-Submitted: auto-generated',
       '',
@@ -547,7 +602,7 @@ async function smtpSend(toAddress, subject, htmlBody) {
     const accepted = await readReply();
     if (accepted.code !== 250) throw new Error('message rejected: ' + accepted.text.slice(0, 200));
     try { await write('QUIT'); } catch (_) { /* closing anyway */ }
-    return { ok: true };
+    return { ok: true, inlined: !!related };
   } catch (e) {
     return { ok: false, reason: String((e && e.message) || e).slice(0, 300) };
   } finally {
@@ -1816,17 +1871,18 @@ async function handleApi(req, res, url) {
         // it IS this issuance's resend number: 0 on the first, 1 on the second.
         const otp = issuePasswordReset(db, user, issuedCount);
         const to = user.email;
-        const html = recoveryEmailHtml('http://127.0.0.1:' + PORT, user.name, otp);
+        const origin = 'http://127.0.0.1:' + PORT;
+        const html = recoveryEmailHtml(origin, user.name, otp);
         // Mirror of the Worker's ctx.waitUntil: the reply must not wait on the
         // network, or a known address answers slower than an unknown one and that
         // timing gap becomes an oracle the body no longer exposes.
         setImmediate(() => {
-          smtpSend(to, RECOVERY_MAIL_SUBJECT, html).then((sent) => {
+          smtpSend(to, RECOVERY_MAIL_SUBJECT, html, origin).then((sent) => {
             if (sent.ok) {
               // Positive evidence, mirroring the Worker: without it a
               // successful send and one that never ran look identical in the
               // stream, and "no error appeared" is not proof that mail left.
-              console.log('recovery.sent', JSON.stringify({ bytes: html.length }));
+              console.log('recovery.sent', JSON.stringify({ bytes: html.length, inlined: !!sent.inlined }));
             } else {
               // Deliberately NOT echoed to the caller: a delivery-specific error
               // would only ever fire for real accounts, which is an oracle.

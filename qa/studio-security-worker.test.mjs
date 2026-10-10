@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import worker, { buildMailMessage, htmlToText, recoveryEmailHtml } from '../platform/cloudflare/src/worker.js';
+import worker, { buildMailMessage, htmlToText, recoveryEmailHtml, inlineLogo } from '../platform/cloudflare/src/worker.js';
 import indexWorker from '../platform/cloudflare/src/index.js';
 // Worker route/SQL contract test; D1 is a labelled in-memory adapter, not production.
 for (const [name, app] of [['worker',worker],['index',indexWorker]]) {
@@ -210,5 +210,56 @@ console.log('PASS: Worker never rejects — every escape becomes a 500, API call
   assert.ok(liveHtml.includes('614285'), 'the code must survive in the real template');
   assert.ok(longestLine(recoveryEmailHtml('https://x.test', 'x'.repeat(4000), '614285')) <= 998,
     'a user-typed name must not be able to put a line back over the cap');
+
+  /* The logo now ships WITH the message instead of being pointed at. Given the
+     bytes, the top level becomes multipart/related with the alternatives
+     nested inside it and an image part keyed by the Content-ID the HTML points
+     at — which is what removes the only URL from the mail and lets the mark
+     render without the reader having to allow remote images. Given no image at
+     all, or no bytes, the message must stay exactly the alternative it was. */
+  const marked = '<p><img src="https://qs-studio-rushi.ktmenergyexperts.workers.dev/' +
+    'assets/images/ktm-logo-light.png" width="150" alt="KTM Energy Experts"></p><p>614285</p>';
+  const inlined = inlineLogo(marked);
+  assert.ok(inlined && inlined.includes('src="cid:ktm-logo"'),
+    'inlineLogo must point the logo at its cid');
+  assert.ok(inlined && !inlined.includes('ktm-logo-light.png'),
+    'an inlined logo must leave no URL of its own behind');
+  assert.equal(inlineLogo('<p>no image here</p>'), null,
+    'a message carrying no such image must be left alone rather than rewritten');
+
+  const rel = [{ cid: 'ktm-logo', type: 'image/png', data: Buffer.alloc(300, 7).toString('base64') }];
+  const linked = buildMailMessage(
+    'ktmenergyexperts@gmail.com', 'rushi@example.test',
+    'KTM Studio - password reset code', inlined, rel
+  );
+  const lcut = linked.indexOf('\r\n\r\n');
+  const lhead = linked.slice(0, lcut);
+  const lbody = linked.slice(lcut + 4);
+  const relCt = lhead.match(/^Content-Type: multipart\/related; boundary="([^"]+)"$/m);
+  assert.ok(relCt, 'with a related part the top level must be multipart/related');
+  assert.ok(lbody.includes('Content-Type: multipart/alternative;'),
+    'the alternatives must nest inside the related part');
+  assert.ok(lbody.includes('Content-ID: <ktm-logo>'),
+    'the image part must carry the Content-ID the HTML points at');
+  assert.ok(lbody.includes('src="cid:ktm-logo"'),
+    'the HTML must reference the image by cid');
+  assert.ok(lbody.indexOf('text/plain') < lbody.indexOf('text/html'),
+    'the plain alternative must still come first inside the related part');
+  const b64lines = lbody.split('\r\n').filter((l) => l.length > 20 && /^[A-Za-z0-9+/=]+$/.test(l));
+  assert.ok(b64lines.length > 0, 'the image bytes must actually be on the wire');
+  assert.ok(b64lines.every((l) => l.length <= 76),
+    'base64 lines must stop at 76 characters (RFC 2045)');
+  assert.ok(linked.endsWith('--' + relCt[1] + '--\r\n.\r\n'),
+    'the related boundary must close the message');
+  assert.ok(!/(?<!\r)\n/.test(linked), 'the related message must be CRLF throughout');
+
+  const alone = buildMailMessage(
+    'ktmenergyexperts@gmail.com', 'rushi@example.test',
+    'KTM Studio - password reset code', marked
+  );
+  assert.match(alone, /^Content-Type: multipart\/alternative; boundary="/m,
+    'with no related parts the message must remain a plain alternative');
+  assert.ok(alone.includes('ktm-logo-light.png'),
+    'with nothing to inline the remote URL must survive untouched');
 }
 console.log('PASS: Recovery mail carries Date, Message-ID and a plain-first multipart/alternative with the code intact, CRLF throughout, dot-stuffed, and correctly terminated.');
