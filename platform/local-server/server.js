@@ -59,7 +59,9 @@ const RECOVERY_PER_EMAIL_WINDOW_MS = 15 * 60 * 1000;
 const RECOVERY_PER_IP_MAX = 40;
 const RECOVERY_PER_IP_WINDOW_MS = 15 * 60 * 1000;
 const RECOVERY_MAIL_FROM = 'ktmenergyexperts@gmail.com';
-const RECOVERY_MAIL_SUBJECT = 'KTM Studio — password reset code';
+/* A plain hyphen, not an em dash: the em dash is the one reason this subject
+   used to be base64-encoded in the header. */
+const RECOVERY_MAIL_SUBJECT = 'KTM Studio - password reset code';
 const RECOVERY_429 = 'Too many requests. Please try again in a few minutes.';
 
 /* Deployed code marker — kept identical to platform/cloudflare/src/worker.js
@@ -315,10 +317,15 @@ function mailEsc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
-/* RFC 2047: the subject carries a UTF-8 em dash, which must be encoded or some
-   servers mangle it in transit. */
+/* RFC 2047 PERMITS an encoded-word, and its §6.2 asks you not to use one where
+   US-ASCII would do the job. Encoding an all-ASCII subject anyway drops a
+   base64 blob into the one header a reader glances at first — the shape a
+   filter associates with a message that is hiding something. So encode only
+   what cannot travel as it stands: a plain subject goes out plain. */
 function encodeSubject(s) {
-  return '=?UTF-8?B?' + Buffer.from(String(s), 'utf8').toString('base64') + '?=';
+  const str = String(s);
+  if (/^[\x20-\x7e]*$/.test(str)) return str;
+  return '=?UTF-8?B?' + Buffer.from(str, 'utf8').toString('base64') + '?=';
 }
 /* The recovery email. Table layout and inline styles only: Gmail strips most
    <style> blocks. The logo is an ABSOLUTE url because email has no origin —
@@ -332,10 +339,21 @@ function recoveryEmailHtml(origin, displayName, otp) {
     ? '<img src="' + mailEsc(logoUrl) + '" width="150" alt="KTM Energy Experts" ' +
       'style="display:block;border:0;height:auto;width:150px;max-width:100%">'
     : '';
-  const greeting = displayName ? 'Hello ' + mailEsc(displayName) + ',' : 'Hello,';
+  /* The name is user-typed, so it is clipped before it reaches the line: an
+     unbounded name would push the greeting past the 998-octet cap that RFC
+     5322 places on every line of a message. Eighty characters is already far
+     past any name anyone types. */
+  const nameForMail = Array.from(String(displayName || '')).slice(0, 80).join('');
+  const greeting = nameForMail ? 'Hello ' + mailEsc(nameForMail) + ',' : 'Hello,';
+  /* Joined by a NEWLINE, not by nothing. Concatenating these elements collapsed
+     the whole template into one ~2,600-octet line: past that same 998-octet
+     cap, and the exact shape of a base64 spam blob. Every boundary below falls
+     after a closing tag or between block elements, where HTML collapses the
+     newline back into whitespace that is already there — the reader sees
+     nothing. The body style is written as ONE string so the break can never
+     land inside an attribute value. */
   return [
-    '<!doctype html><html lang="en"><body style="margin:0;padding:0;background:#f4f6f9;',
-    'font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#17304a">',
+    '<!doctype html><html lang="en"><body style="margin:0;padding:0;background:#f4f6f9;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#17304a">',
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:24px 12px"><tr><td align="center">',
     '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden">',
     '<tr><td style="padding:26px 32px 18px;border-bottom:1px solid #eef2f7">' + logo + '</td></tr>',
@@ -352,7 +370,7 @@ function recoveryEmailHtml(origin, displayName, otp) {
     '<p style="margin:0;font-size:12px;line-height:1.7;color:#8494a8">This is an automatically generated email from KTM Energy Experts.<br>Please do not reply to this message.</p>',
     '</td></tr></table>',
     '</td></tr></table></body></html>'
-  ].join('');
+  ].join('\n');
 }
 
 /* Minimal SMTP submission client: Gmail on 465 with implicit TLS (port 25 is

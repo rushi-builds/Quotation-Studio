@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import worker, { buildMailMessage, htmlToText } from '../platform/cloudflare/src/worker.js';
+import worker, { buildMailMessage, htmlToText, recoveryEmailHtml } from '../platform/cloudflare/src/worker.js';
 import indexWorker from '../platform/cloudflare/src/index.js';
 // Worker route/SQL contract test; D1 is a labelled in-memory adapter, not production.
 for (const [name, app] of [['worker',worker],['index',indexWorker]]) {
@@ -175,5 +175,40 @@ console.log('PASS: Worker never rejects — every escape becomes a 500, API call
   assert.ok(!/EHLO\s+localhost/.test(src), 'the client must not introduce itself as localhost');
   assert.match(src, /EHLO ' \+ SMTP_HELO/, 'the EHLO must use the configured host name');
   assert.match(src, /const SMTP_HELO = '[a-z0-9.-]+'\s*;/i, 'SMTP_HELO must be a dotted host name');
+
+  /* Two limits RFC 5322 sets, both of which this message was breaking. A
+     subject that IS US-ASCII must not be wrapped in an encoded-word: a base64
+     blob in the one header a reader glances at first is the shape a filter
+     associates with a message that is hiding something. And no line of the
+     message may exceed 998 octets — the HTML template used to be emitted as a
+     single ~2,600-octet line, which is both that cap and the exact shape of a
+     base64 spam body. */
+  const ascii = buildMailMessage(
+    'ktmenergyexperts@gmail.com', 'rushi@example.test',
+    'KTM Studio - password reset code', '<p>hi</p>'
+  );
+  assert.match(ascii, /^Subject: KTM Studio - password reset code$/m,
+    'a US-ASCII subject must travel as itself, not as a base64 encoded-word');
+  const intl = buildMailMessage(
+    'ktmenergyexperts@gmail.com', 'rushi@example.test',
+    'KTM Studio — password reset code', '<p>hi</p>'
+  );
+  assert.match(intl, /^Subject: =\?UTF-8\?B\?[A-Za-z0-9+/=]+\?=$/m,
+    'a subject that is not US-ASCII must still be RFC 2047 encoded');
+  assert.match(src, /const RECOVERY_MAIL_SUBJECT = '[\x20-\x7e]*';/,
+    'the subject we actually send must be US-ASCII, so it is never encoded at all');
+
+  const longestLine = (s) => s.split('\n').reduce(
+    (m, l) => Math.max(m, Buffer.byteLength(l, 'utf8')), 0);
+  const liveHtml = recoveryEmailHtml(
+    'https://qs-studio-rushi.ktmenergyexperts.workers.dev', 'Rushikesh Dhumal', '614285'
+  );
+  assert.ok(longestLine(liveHtml) <= 998,
+    'no line of the real template may exceed the 998-octet cap RFC 5322 sets');
+  assert.ok(liveHtml.includes('\n'),
+    'the template must be emitted as lines, not collapsed into one unbroken blob');
+  assert.ok(liveHtml.includes('614285'), 'the code must survive in the real template');
+  assert.ok(longestLine(recoveryEmailHtml('https://x.test', 'x'.repeat(4000), '614285')) <= 998,
+    'a user-typed name must not be able to put a line back over the cap');
 }
 console.log('PASS: Recovery mail carries Date, Message-ID and a plain-first multipart/alternative with the code intact, CRLF throughout, dot-stuffed, and correctly terminated.');
