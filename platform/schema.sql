@@ -52,13 +52,21 @@ CREATE TABLE IF NOT EXISTS member_likes (
 );
 CREATE INDEX IF NOT EXISTS idx_member_likes_target ON member_likes (target_id);
 
--- One-time password recovery codes (hash only; raw code shown once, never emailed yet)
+-- One-time password recovery codes (hash only; the raw code leaves the process
+-- in the recovery email and is never stored).
 CREATE TABLE IF NOT EXISTS password_resets (
   id         TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   code_hash  TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   used_at    TEXT,
+  /* How many times a NEW code replaced the current one. Capped at 3 by the
+     Worker, so one recovery attempt sends at most 4 emails. */
+  resend_count INTEGER NOT NULL DEFAULT 0,
+  /* Failed verification tries against THIS code. A 6-digit code has 1e6
+     combinations, so five misses invalidate it rather than let a caller grind
+     through the 10-minute window. */
+  attempts     INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
 

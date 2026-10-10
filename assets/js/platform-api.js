@@ -160,7 +160,15 @@
       finally { clearToken(); }
     },
     forgotPassword(email) {
+      /* Also serves "Resend code": the server tracks how many codes an attempt
+         has already had, so the first send and every resend are the same call.
+         The reply is identical whether or not the address has an account. */
       return request('POST', '/api/auth/forgot-password', { email });
+    },
+    verifyCode(email, code) {
+      /* Confirms the code without consuming it — the code is still needed to
+         actually set the password one step later. */
+      return request('POST', '/api/auth/verify-code', { email, code });
     },
     resetPassword(email, code, password) {
       return request('POST', '/api/auth/reset-password', { email, code, password });

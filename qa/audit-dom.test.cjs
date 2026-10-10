@@ -128,24 +128,43 @@ async function loadPage(base, pagePath, { cookie = '', preset = null } = {}) {
     assert.equal(seeded.status, 201, 'seed signup failed');
 
     /* A. Recovery UI honesty (mirrors studio-security.test.cjs browser half,
-       minus the viewport-fit check, which needs a real layout engine). */
+       minus the viewport-fit check, which needs a real layout engine).
+
+       The flow is three steps inside the sign-in panel — email, then the code,
+       then a new password (owner decision, 2026-10-10). Opening it must fire
+       nothing: the server is not asked about any address until the user submits
+       one, so merely loading the page can never confirm or deny an account. */
     {
       const { window, calls } = await loadPage(base, '/index.html#forgotPassword');
-      const notice = window.document.getElementById('recoveryNotice');
-      t('recovery deep link shows persistent notice',
-        notice && notice.hidden === false, notice && notice.hidden);
-      t('notice copy stays honest (no email sent)',
-        notice.textContent.includes('No recovery email has been sent'),
-        notice.textContent.slice(0, 120));
-      const back = Array.from(notice.querySelectorAll('button'))
-        .find((b) => b.textContent === 'Back to sign in');
-      back.click();
-      t('Back to sign in dismisses', notice.hidden === true);
-      window.document.getElementById('forgotPassword').click();
-      t('Forgot password re-opens notice', notice.hidden === false);
-      t('UI issues zero recovery-secret requests',
-        calls.filter((u) => u.includes('/api/auth/forgot-password')).length === 0,
+      const doc = window.document;
+      const rp = doc.getElementById('f-rp');
+      t('recovery deep link opens the reset panel', rp && rp.hidden === false, rp && rp.hidden);
+      t('sign-in panel is swapped out', doc.getElementById('f-in').hidden === true);
+      t('only step 1 (email) is shown',
+        !!doc.querySelector('[data-rstep="1"]:not([hidden])') &&
+        !doc.querySelector('[data-rstep="2"]:not([hidden])') &&
+        !doc.querySelector('[data-rstep="3"]:not([hidden])'));
+      t('email step asks for the address',
+        !!doc.getElementById('r-e') && !!doc.querySelector('#f-rp [data-rstep="1"] .cta2'));
+      t('code step carries the resend control and its counter',
+        !!doc.getElementById('rp-resend') && /\bof 3 left\b/.test(doc.getElementById('rp-resend').textContent),
+        doc.getElementById('rp-resend') && doc.getElementById('rp-resend').textContent);
+      t('password step has the new-password field', !!doc.getElementById('r-p'));
+      t('no code or token is pre-filled or rendered',
+        !/\b\d{6}\b/.test((rp && rp.textContent) || '') && !(rp && rp.querySelector('[name="token"]')),
+        rp && rp.textContent.slice(0, 120));
+      t('UI issues zero recovery requests when the panel merely opens',
+        calls.filter((u) => /\/api\/auth\/(forgot-password|verify-code|reset-password)/.test(u)).length === 0,
         calls.join(','));
+
+      const back = rp.querySelector('[data-go="in"]');
+      t('Back to sign in present', !!back);
+      back.click();
+      t('Back to sign in returns to the sign-in form',
+        rp.hidden === true && doc.getElementById('f-in').hidden === false);
+      doc.getElementById('forgotPassword').click();
+      t('Forgot password re-opens the reset panel',
+        rp.hidden === false && doc.getElementById('f-in').hidden === true);
       window.close();
     }
 

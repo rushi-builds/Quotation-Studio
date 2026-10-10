@@ -10,11 +10,17 @@ for (const [name, app] of [['worker',worker],['index',indexWorker]]) {
   async all(){statements.push({sql,params});return {results:[]};}
  }}}}};
  const call=async(route,body,token)=>app.fetch(new Request('https://audit.example/api/'+route,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',...(token?{'X-QS-Session':token}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})}),{DB});
- for(const route of ['auth/forgot-password','auth/reset-password']) {
+ /* Recovery fails CLOSED when the delivery channel is not configured, and it
+    must do so before touching storage at all: the throttle itself writes a
+    counter row, so "503 here, 429 there" would leak whether an address has
+    anything stored against it. All three routes therefore share one gate, one
+    status and one body — for a known address and an unknown one alike — and
+    none of them issues a code or queries an account. */
+ for(const route of ['auth/forgot-password','auth/verify-code','auth/reset-password']) {
   let previous;
   for(const email of ['existing@example.test','absent@example.test']) {
    const result=await call(route,{email,code:'formerly-exposed-code',password:'NotApplied123!'});
-   assert.equal(result.status,403);const body=await result.json();assert.equal(body.code,'RECOVERY_UNAVAILABLE');assert.equal(body.recoveryCode,undefined);assert.equal(body.token,undefined);
+   assert.equal(result.status,503);const body=await result.json();assert.equal(body.code,'RECOVERY_UNAVAILABLE');assert.equal(body.recoveryCode,undefined);assert.equal(body.token,undefined);
    if(previous)assert.deepEqual(body,previous);previous=body;
   }
  }

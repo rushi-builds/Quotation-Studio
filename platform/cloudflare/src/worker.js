@@ -15,6 +15,12 @@ import { d1OAuthStore } from '../../oauth-store.mjs';
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
 
 import { scryptSync, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+/* Outbound SMTP for password recovery. Port 25 is blocked by the platform;
+   Gmail submission uses 465 with implicit TLS, which is supported here.
+   The socket module is pulled in LAZILY inside smtpSend() rather than here:
+   `cloudflare:sockets` exists only inside a Worker, and three of the test
+   suites import this file directly under plain Node — a static import would
+   make every one of them throw at load time, before a single assertion ran. */
 
 const SESSION_DAYS = 30;
 /* "Remember me" is OFF by default (owner decision, 2026-10-10): the sign-in
@@ -22,6 +28,33 @@ const SESSION_DAYS = 30;
    it closes, and the server-side session row is capped at 12 hours as defence
    in depth. Ticking the box restores the 30-day behaviour. */
 const SESSION_HOURS_SHORT = 12;
+/* --- Password recovery (owner decision, 2026-10-10) -----------------------
+   The fail-closed gate is lifted now that a verified delivery channel exists:
+   outbound SMTP over cloudflare:sockets, sending as the company mailbox so the
+   From address is one Google actually owns (a relay cannot send AS a gmail.com
+   address — SPF would not align and Google would reject or spam it).
+
+   OTP_TTL_MS   how long a code lives.
+   OTP_MAX_RESENDS  resends allowed after the first code (1 + 3 = 4 emails).
+   OTP_RESEND_COOLDOWN_MS  minimum gap the client must wait between resends.
+   OTP_MAX_ATTEMPTS  wrong guesses against ONE code before it is voided.
+                     A 6-digit code is 1e6 combinations; without this a caller
+                     could grind through them inside the window.
+   RECOVERY_*    limits on the endpoints themselves (anti mail-bombing). */
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_RESENDS = 3;
+const OTP_RESEND_COOLDOWN_MS = 45 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const RECOVERY_PER_EMAIL_MAX = 3;
+const RECOVERY_PER_EMAIL_WINDOW_MS = 15 * 60 * 1000;
+const RECOVERY_PER_IP_MAX = 20;
+const RECOVERY_PER_IP_WINDOW_MS = 15 * 60 * 1000;
+/* The company mailbox. SMTP_USER overrides it; this is the default so a
+   deployment that has only set the password still sends from the right place. */
+const RECOVERY_MAIL_FROM = 'ktmenergyexperts@gmail.com';
+/* Subject and brand. The product is wider than the quotation builder, so the
+   email carries the studio name, not just "Quotation Studio". */
+const RECOVERY_MAIL_SUBJECT = 'KTM Studio — password reset code';
 const COOKIE = 'qs_session';
 const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
@@ -911,9 +944,319 @@ function authLimited(retryAfterSec) {
     'Retry-After': String(Math.max(1, retryAfterSec || 60))
   });
 }
-async function issuePasswordReset(db, user) {
-  const raw = randomBytes(4).toString('hex'); /* 8 hex chars */
+
+/* Password recovery has its OWN budget. Reusing the sign-in throttle would be
+   wrong on both counts: a recovery REQUEST is not a failure, so counting it in
+   `fails` would lock the address out for legitimate use, and a failed CODE check
+   would be a recovery concern, not a sign-in one. Same table, different scopes
+   (`recovery:*` / `recovery-ip:*`), so the two budgets never contaminate each
+   other and neither can be used to starve the other. */
+async function recoveryThrottleCheck(db, request, email) {
+  await ensureAuthThrottle(db);
+  const now = Date.now();
+  const ip = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', 'recovery-ip:' + clientIp(request));
+  if (ip && ip.window_start && now - ip.window_start <= RECOVERY_PER_IP_WINDOW_MS && ip.window_count >= RECOVERY_PER_IP_MAX) {
+    return Math.max(1, Math.ceil((ip.window_start + RECOVERY_PER_IP_WINDOW_MS - now) / 1000));
+  }
+  const em = String(email || '').trim().toLowerCase();
+  if (em) {
+    const eb = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', 'recovery:' + em);
+    if (eb && eb.window_start && now - eb.window_start <= RECOVERY_PER_EMAIL_WINDOW_MS && eb.window_count >= RECOVERY_PER_EMAIL_MAX) {
+      return Math.max(1, Math.ceil((eb.window_start + RECOVERY_PER_EMAIL_WINDOW_MS - now) / 1000));
+    }
+  }
+  return null;
+}
+async function recoveryThrottleHit(db, request, email) {
+  await ensureAuthThrottle(db);
+  const now = Date.now();
+  const em = String(email || '').trim().toLowerCase();
+  const keys = [['recovery-ip:' + clientIp(request), RECOVERY_PER_IP_WINDOW_MS]];
+  if (em) keys.push(['recovery:' + em, RECOVERY_PER_EMAIL_WINDOW_MS]);
+  for (const [key, windowMs] of keys) {
+    const row = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', key);
+    let ws = (row && row.window_start) || 0;
+    let wc = (row && row.window_count) || 0;
+    if (!ws || now - ws > windowMs) { ws = now; wc = 0; }
+    wc += 1;
+    await run(
+      db,
+      `INSERT INTO auth_throttles (scope, fails, blocked_until, window_start, window_count)
+       VALUES (?, 0, 0, ?, ?)
+       ON CONFLICT(scope) DO UPDATE SET window_start = excluded.window_start, window_count = excluded.window_count`,
+      key, ws, wc
+    );
+  }
+}
+/* Compare two fixed-length hex digests without leaking how far along they are.
+   The throw guards a length mismatch (timingSafeEqual throws on different
+   lengths), which is not a secret: a 6-digit code and its hash are never the
+   same length anyway. */
+function hexEqual(a, b) {
+  const x = Buffer.from(String(a || ''), 'hex');
+  const y = Buffer.from(String(b || ''), 'hex');
+  if (x.length !== y.length || x.length === 0) return false;
+  try { return timingSafeEqual(x, y); } catch (_) { return false; }
+}
+const RECOVERY_429_BODY = 'Too many requests. Please try again in a few minutes.';
+function recoveryLimited(retryAfterSec) {
+  return json({ error: RECOVERY_429_BODY }, 429, {
+    'Retry-After': String(Math.max(1, retryAfterSec || 60))
+  });
+}
+/* Every recovery route starts here, and it runs BEFORE the account lookup and
+   BEFORE the throttle (which itself touches storage). Two consequences that both
+   matter: a deployment with no delivery channel answers the same way for every
+   address, and it does exactly the same amount of work for each — so neither
+   the status nor the effort spent can be used to probe which addresses exist. */
+function recoveryUnavailable() {
+  return json({
+    error: 'Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent.',
+    code: 'RECOVERY_UNAVAILABLE'
+  }, 503);
+}
+function recoveryConfigured(env) {
+  return Boolean(String(env.SMTP_PASSWORD || '').trim());
+}
+
+/* A rejected code looks the SAME whether the address has no account, or the
+   code is wrong, expired, already used, or out of attempts. One string for all
+   five, so nothing about the reply distinguishes them. */
+const RESET_REJECTED = {
+  error: 'That code is invalid or has expired. Request a new one.',
+  code: 'CODE_INVALID'
+};
+async function findActiveReset(db, userId) {
+  return one(
+    db,
+    'SELECT * FROM password_resets WHERE user_id = ? AND used_at IS NULL AND expires_at > ? ORDER BY created_at DESC LIMIT 1',
+    userId, nowISO()
+  );
+}
+/* Counting a miss against the ACTIVE code (when there is one) is what stops
+   1e6 combinations being ground through inside the 10-minute window. An address
+   with no account has no code to count against, which costs nothing: the reply
+   is identical either way. */
+async function rejectResetCode(db, email) {
+  const em = String(email || '').trim().toLowerCase();
+  const userRow = em ? await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', em) : null;
+  if (userRow) {
+    const active = await findActiveReset(db, userRow.id);
+    if (active) {
+      const tries = (Number(active.attempts) || 0) + 1;
+      await run(
+        db,
+        'UPDATE password_resets SET attempts = ?, used_at = ? WHERE id = ?',
+        tries, tries >= OTP_MAX_ATTEMPTS ? nowISO() : active.used_at, active.id
+      );
+    }
+  }
+  return json(RESET_REJECTED, 400);
+}
+/* One gate behind BOTH verify-code and reset-password, so the two can never
+   drift into accepting different things. On success returns { user, row }; on
+   failure returns { rejected } already counted and ready to send. */
+async function checkResetCode(db, email, code) {
+  const em = String(email || '').trim().toLowerCase();
+  const shaped = String(code || '').replace(/\s+/g, '');
+  if (!em || shaped.length !== 6 || !/^\d{6}$/.test(shaped)) return { rejected: await rejectResetCode(db, em) };
+  const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', em);
+  if (!user) return { rejected: await rejectResetCode(db, em) };
+  const row = await findActiveReset(db, user.id);
+  if (!row) return { rejected: await rejectResetCode(db, em) };
+  if ((Number(row.attempts) || 0) >= OTP_MAX_ATTEMPTS) return { rejected: await rejectResetCode(db, em) };
+  if (!hexEqual(row.code_hash, hashToken(shaped))) return { rejected: await rejectResetCode(db, em) };
+  return { user, row };
+}
+/* --- Outbound mail --------------------------------------------------------
+   Password recovery needs a verified delivery channel. Outbound SMTP runs over
+   cloudflare:sockets to Gmail's submission port (465, implicit TLS — port 25 is
+   blocked by the platform and is not used here).
+
+   The From address is the company mailbox, which Google actually owns. A
+   third-party relay cannot send AS a gmail.com address: SPF would not align and
+   Google would reject or spam it. Sending through Google keeps the whole hop
+   inside Google.
+
+   Returns { ok: true } or { ok: false, reason }. The reason is for /api/health
+   and logs only — it is never echoed to the caller, because telling a caller
+   that a delivery path worked for one address and not another would leak
+   account state. */
+
+function mailEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function b64utf8(s) {
+  const bytes = new TextEncoder().encode(String(s));
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+/* RFC 2047: the subject carries a UTF-8 em dash, which must be encoded or some
+   servers mangle it in transit. */
+function encodeSubject(s) {
+  return '=?UTF-8?B?' + b64utf8(s) + '?=';
+}
+
+async function smtpSend(env, toAddress, subject, htmlBody) {
+  const user = String(env.SMTP_USER || '').trim() || RECOVERY_MAIL_FROM;
+  const pass = String(env.SMTP_PASSWORD || '').trim();
+  if (!pass) return { ok: false, reason: 'SMTP_PASSWORD is not configured' };
+  const to = String(toAddress || '').trim();
+  if (!to) return { ok: false, reason: 'no recipient' };
+
+  let socket = null;
+  try {
+    /* Lazy, and deliberately so: `cloudflare:sockets` is a Worker built-in that
+       plain Node cannot resolve. Importing it here — only on a path that runs
+       after the config gate, inside a Worker — keeps this module loadable by the
+       test suites while leaving production behaviour identical. */
+    const { connect } = await import('cloudflare:sockets');
+    socket = connect({ hostname: 'smtp.gmail.com', port: 465 }, { secureTransport: 'on' });
+    await socket.opened;
+
+    const reader = socket.readable.getReader();
+    const decoder = new TextDecoder();
+    const writer = socket.writable.getWriter();
+    const out = new TextEncoder();
+    const deadline = Date.now() + 20000;
+    let buffer = '';
+
+    async function readLine() {
+      for (;;) {
+        const i = buffer.indexOf('\n');
+        if (i >= 0) {
+          const line = buffer.slice(0, i);
+          buffer = buffer.slice(i + 1);
+          return line.replace(/\r$/, '');
+        }
+        const left = deadline - Date.now();
+        if (left <= 0) throw new Error('SMTP read timed out');
+        // Race the read against the remaining deadline. A peer that simply stops
+        // talking would otherwise leave reader.read() pending forever, and the
+        // check above would never run again to break the wait — turning a slow
+        // server into a hung request rather than an error.
+        const read = reader.read();
+        read.catch(() => {}); // also handled on this path, so a timeout cannot strand it
+        const chunk = await Promise.race([
+          read,
+          new Promise((_, rej) => setTimeout(() => rej(new Error('SMTP read timed out')), left))
+        ]);
+        if (chunk.done) throw new Error('SMTP connection closed by peer');
+        buffer += decoder.decode(chunk.value, { stream: true });
+      }
+    }
+    /* SMTP replies can span lines: "250-…" then a final "250 …". */
+    async function readReply() {
+      const lines = [];
+      for (;;) {
+        const line = await readLine();
+        if (line.length < 4) continue;
+        lines.push(line);
+        if (line[3] === ' ') break;
+        if (line[3] !== '-') break;
+        if (lines.length > 40) break;
+      }
+      if (!lines.length) throw new Error('empty SMTP reply');
+      return { code: parseInt(lines[0].slice(0, 3), 10), lines, text: lines.join(' | ') };
+    }
+    async function expect(cmd, want) {
+      await writer.write(out.encode(cmd + '\r\n'));
+      const r = await readReply();
+      if (r.code !== want) {
+        throw new Error(String(cmd).split(' ')[0] + ' refused: ' + r.text.slice(0, 200));
+      }
+      return r;
+    }
+
+    const banner = await readReply();
+    if (banner.code !== 220) throw new Error('no SMTP banner: ' + banner.text.slice(0, 160));
+    await expect('EHLO localhost', 250);
+    await expect('AUTH LOGIN', 334);
+    await expect(b64utf8(user), 334);
+    await expect(b64utf8(pass), 235);
+    await expect('MAIL FROM:<' + user + '>', 250);
+    await expect('RCPT TO:<' + to + '>', 250);
+    await expect('DATA', 354);
+
+    /* Dot-stuffing: a body line starting with "." would otherwise end the
+       message early. Normalise to CRLF, which SMTP requires. */
+    const body = String(htmlBody)
+      .replace(/\r\n?/g, '\n')
+      .split('\n')
+      .map((l) => (l.charAt(0) === '.' ? '.' + l : l))
+      .join('\r\n');
+    const message = [
+      'From: KTM Studio <' + user + '>',
+      'To: <' + to + '>',
+      'Subject: ' + encodeSubject(subject),
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=UTF-8',
+      'Content-Transfer-Encoding: 8bit',
+      'X-Auto-Response-Suppress: All',
+      '',
+      body,
+      '',
+      '.'
+    ].join('\r\n');
+    await writer.write(out.encode(message + '\r\n'));
+    const accepted = await readReply();
+    if (accepted.code !== 250) throw new Error('message rejected: ' + accepted.text.slice(0, 200));
+    try { await writer.write(out.encode('QUIT\r\n')); } catch (_) { /* closing anyway */ }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: String((e && e.message) || e).slice(0, 300) };
+  } finally {
+    try { if (socket) socket.close(); } catch (_) { /* already closed */ }
+  }
+}
+
+/* The recovery email. Table layout and inline styles only: Gmail strips most
+   <style> blocks. The logo is an ABSOLUTE url because email has no origin —
+   Gmail blocks remote images until the reader allows them, which is why the
+   code itself is plain text and never lives inside an image. */
+function recoveryEmailHtml(origin, displayName, otp) {
+  const logoUrl = origin
+    ? origin.replace(/\/+$/, '') + '/assets/images/ktm-logo-light.png'
+    : '';
+  const logo = logoUrl
+    ? '<img src="' + mailEsc(logoUrl) + '" width="150" alt="KTM Energy Experts" ' +
+      'style="display:block;border:0;height:auto;width:150px;max-width:100%">'
+    : '';
+  const greeting = displayName
+    ? 'Hello ' + mailEsc(displayName) + ','
+    : 'Hello,';
+  return [
+    '<!doctype html><html lang="en"><body style="margin:0;padding:0;background:#f4f6f9;',
+    'font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#17304a">',
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:24px 12px"><tr><td align="center">',
+    '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden">',
+    '<tr><td style="padding:26px 32px 18px;border-bottom:1px solid #eef2f7">' + logo + '</td></tr>',
+    '<tr><td style="padding:26px 32px 8px">',
+    '<h1 style="margin:0 0 16px;font-size:20px;line-height:1.35;font-weight:700;color:#17304a">Reset your KTM Studio password</h1>',
+    '<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#3c4a5e">' + greeting + '</p>',
+    '<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#3c4a5e">We received a request to reset the password for your KTM Studio account. Enter the code below to continue.</p>',
+    '<p style="margin:0 0 20px;text-align:center"><span style="display:inline-block;font-size:30px;letter-spacing:9px;font-weight:700;color:#17304a;background:#f4f6f9;border:1px dashed #c9d3e0;border-radius:10px;padding:15px 10px 15px 19px">' + mailEsc(otp) + '</span></p>',
+    '<p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#3c4a5e">This code expires in <strong>10 minutes</strong> and can be used <strong>only once</strong>.</p>',
+    '<p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#3c4a5e">If you did not request this, simply ignore this email &mdash; your password has not changed.</p>',
+    '<p style="margin:0;font-size:14px;line-height:1.6;color:#3c4a5e">Please do not share this code. KTM Energy Experts will never ask for it.</p>',
+    '</td></tr>',
+    '<tr><td style="padding:18px 32px 26px;border-top:1px solid #eef2f7">',
+    '<p style="margin:0;font-size:12px;line-height:1.7;color:#8494a8">This is an automatically generated email from KTM Energy Experts.<br>Please do not reply to this message.</p>',
+    '</td></tr></table>',
+    '</td></tr></table></body></html>'
+  ].join('');
+}
+
+/* Issue a fresh code: voids any previous unused one, stores only its hash.
+   resendCount is how many times this recovery attempt has already been
+   re-issued AFTER the first code (0 on the first). */
+async function issuePasswordReset(db, user, resendCount) {
+  const raw = String(randomBytes(4).readUInt32BE(0) % 1000000).padStart(6, '0');
   const id = uid('pwr');
+  const resend = Number.isFinite(resendCount) && resendCount > 0 ? Math.floor(resendCount) : 0;
   await run(
     db,
     'UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL',
@@ -921,10 +1264,12 @@ async function issuePasswordReset(db, user) {
   );
   await run(
     db,
-    'INSERT INTO password_resets (id, user_id, code_hash, expires_at, used_at, created_at) VALUES (?, ?, ?, ?, NULL, ?)',
+    `INSERT INTO password_resets
+       (id, user_id, code_hash, expires_at, used_at, resend_count, attempts, created_at)
+     VALUES (?, ?, ?, ?, NULL, ?, 0, ?)`,
     id, user.id, hashToken(raw),
-    new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-    nowISO()
+    new Date(Date.now() + OTP_TTL_MS).toISOString(),
+    resend, nowISO()
   );
   return raw;
 }
@@ -1208,14 +1553,162 @@ async function handleApi(request, env, url) {
       return json({ user: publicUser(user, env) });
     }
 
-    // Public recovery is fail-closed until a verified delivery channel exists.
-    // Reject reset as well: previously disclosed, unexpired codes must not work.
-    // Identical response for known/unknown accounts; no lookup or code issuance.
-    if (parts[0] === 'auth' && ['forgot-password', 'reset-password'].includes(parts[1]) && method === 'POST') {
-      return json({
-        error: 'Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent.',
-        code: 'RECOVERY_UNAVAILABLE'
-      }, 403);
+    // --- Password recovery (owner decision, 2026-10-10) --------------------
+    // The fail-closed gate is lifted: a verified delivery channel now exists
+    // (outbound SMTP over cloudflare:sockets, sending as the company mailbox).
+    //
+    // Uniformity is the load-bearing property here. Whether or not the address
+    // has an account, the caller sees the SAME status and the SAME body at every
+    // step — accepted, cooling down, over the resend limit, throttled. Account
+    // state is only ever revealed by a code the caller already holds.
+    if (parts[0] === 'auth' && parts[1] === 'forgot-password' && method === 'POST') {
+      const body = await readBody(request);
+      const email = String(body.email || '').trim().toLowerCase();
+
+      // Fail closed, before the throttle (which touches storage) and before any
+      // account lookup: a deployment with no delivery channel must answer every
+      // address identically AND do exactly the same work for each, or the
+      // difference in status — or in effort — becomes an oracle.
+      if (!recoveryConfigured(env)) return recoveryUnavailable();
+
+      const blocked = await recoveryThrottleCheck(db, request, email);
+      if (blocked != null) return recoveryLimited(blocked);
+
+      const ACCEPTED = {
+        ok: true,
+        message: 'If that email has an account, a reset code is on its way. Check your inbox and spam folder.'
+      };
+
+      // Empty/malformed input is not a lookup and spends no budget — but it
+      // still returns the same body, so a probe learns nothing either way.
+      if (!email) return json(ACCEPTED, 200);
+
+      // Issuance state is tracked for EVERY address, including ones with no
+      // account. If only real accounts were counted, an over-limit reply would
+      // confirm the account exists; tracking both keeps the reply identical.
+      const issuance = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', 'recovery-issued:' + email);
+      const now = Date.now();
+      const windowStart = (issuance && issuance.window_start) || 0;
+      const issuedCount = (issuance && issuance.window_count) || 0;
+      const nextAllowed = (issuance && issuance.blocked_until) || 0;
+      const attemptLive = windowStart && now - windowStart < OTP_TTL_MS;
+
+      if (attemptLive && issuedCount >= 1 + OTP_MAX_RESENDS) {
+        return json({
+          error: 'Too many codes have been requested for this attempt. Please wait a few minutes and start again.',
+          code: 'RESEND_LIMIT'
+        }, 429, { 'Retry-After': String(Math.ceil((windowStart + OTP_TTL_MS - now) / 1000)) });
+      }
+      if (attemptLive && now < nextAllowed) {
+        return json({
+          error: 'Please wait a moment before requesting another code.',
+          code: 'RESEND_COOLDOWN'
+        }, 429, { 'Retry-After': String(Math.max(1, Math.ceil((nextAllowed - now) / 1000))) });
+      }
+
+      // A known account gets a code; an unknown one follows the identical path
+      // minus the send. The response below is the same either way.
+      const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
+      if (user) {
+        // `issuedCount` is how many codes this attempt has already produced, so
+        // it IS this issuance's resend number: 0 on the first, 1 on the second.
+        const otp = await issuePasswordReset(db, user, attemptLive ? issuedCount : 0);
+        const origin = String(env.PUBLIC_ORIGIN || env.OAUTH_PUBLIC_ORIGIN || '').trim();
+        const html = recoveryEmailHtml(origin, user.name, otp);
+        const to = user.email;
+        // The send runs AFTER the reply. Awaiting it here would make a known
+        // address answer measurably slower than an unknown one, and that timing
+        // gap would become an oracle the body no longer exposes. waitUntil keeps
+        // the isolate alive until it settles, so nothing is dropped either.
+        ctx.waitUntil(smtpSend(env, to, RECOVERY_MAIL_SUBJECT, html).then((sent) => {
+          if (!sent.ok) {
+            // For wrangler tail and /api/health. Never echoed to the caller: a
+            // delivery-specific error only ever fires for real accounts.
+            console.log('recovery.send_failed', JSON.stringify({ reason: sent.reason }));
+          }
+        }));
+      }
+
+      // Record the issuance for BOTH branches so the counters advance in step.
+      if (attemptLive) {
+        await run(
+          db,
+          `UPDATE auth_throttles SET window_count = ?, blocked_until = ? WHERE scope = ?`,
+          issuedCount + 1, now + OTP_RESEND_COOLDOWN_MS, 'recovery-issued:' + email
+        );
+      } else {
+        await run(
+          db,
+          `INSERT INTO auth_throttles (scope, fails, blocked_until, window_start, window_count)
+           VALUES (?, 0, ?, ?, 1)
+           ON CONFLICT(scope) DO UPDATE SET blocked_until = excluded.blocked_until,
+             window_start = excluded.window_start, window_count = excluded.window_count`,
+          'recovery-issued:' + email, now + OTP_RESEND_COOLDOWN_MS, now
+        );
+      }
+      await recoveryThrottleHit(db, request, email);
+      return json(ACCEPTED, 200);
+    }
+
+    // Step 2 of the recovery flow: prove the code BEFORE asking for a new
+    // password, so nobody types a password and only then learns the code was
+    // wrong. The code is deliberately NOT consumed here — the caller still has
+    // to set the password, and burning it now would strand anyone whose chosen
+    // password failed policy. It runs through the same gate as the reset below,
+    // so the two cannot disagree about what counts as valid.
+    if (parts[0] === 'auth' && parts[1] === 'verify-code' && method === 'POST') {
+      const body = await readBody(request);
+      const email = String(body.email || '').trim().toLowerCase();
+      const code = String(body.code || '').replace(/\s+/g, '');
+
+      // Fail closed first, exactly like the other two recovery routes. With no
+      // delivery channel no code can ever exist, and gating AFTER the throttle
+      // would let the difference between "503 here" and "429 there" say whether
+      // an address has storage behind it.
+      if (!recoveryConfigured(env)) return recoveryUnavailable();
+
+      const blocked = await recoveryThrottleCheck(db, request, email);
+      if (blocked != null) return recoveryLimited(blocked);
+      await recoveryThrottleHit(db, request, email);
+
+      const checked = await checkResetCode(db, email, code);
+      if (checked.rejected) return checked.rejected;
+      return json({ ok: true, message: 'Code verified. Choose a new password.' }, 200);
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'reset-password' && method === 'POST') {
+      const body = await readBody(request);
+      const email = String(body.email || '').trim().toLowerCase();
+      const code = String(body.code || '').replace(/\s+/g, '');
+      const password = String(body.password || '');
+
+      // Fail closed first, ahead of both the policy check and the throttle: when
+      // the channel is off no code can be valid, and answering "bad password"
+      // here while forgot-password answers 503 would give one deployment two
+      // different faces.
+      if (!recoveryConfigured(env)) return recoveryUnavailable();
+
+      // Cheap first among the real checks: a malformed password is a client-side
+      // problem and costs no attempt against the code.
+      const policy = passwordPolicyError(password);
+      if (policy) return json({ error: policy }, 400);
+
+      const blocked = await recoveryThrottleCheck(db, request, email);
+      if (blocked != null) return recoveryLimited(blocked);
+      await recoveryThrottleHit(db, request, email);
+
+      const checked = await checkResetCode(db, email, code);
+      if (checked.rejected) return checked.rejected;
+      const { user, row } = checked;
+
+      await run(db, 'UPDATE password_resets SET used_at = ? WHERE id = ?', nowISO(), row.id);
+      await run(db, 'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', hashPassword(password), nowISO(), user.id);
+      // A password change voids every other session: whoever holds the code
+      // has proven control of the mailbox, and stale cookies must not outlive
+      // that decision.
+      await revokeUserSessions(db, user.id, null);
+      await authThrottleSuccess(db, user.email);
+      return json({ ok: true, message: 'Password updated. You can sign in now.' }, 200);
     }
 
     if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
@@ -1391,6 +1884,18 @@ async function handleApi(request, env, url) {
           manualChannels: Object.keys(SEND_CHANNELS),
           providerDelivery: false,
           note: 'Manual WhatsApp/email record share_clicked only. Delivered requires a future provider webhook.'
+        },
+        /* Password recovery. Reports only whether the delivery channel is
+           configured — never the address, never a password — so an operator can
+           tell "secret not set" apart from "mail is not arriving". The same
+           answer goes to every caller. */
+        recovery: {
+          selfService: true,
+          channel: 'smtp',
+          deliveryConfigured: Boolean(String(env.SMTP_PASSWORD || '').trim()),
+          codeTtlMinutes: Math.round(OTP_TTL_MS / 60000),
+          resendLimit: OTP_MAX_RESENDS,
+          verifyAttempts: OTP_MAX_ATTEMPTS
         },
         features: {
           notifications: true,

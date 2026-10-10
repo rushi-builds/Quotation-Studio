@@ -6,6 +6,7 @@ const { spawn } = require('child_process');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const ROOT = path.join(__dirname, '..');
 const SERVER = path.join(ROOT, 'platform/local-server/server.js');
@@ -63,6 +64,21 @@ function cookieFrom(res) {
 function tokenFrom(res) {
   return (res && res.json && res.json.token) || '';
 }
+/* The server keeps only a SHA-256 of the reset code, so a test that needs the
+   code itself recovers it the way anyone holding the database would: 1e6
+   six-digit guesses. Which is exactly why the code is single-use and
+   attempt-capped — the hash alone is not the defence, the expiry and the
+   attempt counter are. */
+function recoverResetCode() {
+  const db = JSON.parse(fs.readFileSync(path.join(DATA, 'db.json'), 'utf8'));
+  const row = (db.password_resets || []).filter((x) => !x.used_at).pop();
+  if (!row) return null;
+  for (let i = 0; i < 1000000; i++) {
+    const c = String(i).padStart(6, '0');
+    if (crypto.createHash('sha256').update(c).digest('hex') === row.code_hash) return c;
+  }
+  return null;
+}
 
 async function main() {
   fs.rmSync(DATA, { recursive: true, force: true });
@@ -72,7 +88,12 @@ async function main() {
     env: Object.assign({}, process.env, {
       PORT: String(PORT),
       HOST: '127.0.0.1',
-      QS_DATA_DIR: DATA
+      QS_DATA_DIR: DATA,
+      /* Recovery is live in these tests: the channel must be CONFIGURED for the
+         endpoint to answer at all (it fails closed when it is not). The value is
+         a dummy, so every send stops at AUTH and no mail ever leaves the
+         machine — only the issuing, throttling and verification paths run. */
+      SMTP_PASSWORD: 'dummy-not-a-real-secret'
     }),
     cwd: ROOT,
     stdio: ['ignore', 'pipe', 'pipe']
@@ -540,15 +561,46 @@ async function main() {
     t('new password works', r.status === 200);
     cookie2 = cookieFrom(r);
 
+    /* Self-service recovery (owner decision, 2026-10-10).
+
+       The property that matters is UNIFORMITY: every step answers with the same
+       status and body whether the address has an account or not, so none of it
+       is an enumeration oracle. The only difference between the two paths is
+       whether mail is attempted — and that now happens AFTER the reply is
+       written, so response time cannot tell them apart either. */
     r = await req('POST', '/api/auth/forgot-password', {
       email: 'owner@example.com'
     });
-    t('forgot password unavailable without disclosing secrets', r.status === 403 && r.json.code === 'RECOVERY_UNAVAILABLE' && !r.json.recoveryCode);
-    const unavailable = r.json;
+    const recoAccepted = r;
+    t('known account: code request accepted', r.status === 200 && r.json.ok === true, r.status + ' ' + JSON.stringify(r.json));
+    t('accepted reply leaks no code and no token',
+      !/\b\d{6}\b/.test(JSON.stringify(r.json)) && !r.json.token && !r.json.recoveryCode,
+      JSON.stringify(r.json));
     r = await req('POST', '/api/auth/forgot-password', {email:'no-such-user-xyz@example.com'});
-    t('unknown account gets identical recovery response', r.status === 403 && JSON.stringify(r.json) === JSON.stringify(unavailable));
+    t('unknown account gets identical recovery response',
+      r.status === recoAccepted.status && JSON.stringify(r.json) === JSON.stringify(recoAccepted.json),
+      r.status + ' ' + JSON.stringify(r.json));
+
+    /* The cooldown is per ADDRESS, so an unknown address opens its own window
+       on its first call and then walks exactly the same sequence. */
+    r = await req('POST', '/api/auth/forgot-password', {email:'owner@example.com'});
+    t('immediate second request is throttled', r.status === 429 && r.json.code === 'RESEND_COOLDOWN', r.status + ' ' + JSON.stringify(r.json));
+    const recoCooldown = JSON.stringify(r.json);
+    r = await req('POST', '/api/auth/forgot-password', {email:'no-such-user-xyz@example.com'});
+    t('unknown account throttled identically', r.status === 429 && JSON.stringify(r.json) === recoCooldown, r.status + ' ' + JSON.stringify(r.json));
+
+    /* Verify and reset answer the same way for a wrong code and for an address
+       that has no account at all. */
+    r = await req('POST', '/api/auth/verify-code', {email:'owner@example.com', code:'000000'});
+    const badVerify = r;
+    t('wrong code rejected on verify', r.status === 400 && r.json.code === 'CODE_INVALID' && !r.json.token, r.status + ' ' + JSON.stringify(r.json));
+    r = await req('POST', '/api/auth/verify-code', {email:'ghost@example.test', code:'000000'});
+    t('unknown account verify is indistinguishable',
+      r.status === badVerify.status && JSON.stringify(r.json) === JSON.stringify(badVerify.json),
+      r.status + ' ' + JSON.stringify(r.json));
+
     r = await req('POST', '/api/auth/reset-password', {email:'owner@example.com',code:'old-code',password:'resetpass88'});
-    t('public reset disabled including legacy codes', r.status === 403 && !r.json.token);
+    t('reset with a legacy/wrong code rejected', r.status === 400 && r.json.code === 'CODE_INVALID' && !r.json.token, r.status + ' ' + JSON.stringify(r.json));
     r = await req('POST', '/api/auth/login', {email:'owner@example.com',password:'newpass999'});
     t('recovery attempts preserve current password', r.status === 200);
     cookie2 = cookieFrom(r);
@@ -635,6 +687,67 @@ async function main() {
 
     r = await req('POST', '/api/auth/profile', { role: 'owner' }, customTok);
     t('profile ignores role change body', r.status === 200 && r.json.user.role === 'viewer', r.status);
+
+    /* --- Self-service recovery, full round trip (owner decision, 2026-10-10) --
+       Run on two dedicated accounts so it neither depends on nor disturbs any
+       password the rest of this file signs in with, and so no test has to wait
+       out the 45-second resend cooldown: each account makes its FIRST request. */
+    r = await req('POST', '/api/auth/register', {
+      name: 'Reco Round Trip', email: 'reco-round@example.com', password: 'password123', role: 'viewer'
+    });
+    t('recovery fixture registered', r.status === 201, r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/forgot-password', { email: 'reco-round@example.com' });
+    t('recovery code issued', r.status === 200 && r.json.ok === true, r.status + ' ' + JSON.stringify(r.json));
+
+    const roundCode = recoverResetCode();
+    t('code recovered from the stored hash', typeof roundCode === 'string' && /^\d{6}$/.test(roundCode), roundCode);
+
+    r = await req('POST', '/api/auth/verify-code', { email: 'reco-round@example.com', code: roundCode });
+    t('verify accepts the real code', r.status === 200 && r.json.ok === true, r.status + ' ' + JSON.stringify(r.json));
+    t('verify hands back no session and no code', !r.json.token && !/\b\d{6}\b/.test(JSON.stringify(r.json)), JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/verify-code', { email: 'reco-round@example.com', code: roundCode });
+    t('verify stays repeatable until the password is set', r.status === 200, r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/reset-password', { email: 'reco-round@example.com', code: roundCode, password: 'brandnew99' });
+    t('reset accepts the real code', r.status === 200 && r.json.ok === true, r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/login', { email: 'reco-round@example.com', password: 'password123' });
+    t('old password no longer works', r.status === 401, r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/login', { email: 'reco-round@example.com', password: 'brandnew99' });
+    t('new password works', r.status === 200, r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/reset-password', { email: 'reco-round@example.com', code: roundCode, password: 'anotherone1' });
+    t('code is single use', r.status === 400 && r.json.code === 'CODE_INVALID', r.status + ' ' + JSON.stringify(r.json));
+
+    /* Attempt cap. A 6-digit code is only 1e6 combinations, so five misses void
+       it rather than let a caller grind through the 10-minute window. Read back
+       from the stored row: the API deliberately cannot show the difference
+       between a voided code and a wrong one, which is the whole point. */
+    r = await req('POST', '/api/auth/register', {
+      name: 'Reco Attempts', email: 'reco-attempts@example.com', password: 'password123', role: 'viewer'
+    });
+    t('attempt fixture registered', r.status === 201, r.status);
+    r = await req('POST', '/api/auth/forgot-password', { email: 'reco-attempts@example.com' });
+    t('attempt fixture code issued', r.status === 200, r.status);
+    let verifyMisses = 0;
+    for (let miss = 0; miss < 5; miss++) {
+      r = await req('POST', '/api/auth/verify-code', { email: 'reco-attempts@example.com', code: String(100000 + miss) });
+      if (r.status === 400 && r.json && r.json.code === 'CODE_INVALID') verifyMisses++;
+      else t('wrong code rejected on attempt ' + (miss + 1), false, r.status + ' ' + JSON.stringify(r.json));
+    }
+    t('all five wrong codes rejected with the same reply', verifyMisses === 5, verifyMisses);
+    {
+      const db = JSON.parse(fs.readFileSync(path.join(DATA, 'db.json'), 'utf8'));
+      const uid2 = ((db.users.find((u) => u.email === 'reco-attempts@example.com')) || {}).id;
+      const rows = (db.password_resets || []).filter((x) => x.user_id === uid2);
+      const row = rows[rows.length - 1];
+      t('five misses void the code',
+        !!row && Number(row.attempts) >= 5 && !!row.used_at,
+        row ? 'attempts=' + row.attempts + ' used_at=' + row.used_at : 'no password_resets row');
+    }
     }
 
   } finally {
