@@ -96,6 +96,19 @@ input,button,a{font-family:var(--f)}
 #f-rp .fg{align-self:center;margin:0}
 .up .fg[disabled]{opacity:.6;cursor:default}
 .up .otp{letter-spacing:.5cqw;text-align:center;font-weight:700}
+/* The resend row is one quiet line under the code box: a text link, the live
+   countdown beside it, and the attempts notice. Deliberately not a button — a
+   second button would compete with Verify for the same thumb. */
+.up .rmeta{display:flex;align-items:center;justify-content:center;gap:.45cqw;flex-wrap:wrap;font-size:.8cqw;color:#9aa2b2;margin:-.4cqw 0 -.2cqw;min-height:1.15cqw;line-height:1.35}
+.up .rmeta .lnk{background:none;border:0;padding:0;color:var(--or);font:inherit;cursor:pointer}
+.up .rmeta .lnk:hover:not([disabled]){text-decoration:underline}
+.up .rmeta .lnk[disabled]{color:#9aa2b2;cursor:default}
+.up .rmeta .clk{font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.up .rmeta .attempts{color:#ffb3a8;font-weight:600;white-space:nowrap}
+/* A wrong code announces the remaining tries, then retires itself rather than
+   sitting there as a permanent scolding. */
+.up .rmeta .attempts.pop{animation:attPop 3s ease forwards}
+@keyframes attPop{0%{opacity:0;filter:blur(6px);transform:translateY(2px)}10%{opacity:1;filter:blur(0);transform:none}72%{opacity:1;filter:blur(0)}100%{opacity:0;filter:blur(6px);transform:translateY(-1px)}}
 </style>
 </head>
 <body>
@@ -130,15 +143,15 @@ input,button,a{font-family:var(--f)}
   <div class="up" style="left:63.457%;top:14.772%;width:30.263%;height:69.501%">
    <div><h2>Reset Password</h2></div>
    <div class="rps" data-rstep="1">
-    <p class="sub">Enter your account email and we&rsquo;ll send you a code.</p>
-    <div><label for="r-e">Email</label><input class="f" id="r-e" name="email" type="email" autocomplete="email" placeholder="Enter your email"><div class="e"></div></div>
-    <button class="cta2" type="submit">Send Code</button>
+    <p class="sub">We&rsquo;ll email a 6-digit code to <b id="rp-who"></b>.</p>
+    <div id="rp-mail" hidden><label for="r-e">Email</label><input class="f" id="r-e" name="email" type="email" autocomplete="email" placeholder="Enter your email"><div class="e"></div></div>
+    <button class="cta2" type="submit">Send OTP</button>
    </div>
    <div class="rps" data-rstep="2" hidden>
     <p class="sub">Enter the code we sent to your inbox.</p>
-    <div><label for="r-c">Reset code</label><input class="f otp" id="r-c" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code"><div class="e"></div></div>
-    <button class="cta2" type="submit">Verify Code</button>
-    <button class="fg" id="rp-resend" type="button">Resend code (3 of 3 left)</button>
+    <div><input class="f otp" id="r-c" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" aria-label="6-digit code"><div class="e"></div></div>
+    <p class="rmeta"><button class="lnk" id="rp-resend" type="button">Resend OTP</button><span class="clk" id="rp-timer"></span><span class="attempts" id="rp-attempts" hidden></span></p>
+    <button class="cta2" type="submit">Verify OTP</button>
    </div>
    <div class="rps" data-rstep="3" hidden>
     <p class="sub">Choose a new password for your account.</p>
@@ -166,12 +179,21 @@ document.querySelectorAll('[data-go]').forEach(a=>{const go=()=>{const m=a.datas
    state. The code itself is only ever in the mail and in the server's hashed
    column — the browser holds one only long enough to send it back. */
 const FRP=document.getElementById('f-rp');
-const RP={step:1,email:'',code:'',left:3,total:3,until:0,timer:null};
+const RP={step:1,email:'',code:'',left:3,total:3,tries:5,until:0,timer:null};
+/* Declared here, not at the bottom: rpOpen() runs on a deep link before the
+   script reaches the old position, and a const in that state is a ReferenceError. */
+const rx=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 function rpShow(n){
   RP.step=n;
   FRP.querySelectorAll('.rps').forEach(d=>{d.hidden=Number(d.dataset.rstep)!==n;});
-  const f=FRP.querySelector('.rps:not([hidden]) input');
-  if(f)f.focus();
+  const step=FRP.querySelector('.rps:not([hidden])');
+  if(!step)return;
+  /* Focus the field that is actually on screen. Step 1 hides the address box
+     whenever the sign-in card already holds one, so "first input" would grab a
+     hidden field and leave the keyboard nowhere. */
+  const vis=Array.prototype.find.call(step.querySelectorAll('input'),i=>!i.closest('[hidden]'));
+  const target=vis||step.querySelector('.cta2');
+  if(target)target.focus();
 }
 function rpErr(id,msg){
   const i=document.getElementById(id);
@@ -189,40 +211,60 @@ function rpSub(n,msg){
    limit notice once that allowance is spent. The server is the authority on the
    count; this is display only. */
 function rpResendLabel(){
-  const b=document.getElementById('rp-resend');
-  if(!b)return;
+  const b=document.getElementById('rp-resend'),t=document.getElementById('rp-timer');
+  if(!b||!t)return;
   clearTimeout(RP.timer);RP.timer=null;
   if(RP.left<=0){
-    b.disabled=true;
-    b.textContent='Resend code (0 of '+RP.total+' left)';
+    b.disabled=true;t.textContent='· limit reached';
     rpSub(2,'Resend limit reached. Contact your company administrator.');
     return;
   }
   const tick=()=>{
     const wait=Math.ceil((RP.until-Date.now())/1000);
     if(wait>0){
-      b.disabled=true;
-      b.textContent='Resend code in '+wait+'s';
+      b.disabled=true;t.textContent='in '+wait+'s';
       RP.timer=setTimeout(tick,1000);
     }else{
-      b.disabled=false;
-      b.textContent='Resend code ('+RP.left+' of '+RP.total+' left)';
+      b.disabled=false;t.textContent='· '+RP.left+' resend'+(RP.left===1?'':'s')+' left';
       RP.timer=null;
     }
   };
   tick();
 }
+/* A wrong code announces how many tries remain and then retires itself, so the
+   notice informs without becoming a permanent scolding beside the field. The
+   server is the authority — five misses invalidate the code whatever this
+   counter believes. */
+function rpAttempts(left){
+  const el=document.getElementById('rp-attempts');
+  if(!el)return;
+  el.classList.remove('pop');void el.offsetWidth;
+  el.textContent=left>0?left+' attempt'+(left===1?'':'s')+' left':'';
+  el.hidden=left<=0;
+  if(left>0)el.classList.add('pop');
+}
 function rpStartCooldown(sec){
   RP.until=Date.now()+Math.max(1,Number(sec)||45)*1000;
   rpResendLabel();
 }
+function rpMailBox(ask){
+  const box=document.getElementById('rp-mail'),who=document.getElementById('rp-who');
+  if(!box||!who)return false;
+  box.hidden=!ask;who.hidden=ask;
+  return !ask;
+}
 function rpOpen(){
-  rpShow(1);
   rpErr('r-e','');rpErr('r-c','');rpErr('r-p','');
-  rpSub(1,'Enter your account email and we\u2019ll send you a code.');
   rpSub(2,'Enter the code we sent to your inbox.');
   FRP.hidden=false;F.in.hidden=true;F.up.hidden=true;
-  const i=document.getElementById('r-e');if(i)i.focus();
+  /* The address is already on the sign-in card, and it is the very account
+     being recovered — retyping it is the one field this flow can do without.
+     A card opened cold (bookmark, deep link, nothing typed above) falls back
+     to asking, so the step is never a dead end. */
+  const typed=(document.getElementById('i-e').value||'').trim();
+  const known=rpMailBox(!rx.test(typed));
+  document.getElementById('rp-who').textContent=known?typed:'';
+  rpShow(1);
 }
 async function rpBusy(btn,label,work){
   const prev=btn.textContent;
@@ -235,15 +277,23 @@ FRP.addEventListener('submit',async e=>{
   const btn=e.submitter||FRP.querySelector('.rps:not([hidden]) .cta2');
   if(!btn)return;
   if(RP.step===1){
-    const i=document.getElementById('r-e'),v=i.value.trim();
-    if(!rx.test(v)){rpErr('r-e','Enter a valid email address.');i.focus();return;}
+    const i=document.getElementById('r-e');
+    const fromCard=document.getElementById('rp-mail').hidden;
+    const v=((fromCard?(document.getElementById('i-e').value||''):i.value)||'').trim();
+    if(!rx.test(v)){
+      /* Either the card was opened cold, or the address above was cleared while
+         it stood. Ask in place rather than refuse with nowhere to go. */
+      rpMailBox(true);rpErr('r-e','Enter a valid email address.');i.focus();return;
+    }
     rpErr('r-e','');
     try{
       const r=await rpBusy(btn,'Sending\u2026',()=>window.PlatformAPI.forgotPassword(v));
-      RP.email=v;RP.left=RP.total;
+      RP.email=v;RP.left=RP.total;RP.tries=5;rpAttempts(0);
       rpSub(2,(r&&r.message)||'If that email has an account, a reset code is on its way. Check your inbox and spam folder.');
       rpShow(2);rpStartCooldown(45);
-    }catch(err){rpErr('r-e',honestError(err));}
+    }catch(err){
+      rpMailBox(true);rpErr('r-e',honestError(err));
+    }
     return;
   }
   if(RP.step===2){
@@ -252,8 +302,15 @@ FRP.addEventListener('submit',async e=>{
     rpErr('r-c','');
     try{
       await rpBusy(btn,'Verifying\u2026',()=>window.PlatformAPI.verifyCode(RP.email,v));
-      RP.code=v;rpShow(3);
-    }catch(err){rpErr('r-c',honestError(err));}
+      RP.code=v;rpAttempts(0);rpShow(3);
+    }catch(err){
+      rpErr('r-c',honestError(err));
+      /* Display only. The server counts independently and invalidates the code
+         after five misses whatever this believes. */
+      if(RP.tries>0)RP.tries-=1;
+      rpAttempts(RP.tries);
+      if(RP.tries<=0)i.value='';
+    }
     return;
   }
   const i=document.getElementById('r-p'),v=i.value;
@@ -270,13 +327,15 @@ FRP.addEventListener('submit',async e=>{
   }catch(err){rpErr('r-p',honestError(err));}
 });
 document.getElementById('rp-resend').addEventListener('click',async()=>{
-  const b=document.getElementById('rp-resend');
+  const b=document.getElementById('rp-resend'),t=document.getElementById('rp-timer');
   if(b.disabled)return;
-  b.disabled=true;b.textContent='Sending\u2026';
+  b.disabled=true;if(t)t.textContent='sending\u2026';
   rpErr('r-c','');
   try{
     await window.PlatformAPI.forgotPassword(RP.email);
     if(RP.left>0)RP.left-=1;
+    /* A fresh code means a fresh allowance of tries. */
+    RP.tries=5;rpAttempts(0);
     rpStartCooldown(45);
   }catch(err){
     const code=err&&err.data&&err.data.code;
@@ -290,7 +349,6 @@ document.querySelector('[data-act=forgot]').onclick=rpOpen;
 if(location.hash==='#forgotPassword')rpOpen();
 window.addEventListener('hashchange',()=>{if(location.hash==='#forgotPassword')rpOpen();});
 document.querySelectorAll('.eye').forEach(b=>b.onclick=()=>{const i=b.parentElement.querySelector('input'),s=i.type==='password';i.type=s?'text':'password';b.innerHTML=s?EYE_ON:EYE_OFF;b.setAttribute('aria-label',(s?'Hide':'Show')+' password');});
-const rx=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 function errBox(i){let el=i.parentElement;while(el&&el.tagName!=='FORM'&&!el.querySelector(':scope > .e'))el=el.parentElement;return el?el.querySelector(':scope > .e'):null;}
 function check(f){let ok=true,first=null,msg='';f.querySelectorAll('input.f').forEach(i=>{let m='';const v=i.value.trim();
   if(i.name==='name'&&!v)m='Enter your full name.';

@@ -147,8 +147,9 @@ async function loadPage(base, pagePath, { cookie = '', preset = null } = {}) {
       t('email step asks for the address',
         !!doc.getElementById('r-e') && !!doc.querySelector('#f-rp [data-rstep="1"] .cta2'));
       t('code step carries the resend control and its counter',
-        !!doc.getElementById('rp-resend') && /\bof 3 left\b/.test(doc.getElementById('rp-resend').textContent),
-        doc.getElementById('rp-resend') && doc.getElementById('rp-resend').textContent);
+        !!doc.getElementById('rp-resend') && !!doc.getElementById('rp-timer') && !!doc.getElementById('rp-attempts') &&
+        /resend/i.test(doc.getElementById('rp-resend').textContent),
+        doc.getElementById('rp-resend') && doc.getElementById('rp-resend').textContent + ' | ' + (doc.getElementById('rp-timer') || {}).textContent);
       t('password step has the new-password field', !!doc.getElementById('r-p'));
       t('no code or token is pre-filled or rendered',
         !/\b\d{6}\b/.test((rp && rp.textContent) || '') && !(rp && rp.querySelector('[name="token"]')),

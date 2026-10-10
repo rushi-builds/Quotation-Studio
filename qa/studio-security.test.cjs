@@ -61,7 +61,7 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   assert.ok(await page.locator('#r-e').isVisible());
   assert.equal(await page.evaluate(()=>document.querySelector('[data-rstep="2"]').hasAttribute('hidden')),true);
   assert.equal(await page.evaluate(()=>document.querySelector('[data-rstep="3"]').hasAttribute('hidden')),true);
-  assert.ok(await page.evaluate(()=>/\bof 3 left\b/.test(document.getElementById('rp-resend').textContent)));
+  assert.ok(await page.evaluate(()=>{const m=document.querySelector('#f-rp .rmeta');return !!document.getElementById('rp-resend')&&!!document.getElementById('rp-timer')&&!!document.getElementById('rp-attempts')&&/resend/i.test(document.getElementById('rp-resend').textContent)&&!!m;}));
   assert.ok(await page.evaluate(()=>!/\b\d{6}\b/.test(document.getElementById('f-rp').textContent)),'no code may be rendered in the panel');
   await page.getByRole('button',{name:'Back to sign in'}).click();
   await page.locator('#forgotPassword').click();
