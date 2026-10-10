@@ -56,7 +56,7 @@ function bootApp(seedStorage) {
   const { window } = dom;
   /* browser <script> tags share top-level scope; a single concatenated eval mimics that */
   const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
+    'module-catalog.js', 'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
   window.document.dispatchEvent(new window.Event('DOMContentLoaded', { bubbles: true }));
@@ -140,7 +140,8 @@ t('blob contains live form', w.Proposals.active().form.capacity === '7');
 /* ---------- Phase 1: equipment catalog ---------- */
 console.log('- equipment catalog (Phase 1) -');
 t('3 seed modules in catalog', w.EquipmentStore.cat().modules.length === 3);
-t('module dropdown includes catalog and Custom', d.getElementById('moduleMake').options.length === 4);
+t('manufacturer reference entries extend the module dropdown without replacing Custom',
+  d.getElementById('moduleMake').options.length === new Set(w.EquipmentStore.listModules().map(m => m.make)).size + 1);
 t('inverter dropdown includes catalog and Custom', d.getElementById('inverterMake').options.length === 5);
 t('structure dropdown includes catalog and Custom', d.getElementById('mountMake').options.length === 3);
 t('catalog manager rendered rows', d.querySelectorAll('#eqCatalog .eq-row').length >= 8,
@@ -149,12 +150,125 @@ t('catalog manager rendered rows', d.querySelectorAll('#eqCatalog .eq-row').leng
 w.EquipmentStore.cat().modules.push({ id: 'mx', make: 'TestModule 550', model: '', wp: 550, tech: 'TOPCon', lengthMm: '2333', widthMm: '1134', efficiency: '', voc: '', isc: '', vmp: '', imp: '' });
 w.EquipmentStore.save();
 w.EquipmentStore.refreshSelects();
-t('catalog add appears above Custom', d.getElementById('moduleMake').options.length === 5);
+t('catalog add appears above Custom', d.getElementById('moduleMake').options.length === new Set(w.EquipmentStore.listModules().map(m => m.make)).size + 1);
 d.getElementById('moduleMake').value = 'TestModule 550';
 fire(w, d.getElementById('moduleMake'), 'change');
 t('selecting module syncs wattage', d.getElementById('moduleWattage').value === '550', d.getElementById('moduleWattage').value);
 t('selecting module syncs length', d.getElementById('moduleLengthMm').value === '2333');
 t('selecting module syncs technology', d.getElementById('moduleTech').value === 'TOPCon');
+const chooseModule = (make, model) => {
+  d.getElementById('moduleMake').value = make;
+  fire(w, d.getElementById('moduleMake'), 'change');
+  d.getElementById('moduleModel').value = model;
+  fire(w, d.getElementById('moduleModel'), 'change');
+  w.Render.renderAll();
+};
+t('five manufacturer reference models are isolated from the editable company catalog',
+  w.ModuleReferenceCatalog.list().length === 5 && w.EquipmentStore.cat().modules.length === 4);
+t('Waaree make exposes both exact reference models',
+  w.EquipmentStore.modelEntriesForMake('Waaree').some(m => m.model === 'Bi-55-545') &&
+  w.EquipmentStore.modelEntriesForMake('Waaree').some(m => m.model === 'BiN-08-580'));
+chooseModule('Waaree', 'Bi-55-545');
+t('Waaree model fills verified power, efficiency, dimensions and technology',
+  d.getElementById('moduleWattage').value === '545' && d.getElementById('moduleEfficiency').value === '21.17' &&
+  d.getElementById('moduleLengthMm').value === '2272' && d.getElementById('moduleWidthMm').value === '1133' &&
+  d.getElementById('moduleTech').value === 'Mono PERC');
+t('Waaree model fills STC electrical values and its own temperature coefficients',
+  d.getElementById('moduleVoc').value === '49.76' && d.getElementById('moduleVmp').value === '41.9' &&
+  d.getElementById('moduleIsc').value === '13.9' && d.getElementById('moduleImp').value === '13.02' &&
+  d.getElementById('moduleVocBetaPct').value === '-0.25' && d.getElementById('moduleVmpBetaPct').value === '' &&
+  d.getElementById('moduleIscAlphaPct').value === '0.05' && d.getElementById('modulePmaxBetaPct').value === '-0.34');
+const waareeQuote = d.getElementById('v_tsTable').textContent;
+t('quotation prints model, STC efficiency/electrical values and bifaciality without rear-side gain',
+  waareeQuote.includes('Bi-55-545') && waareeQuote.includes('21.17% front-side STC efficiency') &&
+  waareeQuote.includes('Voc 49.76 V') && waareeQuote.includes('Pmax −0.34%/°C') &&
+  waareeQuote.includes('70 ± 10%') && waareeQuote.includes('rear-side gain is not included') &&
+  waareeQuote.includes('max series fuse 25 A'));
+t('quotation marks manufacturer values and links the actual datasheet',
+  waareeQuote.includes('Manufacturer-datasheet values') &&
+  d.querySelector('#v_tsRefs a[href*="waaree.com"]') !== null);
+const waareeForm = w.StateStore.collectForm();
+w.StateStore.applyForm(waareeForm);
+w.Render.renderAll();
+t('selected model and technical values survive proposal form restore',
+  d.getElementById('moduleModel').value === 'Bi-55-545' && d.getElementById('moduleEfficiency').value === '21.17' &&
+  d.getElementById('v_tsTable').textContent.includes('21.17% front-side STC efficiency'));
+chooseModule('Waaree', 'BiN-08-580');
+t('Waaree TOPCon bifacial model uses manufacturer coefficients, not workbook estimates',
+  d.getElementById('moduleTech').value === 'N-type TOPCon' && d.getElementById('moduleEfficiency').value === '22.45' &&
+  d.getElementById('moduleVocBetaPct').value === '-0.26' && d.getElementById('moduleIscAlphaPct').value === '0.046' &&
+  d.getElementById('modulePmaxBetaPct').value === '-0.3' && d.getElementById('moduleBifaciality').value === '80 ± 10%' &&
+  d.getElementById('v_tsTable').textContent.includes('max series fuse 30 A'));
+chooseModule('Adani Solar', 'ASB-M10-144-AAA · 580 W bin');
+t('Adani TOPCon bifacial model autofills verified nameplate and specifications',
+  d.getElementById('moduleWattage').value === '580' && d.getElementById('moduleEfficiency').value === '22.5' &&
+  d.getElementById('moduleVoc').value === '52.5' && d.getElementById('moduleVmp').value === '43.98' &&
+  d.getElementById('moduleBifaciality').value === '80 ± 5%' &&
+  d.getElementById('v_tsTable').textContent.includes('ASB-M10-144-AAA · 580 W bin') &&
+  d.getElementById('v_tsTable').textContent.includes('max series fuse 30 A'));
+chooseModule('JinkoSolar', 'JKM580-605N-72HL4-(V) · 580 W bin');
+t('Jinko monofacial TOPCon model retains its exact STC values and does not invent bifaciality',
+  d.getElementById('moduleEfficiency').value === '22.45' && d.getElementById('moduleType').value === 'Monofacial' &&
+  d.getElementById('moduleBifaciality').value === '' && d.getElementById('moduleVoc').value === '52.31' &&
+  d.getElementById('v_tsTable').textContent.includes('no rear-side gain is assumed'));
+chooseModule('Vikram Solar', 'VSP.72.AAA.03.04 · 330 W bin');
+t('Vikram polycrystalline ELDORA quote identifies its family and 330 W bin',
+  d.getElementById('moduleWattage').value === '330' && d.getElementById('moduleEfficiency').value === '17.01' &&
+  d.getElementById('moduleVoc').value === '46.3' && d.getElementById('moduleWeightKg').value === '20.7' &&
+  d.getElementById('v_tsTable').textContent.includes('ELDORA VSP.72.AAA.03.04 · 330 W bin') &&
+  d.getElementById('v_tsTable').textContent.includes('mass 20.7 kg') &&
+  d.getElementById('v_tsTable').textContent.includes('max series fuse 15 A'));
+w.StateStore.applyForm(w.StateStore.DEFAULTS);
+w.EquipmentStore.refreshSelects();
+w.Render.renderAll();
+const customModuleMake = d.getElementById('moduleMake');
+customModuleMake.selectedIndex = [...customModuleMake.options].findIndex(option => option.hasAttribute('data-custom'));
+fire(w, customModuleMake, 'change');
+d.getElementById('moduleMakeCustom').value = 'Unknown module maker';
+fire(w, d.getElementById('moduleMakeCustom'), 'input');
+const customModel = d.getElementById('moduleModel');
+customModel.selectedIndex = [...customModel.options].findIndex(option => option.hasAttribute('data-custom'));
+fire(w, customModel, 'change');
+d.getElementById('moduleModelCustom').value = 'Mystery 700';
+fire(w, d.getElementById('moduleModelCustom'), 'input');
+w.Render.renderAll();
+t('custom/unknown module keeps datasheet-only values blank and is clearly unverified',
+  d.getElementById('moduleModel').value === 'Mystery 700' && d.getElementById('moduleEfficiency').value === '' &&
+  d.getElementById('moduleVoc').value === '' && d.getElementById('v_tsTable').textContent.includes('Custom / company-catalog model') &&
+  w.StateStore.collectForm().moduleModel === 'Mystery 700');
+const proposalProductRefs = {
+  inverter: { id: 'excel-inverter-test-7', source: 'excel', make: 'Deye', model: 'SUN-5K-SG04LP3-EU',
+    type: 'Hybrid', hybrid: 'Yes', acKw: 5, phase: 3, maxDcVoltageV: 800,
+    mpptMinV: 200, mpptMaxV: 650, maxInputCurrentPerMpptA: '13 / 26',
+    communication: 'Wi-Fi', sourceRow: 7, verified: false, sourceUrl: '' },
+  cable: { id: 'excel-cable-test-9', source: 'excel', make: 'Polycab', category: 'PV DC', sizeMm2: 4,
+    material: 'Cu', ampacityA: 55, standard: 'EN 50618', sourceRow: 9, verified: false, sourceUrl: '' },
+  protection: { id: 'excel-protection-test-12', source: 'excel', category: 'DC MCB', make: 'Schneider',
+    model: 'iC60 PV', catalogNumber: 'A9N61525', ratedCurrentA: 25, ratedVoltageV: 1000,
+    poles: '2P', breakingCapacityKa: 10, sourceRow: 12, verified: false, sourceUrl: '' }
+};
+d.getElementById('inverterModel').value = proposalProductRefs.inverter.model;
+d.getElementById('inverterProductSnapshot').value = JSON.stringify(proposalProductRefs.inverter);
+d.getElementById('inverterKw').value = '5';
+d.getElementById('inverterVmaxDc').value = '800';
+d.getElementById('mpptMinV').value = '200';
+d.getElementById('mpptMaxV').value = '650';
+w.EquipmentStore.setValue('cableMake', 'Polycab');
+d.getElementById('cableProductSnapshot').value = JSON.stringify(proposalProductRefs.cable);
+d.getElementById('protectionProductSnapshot').value = JSON.stringify(proposalProductRefs.protection);
+w.Render.renderAll();
+const workbookQuote = d.getElementById('v_tsTable').textContent;
+t('proposal spec prints exact workbook inverter values with an unverified status',
+  workbookQuote.includes('SUN-5K-SG04LP3-EU') && workbookQuote.includes('max DC voltage 800 V') &&
+  workbookQuote.includes('Connected Excel catalogue (INVERTER_DB, row 7)') &&
+  workbookQuote.includes('not independently manufacturer-verified'));
+t('proposal spec prints optional cable and protection product references without implying design approval',
+  workbookQuote.includes('CABLE_DB row 9') && workbookQuote.includes('A9N61525') &&
+  workbookQuote.includes('final conductor and route require engineering') &&
+  workbookQuote.includes('coordination to be confirmed'));
+w.StateStore.applyForm(w.StateStore.DEFAULTS);
+w.EquipmentStore.refreshSelects();
+w.Render.renderAll();
 /* restore original selection */
 d.getElementById('moduleMake').value = 'Panasonic / Waaree / Adani or Equivalent';
 fire(w, d.getElementById('moduleMake'), 'change');

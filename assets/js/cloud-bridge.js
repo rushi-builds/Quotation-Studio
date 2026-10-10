@@ -1,12 +1,13 @@
 /* ==========================================================================
    Quotation Studio — Cloud bridge (Phase A)
    --------------------------------------------------------------------------
-   Optional link between the offline localStorage studio and the platform API.
-   - Shows Dashboard link + cloud chip when /api is reachable
-   - "Save to cloud" uploads the active local proposal
-   - ?cloud=<id> (or sessionStorage qs.cloudOpenId) pulls a cloud proposal in
+   Cloud-primary sync for signed-in users, with localStorage retained as an
+   offline cache and recovery copy.
+   - Debounced cloud autosave plus a manual Save now action
+   - Revision conflicts stop autosave rather than overwrite newer cloud data
+   - ?cloud=<id> (or sessionStorage qs.cloudOpenId) safely pulls a cloud proposal
 
-   Does not replace local autosave. A4 design, finance and PDF are untouched.
+   A4 design, finance and PDF are untouched.
    ========================================================================== */
 'use strict';
 
@@ -81,8 +82,11 @@
   }
 
   function setStatus(msg) {
+    if (!msg) return;
     const el = $('statusMsg');
-    if (el && msg) el.textContent = msg;
+    if (el) el.textContent = msg;
+    const hint = $('cloudSyncHint');
+    if (hint) hint.textContent = msg;
   }
 
   function collectPayload() {
@@ -106,21 +110,61 @@
   }
 
   let savePending = null, saveTarget = null, opening = false;
+  let cloudUser = null, autoSaveTimer = null, autoSaveQueued = false, cloudConflict = false, allowLeaveAfterConflict = false;
   const savedSnapshots = new Map();
+  const AUTO_SAVE_DELAY = 1100;
+  function canWriteUser(user) {
+    return !!user && (user.canWrite != null ? !!user.canWrite : user.role !== 'viewer');
+  }
   function fingerprint(payload) {
     if (!payload) return '';
     const {localId, ...data} = payload;
     return JSON.stringify(data);
   }
+  function payloadFromCloud(proposal, localId) {
+    return {
+      form: proposal.form || {},
+      content: proposal.content || null,
+      projectImages: proposal.projectImages || null,
+      pageImages: proposal.pageImages || null,
+      options: proposal.options || [],
+      status: proposal.status || 'draft',
+      localId,
+      sentAt: proposal.sentAt || null,
+      acceptedAt: proposal.acceptedAt || null,
+      prevId: proposal.prevId || null
+    };
+  }
   function hasUnsavedChanges() {
     const payload = collectPayload();
     return !!payload && savedSnapshots.get(payload.localId) !== fingerprint(payload);
   }
+  function scheduleAutoSave(delay = AUTO_SAVE_DELAY) {
+    if (!cloudUser || !canWriteUser(cloudUser) || cloudConflict || opening) return;
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(async () => {
+      autoSaveTimer = null;
+      if (!hasUnsavedChanges()) return;
+      if (savePending) { autoSaveQueued = true; return; }
+      const result = await saveToCloud();
+      if (result.ok && (result.unsaved || hasUnsavedChanges())) scheduleAutoSave(350);
+    }, delay);
+  }
   function saveToCloud() {
     const target = root.Proposals?.activeId();
-    if (savePending) return target === saveTarget ? savePending : Promise.resolve({ok:false,error:'Another quotation is being saved. Wait for it to finish, then save this quotation.'});
+    if (savePending) {
+      if (target === saveTarget) { autoSaveQueued = true; return savePending; }
+      return Promise.resolve({ok:false,error:'Another quotation is being saved. Wait for it to finish, then save this quotation.'});
+    }
     saveTarget = target;
-    savePending = performSaveToCloud(target).finally(() => { savePending = null; saveTarget = null; });
+    savePending = performSaveToCloud(target).finally(() => {
+      savePending = null;
+      saveTarget = null;
+      if (autoSaveQueued && cloudUser && canWriteUser(cloudUser) && !cloudConflict) {
+        autoSaveQueued = false;
+        scheduleAutoSave(250);
+      }
+    });
     return savePending;
   }
   async function performSaveToCloud(target) {
@@ -129,45 +173,99 @@
     if (!api) return {ok:false,error:'Cloud connection unavailable.'};
     const btn = $('cloudSaveBtn');
     if (btn) btn.disabled = true;
-    setChip('sync', 'Saving…');
+    setChip('sync', 'Saving to cloud…');
     try {
       const user = await api.currentUser();
+      cloudUser = user;
       if (!user) {
-        setChip('off', 'Sign in on Dashboard');
-        setStatus('Sign in on the Dashboard first, then return here to save to cloud.');
+        setChip('off', 'Sign in to sync');
+        setStatus('Your browser copy is safe. Sign in on the Dashboard to sync it to cloud.');
         return {ok:false,error:'Sign in on Dashboard first.'};
       }
-      if (user.role === 'viewer') throw new Error('Your role is read-only.');
+      if (!canWriteUser(user)) {
+        setChip('off', 'Read-only');
+        setStatus('Your role can view cloud proposals but cannot save changes. This browser copy is still preserved.');
+        return {ok:false,error:'Your role is read-only.'};
+      }
       if (root.Proposals?.activeId() !== target) throw new Error('The active quotation changed. Please save the intended quotation again.');
-      /* Prefer flushing local autosave so cloud gets the latest on-screen values. */
+      /* Flush the browser autosave before capturing the cloud snapshot. */
       if (typeof root.__qsSaveNow === 'function' && root.__qsSaveNow() === false) throw new Error('Review invalid fields in Studio before saving.');
 
       const payload = collectPayload();
       if (!payload) throw new Error('Studio is not ready yet');
-
       const localId = payload.localId;
+      if (!localId) throw new Error('Studio has no active quotation to save.');
       let cloudId = cloudIdFor(localId);
       // The active local proposal's mapping is authoritative. A stale ?cloud=
       // URL must never redirect a newly-created/switched proposal's save.
       const snapshot = fingerprint(payload);
+      if (cloudId && savedSnapshots.get(localId) === snapshot) {
+        setChip('on', 'Cloud saved');
+        setStatus('Latest changes are already saved to cloud. The browser copy remains available as a backup.');
+        return {ok:true,unchanged:true,unsaved:false,proposal:{id:cloudId}};
+      }
 
       let result;
       if (cloudId) {
-        const base = knownRev(cloudId);
-        if (base != null) payload.baseRevision = base;
-        try {
-          result = await api.updateProposal(cloudId, payload);
-        } catch (err) {
-          if (err && err.status === 404) {
-            result = await api.createProposal(payload);
-            cloudId = result.proposal.id;
-          } else if (err && err.status === 409) {
-            setChip('err', 'Newer in cloud');
-            setStatus((err.message || 'Cloud has a newer version') +
-              ' Your work is still open here — export a backup, then reopen from the Dashboard.');
-            return {ok:false,error:'Cloud has newer changes. Your local edits are safe; reopen or back up before resolving the conflict.'};
-          } else {
-            throw err;
+        let base = knownRev(cloudId);
+        let cloudMissing = false;
+        if (base == null) {
+          /* Never update a mapped cloud row without a known revision. Re-fetch
+             it and proceed only if its content exactly matches this browser
+             copy; otherwise pause and preserve both versions. */
+          try {
+            const current = await api.getProposal(cloudId);
+            const remote = current && current.proposal;
+            const revision = Number(remote && remote.revision);
+            if (!remote || !Number.isFinite(revision) || revision < 1) {
+              throw new Error('The cloud revision could not be verified. Your browser copy is safe; reopen this quotation from Dashboard before saving.');
+            }
+            const remoteSnapshot = fingerprint(payloadFromCloud(remote, localId));
+            const knownSnapshot = savedSnapshots.get(localId) || snapshot;
+            if (remoteSnapshot !== knownSnapshot) {
+              cloudConflict = true;
+              autoSaveQueued = false;
+              setChip('err', 'Newer in cloud');
+              setStatus('The cloud copy differs from the last verified browser copy. Your edits are preserved locally; autosave is paused. Reopen the latest version from Dashboard before continuing.');
+              return {ok:false,error:'Cloud data differs from the last verified browser copy; no overwrite was attempted.'};
+            }
+            rememberRev(cloudId, revision);
+            if (remoteSnapshot === snapshot) {
+              savedSnapshots.set(localId, snapshot);
+              setChip('on', 'Cloud saved');
+              setStatus('Latest changes are already saved to cloud. The browser copy remains available as a backup.');
+              return {ok:true,unchanged:true,unsaved:false,proposal:{id:cloudId,revision}};
+            }
+          } catch (err) {
+            if (err && err.status === 404) cloudMissing = true;
+            else throw err;
+          }
+        }
+        if (cloudMissing) {
+          /* Stale local mapping: create a new cloud row; do not attempt an
+             unconditional update or remove the preserved browser copy. */
+          result = await api.createProposal(payload);
+          cloudId = result.proposal.id;
+        } else {
+          base = knownRev(cloudId);
+          if (base == null) throw new Error('The cloud revision could not be verified. Your browser copy is safe; reopen this quotation from Dashboard before saving.');
+          payload.baseRevision = base;
+          try {
+            result = await api.updateProposal(cloudId, payload);
+          } catch (err) {
+            if (err && err.status === 404) {
+              result = await api.createProposal(payload);
+              cloudId = result.proposal.id;
+            } else if (err && err.status === 409) {
+              cloudConflict = true;
+              autoSaveQueued = false;
+              setChip('err', 'Newer in cloud');
+              setStatus((err.message || 'Cloud has a newer version') +
+                ' Your browser copy is preserved. Autosave is paused to prevent overwriting cloud data. Export a backup, then reopen the latest version from Dashboard.');
+              return {ok:false,error:'Cloud has newer changes. Your local edits are safe; back up and reopen the cloud version before resolving.'};
+            } else {
+              throw err;
+            }
           }
         }
       } else {
@@ -181,21 +279,24 @@
       savedSnapshots.set(localId, snapshot);
       const unsaved = hasUnsavedChanges();
       if (!unsaved && root.Proposals.activeId() === localId) await markCleanLocal(localId);
-      setChip(unsaved ? 'sync' : 'on', unsaved ? 'Unsaved changes' : 'Saved in cloud');
-      setStatus('Saved to cloud · ' + (result.proposal.ref || result.proposal.title || cloudId));
+      setChip(unsaved ? 'sync' : 'on', unsaved ? 'Syncing latest edits…' : 'Cloud saved');
+      setStatus(unsaved
+        ? 'An earlier snapshot reached cloud, but newer edits remain in this browser. Syncing the latest changes now.'
+        : 'Latest changes saved to cloud · ' + (result.proposal.ref || result.proposal.title || cloudId) + '. Browser backup retained.');
       /* Keep ?cloud= in the URL so the next save updates the same row. */
       try {
         const u = new URL(location.href);
         u.searchParams.set('cloud', cloudId);
         if (root.Proposals.activeId() === localId) history.replaceState(null, '', u.pathname + u.search + u.hash);
       } catch (_) {}
+      if (unsaved) scheduleAutoSave(350);
       return {ok:true,proposal:result.proposal,unsaved};
     } catch (err) {
-      setChip('err', 'Cloud error');
-      setStatus(err.message || 'Cloud save failed');
+      setChip('err', 'Cloud save failed');
+      setStatus('Your browser backup is still available. ' + (err.message || 'Cloud save failed. Retry when the connection is available.'));
       return {ok:false,error:err.message || 'Cloud save failed'};
     } finally {
-      if (btn) btn.disabled = false;
+      if (btn) btn.disabled = !canWriteUser(cloudUser);
     }
   }
 
@@ -269,6 +370,7 @@
     setChip('sync', 'Loading…');
     try {
       const user = await api.currentUser();
+      cloudUser = user;
       if (!user) {
         setChip('off', 'Sign in on Dashboard');
         setStatus('Sign in on the Dashboard to open cloud proposals.');
@@ -277,6 +379,8 @@
       const r = await api.getProposal(cloudId);
       const ok = await applyCloudProposal(r.proposal);
       if (ok) {
+        cloudConflict = false;
+        autoSaveQueued = false;
         const loaded = collectPayload();
         if (loaded) savedSnapshots.set(loaded.localId, fingerprint(loaded));
         if (r.proposal.revision != null) rememberRev(cloudId, r.proposal.revision);
@@ -297,42 +401,92 @@
   async function initCloudBridge() {
     const bar = $('studioCloudBar');
     if (bar) bar.hidden = false;
-    if ($('cloudSaveBtn')) $('cloudSaveBtn').textContent = 'Save Quotation';
+    const saveBtn = $('cloudSaveBtn');
+    if (saveBtn) saveBtn.textContent = 'Save now';
+    setChip('off', 'Local backup only');
+    setStatus('This browser keeps an offline backup. Sign in on the Dashboard to sync proposals to cloud.');
+
     const markDirty = e => {
-      if (opening || savePending || !e.target.closest('#quoteForm')) return;
-      // Do not serialize image-heavy payloads on every keystroke. Exact dirty
-      // comparison is deferred until save/navigation decisions.
-      setChip('sync', 'Unsaved changes');
+      if (opening || !e.target.closest?.('#quoteForm')) return;
+      if (!cloudUser) return;
+      if (canWriteUser(cloudUser)) {
+        setChip('sync', 'Waiting to sync…');
+        setStatus('Local backup updated. Cloud sync starts automatically after you pause.');
+        scheduleAutoSave();
+      } else {
+        setChip('off', 'Read-only');
+        setStatus('This change is local to this browser; your role cannot save it to cloud.');
+      }
     };
     document.addEventListener('input', markDirty);
     document.addEventListener('change', markDirty);
 
+    if (saveBtn) saveBtn.addEventListener('click', () => { saveToCloud(); });
+    const dashboardLink = $('cloudDashboardLink');
+    if (dashboardLink) dashboardLink.addEventListener('click', async event => {
+      if (cloudConflict) {
+        event.preventDefault();
+        if (confirm('The cloud copy has newer edits. Your local version is still stored in this browser. Open Dashboard to review the cloud copy without replacing this local backup?')) {
+          allowLeaveAfterConflict = true;
+          location.href = dashboardLink.href;
+        }
+        return;
+      }
+      if (!cloudUser || (!hasUnsavedChanges() && !savePending)) return;
+      event.preventDefault();
+      if (!canWriteUser(cloudUser)) {
+        setChip('err', 'Changes not synced');
+        setStatus('Cannot share the latest local edits: your role is read-only, so the cloud copy has not been updated. Export a backup or discard the local changes first.');
+        return;
+      }
+      if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
+      setStatus('Saving the latest changes to cloud before opening Dashboard…');
+      const result = await saveToCloud();
+      if (result.ok && !result.unsaved && !hasUnsavedChanges()) {
+        setStatus('Latest cloud save confirmed. Opening Dashboard…');
+        location.href = dashboardLink.href;
+      } else if (result.ok) {
+        setStatus('A newer edit is still syncing. Wait for “Cloud saved”, then open Dashboard again.');
+      }
+    });
+    window.addEventListener('beforeunload', event => {
+      if (allowLeaveAfterConflict || !cloudUser || opening || !hasUnsavedChanges()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+    window.addEventListener('online', () => scheduleAutoSave(150));
+
     const api = root.PlatformAPI;
-    const saveBtn = $('cloudSaveBtn');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => { saveToCloud(); });
-    }
-
     if (!api) {
-      setChip('off', 'Browser only');
+      setStatus('Platform API is unavailable. Your local browser backup is preserved.');
       return;
     }
 
-    const available = await api.isAvailable();
+    let available = false;
+    try { available = await api.isAvailable(); } catch (_) {}
     if (!available) {
-      setChip('off', 'Browser only');
+      setChip('off', 'Local backup only');
       if (saveBtn) saveBtn.hidden = true;
+      setStatus('No cloud backend is connected here. This browser backup is preserved; Vercel Preview does not read or write production data.');
       return;
     }
 
-    let user = null;
-    try { user = await api.currentUser(); } catch (_) { user = null; }
-
+    try { cloudUser = await api.currentUser(); } catch (_) { cloudUser = null; }
+    const user = cloudUser;
+    const canWriteNow = canWriteUser(user);
     if (user) {
-      setChip('on', user.name ? ('Cloud · ' + user.name.split(' ')[0]) : 'Cloud connected');
-      if (saveBtn) { saveBtn.hidden = false; saveBtn.disabled = user.role === 'viewer'; saveBtn.title = user.role === 'viewer' ? 'Your role is read-only' : 'Save this quotation to your cloud workspace'; }
+      setChip(canWriteNow ? 'on' : 'off', canWriteNow ? 'Cloud connected' : 'Cloud read-only');
+      setStatus(canWriteNow
+        ? 'Signed in. Changes auto-sync to cloud after you pause; this browser remains an offline backup.'
+        : 'Signed in with read-only access. This browser still keeps a local backup.');
+      if (saveBtn) {
+        saveBtn.hidden = false;
+        saveBtn.disabled = !canWriteNow;
+        saveBtn.title = canWriteNow ? 'Save this quotation to cloud now' : 'Your role is read-only';
+      }
     } else {
-      setChip('off', 'Sign in on Dashboard');
+      setChip('off', 'Sign in to sync');
+      setStatus('Your browser backup is safe. Sign in on Dashboard to make cloud the primary saved copy.');
       if (saveBtn) saveBtn.hidden = true;
     }
 
@@ -346,10 +500,6 @@
     } catch (_) {}
     // A genuinely fresh direct-Studio draft gets a server number when signed in.
     // Never renumber an existing proposal or a manually edited reference.
-    /* Write-capability gate. Uses the server's canWrite flag (effective powers,
-       so a designated ADMIN_EMAIL login passes even on a `viewer` row) with a
-       role fallback for an older backend. */
-    const canWriteNow = !!user && (user.canWrite != null ? !!user.canWrite : user.role !== 'viewer');
     if (!openId && canWriteNow && root.__qsFreshLocalId) {
       const id = root.__qsFreshLocalId, blob = root.Proposals.get(id), oldRef = blob?.autoAssignedRef;
       root.__qsFreshLocalId = null;

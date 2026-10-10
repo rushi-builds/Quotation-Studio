@@ -124,10 +124,21 @@ not shown. Nothing is invented.
   the CO₂ claim. Take it from the actual site study (PVsyst / Arka / your own
   yield history), not from the template. The hint under the field now shows the
   year-one kWh immediately, so you can sanity-check it in one glance.
-- **Module make / rating (Wp) / length & width (mm)** — the rating decides how
-  many modules the array needs, and the dimensions decide the roof area the
-  array occupies. All three must match the datasheet you are quoting.
-- **Module technology** — printed on the specification page.
+- **Module make + exact model** — choose the model, not just the technology
+  family, when the product is known. Manufacturer-reference models fill their
+  nameplate power, module efficiency, dimensions, STC electrical values and
+  published temperature coefficients. The Tech Specs page links the source
+  datasheet. Company-entered and Custom models are labelled unverified; enter
+  only figures you have checked against that exact product's datasheet.
+- **Module rating (Wp) / length & width (mm)** — the rating decides how many
+  modules the array needs, and dimensions decide the roof area it occupies.
+  Confirm any manually entered values against the exact product datasheet.
+- **Module efficiency** — use the named model's front-side STC efficiency; the
+  app does not infer efficiency from labels such as PERC or TOPCon.
+- **Module technology / construction / bifaciality** — technology is the cell
+  architecture; monofacial/bifacial construction and the bifaciality factor are
+  separate. Bifaciality is not rear-side energy gain, and rear-side gain is not
+  added to the STC nameplate power or quotation estimate.
 - **Inverter make & rating (kW)** — blank falls back to 1:1 with the contracted
   capacity. Fill the real figure: the DC:AC ratio is shown as an engineering
   check.

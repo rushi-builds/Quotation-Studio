@@ -11,6 +11,7 @@ import { reserveCloudReference } from '../../reference-numbers.mjs';
 import { handleOAuth } from './oauth.mjs';
 import { handlePhoneAuth } from './phone.mjs';
 import { d1OAuthStore } from '../../oauth-store.mjs';
+import { syncModuleCatalogFromDrive } from './excel-module-catalog.mjs';
 
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
 
@@ -21,15 +22,23 @@ const COOKIE = 'qs_session';
 const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
 /* Deployed code marker. /api/health reports it so an operator can prove the
-   running Worker is actually the build that contains the role changes,
-   instead of inferring it from behaviour. Bump on every behaviour change. */
-const CODE_VERSION = 'roles-r1';
+   running Worker is the current API build instead of inferring it from
+   behaviour. Bump on every behaviour change. */
+const CODE_VERSION = 'studio-flows-r1';
 
 const SEND_CHANNELS = {
-  whatsapp_manual: true,
-  email_manual: true,
-  copy_link: true,
-  other: true
+  whatsapp_manual: { label: 'WhatsApp (manual)', provider: 'manual' },
+  email_manual: { label: 'Email (manual)', provider: 'manual' },
+  copy_link: { label: 'Copy link only', provider: 'manual' },
+  other: { label: 'Other / offline', provider: 'manual' }
+};
+const SEND_STATES = {
+  draft: 'Draft (not shared)',
+  share_clicked: 'Share action started (not delivery-confirmed)',
+  submitted_to_provider: 'Submitted to provider',
+  delivered: 'Delivered (provider-confirmed only)',
+  failed: 'Failed',
+  cancelled: 'Cancelled'
 };
 
 const NOTIFY_KINDS = {
@@ -100,13 +109,18 @@ async function readBody(request) {
    real browsers always send a valid Origin on cross-site POST/PUT/DELETE.
    OAuth callbacks are exempt: Apple POSTs from appleid.apple.com and that
    flow has its own state/binding verification. */
-function crossSiteBlocked(request, url) {
+function allowedAppHost(env) {
+  try { return new URL(env && env.APP_URL).host.toLowerCase(); }
+  catch (_) { return ''; }
+}
+function crossSiteBlocked(request, url, env) {
   const claimed = String(
     request.headers.get('Origin') || request.headers.get('Referer') || ''
   ).trim();
   if (!claimed) return false;
   try {
-    return new URL(claimed).host.toLowerCase() !== url.host.toLowerCase();
+    const host = new URL(claimed).host.toLowerCase();
+    return host !== url.host.toLowerCase() && host !== allowedAppHost(env);
   } catch (_) {
     return false;
   }
@@ -510,8 +524,8 @@ function publicVersion(v) {
   return {
     id: v.id,
     proposalId: v.proposal_id,
-    version: v.version_label,
-    sha256: v.snapshot_sha256,
+    versionLabel: v.version_label || '1.0',
+    snapshotSha256: v.snapshot_sha256 || '',
     pdfSha256: v.pdf_sha256 || null,
     note: v.note || '',
     createdAt: v.created_at
@@ -529,6 +543,7 @@ function publicToken(t, rawToken) {
     firstOpenedAt: t.first_opened_at || null,
     lastOpenedAt: t.last_opened_at || null,
     openCount: t.open_count || 0,
+    portalPath: rawToken ? '/portal.html?t=' + encodeURIComponent(rawToken) : '/portal.html?t=',
     token: rawToken || undefined,
     active: !t.revoked_at && (!t.expires_at || Date.parse(t.expires_at) > Date.now())
   };
@@ -540,16 +555,23 @@ function publicSend(s) {
     versionId: s.version_id || null,
     tokenId: s.token_id || null,
     channel: s.channel,
+    channelLabel: (SEND_CHANNELS[s.channel] || {}).label || s.channel,
     state: s.state,
+    stateLabel: SEND_STATES[s.state] || s.state,
     recipientName: s.recipient_name || '',
     recipientTo: s.recipient_to || '',
     messageBody: s.message_body || '',
     portalUrl: s.portal_url || '',
     provider: s.provider || 'manual',
+    providerMessageId: s.provider_message_id || null,
     note: s.note || '',
     createdAt: s.created_at,
     updatedAt: s.updated_at,
-    shareClickedAt: s.share_clicked_at || null
+    shareClickedAt: s.share_clicked_at || null,
+    submittedAt: s.submitted_at || null,
+    deliveredAt: s.delivered_at || null,
+    canConfirmDelivery: s.provider !== 'manual' && s.state === 'submitted_to_provider',
+    deliveryIsVerified: s.state === 'delivered' && !!s.delivered_at && s.provider !== 'manual'
   };
 }
 function publicNotification(n) {
@@ -619,25 +641,62 @@ function customerSnapshotFromProposal(row) {
   };
 }
 function buildDefaultMessage(row, portalUrl) {
-  const form = (() => { try { return JSON.parse(row.form_json || '{}'); } catch (_) { return {}; } })();
+  let form = {};
+  try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
+  const company = form.companyName || 'KTM Energy Experts';
   const cust = row.customer_name || form.custName || 'there';
   const cap = row.capacity || form.capacity || '';
-  return [
-    'Hello ' + cust + ',',
+  const ref = row.ref || form.propRef || '';
+  const lines = [
+    'Dear ' + cust + ',',
     '',
-    'Please review your solar proposal' + (cap ? (' (' + cap + ' kWp)') : '') + ' here:',
-    portalUrl,
+    'Please find your personalised rooftop solar proposal from ' + company +
+      (cap ? (' for ' + cap + ' kWp') : '') +
+      (ref ? (' (reference ' + ref + ')') : '') + '.',
     '',
-    'This link opens a read-only customer view. Reply if you have questions.',
+    'Secure proposal link (read-only):',
+    portalUrl || '[link will appear after publish]',
     '',
-    '— KTM Solar'
-  ].join('\n');
+    'You can review the system design, savings summary and next steps in your browser.',
+    'A PDF can be downloaded from the same page. This link does not require a password.',
+    '',
+    'If you have questions or would like a site survey, reply on this chat or use the request form inside the proposal.',
+    '',
+    'Kind regards,',
+    company,
+    form.companyPhone ? String(form.companyPhone) : '',
+    form.companyEmail ? String(form.companyEmail) : ''
+  ].filter((line, i, arr) => !(line === '' && arr[i - 1] === ''));
+  return lines.join('\n');
+}
+function messageWithPortalLink(value, row, portalUrl) {
+  const placeholder = '[A secure link will be inserted when you prepare the send]';
+  const linkedUrl = /https?:\/\/[^\s"'<>]*\/portal\.html\?t=[^\s"'<>]*/g;
+  let message = String(value || '').trim() || buildDefaultMessage(row, portalUrl);
+  message = message.replaceAll(placeholder, portalUrl);
+  if (linkedUrl.test(message)) message = message.replace(linkedUrl, portalUrl);
+  if (!message.includes(portalUrl)) {
+    const suffix = '\n\nSecure proposal link (read-only):\n' + portalUrl;
+    message = message.slice(0, Math.max(0, 4000 - suffix.length)).trimEnd() + suffix;
+  }
+  if (message.length > 4000) {
+    const linkAt = message.lastIndexOf(portalUrl);
+    message = linkAt >= 0 && linkAt + portalUrl.length > 4000
+      ? message.slice(0, Math.max(0, 4000 - portalUrl.length - 1)).trimEnd() + '\n' + portalUrl
+      : message.slice(0, 4000);
+  }
+  return message;
 }
 function digitsForWhatsApp(value) {
-  const d = String(value || '').replace(/\D/g, '');
-  if (!d) return '';
-  if (d.length === 10) return '91' + d;
-  return d;
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  let digits = raw.replace(/\D/g, '');
+  if (/^[6-9]\d{9}$/.test(digits)) digits = '91' + digits;
+  return /^[1-9]\d{10,14}$/.test(digits) ? digits : '';
+}
+function publicAppOrigin(env, requestUrl) {
+  try { return new URL((env && env.APP_URL) || requestUrl.origin).origin; }
+  catch (_) { return requestUrl.origin; }
 }
 function parseExpiryDays(body) {
   /* Same defensive defaults as the local server: explicit future dates win,
@@ -676,6 +735,121 @@ async function all(db, sql, ...binds) {
 }
 async function run(db, sql, ...binds) {
   return db.prepare(sql).bind(...binds).run();
+}
+
+const EXCEL_PRODUCT_CATALOG_DDL = `CREATE TABLE IF NOT EXISTS excel_product_catalog_cache (
+  catalog_key TEXT PRIMARY KEY,
+  file_id TEXT NOT NULL,
+  file_name TEXT NOT NULL DEFAULT '',
+  file_modified_at TEXT NOT NULL DEFAULT '',
+  file_checksum TEXT NOT NULL DEFAULT '',
+  synced_at TEXT NOT NULL,
+  checked_at TEXT NOT NULL,
+  row_count INTEGER NOT NULL DEFAULT 0,
+  rejected_rows INTEGER NOT NULL DEFAULT 0,
+  products_json TEXT NOT NULL
+)`;
+const excelProductCatalogSchemas = new WeakMap();
+async function ensureExcelProductCatalogSchema(db) {
+  let pending = excelProductCatalogSchemas.get(db);
+  if (!pending) {
+    pending = run(db, EXCEL_PRODUCT_CATALOG_DDL).catch(error => {
+      excelProductCatalogSchemas.delete(db);
+      throw error;
+    });
+    excelProductCatalogSchemas.set(db, pending);
+  }
+  await pending;
+}
+function excelProductCatalogBody(cache, stale, warning) {
+  let products = {};
+  try { products = JSON.parse(cache.products_json || '{}'); } catch (_) {}
+  const modules = Array.isArray(products.modules) ? products.modules : [];
+  const inverters = Array.isArray(products.inverters) ? products.inverters : [];
+  const cables = Array.isArray(products.cables) ? products.cables : [];
+  const protection = Array.isArray(products.protection) ? products.protection : [];
+  return {
+    source: 'excel', modules, inverters, cables, protection,
+    rowCount: Number(cache.row_count) || modules.length,
+    rowCounts: products.rowCounts || { modules: modules.length, inverters: inverters.length, cables: cables.length, protection: protection.length },
+    rejectedRows: Number(cache.rejected_rows) || 0,
+    rejectedRowsBySheet: products.rejectedRowsBySheet || {},
+    sheets: products.sheets || {},
+    sourceFileName: cache.file_name || 'Connected Excel workbook',
+    fileModifiedAt: cache.file_modified_at || '',
+    syncedAt: cache.synced_at || '',
+    checkedAt: cache.checked_at || '',
+    stale: stale === true,
+    warning: warning || ''
+  };
+}
+function excelProductCatalogErrorMessage(code) {
+  if (code === 'EXCEL_DRIVE_CONFIG_INVALID') return 'Excel sync needs its private Drive connection configured.';
+  if (code === 'EXCEL_DRIVE_FILE_UNAVAILABLE') return 'The configured workbook is unavailable to the read-only Drive connection.';
+  if (/^EXCEL_(MODULE|INVERTER|CABLE|PROTECTION)_SHEET_(MISSING|INVALID)$/.test(code) ||
+      /^EXCEL_(MODULE|INVERTER|CABLE|PROTECTION)_HEADERS_INVALID$/.test(code)) {
+    return 'A required product tab or its columns changed. The last saved catalogue snapshot was kept.';
+  }
+  if (/^EXCEL_(MODULE|INVERTER|CABLE|PROTECTION)_CATALOG_EMPTY$/.test(code)) {
+    return 'A required product tab has no usable product rows. The last saved catalogue snapshot was kept.';
+  }
+  return 'The Excel catalogue could not be refreshed. The previous saved copy, if any, has been kept.';
+}
+async function getExcelProductCatalog(db, env, force) {
+  await ensureExcelProductCatalogSchema(db);
+  let cached = await one(db, 'SELECT * FROM excel_product_catalog_cache WHERE catalog_key = ?', 'products');
+  const now = Date.now();
+  const configured = !!((env.GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID || env.GOOGLE_DRIVE_MODULE_CATALOG_FILE_ID) && env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON);
+  const configuredTtl = Number(env.EXCEL_CATALOG_SYNC_TTL_SECONDS);
+  const ttlSeconds = Number.isFinite(configuredTtl) ? Math.min(3600, Math.max(30, configuredTtl)) : 300;
+  const checked = cached ? Date.parse(cached.checked_at || '') : NaN;
+  const fresh = cached && Number.isFinite(checked) && now - checked < ttlSeconds * 1000;
+  if (!force && fresh) return { status: 200, body: excelProductCatalogBody(cached, false, '') };
+  if (!configured) {
+    if (cached) return { status: 200, body: excelProductCatalogBody(cached, true, 'Excel sync is not configured; showing the last saved workbook snapshot.') };
+    return { status: 503, body: { error: 'Excel catalogue is not connected yet.', code: 'EXCEL_SYNC_NOT_CONFIGURED' } };
+  }
+  try {
+    const result = await syncModuleCatalogFromDrive(env, {
+      previous: cached ? {
+        fileId: cached.file_id,
+        fileModifiedAt: cached.file_modified_at,
+        fileChecksum: cached.file_checksum
+      } : null
+    });
+    if (result.unchanged && cached) {
+      await run(db, 'UPDATE excel_product_catalog_cache SET checked_at = ? WHERE catalog_key = ?', result.checkedAt || nowISO(), 'products');
+      cached.checked_at = result.checkedAt || nowISO();
+      return { status: 200, body: excelProductCatalogBody(cached, false, '') };
+    }
+    const syncedAt = result.syncedAt || nowISO();
+    const checkedAt = result.checkedAt || syncedAt;
+    const productsJson = JSON.stringify({
+      modules: result.modules || [], inverters: result.inverters || [],
+      cables: result.cables || [], protection: result.protection || [],
+      rowCounts: result.rowCounts || {}, rejectedRowsBySheet: result.rejectedRowsBySheet || {},
+      sheets: result.sheets || {}
+    });
+    await run(db,
+      `INSERT INTO excel_product_catalog_cache
+       (catalog_key,file_id,file_name,file_modified_at,file_checksum,synced_at,checked_at,row_count,rejected_rows,products_json)
+       VALUES (?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(catalog_key) DO UPDATE SET
+       file_id=excluded.file_id,file_name=excluded.file_name,file_modified_at=excluded.file_modified_at,
+       file_checksum=excluded.file_checksum,synced_at=excluded.synced_at,checked_at=excluded.checked_at,
+       row_count=excluded.row_count,rejected_rows=excluded.rejected_rows,products_json=excluded.products_json`,
+      'products', result.fileId, result.fileName || 'Solar_EPC_Software_FINAL_v0.2.xlsm', result.fileModifiedAt || '',
+      result.fileChecksum || '', syncedAt, checkedAt, Number(result.rowCount) || 0,
+      Number(result.rejectedRows) || 0, productsJson
+    );
+    cached = await one(db, 'SELECT * FROM excel_product_catalog_cache WHERE catalog_key = ?', 'products');
+    return { status: 200, body: excelProductCatalogBody(cached, false, '') };
+  } catch (error) {
+    const code = String(error && error.code || 'EXCEL_SYNC_FAILED');
+    if (cached) return { status: 200, body: excelProductCatalogBody(cached, true, excelProductCatalogErrorMessage(code)) };
+    const status = code === 'EXCEL_DRIVE_CONFIG_INVALID' ? 503 : 502;
+    return { status, body: { error: excelProductCatalogErrorMessage(code), code } };
+  }
 }
 
 async function requireUser(request, db, env) {
@@ -1001,7 +1175,7 @@ async function handleApi(request, env, url) {
 
   try {
     if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' &&
-        !(parts[0] === 'auth' && parts[1] === 'oauth') && crossSiteBlocked(request, url)) {
+        !(parts[0] === 'auth' && parts[1] === 'oauth') && crossSiteBlocked(request, url, env)) {
       return json({
         error: 'Cross-site request blocked. Open Studio from the application website and try again.',
         code: 'ORIGIN_BLOCKED'
@@ -1332,6 +1506,18 @@ async function handleApi(request, env, url) {
        `owner_id = ?` arm applies, exactly as before this change). */
     const scope = seesAll(user, env) ? null : user.id;
 
+    /* Excel-backed product catalogue. Only sanitized module/inverter/cable/
+       protection product rows are exposed; operational and cost sheets never leave the workbook. */
+    if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts.length === 2 && method === 'GET') {
+      const result = await getExcelProductCatalog(db, env, false);
+      return json(result.body, result.status);
+    }
+    if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts[2] === 'sync' && parts.length === 3 && method === 'POST') {
+      if (!canAdmin) return json({ error: 'Only the workspace owner can sync the connected Excel catalogue.' }, 403);
+      const result = await getExcelProductCatalog(db, env, true);
+      return json(result.body, result.status);
+    }
+
     /* Gemini: no browser-supplied context or mutation tools. */
     if (parts[0] === 'assistant' && parts.length === 2) {
       if (method === 'POST' && !request.headers.get('Authorization') && !request.headers.get('X-QS-Session')) return json({ error: 'Sign in again to use the assistant.' }, 403);
@@ -1533,6 +1719,19 @@ async function handleApi(request, env, url) {
       const body = await readBody(request);
       const badUpdateStatus = proposalStatusError(body.status);
       if (badUpdateStatus) return json({ error: badUpdateStatus }, 400);
+      /* Match the local-server optimistic concurrency contract. A stale Studio
+         tab must not overwrite a newer save or a share-state status change. */
+      if (body.baseRevision != null && body.baseRevision !== '') {
+        const theirs = Number(body.baseRevision);
+        const mine = proposalRevision(row);
+        if (Number.isFinite(theirs) && theirs !== mine) {
+          return json({
+            error: 'This proposal was saved more recently in the cloud. Reload it, then save again so your edits are not overwritten.',
+            code: 'CONFLICT',
+            proposal: proposalFull(row)
+          }, 409);
+        }
+      }
       const meta = metaFromBody(body, row);
       const status = body.status != null ? body.status : row.status;
       const customerId = body.customerId !== undefined ? body.customerId : row.customer_id;
@@ -1562,11 +1761,11 @@ async function handleApi(request, env, url) {
           capacity=?, customer_name=?, form_json=?, content_json=?, project_images_json=?,
           page_images_json=?, options_json=?, local_id=?, sent_at=?, accepted_at=?,
           revision=?, updated_at=?
-         WHERE id=? AND owner_id=?`,
+         WHERE id=? AND ` + OWN_SCOPE,
         customerId, meta.ref, meta.title, status, meta.version, prevId,
         meta.capacity, meta.customer, formJson, contentJson, projectImagesJson,
         pageImagesJson, optionsJson, localId, sentAt, acceptedAt,
-        revision, updated, row.id, user.id
+        revision, updated, row.id, scope, user.id
       );
       const next = await one(db, 'SELECT * FROM proposals WHERE id = ?', row.id);
       return json({ proposal: proposalFull(next) });
@@ -1739,7 +1938,7 @@ async function handleApi(request, env, url) {
         tok.id, tok.token_hash, tok.version_id, tok.proposal_id, tok.owner_id,
         tok.label, tok.expires_at, tok.created_at
       );
-      const origin = url.origin;
+      const origin = publicAppOrigin(env, url);
       const portalUrl = origin + '/portal.html?t=' + encodeURIComponent(raw);
       return json({ link: publicToken(tok, raw), portalUrl, rawToken: raw }, 201);
     }
@@ -1787,14 +1986,23 @@ async function handleApi(request, env, url) {
       );
       const active = links.filter(tokenIsActive);
       return json({
-        proposalId: row.id,
-        title: row.title,
-        customer: row.customer_name,
-        defaultEmail: form.custEmail || form.email || '',
-        defaultWhatsApp: form.custPhone || form.phone || '',
-        versions: versions.map(publicVersion),
-        activeLinks: active.length,
-        hasPublishedVersion: versions.length > 0
+        proposal: proposalSummary(row),
+        hasPublishedVersion: !!versions[0],
+        latestVersion: versions[0] ? publicVersion(versions[0]) : null,
+        hasActiveLink: active.length > 0,
+        needsNewLinkForUrl: true,
+        defaultRecipientName: row.customer_name || form.custName || '',
+        defaultWhatsApp: form.custPhone || form.customerPhone || '',
+        defaultEmail: form.custEmail || form.customerEmail || '',
+        companyWhatsApp: form.companyPhone || '',
+        channels: Object.keys(SEND_CHANNELS).map((id) => ({
+          id,
+          label: SEND_CHANNELS[id].label,
+          provider: SEND_CHANNELS[id].provider,
+          recordsAs: 'draft',
+          deliveryVerified: false
+        })),
+        honestyNote: 'Preparing a message does not mark it shared. A WhatsApp, email or copy action records only that you started sharing; delivery is unconfirmed.'
       });
     }
 
@@ -1823,8 +2031,18 @@ async function handleApi(request, env, url) {
       const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const body = await readBody(request);
-      const channel = String(body.channel || 'copy_link');
-      if (!SEND_CHANNELS[channel]) return json({ error: 'Unsupported channel' }, 400);
+      const channel = String(body.channel || 'whatsapp_manual');
+      if (!SEND_CHANNELS[channel]) return json({ error: 'Unsupported send channel' }, 400);
+      const recipientTo = String(body.recipientTo || '').trim().slice(0, 200);
+      const recipientName = String(body.recipientName || row.customer_name || '').trim().slice(0, 200);
+      const waDigits = channel === 'whatsapp_manual' ? digitsForWhatsApp(recipientTo) : '';
+      if (channel === 'whatsapp_manual' && !waDigits) {
+        return json({ error: 'Enter a valid WhatsApp mobile number with country code (for example +91 98765 43210).' }, 400);
+      }
+      if (channel === 'email_manual' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientTo)) {
+        return json({ error: 'Enter a valid email address.' }, 400);
+      }
+
       let version = null;
       if (body.versionId) {
         version = await one(
@@ -1839,63 +2057,87 @@ async function handleApi(request, env, url) {
           row.id, scope, user.id
         );
       }
-      if (!version) return json({ error: 'Publish a version before sending.' }, 400);
-
-      let tok = null;
-      let rawToken = null;
-      const existing = await all(
-        db,
-        'SELECT * FROM access_tokens WHERE proposal_id = ? AND version_id = ? AND ' + OWN_SCOPE + ' AND revoked_at IS NULL',
-        row.id, version.id, scope, user.id
-      );
-      tok = existing.find(tokenIsActive) || null;
-      if (!tok) {
-        rawToken = randomBytes(24).toString('hex');
-        tok = {
-          id: uid('tok'),
-          token_hash: hashToken(rawToken),
-          version_id: version.id,
+      if (!version || body.publishFirst) {
+        const snapshot = customerSnapshotFromProposal(row);
+        const snapshotJson = JSON.stringify(snapshot);
+        version = {
+          id: uid('ver'),
           proposal_id: row.id,
           owner_id: user.id,
-          label: 'Send link',
-          expires_at: new Date(Date.now() + 30 * 864e5).toISOString(),
+          version_label: snapshot.versionLabel || row.version_label || '1.0',
+          snapshot_json: snapshotJson,
+          snapshot_sha256: sha256Hex(snapshotJson),
+          pdf_sha256: null,
+          pdf_path: null,
+          note: String(body.note || 'Published for customer send').slice(0, 500),
           created_at: nowISO()
         };
         await run(
           db,
-          `INSERT INTO access_tokens (
-            id, token_hash, version_id, proposal_id, owner_id, label, expires_at,
-            revoked_at, created_at, first_opened_at, last_opened_at, open_count
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, 0)`,
-          tok.id, tok.token_hash, tok.version_id, tok.proposal_id, tok.owner_id,
-          tok.label, tok.expires_at, tok.created_at
+          `INSERT INTO proposal_versions (
+            id, proposal_id, owner_id, version_label, snapshot_json, snapshot_sha256,
+            pdf_sha256, pdf_path, note, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          version.id, version.proposal_id, version.owner_id, version.version_label,
+          version.snapshot_json, version.snapshot_sha256, version.pdf_sha256,
+          version.pdf_path, version.note, version.created_at
         );
+        await recordEvent(db, {
+          version_id: version.id,
+          proposal_id: row.id,
+          owner_id: user.id,
+          event_type: 'version_published',
+          meta: { snapshotSha256: version.snapshot_sha256, via: 'send' }
+        });
       }
-      const portalUrl = url.origin + '/portal.html?t=' + encodeURIComponent(rawToken || 'USE_EXISTING_LINK');
-      /* If we reused a link we cannot recover raw token — tell client to copy from links list */
-      const finalPortal = rawToken
-        ? portalUrl
-        : (url.origin + '/portal.html?t=OPEN_FROM_LINKS');
-      const message = String(body.message || buildDefaultMessage(row, rawToken ? portalUrl : (url.origin + '/portal.html')));
-      const recipientTo = String(body.recipientTo || body.to || '');
-      const recipientName = String(body.recipientName || body.name || row.customer_name || '');
+
+      const rawToken = randomBytes(24).toString('hex');
+      const tokenRow = {
+        id: uid('tok'),
+        token_hash: hashToken(rawToken),
+        version_id: version.id,
+        proposal_id: row.id,
+        owner_id: user.id,
+        label: String(body.linkLabel || 'Send link').slice(0, 120),
+        expires_at: parseExpiryDays(body),
+        revoked_at: null,
+        created_at: nowISO(),
+        first_opened_at: null,
+        last_opened_at: null,
+        open_count: 0
+      };
+      await run(
+        db,
+        `INSERT INTO access_tokens (
+          id, token_hash, version_id, proposal_id, owner_id, label, expires_at,
+          revoked_at, created_at, first_opened_at, last_opened_at, open_count
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, 0)`,
+        tokenRow.id, tokenRow.token_hash, tokenRow.version_id, tokenRow.proposal_id,
+        tokenRow.owner_id, tokenRow.label, tokenRow.expires_at, tokenRow.created_at
+      );
+
+      const portalUrl = publicAppOrigin(env, url) + '/portal.html?t=' + encodeURIComponent(rawToken);
+      const messageBody = messageWithPortalLink(body.messageBody || body.message, row, portalUrl);
       const sendRow = {
         id: uid('snd'),
         proposal_id: row.id,
         version_id: version.id,
-        token_id: tok.id,
+        token_id: tokenRow.id,
         owner_id: user.id,
         channel,
-        state: 'share_clicked',
-        recipient_name: recipientName.slice(0, 120),
-        recipient_to: recipientTo.slice(0, 200),
-        message_body: message.slice(0, 4000),
-        portal_url: rawToken ? portalUrl : '',
+        state: 'draft',
+        recipient_name: recipientName,
+        recipient_to: recipientTo,
+        message_body: messageBody,
+        portal_url: portalUrl,
         provider: 'manual',
+        provider_message_id: null,
         note: String(body.note || '').slice(0, 500),
         created_at: nowISO(),
         updated_at: nowISO(),
-        share_clicked_at: nowISO()
+        share_clicked_at: null,
+        submitted_at: null,
+        delivered_at: null
       };
       await run(
         db,
@@ -1910,51 +2152,96 @@ async function handleApi(request, env, url) {
         sendRow.message_body, sendRow.portal_url, sendRow.provider, sendRow.note,
         sendRow.created_at, sendRow.updated_at, sendRow.share_clicked_at
       );
-      if (row.status === 'draft' || row.status === 'ready' || row.status === 'internal_review') {
-        await run(
-          db,
-          "UPDATE proposals SET status = 'sent', sent_at = COALESCE(sent_at, ?), updated_at = ? WHERE id = ?",
-          nowISO(), nowISO(), row.id
-        );
-      }
+      await recordEvent(db, {
+        token_id: tokenRow.id,
+        version_id: version.id,
+        proposal_id: row.id,
+        owner_id: user.id,
+        event_type: 'send_drafted',
+        meta: { channel, sendId: sendRow.id }
+      });
       const wa = channel === 'whatsapp_manual'
-        ? 'https://wa.me/' + digitsForWhatsApp(recipientTo) + '?text=' + encodeURIComponent(message)
+        ? 'https://wa.me/' + waDigits + '?text=' + encodeURIComponent(messageBody)
         : null;
       const mailto = channel === 'email_manual'
         ? 'mailto:' + encodeURIComponent(recipientTo) +
-          '?subject=' + encodeURIComponent('Solar proposal') +
-          '&body=' + encodeURIComponent(message)
+          '?subject=' + encodeURIComponent(
+            (row.ref ? row.ref + ' — ' : '') + 'Your solar proposal'
+          ) +
+          '&body=' + encodeURIComponent(messageBody)
         : null;
+      const launch = {
+        whatsappUrl: wa,
+        mailtoUrl: mailto,
+        copyText: channel === 'copy_link' ? portalUrl : messageBody,
+        portalUrl,
+        honesty: 'The share action is not started yet. Launching WhatsApp/email or copying the message records only that action, not delivery.'
+      };
       return json({
         send: publicSend(sendRow),
-        launch: { whatsapp: wa, mailto, portalUrl: sendRow.portal_url || finalPortal, rawToken: rawToken || null },
-        note: 'State is share_clicked only. This is not provider-confirmed delivery.'
+        access: publicToken(tokenRow, rawToken),
+        version: publicVersion(version),
+        launch
       }, 201);
     }
 
     if (parts[0] === 'sends' && parts[1] && parts[2] === 'state' && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot update sends.' }, 403);
       const sendRow = await one(db, 'SELECT * FROM sends WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
-      if (!sendRow) return json({ error: 'Send not found' }, 404);
+      if (!sendRow) return json({ error: 'Send record not found' }, 404);
       const body = await readBody(request);
       const state = String(body.state || '');
-      /* Manual channels cannot claim delivered / submitted without a provider */
-      if (state === 'delivered' || state === 'submitted_to_provider') {
+      /* Manual channels cannot claim provider delivery. A send remains a draft
+         until the user actually launches a channel or copies the message. */
+      if (sendRow.provider === 'manual' && (state === 'delivered' || state === 'submitted_to_provider')) {
         return json({
-          error: 'Manual channels cannot mark delivered. That requires a future provider webhook.'
+          error: 'Manual channels cannot be marked delivered. That state is reserved for provider-confirmed webhooks (not enabled yet).',
+          code: 'DELIVERY_NOT_AVAILABLE'
         }, 400);
       }
-      if (state !== 'cancelled' && state !== 'failed' && state !== 'share_clicked') {
-        return json({ error: 'Unsupported state transition' }, 400);
+      if (sendRow.provider === 'manual' && !['draft', 'share_clicked', 'cancelled', 'failed'].includes(state)) {
+        return json({ error: 'Unsupported state for this send' }, 400);
       }
+      if (sendRow.provider !== 'manual' && !SEND_STATES[state]) {
+        return json({ error: 'Unknown state' }, 400);
+      }
+      const updatedAt = nowISO();
+      const shareClickedAt = state === 'share_clicked'
+        ? (sendRow.share_clicked_at || updatedAt) : (sendRow.share_clicked_at || null);
+      const submittedAt = state === 'submitted_to_provider'
+        ? (sendRow.submitted_at || updatedAt) : (sendRow.submitted_at || null);
+      const deliveredAt = state === 'delivered'
+        ? (sendRow.delivered_at || updatedAt) : (sendRow.delivered_at || null);
       await run(
         db,
-        'UPDATE sends SET state = ?, note = COALESCE(?, note), updated_at = ? WHERE id = ?',
+        `UPDATE sends SET state=?, note=COALESCE(?, note), updated_at=?,
+          share_clicked_at=?, submitted_at=?, delivered_at=? WHERE id=?`,
         state,
         body.note != null ? String(body.note).slice(0, 500) : null,
-        nowISO(),
-        sendRow.id
+        updatedAt, shareClickedAt, submittedAt, deliveredAt, sendRow.id
       );
+      if (state === 'share_clicked' && !sendRow.share_clicked_at) {
+        const proposal = await one(
+          db,
+          'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE,
+          sendRow.proposal_id, scope, user.id
+        );
+        if (proposal && ['draft', 'ready', 'internal_review'].includes(proposal.status)) {
+          await run(
+            db,
+            "UPDATE proposals SET status='sent', sent_at=COALESCE(sent_at, ?), updated_at=?, revision=COALESCE(revision, 1)+1 WHERE id=?",
+            updatedAt, updatedAt, proposal.id
+          );
+        }
+      }
+      await recordEvent(db, {
+        token_id: sendRow.token_id,
+        version_id: sendRow.version_id,
+        proposal_id: sendRow.proposal_id,
+        owner_id: user.id,
+        event_type: 'send_state_' + state,
+        meta: { sendId: sendRow.id, channel: sendRow.channel }
+      });
       const next = await one(db, 'SELECT * FROM sends WHERE id = ?', sendRow.id);
       return json({ send: publicSend(next) });
     }
@@ -2091,6 +2378,7 @@ async function handleApi(request, env, url) {
       let title = task.title;
       let notes = task.notes;
       let dueAt = task.due_at;
+      let proposalId = task.proposal_id || null;
       let status = task.status;
       let completedAt = task.completed_at;
       if (body.title != null) {
@@ -2098,6 +2386,16 @@ async function handleApi(request, env, url) {
         if (!title) return json({ error: 'Task title cannot be empty' }, 400);
       }
       if (body.notes != null) notes = String(body.notes).slice(0, 2000);
+      if (body.proposalId !== undefined) {
+        proposalId = body.proposalId == null ? '' : String(body.proposalId).trim();
+        const existingProposalId = task.proposal_id == null ? '' : String(task.proposal_id);
+        if (proposalId && proposalId !== existingProposalId) {
+          const linked = await one(db, 'SELECT id FROM proposals WHERE id = ? AND ' + OWN_SCOPE, proposalId, scope, user.id);
+          if (!linked) return json({ error: 'Proposal not found for this task' }, 404);
+        } else if (!proposalId) {
+          proposalId = null;
+        }
+      }
       if (body.dueAt !== undefined) {
         if (body.dueAt === null || body.dueAt === '') dueAt = null;
         else {
@@ -2116,9 +2414,9 @@ async function handleApi(request, env, url) {
       }
       await run(
         db,
-        `UPDATE tasks SET title=?, notes=?, due_at=?, status=?, completed_at=?, updated_at=?
-         WHERE id=? AND owner_id=?`,
-        title, notes, dueAt, status, completedAt, nowISO(), task.id, user.id
+        `UPDATE tasks SET title=?, notes=?, due_at=?, proposal_id=?, status=?, completed_at=?, updated_at=?
+         WHERE id=? AND ` + OWN_SCOPE,
+        title, notes, dueAt, proposalId, status, completedAt, nowISO(), task.id, scope, user.id
       );
       const next = await one(db, 'SELECT * FROM tasks WHERE id = ?', task.id);
       return json({ task: publicTask(next) });
@@ -2362,7 +2660,7 @@ export default {
       if (origin) {
         try {
           const o = new URL(origin);
-          if (o.host === url.host) {
+          if (o.host === url.host || o.host.toLowerCase() === allowedAppHost(env)) {
             headers['Access-Control-Allow-Origin'] = origin;
             headers['Access-Control-Allow-Credentials'] = 'true';
           }

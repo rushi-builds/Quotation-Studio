@@ -16,7 +16,7 @@
 <meta name="twitter:description" content="Build a premium 15-page rooftop solar EPC proposal with live A4 preview, financial analytics and one-click PDF export.">
 <meta name="twitter:image" content="assets/images/page-cover-v2-portrait.jpg">
 <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png">
-<link rel="stylesheet" href="assets/css/app.css?v=finance-fixes1">
+<link rel="stylesheet" href="assets/css/app.css?v=cloud-primary1">
 <link rel="stylesheet" href="assets/css/bess.css">
 <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1">
 <link rel="stylesheet" href="assets/css/control-panel.css?v=engineering-panel2">
@@ -37,9 +37,10 @@
     </div>
 
     <div class="studio-cloud-bar" id="studioCloudBar" hidden>
-      <a class="cloud-dash-link" href="dashboard.html" title="Staff dashboard">Dashboard</a>
-      <span class="cloud-chip" id="cloudChip" data-state="off">Browser only</span>
-      <button type="button" class="link-btn" id="cloudSaveBtn" hidden title="Save this proposal to your cloud workspace">Save to cloud</button>
+      <a class="cloud-dash-link" id="cloudDashboardLink" href="dashboard.html" title="Save the latest changes before opening Dashboard">Dashboard</a>
+      <span class="cloud-chip" id="cloudChip" data-state="off">Local backup only</span>
+      <button type="button" class="link-btn" id="cloudSaveBtn" hidden title="Save this proposal to cloud now">Save now</button>
+      <span class="cloud-sync-hint" id="cloudSyncHint" role="status" aria-live="polite">This browser keeps an offline backup.</span>
     </div>
 
     <form id="quoteForm" autocomplete="off">
@@ -257,33 +258,61 @@
         <summary><span class="wrap-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg></span><span class="wrap-copy"><strong>Advanced settings</strong><small>Engineering basis · compare options · branding · photos · library - set once, folded away</small></span><span class="wrap-chev" aria-hidden="true">⌄</span></summary>
 <fieldset data-adv>
         <legend>System Design &amp; Equipment</legend>
-        <p class="hint" id="equipmentEntryHint">Choose from the list, or select Custom… at the bottom to type your own below. Check ratings for custom makes. Reusable makes can be added in All settings → Equipment library.</p>
+        <p class="hint" id="equipmentEntryHint">The connected private workbook supplies quotation product references from MODULE_DB, INVERTER_DB, CABLE_DB and PROTECTION_DB only. Values are workbook-sourced, not independently manufacturer-verified. Sync never rewrites saved proposal values; selecting a product is deliberate. Custom and “Or Equivalent” choices remain available.</p>
         <div class="field">
           <label>Generation (kWh/kWp/yr)</label>
           <input type="number" id="genFactor" value="1460" step="10" min="0">
           <div class="hint" id="hintGenFactor"></div>
         </div>
-        <div class="field"><label for="moduleMake">Module make</label>
-          <select id="moduleMake" aria-describedby="equipmentEntryHint" aria-controls="moduleMakeCustomWrap">
-            <option>Panasonic / Waaree / Adani or Equivalent</option>
-            <option>Premier Energies or Equivalent</option>
-            <option>Vikram Solar or Equivalent</option>
-            <option value="" data-custom>Custom…</option>
-          </select>
-          <div id="moduleMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
-            <label for="moduleMakeCustom">Custom module make</label>
-            <input type="text" id="moduleMakeCustom" data-equipment-custom placeholder="Enter your own module make…" autocomplete="off" spellcheck="false" disabled>
+        <div class="row2">
+          <div class="field"><label for="moduleMake">Module make</label>
+            <select id="moduleMake" aria-describedby="equipmentEntryHint" aria-controls="moduleMakeCustomWrap">
+              <option>Panasonic / Waaree / Adani or Equivalent</option>
+              <option>Premier Energies or Equivalent</option>
+              <option>Vikram Solar or Equivalent</option>
+              <option value="" data-custom>Custom…</option>
+            </select>
+            <div id="moduleMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+              <label for="moduleMakeCustom">Custom module make</label>
+              <input type="text" id="moduleMakeCustom" data-equipment-custom placeholder="Enter your own module make…" autocomplete="off" spellcheck="false" disabled>
+            </div>
+          </div>
+          <div class="field"><label for="moduleModel">Module model</label>
+            <select id="moduleModel" aria-describedby="moduleModelHint" aria-controls="moduleModelCustomWrap">
+              <option value="" data-placeholder>Select a model…</option>
+              <option value="" data-custom>Custom model…</option>
+            </select>
+            <div id="moduleModelCustomWrap" class="equipment-custom" data-equipment-custom hidden>
+              <label for="moduleModelCustom">Custom module model</label>
+              <input type="text" id="moduleModelCustom" data-equipment-custom placeholder="Enter the exact model or model family…" autocomplete="off" spellcheck="false" disabled>
+            </div>
+            <div class="hint" id="moduleModelHint">Choose a product/bin row to load its catalogue values. Workbook-sourced values are identified separately and are not treated as manufacturer-verified.</div>
+            <div class="hint" id="moduleCatalogSyncStatus" role="status" aria-live="polite">Using the built-in reference list until the private Excel catalogue is configured.</div>
+            <button type="button" class="link-btn" id="moduleCatalogSyncNow" hidden>Sync Excel catalogue now</button>
           </div>
         </div>
         <div class="row3">
-          <div class="field"><label>Module rating (Wp)</label><input type="number" id="moduleWattage" value="545" step="5" min="0"></div>
-          <div class="field"><label>Module length (mm)</label><input type="number" id="moduleLengthMm" value="2278" step="1" min="0"></div>
-          <div class="field"><label>Module width (mm)</label><input type="number" id="moduleWidthMm" value="1134" step="1" min="0"></div>
+          <div class="field"><label for="moduleWattage">Module rating (Wp)</label><input type="number" id="moduleWattage" value="545" step="5" min="0"></div>
+          <div class="field"><label for="moduleLengthMm">Module length (mm)</label><input type="number" id="moduleLengthMm" value="2278" step="1" min="0"></div>
+          <div class="field"><label for="moduleWidthMm">Module width (mm)</label><input type="number" id="moduleWidthMm" value="1134" step="1" min="0"></div>
+        </div>
+        <div class="row3">
+          <div class="field"><label for="moduleEfficiency">Module efficiency (%, STC)</label>
+            <input type="number" id="moduleEfficiency" step="0.01" min="0" max="100" placeholder="from exact datasheet">
+          </div>
+          <div class="field"><label for="moduleType">Module construction</label>
+            <input type="text" id="moduleType" placeholder="e.g. monofacial / bifacial">
+          </div>
+          <div class="field"><label for="moduleBifaciality">Bifaciality (if specified)</label>
+            <input type="text" id="moduleBifaciality" placeholder="e.g. 80 ± 5%; not rear gain">
+          </div>
         </div>
         <div class="row2">
           <div class="field"><label for="moduleTech">Module technology</label>
             <select id="moduleTech" aria-describedby="equipmentEntryHint" aria-controls="moduleTechCustomWrap">
               <option>Mono PERC Half-Cut</option>
+              <option>Mono PERC</option>
+              <option>N-type TOPCon</option>
               <option>TOPCon</option>
               <option>Bifacial TOPCon</option>
               <option>Polycrystalline</option>
@@ -293,6 +322,7 @@
               <label for="moduleTechCustom">Custom module technology</label>
               <input type="text" id="moduleTechCustom" data-equipment-custom placeholder="Enter your own module technology…" autocomplete="off" spellcheck="false" disabled>
             </div>
+            <div class="hint">Technology is the cell architecture; mono-/bifacial construction and bifaciality are separate.</div>
           </div>
           <div class="field">
             <label>Inverter rating (kW, blank = auto)</label>
@@ -313,6 +343,19 @@
             <input type="text" id="inverterMakeCustom" data-equipment-custom placeholder="Enter your own inverter make…" autocomplete="off" spellcheck="false" disabled>
           </div>
         </div>
+        <div class="row2">
+          <div class="field"><label for="inverterWorkbookModel">Exact model from connected INVERTER_DB (optional)</label>
+            <select id="inverterWorkbookModel" data-form-ignore aria-describedby="inverterWorkbookHint">
+              <option value="">No exact model selected — keep equivalent / manual</option>
+            </select>
+            <div class="hint" id="inverterWorkbookHint">Selecting a workbook row fills its model, AC rating and available DC limits in this proposal only. It does not verify compatibility or change other saved proposals.</div>
+          </div>
+          <div class="field"><label for="inverterModel">Inverter model (proposal text)</label>
+            <input type="text" id="inverterModel" maxlength="160" placeholder="Optional exact model or custom entry">
+            <div class="hint">Edit this only when changing the selected product. Workbook-derived values are cleared if the model text changes.</div>
+          </div>
+        </div>
+        <input type="hidden" id="inverterProductSnapshot" value="">
         <div class="field"><label for="mountMake">Mounting structure</label>
           <select id="mountMake" aria-describedby="equipmentEntryHint" aria-controls="mountMakeCustomWrap">
             <option>Hot-Dip GI / Aluminum-ARS Solartech make</option>
@@ -335,6 +378,25 @@
             <input type="text" id="cableMakeCustom" data-equipment-custom placeholder="Enter your own cabling &amp; protection…" autocomplete="off" spellcheck="false" disabled>
           </div>
         </div>
+        <div class="row2">
+          <div class="field"><label for="workbookCableProduct">Optional cable product reference (CABLE_DB)</label>
+            <select id="workbookCableProduct" data-form-ignore>
+              <option value="">No exact cable product selected</option>
+            </select>
+            <div class="hint">Reference only: selecting a cable does not decide its route, length, protection, or safe conductor size.</div>
+          </div>
+          <div class="field"><label for="workbookProtectionCategory">Optional protection category (PROTECTION_DB)</label>
+            <select id="workbookProtectionCategory" data-form-ignore>
+              <option value="">Choose a category…</option>
+            </select>
+            <select id="workbookProtectionProduct" data-form-ignore aria-label="Exact protection product reference">
+              <option value="">No exact protection product selected</option>
+            </select>
+            <div class="hint">Reference only: no breaker/fuse/SPD rating or coordination is inferred from this product list.</div>
+          </div>
+        </div>
+        <input type="hidden" id="cableProductSnapshot" value="">
+        <input type="hidden" id="protectionProductSnapshot" value="">
         <div class="row2">
           <div class="field"><label for="roofType">Roof type</label>
             <select id="roofType" aria-describedby="equipmentEntryHint" aria-controls="roofTypeCustomWrap">
@@ -448,10 +510,15 @@
           <div class="field"><label for="moduleImp">Module Imp at STC (A)</label>
             <input type="number" id="moduleImp" step="0.01" min="0"></div>
           <div class="field"><label for="moduleVocBetaPct">Voc temperature coefficient (%/°C)</label>
-            <input type="number" id="moduleVocBetaPct" value="-0.27" step="0.01">
-            <div class="hint">PERC ≈ −0.27, TOPCon ≈ −0.25, HJT ≈ −0.21. Datasheet value wins.</div></div>
+            <input type="number" id="moduleVocBetaPct" value="-0.27" step="0.01" placeholder="from exact datasheet">
+            <div class="hint">Template screening assumption only, not a product claim. An exact model fills its datasheet value; a blank uses the disclosed calculation fallback.</div></div>
           <div class="field"><label for="moduleVmpBetaPct">Vmp temperature coefficient (%/°C)</label>
-            <input type="number" id="moduleVmpBetaPct" value="-0.36" step="0.01"></div>
+            <input type="number" id="moduleVmpBetaPct" value="-0.36" step="0.01" placeholder="if published">
+            <div class="hint">This template assumption is not a manufacturer value. Enter only when the selected datasheet publishes it; blank uses the disclosed screening fallback.</div></div>
+          <div class="field"><label for="moduleIscAlphaPct">Isc temperature coefficient (%/°C)</label>
+            <input type="number" id="moduleIscAlphaPct" step="0.001" placeholder="from datasheet"></div>
+          <div class="field"><label for="modulePmaxBetaPct">Pmax temperature coefficient (%/°C)</label>
+            <input type="number" id="modulePmaxBetaPct" step="0.001" placeholder="from datasheet"></div>
           <div class="field"><label for="inverterVmaxDc">Inverter max DC input voltage (V)</label>
             <input type="number" id="inverterVmaxDc" value="1100" step="10" min="0">
             <div class="hint">A hard limit: exceeding it destroys the input stage.</div></div>
@@ -1395,17 +1462,18 @@
 <script src="assets/js/icons.js"></script>
 <script src="assets/js/charts.js?v=finance-fixes1"></script>
 <script src="assets/js/model.js"></script>
-<script src="assets/js/state.js?v=proposal-stage1"></script>
-<script src="assets/js/equipment.js"></script>
-<script src="assets/js/render.js?v=proposal-stage1"></script>
+<script src="assets/js/state.js?v=module-models1"></script>
+<script src="assets/js/module-catalog.js?v=module-catalog1"></script>
+<script src="assets/js/equipment.js?v=module-models1"></script>
+<script src="assets/js/render.js?v=module-specs1"></script>
 <script src="assets/js/editor.js?v=remote-monitoring1"></script>
 <script src="assets/js/experience.js?v=proposal-stage1"></script>
 <script src="assets/js/salutation.js"></script>
 <script src="assets/js/briefing.js"></script>
 <script src="assets/js/export.js?v=power-six-audit1"></script>
 <script src="assets/js/workspace-prefs.js"></script>
-<script src="assets/js/platform-api.js?v=knowledge3"></script>
-<script src="assets/js/cloud-bridge.js?v=knowledge3"></script>
+<script src="assets/js/platform-api.js?v=preview-isolation1"></script>
+<script src="assets/js/cloud-bridge.js?v=cloud-primary1"></script>
 <script src="assets/js/app.js?v=rwa1"></script>
 <script src="assets/js/control-panel.js?v=engineering-panel2"></script>
 <script src="assets/js/assistant-actions.js?v=knowledge3"></script>

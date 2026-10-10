@@ -77,6 +77,8 @@ const { spawn } = require("child_process"),
           status,
           form: {
             custName: name,
+            custPhone: "9876543210",
+            custEmail: "sample@example.test",
             capacity: String(size),
             propRef: "TEST-" + (ids.length + 1),
             costPerWp: "35",
@@ -195,11 +197,27 @@ const { spawn } = require("child_process"),
     );
     assert.equal(await p.inputValue("#sendSelect"), seed[1]);
     await shot("sharing");
+    await p.fill('#sendMessage', 'Hello Sample Factory — a custom message. [A secure link will be inserted when you prepare the send] Please reply with any questions.');
     await p.click("#btnSendPrepare");
     await p.waitForSelector("#btnSendCopy:not([hidden])");
-    assert.ok(
-      (await p.locator("#sendResult").innerText()).includes("Ready to share"),
-    );
+    assert.ok((await p.locator("#sendResult").innerText()).includes("not shared yet"));
+    assert.equal(await p.evaluate(async id => (await PlatformAPI.listSends(id)).sends[0].state, seed[1]), 'draft', 'Preparing the message must not mark it shared');
+    assert.match(await p.inputValue('#sendMessage'), /portal\.html\?t=/, 'Prepared message includes the real customer portal link');
+    assert.match(await p.inputValue('#sendMessage'), /^Hello Sample Factory — a custom message\./, 'Custom message text is preserved when the link is inserted');
+    assert.match(await p.inputValue('#sendMessage'), /Please reply with any questions\.$/, 'Text after the link placeholder is preserved');
+    await p.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.__qsCopiedMessage = text; } } }));
+    await p.click('#btnSendCopy');
+    await p.waitForFunction(async id => (await PlatformAPI.listSends(id)).sends[0].state === 'share_clicked', seed[1]);
+    assert.match(await p.evaluate(() => window.__qsCopiedMessage), /portal\.html\?t=/, 'Copy action copies the message with the real customer link');
+    assert.equal(await p.evaluate(async id => (await PlatformAPI.getProposal(id)).proposal.status, seed[1]), 'sent', 'Proposal becomes sent only after a share action starts');
+    await p.selectOption('#sendChannel', 'copy_link');
+    await p.click('#btnSendPrepare');
+    await p.waitForFunction(() => !document.querySelector('#btnSendCopy').hidden);
+    assert.equal(await p.innerText('#btnSendCopy'), 'Copy link', 'Copy-link channel is clearly labeled');
+    const copyOnlyUrl = await p.evaluate(async id => (await PlatformAPI.listSends(id)).sends.find(send => send.channel === 'copy_link').portalUrl, seed[1]);
+    await p.click('#btnSendCopy');
+    await p.waitForFunction(async id => (await PlatformAPI.listSends(id)).sends.find(send => send.channel === 'copy_link').state === 'share_clicked', seed[1]);
+    assert.equal(await p.evaluate(() => window.__qsCopiedMessage), copyOnlyUrl, 'Copy-link channel copies only the real customer URL');
     await p.waitForSelector(".send-item");
     await p.click('#panel-send [data-go-panel="publish"]');
     await p.waitForSelector("#panel-publish.on");
@@ -213,6 +231,8 @@ const { spawn } = require("child_process"),
       () => document.querySelectorAll(".task-item").length === 1,
     );
     assert.equal(await p.locator(".task-item").count(), 1);
+    assert.match(await p.locator('#taskReminderSummary').innerText(), /overdue/i);
+    assert.match(await p.locator('#taskReminderSummary').innerText(), /no automatic WhatsApp or email/i);
     await p.click(".task-check");
     await p.waitForFunction(() => !document.querySelector(".task-item"));
     await p.selectOption("#taskFilter", "all");
@@ -224,6 +244,19 @@ const { spawn } = require("child_process"),
         .querySelector("#tasksBody")
         .textContent.includes("Confirm the next meeting"),
     );
+    const editCard = p.locator('.task-item').filter({ hasText: 'Confirm the next meeting' });
+    await editCard.locator('.row-menu summary').click();
+    await editCard.locator('[data-act="task-edit"]').click();
+    await p.fill('#taskTitle', 'Confirm the next meeting — rescheduled');
+    await p.fill('#taskNotes', 'Updated follow-up notes');
+    await p.fill('#taskDue', await p.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 5); return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-'); }));
+    await p.selectOption('#taskProposal', seed[1]);
+    await p.click('#btnTaskAdd');
+    await p.waitForFunction(() => document.querySelector('#tasksBody').textContent.includes('Confirm the next meeting — rescheduled'));
+    const editedTask = await p.evaluate(async title => (await PlatformAPI.listTasks()).tasks.find(t => t.title === title), 'Confirm the next meeting — rescheduled');
+    assert.equal(editedTask.notes, 'Updated follow-up notes');
+    assert.equal(editedTask.proposalId, seed[1], 'Task can be relinked to another accessible quotation');
+    assert.ok(Date.parse(editedTask.dueAt) > Date.now() + 4 * 864e5, 'Task due date is rescheduled');
     await shot("followups");
     await nav("activity");
     await p.waitForSelector(".timeline-item");
@@ -272,26 +305,26 @@ const { spawn } = require("child_process"),
     await p.waitForURL("**/quotation.html?cloud=*");
     await p.waitForSelector("#cloudSaveBtn:not([hidden])");
     await p.fill("#custName", "Editor sync test");
-    await p.click("#cloudSaveBtn");
-    await p.waitForFunction(() =>
-      document.body.innerText.includes("Saved to cloud ·"),
-    );
-    // Diagnose existing manual cloud-save behavior; no Studio logic changed.
+    await p.waitForFunction(() => document.querySelector('#cloudChip').textContent === 'Cloud saved');
+    await p.waitForFunction(async()=> (await PlatformAPI.listProposals()).proposals.some(p=>p.customer==='Editor sync test'));
+    await p.click('#cloudSaveBtn');
+    await p.waitForFunction(() => document.querySelector('#cloudChip').textContent === 'Cloud saved');
+    // Signed-in Studio autosaves; revision conflicts still stop stale writes.
     await p.click('#modeAll');
     await p.click('.studio-management > summary');
     await p.selectOption('#pmStatus','ready');
     assert.equal(await p.evaluate(()=>Proposals.active().status), 'ready');
-    assert.equal(await p.evaluate(async()=> (await PlatformAPI.getProposal(new URL(location.href).searchParams.get('cloud'))).proposal.status), 'draft', 'Studio status change is local until Save to cloud');
-    await p.click('#cloudSaveBtn');
     await p.waitForFunction(async()=> (await PlatformAPI.getProposal(new URL(location.href).searchParams.get('cloud'))).proposal.status==='ready');
     await p.waitForSelector('#cloudSaveBtn:not([disabled])');
     await p.evaluate(async()=>PlatformAPI.updateProposal(new URL(location.href).searchParams.get('cloud'),{status:'sent'}));
     assert.equal(await p.inputValue('#pmStatus'),'ready','An already-open Studio does not live-refresh cloud status');
-    await p.click('#cloudSaveBtn');
+    await p.fill('#custName','Editor sync test local conflict copy');
     await p.waitForFunction(()=>document.querySelector('#cloudChip').textContent==='Newer in cloud');
-    assert.equal(await p.evaluate(async()=> (await PlatformAPI.getProposal(new URL(location.href).searchParams.get('cloud'))).proposal.status), 'sent', 'Conflict guard prevents stale Studio from overwriting newer cloud status');
-    console.log('VERIFIED: status changes stay local until cloud save; open Studio has no live status refresh; revision conflicts protect newer cloud edits.');
-    await p.goto(origin + "/dashboard.html");
+    assert.equal(await p.evaluate(async()=> (await PlatformAPI.getProposal(new URL(location.href).searchParams.get('cloud'))).proposal.status), 'sent', 'Conflict guard prevents stale autosave from overwriting newer cloud edits');
+    assert.equal(await p.inputValue('#custName'),'Editor sync test local conflict copy','Conflicting local edits remain in Studio');
+    console.log('VERIFIED: signed-in Studio autosaves; local cache remains available; revision conflicts protect newer cloud edits and pause autosave.');
+    await p.click('#cloudDashboardLink');
+    await p.waitForURL('**/dashboard.html');
     await p.waitForFunction(() =>
       document
         .querySelector("#homeBody")

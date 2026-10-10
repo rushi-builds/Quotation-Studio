@@ -16,7 +16,7 @@
         document.documentElement.dataset.theme = t === "dark" ? "dark" : "light";
       })();
     </script>
-    <link rel="stylesheet" href="assets/css/dashboard.css?v=workspace7-ai3" />
+    <link rel="stylesheet" href="assets/css/dashboard.css?v=tasks-sharing1" />
     <link rel="stylesheet" href="assets/css/dashboard-pearl.css?v=workspace7-ai3" />
   </head>
   <body>
@@ -308,6 +308,7 @@
                     <option value="done">Completed</option>
                   </select>
                 </div>
+                <div id="taskReminderSummary" class="task-reminder" role="status" aria-live="polite" hidden></div>
                 <div id="tasksBody" class="task-list">
                   <div class="hempty">Loading follow-ups…</div>
                 </div>
@@ -315,7 +316,7 @@
               <aside class="card task-compose">
                 <span class="eyebrow">MAKE A PLAN</span>
                 <h2>A small next step.</h2>
-                <p class="sub">Set a reminder for a call, visit or review.</p>
+                <p class="sub">Set a due date for a call, visit or review. In-app reminders show here when you open the dashboard.</p>
                 <div class="field">
                   <label for="taskTitle">What needs to happen?</label
                   ><input
@@ -326,7 +327,7 @@
                   />
                 </div>
                 <div class="field">
-                  <label for="taskProposal">Related quotation</label
+                  <label for="taskProposal">Link to quotation <span>optional</span></label
                   ><select id="taskProposal">
                     <option value="">No linked quotation</option>
                   </select>
@@ -343,9 +344,14 @@
                     placeholder="Anything to remember…"
                   ></textarea>
                 </div>
-                <button type="button" id="btnTaskAdd" class="btn btn-primary">
-                  Create follow-up
-                </button>
+                <div class="task-form-actions">
+                  <button type="button" id="btnTaskAdd" class="btn btn-primary">
+                    Create follow-up
+                  </button>
+                  <button type="button" id="btnTaskCancelEdit" class="btn btn-secondary" hidden>
+                    Cancel edit
+                  </button>
+                </div>
               </aside>
             </div>
           </section>
@@ -1001,8 +1007,8 @@
       <p id="galleryViewerCap"></p>
     </dialog>
     <div id="toast" role="status"></div>
-    <script src="assets/js/platform-api.js?v=oauth1"></script>
-    <script src="assets/js/dashboard.js?v=workspace7-ai3"></script>
+    <script src="assets/js/platform-api.js?v=preview-isolation1"></script>
+    <script src="assets/js/dashboard.js?v=tasks-sharing1"></script>
     <script src="assets/js/dashboard-home.js?v=workspace7-ai3"></script>
     <script src="assets/js/finance.js?v=finance-fixes1"></script>
     <script src="assets/js/equipment.js?v=workspace7-ai3"></script>

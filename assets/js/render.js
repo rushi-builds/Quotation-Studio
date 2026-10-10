@@ -38,6 +38,14 @@
       return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '';
     } catch (e) { return ''; }
   }
+  function productSnapshot(value) {
+    const raw = String(value || '');
+    if (!raw || raw.length > 30000) return null;
+    try {
+      const entry = JSON.parse(raw);
+      return entry && typeof entry === 'object' && entry.id && entry.source === 'excel' ? entry : null;
+    } catch (_) { return null; }
+  }
 
   const TYPE_LABEL = { residential: 'Residential', rwa: 'RWA / Housing Society', commercial: 'Commercial', industrial: 'Industrial' };
 
@@ -215,8 +223,12 @@
   /* ================================================================== */
   /* PAGE - SYSTEM OPTIONS COMPARISON (visible when 2+ options saved)    */
   /* ================================================================== */
-  const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
-    'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
+  const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleModel', 'moduleWattage',
+    'moduleEfficiency', 'moduleTech', 'moduleLengthMm', 'moduleWidthMm', 'moduleType',
+    'moduleBifaciality', 'moduleVoc', 'moduleVmp', 'moduleIsc', 'moduleImp',
+    'moduleVocBetaPct', 'moduleVmpBetaPct', 'moduleIscAlphaPct', 'modulePmaxBetaPct', 'moduleWeightKg',
+    'inverterMake', 'inverterModel', 'inverterProductSnapshot', 'inverterKw',
+    'cableProductSnapshot', 'protectionProductSnapshot', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
     'degradation', 'subsidyOverride', 'rwaEligibleKwp'];
 
   function optionFinance(opt, s) {
@@ -410,10 +422,116 @@
           '><td class="spec-k">' + esc(k) + '</td><td class="spec-v">' + esc(val) + '</td></tr>');
       });
     };
+    const selectedModule = root.EquipmentStore?.findModule?.(s.moduleMake, s.moduleModel) || null;
+    const savedInverter = productSnapshot(s.inverterProductSnapshot);
+    const selectedInverter = savedInverter && String(savedInverter.model || '').trim() === String(s.inverterModel || '').trim() &&
+      (!s.inverterMake || String(s.inverterMake).toLowerCase().includes(String(savedInverter.make || '').toLowerCase())) ? savedInverter : null;
+    const savedCable = productSnapshot(s.cableProductSnapshot);
+    const selectedCable = savedCable && (!s.cableMake || String(s.cableMake).toLowerCase() === String(savedCable.make || '').toLowerCase()) ? savedCable : null;
+    const selectedProtection = productSnapshot(s.protectionProductSnapshot);
+    const hasExactModel = !!String(s.moduleModel || '').trim();
+    const verifiedModel = !!(hasExactModel && selectedModule?.verified);
+    const comparisonFields = [
+      ['wp', 'moduleWattage'], ['efficiency', 'moduleEfficiency'], ['tech', 'moduleTech'],
+      ['lengthMm', 'moduleLengthMm'], ['widthMm', 'moduleWidthMm'],
+      ['moduleType', 'moduleType'], ['bifaciality', 'moduleBifaciality'],
+      ['voc', 'moduleVoc'], ['vmp', 'moduleVmp'], ['isc', 'moduleIsc'], ['imp', 'moduleImp'],
+      ['vocBetaPct', 'moduleVocBetaPct'], ['vmpBetaPct', 'moduleVmpBetaPct'],
+      ['iscAlphaPct', 'moduleIscAlphaPct'], ['pmaxBetaPct', 'modulePmaxBetaPct'],
+      ['weightKg', 'moduleWeightKg']
+    ];
+    const matchesSelectedRecord = !!selectedModule && comparisonFields.every(([productKey, fieldId]) => {
+      const expected = selectedModule[productKey], actual = s[fieldId];
+      if (expected === '' || expected === undefined || expected === null) {
+        return actual === '' || actual === undefined || actual === null;
+      }
+      if (actual === '' || actual === undefined || actual === null) return false;
+      const a = Number(actual), b = Number(expected);
+      return Number.isFinite(a) && Number.isFinite(b)
+        ? Math.abs(a - b) < 0.000001 : String(actual).trim() === String(expected).trim();
+    });
+    const sameAsDatasheet = verifiedModel && matchesSelectedRecord;
+    const specNumber = (value, decimals) => {
+      if (value === '' || value === null || value === undefined) return '';
+      const number = Number(value);
+      if (!Number.isFinite(number)) return String(value);
+      const digits = decimals === undefined ? 3 : decimals;
+      return number.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '');
+    };
+    const signedCoefficient = value => {
+      if (value === '' || value === null || value === undefined || !Number.isFinite(Number(value))) return '';
+      const number = Number(value);
+      return (number > 0 ? '+' : number < 0 ? '−' : '') + specNumber(Math.abs(number), 3) + '%/°C';
+    };
+    const selectedModelName = selectedModule?.modelLabel || s.moduleModel || 'Model to be confirmed';
+    const power = s.moduleWattage ? specNumber(s.moduleWattage, 2) + ' Wp' : 'Not supplied';
+    const efficiency = s.moduleEfficiency
+      ? specNumber(s.moduleEfficiency, 3) + '% front-side STC efficiency'
+      : 'efficiency not supplied / unverified';
+    const dimensionValues = [s.moduleLengthMm, s.moduleWidthMm].map(value =>
+      value === '' || value === undefined ? '' : specNumber(value, 1));
+    let dimensionText = dimensionValues.every(Boolean) ? dimensionValues.join(' × ') + ' mm' : 'Not supplied';
+    if (sameAsDatasheet && selectedModule.thicknessMm) dimensionText =
+      [dimensionValues[0], dimensionValues[1], specNumber(selectedModule.thicknessMm, 1)].join(' × ') + ' mm (datasheet)';
+    else if (dimensionValues.every(Boolean)) dimensionText += selectedModule?.source === 'excel'
+      ? ' (connected Excel catalogue; verify against exact datasheet)' : ' (entered; verify against exact model)';
+    if (f.arrayArea) dimensionText += ' · array surface ' + Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)';
+    const electricalFields = [
+      ['Voc', s.moduleVoc, 'V'], ['Vmp', s.moduleVmp, 'V'],
+      ['Isc', s.moduleIsc, 'A'], ['Imp', s.moduleImp, 'A']
+    ];
+    const electricalValues = electricalFields.filter(([, value]) => value !== '' && value !== undefined && value !== null)
+      .map(([label, value, unit]) => label + ' ' + specNumber(value, 3) + ' ' + unit);
+    const missingElectrical = electricalFields.filter(([, value]) => value === '' || value === undefined || value === null)
+      .map(([label]) => label);
+    const electricalText = electricalValues.length
+      ? electricalValues.join(' · ') + (missingElectrical.length ? ' · not supplied: ' + missingElectrical.join(', ') : '')
+      : 'Not supplied; confirm from the exact module datasheet';
+    const coefficientFields = [
+      ['Pmax', s.modulePmaxBetaPct], ['Voc', s.moduleVocBetaPct],
+      ['Isc', s.moduleIscAlphaPct], ['Vmp', s.moduleVmpBetaPct]
+    ];
+    const coefficientValues = coefficientFields.filter(([, value]) => value !== '' && value !== undefined && value !== null)
+      .map(([label, value]) => label + ' ' + signedCoefficient(value));
+    const missingCoefficients = coefficientFields.filter(([, value]) => value === '' || value === undefined || value === null)
+      .map(([label]) => label);
+    let coefficientText = coefficientValues.length
+      ? coefficientValues.join(' · ') + (missingCoefficients.length ? ' · not supplied: ' + missingCoefficients.join(', ') : '')
+      : 'Not supplied for this module model';
+    if (!sameAsDatasheet && coefficientValues.length) coefficientText = selectedModule?.source === 'excel'
+      ? 'Connected Excel catalogue / not datasheet-verified: ' + coefficientText
+      : 'Entered / not manufacturer-verified: ' + coefficientText;
+    let constructionText = String(s.moduleType || '').trim() || 'Not supplied / unverified';
+    if (s.moduleBifaciality) constructionText += ' · bifaciality ' + s.moduleBifaciality;
+    if (/bifacial/i.test(String(s.moduleType || '')) || s.moduleBifaciality) {
+      constructionText += ' · rear-side gain is not included in the quoted STC rating or output estimate';
+    } else {
+      constructionText += ' · no rear-side gain is assumed';
+    }
+    const productLimitParts = [];
+    if (selectedModule?.weightKg !== '' && selectedModule?.weightKg !== undefined && selectedModule?.weightKg !== null) {
+      productLimitParts.push('mass ' + specNumber(selectedModule.weightKg, 2) + ' kg');
+    }
+    if (selectedModule?.maxSystemVoltageV) productLimitParts.push('max system voltage ' + selectedModule.maxSystemVoltageV + ' VDC');
+    if (selectedModule?.maxSeriesFuseA) productLimitParts.push('max series fuse ' + specNumber(selectedModule.maxSeriesFuseA, 2) + ' A');
+    const productLimits = productLimitParts.join(' · ');
+    const excelRevisionNote = selectedModule?.sourceRevision
+      ? ' Workbook revision: ' + selectedModule.sourceRevision + '.' : '';
+    const moduleStatus = sameAsDatasheet
+      ? 'Manufacturer-datasheet values for the selected model; re-check the current revision before procurement.'
+      : selectedModule?.source === 'excel'
+        ? matchesSelectedRecord
+          ? 'Connected Excel catalogue (MODULE_DB) values for this model/bin; not independently manufacturer-verified. The workbook has no per-row datasheet URL; verify before procurement.' + excelRevisionNote
+          : 'Saved proposal values differ from the currently synced Excel row. Reselect the model to apply the workbook update; workbook values are not independently manufacturer-verified.' + excelRevisionNote
+        : verifiedModel
+          ? 'Manufacturer model selected, but one or more fields differ from its reference values. Re-check against the linked datasheet.'
+          : hasExactModel
+            ? 'Custom / company-catalog model; values are not independently manufacturer-verified.'
+            : 'No exact model selected; confirm ratings and dimensions against the manufacturer datasheet.';
     addRows('SOLAR MODULES', [
-      ['Make', s.moduleMake],
-      ['Technology', s.moduleTech || '-'],
-      ['Rated Power', f.moduleWattage + ' Wp per module'],
+      ['Make / Model', [s.moduleMake || 'Make not supplied', selectedModelName].filter(Boolean).join(' · ')],
+      ['Technology', s.moduleTech || 'Not supplied / unverified'],
+      ['STC nameplate power / efficiency', power + ' · ' + efficiency],
       ['Quantity', f.moduleCount + ' modules'],
       // Keep engineering values numeric until final formatting. fmtNum returns
       // grouped text (e.g. "1,036"), which cannot be used in arithmetic.
@@ -424,22 +542,66 @@
           (f.capacityExact ? '' : ' (contracted ' +
             Number(f.contractedKwp).toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp)')
         : '-'],
-      ['Total Module Area', f.arrayArea ? Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)' : '-'],
+      ['Module dimensions / array surface', dimensionText],
+      ['STC electrical parameters', electricalText],
+      ['Temperature coefficients', coefficientText],
+      ['Construction / bifaciality', constructionText],
+      ...(productLimits ? [[verifiedModel ? 'Manufacturer-listed mass / limits' : 'Catalogue mass / limits (unverified)', productLimits]] : []),
+      ['Module data status', moduleStatus],
       ['Performance Warranty', CONTENT.shared.warrantyLine]
     ]);
+    const inverterDetails = selectedInverter ? [
+      [selectedInverter.type, selectedInverter.hybrid && selectedInverter.hybrid.toLowerCase() === 'yes' ? 'Hybrid' : ''].filter(Boolean).join(' · '),
+      selectedInverter.phase ? selectedInverter.phase + '-phase' : '',
+      selectedInverter.mpptCount ? selectedInverter.mpptCount + ' MPPTs' : '',
+      selectedInverter.totalDcInputs ? selectedInverter.totalDcInputs + ' DC inputs' : '',
+      selectedInverter.maxDcPowerKwp ? 'max DC power ' + specNumber(selectedInverter.maxDcPowerKwp, 2) + ' kWp' : '',
+      selectedInverter.maxDcVoltageV ? 'max DC voltage ' + specNumber(selectedInverter.maxDcVoltageV, 1) + ' V' : '',
+      selectedInverter.mpptMinV || selectedInverter.mpptMaxV
+        ? 'MPPT ' + (selectedInverter.mpptMinV ? specNumber(selectedInverter.mpptMinV, 1) : '?') + '–' + (selectedInverter.mpptMaxV ? specNumber(selectedInverter.mpptMaxV, 1) : '?') + ' V' : '',
+      selectedInverter.maxInputCurrentPerMpptA ? 'max input current / MPPT ' + selectedInverter.maxInputCurrentPerMpptA + ' A' : '',
+      selectedInverter.maxIscPerMpptA ? 'max Isc / MPPT ' + selectedInverter.maxIscPerMpptA + ' A' : '',
+      selectedInverter.maxEfficiencyPct ? 'maximum efficiency ' + specNumber(selectedInverter.maxEfficiencyPct, 2) + '%' : ''
+    ].filter(Boolean).join(' · ') : '';
+    const inverterSourceStatus = selectedInverter
+      ? 'Connected Excel catalogue (INVERTER_DB, row ' + selectedInverter.sourceRow + '); not independently manufacturer-verified. Confirm the exact current datasheet and design compatibility before procurement.'
+      : 'No exact workbook model selected; make and rating remain proposal assumptions. Confirm the exact inverter, limits and compatibility before procurement.';
+    const cableDetails = selectedCable ? [
+      selectedCable.make, selectedCable.category, selectedCable.sizeMm2 && selectedCable.sizeMm2 + ' sq.mm',
+      selectedCable.material, selectedCable.cores, selectedCable.insulation,
+      selectedCable.voltageRating, selectedCable.ampacityA && 'catalogue ampacity ' + selectedCable.ampacityA + ' A',
+      selectedCable.dcResistanceOhmKm && selectedCable.dcResistanceOhmKm + ' Ω/km @20°C',
+      selectedCable.standard, selectedCable.sourceRow && 'CABLE_DB row ' + selectedCable.sourceRow
+    ].filter(Boolean).join(' · ') + ' · workbook reference, not independently verified; final conductor and route require engineering.'
+      : 'No exact cable product selected; conductor size, route and protection to be confirmed by engineering.';
+    const protectionDetails = selectedProtection ? [
+      selectedProtection.category, selectedProtection.make, selectedProtection.series, selectedProtection.model, selectedProtection.catalogNumber,
+      selectedProtection.ratedCurrentA && selectedProtection.ratedCurrentA + ' A',
+      selectedProtection.ratedVoltageV && selectedProtection.ratedVoltageV + ' V',
+      selectedProtection.poles, selectedProtection.breakingCapacityKa && selectedProtection.breakingCapacityKa + ' kA',
+      selectedProtection.tripType && 'trip ' + selectedProtection.tripType, selectedProtection.standard
+    ].filter(Boolean).join(' · ') + ' · connected PROTECTION_DB row ' + selectedProtection.sourceRow + '; unverified, coordination to be confirmed.'
+      : 'No exact protection product selected; device ratings and coordination to be confirmed by engineering.';
     addRows('INVERTER', [
       ['Make', s.inverterMake],
+      ['Model', s.inverterModel || 'Model to be confirmed / equivalent subject to approval'],
       ['Rated Output', f.inverterKw + ' kW' + (s.inverterKw ? '' : ' (auto - equal to capacity)')],
+      ...(inverterDetails ? [['INVERTER_DB product reference (unverified)', inverterDetails]] : []),
+      ['Inverter data status', inverterSourceStatus],
       ['DC/AC Ratio', Number.isFinite(f.dcAcRatio) && f.dcAcRatio > 0
         ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '-'],
-      ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
+      ['Monitoring / communications', selectedInverter?.communication
+        ? 'Workbook lists ' + selectedInverter.communication + '; confirm the included monitoring hardware and connectivity.'
+        : 'Monitoring hardware and connectivity to be confirmed for the exact inverter.']
     ]);
     // Proposal-stage presentation. Engineering calculations and checks remain
-    // in the staff panel; unverified design outputs do not become customer claims.
+    // in the staff panel; workbook reference values are not manufacturer claims.
     addRows('MOUNTING & CABLING', [
       ['Structure Make', s.mountMake],
       ['Roof Type', s.roofType || '-'],
       ['Cabling & Protection', s.cableMake],
+      ['Cable product reference', cableDetails],
+      ['Protection product reference', protectionDetails],
       ['Earthing', 'Electrode design will follow site testing and electrical design verification.'],
       ['Lightning Protection', 'Protection requirements will be confirmed through the site risk assessment.']
     ]);
@@ -452,20 +614,27 @@
     setHTML('v_tsTable', rows.join(''));
     set('v_tsNoteLabel', P.noteLabel);
     set('v_tsNote', P.note);
-    const refs = [
+    const designRefs = [
       [s.pvsystUrl, P.refsPvsyst, 'chart'],
       [s.arkaUrl, P.refsArka, 'sun']
-    ].map(([url, label, icon]) => [safeHttpUrl(url), label, icon]).filter(r => r[0]);
+    ].map(([url, label, icon]) => [safeHttpUrl(url), label, icon]).filter(ref => ref[0]);
+    const moduleSourceUrl = selectedModule?.verified ? safeHttpUrl(selectedModule.sourceUrl) : '';
+    const refs = designRefs.concat(moduleSourceUrl
+      ? [[moduleSourceUrl, 'Manufacturer module datasheet', 'panel']]
+      : []);
     const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return String(u).replace(/^https?:\/\//, '').split('/')[0]; } };
     show('v_tsRefsWrap', refs.length > 0);
     if (refs.length) {
-      set('v_tsRefsLabel', P.refsLabel);
+      set('v_tsRefsLabel', moduleSourceUrl ? 'MANUFACTURER DATASHEET & DESIGN REFERENCES' : P.refsLabel);
       setHTML('v_tsRefs', refs.map(([u, label, icon]) =>
         '<div class="ts-ref"><div class="tr-icon">' + I.get(icon, 14, '#D96A0E') + '</div>' +
         '<div class="tr-body"><div class="tr-l">' + esc(label) + '</div>' +
         '<div class="tr-v"><a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' +
         esc(host(u)) + '</a></div></div></div>').join(''));
-      set('v_tsRefsNote', P.refsNote);
+      const refNotes = [];
+      if (designRefs.length) refNotes.push(P.refsNote);
+      if (moduleSourceUrl) refNotes.push('Module power and efficiency are front-side STC values; any bifaciality is separate, and rear-side gain is not included.');
+      set('v_tsRefsNote', refNotes.join(' '));
     }
   }
 
@@ -1187,7 +1356,7 @@
     'windSpeed', 'terrainCategory', 'buildingHeightM', 'windK1', 'windK3', 'windK4',
     'netUpliftCp', 'roofZone', 'anchorsPerModule', 'moduleLoadClassPa',
     'moduleVoc', 'moduleVmp', 'moduleIsc', 'moduleImp',
-    'moduleVocBetaPct', 'moduleVmpBetaPct',
+    'moduleVocBetaPct', 'moduleVmpBetaPct', 'moduleIscAlphaPct', 'modulePmaxBetaPct',
     'inverterVmaxDc', 'mpptMinV', 'mpptMaxV', 'inverterMaxCurrentA',
     'minAmbientC', 'maxCellC', 'dcCableLengthM', 'dcCableSizeMm2',
     'acCableLengthM', 'acCableSizeMm2',
@@ -1210,9 +1379,14 @@
       propDate: g('propDate'), propRef: g('propRef'), propVersion: g('propVersion'),
       validityDays: g('validityDays'), monthlyBill: g('monthlyBill'),
       capacity: g('capacity'), genFactor: g('genFactor'),
-      moduleMake: g('moduleMake'), moduleWattage: g('moduleWattage'), moduleTech: g('moduleTech'),
+      moduleMake: g('moduleMake'), moduleModel: $('moduleModel')?.selectedOptions[0]?.hasAttribute('data-custom')
+        ? g('moduleModelCustom') : g('moduleModel'), moduleWattage: g('moduleWattage'),
+      moduleEfficiency: g('moduleEfficiency'), moduleTech: g('moduleTech'),
       moduleLengthMm: g('moduleLengthMm'), moduleWidthMm: g('moduleWidthMm'),
-      inverterMake: g('inverterMake'), inverterKw: g('inverterKw'),
+      moduleType: g('moduleType'), moduleBifaciality: g('moduleBifaciality'),
+      inverterMake: g('inverterMake'), inverterModel: g('inverterModel'),
+      inverterProductSnapshot: g('inverterProductSnapshot'), inverterKw: g('inverterKw'),
+      cableProductSnapshot: g('cableProductSnapshot'), protectionProductSnapshot: g('protectionProductSnapshot'),
       mountMake: g('mountMake'), cableMake: g('cableMake'),
       roofType: g('roofType'), availableArea: g('availableArea'),
       roofClearanceFactor: g('roofClearanceFactor'),

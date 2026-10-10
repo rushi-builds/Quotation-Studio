@@ -9,6 +9,19 @@
 
 (function (root) {
   const BASE = ''; /* same-origin */
+  const PRODUCTION_VERCEL_HOST = 'quotation-studio-taupe.vercel.app';
+  function isUnisolatedVercelPreview() {
+    try {
+      const host = String(location.hostname || '').toLowerCase();
+      return host.endsWith('.vercel.app') && host !== PRODUCTION_VERCEL_HOST;
+    } catch (_) { return false; }
+  }
+  function assertPreviewBackendSafe() {
+    if (!isUnisolatedVercelPreview()) return;
+    const err = new Error('Cloud data actions are disabled in Vercel Preview because its API rewrite points at production.');
+    err.code = 'PREVIEW_BACKEND_DISABLED';
+    throw err;
+  }
 
   /* Session token: memory + localStorage + sessionStorage.
      Preview iframes often block cookies; some also restrict sessionStorage.
@@ -56,6 +69,7 @@
   function clearToken() { writeToken(''); }
 
   async function request(method, path, body, timeoutMs = 0) {
+    assertPreviewBackendSafe();
     const opts = {
       method,
       credentials: 'same-origin',
@@ -97,6 +111,7 @@
   }
 
   async function requestRaw(method, path, buf, extraHeaders) {
+    assertPreviewBackendSafe();
     const opts = {
       method,
       credentials: 'same-origin',
@@ -272,6 +287,10 @@
       return request('POST', '/api/team/role', body);
     },
     socialProviders() { return request('GET', '/api/auth/oauth/providers'); },
+    productCatalog() { return request('GET', '/api/catalog/products'); },
+    syncProductCatalog() { return request('POST', '/api/catalog/products/sync', {}); },
+    moduleCatalog() { return request('GET', '/api/catalog/products'); },
+    syncModuleCatalog() { return request('POST', '/api/catalog/products/sync', {}); },
     startSocial(provider, link = false, currentPassword = '') { return request('POST', '/api/auth/oauth/' + encodeURIComponent(provider) + '/start', {link, currentPassword}); },
     phoneVerify(idToken) { return request('POST', '/api/auth/phone/verify', {idToken}); },
     /** Persist a session token returned by login/register/reset. */
@@ -291,6 +310,7 @@
     },
     /** True when /api/health answers. */
     async isAvailable() {
+      if (isUnisolatedVercelPreview()) return false;
       const h = await this.health();
       return !!(h && h.ok);
     }

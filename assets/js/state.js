@@ -45,11 +45,19 @@
     capacity: '7',
     genFactor: '1460',
     moduleMake: 'Panasonic / Waaree / Adani or Equivalent',
+    moduleModel: '',
     moduleWattage: '545',
+    moduleEfficiency: '',
     moduleTech: 'Mono PERC Half-Cut',
     moduleLengthMm: '2278',
     moduleWidthMm: '1134',
+    moduleType: '',
+    moduleBifaciality: '',
     inverterMake: 'Deye or Equivalent',
+    inverterModel: '',
+    inverterProductSnapshot: '',
+    cableProductSnapshot: '',
+    protectionProductSnapshot: '',
     inverterKw: '',
     mountMake: 'Hot-Dip GI / Aluminum-ARS Solartech make',
     cableMake: 'Polycab / KEI or Equivalent',
@@ -120,6 +128,8 @@
     moduleImp: '',
     moduleVocBetaPct: '-0.27',
     moduleVmpBetaPct: '-0.36',
+    moduleIscAlphaPct: '',
+    modulePmaxBetaPct: '',
     inverterVmaxDc: '1100',
     mpptMinV: '200',
     mpptMaxV: '1000',
@@ -178,13 +188,17 @@
     const out = {};
     document.querySelectorAll('#quoteForm [id]').forEach((el) => {
       if (el.type === 'file' || el.id === 'logoUpload') return;
-      if (el.disabled || el.hasAttribute('data-equipment-custom')) return;
+      if (el.disabled || el.hasAttribute('data-equipment-custom') || el.hasAttribute('data-form-ignore')) return;
       /* proposal-manager controls are workflow state, not proposal fields */
       if (el.closest('.prop-manager')) return;
       /* system-options controls store their data on the proposal blob instead */
       if (el.closest('.opt-manager')) return;
       if (!el.id || !['INPUT','SELECT','TEXTAREA'].includes(el.tagName)) return;
-      out[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+      if (el.id === 'moduleModel' && el.selectedOptions[0]?.hasAttribute('data-custom')) {
+        out[el.id] = document.getElementById('moduleModelCustom')?.value || '';
+      } else {
+        out[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+      }
     });
     return out;
   }
@@ -198,7 +212,7 @@
     }
     Object.keys(vals || {}).forEach((id) => {
       const el = document.getElementById(id);
-      if (!el || el.hasAttribute('data-equipment-custom')) return;
+      if (!el || el.hasAttribute('data-equipment-custom') || el.hasAttribute('data-form-ignore')) return;
       if (typeof root.EquipmentStore?.setValue === 'function' && root.EquipmentStore.setValue(id, vals[id])) return;
       if (el.type === 'checkbox') el.checked = id==='bessEnabled' ? root.Bess.enabled({bessEnabled:vals[id]}) : ['bessInclude','bessAutoEconomics','systemEnabled','systemInclude'].includes(id) ? vals[id]===true : !!vals[id];
       else {

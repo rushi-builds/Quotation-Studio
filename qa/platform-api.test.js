@@ -6,6 +6,7 @@ const { spawn } = require('child_process');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
 const SERVER = path.join(ROOT, 'platform/local-server/server.js');
@@ -64,7 +65,39 @@ function tokenFrom(res) {
   return (res && res.json && res.json.token) || '';
 }
 
+async function testVercelPreviewIsolation() {
+  let requests = 0;
+  const self = {};
+  const context = {
+    self,
+    location: { hostname: 'quotation-studio-git-review-arena.vercel.app', protocol: 'https:' },
+    fetch: async () => { requests++; throw new Error('Preview must not reach the live API'); },
+    setTimeout,
+    clearTimeout,
+    AbortController,
+    URL
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'assets/js/platform-api.js'), 'utf8'), context);
+  const available = await self.PlatformAPI.isAvailable();
+  t('Vercel Preview backend is reported unavailable without a network call', available === false && requests === 0, requests);
+  let blocked = false;
+  try { await self.PlatformAPI.listProposals(); }
+  catch (err) { blocked = err && err.code === 'PREVIEW_BACKEND_DISABLED'; }
+  t('Vercel Preview API calls are blocked before reaching the production rewrite', blocked && requests === 0, requests);
+  let portalRequests = 0;
+  const portalContext = {
+    location: { hostname: 'quotation-studio-git-review-arena.vercel.app', search: '?t=customer-token' },
+    document: { readyState: 'complete', getElementById: () => null },
+    window: {}, URLSearchParams,
+    fetch: async () => { portalRequests++; throw new Error('Preview must not fetch customer data'); }
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'assets/js/portal.js'), 'utf8'), portalContext);
+  t('Vercel Preview customer portal blocks proposal reads before fetch', portalRequests === 0, portalRequests);
+
+}
+
 async function main() {
+  await testVercelPreviewIsolation();
   fs.rmSync(DATA, { recursive: true, force: true });
   fs.mkdirSync(DATA, { recursive: true });
 
@@ -319,26 +352,64 @@ async function main() {
     t('portal loads portal.js', portalHtml.body.includes('portal.js'));
 
     /* ---- Phase C: send centre (honest manual states) ---- */
+    r = await req('GET', '/api/proposals/' + pid + '/send-preview', null, cookie2);
+    t('send preview exposes a matching contract and draft state', r.status === 200 && r.json.proposal.id === pid &&
+      Array.isArray(r.json.channels) && r.json.channels.every(c => c.recordsAs === 'draft') &&
+      typeof r.json.defaultRecipientName === 'string' && typeof r.json.honestyNote === 'string');
+
     r = await req('POST', '/api/proposals/' + pid + '/sends', {
       channel: 'whatsapp_manual',
       recipientName: 'Portal Customer',
       recipientTo: '9876543210',
+      messageBody: 'Hello Portal Customer — our team prepared a custom note. [A secure link will be inserted when you prepare the send] Please reply with questions.',
       publishFirst: true,
       markShareClicked: true
     }, cookie2);
     t('send prepare 201', r.status === 201 && r.json.send && r.json.launch, r.status);
-    t('send state is share_clicked', r.json.send.state === 'share_clicked', r.json.send && r.json.send.state);
+    t('preparation remains an unshared draft', r.json.send.state === 'draft' && r.json.send.shareClickedAt === null && r.json.send.stateLabel === 'Draft (not shared)', r.json.send && r.json.send.state);
     t('send never claims verified delivery', r.json.send.deliveryIsVerified === false);
-    t('whatsapp launch url present', !!(r.json.launch && r.json.launch.whatsappUrl && r.json.launch.whatsappUrl.includes('wa.me')));
+    t('whatsapp launch url present', !!(r.json.launch && r.json.launch.whatsappUrl && r.json.launch.whatsappUrl.includes('wa.me/919876543210')));
     t('portal url in launch', !!(r.json.launch && r.json.launch.portalUrl && r.json.launch.portalUrl.includes('portal.html?t=')));
+    t('message and copy include the real portal URL', r.json.launch.copyText === r.json.send.messageBody && r.json.send.messageBody.includes(r.json.launch.portalUrl) && !r.json.send.messageBody.includes('[A secure link'));
+    t('one-time active access token and version are returned', !!(r.json.access && r.json.access.token && r.json.access.active === true && r.json.version && r.json.version.versionLabel));
+    t('custom message text survives real portal-link insertion', r.json.send.messageBody.startsWith('Hello Portal Customer — our team prepared a custom note.') && r.json.send.messageBody.endsWith('Please reply with questions.'));
     const sendId = r.json.send.id;
     const sendTok = r.json.access && r.json.access.token;
+    t('send link opens the created portal token', r.json.send.portalUrl === r.json.launch.portalUrl && !!sendTok);
+    const customerPortal = await req('GET', '/api/portal/proposal?t=' + encodeURIComponent(sendTok));
+    t('generated send link opens its published customer snapshot',
+      customerPortal.status === 200 && customerPortal.json.snapshot.customerName === 'CHANGED DRAFT',
+      customerPortal.status === 200 ? customerPortal.json.snapshot.customerName : customerPortal.status);
+    t('WhatsApp launch message is the encoded send text',
+      new URL(r.json.launch.whatsappUrl).searchParams.get('text') === r.json.send.messageBody);
+
+    r = await req('GET', '/api/proposals/' + pid, null, cookie2);
+    t('preparing does not mark proposal sent', r.status === 200 && r.json.proposal.status !== 'sent', r.json.proposal && r.json.proposal.status);
+    const revisionBeforeShare = r.json.proposal.revision;
+
+    r = await req('POST', '/api/sends/' + sendId + '/state', { state: 'share_clicked', note: 'User copied the message' }, cookie2);
+    t('actual share action records share_clicked', r.status === 200 && r.json.send.state === 'share_clicked' && !!r.json.send.shareClickedAt && r.json.send.deliveryIsVerified === false, r.status);
+    const sharedProposal = await req('GET', '/api/proposals/' + pid, null, cookie2);
+    t('share action updates proposal status and bumps its revision',
+      sharedProposal.json.proposal.status === 'sent' && sharedProposal.json.proposal.revision === revisionBeforeShare + 1);
+    const staleShareWrite = await req('PUT', '/api/proposals/' + pid, { status: 'draft', baseRevision: revisionBeforeShare }, cookie2);
+    t('pre-share Studio revision cannot overwrite the share status', staleShareWrite.status === 409, staleShareWrite.status);
 
     r = await req('POST', '/api/sends/' + sendId + '/state', { state: 'delivered' }, cookie2);
     t('manual cannot mark delivered', r.status === 400 && r.json.code === 'DELIVERY_NOT_AVAILABLE', r.status);
 
     r = await req('POST', '/api/sends/' + sendId + '/state', { state: 'cancelled' }, cookie2);
     t('manual can cancel', r.status === 200 && r.json.send.state === 'cancelled');
+
+    const versionsBeforeInvalid = (await req('GET', '/api/proposals/' + pid + '/versions', null, cookie2)).json.versions.length;
+    const linksBeforeInvalid = (await req('GET', '/api/proposals/' + pid + '/links', null, cookie2)).json.links.length;
+    r = await req('POST', '/api/proposals/' + pid + '/sends', {
+      channel: 'whatsapp_manual', recipientTo: '123', publishFirst: true
+    }, cookie2);
+    t('invalid WhatsApp recipient is rejected before creating data', r.status === 400, r.status);
+    t('invalid share creates no version or link',
+      (await req('GET', '/api/proposals/' + pid + '/versions', null, cookie2)).json.versions.length === versionsBeforeInvalid &&
+      (await req('GET', '/api/proposals/' + pid + '/links', null, cookie2)).json.links.length === linksBeforeInvalid);
 
     r = await req('GET', '/api/proposals/' + pid + '/sends', null, cookie2);
     t('sends list', r.status === 200 && r.json.sends.length >= 1);
@@ -347,10 +418,20 @@ async function main() {
       channel: 'email_manual',
       recipientTo: 'customer@example.com',
       recipientName: 'Portal Customer',
+      messageBody: 'Please review the details at [A secure link will be inserted when you prepare the send]. Call if you need help.',
       publishFirst: true
     }, cookie2);
-    t('email send prepare', r.status === 201 && r.json.launch && r.json.launch.mailtoUrl, r.status);
+    t('email send preparation returns matching launch keys', r.status === 201 && r.json.launch && r.json.launch.mailtoUrl && r.json.launch.copyText === r.json.send.messageBody, r.status);
     t('email mailto has recipient', r.json.launch.mailtoUrl.includes('customer%40example.com') || r.json.launch.mailtoUrl.includes('customer@example.com'));
+    t('email preparation also remains draft', r.json.send.state === 'draft' && r.json.send.shareClickedAt === null);
+    t('email custom text and real link are preserved', r.json.send.messageBody.startsWith('Please review the details at ') && r.json.send.messageBody.endsWith('Call if you need help.') && r.json.send.messageBody.includes(r.json.send.portalUrl));
+
+    r = await req('POST', '/api/proposals/' + pid + '/sends', {
+      channel: 'copy_link',
+      messageBody: 'Copy link channel',
+      publishFirst: true
+    }, cookie2);
+    t('copy_link channel returns the customer URL as copyText', r.status === 201 && r.json.launch.copyText === r.json.launch.portalUrl && r.json.send.messageBody.includes(r.json.launch.portalUrl));
 
     r = await req('GET', '/api/health');
     t('health phase C or later', r.status === 200 && ['C','D','E'].includes(r.json.phase), r.json && r.json.phase);
@@ -373,6 +454,34 @@ async function main() {
 
     r = await req('GET', '/api/tasks', null, cookie2);
     t('list tasks', r.status === 200 && r.json.tasks.some((x) => x.id === taskId));
+
+    const taskTarget = await req('POST', '/api/proposals', {
+      form: { custName: 'Task relink target', capacity: '5' }
+    }, cookie2);
+    const taskTargetId = taskTarget.json.proposal.id;
+    r = await req('PUT', '/api/tasks/' + taskId, {
+      title: 'Rescheduled customer follow-up',
+      notes: 'New notes',
+      dueAt: new Date(Date.now() + 5 * 864e5).toISOString(),
+      proposalId: taskTargetId
+    }, cookie2);
+    t('edit task changes date, notes and linked proposal', r.status === 200 && r.json.task.title === 'Rescheduled customer follow-up' && r.json.task.notes === 'New notes' && r.json.task.proposalId === taskTargetId && Date.parse(r.json.task.dueAt) > Date.now() + 4 * 864e5, r.status);
+    r = await req('PUT', '/api/tasks/' + taskId, { proposalId: 'prp_not_accessible' }, cookie2);
+    t('invalid task relink is rejected', r.status === 404, r.status);
+    r = await req('GET', '/api/tasks', null, cookie2);
+    t('failed task relink preserves the previous proposal', r.json.tasks.find(x => x.id === taskId).proposalId === taskTargetId);
+    r = await req('PUT', '/api/tasks/' + taskId, { proposalId: null }, cookie2);
+    t('task can be intentionally unlinked', r.status === 200 && r.json.task.proposalId === null);
+
+    const localDbPath = path.join(DATA, 'db.json');
+    const localDb = JSON.parse(fs.readFileSync(localDbPath, 'utf8'));
+    const formerLink = 'prp_formerly_accessible';
+    localDb.tasks.find(x => x.id === taskId).proposal_id = formerLink;
+    fs.writeFileSync(localDbPath, JSON.stringify(localDb, null, 2));
+    r = await req('PUT', '/api/tasks/' + taskId, {
+      title: 'Edit keeps an unavailable existing link', proposalId: formerLink
+    }, cookie2);
+    t('task edits preserve a prior link when that proposal is no longer accessible', r.status === 200 && r.json.task.proposalId === formerLink, r.status);
 
     r = await req('PUT', '/api/tasks/' + taskId, { status: 'done' }, cookie2);
     t('complete task', r.status === 200 && r.json.task.status === 'done');
@@ -439,6 +548,21 @@ async function main() {
 
     r = await req('POST', '/api/team/role', { userId: 'someone-else', role: 'viewer' }, viewerCookie);
     t('viewer still cannot CHANGE a role', r.status === 403, r.status);
+
+    const teamDb = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+    teamDb.users.find(u => u.id === viewerId).role = 'sales';
+    fs.writeFileSync(fixturePath, JSON.stringify(teamDb));
+    const memberTask = await req('POST', '/api/tasks', { title: 'Member-owned team follow-up' }, viewerCookie);
+    t('sales member can create a follow-up', memberTask.status === 201, memberTask.status);
+    r = await req('PUT', '/api/tasks/' + memberTask.json.task.id, {
+      title: 'Owner rescheduled member follow-up',
+      dueAt: new Date(Date.now() + 6 * 864e5).toISOString(),
+      proposalId: pid
+    }, cookie2);
+    t('owner can edit a member follow-up and link an accessible proposal',
+      r.status === 200 && r.json.task.title === 'Owner rescheduled member follow-up' &&
+      r.json.task.proposalId === pid && Date.parse(r.json.task.dueAt) > Date.now() + 5 * 864e5,
+      r.status);
 
     r = await req('GET', '/api/health');
     t('health phase E', r.status === 200 && r.json.phase === 'E');

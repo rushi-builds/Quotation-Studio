@@ -76,7 +76,7 @@ function freshDb() {
   return d1Over(sqlite);
 }
 
-const call = (entry, db, method, urlPath, { body, headers = {}, ip = '10.9.9.9' } = {}) =>
+const call = (entry, db, method, urlPath, { body, headers = {}, ip = '10.9.9.9', appUrl = 'https://studio.test' } = {}) =>
   entry.default.fetch(
     new Request('https://studio.test' + urlPath, {
       method,
@@ -87,7 +87,7 @@ const call = (entry, db, method, urlPath, { body, headers = {}, ip = '10.9.9.9' 
       },
       body: body === undefined ? undefined : JSON.stringify(body)
     }),
-    { DB: db, APP_URL: 'https://studio.test' },
+    { DB: db, APP_URL: appUrl },
     {}
   );
 
@@ -126,6 +126,19 @@ for (const [name, entry] of ENTRIES) {
     }));
     t(`[${name}] foreign-Origin register → 403 ORIGIN_BLOCKED`,
       evil.status === 403 && evil.json && evil.json.code === 'ORIGIN_BLOCKED', evil.status);
+    const productionApp = await asJson(await call(entry, db, 'POST', '/api/auth/register', {
+      appUrl: 'https://quotation-studio-taupe.vercel.app',
+      headers: { Origin: 'https://quotation-studio-taupe.vercel.app' },
+      body: { email: 'prod-origin@example.com', name: 'P', password: 'Prod-origin-9', role: 'Viewer' }
+    }));
+    t(`[${name}] configured Vercel production origin is allowed`, productionApp.status === 201, productionApp.status);
+    const previewOrigin = await asJson(await call(entry, db, 'POST', '/api/auth/register', {
+      appUrl: 'https://quotation-studio-taupe.vercel.app',
+      headers: { Origin: 'https://quotation-studio-git-pr-123.vercel.app' },
+      body: { email: 'preview-origin@example.com', name: 'V', password: 'Preview-origin-9', role: 'Viewer' }
+    }));
+    t(`[${name}] Vercel Preview origin cannot write to production Worker`,
+      previewOrigin.status === 403 && previewOrigin.json && previewOrigin.json.code === 'ORIGIN_BLOCKED', previewOrigin.status);
     const none = await asJson(await call(entry, db, 'POST', '/api/auth/register', {
       headers: {},
       body: { email: 'plain@example.com', name: 'P', password: 'Plain-pass-9', role: 'Viewer' }
@@ -250,12 +263,25 @@ for (const [name, entry] of ENTRIES) {
       headers: auth, body: { status: 'hacked' }
     }));
     t(`[${name}] update with bad status → 400`, upd.status === 400, upd.status);
+    const current = await asJson(await call(entry, db, 'PUT', `/api/proposals/${made.json.proposal.id}`, {
+      headers: auth, body: { status: 'ready', baseRevision: 1 }
+    }));
+    t(`[${name}] matching proposal revision updates successfully`,
+      current.status === 200 && current.json.proposal.status === 'ready' && current.json.proposal.revision === 2,
+      current.status);
+    const stale = await asJson(await call(entry, db, 'PUT', `/api/proposals/${made.json.proposal.id}`, {
+      headers: auth, body: { status: 'draft', baseRevision: 1 }
+    }));
+    t(`[${name}] stale proposal revision returns a conflict without overwriting`,
+      stale.status === 409 && stale.json.code === 'CONFLICT' && stale.json.proposal.status === 'ready',
+      stale.status);
   }
 
   /* 6. Tasks: dueInDays parity + proposal ownership check. */
   {
     const db = freshDb();
     const me = await signupOwner(entry, db, 'tasks@example.com');
+    await db.prepare("UPDATE users SET role='sales' WHERE id=?").bind(me.user.id).run();
     const auth = { Authorization: `Bearer ${me.token}` };
     const due = await asJson(await call(entry, db, 'POST', '/api/tasks', {
       headers: auth, body: { title: 'Follow up', dueInDays: 3 }
@@ -268,9 +294,141 @@ for (const [name, entry] of ENTRIES) {
       headers: auth, body: { title: 'Nope', proposalId: 'prp_does_not_exist' }
     }));
     t(`[${name}] tasks reject foreign proposalId → 404`, stranger.status === 404, stranger.status);
+    const proposal = await asJson(await call(entry, db, 'POST', '/api/proposals', {
+      headers: auth, body: { title: 'Accessible task proposal', form: { custName: 'Accessible task proposal' } }
+    }));
+    const proposalId = proposal.json && proposal.json.proposal && proposal.json.proposal.id;
+    const rescheduled = await asJson(await call(entry, db, 'PUT', `/api/tasks/${due.json.task.id}`, {
+      headers: auth,
+      body: { title: 'Rescheduled follow-up', notes: 'Updated notes', dueAt: new Date(Date.now() + 5 * 864e5).toISOString(), proposalId }
+    }));
+    t(`[${name}] task edit reschedules and relinks to accessible proposal`,
+      rescheduled.status === 200 && rescheduled.json.task.title === 'Rescheduled follow-up' && rescheduled.json.task.proposalId === proposalId && Date.parse(rescheduled.json.task.dueAt) > Date.now() + 4 * 864e5,
+      rescheduled.status);
+    const badRelink = await asJson(await call(entry, db, 'PUT', `/api/tasks/${due.json.task.id}`, {
+      headers: auth, body: { proposalId: 'prp_not_accessible' }
+    }));
+    const afterBadRelink = await asJson(await call(entry, db, 'GET', '/api/tasks', { headers: auth }));
+    t(`[${name}] invalid task relink is rejected without losing prior link`,
+      badRelink.status === 404 && afterBadRelink.json.tasks.find(t => t.id === due.json.task.id).proposalId === proposalId,
+      badRelink.status);
+    const unlinked = await asJson(await call(entry, db, 'PUT', `/api/tasks/${due.json.task.id}`, {
+      headers: auth, body: { proposalId: null }
+    }));
+    t(`[${name}] task can be unlinked intentionally`, unlinked.status === 200 && unlinked.json.task.proposalId === null, unlinked.status);
+    const other = await signupOwner(entry, db, 'tasks-other@example.com');
+    const externalProposal = await asJson(await call(entry, db, 'POST', '/api/proposals', {
+      headers: { Authorization: `Bearer ${other.token}` },
+      body: { title: 'Formerly accessible proposal', form: { custName: 'Formerly accessible proposal' } }
+    }));
+    const formerLink = externalProposal.json.proposal.id;
+    const ownerProposalEdit = await asJson(await call(entry, db, 'PUT', `/api/proposals/${proposalId}`, {
+      headers: { Authorization: `Bearer ${other.token}` },
+      body: { status: 'ready', baseRevision: 1 }
+    }));
+    t(`[${name}] owner can update an accessible member proposal with revision checking`,
+      ownerProposalEdit.status === 200 && ownerProposalEdit.json.proposal.status === 'ready' && ownerProposalEdit.json.proposal.revision === 2,
+      ownerProposalEdit.status);
+    await db.prepare('UPDATE tasks SET proposal_id=? WHERE id=?').bind(formerLink, due.json.task.id).run();
+    const preservedLinkEdit = await asJson(await call(entry, db, 'PUT', `/api/tasks/${due.json.task.id}`, {
+      headers: auth, body: { title: 'Edit keeps an unavailable existing link', proposalId: formerLink }
+    }));
+    t(`[${name}] task edits preserve a prior link when that proposal is no longer accessible`,
+      preservedLinkEdit.status === 200 && preservedLinkEdit.json.task.proposalId === formerLink,
+      preservedLinkEdit.status);
+    const ownerEdit = await asJson(await call(entry, db, 'PUT', `/api/tasks/${due.json.task.id}`, {
+      headers: { Authorization: `Bearer ${other.token}` },
+      body: { title: 'Owner updated an accessible team task', proposalId: formerLink }
+    }));
+    t(`[${name}] owner can update an accessible team task owned by a member`,
+      ownerEdit.status === 200 && ownerEdit.json.task.title === 'Owner updated an accessible team task',
+      ownerEdit.status);
   }
 
-  /* 7. Gallery: declared oversize is rejected before buffering. */
+  /* 7. Send contract parity: prepare stays draft until the actual action. */
+  {
+    const db = freshDb();
+    const me = await signupOwner(entry, db, 'sends@example.com');
+    const auth = { Authorization: `Bearer ${me.token}` };
+    const made = await asJson(await call(entry, db, 'POST', '/api/proposals', {
+      headers: auth,
+      body: { title: 'Worker send proposal', form: { custName: 'Worker Customer', propRef: 'SEND-1', capacity: '10', custPhone: '9876543210', custEmail: 'customer@example.com', companyName: 'KTM Energy Experts' } }
+    }));
+    const proposalId = made.json && made.json.proposal && made.json.proposal.id;
+    const preview = await asJson(await call(entry, db, 'GET', `/api/proposals/${proposalId}/send-preview`, { headers: auth }));
+    t(`[${name}] send preview matches local response fields`,
+      preview.status === 200 && preview.json.proposal.id === proposalId && preview.json.hasPublishedVersion === false &&
+      preview.json.defaultRecipientName === 'Worker Customer' && preview.json.defaultWhatsApp === '9876543210' &&
+      Array.isArray(preview.json.channels) && preview.json.channels.every(c => c.recordsAs === 'draft'),
+      preview.status);
+    const invalid = await asJson(await call(entry, db, 'POST', `/api/proposals/${proposalId}/sends`, {
+      headers: auth, body: { channel: 'whatsapp_manual', recipientTo: '123', publishFirst: true }
+    }));
+    const sideEffects = await Promise.all([
+      db.prepare('SELECT COUNT(*) AS c FROM proposal_versions').first(),
+      db.prepare('SELECT COUNT(*) AS c FROM access_tokens').first(),
+      db.prepare('SELECT COUNT(*) AS c FROM sends').first()
+    ]);
+    t(`[${name}] invalid recipient creates no version/link/send`,
+      invalid.status === 400 && sideEffects.every(row => Number(row.c) === 0), invalid.status);
+
+    const prepared = await asJson(await call(entry, db, 'POST', `/api/proposals/${proposalId}/sends`, {
+      headers: auth,
+      body: { channel: 'whatsapp_manual', recipientName: 'Worker Customer', recipientTo: '9876543210', messageBody: 'Hello Worker Customer — a custom note. [A secure link will be inserted when you prepare the send] Please review it when convenient.', publishFirst: true, markShareClicked: true }
+    }));
+    const send = prepared.json && prepared.json.send;
+    t(`[${name}] send creation returns local-compatible draft and launch contract`,
+      prepared.status === 201 && send.state === 'draft' && send.shareClickedAt === null &&
+      prepared.json.launch.whatsappUrl && prepared.json.launch.copyText === send.messageBody &&
+      prepared.json.launch.portalUrl === send.portalUrl && prepared.json.access.active === true &&
+      prepared.json.access.portalPath.includes(prepared.json.access.token) &&
+      prepared.json.version.versionLabel && prepared.json.version.snapshotSha256,
+      `${prepared.status} ${JSON.stringify(prepared.json)}`);
+    t(`[${name}] send message contains the real customer URL and preserves edited copy`,
+      send.messageBody.includes(prepared.json.launch.portalUrl) && !send.messageBody.includes('[A secure link') &&
+      send.messageBody.startsWith('Hello Worker Customer — a custom note.') && send.messageBody.endsWith('Please review it when convenient.'));
+    const customerView = await asJson(await call(entry, db, 'GET',
+      `/api/portal/proposal?t=${encodeURIComponent(prepared.json.access.token)}`));
+    t(`[${name}] generated customer link opens the published snapshot`,
+      customerView.status === 200 && customerView.json.snapshot.customerName === 'Worker Customer', customerView.status);
+    const untouchedProposal = await asJson(await call(entry, db, 'GET', `/api/proposals/${proposalId}`, { headers: auth }));
+    t(`[${name}] preparing does not mark proposal sent`, untouchedProposal.json.proposal.status !== 'sent');
+    const revisionBeforeShare = untouchedProposal.json.proposal.revision;
+    const opened = await asJson(await call(entry, db, 'POST', `/api/sends/${send.id}/state`, {
+      headers: auth, body: { state: 'share_clicked', note: 'User copied the message' }
+    }));
+    const sharedProposal = await asJson(await call(entry, db, 'GET', `/api/proposals/${proposalId}`, { headers: auth }));
+    t(`[${name}] only the initiated action records share_clicked and sent status`,
+      opened.status === 200 && opened.json.send.state === 'share_clicked' && !!opened.json.send.shareClickedAt &&
+      opened.json.send.deliveryIsVerified === false && sharedProposal.json.proposal.status === 'sent', opened.status);
+    t(`[${name}] share status advances the proposal revision`,
+      sharedProposal.json.proposal.revision === revisionBeforeShare + 1, sharedProposal.json.proposal.revision);
+    const staleShareWrite = await asJson(await call(entry, db, 'PUT', `/api/proposals/${proposalId}`, {
+      headers: auth, body: { status: 'draft', baseRevision: revisionBeforeShare }
+    }));
+    t(`[${name}] stale Studio revision cannot overwrite the share status`, staleShareWrite.status === 409, staleShareWrite.status);
+    const noDelivery = await asJson(await call(entry, db, 'POST', `/api/sends/${send.id}/state`, {
+      headers: auth, body: { state: 'delivered' }
+    }));
+    t(`[${name}] manual send cannot claim delivery`, noDelivery.status === 400 && noDelivery.json.code === 'DELIVERY_NOT_AVAILABLE', noDelivery.status);
+    const email = await asJson(await call(entry, db, 'POST', `/api/proposals/${proposalId}/sends`, {
+      headers: auth, body: { channel: 'email_manual', recipientTo: 'customer@example.com', messageBody: 'Email note with [A secure link will be inserted when you prepare the send] and a closing.', publishFirst: true }
+    }));
+    t(`[${name}] email launch uses the recipient and message in mailtoUrl`,
+      email.status === 201 && email.json.launch.mailtoUrl.startsWith('mailto:customer%40example.com?subject=') &&
+      email.json.launch.mailtoUrl.endsWith('body=' + encodeURIComponent(email.json.send.messageBody)) &&
+      email.json.send.state === 'draft' && email.json.launch.copyText === email.json.send.messageBody &&
+      email.json.send.messageBody.startsWith('Email note with ') && email.json.send.messageBody.endsWith('and a closing.'),
+      email.status === 201 ? email.json.launch.mailtoUrl : email.status);
+    const copyLink = await asJson(await call(entry, db, 'POST', `/api/proposals/${proposalId}/sends`, {
+      headers: auth, body: { channel: 'copy_link', messageBody: 'Copy link channel', publishFirst: true }
+    }));
+    t(`[${name}] copy_link returns the customer URL as copyText`,
+      copyLink.status === 201 && copyLink.json.launch.copyText === copyLink.json.launch.portalUrl &&
+      copyLink.json.send.messageBody.includes(copyLink.json.launch.portalUrl), copyLink.status);
+  }
+
+  /* 8. Gallery: declared oversize is rejected before buffering. */
   {
     const db = freshDb();
     const me = await signupOwner(entry, db, 'gallery@example.com');
