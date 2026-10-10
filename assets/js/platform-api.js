@@ -287,6 +287,10 @@
       return request('POST', '/api/team/role', body);
     },
     socialProviders() { return request('GET', '/api/auth/oauth/providers'); },
+    productCatalog() { return request('GET', '/api/catalog/products'); },
+    syncProductCatalog() { return request('POST', '/api/catalog/products/sync', {}); },
+    moduleCatalog() { return request('GET', '/api/catalog/products'); },
+    syncModuleCatalog() { return request('POST', '/api/catalog/products/sync', {}); },
     startSocial(provider, link = false, currentPassword = '') { return request('POST', '/api/auth/oauth/' + encodeURIComponent(provider) + '/start', {link, currentPassword}); },
     phoneVerify(idToken) { return request('POST', '/api/auth/phone/verify', {idToken}); },
     /** Persist a session token returned by login/register/reset. */

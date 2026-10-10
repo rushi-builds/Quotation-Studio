@@ -54,6 +54,10 @@
     moduleType: '',
     moduleBifaciality: '',
     inverterMake: 'Deye or Equivalent',
+    inverterModel: '',
+    inverterProductSnapshot: '',
+    cableProductSnapshot: '',
+    protectionProductSnapshot: '',
     inverterKw: '',
     mountMake: 'Hot-Dip GI / Aluminum-ARS Solartech make',
     cableMake: 'Polycab / KEI or Equivalent',
@@ -184,7 +188,7 @@
     const out = {};
     document.querySelectorAll('#quoteForm [id]').forEach((el) => {
       if (el.type === 'file' || el.id === 'logoUpload') return;
-      if (el.disabled || el.hasAttribute('data-equipment-custom')) return;
+      if (el.disabled || el.hasAttribute('data-equipment-custom') || el.hasAttribute('data-form-ignore')) return;
       /* proposal-manager controls are workflow state, not proposal fields */
       if (el.closest('.prop-manager')) return;
       /* system-options controls store their data on the proposal blob instead */
@@ -208,7 +212,7 @@
     }
     Object.keys(vals || {}).forEach((id) => {
       const el = document.getElementById(id);
-      if (!el || el.hasAttribute('data-equipment-custom')) return;
+      if (!el || el.hasAttribute('data-equipment-custom') || el.hasAttribute('data-form-ignore')) return;
       if (typeof root.EquipmentStore?.setValue === 'function' && root.EquipmentStore.setValue(id, vals[id])) return;
       if (el.type === 'checkbox') el.checked = id==='bessEnabled' ? root.Bess.enabled({bessEnabled:vals[id]}) : ['bessInclude','bessAutoEconomics','systemEnabled','systemInclude'].includes(id) ? vals[id]===true : !!vals[id];
       else {

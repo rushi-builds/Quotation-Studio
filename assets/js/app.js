@@ -13,6 +13,62 @@
     const date = new Date();
     return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
   }
+  function wireExcelModuleCatalog() {
+    const status = $('moduleCatalogSyncStatus');
+    const button = $('moduleCatalogSyncNow');
+    const catalog = window.ModuleReferenceCatalog;
+    const api = window.PlatformAPI;
+    if (!status || !catalog || !api) return;
+    let busy = false;
+    const setStatus = result => {
+      if (!result || !result.ok) {
+        const code = result && result.code;
+        status.textContent = code === 'PREVIEW_BACKEND_DISABLED'
+          ? 'Live Excel sync runs in the production workspace; this isolated preview keeps its local reference data.'
+          : code === 'EXCEL_SYNC_NOT_CONFIGURED'
+            ? 'Private Excel connection is not configured yet; built-in references and Custom / Or Equivalent entries remain available.'
+            : code === 'PLATFORM_API_UNAVAILABLE'
+              ? 'Sign in to the workspace to load its connected Excel catalogue.'
+              : 'Excel catalogue is currently unavailable; built-in references remain available.';
+        return;
+      }
+      const when = result.checkedAt || result.syncedAt;
+      const time = when ? new Date(when).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'time unavailable';
+      const prefix = result.stale ? 'Excel sync is stale; using the last saved snapshot' : 'Excel catalogue synced';
+      const counts = result.rowCounts || {};
+      const rowSummary = [
+        [counts.modules ?? result.rowCount, 'module/bin'], [counts.inverters, 'inverter'],
+        [counts.cables, 'cable'], [counts.protection, 'protection']
+      ].filter(([count]) => Number(count) > 0).map(([count, label]) => Number(count) + ' ' + label).join(' · ');
+      const rejected = Number(result.rejectedRows) > 0 ? ' · ' + result.rejectedRows + ' partial/invalid product row(s) skipped' : '';
+      status.textContent = prefix + ' · ' + (rowSummary || 'no product rows') + ' rows · checked ' + time + rejected +
+        '. Workbook entries are not independently datasheet-verified.';
+    };
+    const refresh = async force => {
+      if (busy) return;
+      busy = true;
+      if (button) { button.disabled = true; button.textContent = force ? 'Syncing…' : 'Sync Excel catalogue now'; }
+      if (force) status.textContent = 'Checking the connected Excel workbook…';
+      try {
+        const result = await catalog.refreshFromExcel(api, force);
+        setStatus(result);
+        if (result && result.ok) {
+          window.EquipmentStore.refreshSelects();
+          window.Render.renderAll();
+        }
+      } finally {
+        busy = false;
+        if (button) { button.disabled = false; button.textContent = 'Sync Excel catalogue now'; }
+      }
+    };
+    if (button) {
+      button.addEventListener('click', () => { void refresh(true); });
+      api.currentUser().then(user => {
+        button.hidden = !(user && (user.isAdmin || user.role === 'owner'));
+      }).catch(() => { button.hidden = true; });
+    }
+    void refresh(false);
+  }
 
   /* Pristine HTML form values = the template defaults for "New proposal".
      Captured before any saved data is applied. */
@@ -51,7 +107,8 @@
 
   /* ---------- system options (Good / Better / Best) ---------- */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
-    'inverterMake', 'inverterKw', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
+    'inverterMake', 'inverterModel', 'inverterProductSnapshot', 'inverterKw',
+    'cableProductSnapshot', 'protectionProductSnapshot', 'costPerWp', 'gstPercent', 'tariff', 'escalation',
     'degradation', 'subsidyOverride', 'rwaEligibleKwp'];
 
   function optionsList() { return window.__qsOptions || (window.__qsOptions = []); }
@@ -824,6 +881,7 @@
     refreshManager();
     window.Editor.build();
     window.Render.renderAll();
+    wireExcelModuleCatalog();
     window.Exporter.wire();
     buildNav();
     fitPages();

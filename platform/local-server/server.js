@@ -549,6 +549,61 @@ function saveDb(db) {
   fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
   fs.renameSync(tmp, DB_PATH);
 }
+async function getExcelProductCatalogLocal(force) {
+  const db = loadDb();
+  const cache = db.excelProductCatalog || null;
+  const configured = !!((process.env.GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID || process.env.GOOGLE_DRIVE_MODULE_CATALOG_FILE_ID) && process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON);
+  const rawTtl = Number(process.env.EXCEL_CATALOG_SYNC_TTL_SECONDS);
+  const ttl = (Number.isFinite(rawTtl) ? Math.min(3600, Math.max(30, rawTtl)) : 300) * 1000;
+  const age = cache ? Date.now() - Date.parse(cache.checkedAt || '') : Infinity;
+  const bodyFor = (value, stale, warning) => ({
+    source: 'excel', modules: value.modules || [], inverters: value.inverters || [],
+    cables: value.cables || [], protection: value.protection || [], rowCount: value.rowCount || 0,
+    rowCounts: value.rowCounts || {}, rejectedRows: value.rejectedRows || 0,
+    rejectedRowsBySheet: value.rejectedRowsBySheet || {}, sheets: value.sheets || {},
+    sourceFileName: value.fileName || 'Connected Excel workbook',
+    fileModifiedAt: value.fileModifiedAt || '', syncedAt: value.syncedAt || '',
+    checkedAt: value.checkedAt || '', stale: stale === true, warning: warning || ''
+  });
+  if (!force && cache && Number.isFinite(age) && age < ttl) return { status: 200, body: bodyFor(cache, false, '') };
+  if (!configured) {
+    if (cache) return { status: 200, body: bodyFor(cache, true, 'Excel sync is not configured; showing the last saved workbook snapshot.') };
+    return { status: 503, body: { error: 'Excel catalogue is not connected yet.', code: 'EXCEL_SYNC_NOT_CONFIGURED' } };
+  }
+  try {
+    const { syncModuleCatalogFromDrive } = await import('../cloudflare/src/excel-module-catalog.mjs');
+    const result = await syncModuleCatalogFromDrive(process.env, { previous: cache ? {
+      fileId: cache.fileId, fileModifiedAt: cache.fileModifiedAt, fileChecksum: cache.fileChecksum
+    } : null });
+    if (result.unchanged && cache) {
+      cache.checkedAt = result.checkedAt || nowISO();
+      db.excelProductCatalog = cache;
+      saveDb(db);
+      return { status: 200, body: bodyFor(cache, false, '') };
+    }
+    const next = {
+      fileId: result.fileId, fileName: result.fileName || 'Solar Catelogue.xlsm',
+      fileModifiedAt: result.fileModifiedAt || '', fileChecksum: result.fileChecksum || '',
+      syncedAt: result.syncedAt || nowISO(), checkedAt: result.checkedAt || nowISO(),
+      rowCount: Number(result.rowCount) || 0, rowCounts: result.rowCounts || {},
+      rejectedRows: Number(result.rejectedRows) || 0, rejectedRowsBySheet: result.rejectedRowsBySheet || {},
+      sheets: result.sheets || {}, modules: result.modules || [], inverters: result.inverters || [],
+      cables: result.cables || [], protection: result.protection || []
+    };
+    db.excelProductCatalog = next;
+    saveDb(db);
+    return { status: 200, body: bodyFor(next, false, '') };
+  } catch (error) {
+    const code = String(error && error.code || 'EXCEL_SYNC_FAILED');
+    const message = code === 'EXCEL_DRIVE_CONFIG_INVALID'
+      ? 'Excel sync needs its private Drive connection configured.'
+      : code === 'EXCEL_DRIVE_FILE_UNAVAILABLE'
+        ? 'The configured workbook is unavailable to the read-only Drive connection.'
+        : 'The Excel catalogue could not be refreshed. The previous saved copy, if any, has been kept.';
+    if (cache) return { status: 200, body: bodyFor(cache, true, message) };
+    return { status: code === 'EXCEL_DRIVE_CONFIG_INVALID' ? 503 : 502, body: { error: message, code } };
+  }
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -1494,6 +1549,18 @@ async function handleApi(req, res, url) {
        null for owner/hidden admin (every row is in scope), the user's own id
        for members, whose reads stay exactly as narrowly scoped as before. */
     const scope = scopeOf(user);
+
+    /* Only sanitized module/inverter/cable/protection rows reach proposals;
+       workbook macros and operational/cost/customer tabs never leave the file. */
+    if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts.length === 2 && method === 'GET') {
+      const result = await getExcelProductCatalogLocal(false);
+      return sendJson(res, result.status, result.body);
+    }
+    if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts[2] === 'sync' && parts.length === 3 && method === 'POST') {
+      if (!canAdmin) return sendJson(res, 403, { error: 'Only the workspace owner can sync the connected Excel catalogue.' });
+      const result = await getExcelProductCatalogLocal(true);
+      return sendJson(res, result.status, result.body);
+    }
 
     /* Gemini: authenticated, owner-scoped, read-only, opt-in. */
     if (parts[0] === 'assistant' && parts.length === 2) {

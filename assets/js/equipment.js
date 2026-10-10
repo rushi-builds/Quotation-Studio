@@ -75,6 +75,14 @@
   const MODULE_MODEL_CUSTOM_SENTINEL = '__qstudio_custom_module_model__';
   const FIELDS = ['moduleMake', 'moduleModel', 'moduleTech', 'inverterMake', 'mountMake', 'cableMake', 'roofType'];
   const CATALOG_FIELDS = {moduleMake:'modules', inverterMake:'inverters', mountMake:'structures', cableMake:'cables'};
+  let baseSelectOptions = null;
+  function originalSelectOptions() {
+    if (!baseSelectOptions) baseSelectOptions = Object.fromEntries(FIELDS.map(id => [id,
+      Array.from($(id)?.options || []).filter(option => !option.hasAttribute('data-custom'))
+        .map(option => ({ value: option.value, label: option.textContent }))
+    ]));
+    return baseSelectOptions;
+  }
   function isCustom(sel) { return !!sel?.selectedOptions[0]?.hasAttribute('data-custom'); }
   function syncCustom(sel) {
     if (!sel) return;
@@ -83,7 +91,19 @@
     if (input) input.disabled = !active;
   }
   function referenceModules() { return root.ModuleReferenceCatalog?.list?.() || []; }
+  function workbookInverters() { return root.ModuleReferenceCatalog?.listInverters?.() || []; }
+  function workbookCables() { return root.ModuleReferenceCatalog?.listCables?.() || []; }
+  function workbookProtection() { return root.ModuleReferenceCatalog?.listProtection?.() || []; }
   function allModuleEntries() { return [...cat().modules, ...referenceModules()]; }
+  function allInverterEntries() { return [...cat().inverters, ...workbookInverters()]; }
+  function allCableEntries() { return [...cat().cables, ...workbookCables()]; }
+  function entriesForSelect(id) {
+    if (id === 'moduleMake') return allModuleEntries();
+    if (id === 'inverterMake') return allInverterEntries();
+    if (id === 'cableMake') return allCableEntries();
+    if (id === 'mountMake') return cat().structures;
+    return [];
+  }
   function moduleEntriesForMake(make) {
     const seen = new Set();
     return [...referenceModules(), ...cat().modules].filter(entry => {
@@ -115,7 +135,10 @@
     const manual = new Option('Custom model…', input.value || MODULE_MODEL_CUSTOM_SENTINEL);
     manual.setAttribute('data-custom', '');
     sel.replaceChildren(placeholder, ...models, manual);
-    if (keepCustom) {
+    if (keepCustom && value && records.some(entry => entry.model === value)) {
+      sel.value = value;
+      input.value = '';
+    } else if (keepCustom) {
       const customValue = value === MODULE_MODEL_CUSTOM_SENTINEL ? input.value : value;
       manual.value = customValue || MODULE_MODEL_CUSTOM_SENTINEL;
       input.value = customValue;
@@ -136,10 +159,12 @@
   }
   function fillSelect(sel, value, keepCustom, clearDraft) {
     const input = $(sel.id + 'Custom');
-    const entries = sel.id === 'moduleMake' ? allModuleEntries().map(entry => entry.make)
-      : CATALOG_FIELDS[sel.id] ? cat()[CATALOG_FIELDS[sel.id]].map(entry => entry.make || entry.label)
-      : [...sel.options].filter(option => !option.hasAttribute('data-custom')).map(option => option.value);
-    const labels = [...new Set(entries.filter(Boolean).map(String))];
+    const dynamicEntries = CATALOG_FIELDS[sel.id] ? entriesForSelect(sel.id).map(entry => entry.make || entry.label) : [];
+    // Preserve the authored “Or Equivalent” options while adding exact workbook makes.
+    const labels = [...new Set([
+      ...(originalSelectOptions()[sel.id] || []).map(option => option.value),
+      ...dynamicEntries.filter(Boolean).map(String)
+    ])];
     value = value == null ? '' : String(value);
     if (clearDraft && input) input.value = '';
     const manual = new Option('Custom…', input?.value || '');
@@ -174,12 +199,77 @@
         fillModuleModel(customValue, isCustom(sel), false);
       } else fillSelect(sel, sel.value, isCustom(sel), false);
     });
+    refreshWorkbookProductSelectors();
   }
 
   function fire(el) {
     if (!el) return;
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function productSnapshot(id) {
+    const value = String($(id)?.value || '');
+    if (!value || value.length > 30000) return null;
+    try {
+      const entry = JSON.parse(value);
+      return entry && typeof entry === 'object' && entry.id ? entry : null;
+    } catch (_) { return null; }
+  }
+  function writeProductSnapshot(id, entry) {
+    const input = $(id);
+    if (!input) return;
+    input.value = entry ? JSON.stringify(entry) : '';
+    fire(input);
+  }
+  function makeMatches(recordMake, selectedMake) {
+    const target = String(recordMake || '').trim().toLowerCase();
+    const selected = String(selectedMake || '').trim().toLowerCase();
+    if (!target || !selected) return false;
+    if (target === selected) return true;
+    const choices = selected.replace(/or equivalent/gi, '').split(/[|,]/).flatMap(part => part.split('/'))
+      .map(part => part.trim()).filter(Boolean);
+    return choices.some(choice => choice === target || choice.startsWith(target + ' ') || target.startsWith(choice + ' '));
+  }
+  function workbookOptionLabel(entry, type) {
+    if (type === 'inverter') return [entry.make, entry.model, entry.acKw && entry.acKw + ' kW', entry.phase && entry.phase + ' phase', entry.sourceRow && 'row ' + entry.sourceRow].filter(Boolean).join(' · ');
+    if (type === 'cable') return [entry.make, entry.category, entry.sizeMm2 + ' sq.mm', entry.material, entry.cores, entry.insulation, entry.armoured === 'Yes' ? 'armoured' : '', entry.sourceRow && 'row ' + entry.sourceRow].filter(Boolean).join(' · ');
+    return [entry.make, entry.model, entry.catalogNumber, entry.ratedCurrentA && entry.ratedCurrentA + ' A', entry.ratedVoltageV && entry.ratedVoltageV + ' V', entry.poles, entry.sourceRow && 'row ' + entry.sourceRow].filter(Boolean).join(' · ');
+  }
+  function fillWorkbookPicker(id, entries, snapshot, type, placeholderText) {
+    const select = $(id);
+    if (!select) return;
+    const placeholder = new Option(placeholderText, '');
+    const options = entries.map(entry => new Option(workbookOptionLabel(entry, type), entry.id));
+    const snapshotId = snapshot && snapshot.id ? String(snapshot.id) : '';
+    if (snapshotId && !entries.some(entry => entry.id === snapshotId)) {
+      options.push(new Option('Saved proposal product: ' + (snapshot.modelLabel || snapshot.model || snapshot.category || 'catalogue row') + ' (not in latest sync)', snapshotId));
+    }
+    select.replaceChildren(placeholder, ...options);
+    select.value = snapshotId || '';
+  }
+  function refreshWorkbookProductSelectors() {
+    const inverterSnapshot = productSnapshot('inverterProductSnapshot');
+    const inverterRows = workbookInverters().filter(entry => makeMatches(entry.make, $('inverterMake')?.value));
+    fillWorkbookPicker('inverterWorkbookModel', inverterRows, inverterSnapshot, 'inverter',
+      inverterRows.length ? 'Choose an exact model from INVERTER_DB…' : 'No matching workbook inverter — keep equivalent / manual');
+    const cableSnapshot = productSnapshot('cableProductSnapshot');
+    fillWorkbookPicker('workbookCableProduct', workbookCables(), cableSnapshot, 'cable', 'No exact cable product selected');
+
+    const protectionSnapshot = productSnapshot('protectionProductSnapshot');
+    const categories = root.ModuleReferenceCatalog?.listProtectionCategories?.() || [];
+    const categorySelect = $('workbookProtectionCategory');
+    const selectedCategory = categorySelect?.value || protectionSnapshot?.category || '';
+    if (categorySelect) {
+      const options = [new Option('Choose a category…', ''), ...categories.map(category => new Option(category, category))];
+      if (protectionSnapshot?.category && !categories.includes(protectionSnapshot.category)) {
+        options.push(new Option('Saved category: ' + protectionSnapshot.category + ' (not in latest sync)', protectionSnapshot.category));
+      }
+      categorySelect.replaceChildren(...options);
+      categorySelect.value = selectedCategory;
+    }
+    const protectionRows = selectedCategory ? (root.ModuleReferenceCatalog?.listProtection?.(selectedCategory) || []) : [];
+    fillWorkbookPicker('workbookProtectionProduct', protectionRows, protectionSnapshot, 'protection',
+      selectedCategory ? 'No exact protection product selected' : 'Choose a category first');
   }
 
   const MODULE_FIELD_MAP = [
@@ -239,13 +329,50 @@
     sel.dataset.appliedModel = sel.value;
   }
 
+  const INVERTER_PRODUCT_FIELDS = ['inverterKw', 'inverterVmaxDc', 'mpptMinV', 'mpptMaxV', 'inverterMaxCurrentA'];
+  function clearInverterWorkbookSelection(clearModel, clearFields) {
+    writeProductSnapshot('inverterProductSnapshot', null);
+    const model = $('inverterModel');
+    if (model && clearModel) model.value = '';
+    const select = $('inverterWorkbookModel');
+    if (select) select.value = '';
+    if (clearFields) INVERTER_PRODUCT_FIELDS.forEach(id => {
+      const input = $(id);
+      if (input) { input.value = ''; fire(input); }
+    });
+    if (model && clearModel) fire(model);
+  }
+  function applyWorkbookInverter(entry) {
+    if (!entry || !entry.id) return false;
+    setValue('inverterMake', entry.make);
+    const model = $('inverterModel');
+    if (model) model.value = entry.model || '';
+    writeProductSnapshot('inverterProductSnapshot', entry);
+    INVERTER_PRODUCT_FIELDS.forEach(id => { const input = $(id); if (input) input.value = ''; });
+    [
+      ['acKw', 'inverterKw'], ['maxDcVoltageV', 'inverterVmaxDc'],
+      ['mpptMinV', 'mpptMinV'], ['mpptMaxV', 'mpptMaxV'],
+      ['maxInputCurrentPerMpptA', 'inverterMaxCurrentA']
+    ].forEach(([from, to]) => {
+      const value = entry[from], input = $(to);
+      if (!input || value === '' || value === undefined || value === null) return;
+      const text = String(value).trim(), number = Number(text);
+      // An MPPT current written as “22 / 12” is not one limit; keep it in the
+      // proposal snapshot, but do not collapse it into an unsafe scalar input.
+      if (text && !text.includes('/') && Number.isFinite(number)) input.value = number;
+    });
+    if (model) fire(model);
+    INVERTER_PRODUCT_FIELDS.forEach(id => fire($(id)));
+    refreshWorkbookProductSelectors();
+    return true;
+  }
   function applyInverterDefaults() {
     const sel = $('inverterMake');
-    const entry = cat().inverters.find((i) => i.make === sel.value);
+    const entry = cat().inverters.find(item => item.make === sel.value);
     if (!entry) return;
     if (entry.kw) { $('inverterKw').value = entry.kw; fire($('inverterKw')); }
-    /* The DC limits decide whether a string is safe, so they travel with the
-       inverter the moment the catalogue carries them. */
+    // Company-entered legacy defaults remain supported; they are not mixed
+    // with the read-only workbook rows or marked manufacturer-verified.
     [['vmaxDc', 'inverterVmaxDc'], ['mpptMin', 'mpptMinV'], ['mpptMax', 'mpptMaxV'], ['maxCurrent', 'inverterMaxCurrentA']]
       .forEach(([from, to]) => {
         if (entry[from] === '' || entry[from] === undefined || entry[from] === null) return;
@@ -263,10 +390,22 @@
       sel.addEventListener('input', () => syncCustom(sel));
       sel.addEventListener('change', event => {
         syncCustom(sel);
+        if (id === 'inverterMake') {
+          const selected = productSnapshot('inverterProductSnapshot');
+          if (selected && !makeMatches(selected.make, sel.value)) clearInverterWorkbookSelection(true, true);
+          applyInverterDefaults();
+          refreshWorkbookProductSelectors();
+        }
+        if (id === 'cableMake') {
+          const selected = productSnapshot('cableProductSnapshot');
+          if (selected && selected.make !== sel.value) {
+            writeProductSnapshot('cableProductSnapshot', null);
+            if ($('workbookCableProduct')) $('workbookCableProduct').value = '';
+          }
+        }
         if (isCustom(sel)) { if (event.isTrusted) input.focus(); return; }
         if (id === 'moduleMake') handleModuleMakeChange();
         if (id === 'moduleModel') handleModuleModelChange();
-        if (id === 'inverterMake') applyInverterDefaults();
       });
       const update = () => {
         const manual = sel.querySelector('option[data-custom]');
@@ -274,11 +413,33 @@
         manual.value = id === 'moduleModel' && !input.value
           ? MODULE_MODEL_CUSTOM_SENTINEL : input.value;
         manual.selected = true;
-        // The normal bubbling form event handles render/autosave; do not fire
-        // a catalog-selection change event or invent ratings for custom text.
       };
       input.addEventListener('input', update);
       input.addEventListener('change', update);
+    });
+    $('inverterWorkbookModel')?.addEventListener('change', () => {
+      const entry = root.ModuleReferenceCatalog?.findInverter?.($('inverterWorkbookModel').value);
+      if (entry) applyWorkbookInverter(entry);
+      else if (!$('inverterWorkbookModel').value && productSnapshot('inverterProductSnapshot')) clearInverterWorkbookSelection(true, true);
+    });
+    $('inverterModel')?.addEventListener('input', event => {
+      const selected = productSnapshot('inverterProductSnapshot');
+      if (selected && String(event.target.value || '').trim() !== String(selected.model || '').trim()) {
+        clearInverterWorkbookSelection(false, true);
+      }
+    });
+    $('workbookCableProduct')?.addEventListener('change', () => {
+      const entry = root.ModuleReferenceCatalog?.findCable?.($('workbookCableProduct').value);
+      if (entry) {
+        writeProductSnapshot('cableProductSnapshot', entry);
+        setValue('cableMake', entry.make);
+      } else if (!$('workbookCableProduct').value && productSnapshot('cableProductSnapshot')) writeProductSnapshot('cableProductSnapshot', null);
+    });
+    $('workbookProtectionCategory')?.addEventListener('change', () => refreshWorkbookProductSelectors());
+    $('workbookProtectionProduct')?.addEventListener('change', () => {
+      const entry = root.ModuleReferenceCatalog?.findProtection?.($('workbookProtectionProduct').value);
+      if (entry) writeProductSnapshot('protectionProductSnapshot', entry);
+      else if (!$('workbookProtectionProduct').value && productSnapshot('protectionProductSnapshot')) writeProductSnapshot('protectionProductSnapshot', null);
     });
   }
 
@@ -307,7 +468,7 @@
         inp(m.tech, 'data-f="tech" placeholder="Technology"', 'eq-md') +
         '<button type="button" class="eq-del" data-kind="module" data-idx="' + idx + '" title="Remove">×</button></div>';
     });
-    html += '<div class="hint">Manufacturer reference models are separate from company entries. Verify company-entered specifications against the exact datasheet.</div>';
+      html += '<div class="hint">Connected Excel product rows and manufacturer-datasheet references are separate from this editable company list. Workbook values are not independently datasheet-verified and will not overwrite company data.</div>';
     html += '<button type="button" class="link-btn eq-add" data-kind="module">+ Add module</button>';
 
     /* inverters */
@@ -381,7 +542,8 @@
     });
   }
 
-  root.EquipmentStore = { load, save, cat, refreshSelects, setValue, wire, renderManager, seed, KEY,
+  root.EquipmentStore = { load, save, cat, refreshSelects, refreshWorkbookProductSelectors,
+    setValue, wire, renderManager, seed, KEY,
     listModules: allModuleEntries, modelEntriesForMake: moduleEntriesForMake, findModule,
-    applyModuleDefaults, clearModuleDefaults };
+    applyModuleDefaults, clearModuleDefaults, applyWorkbookInverter };
 })(typeof self !== 'undefined' ? self : this);

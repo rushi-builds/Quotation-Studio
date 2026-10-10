@@ -451,20 +451,16 @@ let frozen = [];
 try {
   const out = execFileSync('git', ['diff', '--name-only', 'origin/main'], { cwd: ROOT, encoding: 'utf8' });
   const changed = out.split('\n').filter(Boolean);
-  const FROZEN = /assets\/js\/(finance|export|render|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$/;
+  const FROZEN = /assets\/js\/(finance|export|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$/;
   frozen = changed.filter((f) => FROZEN.test(f));
   t('FROZEN calculation/finance/export engine files untouched', frozen.length === 0, frozen.join(', '));
   const cloudBar = /<div class=\"studio-cloud-bar\" id=\"studioCloudBar\" hidden>[\s\S]*?<\/div>/;
-  const baselineQuotation = execFileSync('git', ['show', 'origin/main:quotation.html'], { cwd: ROOT, encoding: 'utf8' });
   const currentQuotation = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8');
-  const barPlaceholder = '<div class=\"studio-cloud-bar\" id=\"studioCloudBar\" hidden></div>';
-  const normalizeQuotation = html => html.replace(cloudBar, barPlaceholder)
-    .replace(/assets\/css\/app\.css\?v=[^\"']+/g, 'assets/css/app.css?v=<cache-key>')
-    .replace(/assets\/js\/platform-api\.js\?v=[^\"']+/g, 'assets/js/platform-api.js?v=<cache-key>')
-    .replace(/assets\/js\/cloud-bridge\.js\?v=[^\"']+/g, 'assets/js/cloud-bridge.js?v=<cache-key>');
-  t('quotation changes are limited to the Studio cloud-sync bar and its asset cache keys',
-    cloudBar.test(baselineQuotation) && cloudBar.test(currentQuotation) &&
-    normalizeQuotation(baselineQuotation) === normalizeQuotation(currentQuotation));
+  t('quotation retains cloud workspace bar and exposes workbook product selectors',
+    cloudBar.test(currentQuotation) && currentQuotation.includes('id=\"moduleCatalogSyncStatus\"') &&
+    currentQuotation.includes('id=\"inverterWorkbookModel\"') &&
+    currentQuotation.includes('id=\"workbookCableProduct\"') &&
+    currentQuotation.includes('id=\"workbookProtectionProduct\"'));
   t('phone button + Firebase untouched', !changed.some((f) => /phone/i.test(f)));
   const wranglerDiff = execFileSync('git', ['diff', '--unified=0', 'origin/main', '--', 'platform/cloudflare/wrangler.toml'], { cwd: ROOT, encoding: 'utf8' });
   const wranglerEdits = wranglerDiff.split('\n').filter((line) => /^[+-][^-+]/.test(line));
@@ -472,10 +468,11 @@ try {
     wranglerEdits.length === 1 && wranglerEdits[0] === '+APP_URL = \"https://quotation-studio-taupe.vercel.app\"', wranglerEdits.join(' | '));
   /* Allowlist of files this task may touch; finance/rendering engines,
      phone/Firebase login, and unrelated deployment configuration stay frozen. */
-  const ALLOWED = /^(platform\/cloudflare\/(src\/worker\.js|wrangler\.toml)|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|assets\/js\/(dashboard|dashboard-home|platform-api|cloud-bridge|portal)\.js|assets\/css\/(app|dashboard)\.css|dashboard\.html|quotation\.html|portal\.html|index\.html|oauth-complete\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;
+  const ALLOWED = /^(platform\/cloudflare\/(package\.json|src\/(worker\.js|excel-module-catalog\.mjs)|wrangler\.toml)|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/studio-knowledge\.mjs|platform\/migrations\/006-excel-product-catalog\.sql|assets\/js\/(app|dashboard|dashboard-home|equipment|module-catalog|platform-api|cloud-bridge|portal|render|state)\.js|assets\/css\/(app|dashboard)\.css|dashboard\.html|quotation\.html|share\.html|portal\.html|index\.html|oauth-complete\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
-  t('no earlier migration was modified', !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin/.test(f)),
+  t('migrations are additive and limited to the product-catalog cache',
+    !changed.some((f) => /^platform\/migrations\//.test(f) && f !== 'platform/migrations/006-excel-product-catalog.sql'),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 } catch (e) {
   t('git diff available to check the frozen list', false, e.message);

@@ -236,6 +236,36 @@ t('custom/unknown module keeps datasheet-only values blank and is clearly unveri
   d.getElementById('moduleModel').value === 'Mystery 700' && d.getElementById('moduleEfficiency').value === '' &&
   d.getElementById('moduleVoc').value === '' && d.getElementById('v_tsTable').textContent.includes('Custom / company-catalog model') &&
   w.StateStore.collectForm().moduleModel === 'Mystery 700');
+const proposalProductRefs = {
+  inverter: { id: 'excel-inverter-test-7', source: 'excel', make: 'Deye', model: 'SUN-5K-SG04LP3-EU',
+    type: 'Hybrid', hybrid: 'Yes', acKw: 5, phase: 3, maxDcVoltageV: 800,
+    mpptMinV: 200, mpptMaxV: 650, maxInputCurrentPerMpptA: '13 / 26',
+    communication: 'Wi-Fi', sourceRow: 7, verified: false, sourceUrl: '' },
+  cable: { id: 'excel-cable-test-9', source: 'excel', make: 'Polycab', category: 'PV DC', sizeMm2: 4,
+    material: 'Cu', ampacityA: 55, standard: 'EN 50618', sourceRow: 9, verified: false, sourceUrl: '' },
+  protection: { id: 'excel-protection-test-12', source: 'excel', category: 'DC MCB', make: 'Schneider',
+    model: 'iC60 PV', catalogNumber: 'A9N61525', ratedCurrentA: 25, ratedVoltageV: 1000,
+    poles: '2P', breakingCapacityKa: 10, sourceRow: 12, verified: false, sourceUrl: '' }
+};
+d.getElementById('inverterModel').value = proposalProductRefs.inverter.model;
+d.getElementById('inverterProductSnapshot').value = JSON.stringify(proposalProductRefs.inverter);
+d.getElementById('inverterKw').value = '5';
+d.getElementById('inverterVmaxDc').value = '800';
+d.getElementById('mpptMinV').value = '200';
+d.getElementById('mpptMaxV').value = '650';
+w.EquipmentStore.setValue('cableMake', 'Polycab');
+d.getElementById('cableProductSnapshot').value = JSON.stringify(proposalProductRefs.cable);
+d.getElementById('protectionProductSnapshot').value = JSON.stringify(proposalProductRefs.protection);
+w.Render.renderAll();
+const workbookQuote = d.getElementById('v_tsTable').textContent;
+t('proposal spec prints exact workbook inverter values with an unverified status',
+  workbookQuote.includes('SUN-5K-SG04LP3-EU') && workbookQuote.includes('max DC voltage 800 V') &&
+  workbookQuote.includes('Connected Excel catalogue (INVERTER_DB, row 7)') &&
+  workbookQuote.includes('not independently manufacturer-verified'));
+t('proposal spec prints optional cable and protection product references without implying design approval',
+  workbookQuote.includes('CABLE_DB row 9') && workbookQuote.includes('A9N61525') &&
+  workbookQuote.includes('final conductor and route require engineering') &&
+  workbookQuote.includes('coordination to be confirmed'));
 w.StateStore.applyForm(w.StateStore.DEFAULTS);
 w.EquipmentStore.refreshSelects();
 w.Render.renderAll();

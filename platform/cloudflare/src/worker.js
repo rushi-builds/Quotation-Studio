@@ -11,6 +11,7 @@ import { reserveCloudReference } from '../../reference-numbers.mjs';
 import { handleOAuth } from './oauth.mjs';
 import { handlePhoneAuth } from './phone.mjs';
 import { d1OAuthStore } from '../../oauth-store.mjs';
+import { syncModuleCatalogFromDrive } from './excel-module-catalog.mjs';
 
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
 
@@ -736,6 +737,121 @@ async function run(db, sql, ...binds) {
   return db.prepare(sql).bind(...binds).run();
 }
 
+const EXCEL_PRODUCT_CATALOG_DDL = `CREATE TABLE IF NOT EXISTS excel_product_catalog_cache (
+  catalog_key TEXT PRIMARY KEY,
+  file_id TEXT NOT NULL,
+  file_name TEXT NOT NULL DEFAULT '',
+  file_modified_at TEXT NOT NULL DEFAULT '',
+  file_checksum TEXT NOT NULL DEFAULT '',
+  synced_at TEXT NOT NULL,
+  checked_at TEXT NOT NULL,
+  row_count INTEGER NOT NULL DEFAULT 0,
+  rejected_rows INTEGER NOT NULL DEFAULT 0,
+  products_json TEXT NOT NULL
+)`;
+const excelProductCatalogSchemas = new WeakMap();
+async function ensureExcelProductCatalogSchema(db) {
+  let pending = excelProductCatalogSchemas.get(db);
+  if (!pending) {
+    pending = run(db, EXCEL_PRODUCT_CATALOG_DDL).catch(error => {
+      excelProductCatalogSchemas.delete(db);
+      throw error;
+    });
+    excelProductCatalogSchemas.set(db, pending);
+  }
+  await pending;
+}
+function excelProductCatalogBody(cache, stale, warning) {
+  let products = {};
+  try { products = JSON.parse(cache.products_json || '{}'); } catch (_) {}
+  const modules = Array.isArray(products.modules) ? products.modules : [];
+  const inverters = Array.isArray(products.inverters) ? products.inverters : [];
+  const cables = Array.isArray(products.cables) ? products.cables : [];
+  const protection = Array.isArray(products.protection) ? products.protection : [];
+  return {
+    source: 'excel', modules, inverters, cables, protection,
+    rowCount: Number(cache.row_count) || modules.length,
+    rowCounts: products.rowCounts || { modules: modules.length, inverters: inverters.length, cables: cables.length, protection: protection.length },
+    rejectedRows: Number(cache.rejected_rows) || 0,
+    rejectedRowsBySheet: products.rejectedRowsBySheet || {},
+    sheets: products.sheets || {},
+    sourceFileName: cache.file_name || 'Connected Excel workbook',
+    fileModifiedAt: cache.file_modified_at || '',
+    syncedAt: cache.synced_at || '',
+    checkedAt: cache.checked_at || '',
+    stale: stale === true,
+    warning: warning || ''
+  };
+}
+function excelProductCatalogErrorMessage(code) {
+  if (code === 'EXCEL_DRIVE_CONFIG_INVALID') return 'Excel sync needs its private Drive connection configured.';
+  if (code === 'EXCEL_DRIVE_FILE_UNAVAILABLE') return 'The configured workbook is unavailable to the read-only Drive connection.';
+  if (/^EXCEL_(MODULE|INVERTER|CABLE|PROTECTION)_SHEET_(MISSING|INVALID)$/.test(code) ||
+      /^EXCEL_(MODULE|INVERTER|CABLE|PROTECTION)_HEADERS_INVALID$/.test(code)) {
+    return 'A required product tab or its columns changed. The last saved catalogue snapshot was kept.';
+  }
+  if (/^EXCEL_(MODULE|INVERTER|CABLE|PROTECTION)_CATALOG_EMPTY$/.test(code)) {
+    return 'A required product tab has no usable product rows. The last saved catalogue snapshot was kept.';
+  }
+  return 'The Excel catalogue could not be refreshed. The previous saved copy, if any, has been kept.';
+}
+async function getExcelProductCatalog(db, env, force) {
+  await ensureExcelProductCatalogSchema(db);
+  let cached = await one(db, 'SELECT * FROM excel_product_catalog_cache WHERE catalog_key = ?', 'products');
+  const now = Date.now();
+  const configured = !!((env.GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID || env.GOOGLE_DRIVE_MODULE_CATALOG_FILE_ID) && env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON);
+  const configuredTtl = Number(env.EXCEL_CATALOG_SYNC_TTL_SECONDS);
+  const ttlSeconds = Number.isFinite(configuredTtl) ? Math.min(3600, Math.max(30, configuredTtl)) : 300;
+  const checked = cached ? Date.parse(cached.checked_at || '') : NaN;
+  const fresh = cached && Number.isFinite(checked) && now - checked < ttlSeconds * 1000;
+  if (!force && fresh) return { status: 200, body: excelProductCatalogBody(cached, false, '') };
+  if (!configured) {
+    if (cached) return { status: 200, body: excelProductCatalogBody(cached, true, 'Excel sync is not configured; showing the last saved workbook snapshot.') };
+    return { status: 503, body: { error: 'Excel catalogue is not connected yet.', code: 'EXCEL_SYNC_NOT_CONFIGURED' } };
+  }
+  try {
+    const result = await syncModuleCatalogFromDrive(env, {
+      previous: cached ? {
+        fileId: cached.file_id,
+        fileModifiedAt: cached.file_modified_at,
+        fileChecksum: cached.file_checksum
+      } : null
+    });
+    if (result.unchanged && cached) {
+      await run(db, 'UPDATE excel_product_catalog_cache SET checked_at = ? WHERE catalog_key = ?', result.checkedAt || nowISO(), 'products');
+      cached.checked_at = result.checkedAt || nowISO();
+      return { status: 200, body: excelProductCatalogBody(cached, false, '') };
+    }
+    const syncedAt = result.syncedAt || nowISO();
+    const checkedAt = result.checkedAt || syncedAt;
+    const productsJson = JSON.stringify({
+      modules: result.modules || [], inverters: result.inverters || [],
+      cables: result.cables || [], protection: result.protection || [],
+      rowCounts: result.rowCounts || {}, rejectedRowsBySheet: result.rejectedRowsBySheet || {},
+      sheets: result.sheets || {}
+    });
+    await run(db,
+      `INSERT INTO excel_product_catalog_cache
+       (catalog_key,file_id,file_name,file_modified_at,file_checksum,synced_at,checked_at,row_count,rejected_rows,products_json)
+       VALUES (?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(catalog_key) DO UPDATE SET
+       file_id=excluded.file_id,file_name=excluded.file_name,file_modified_at=excluded.file_modified_at,
+       file_checksum=excluded.file_checksum,synced_at=excluded.synced_at,checked_at=excluded.checked_at,
+       row_count=excluded.row_count,rejected_rows=excluded.rejected_rows,products_json=excluded.products_json`,
+      'products', result.fileId, result.fileName || 'Solar Catelogue.xlsm', result.fileModifiedAt || '',
+      result.fileChecksum || '', syncedAt, checkedAt, Number(result.rowCount) || 0,
+      Number(result.rejectedRows) || 0, productsJson
+    );
+    cached = await one(db, 'SELECT * FROM excel_product_catalog_cache WHERE catalog_key = ?', 'products');
+    return { status: 200, body: excelProductCatalogBody(cached, false, '') };
+  } catch (error) {
+    const code = String(error && error.code || 'EXCEL_SYNC_FAILED');
+    if (cached) return { status: 200, body: excelProductCatalogBody(cached, true, excelProductCatalogErrorMessage(code)) };
+    const status = code === 'EXCEL_DRIVE_CONFIG_INVALID' ? 503 : 502;
+    return { status, body: { error: excelProductCatalogErrorMessage(code), code } };
+  }
+}
+
 async function requireUser(request, db, env) {
   const token = sessionTokenFrom(request);
   if (!token) return null;
@@ -1389,6 +1505,18 @@ async function handleApi(request, env, url) {
        wins, so every row is returned), the user's own id for members (the
        `owner_id = ?` arm applies, exactly as before this change). */
     const scope = seesAll(user, env) ? null : user.id;
+
+    /* Excel-backed product catalogue. Only sanitized module/inverter/cable/
+       protection product rows are exposed; operational and cost sheets never leave the workbook. */
+    if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts.length === 2 && method === 'GET') {
+      const result = await getExcelProductCatalog(db, env, false);
+      return json(result.body, result.status);
+    }
+    if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts[2] === 'sync' && parts.length === 3 && method === 'POST') {
+      if (!canAdmin) return json({ error: 'Only the workspace owner can sync the connected Excel catalogue.' }, 403);
+      const result = await getExcelProductCatalog(db, env, true);
+      return json(result.body, result.status);
+    }
 
     /* Gemini: no browser-supplied context or mutation tools. */
     if (parts[0] === 'assistant' && parts.length === 2) {

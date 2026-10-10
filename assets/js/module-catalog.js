@@ -89,8 +89,84 @@
     }
   ].map(Object.freeze));
 
+  let excelModules = [];
+  let excelInverters = [];
+  let excelCables = [];
+  let excelProtection = [];
+  let excelSync = null;
+  const productIdentity = entry => [
+    String(entry.make || '').trim().toLowerCase(),
+    String(entry.productName || entry.model || '').split(' · ')[0].trim().toLowerCase(),
+    String(entry.wp || '').trim()
+  ].join('\\u0000');
+
+  function list() {
+    const excelKeys = new Set(excelModules.map(productIdentity));
+    const curatedFallback = MODULES.filter(entry => !excelKeys.has(productIdentity(entry)));
+    return [...excelModules, ...curatedFallback].map(entry => Object.assign({}, entry));
+  }
+  function find(make, model) {
+    return excelModules.find(entry => entry.make === make && entry.model === model) ||
+      MODULES.find(entry => entry.make === make && entry.model === model) || null;
+  }
+  function rowsOf(payload, key, required, extraValid) {
+    if (!Array.isArray(payload[key])) return [];
+    return payload[key].filter(entry => entry && required.every(field => String(entry[field] == null ? '' : entry[field]).trim()) &&
+      (!extraValid || extraValid(entry))).map(entry => Object.assign({}, entry, {
+      verified: false, source: 'excel', sourceUrl: ''
+    }));
+  }
+  function applyExcelPayload(payload) {
+    if (!payload || payload.source !== 'excel' || !Array.isArray(payload.modules)) return false;
+    excelModules = rowsOf(payload, 'modules', ['make', 'model'], entry => Number(entry.wp) > 0);
+    excelInverters = rowsOf(payload, 'inverters', ['id', 'make', 'model'], entry => Number(entry.acKw) > 0);
+    excelCables = rowsOf(payload, 'cables', ['id', 'make', 'category', 'sizeMm2']);
+    excelProtection = rowsOf(payload, 'protection', ['id', 'category', 'make', 'model']);
+    const counts = payload.rowCounts || {};
+    excelSync = {
+      syncedAt: payload.syncedAt || '', checkedAt: payload.checkedAt || '',
+      sourceFileName: payload.sourceFileName || '', rowCount: Number(payload.rowCount) || excelModules.length,
+      rowCounts: {
+        modules: Number(counts.modules) || excelModules.length,
+        inverters: Number(counts.inverters) || excelInverters.length,
+        cables: Number(counts.cables) || excelCables.length,
+        protection: Number(counts.protection) || excelProtection.length
+      },
+      rejectedRows: Number(payload.rejectedRows) || 0,
+      rejectedRowsBySheet: Object.assign({}, payload.rejectedRowsBySheet || {}),
+      sheets: Object.assign({}, payload.sheets || {}),
+      stale: payload.stale === true, warning: payload.warning || ''
+    };
+    return true;
+  }
+  async function refreshFromExcel(api, force) {
+    if (!api) return { ok: false, code: 'PLATFORM_API_UNAVAILABLE' };
+    try {
+      const payload = force ? await api.syncModuleCatalog() : await api.moduleCatalog();
+      const applied = applyExcelPayload(payload);
+      return Object.assign({ ok: applied }, payload || {});
+    } catch (error) {
+      return { ok: false, code: error && (error.code || error.data?.code) || 'EXCEL_CATALOG_UNAVAILABLE' };
+    }
+  }
+
+  function copied(rows) { return rows.map(entry => Object.assign({}, entry)); }
+  function listProtectionCategories() {
+    return [...new Set(excelProtection.map(entry => entry.category))].sort((a, b) => a.localeCompare(b));
+  }
   root.ModuleReferenceCatalog = Object.freeze({
-    list: () => MODULES.map((entry) => Object.assign({}, entry)),
-    find: (make, model) => MODULES.find((entry) => entry.make === make && entry.model === model) || null
+    list, find,
+    listInverters: () => copied(excelInverters),
+    findInverter: id => { const entry = excelInverters.find(row => row.id === id); return entry ? Object.assign({}, entry) : null; },
+    listCables: () => copied(excelCables),
+    findCable: id => { const entry = excelCables.find(row => row.id === id); return entry ? Object.assign({}, entry) : null; },
+    listProtection: category => copied(excelProtection.filter(entry => !category || entry.category === category)),
+    listProtectionCategories,
+    findProtection: id => { const entry = excelProtection.find(row => row.id === id); return entry ? Object.assign({}, entry) : null; },
+    refreshFromExcel,
+    syncState: () => excelSync ? Object.assign({}, excelSync, { rowCounts: Object.assign({}, excelSync.rowCounts),
+      rejectedRowsBySheet: Object.assign({}, excelSync.rejectedRowsBySheet), sheets: Object.assign({}, excelSync.sheets) }) : null,
+    hasExcelCatalog: () => excelModules.length > 0,
+    hasExcelProducts: () => !!(excelModules.length || excelInverters.length || excelCables.length || excelProtection.length)
   });
 })(typeof self !== 'undefined' ? self : this);

@@ -236,6 +236,21 @@ CREATE TABLE IF NOT EXISTS assistant_usage (
 );
 CREATE INDEX IF NOT EXISTS idx_assistant_usage_expiry ON assistant_usage(expires_at);
 
+-- Sanitized quotation product rows only from the private Excel workbook.
+-- The binary, VBA, and customer/site/cost/operational worksheets are never stored.
+CREATE TABLE IF NOT EXISTS excel_product_catalog_cache (
+  catalog_key TEXT PRIMARY KEY,
+  file_id TEXT NOT NULL,
+  file_name TEXT NOT NULL DEFAULT '',
+  file_modified_at TEXT NOT NULL DEFAULT '',
+  file_checksum TEXT NOT NULL DEFAULT '',
+  synced_at TEXT NOT NULL,
+  checked_at TEXT NOT NULL,
+  row_count INTEGER NOT NULL DEFAULT 0,
+  rejected_rows INTEGER NOT NULL DEFAULT 0,
+  products_json TEXT NOT NULL
+);
+
 -- Monotonic allocation metadata; deleting a proposal must not recycle its number.
 CREATE TABLE IF NOT EXISTS proposal_reference_counters (
   year INTEGER PRIMARY KEY,

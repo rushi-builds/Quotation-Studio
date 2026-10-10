@@ -258,7 +258,7 @@
         <summary><span class="wrap-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg></span><span class="wrap-copy"><strong>Advanced settings</strong><small>Engineering basis · compare options · branding · photos · library - set once, folded away</small></span><span class="wrap-chev" aria-hidden="true">⌄</span></summary>
 <fieldset data-adv>
         <legend>System Design &amp; Equipment</legend>
-        <p class="hint" id="equipmentEntryHint">Select the exact module model to fill its manufacturer-datasheet specifications. Custom or unknown values are not treated as verified; efficiency is never inferred from technology. Bifaciality is separate from STC output. Reusable company entries can be added in All settings → Equipment library.</p>
+        <p class="hint" id="equipmentEntryHint">The connected private workbook supplies quotation product references from MODULE_DB, INVERTER_DB, CABLE_DB and PROTECTION_DB only. Values are workbook-sourced, not independently manufacturer-verified. Sync never rewrites saved proposal values; selecting a product is deliberate. Custom and “Or Equivalent” choices remain available.</p>
         <div class="field">
           <label>Generation (kWh/kWp/yr)</label>
           <input type="number" id="genFactor" value="1460" step="10" min="0">
@@ -286,7 +286,9 @@
               <label for="moduleModelCustom">Custom module model</label>
               <input type="text" id="moduleModelCustom" data-equipment-custom placeholder="Enter the exact model or model family…" autocomplete="off" spellcheck="false" disabled>
             </div>
-            <div class="hint" id="moduleModelHint">Choose an exact model to fill its datasheet values. Unknown models remain unverified.</div>
+            <div class="hint" id="moduleModelHint">Choose a product/bin row to load its catalogue values. Workbook-sourced values are identified separately and are not treated as manufacturer-verified.</div>
+            <div class="hint" id="moduleCatalogSyncStatus" role="status" aria-live="polite">Using the built-in reference list until the private Excel catalogue is configured.</div>
+            <button type="button" class="link-btn" id="moduleCatalogSyncNow" hidden>Sync Excel catalogue now</button>
           </div>
         </div>
         <div class="row3">
@@ -341,6 +343,19 @@
             <input type="text" id="inverterMakeCustom" data-equipment-custom placeholder="Enter your own inverter make…" autocomplete="off" spellcheck="false" disabled>
           </div>
         </div>
+        <div class="row2">
+          <div class="field"><label for="inverterWorkbookModel">Exact model from connected INVERTER_DB (optional)</label>
+            <select id="inverterWorkbookModel" data-form-ignore aria-describedby="inverterWorkbookHint">
+              <option value="">No exact model selected — keep equivalent / manual</option>
+            </select>
+            <div class="hint" id="inverterWorkbookHint">Selecting a workbook row fills its model, AC rating and available DC limits in this proposal only. It does not verify compatibility or change other saved proposals.</div>
+          </div>
+          <div class="field"><label for="inverterModel">Inverter model (proposal text)</label>
+            <input type="text" id="inverterModel" maxlength="160" placeholder="Optional exact model or custom entry">
+            <div class="hint">Edit this only when changing the selected product. Workbook-derived values are cleared if the model text changes.</div>
+          </div>
+        </div>
+        <input type="hidden" id="inverterProductSnapshot" value="">
         <div class="field"><label for="mountMake">Mounting structure</label>
           <select id="mountMake" aria-describedby="equipmentEntryHint" aria-controls="mountMakeCustomWrap">
             <option>Hot-Dip GI / Aluminum-ARS Solartech make</option>
@@ -363,6 +378,25 @@
             <input type="text" id="cableMakeCustom" data-equipment-custom placeholder="Enter your own cabling &amp; protection…" autocomplete="off" spellcheck="false" disabled>
           </div>
         </div>
+        <div class="row2">
+          <div class="field"><label for="workbookCableProduct">Optional cable product reference (CABLE_DB)</label>
+            <select id="workbookCableProduct" data-form-ignore>
+              <option value="">No exact cable product selected</option>
+            </select>
+            <div class="hint">Reference only: selecting a cable does not decide its route, length, protection, or safe conductor size.</div>
+          </div>
+          <div class="field"><label for="workbookProtectionCategory">Optional protection category (PROTECTION_DB)</label>
+            <select id="workbookProtectionCategory" data-form-ignore>
+              <option value="">Choose a category…</option>
+            </select>
+            <select id="workbookProtectionProduct" data-form-ignore aria-label="Exact protection product reference">
+              <option value="">No exact protection product selected</option>
+            </select>
+            <div class="hint">Reference only: no breaker/fuse/SPD rating or coordination is inferred from this product list.</div>
+          </div>
+        </div>
+        <input type="hidden" id="cableProductSnapshot" value="">
+        <input type="hidden" id="protectionProductSnapshot" value="">
         <div class="row2">
           <div class="field"><label for="roofType">Roof type</label>
             <select id="roofType" aria-describedby="equipmentEntryHint" aria-controls="roofTypeCustomWrap">
