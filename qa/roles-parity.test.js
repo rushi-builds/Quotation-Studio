@@ -497,8 +497,14 @@ try {
      the token exchange threw before sending a single byte. That is a dormant
      copy of the very bug that broke Google sign-in, and the phone button,
      phone-auth.js and the PHONE_ENABLED default are all still untouched. */
-  t('phone button + Firebase untouched',
-    !changed.some((f) => /firebase/i.test(f) || /phone-auth\.js$/.test(f) || /index\.html$/.test(f)) &&
+  /* Owner decision (2026-10-10) reverses the earlier "phone button untouched"
+     rule: the Google, Phone and Microsoft buttons were removed from
+     index.html, leaving the built-in email/password flow as the only sign-in
+     path. What must stay untouched is everything behind them — phone-auth.js,
+     the Firebase wiring and src/phone.mjs — so phone sign-in can be restored
+     without a rewrite. */
+  t('phone-auth.js + Firebase untouched (buttons removed by owner)',
+    !changed.some((f) => /firebase/i.test(f) || /phone-auth\.js$/.test(f)) &&
     !changed.some((f) => /phone/i.test(f) && f !== 'platform/cloudflare/src/phone.mjs'),
     changed.filter((f) => /phone|firebase/i.test(f)).join(', '));
   t('wrangler config / zone / NS untouched', !changed.some((f) => /wrangler|vercel\.json/.test(f)));
@@ -515,6 +521,7 @@ try {
        migration 006 (contact + nudge)    platform/migrations/006-profile-info*
        this guard and the feature's tests qa/**
        the stale callback documentation   docs/**
+       the sign-in button removal         index.html (+ its C5 mirror)
      platform/migrations is limited to 005 (round 1), 006 (contact), 007
      (member links + kudos) and 008 (member custom link); the elevation
      column of round 1 must not be
@@ -528,6 +535,7 @@ try {
     'assets/js/(?:dashboard|dashboard-home|platform-api|cloud-bridge)\\.js',
     'assets/css/dashboard\\.css',
     'dashboard\\.html',
+    'index\\.html',
     'qa/[^/]+',
     'docs/[^/]+\\.md'
   ].join('|') + ')$');

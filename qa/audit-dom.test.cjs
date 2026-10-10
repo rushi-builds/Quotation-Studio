@@ -149,26 +149,34 @@ async function loadPage(base, pagePath, { cookie = '', preset = null } = {}) {
       window.close();
     }
 
-    /* B. Social UI states (mirrors oauth-browser.test.cjs DOM half). */
+    /* B. Sign-in is email + password only.
+
+       Owner decision (2026-10-10): the Google, Phone and Microsoft buttons are
+       removed from the sign-in screen, leaving the built-in email/password
+       flow as the single entry point. The provider code (oauth-ui.js,
+       phone-auth.js, and the Worker OAuth/phone routes) stays wired but
+       unreachable, so it can be restored without a rewrite; both scripts are
+       null-guarded, so an empty button set must not throw. These guards fail
+       the moment any social control returns. */
     {
       const { window } = await loadPage(base, '/index.html');
       t('StudioSocial bridge loads', !!window.StudioSocial);
-      const btn = window.document.querySelector('[data-p="google"]');
-      t('Google button exists', !!btn);
+      t('Google button removed from sign-in', !window.document.querySelector('[data-p="google"]'));
+      t('Microsoft button removed from sign-in', !window.document.querySelector('[data-p="microsoft"]'));
       t('Apple button removed from sign-in', !window.document.querySelector('[data-p="apple"]'));
-      const phoneBtn = window.document.getElementById('btnPhone');
-      t('Phone button exists with accessible label',
-        !!phoneBtn && phoneBtn.getAttribute('aria-label') === 'Continue with Phone');
+      t('Phone button removed from sign-in', !window.document.getElementById('btnPhone'));
+      t('"or continue with" divider removed', !window.document.querySelector('.or'));
       const order = Array.from(window.document.querySelectorAll('.soc button'))
         .map((b) => b.id === 'btnPhone' ? 'phone' : b.dataset.p).join(',');
-      t('sign-in order is Google, Phone, Microsoft', order === 'google,phone,microsoft', order);
+      t('no social buttons remain', order === '', order);
       t('phone-auth script loads with bridge', !!window.StudioPhone);
-      btn.click();
-      await sleep(800);
-      const msg = window.document.getElementById('socialMessage');
-      t('unconfigured provider gives honest status',
-        !msg.hidden && /not live yet|administrator configuration/i.test(msg.textContent),
-        msg.textContent.slice(0, 160));
+      t('socialMessage retained for provider-error copy',
+        !!window.document.getElementById('socialMessage'));
+      t('email and password fields present',
+        !!window.document.getElementById('i-e') && !!window.document.getElementById('i-p'));
+      t('sign-in submit button present', !!window.document.querySelector('#f-in button.cta2'));
+      t('create-account link present', !!window.document.querySelector('#f-in [data-go="up"]'));
+      t('forgot-password control present', !!window.document.getElementById('forgotPassword'));
       window.close();
     }
     {

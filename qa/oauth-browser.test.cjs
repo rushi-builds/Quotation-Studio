@@ -12,8 +12,15 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   browser=await chromium.launch({executablePath:await bundle.executablePath(),args:bundle.args.filter(a=>a!=='--single-process'),headless:true});
   const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'/index.html');await page.waitForFunction(()=>!!window.StudioSocial);
-  for(const provider of ['google','microsoft','apple']){await page.locator('[data-p='+provider+']').click();await page.waitForFunction(()=>document.getElementById('socialMessage').textContent.includes('not live yet'));assert.match(await page.locator('#socialMessage').innerText(),/administrator configuration/);}
-  await page.setViewportSize({width:390,height:844});assert.ok(await page.locator('#socialMessage').evaluate(e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;}));
+  /* Owner decision (2026-10-10): the sign-in screen is email + password only.
+     Google, Phone and Microsoft buttons are removed; assert none return and
+     that the built-in form is what the user actually gets. */
+  assert.equal(await page.locator('[data-p]').count(),0,'no provider buttons');
+  assert.equal(await page.locator('#btnPhone').count(),0,'no phone button');
+  assert.equal(await page.locator('.or').count(),0,'no "or continue with" divider');
+  assert.ok(await page.locator('#f-in #i-e').isVisible(),'email field visible');
+  assert.ok(await page.locator('#f-in button.cta2').isVisible(),'sign-in button visible');
+  await page.setViewportSize({width:390,height:844});assert.ok(await page.locator('#f-in button.cta2').evaluate(e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;}));
   await page.goto(base+'/index.html?oauth_error=ACCOUNT_EXISTS');await page.waitForFunction(()=>!document.getElementById('socialMessage').hidden);assert.match(await page.locator('#socialMessage').innerText(),/never merged automatically/);assert.ok(!page.url().includes('oauth_error'));
   await page.evaluate(async()=>{const r=await PlatformAPI.register('Original Profile','browser@example.test','BrowserTest123!','Owner');PlatformAPI.setSessionToken(r.token);});
   await page.goto(base+'/dashboard.html');await page.waitForFunction(()=>window.QSDash?.user());
@@ -24,6 +31,6 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   await page.goto(base+'/oauth-complete.html');await page.waitForURL('**/dashboard.html');await page.waitForFunction(()=>window.QSDash?.user());
   assert.equal(await page.evaluate(()=>localStorage.getItem('qs.sessionToken')),null);assert.equal(await page.evaluate(()=>QSDash.user().email),'browser@example.test');
   assert.deepEqual(errors,[]);
-  console.log('PASS: real local routes fail closed without provider setup; both OAuth buttons + phone button give honest status; Apple removed; mobile/error guidance; profile card without provider-connect block (member-since + gated role pencil); cookie completion clears stale bearer token and preserves account permissions. No live provider contacted.');
+  console.log('PASS: real local routes fail closed without provider setup; sign-in is email + password only (no Google/Phone/Microsoft buttons and no "or continue with" divider) with the built-in form visible and fitting mobile; mobile/error guidance; profile card without provider-connect block (member-since + gated role pencil); cookie completion clears stale bearer token and preserves account permissions. No live provider contacted.');
  }finally{if(browser)await browser.close();server.kill();await new Promise(r=>server.exitCode!==null?r():server.once('exit',r));fs.rmSync(dir,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
