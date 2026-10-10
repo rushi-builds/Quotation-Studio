@@ -602,7 +602,7 @@ async function smtpSend(toAddress, subject, htmlBody, origin) {
     const accepted = await readReply();
     if (accepted.code !== 250) throw new Error('message rejected: ' + accepted.text.slice(0, 200));
     try { await write('QUIT'); } catch (_) { /* closing anyway */ }
-    return { ok: true, inlined: !!related };
+    return { ok: true, inlined: !!related, logo: related ? related[0].data.length : 0, wire: message.length };
   } catch (e) {
     return { ok: false, reason: String((e && e.message) || e).slice(0, 300) };
   } finally {
@@ -1882,7 +1882,7 @@ async function handleApi(req, res, url) {
               // Positive evidence, mirroring the Worker: without it a
               // successful send and one that never ran look identical in the
               // stream, and "no error appeared" is not proof that mail left.
-              console.log('recovery.sent', JSON.stringify({ bytes: html.length, inlined: !!sent.inlined }));
+              console.log('recovery.sent', JSON.stringify({ bytes: html.length, inlined: !!sent.inlined, logo: sent.logo || 0, wire: sent.wire || 0 }));
             } else {
               // Deliberately NOT echoed to the caller: a delivery-specific error
               // would only ever fire for real accounts, which is an oracle.
