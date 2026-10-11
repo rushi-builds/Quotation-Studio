@@ -146,7 +146,7 @@ async function main() {
 
     /* ---- health: version marker, elevation feature, no P1 warning ---- */
     let r = await req(PORT, 'GET', '/api/health');
-    t('health reports the code version marker', r.status === 200 && r.json.codeVersion === 'roles-r1', r.json && r.json.codeVersion);
+    t('health reports the code version marker', r.status === 200 && r.json.codeVersion === 'studio-flows-r1', r.json && r.json.codeVersion);
     t('health advertises features.elevation', r.status === 200 && r.json.features && r.json.features.elevation === true, JSON.stringify(r.json && r.json.features));
     t('health roles[] has no "admin" entry (elevation is not a role)', r.status === 200 && !(r.json.features.roles || []).includes('admin'), JSON.stringify(r.json && r.json.features.roles));
     t('health has no warning when ADMIN_EMAIL != OWNER_EMAIL', r.status === 200 && Array.isArray(r.json.warnings) && r.json.warnings.length === 0, JSON.stringify(r.json && r.json.warnings));

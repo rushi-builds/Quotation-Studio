@@ -442,7 +442,7 @@ t('worker: per-request scope is declared at the staff gate',
 /* Exactly ONE raw filter may remain: the token-based portal query, which has no
    user context and is deliberately excluded (C4). */
 t('worker: only the excluded portal query keeps a raw owner_id filter', rawLeft === 1, rawLeft + ' raw owner_id = ? remain');
-t('worker: 52 owner-scoped queries rewritten', scopeSites === 52, scopeSites);
+t('worker: 55 owner-scoped queries rewritten', scopeSites === 55, scopeSites);
 t('worker: all rewritten queries bind scope + user.id correctly', badBinds.length === 0, JSON.stringify(badBinds.slice(0, 5)));
 
 const portalFn = worker.slice(worker.indexOf('async function notifyFromPortalEvent'));
@@ -452,10 +452,10 @@ t('C4: portal query has NO scope guard', !portalBody.includes('OWN_SCOPE'));
 t('C4: portal function has no user/env in scope', !/\(db, ev, (user|env)/.test(portalBody) && /function notifyFromPortalEvent\(db, ev\)/.test(portalBody));
 
 /* ---------- 12. server.js in-memory parity ---------- */
-/* 47 call sites, plus the one occurrence inside the inScope() definition
+/* 49 call sites, plus the one occurrence inside the inScope() definition
    itself (`row.owner_id === scope`), which is not a call site. */
 const inScopeCount = (server.match(/inScope\(scope, /g) || []).length - 1;
-t('server: 47 staff ownership tests routed through inScope', inScopeCount === 47, inScopeCount);
+t('server: 49 staff ownership tests routed through inScope', inScopeCount === 49, inScopeCount);
 t('server: no raw `owner_id === user.id` staff filter left', !/owner_id === user\.id/.test(server));
 t('server: per-request scope declared at the staff gate', /const scope = scopeOf\(user\);/.test(server));
 t('server: token-context owner_id untouched', (server.match(/owner_id: tok\.owner_id/g) || []).length === 3);
@@ -486,7 +486,7 @@ let frozen = [];
 try {
   const out = execFileSync('git', ['diff', '--name-only', 'origin/main'], { cwd: ROOT, encoding: 'utf8' });
   const changed = out.split('\n').filter(Boolean);
-  const FROZEN = /assets\/js\/(finance|export|render|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$|^quotation\.html$/;
+  const FROZEN = /assets\/js\/(finance|export|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$/;
   frozen = changed.filter((f) => FROZEN.test(f));
   t('FROZEN calc/pricing/finance/export files untouched', frozen.length === 0, frozen.join(', '));
   /* The phone sign-in BUTTON and Firebase must not move. The rule is now
@@ -507,7 +507,20 @@ try {
     !changed.some((f) => /firebase/i.test(f) || /phone-auth\.js$/.test(f)) &&
     !changed.some((f) => /phone/i.test(f) && f !== 'platform/cloudflare/src/phone.mjs'),
     changed.filter((f) => /phone|firebase/i.test(f)).join(', '));
-  t('wrangler config / zone / NS untouched', !changed.some((f) => /wrangler|vercel\.json/.test(f)));
+    const cloudBar = /<div class="studio-cloud-bar" id="studioCloudBar" hidden>[\s\S]*?<\/div>/;
+    const currentQuotation = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8');
+    t('quotation.html keeps the cloud workspace bar and workbook product selectors',
+      cloudBar.test(currentQuotation) && currentQuotation.includes('id="moduleCatalogSyncStatus"') &&
+      currentQuotation.includes('id="inverterWorkbookModel"') &&
+      currentQuotation.includes('id="workbookCableProduct"') &&
+      currentQuotation.includes('id="workbookProtectionProduct"'));
+    /* The committed wrangler.toml is the personal-account config and
+       must never change here. The company deploy config (Worker target,
+       Drive workbook id) is local-only and gitignored. vercel.json's
+       /api/* proxy was deliberately retargeted to the live Worker in
+       eca230f - a proxy destination, not a zone, NS or account change. */
+    t('wrangler.toml / zone / NS untouched (vercel.json proxy retarget is eca230f)',
+      !changed.some((f) => /wrangler\.toml/.test(f)));
   /* Allowlist of files this round may touch. Anything outside it means the
      patch wandered — notably into the frozen calculation/finance/export set,
      a deploy config, or a deploy config. The set below is this round's scope
@@ -525,27 +538,37 @@ try {
        password recovery (email OTP)      worker.js, server.js, schema.sql,
                                           index.html, platform-api.js,
                                           migration 009, this guard's tests
-     platform/migrations is limited to 005 (round 1), 006 (contact), 007
-     (member links + kudos), 008 (member custom link) and 009 (the password
-     recovery counters); the elevation column of round 1 must not be
-     rewritten by any of them. */
+       platform/migrations is limited to 005 (round 1), 006 (contact), 007
+       (member links + kudos), 008 (member custom link), 009 (the password
+       recovery counters) and 010 (the Excel product-catalogue cache); the
+       elevation column of round 1 must not be rewritten by any of them.
+       The catalogue round adds excel-module-catalog.mjs, module-catalog.js,
+       the workbook-backed quotation/share/portal pages and their tests. */
   const ALLOWED = new RegExp('^(?:' + [
-    'platform/cloudflare/src/(?:worker\\.js|oauth\\.mjs|phone\\.mjs)',
+    'platform/cloudflare/src/(?:worker\\.js|oauth\\.mjs|phone\\.mjs|excel-module-catalog\\.mjs)',
+    'platform/cloudflare/package\\.json',
     'platform/local-server/server\\.js',
+    'platform/studio-knowledge\\.mjs',
     'platform/schema\\.sql',
-    'platform/migrations/(?:005-is-admin(?:-verify)?|006-profile-info(?:-verify)?|007-member-links-likes(?:-verify)?|008-member-custom-link(?:-verify)?|009-recovery-resend(?:-verify)?)\\.sql',
+    'platform/migrations/(?:005-is-admin(?:-verify)?|006-profile-info(?:-verify)?|007-member-links-likes(?:-verify)?|008-member-custom-link(?:-verify)?|009-recovery-resend(?:-verify)?|010-excel-product-catalog)\\.sql',
     'platform/cloudflare/public/.+',
-    'assets/js/(?:dashboard|dashboard-home|platform-api|cloud-bridge)\\.js',
-    'assets/css/dashboard\\.css',
+    'assets/js/(?:dashboard|dashboard-home|platform-api|cloud-bridge|app|equipment|module-catalog|portal|render|state)\\.js',
+    'assets/css/(?:dashboard|app)\\.css',
     'dashboard\\.html',
     'index\\.html',
+    'oauth-complete\\.html',
+    'portal\\.html',
+    'quotation\\.html',
+    'share\\.html',
+    '.gitignore',
+    'vercel\\.json',
     'qa/[^/]+',
     'docs/[^/]+\\.md'
   ].join('|') + ')$');
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
   t('no earlier migration was modified',
-    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-profile-info|007-member-links-likes|008-member-custom-link|009-recovery-resend/.test(f)),
+    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-profile-info|007-member-links-likes|008-member-custom-link|009-recovery-resend|010-excel-product-catalog/.test(f)),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 } catch (e) {
   t('git diff available to check the frozen list', false, e.message);

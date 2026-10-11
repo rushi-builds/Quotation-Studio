@@ -5,15 +5,15 @@
    System Design dropdowns use this catalog, with a final Custom option
    that reveals a proposal-specific manual entry below the dropdown.
 
-   Data integrity rule (per product blueprint):
-     - the catalog ships with the entries the company already quotes with
-     - electrical detail fields (Voc/Isc/Vmp/Imp/efficiency/MPPT…) are left
-       BLANK until the team enters datasheet values - nothing is invented
-     - selecting a module fills its rating/dimensions/technology into the
-       form, and its Voc/Isc/Vmp/Imp when the catalogue holds them
-     - selecting an inverter fills its rating, and its DC voltage/current
-       limits when the catalogue holds them, so the string check has real
-       numbers to work with instead of a blank
+   Data integrity rule:
+     - company-entered catalogue rows stay separate from manufacturer-verified
+       reference models; verified module data comes from direct datasheets
+     - make and model are separate selections; an exact model fills only the
+       specs its record actually contains
+     - unknown/custom products keep user-entered values, but are not described
+       as manufacturer-verified; no efficiency is inferred from technology
+     - bifaciality is a separate module property, never an STC rear-gain bonus
+     - selecting an inverter fills its rating and any sourced DC limits
    ========================================================================== */
 'use strict';
 
@@ -72,38 +72,134 @@
   /* ------------------------------------------------------------------ */
   /* Select wiring                                                       */
   /* ------------------------------------------------------------------ */
-  const FIELDS = ['moduleMake', 'moduleTech', 'inverterMake', 'mountMake', 'cableMake', 'roofType'];
+  const MODULE_MODEL_CUSTOM_SENTINEL = '__qstudio_custom_module_model__';
+  const FIELDS = ['moduleMake', 'moduleModel', 'moduleTech', 'inverterMake', 'mountMake', 'cableMake', 'roofType'];
   const CATALOG_FIELDS = {moduleMake:'modules', inverterMake:'inverters', mountMake:'structures', cableMake:'cables'};
-  function isCustom(sel) { return !!sel.selectedOptions[0]?.hasAttribute('data-custom'); }
+  let baseSelectOptions = null;
+  function originalSelectOptions() {
+    if (!baseSelectOptions) baseSelectOptions = Object.fromEntries(FIELDS.map(id => [id,
+      Array.from($(id)?.options || []).filter(option => !option.hasAttribute('data-custom'))
+        .map(option => ({ value: option.value, label: option.textContent }))
+    ]));
+    return baseSelectOptions;
+  }
+  function isCustom(sel) { return !!sel?.selectedOptions[0]?.hasAttribute('data-custom'); }
   function syncCustom(sel) {
-    const active = isCustom(sel), input = $(sel.id + 'Custom');
-    $(sel.id + 'CustomWrap').hidden = !active;
-    input.disabled = !active;
+    if (!sel) return;
+    const active = isCustom(sel), input = $(sel.id + 'Custom'), wrap = $(sel.id + 'CustomWrap');
+    if (wrap) wrap.hidden = !active;
+    if (input) input.disabled = !active;
+  }
+  function referenceModules() { return root.ModuleReferenceCatalog?.list?.() || []; }
+  function workbookInverters() { return root.ModuleReferenceCatalog?.listInverters?.() || []; }
+  function workbookCables() { return root.ModuleReferenceCatalog?.listCables?.() || []; }
+  function workbookProtection() { return root.ModuleReferenceCatalog?.listProtection?.() || []; }
+  function allModuleEntries() { return [...cat().modules, ...referenceModules()]; }
+  function allInverterEntries() { return [...cat().inverters, ...workbookInverters()]; }
+  function allCableEntries() { return [...cat().cables, ...workbookCables()]; }
+  function entriesForSelect(id) {
+    if (id === 'moduleMake') return allModuleEntries();
+    if (id === 'inverterMake') return allInverterEntries();
+    if (id === 'cableMake') return allCableEntries();
+    if (id === 'mountMake') return cat().structures;
+    return [];
+  }
+  function moduleEntriesForMake(make) {
+    const seen = new Set();
+    return [...referenceModules(), ...cat().modules].filter(entry => {
+      const model = String(entry?.model || '').trim();
+      if (!entry || entry.make !== make || !model || seen.has(model)) return false;
+      seen.add(model); return true;
+    });
+  }
+  function findModule(make, model) {
+    const name = String(model || '').trim();
+    if (name) {
+      const verified = root.ModuleReferenceCatalog?.find?.(make, name);
+      if (verified) return verified;
+      return cat().modules.find(entry => entry.make === make && String(entry.model || '').trim() === name) || null;
+    }
+    return cat().modules.find(entry => entry.make === make && !String(entry.model || '').trim()) || null;
+  }
+  function fillModuleModel(value, keepCustom, clearDraft) {
+    const sel = $('moduleModel'), input = $('moduleModelCustom');
+    if (!sel || !input) return;
+    value = value == null ? '' : String(value);
+    const records = moduleEntriesForMake($('moduleMake')?.value || '');
+    const placeholder = new Option(records.length ? 'Select a model…' : 'No exact model listed', '');
+    placeholder.setAttribute('data-placeholder', '');
+    const models = records.map(entry => {
+      const label = entry.modelLabel || (entry.wp ? entry.model + ' · ' + entry.wp + ' Wp' : entry.model);
+      return new Option(label, entry.model);
+    });
+    const manual = new Option('Custom model…', input.value || MODULE_MODEL_CUSTOM_SENTINEL);
+    manual.setAttribute('data-custom', '');
+    sel.replaceChildren(placeholder, ...models, manual);
+    if (keepCustom && value && records.some(entry => entry.model === value)) {
+      sel.value = value;
+      input.value = '';
+    } else if (keepCustom) {
+      const customValue = value === MODULE_MODEL_CUSTOM_SENTINEL ? input.value : value;
+      manual.value = customValue || MODULE_MODEL_CUSTOM_SENTINEL;
+      input.value = customValue;
+      manual.selected = true;
+    } else if (value && records.some(entry => entry.model === value)) {
+      sel.value = value;
+      if (clearDraft) input.value = '';
+    } else if (value) {
+      input.value = value;
+      manual.value = value;
+      manual.selected = true;
+    } else {
+      if (clearDraft) input.value = '';
+      placeholder.selected = true;
+    }
+    syncCustom(sel);
+    if (!isCustom(sel)) sel.dataset.appliedModel = sel.value;
   }
   function fillSelect(sel, value, keepCustom, clearDraft) {
     const input = $(sel.id + 'Custom');
-    const entries = CATALOG_FIELDS[sel.id] ? cat()[CATALOG_FIELDS[sel.id]].map(e => e.make || e.label)
-      : [...sel.options].filter(o => !o.hasAttribute('data-custom')).map(o => o.value);
-    const labels = [...new Set(entries.filter(Boolean).map(String))];
+    const dynamicEntries = CATALOG_FIELDS[sel.id] ? entriesForSelect(sel.id).map(entry => entry.make || entry.label) : [];
+    // Preserve the authored “Or Equivalent” options while adding exact workbook makes.
+    const labels = [...new Set([
+      ...(originalSelectOptions()[sel.id] || []).map(option => option.value),
+      ...dynamicEntries.filter(Boolean).map(String)
+    ])];
     value = value == null ? '' : String(value);
-    if (clearDraft) input.value = '';
-    const manual = new Option('Custom…', input.value);
+    if (clearDraft && input) input.value = '';
+    const manual = new Option('Custom…', input?.value || '');
     manual.setAttribute('data-custom', '');
     // Real strings remain the canonical select value. No UI sentinel is saved
     // or rendered as an equipment name, including while Custom is empty.
     sel.replaceChildren(...labels.map(label => new Option(label, label)), manual);
     if (!keepCustom && labels.includes(value)) sel.value = value;
-    else { input.value = value; manual.value = value; manual.selected = true; }
+    else {
+      if (input) input.value = value;
+      manual.value = value;
+      manual.selected = true;
+    }
     syncCustom(sel);
   }
   function setValue(id, value) {
     if (!FIELDS.includes(id) || !$(id)) return false;
     // Restore/import/preset transitions must never carry another proposal's draft.
-    fillSelect($(id), value, false, true);
+    if (id === 'moduleModel') fillModuleModel(value, false, true);
+    else {
+      fillSelect($(id), value, false, true);
+      if (id === 'moduleMake') fillModuleModel('', false, true);
+    }
     return true;
   }
   function refreshSelects() {
-    FIELDS.forEach(id => { const sel = $(id); if (sel) fillSelect(sel, sel.value, isCustom(sel), false); });
+    FIELDS.forEach(id => {
+      const sel = $(id);
+      if (!sel) return;
+      if (id === 'moduleModel') {
+        const customValue = isCustom(sel) ? ($('moduleModelCustom')?.value || '') : sel.value;
+        fillModuleModel(customValue, isCustom(sel), false);
+      } else fillSelect(sel, sel.value, isCustom(sel), false);
+    });
+    refreshWorkbookProductSelectors();
   }
 
   function fire(el) {
@@ -111,37 +207,172 @@
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
+  function productSnapshot(id) {
+    const value = String($(id)?.value || '');
+    if (!value || value.length > 30000) return null;
+    try {
+      const entry = JSON.parse(value);
+      return entry && typeof entry === 'object' && entry.id ? entry : null;
+    } catch (_) { return null; }
+  }
+  function writeProductSnapshot(id, entry) {
+    const input = $(id);
+    if (!input) return;
+    input.value = entry ? JSON.stringify(entry) : '';
+    fire(input);
+  }
+  function makeMatches(recordMake, selectedMake) {
+    const target = String(recordMake || '').trim().toLowerCase();
+    const selected = String(selectedMake || '').trim().toLowerCase();
+    if (!target || !selected) return false;
+    if (target === selected) return true;
+    const choices = selected.replace(/or equivalent/gi, '').split(/[|,]/).flatMap(part => part.split('/'))
+      .map(part => part.trim()).filter(Boolean);
+    return choices.some(choice => choice === target || choice.startsWith(target + ' ') || target.startsWith(choice + ' '));
+  }
+  function workbookOptionLabel(entry, type) {
+    if (type === 'inverter') return [entry.make, entry.model, entry.acKw && entry.acKw + ' kW', entry.phase && entry.phase + ' phase', entry.sourceRow && 'row ' + entry.sourceRow].filter(Boolean).join(' · ');
+    if (type === 'cable') return [entry.make, entry.category, entry.sizeMm2 + ' sq.mm', entry.material, entry.cores, entry.insulation, entry.armoured === 'Yes' ? 'armoured' : '', entry.sourceRow && 'row ' + entry.sourceRow].filter(Boolean).join(' · ');
+    return [entry.make, entry.model, entry.catalogNumber, entry.ratedCurrentA && entry.ratedCurrentA + ' A', entry.ratedVoltageV && entry.ratedVoltageV + ' V', entry.poles, entry.sourceRow && 'row ' + entry.sourceRow].filter(Boolean).join(' · ');
+  }
+  function fillWorkbookPicker(id, entries, snapshot, type, placeholderText) {
+    const select = $(id);
+    if (!select) return;
+    const placeholder = new Option(placeholderText, '');
+    const options = entries.map(entry => new Option(workbookOptionLabel(entry, type), entry.id));
+    const snapshotId = snapshot && snapshot.id ? String(snapshot.id) : '';
+    if (snapshotId && !entries.some(entry => entry.id === snapshotId)) {
+      options.push(new Option('Saved proposal product: ' + (snapshot.modelLabel || snapshot.model || snapshot.category || 'catalogue row') + ' (not in latest sync)', snapshotId));
+    }
+    select.replaceChildren(placeholder, ...options);
+    select.value = snapshotId || '';
+  }
+  function refreshWorkbookProductSelectors() {
+    const inverterSnapshot = productSnapshot('inverterProductSnapshot');
+    const inverterRows = workbookInverters().filter(entry => makeMatches(entry.make, $('inverterMake')?.value));
+    fillWorkbookPicker('inverterWorkbookModel', inverterRows, inverterSnapshot, 'inverter',
+      inverterRows.length ? 'Choose an exact model from INVERTER_DB…' : 'No matching workbook inverter — keep equivalent / manual');
+    const cableSnapshot = productSnapshot('cableProductSnapshot');
+    fillWorkbookPicker('workbookCableProduct', workbookCables(), cableSnapshot, 'cable', 'No exact cable product selected');
 
-  function applyModuleDefaults() {
-    const sel = $('moduleMake');
-    const entry = cat().modules.find((m) => m.make === sel.value);
-    if (!entry) return;
-    if (entry.wp) $('moduleWattage').value = entry.wp;
-    if (entry.lengthMm) $('moduleLengthMm').value = entry.lengthMm;
-    if (entry.widthMm) $('moduleWidthMm').value = entry.widthMm;
-    if (entry.tech) setValue('moduleTech', entry.tech);
-    const touched = ['moduleWattage', 'moduleLengthMm', 'moduleWidthMm', 'moduleTech'];
-    /* Datasheet figures only. The catalogue ships them blank on purpose, so a
-       module with no electrical detail selected leaves the string check saying
-       DATA REQUIRED rather than passing on an invented voltage. */
-    [['voc', 'moduleVoc'], ['isc', 'moduleIsc'], ['vmp', 'moduleVmp'], ['imp', 'moduleImp']]
-      .forEach(([from, to]) => {
-        if (entry[from] === '' || entry[from] === undefined || entry[from] === null) return;
-        const el = $(to);
-        if (!el) return;
-        el.value = entry[from];
-        touched.push(to);
-      });
-    touched.forEach((id) => fire($(id)));
+    const protectionSnapshot = productSnapshot('protectionProductSnapshot');
+    const categories = root.ModuleReferenceCatalog?.listProtectionCategories?.() || [];
+    const categorySelect = $('workbookProtectionCategory');
+    const selectedCategory = categorySelect?.value || protectionSnapshot?.category || '';
+    if (categorySelect) {
+      const options = [new Option('Choose a category…', ''), ...categories.map(category => new Option(category, category))];
+      if (protectionSnapshot?.category && !categories.includes(protectionSnapshot.category)) {
+        options.push(new Option('Saved category: ' + protectionSnapshot.category + ' (not in latest sync)', protectionSnapshot.category));
+      }
+      categorySelect.replaceChildren(...options);
+      categorySelect.value = selectedCategory;
+    }
+    const protectionRows = selectedCategory ? (root.ModuleReferenceCatalog?.listProtection?.(selectedCategory) || []) : [];
+    fillWorkbookPicker('workbookProtectionProduct', protectionRows, protectionSnapshot, 'protection',
+      selectedCategory ? 'No exact protection product selected' : 'Choose a category first');
   }
 
+  const MODULE_FIELD_MAP = [
+    ['wp', 'moduleWattage'], ['lengthMm', 'moduleLengthMm'], ['widthMm', 'moduleWidthMm'],
+    ['efficiency', 'moduleEfficiency'], ['tech', 'moduleTech'],
+    ['moduleType', 'moduleType'], ['bifaciality', 'moduleBifaciality'],
+    ['voc', 'moduleVoc'], ['vmp', 'moduleVmp'], ['isc', 'moduleIsc'], ['imp', 'moduleImp'],
+    ['vocBetaPct', 'moduleVocBetaPct'], ['vmpBetaPct', 'moduleVmpBetaPct'],
+    ['iscAlphaPct', 'moduleIscAlphaPct'], ['pmaxBetaPct', 'modulePmaxBetaPct'],
+    ['weightKg', 'moduleWeightKg']
+  ];
+  function applyModuleDefaults(entry) {
+    if (!entry) return false;
+    const touched = [];
+    // Clear values from the previously selected product first. A missing field
+    // stays blank; it is never carried over from a different module model.
+    MODULE_FIELD_MAP.forEach(([, id]) => { const el = $(id); if (el) { el.value = ''; touched.push(id); } });
+    MODULE_FIELD_MAP.forEach(([from, id]) => {
+      const el = $(id), value = entry[from];
+      if (!el || value === '' || value === undefined || value === null) return;
+      if (id === 'moduleTech') setValue(id, value);
+      else el.value = value;
+    });
+    touched.forEach(id => fire($(id)));
+    return true;
+  }
+  function clearModuleDefaults() {
+    const touched = [];
+    MODULE_FIELD_MAP.forEach(([, id]) => {
+      const el = $(id);
+      if (!el) return;
+      if (id === 'moduleTech') setValue(id, '');
+      else el.value = '';
+      touched.push(id);
+    });
+    touched.forEach(id => fire($(id)));
+  }
+  function handleModuleMakeChange() {
+    const make = $('moduleMake')?.value || '';
+    fillModuleModel('', false, true);
+    const generic = cat().modules.find(entry => entry.make === make && !String(entry.model || '').trim());
+    if (generic) applyModuleDefaults(generic);
+    else if (moduleEntriesForMake(make).length) clearModuleDefaults();
+  }
+  function handleModuleModelChange() {
+    const sel = $('moduleModel');
+    if (!sel) return;
+    const previous = sel.dataset.appliedModel || '';
+    if (isCustom(sel)) return;
+    if (!sel.value) {
+      if (previous && findModule($('moduleMake')?.value || '', previous)) clearModuleDefaults();
+      sel.dataset.appliedModel = '';
+      return;
+    }
+    const entry = findModule($('moduleMake')?.value || '', sel.value);
+    if (entry) applyModuleDefaults(entry);
+    sel.dataset.appliedModel = sel.value;
+  }
+
+  const INVERTER_PRODUCT_FIELDS = ['inverterKw', 'inverterVmaxDc', 'mpptMinV', 'mpptMaxV', 'inverterMaxCurrentA'];
+  function clearInverterWorkbookSelection(clearModel, clearFields) {
+    writeProductSnapshot('inverterProductSnapshot', null);
+    const model = $('inverterModel');
+    if (model && clearModel) model.value = '';
+    const select = $('inverterWorkbookModel');
+    if (select) select.value = '';
+    if (clearFields) INVERTER_PRODUCT_FIELDS.forEach(id => {
+      const input = $(id);
+      if (input) { input.value = ''; fire(input); }
+    });
+    if (model && clearModel) fire(model);
+  }
+  function applyWorkbookInverter(entry) {
+    if (!entry || !entry.id) return false;
+    setValue('inverterMake', entry.make);
+    const model = $('inverterModel');
+    if (model) model.value = entry.model || '';
+    writeProductSnapshot('inverterProductSnapshot', entry);
+    INVERTER_PRODUCT_FIELDS.forEach(id => { const input = $(id); if (input) input.value = ''; });
+    [
+      ['acKw', 'inverterKw'], ['maxDcVoltageV', 'inverterVmaxDc'],
+      ['mpptMinV', 'mpptMinV'], ['mpptMaxV', 'mpptMaxV'],
+      ['maxInputCurrentPerMpptA', 'inverterMaxCurrentA']
+    ].forEach(([from, to]) => {
+      const value = entry[from], input = $(to);
+      if (!input || value === '' || value === undefined || value === null) return;
+      const text = String(value).trim(), number = Number(text);
+      // An MPPT current written as “22 / 12” is not one limit; keep it in the
+      // proposal snapshot, but do not collapse it into an unsafe scalar input.
+      if (text && !text.includes('/') && Number.isFinite(number)) input.value = number;
+    });
+    if (model) fire(model);
+    INVERTER_PRODUCT_FIELDS.forEach(id => fire($(id)));
+    refreshWorkbookProductSelectors();
+    return true;
+  }
   function applyInverterDefaults() {
     const sel = $('inverterMake');
-    const entry = cat().inverters.find((i) => i.make === sel.value);
+    const entry = cat().inverters.find(item => item.make === sel.value);
     if (!entry) return;
     if (entry.kw) { $('inverterKw').value = entry.kw; fire($('inverterKw')); }
-    /* The DC limits decide whether a string is safe, so they travel with the
-       inverter the moment the catalogue carries them. */
+    // Company-entered legacy defaults remain supported; they are not mixed
+    // with the read-only workbook rows or marked manufacturer-verified.
     [['vmaxDc', 'inverterVmaxDc'], ['mpptMin', 'mpptMinV'], ['mpptMax', 'mpptMaxV'], ['maxCurrent', 'inverterMaxCurrentA']]
       .forEach(([from, to]) => {
         if (entry[from] === '' || entry[from] === undefined || entry[from] === null) return;
@@ -159,19 +390,56 @@
       sel.addEventListener('input', () => syncCustom(sel));
       sel.addEventListener('change', event => {
         syncCustom(sel);
+        if (id === 'inverterMake') {
+          const selected = productSnapshot('inverterProductSnapshot');
+          if (selected && !makeMatches(selected.make, sel.value)) clearInverterWorkbookSelection(true, true);
+          applyInverterDefaults();
+          refreshWorkbookProductSelectors();
+        }
+        if (id === 'cableMake') {
+          const selected = productSnapshot('cableProductSnapshot');
+          if (selected && selected.make !== sel.value) {
+            writeProductSnapshot('cableProductSnapshot', null);
+            if ($('workbookCableProduct')) $('workbookCableProduct').value = '';
+          }
+        }
         if (isCustom(sel)) { if (event.isTrusted) input.focus(); return; }
-        if (id === 'moduleMake') applyModuleDefaults();
-        if (id === 'inverterMake') applyInverterDefaults();
+        if (id === 'moduleMake') handleModuleMakeChange();
+        if (id === 'moduleModel') handleModuleModelChange();
       });
       const update = () => {
         const manual = sel.querySelector('option[data-custom]');
-        manual.value = input.value;
+        if (!manual) return;
+        manual.value = id === 'moduleModel' && !input.value
+          ? MODULE_MODEL_CUSTOM_SENTINEL : input.value;
         manual.selected = true;
-        // The normal bubbling form event handles render/autosave; do not fire
-        // a catalog-selection change event or invent ratings for custom text.
       };
       input.addEventListener('input', update);
       input.addEventListener('change', update);
+    });
+    $('inverterWorkbookModel')?.addEventListener('change', () => {
+      const entry = root.ModuleReferenceCatalog?.findInverter?.($('inverterWorkbookModel').value);
+      if (entry) applyWorkbookInverter(entry);
+      else if (!$('inverterWorkbookModel').value && productSnapshot('inverterProductSnapshot')) clearInverterWorkbookSelection(true, true);
+    });
+    $('inverterModel')?.addEventListener('input', event => {
+      const selected = productSnapshot('inverterProductSnapshot');
+      if (selected && String(event.target.value || '').trim() !== String(selected.model || '').trim()) {
+        clearInverterWorkbookSelection(false, true);
+      }
+    });
+    $('workbookCableProduct')?.addEventListener('change', () => {
+      const entry = root.ModuleReferenceCatalog?.findCable?.($('workbookCableProduct').value);
+      if (entry) {
+        writeProductSnapshot('cableProductSnapshot', entry);
+        setValue('cableMake', entry.make);
+      } else if (!$('workbookCableProduct').value && productSnapshot('cableProductSnapshot')) writeProductSnapshot('cableProductSnapshot', null);
+    });
+    $('workbookProtectionCategory')?.addEventListener('change', () => refreshWorkbookProductSelectors());
+    $('workbookProtectionProduct')?.addEventListener('change', () => {
+      const entry = root.ModuleReferenceCatalog?.findProtection?.($('workbookProtectionProduct').value);
+      if (entry) writeProductSnapshot('protectionProductSnapshot', entry);
+      else if (!$('workbookProtectionProduct').value && productSnapshot('protectionProductSnapshot')) writeProductSnapshot('protectionProductSnapshot', null);
     });
   }
 
@@ -192,12 +460,15 @@
     c.modules.forEach((m, idx) => {
       html += '<div class="eq-row" data-kind="module" data-idx="' + idx + '">' +
         inp(m.make, 'data-f="make" placeholder="Make / equivalent"', 'eq-grow') +
+        inp(m.model, 'data-f="model" placeholder="Model"', 'eq-md') +
         inp(m.wp, 'data-f="wp" placeholder="Wp" class="num"', 'eq-sm') +
         inp(m.lengthMm, 'data-f="lengthMm" placeholder="L mm"', 'eq-sm') +
         inp(m.widthMm, 'data-f="widthMm" placeholder="W mm"', 'eq-sm') +
+        inp(m.efficiency, 'data-f="efficiency" placeholder="Eff %"', 'eq-sm') +
         inp(m.tech, 'data-f="tech" placeholder="Technology"', 'eq-md') +
         '<button type="button" class="eq-del" data-kind="module" data-idx="' + idx + '" title="Remove">×</button></div>';
     });
+      html += '<div class="hint">Connected Excel product rows and manufacturer-datasheet references are separate from this editable company list. Workbook values are not independently datasheet-verified and will not overwrite company data.</div>';
     html += '<button type="button" class="link-btn eq-add" data-kind="module">+ Add module</button>';
 
     /* inverters */
@@ -248,7 +519,7 @@
     container.querySelectorAll('.eq-add').forEach((btn) => {
       btn.addEventListener('click', () => {
         const k = btn.dataset.kind;
-        if (k === 'module') cat().modules.push({ id: uid('m'), make: 'New module', model: '', wp: '', tech: '', lengthMm: '', widthMm: '', efficiency: '', voc: '', isc: '', vmp: '', imp: '' });
+        if (k === 'module') cat().modules.push({ id: uid('m'), make: 'New module', model: '', wp: '', tech: '', lengthMm: '', widthMm: '', efficiency: '', moduleType: '', bifaciality: '', weightKg: '', voc: '', isc: '', vmp: '', imp: '', vocBetaPct: '', vmpBetaPct: '', iscAlphaPct: '', pmaxBetaPct: '' });
         if (k === 'inverter') cat().inverters.push({ id: uid('i'), make: 'New inverter', model: '', kw: '', mppt: '', efficiency: '' });
         if (k === 'structure') cat().structures.push({ id: uid('s'), label: 'New structure' });
         if (k === 'cable') cat().cables.push({ id: uid('c'), label: 'New cable' });
@@ -271,5 +542,8 @@
     });
   }
 
-  root.EquipmentStore = { load, save, cat, refreshSelects, setValue, wire, renderManager, seed, KEY };
+  root.EquipmentStore = { load, save, cat, refreshSelects, refreshWorkbookProductSelectors,
+    setValue, wire, renderManager, seed, KEY,
+    listModules: allModuleEntries, modelEntriesForMake: moduleEntriesForMake, findModule,
+    applyModuleDefaults, clearModuleDefaults, applyWorkbookInverter };
 })(typeof self !== 'undefined' ? self : this);
