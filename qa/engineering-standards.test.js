@@ -591,9 +591,12 @@ check('the engineering basis is kept inside its page, and an overflowing page is
   const page = w.document.getElementById('pageTechSpec');
 
   /* the design basis is the one variable-length group, so it is the one that
-     can be asked to give up a little room */
+     can be asked to give up a little room. Its contract is now fixed at two
+     rows: the reference-standards line, then the proposal-stage design note.
+     The group is rendered by one addRows() call in render.js, so a new line
+     here means the fit ladder has two more rows to work with, not one. */
   const engRows = w.document.querySelectorAll('#v_tsTable tr.is-eng').length;
-  assert.ok(engRows === 1, `the design-basis rows are tagged for compaction, found ${engRows}`);
+  assert.ok(engRows === 2, `the design-basis rows are tagged for compaction, found ${engRows}`);
 
   /* jsdom lays nothing out (scrollHeight is always 0), so the fit ladder is
      exercised by handing the element a height, which is exactly the branch a

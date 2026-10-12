@@ -465,9 +465,31 @@
     };
     const selectedModelName = selectedModule?.modelLabel || s.moduleModel || 'Model to be confirmed';
     const power = s.moduleWattage ? specNumber(s.moduleWattage, 2) + ' Wp' : 'Not supplied';
-    const efficiency = s.moduleEfficiency
-      ? specNumber(s.moduleEfficiency, 3) + '% front-side STC efficiency'
-      : 'efficiency not supplied / unverified';
+    /* One efficiency line, not two. The datasheet figure is the manufacturer's
+       own claim, so it is what the customer sees. Only when no datasheet figure
+       exists is the value calculated from the module's dimensions shown, and it
+       says so, because a calculated number is not a manufacturer's promise.
+       Both are compared as well: a gap wider than half a point means the
+       dimensions and the label disagree, which is a procurement question for
+       the person writing the quote — raised on the console, never printed. */
+    const calculatedEfficiency = root.EquipmentCalc && root.EquipmentCalc.moduleEfficiency
+      ? root.EquipmentCalc.moduleEfficiency({
+          wp: s.moduleWattage, lengthMm: s.moduleLengthMm, widthMm: s.moduleWidthMm })
+      : null;
+    const datasheetEfficiency = Number(s.moduleEfficiency) > 0
+      ? Number(s.moduleEfficiency) : null;
+    const efficiency = datasheetEfficiency
+      ? specNumber(datasheetEfficiency, 3) + '% front-side STC efficiency'
+      : calculatedEfficiency
+        ? calculatedEfficiency.toFixed(2) + '% (calculated — unverified)'
+        : 'efficiency not supplied / unverified';
+    const efficiencyGap = datasheetEfficiency && calculatedEfficiency
+      ? Math.abs(datasheetEfficiency - calculatedEfficiency) : null;
+    if (efficiencyGap !== null && efficiencyGap > 0.5) {
+      console.warn('[tech-spec] module efficiency mismatch: datasheet ' +
+        datasheetEfficiency + '% vs calculated ' + calculatedEfficiency.toFixed(2) +
+        '% — gap ' + efficiencyGap.toFixed(2) + ' points; check the dimensions or the label.');
+    }
     const dimensionValues = [s.moduleLengthMm, s.moduleWidthMm].map(value =>
       value === '' || value === undefined ? '' : specNumber(value, 1));
     let dimensionText = dimensionValues.every(Boolean) ? dimensionValues.join(' × ') + ' mm' : 'Not supplied';
@@ -533,11 +555,6 @@
       ['Technology', s.moduleTech || 'Not supplied / unverified'],
       ['STC nameplate power / efficiency', power + ' · ' + efficiency],
       ['Quantity', f.moduleCount + ' modules'],
-      ['Module Efficiency', (function () {
-        const eff = root.EquipmentCalc && root.EquipmentCalc.moduleEfficiency({
-          wp: s.moduleWattage, lengthMm: s.moduleLengthMm, widthMm: s.moduleWidthMm });
-        return eff ? eff.toFixed(2) + ' %' : '-';
-      })()],
       // Keep engineering values numeric until final formatting. fmtNum returns
       // grouped text (e.g. "1,036"), which cannot be used in arithmetic.
       // The contracted figure is printed alongside whenever whole modules land

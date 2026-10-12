@@ -543,7 +543,13 @@ try {
        recovery counters) and 010 (the Excel product-catalogue cache); the
        elevation column of round 1 must not be rewritten by any of them.
        The catalogue round adds excel-module-catalog.mjs, module-catalog.js,
-       the workbook-backed quotation/share/portal pages and their tests. */
+       the workbook-backed quotation/share/portal pages and their tests.
+       The engineering round adds assets/js/equipment-calc.js (module
+       efficiency, DC cable drop, Voc temperature correction) and
+       assets/js/site-estimate.js (generation estimate), plus their two
+       qa/ tests. render.js was already on this list; only the Tech Spec
+       rows it prints changed, and quotation.html carries the two script
+       tags they need. */
   const ALLOWED = new RegExp('^(?:' + [
     'platform/cloudflare/src/(?:worker\\.js|oauth\\.mjs|phone\\.mjs|excel-module-catalog\\.mjs)',
     'platform/cloudflare/package\\.json',
@@ -552,7 +558,7 @@ try {
     'platform/schema\\.sql',
     'platform/migrations/(?:005-is-admin(?:-verify)?|006-profile-info(?:-verify)?|007-member-links-likes(?:-verify)?|008-member-custom-link(?:-verify)?|009-recovery-resend(?:-verify)?|010-excel-product-catalog)\\.sql',
     'platform/cloudflare/public/.+',
-    'assets/js/(?:dashboard|dashboard-home|platform-api|cloud-bridge|app|equipment|module-catalog|portal|render|state)\\.js',
+    'assets/js/(?:dashboard|dashboard-home|platform-api|cloud-bridge|app|equipment|equipment-calc|module-catalog|portal|render|site-estimate|state)\\.js',
     'assets/css/(?:dashboard|app)\\.css',
     'dashboard\\.html',
     'index\\.html',
