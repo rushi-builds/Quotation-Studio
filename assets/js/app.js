@@ -598,6 +598,45 @@
       refreshManager(false);
     }
     if ($('saveNowBtn')) $('saveNowBtn').addEventListener('click', saveNowFromMenu);
+
+    /* ----- Sync Catalogue: on-demand pull of the Excel workbook from Drive ----- */
+    function catalogueStatusText() {
+      const info = window.EquipmentStore && window.EquipmentStore.cloudInfo ? window.EquipmentStore.cloudInfo() : null;
+      if (!info || !info.syncedAt) return '';
+      const when = new Date(info.syncedAt);
+      const stamp = isNaN(when.getTime()) ? '' : new Date(info.syncedAt).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+      return 'Catalogue: ' + (info.modules || 0) + '/' + (info.inverters || 0) + '/' + (info.cables || 0) + (stamp ? ' · synced ' + stamp : '');
+    }
+    async function syncCatalogueFromDrive() {
+      const btn = $('syncCatalogueBtn'), status = $('catalogueSyncStatus');
+      if (!btn || !status) return;
+      btn.disabled = true;
+      status.textContent = 'Syncing catalogue…';
+      try {
+        const res = await fetch('/api/catalogue/sync', { method: 'POST', credentials: 'include' });
+        let data = {};
+        try { data = await res.json(); } catch (e) { /* non-JSON error */ }
+        if (!res.ok || !data.ok) {
+          const err = new Error(data.error || ('Sync failed (' + res.status + ')'));
+          if (data.code) err.code = data.code;
+          throw err;
+        }
+        if (!window.EquipmentStore || !window.EquipmentStore.importCloud) {
+          throw new Error('Equipment store not ready.');
+        }
+        window.EquipmentStore.importCloud(data.catalogue);
+        const counts = data.counts || {};
+        status.textContent = 'Synced · ' + (counts.modules || 0) + ' modules / ' + (counts.inverters || 0) + ' inverters / ' + (counts.cables || 0) + ' cables';
+      } catch (e) {
+        status.textContent = (e && e.code === 'NOT_CONFIGURED')
+          ? 'Sync not set up yet - ' + (e.message || '')
+          : 'Sync failed: ' + (e && e.message ? e.message : e);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    if ($('syncCatalogueBtn')) $('syncCatalogueBtn').addEventListener('click', syncCatalogueFromDrive);
+    if ($('catalogueSyncStatus')) $('catalogueSyncStatus').textContent = catalogueStatusText();
     document.addEventListener('keydown', (event) => {
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && String(event.key).toLowerCase() === 's') {
         event.preventDefault();          /* never open the browser's Save Page dialog */

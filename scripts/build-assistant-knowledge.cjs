@@ -8,8 +8,9 @@ function generate(){
  const presets=vm.runInNewContext('('+app.match(/const PRESETS = (\{[\s\S]*?\n    \});/)[1]+')');
  const presetReset=vm.runInNewContext('('+app.match(/const resetDesign = (\{[\s\S]*?\n        \});/)[1]+')');
  const {CONTENT}=require('../assets/js/content.js');
+ vm.runInNewContext(fs.readFileSync(path.join(root,'assets/js/catalogue-data.js'),'utf8'),sandbox);
  vm.runInNewContext(fs.readFileSync(path.join(root,'assets/js/equipment.js'),'utf8'),sandbox);
- const equipment=sandbox.EquipmentStore.seed();
+ const equipment=sandbox.EquipmentStore.cat();
  const storage=require('../assets/js/storage-catalog.js');
  const additionalSystems=sandbox.AdditionalSystems.templates;
  const financeSource=fs.readFileSync(path.join(root,'assets/js/finance.js'),'utf8');

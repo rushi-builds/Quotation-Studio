@@ -14,6 +14,8 @@ import { d1OAuthStore } from '../../oauth-store.mjs';
 
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
 
+import { syncCatalogue, readCatalogue } from './catalogue.mjs';
+
 import { scryptSync, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 
 const SESSION_DAYS = 30;
@@ -1175,6 +1177,31 @@ async function handleApi(request, env, url) {
         sessionUser.name = name.slice(0, 120);
       }
       return json({ user: publicUser(sessionUser, env) });
+    }
+
+    /* Catalogue sync — on-demand only, never scheduled. The owner clicks
+       "Sync Catalogue"; the worker reads the Excel workbook from Drive once,
+       extracts the three catalogue tables and stores them in D1. The app's
+       built-in catalogue stays as the fallback when this has never run. */
+    if (parts[0] === 'catalogue' && parts.length === 1) {
+      if (method === 'GET') {
+        const stored = await readCatalogue(db);
+        if (!stored) return json({ error: 'Catalogue has not been synced yet. Open Quotation Studio and click "Sync Catalogue".' }, 404);
+        return json({ ok: true, catalogue: stored });
+      }
+      if (method === 'POST' && parts.length === 1) {
+        const user = await requireUser(request, db, env);
+        if (!user || (user.role !== 'owner' && !isAdminRow(user))) {
+          return json({ error: 'Only the owner (or an elevated admin) can sync the equipment catalogue.' }, 403);
+        }
+        try {
+          const result = await syncCatalogue(env, db);
+          return json({ ok: true, ...result });
+        } catch (e) {
+          if (e && e.code === 'NOT_CONFIGURED') return json({ error: e.message, code: 'NOT_CONFIGURED' }, 503);
+          return json({ error: 'Catalogue sync failed: ' + (e && e.message ? e.message : e) }, 502);
+        }
+      }
     }
 
     if (parts[0] === 'health' && method === 'GET') {

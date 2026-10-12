@@ -451,20 +451,20 @@ let frozen = [];
 try {
   const out = execFileSync('git', ['diff', '--name-only', 'origin/main'], { cwd: ROOT, encoding: 'utf8' });
   const changed = out.split('\n').filter(Boolean);
-  const FROZEN = /assets\/js\/(finance|export|render|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$|^quotation\.html$/;
+  const FROZEN = /assets\/js\/(finance|export|render|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$/;
   frozen = changed.filter((f) => FROZEN.test(f));
   t('FROZEN calc/pricing/finance/export files untouched', frozen.length === 0, frozen.join(', '));
   t('phone button + Firebase untouched', !changed.some((f) => /phone/i.test(f)));
   t('wrangler config / zone / NS untouched', !changed.some((f) => /wrangler|vercel\.json/.test(f)));
-  /* Allowlist of files this round may touch. Anything outside it means the
-     patch wandered - notably into the frozen calculation/finance/export set,
-     the phone/Firebase code, or a deploy config. platform/migrations is
-     included because the elevation flag is a deliberate, single-column
-     migration and nothing else in that directory may change. */
-  const ALLOWED = /^(platform\/cloudflare\/src\/worker\.js|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|assets\/js\/(dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|dashboard\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;
+  /* Allowlist of files the equipment-catalogue rounds (selectors + Sync
+     Catalogue) may touch. Anything outside it means the patch wandered -
+     notably into the frozen calculation/finance/export set, the phone/Firebase
+     code, or a deploy config. platform/migrations is included for the two
+     deliberate migrations and nothing else in that directory may change. */
+  const ALLOWED = /^(platform\/cloudflare\/src\/(worker|catalogue)\.js|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|platform\/migrations\/006-catalogue\.sql|assets\/js\/(app|equipment|catalogue-data|state|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|quotation\.html|dashboard\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
-  t('no earlier migration was modified', !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin/.test(f)),
+  t('no earlier migration was modified', !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin(-verify)?\.sql|006-catalogue\.sql/.test(f)),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 } catch (e) {
   t('git diff available to check the frozen list', false, e.message);

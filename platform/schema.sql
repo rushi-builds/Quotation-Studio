@@ -251,3 +251,18 @@ CREATE TABLE IF NOT EXISTS auth_throttles (
   window_start INTEGER NOT NULL DEFAULT 0,
   window_count INTEGER NOT NULL DEFAULT 0
 );
+
+-- Equipment catalogue synced on-demand from the Excel workbook (Drive).
+-- Built-in catalogue-data.js stays as the client fallback.
+CREATE TABLE IF NOT EXISTS equipment_catalogue (
+  kind     TEXT NOT NULL CHECK (kind IN ('modules', 'inverters', 'cables')),
+  make     TEXT NOT NULL,
+  model    TEXT NOT NULL,
+  row_json TEXT NOT NULL,
+  PRIMARY KEY (kind, make, model)
+);
+
+CREATE TABLE IF NOT EXISTS equipment_catalogue_meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT
+);

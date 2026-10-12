@@ -18,6 +18,7 @@
 
 (function (root) {
   const KEY = 'qstudio.equipment';
+  const CLOUD_KEY = 'qsCloudCatalogue';
   const LEGACY_SEED_IDS = new Set(['m1', 'm2', 'm3', 'i1', 'i2', 'i3', 'i4', 's1', 's2', 'c1', 'c2']);
   const $ = (id) => document.getElementById(id);
 
@@ -116,16 +117,76 @@
     } catch (e) { return empty; }
   }
 
-  let userCache = null, merged = null;
+  let userCache = null, cloudCache = null, merged = null;
   function userRows() { if (!userCache) userCache = loadUser(); return userCache; }
+
+  /* Cloud-synced catalogue rows (from the Sync Catalogue button). They live in
+     their own storage key so the per-proposal user rows never absorb them. */
+  function loadCloud() {
+    const empty = { syncedAt: '', source: '', sha: '', counts: {}, modules: [], inverters: [], structures: [], cables: [] };
+    try {
+      const raw = root.localStorage.getItem(CLOUD_KEY);
+      if (!raw) return empty;
+      const d = JSON.parse(raw);
+      if (!d || typeof d !== 'object' || !Array.isArray(d.modules)) return empty;
+      return {
+        syncedAt: String(d.syncedAt || ''),
+        source: String(d.source || ''),
+        sha: String(d.sha || ''),
+        counts: d.counts && typeof d.counts === 'object' ? d.counts : {},
+        modules: (d.modules || []).filter((r) => r && r.model),
+        inverters: (d.inverters || []).filter((r) => r && r.model),
+        structures: [],
+        cables: (d.cables || []).filter((r) => r && r.make)
+      };
+    } catch (e) { return empty; }
+  }
+  function cloudRows() { if (!cloudCache) cloudCache = loadCloud(); return cloudCache; }
+
+  function importCloud(data) {
+    const clean = (arr) => (Array.isArray(arr) ? arr.filter((r) => r && typeof r === 'object') : []);
+    cloudCache = {
+      syncedAt: String((data && data.syncedAt) || new Date().toISOString()),
+      source: String((data && data.source) || ''),
+      sha: String((data && data.sha) || ''),
+      counts: (data && data.counts) && typeof data.counts === 'object' ? data.counts : {},
+      modules: clean(data && data.modules),
+      inverters: clean(data && data.inverters),
+      structures: [],
+      cables: clean(data && data.cables)
+    };
+    try { root.localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudCache)); } catch (e) { /* quota */ }
+    merged = null;
+    refreshSelects();
+    return cloudInfo();
+  }
+  function cloudInfo() {
+    const c = cloudRows();
+    return { syncedAt: c.syncedAt, source: c.source, sha: c.sha, counts: c.counts, modules: c.modules.length, inverters: c.inverters.length, cables: c.cables.length };
+  }
+
+  const keyOf = (r) => String(r && (r.make || r.label || '') + '\u0001' + (r.model || ''));
+  /* Later layers win: built-in < cloud (newer Excel) < user rows (manual). */
+  function mix(base, overlay) {
+    const out = base.slice(), index = new Map();
+    base.forEach((r, i) => index.set(keyOf(r), i));
+    const extras = [];
+    overlay.forEach((r) => {
+      const k = keyOf(r);
+      if (index.has(k)) out[index.get(k)] = r;
+      else { index.set(k, out.length + extras.length); extras.push(r); }
+    });
+    return out.concat(extras);
+  }
+
   function cat() {
     if (!merged) {
-      const b = builtin(), u = userRows();
+      const b = builtin(), c = cloudRows(), u = userRows();
       merged = {
-        modules: b.modules.concat(u.modules),
-        inverters: b.inverters.concat(u.inverters),
-        structures: b.structures.concat(u.structures),
-        cables: b.cables.concat(u.cables)
+        modules: mix(mix(b.modules, c.modules), u.modules),
+        inverters: mix(mix(b.inverters, c.inverters), u.inverters),
+        structures: mix(mix(b.structures, c.structures), u.structures),
+        cables: mix(mix(b.cables, c.cables), u.cables)
       };
     }
     return merged;
@@ -133,17 +194,19 @@
 
   function save() {
     try {
-      const b = builtin();
-      const keyOf = (r) => String(r && (r.make || r.label || '') + '\u0001' + (r.model || ''));
+      const b = builtin(), cl = cloudRows();
       const bm = new Set(b.modules.map(keyOf));
       const bi = new Set(b.inverters.map(keyOf));
       const bs = new Set(b.structures.map((r) => String(r.label || r.make || '')));
       const bc = new Set(b.cables.map(keyOf));
+      const cm = new Set(cl.modules.map(keyOf));
+      const ci = new Set(cl.inverters.map(keyOf));
+      const cc = new Set(cl.cables.map(keyOf));
       const c = cat(), u = userRows();
-      u.modules = c.modules.filter((r) => !bm.has(keyOf(r)));
-      u.inverters = c.inverters.filter((r) => !bi.has(keyOf(r)));
+      u.modules = c.modules.filter((r) => !bm.has(keyOf(r)) && !cm.has(keyOf(r)));
+      u.inverters = c.inverters.filter((r) => !bi.has(keyOf(r)) && !ci.has(keyOf(r)));
       u.structures = c.structures.filter((r) => !bs.has(String(r.label || r.make || '')));
-      u.cables = c.cables.filter((r) => !bc.has(keyOf(r)));
+      u.cables = c.cables.filter((r) => !bc.has(keyOf(r)) && !cc.has(keyOf(r)));
       u._v = 2;
       root.localStorage.setItem(KEY, JSON.stringify(u));
       merged = null;
@@ -540,5 +603,5 @@
     });
   }
 
-  root.EquipmentStore = { cat, save, refreshSelects, setValue, syncModels, wire, renderManager, KEY };
+  root.EquipmentStore = { cat, save, refreshSelects, setValue, syncModels, wire, renderManager, importCloud, cloudInfo, KEY, CLOUD_KEY };
 })(typeof self !== 'undefined' ? self : this);
