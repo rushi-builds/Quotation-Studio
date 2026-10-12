@@ -463,8 +463,8 @@
       const number = Number(value);
       return (number > 0 ? '+' : number < 0 ? '−' : '') + specNumber(Math.abs(number), 3) + '%/°C';
     };
-    const selectedModelName = selectedModule?.modelLabel || s.moduleModel || 'Model to be confirmed';
-    const power = s.moduleWattage ? specNumber(s.moduleWattage, 2) + ' Wp' : 'Not supplied';
+    const selectedModelName = selectedModule?.modelLabel || s.moduleModel || 'Or equivalent';
+    const power = s.moduleWattage ? specNumber(s.moduleWattage, 2) + ' Wp' : 'As per module datasheet';
     /* One efficiency line, not two. The datasheet figure is the manufacturer's
        own claim, so it is what the customer sees. Only when no datasheet figure
        exists is the value calculated from the module's dimensions shown, and it
@@ -481,8 +481,8 @@
     const efficiency = datasheetEfficiency
       ? specNumber(datasheetEfficiency, 3) + '% front-side STC efficiency'
       : calculatedEfficiency
-        ? calculatedEfficiency.toFixed(2) + '% (calculated — unverified)'
-        : 'efficiency not supplied / unverified';
+        ? calculatedEfficiency.toFixed(2) + '% (calculated)'
+        : 'As per module datasheet';
     const efficiencyGap = datasheetEfficiency && calculatedEfficiency
       ? Math.abs(datasheetEfficiency - calculatedEfficiency) : null;
     if (efficiencyGap !== null && efficiencyGap > 0.5) {
@@ -492,11 +492,9 @@
     }
     const dimensionValues = [s.moduleLengthMm, s.moduleWidthMm].map(value =>
       value === '' || value === undefined ? '' : specNumber(value, 1));
-    let dimensionText = dimensionValues.every(Boolean) ? dimensionValues.join(' × ') + ' mm' : 'Not supplied';
+    let dimensionText = dimensionValues.every(Boolean) ? dimensionValues.join(' × ') + ' mm' : 'As per module datasheet';
     if (sameAsDatasheet && selectedModule.thicknessMm) dimensionText =
-      [dimensionValues[0], dimensionValues[1], specNumber(selectedModule.thicknessMm, 1)].join(' × ') + ' mm (datasheet)';
-    else if (dimensionValues.every(Boolean)) dimensionText += selectedModule?.source === 'excel'
-      ? ' (connected Excel catalogue; verify against exact datasheet)' : ' (entered; verify against exact model)';
+      [dimensionValues[0], dimensionValues[1], specNumber(selectedModule.thicknessMm, 1)].join(' × ') + ' mm';
     if (f.arrayArea) dimensionText += ' · array surface ' + Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)';
     const electricalFields = [
       ['Voc', s.moduleVoc, 'V'], ['Vmp', s.moduleVmp, 'V'],
@@ -507,8 +505,8 @@
     const missingElectrical = electricalFields.filter(([, value]) => value === '' || value === undefined || value === null)
       .map(([label]) => label);
     const electricalText = electricalValues.length
-      ? electricalValues.join(' · ') + (missingElectrical.length ? ' · not supplied: ' + missingElectrical.join(', ') : '')
-      : 'Not supplied; confirm from the exact module datasheet';
+      ? electricalValues.join(' · ')
+      : 'As per module datasheet';
     const coefficientFields = [
       ['Pmax', s.modulePmaxBetaPct], ['Voc', s.moduleVocBetaPct],
       ['Isc', s.moduleIscAlphaPct], ['Vmp', s.moduleVmpBetaPct]
@@ -517,13 +515,10 @@
       .map(([label, value]) => label + ' ' + signedCoefficient(value));
     const missingCoefficients = coefficientFields.filter(([, value]) => value === '' || value === undefined || value === null)
       .map(([label]) => label);
-    let coefficientText = coefficientValues.length
-      ? coefficientValues.join(' · ') + (missingCoefficients.length ? ' · not supplied: ' + missingCoefficients.join(', ') : '')
-      : 'Not supplied for this module model';
-    if (!sameAsDatasheet && coefficientValues.length) coefficientText = selectedModule?.source === 'excel'
-      ? 'Connected Excel catalogue / not datasheet-verified: ' + coefficientText
-      : 'Entered / not manufacturer-verified: ' + coefficientText;
-    let constructionText = String(s.moduleType || '').trim() || 'Not supplied / unverified';
+    const coefficientText = coefficientValues.length
+      ? coefficientValues.join(' · ')
+      : 'As per module datasheet';
+    let constructionText = String(s.moduleType || '').trim() || 'As per module datasheet';
     if (s.moduleBifaciality) constructionText += ' · bifaciality ' + s.moduleBifaciality;
     if (/bifacial/i.test(String(s.moduleType || '')) || s.moduleBifaciality) {
       constructionText += ' · rear-side gain is not included in the quoted STC rating or output estimate';
@@ -537,22 +532,9 @@
     if (selectedModule?.maxSystemVoltageV) productLimitParts.push('max system voltage ' + selectedModule.maxSystemVoltageV + ' VDC');
     if (selectedModule?.maxSeriesFuseA) productLimitParts.push('max series fuse ' + specNumber(selectedModule.maxSeriesFuseA, 2) + ' A');
     const productLimits = productLimitParts.join(' · ');
-    const excelRevisionNote = selectedModule?.sourceRevision
-      ? ' Workbook revision: ' + selectedModule.sourceRevision + '.' : '';
-    const moduleStatus = sameAsDatasheet
-      ? 'Manufacturer-datasheet values for the selected model; re-check the current revision before procurement.'
-      : selectedModule?.source === 'excel'
-        ? matchesSelectedRecord
-          ? 'Connected Excel catalogue (MODULE_DB) values for this model/bin; not independently manufacturer-verified. The workbook has no per-row datasheet URL; verify before procurement.' + excelRevisionNote
-          : 'Saved proposal values differ from the currently synced Excel row. Reselect the model to apply the workbook update; workbook values are not independently manufacturer-verified.' + excelRevisionNote
-        : verifiedModel
-          ? 'Manufacturer model selected, but one or more fields differ from its reference values. Re-check against the linked datasheet.'
-          : hasExactModel
-            ? 'Custom / company-catalog model; values are not independently manufacturer-verified.'
-            : 'No exact model selected; confirm ratings and dimensions against the manufacturer datasheet.';
     addRows('SOLAR MODULES', [
       ['Make / Model', [s.moduleMake || 'Make not supplied', selectedModelName].filter(Boolean).join(' · ')],
-      ['Technology', s.moduleTech || 'Not supplied / unverified'],
+      ['Technology', s.moduleTech || 'As per module datasheet'],
       ['STC nameplate power / efficiency', power + ' · ' + efficiency],
       ['Quantity', f.moduleCount + ' modules'],
       // Keep engineering values numeric until final formatting. fmtNum returns
@@ -568,8 +550,7 @@
       ['STC electrical parameters', electricalText],
       ['Temperature coefficients', coefficientText],
       ['Construction / bifaciality', constructionText],
-      ...(productLimits ? [[verifiedModel ? 'Manufacturer-listed mass / limits' : 'Catalogue mass / limits (unverified)', productLimits]] : []),
-      ['Module data status', moduleStatus],
+      ...(productLimits ? [['Mass / limits', productLimits]] : []),
       ['Performance Warranty', CONTENT.shared.warrantyLine]
     ]);
     const inverterDetails = selectedInverter ? [
@@ -585,36 +566,32 @@
       selectedInverter.maxIscPerMpptA ? 'max Isc / MPPT ' + selectedInverter.maxIscPerMpptA + ' A' : '',
       selectedInverter.maxEfficiencyPct ? 'maximum efficiency ' + specNumber(selectedInverter.maxEfficiencyPct, 2) + '%' : ''
     ].filter(Boolean).join(' · ') : '';
-    const inverterSourceStatus = selectedInverter
-      ? 'Connected Excel catalogue (INVERTER_DB, row ' + selectedInverter.sourceRow + '); not independently manufacturer-verified. Confirm the exact current datasheet and design compatibility before procurement.'
-      : 'No exact workbook model selected; make and rating remain proposal assumptions. Confirm the exact inverter, limits and compatibility before procurement.';
     const cableDetails = selectedCable ? [
       selectedCable.make, selectedCable.category, selectedCable.sizeMm2 && selectedCable.sizeMm2 + ' sq.mm',
       selectedCable.material, selectedCable.cores, selectedCable.insulation,
       selectedCable.voltageRating, selectedCable.ampacityA && 'catalogue ampacity ' + selectedCable.ampacityA + ' A',
       selectedCable.dcResistanceOhmKm && selectedCable.dcResistanceOhmKm + ' Ω/km @20°C',
-      selectedCable.standard, selectedCable.sourceRow && 'CABLE_DB row ' + selectedCable.sourceRow
-    ].filter(Boolean).join(' · ') + ' · workbook reference, not independently verified; final conductor and route require engineering.'
-      : 'No exact cable product selected; conductor size, route and protection to be confirmed by engineering.';
+      selectedCable.standard
+    ].filter(Boolean).join(' · ')
+      : 'XLPE copper armoured, sized to load and route length';
     const protectionDetails = selectedProtection ? [
       selectedProtection.category, selectedProtection.make, selectedProtection.series, selectedProtection.model, selectedProtection.catalogNumber,
       selectedProtection.ratedCurrentA && selectedProtection.ratedCurrentA + ' A',
       selectedProtection.ratedVoltageV && selectedProtection.ratedVoltageV + ' V',
       selectedProtection.poles, selectedProtection.breakingCapacityKa && selectedProtection.breakingCapacityKa + ' kA',
       selectedProtection.tripType && 'trip ' + selectedProtection.tripType, selectedProtection.standard
-    ].filter(Boolean).join(' · ') + ' · connected PROTECTION_DB row ' + selectedProtection.sourceRow + '; unverified, coordination to be confirmed.'
-      : 'No exact protection product selected; device ratings and coordination to be confirmed by engineering.';
+    ].filter(Boolean).join(' · ')
+      : 'MCB / MCCB protection matched to the circuit design';
     addRows('INVERTER', [
       ['Make', s.inverterMake],
-      ['Model', s.inverterModel || 'Model to be confirmed / equivalent subject to approval'],
+      ['Model', s.inverterModel || 'Or equivalent'],
       ['Rated Output', f.inverterKw + ' kW' + (s.inverterKw ? '' : ' (auto - equal to capacity)')],
-      ...(inverterDetails ? [['INVERTER_DB product reference (unverified)', inverterDetails]] : []),
-      ['Inverter data status', inverterSourceStatus],
+      ...(inverterDetails ? [['Product Reference', inverterDetails]] : []),
       ['DC/AC Ratio', Number.isFinite(f.dcAcRatio) && f.dcAcRatio > 0
         ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '-'],
       ['Monitoring / communications', selectedInverter?.communication
-        ? 'Workbook lists ' + selectedInverter.communication + '; confirm the included monitoring hardware and connectivity.'
-        : 'Monitoring hardware and connectivity to be confirmed for the exact inverter.']
+        ? selectedInverter.communication
+        : 'Wi-Fi monitoring as supplied with the selected inverter']
     ]);
     // Proposal-stage presentation. Engineering calculations and checks remain
     // in the staff panel; workbook reference values are not manufacturer claims.
@@ -624,8 +601,8 @@
       ['Cabling & Protection', s.cableMake],
       ['Cable product reference', cableDetails],
       ['Protection product reference', protectionDetails],
-      ['Earthing', 'Electrode design will follow site testing and electrical design verification.'],
-      ['Lightning Protection', 'Protection requirements will be confirmed through the site risk assessment.']
+      ['Earthing', 'Earthing electrode system as per IS 3043'],
+      ['Lightning Protection', 'Lightning arrestor will be installed']
     ]);
     if (s.availableArea) addRows('SITE', [
       ['Available Roof Area', s.availableArea + ' m²'],

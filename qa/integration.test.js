@@ -184,8 +184,9 @@ t('quotation prints model, STC efficiency/electrical values and bifaciality with
   waareeQuote.includes('Voc 49.76 V') && waareeQuote.includes('Pmax −0.34%/°C') &&
   waareeQuote.includes('70 ± 10%') && waareeQuote.includes('rear-side gain is not included') &&
   waareeQuote.includes('max series fuse 25 A'));
-t('quotation marks manufacturer values and links the actual datasheet',
-  waareeQuote.includes('Manufacturer-datasheet values') &&
+t('quotation prints the manufacturer datasheet values and links the actual datasheet',
+  waareeQuote.includes('front-side STC efficiency') &&
+  !waareeQuote.includes('As per module datasheet') &&
   d.querySelector('#v_tsRefs a[href*="waaree.com"]') !== null);
 const waareeForm = w.StateStore.collectForm();
 w.StateStore.applyForm(waareeForm);
@@ -232,9 +233,9 @@ fire(w, customModel, 'change');
 d.getElementById('moduleModelCustom').value = 'Mystery 700';
 fire(w, d.getElementById('moduleModelCustom'), 'input');
 w.Render.renderAll();
-t('custom/unknown module keeps datasheet-only values blank and is clearly unverified',
+t('custom/unknown module keeps datasheet-only values blank and never inherits a claim',
   d.getElementById('moduleModel').value === 'Mystery 700' && d.getElementById('moduleEfficiency').value === '' &&
-  d.getElementById('moduleVoc').value === '' && d.getElementById('v_tsTable').textContent.includes('Custom / company-catalog model') &&
+  d.getElementById('moduleVoc').value === '' && d.getElementById('moduleVmp').value === '' &&
   w.StateStore.collectForm().moduleModel === 'Mystery 700');
 const proposalProductRefs = {
   inverter: { id: 'excel-inverter-test-7', source: 'excel', make: 'Deye', model: 'SUN-5K-SG04LP3-EU',
@@ -258,14 +259,12 @@ d.getElementById('cableProductSnapshot').value = JSON.stringify(proposalProductR
 d.getElementById('protectionProductSnapshot').value = JSON.stringify(proposalProductRefs.protection);
 w.Render.renderAll();
 const workbookQuote = d.getElementById('v_tsTable').textContent;
-t('proposal spec prints exact workbook inverter values with an unverified status',
-  workbookQuote.includes('SUN-5K-SG04LP3-EU') && workbookQuote.includes('max DC voltage 800 V') &&
-  workbookQuote.includes('Connected Excel catalogue (INVERTER_DB, row 7)') &&
-  workbookQuote.includes('not independently manufacturer-verified'));
-t('proposal spec prints optional cable and protection product references without implying design approval',
-  workbookQuote.includes('CABLE_DB row 9') && workbookQuote.includes('A9N61525') &&
-  workbookQuote.includes('final conductor and route require engineering') &&
-  workbookQuote.includes('coordination to be confirmed'));
+t('proposal spec prints the exact workbook inverter values',
+  workbookQuote.includes('SUN-5K-SG04LP3-EU') && workbookQuote.includes('max DC voltage 800 V'));
+t('the customer-facing spec carries no provenance hedges or internal sheet names',
+  !/manufacturer-verified|INVERTER_DB|CABLE_DB|PROTECTION_DB|MODULE_DB|not supplied|to be confirmed by engineering|verify against/i.test(workbookQuote));
+t('proposal spec still prints the cable and protection product references',
+  workbookQuote.includes('A9N61525'));
 w.StateStore.applyForm(w.StateStore.DEFAULTS);
 w.EquipmentStore.refreshSelects();
 w.Render.renderAll();
