@@ -164,6 +164,9 @@
     listProtectionCategories,
     findProtection: id => { const entry = excelProtection.find(row => row.id === id); return entry ? Object.assign({}, entry) : null; },
     refreshFromExcel,
+    /* Exported for the test suite: the same validated data path the live
+       sync uses, so a workbook-shaped payload can be applied in a harness. */
+    applyExcelPayload,
     syncState: () => excelSync ? Object.assign({}, excelSync, { rowCounts: Object.assign({}, excelSync.rowCounts),
       rejectedRowsBySheet: Object.assign({}, excelSync.rejectedRowsBySheet), sheets: Object.assign({}, excelSync.sheets) }) : null,
     hasExcelCatalog: () => excelModules.length > 0,

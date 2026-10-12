@@ -132,6 +132,111 @@
     /* No model yet: the generic seed row for this make, matched exactly. */
     return cat().modules.find(entry => entry.make === make && !String(entry.model || '').trim()) || null;
   }
+
+  /* ------------------------------------------------------------------ */
+  /* Free-text product resolution                                        */
+  /* ------------------------------------------------------------------ */
+  /* The model boxes take whatever the operator actually knows: a bin
+     number, a wattage, or the whole model string, written in any shape -
+     "580", "580W", "BiN-08-580", "16", "16kw". The engine turns that into
+     the exact catalogue or workbook record, so the figures printed on the
+     quotation are that product's own numbers rather than a guess.
+
+     Only a match that leaves exactly one record is ever applied. If two
+     products share the number, either one would put the wrong dimensions
+     and voltage on a customer's document, so the engine leaves the field
+     alone and the picker still lists both for a human to choose between.
+     Nothing here infers a value that the record does not carry. */
+  function unique(list) { return Array.isArray(list) && list.length === 1 ? list[0] : null; }
+  function normalize(text) {
+    return String(text || '').trim().toLowerCase().replace(/[^a-z0-9.]+/g, ' ').trim();
+  }
+  /* "16", "16kw", "16 kW", "16.0" all mean the same rating. Anything else
+     is a model string and must not be read as a number. */
+  function ratingFromText(text) {
+    const match = String(text || '').trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(kw|k\.?w\.?)?$/);
+    return match ? Number(match[1]) : null;
+  }
+  function modulePool(make) {
+    const target = String(make || '').trim();
+    const pool = [...referenceModules(), ...cat().modules].filter(entry =>
+      entry && String(entry?.model || '').trim());
+    return target ? pool.filter(entry => makeMatches(entry.make, target)) : pool;
+  }
+  function inverterPool(make) {
+    const target = String(make || '').trim();
+    const pool = workbookInverters().filter(entry => entry && String(entry?.model || '').trim());
+    return target ? pool.filter(entry => makeMatches(entry.make, target)) : pool;
+  }
+  function resolveModuleByText(make, text) {
+    const query = normalize(text);
+    if (!query) return null;
+    const pool = modulePool(make);
+    if (!pool.length) return null;
+    const names = entry => [entry.model, entry.modelLabel].map(normalize).filter(Boolean);
+    const exact = pool.filter(entry => names(entry).includes(query));
+    if (exact.length) return unique(exact);
+    const watts = ratingFromText(text);
+    if (watts !== null) return unique(pool.filter(entry => Number(entry.wp) === watts));
+    const partial = pool.filter(entry => names(entry).some(name => name.includes(query)));
+    return unique(partial);
+  }
+  function resolveInverterByText(make, text) {
+    const query = normalize(text);
+    if (!query) return null;
+    const pool = inverterPool(make);
+    if (!pool.length) return null;
+    const exact = pool.filter(entry => normalize(entry.model) === query);
+    if (exact.length) return unique(exact);
+    const kw = ratingFromText(text);
+    if (kw !== null) {
+      const rated = pool.filter(entry => Number(entry.acKw) === kw);
+      if (rated.length) return unique(rated);
+      const byNumber = pool.filter(entry => normalize(entry.model).replace(/[^0-9.]+/g, ' ').trim() === String(kw));
+      if (byNumber.length) return unique(byNumber);
+    }
+    const partial = pool.filter(entry => normalize(entry.model).includes(query));
+    return unique(partial);
+  }
+  /* When the text describes more than one record, the engine narrows the
+     picker to those records instead of choosing between them. Two products
+     can share a wattage, and only the operator knows which one is on the
+     order; the list becomes short enough to answer in a click. */
+  function moduleCandidates(make, text) {
+    const query = normalize(text);
+    if (!query) return [];
+    const watts = ratingFromText(text);
+    return modulePool(make).filter(entry => {
+      if (watts !== null && Number(entry.wp) === watts) return true;
+      return [entry.model, entry.modelLabel].map(normalize).filter(Boolean).some(name => name.includes(query));
+    });
+  }
+  function inverterCandidates(make, text) {
+    const query = normalize(text);
+    if (!query) return [];
+    const kw = ratingFromText(text);
+    return inverterPool(make).filter(entry => {
+      if (kw !== null && Number(entry.acKw) === kw) return true;
+      return normalize(entry.model).includes(query);
+    });
+  }
+  function optionLabel(entry, type) {
+    if (type === 'inverter') return workbookOptionLabel(entry, 'inverter');
+    return entry.modelLabel || (entry.wp ? entry.model + ' · ' + entry.wp + ' Wp' : entry.model);
+  }
+  function narrowPicker(selectId, entries, draft, type) {
+    const sel = $(selectId), input = $(draft);
+    if (!sel || !input) return;
+    const placeholder = new Option(entries.length + ' matching ' + (entries.length === 1 ? 'record' : 'records') + ' — choose one…', '');
+    placeholder.setAttribute('data-placeholder', '');
+    const rows = entries.map(entry => new Option(optionLabel(entry, type), entry.model || entry.id));
+    const manual = new Option('Custom model…', input.value || MODULE_MODEL_CUSTOM_SENTINEL);
+    manual.setAttribute('data-custom', '');
+    sel.replaceChildren(placeholder, ...rows, manual);
+    placeholder.selected = true;
+    manual.value = input.value || MODULE_MODEL_CUSTOM_SENTINEL;
+    syncCustom(sel);
+  }
   function fillModuleModel(value, keepCustom, clearDraft) {
     const sel = $('moduleModel'), input = $('moduleModelCustom');
     if (!sel || !input) return;
@@ -264,7 +369,14 @@
     fillWorkbookPicker('inverterWorkbookModel', inverterRows, inverterSnapshot, 'inverter',
       inverterRows.length ? 'Choose an exact model from INVERTER_DB…' : 'No matching workbook inverter — keep equivalent / manual');
     const cableSnapshot = productSnapshot('cableProductSnapshot');
-    fillWorkbookPicker('workbookCableProduct', workbookCables(), cableSnapshot, 'cable', 'No exact cable product selected');
+    /* The cabling make is a grouped choice too, so the product rows follow
+       it the same way the inverter rows do. A make the workbook has no row
+       for - a typed custom entry - still sees the full list rather than an
+       empty picker. */
+    const cableMake = String($('cableMake')?.value || '').trim();
+    const cableRows = cableMake ? workbookCables().filter(entry => makeMatches(entry.make, cableMake)) : [];
+    fillWorkbookPicker('workbookCableProduct', cableRows.length ? cableRows : workbookCables(), cableSnapshot, 'cable',
+      cableRows.length ? 'Choose an exact cable product…' : 'No exact cable product selected');
 
     const protectionSnapshot = productSnapshot('protectionProductSnapshot');
     const categories = root.ModuleReferenceCatalog?.listProtectionCategories?.() || [];
@@ -413,6 +525,7 @@
             writeProductSnapshot('cableProductSnapshot', null);
             if ($('workbookCableProduct')) $('workbookCableProduct').value = '';
           }
+          refreshWorkbookProductSelectors();
         }
         if (isCustom(sel)) { if (event.isTrusted) input.focus(); return; }
         if (id === 'moduleMake') handleModuleMakeChange();
@@ -427,6 +540,30 @@
       };
       input.addEventListener('input', update);
       input.addEventListener('change', update);
+      /* Typed free text is resolved against the catalogue as it is typed, so
+         a wattage or a partial model number reaches its record without the
+         operator having to find it in the list first. The selection is
+         promoted to the exact model once the operator leaves the box. */
+      if (id === 'moduleModel') {
+        const lookup = promote => {
+          if (!isCustom(sel)) return;
+          const make = $('moduleMake')?.value || '';
+          const entry = resolveModuleByText(make, input.value);
+          sel.dataset.appliedModel = '';
+          if (entry) {
+            applyModuleDefaults(entry);
+            sel.dataset.appliedModel = entry.model;
+            if (promote) fillModuleModel(entry.model, false, true);
+            return;
+          }
+          clearModuleDefaults();
+          const candidates = moduleCandidates(make, input.value);
+          if (candidates.length) narrowPicker('moduleModel', candidates, 'moduleModelCustom', 'module');
+          else fillModuleModel(input.value || '', true, false);
+        };
+        input.addEventListener('input', () => lookup(false));
+        input.addEventListener('change', () => lookup(true));
+      }
     });
     $('inverterWorkbookModel')?.addEventListener('change', () => {
       const entry = root.ModuleReferenceCatalog?.findInverter?.($('inverterWorkbookModel').value);
@@ -437,6 +574,29 @@
       const selected = productSnapshot('inverterProductSnapshot');
       if (selected && String(event.target.value || '').trim() !== String(selected.model || '').trim()) {
         clearInverterWorkbookSelection(false, true);
+      }
+    });
+    /* A rating typed here - "16", "16kw", "20" - selects the matching
+       workbook inverter and writes its own DC limits onto the form. A model
+       string that matches nothing is left exactly as typed; more than one
+       match narrows the workbook picker rather than guessing. Applying a
+       record writes the model box back, which fires this same event, so an
+       already-applied record is recognised and left alone. */
+    $('inverterModel')?.addEventListener('change', () => {
+      const make = $('inverterMake')?.value || '';
+      const text = $('inverterModel')?.value || '';
+      const entry = resolveInverterByText(make, text);
+      if (entry) {
+        const snapshot = productSnapshot('inverterProductSnapshot');
+        if (!snapshot || snapshot.id !== entry.id) applyWorkbookInverter(entry);
+        return;
+      }
+      const candidates = inverterCandidates(make, text);
+      if (candidates.length) {
+        fillWorkbookPicker('inverterWorkbookModel', candidates, productSnapshot('inverterProductSnapshot'), 'inverter',
+          candidates.length + ' matching ' + (candidates.length === 1 ? 'record' : 'records') + ' — choose one…');
+      } else {
+        refreshWorkbookProductSelectors();
       }
     });
     $('workbookCableProduct')?.addEventListener('change', () => {
@@ -556,5 +716,7 @@
   root.EquipmentStore = { load, save, cat, refreshSelects, refreshWorkbookProductSelectors,
     setValue, wire, renderManager, seed, KEY,
     listModules: allModuleEntries, modelEntriesForMake: moduleEntriesForMake, findModule,
+    resolveModuleByText, resolveInverterByText, ratingFromText,
+    moduleCandidates, inverterCandidates, narrowPicker,
     applyModuleDefaults, clearModuleDefaults, applyWorkbookInverter };
 })(typeof self !== 'undefined' ? self : this);
