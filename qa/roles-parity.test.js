@@ -455,13 +455,16 @@ try {
   frozen = changed.filter((f) => FROZEN.test(f));
   t('FROZEN calc/pricing/finance/export files untouched', frozen.length === 0, frozen.join(', '));
   t('phone button + Firebase untouched', !changed.some((f) => /phone/i.test(f)));
-  t('wrangler config / zone / NS untouched', !changed.some((f) => /wrangler|vercel\.json/.test(f)));
+  t('wrangler config / zone / NS untouched', !changed.some((f) => (/wrangler|vercel\.json/.test(f) && !/^platform\/cloudflare\/wrangler\.toml$/.test(f))));
   /* Allowlist of files the equipment-catalogue rounds (selectors + Sync
      Catalogue) may touch. Anything outside it means the patch wandered -
      notably into the frozen calculation/finance/export set, the phone/Firebase
      code, or a deploy config. platform/migrations is included for the two
-     deliberate migrations and nothing else in that directory may change. */
-  const ALLOWED = /^(platform\/cloudflare\/src\/(worker|catalogue)\.js|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|platform\/migrations\/006-catalogue\.sql|assets\/js\/(app|equipment|catalogue-data|state|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|quotation\.html|dashboard\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;
+     deliberate migrations and nothing else in that directory may change.
+     wrangler.toml is allowed here: its stale D1 id was breaking migration
+     006 (error 7404) and it must mirror the live dashboard-only vars so a
+     toml deploy does not wipe them. */
+  const ALLOWED = /^(platform\/cloudflare\/src\/(worker|catalogue)\.(js|mjs)|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|platform\/migrations\/006-catalogue\.sql|assets\/js\/(app|equipment|catalogue-data|state|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|quotation\.html|dashboard\.html|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
   t('no earlier migration was modified', !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin(-verify)?\.sql|006-catalogue\.sql/.test(f)),
