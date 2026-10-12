@@ -243,7 +243,7 @@ export async function extractCatalogue(buffer, fileName) {
 
 function notConfigured(what) {
   const e = new Error('Catalogue sync is not configured: ' + what +
-    '. Set GDRIVE_SA_EMAIL + GDRIVE_SA_KEY (+ GDRIVE_FILE_ID or GDRIVE_FOLDER_ID) worker secrets, or GDRIVE_MODE=public with GDRIVE_FILE_ID.');
+    '. Set the GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON worker secret (full service-account JSON; use GDRIVE_FOLDER_ID or GDRIVE_FILE_ID to point at the workbook), or GDRIVE_MODE=public with GDRIVE_FILE_ID.');
   e.code = 'NOT_CONFIGURED';
   return e;
 }
@@ -295,8 +295,18 @@ export async function fetchCatalogueWorkbook(env) {
     if (!res.ok) throw new Error('Drive download failed (' + res.status + '). Is the file shared as "Anyone with the link"?');
     return { bytes: new Uint8Array(await res.arrayBuffer()), name: 'Solar_EPC (Drive public link)' };
   }
-  const email = env.GDRIVE_SA_EMAIL, key = env.GDRIVE_SA_KEY;
-  if (!email || !key) throw notConfigured('service-account secrets missing');
+  let email = '', key = '';
+  const raw = env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON;
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      email = String(parsed.client_email || '');
+      key = String(parsed.private_key || '');
+    } catch (e) {
+      throw notConfigured('GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON is not valid JSON');
+    }
+  }
+  if (!email || !key) throw notConfigured('GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON secret missing');
   const token = await serviceAccountToken(email, key);
   let id = env.GDRIVE_FILE_ID;
   let name = 'Solar_EPC (Drive file ' + String(id).slice(0, 8) + ')';

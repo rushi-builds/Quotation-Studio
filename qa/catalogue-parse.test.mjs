@@ -153,9 +153,40 @@ test('syncCatalogue full pipeline with a stubbed public Drive download', async (
   } finally { globalThis.fetch = realFetch; }
 });
 
+test('service-account mode parses GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON and signs the token', async () => {
+  const realFetch = globalThis.fetch;
+  const { generateKeyPairSync } = await import('node:crypto');
+  const pair = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const sa = { client_email: 'catalogue@project.iam.gserviceaccount.com', private_key: pair.privateKey.export({ type: 'pkcs8', format: 'pem' }), project_id: 'proj' };
+  let tokenBody = '', driveAuth = '';
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes('oauth2.googleapis.com/token')) {
+      tokenBody = String(options.body);
+      return Response.json({ access_token: 'drive-token' });
+    }
+    if (String(url).includes('drive/v3/files/fixture-file-id')) {
+      driveAuth = String((options.headers || {}).Authorization || '');
+      return new Response(FIXTURE, { status: 200 });
+    }
+    throw new Error('unexpected fetch ' + url);
+  };
+  try {
+    const result = await syncCatalogue({ GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: JSON.stringify(sa), GDRIVE_FILE_ID: 'fixture-file-id' }, memDb());
+    const assertion = new URLSearchParams(tokenBody).get('assertion');
+    const payload = JSON.parse(Buffer.from(assertion.split('.')[1], 'base64url').toString());
+    assert.equal(payload.iss, sa.client_email);
+    assert.equal(payload.scope, 'https://www.googleapis.com/auth/drive.readonly');
+    assert.equal(driveAuth, 'Bearer drive-token');
+    assert.equal(result.counts.modules, 2);
+    assert.equal(result.sha, FIXTURE_SHA);
+  } finally { globalThis.fetch = realFetch; }
+});
+
 test('fetchCatalogueWorkbook fails closed without configuration', async () => {
-  await assert.rejects(() => fetchCatalogueWorkbook({}), (e) => e.code === 'NOT_CONFIGURED' && /service-account secrets missing/.test(e.message));
+  await assert.rejects(() => fetchCatalogueWorkbook({}), (e) => e.code === 'NOT_CONFIGURED' && /GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON secret missing/.test(e.message));
   await assert.rejects(() => fetchCatalogueWorkbook({ GDRIVE_MODE: 'public' }), (e) => e.code === 'NOT_CONFIGURED' && /GDRIVE_FILE_ID missing/.test(e.message));
+  await assert.rejects(() => fetchCatalogueWorkbook({ GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: 'not json' }), (e) => e.code === 'NOT_CONFIGURED' && /not valid JSON/.test(e.message));
+  await assert.rejects(() => fetchCatalogueWorkbook({ GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: '{}', GDRIVE_FILE_ID: 'x' }), (e) => e.code === 'NOT_CONFIGURED' && /secret missing/.test(e.message));
 });
 
 test('corrupt input and missing sheets are rejected with clear errors', async () => {
