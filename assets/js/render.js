@@ -447,7 +447,10 @@
       ['Available Roof Area', s.availableArea + ' m²'],
       ['Indicative Roof Requirement', Math.ceil(f.requiredArea || 0) + ' m² — final layout and clearances subject to site verification.' + (Number(s.availableArea) < Math.ceil(f.requiredArea || 0) ? ' Estimated requirement exceeds available area.' : '')]
     ]);
-    addRows('ENGINEERING DESIGN BASIS', [['Proposal-stage design', root.StateStore.engineeringNote(s)]]);
+    addRows('ENGINEERING DESIGN BASIS', [
+      ['Reference Standards', 'IEC 61215 (modules) · IEC 62109-1 (inverter) · IEC 62548 / IS 60364-7-712 (PV array) · IS 3043 (earthing)'],
+      ['Proposal-stage design', root.StateStore.engineeringNote(s)]
+    ]);
     $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
     setHTML('v_tsTable', rows.join(''));
     set('v_tsNoteLabel', P.noteLabel);
