@@ -533,6 +533,11 @@
       ['Technology', s.moduleTech || 'Not supplied / unverified'],
       ['STC nameplate power / efficiency', power + ' · ' + efficiency],
       ['Quantity', f.moduleCount + ' modules'],
+      ['Module Efficiency', (function () {
+        const eff = root.EquipmentCalc && root.EquipmentCalc.moduleEfficiency({
+          wp: s.moduleWattage, lengthMm: s.moduleLengthMm, widthMm: s.moduleWidthMm });
+        return eff ? eff.toFixed(2) + ' %' : '-';
+      })()],
       // Keep engineering values numeric until final formatting. fmtNum returns
       // grouped text (e.g. "1,036"), which cannot be used in arithmetic.
       // The contracted figure is printed alongside whenever whole modules land
