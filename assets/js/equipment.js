@@ -104,21 +104,32 @@
     if (id === 'mountMake') return cat().structures;
     return [];
   }
+  /* The make on the page is a grouped choice - "Panasonic / Waaree / Adani or
+     Equivalent" - while a record names one manufacturer. The inverter picker
+     already matches the two that way (makeMatches, below); the module picker
+     compared them as equal strings, so it found no models at all, the model
+     list came back empty, and no datasheet value could ever reach the form. */
   function moduleEntriesForMake(make) {
     const seen = new Set();
     return [...referenceModules(), ...cat().modules].filter(entry => {
       const model = String(entry?.model || '').trim();
-      if (!entry || entry.make !== make || !model || seen.has(model)) return false;
+      if (!entry || !makeMatches(entry.make, make) || !model || seen.has(model)) return false;
       seen.add(model); return true;
     });
   }
   function findModule(make, model) {
     const name = String(model || '').trim();
     if (name) {
-      const verified = root.ModuleReferenceCatalog?.find?.(make, name);
+      /* An exact lookup misses the very row the picker just offered whenever
+         the make is grouped, so the fallback matches the way the picker did. */
+      const verified = root.ModuleReferenceCatalog?.find?.(make, name) ||
+        referenceModules().find(entry => makeMatches(entry.make, make) &&
+          String(entry.model || '').trim() === name);
       if (verified) return verified;
-      return cat().modules.find(entry => entry.make === make && String(entry.model || '').trim() === name) || null;
+      return cat().modules.find(entry => makeMatches(entry.make, make) &&
+        String(entry.model || '').trim() === name) || null;
     }
+    /* No model yet: the generic seed row for this make, matched exactly. */
     return cat().modules.find(entry => entry.make === make && !String(entry.model || '').trim()) || null;
   }
   function fillModuleModel(value, keepCustom, clearDraft) {
