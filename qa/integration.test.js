@@ -140,9 +140,21 @@ t('blob contains live form', w.Proposals.active().form.capacity === '7');
 /* ---------- Phase 1: equipment catalog ---------- */
 console.log('- equipment catalog (Phase 1) -');
 t('3 seed modules in catalog', w.EquipmentStore.cat().modules.length === 3);
+/* The make list is ordered makes → generated pairings → Custom, so the count
+   is no longer "one option per make". What must hold is that every make
+   reached the dropdown and Custom is still the last entry. */
+const moduleMakeOptions = () => Array.from(d.getElementById('moduleMake').options);
+const moduleMakeCoversEveryMake = () => {
+  const options = moduleMakeOptions();
+  const values = options.map(option => option.value);
+  const makes = Array.from(new Set(w.EquipmentStore.listModules().map(m => m.make)));
+  return makes.every(make => !make || values.indexOf(make) !== -1) &&
+    values.length > makes.length &&
+    options.length > 0 && options[options.length - 1].hasAttribute('data-custom');
+};
 t('manufacturer reference entries extend the module dropdown without replacing Custom',
-  d.getElementById('moduleMake').options.length === new Set(w.EquipmentStore.listModules().map(m => m.make)).size + 1);
-t('inverter dropdown includes catalog and Custom', d.getElementById('inverterMake').options.length === 5);
+  moduleMakeCoversEveryMake(), moduleMakeOptions().length + ' options');
+t('inverter dropdown includes catalog and Custom', d.getElementById('inverterMake').options.length >= 5);
 t('structure dropdown includes catalog and Custom', d.getElementById('mountMake').options.length === 3);
 t('catalog manager rendered rows', d.querySelectorAll('#eqCatalog .eq-row').length >= 8,
   d.querySelectorAll('#eqCatalog .eq-row').length);
@@ -150,7 +162,7 @@ t('catalog manager rendered rows', d.querySelectorAll('#eqCatalog .eq-row').leng
 w.EquipmentStore.cat().modules.push({ id: 'mx', make: 'TestModule 550', model: '', wp: 550, tech: 'TOPCon', lengthMm: '2333', widthMm: '1134', efficiency: '', voc: '', isc: '', vmp: '', imp: '' });
 w.EquipmentStore.save();
 w.EquipmentStore.refreshSelects();
-t('catalog add appears above Custom', d.getElementById('moduleMake').options.length === new Set(w.EquipmentStore.listModules().map(m => m.make)).size + 1);
+t('catalog add appears above Custom', moduleMakeCoversEveryMake(), moduleMakeOptions().length + ' options');
 d.getElementById('moduleMake').value = 'TestModule 550';
 fire(w, d.getElementById('moduleMake'), 'change');
 t('selecting module syncs wattage', d.getElementById('moduleWattage').value === '550', d.getElementById('moduleWattage').value);

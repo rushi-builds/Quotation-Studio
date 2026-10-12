@@ -22,27 +22,20 @@
     let busy = false;
     const setStatus = result => {
       if (!result || !result.ok) {
-        const code = result && result.code;
-        status.textContent = code === 'PREVIEW_BACKEND_DISABLED'
-          ? 'Live Excel sync runs in the production workspace; this isolated preview keeps its local reference data.'
-          : code === 'EXCEL_SYNC_NOT_CONFIGURED'
-            ? 'Private Excel connection is not configured yet; built-in references and Custom / Or Equivalent entries remain available.'
-            : code === 'PLATFORM_API_UNAVAILABLE'
-              ? 'Sign in to the workspace to load its connected Excel catalogue.'
-              : 'Excel catalogue is currently unavailable; built-in references remain available.';
+        /* Nothing worth saying to the person filling the form: the catalogue
+           being unavailable changes no value on screen, and the built-in
+           list is already what they are looking at. */
+        status.textContent = '';
         return;
       }
       const when = result.checkedAt || result.syncedAt;
-      const time = when ? new Date(when).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'time unavailable';
-      const prefix = result.stale ? 'Excel sync is stale; using the last saved snapshot' : 'Excel catalogue synced';
+      const time = when ? new Date(when).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
       const counts = result.rowCounts || {};
       const rowSummary = [
-        [counts.modules ?? result.rowCount, 'module/bin'], [counts.inverters, 'inverter'],
+        [counts.modules ?? result.rowCount, 'module'], [counts.inverters, 'inverter'],
         [counts.cables, 'cable'], [counts.protection, 'protection']
       ].filter(([count]) => Number(count) > 0).map(([count, label]) => Number(count) + ' ' + label).join(' · ');
-      const rejected = Number(result.rejectedRows) > 0 ? ' · ' + result.rejectedRows + ' partial/invalid product row(s) skipped' : '';
-      status.textContent = prefix + ' · ' + (rowSummary || 'no product rows') + ' rows · checked ' + time + rejected +
-        '. Workbook entries are not independently datasheet-verified.';
+      status.textContent = 'Excel synced' + (rowSummary ? ' · ' + rowSummary : '') + (time ? ' · ' + time : '');
     };
     const refresh = async force => {
       if (busy) return;
@@ -600,15 +593,24 @@
   function wireForm() {
     const form = $('quoteForm');
     if (!form) return;
+    /* Filling a block of fields fires input and change on every field it
+       writes. Rendering on each of those events drew the charts once per
+       field - fifteen times over while the operator was still typing - and
+       the equipment block stopped responding until it finished. Field
+       updates hold the render and flush once at the end of the batch;
+       ordinary typing renders exactly as it did before. */
+    const renderNow = () => {
+      scheduleSave();
+      if (window.__qsRenderHold) return;
+      window.Render.renderAll();
+    };
     form.addEventListener('input', (e) => {
       if (e.target && e.target.type === 'file') return;
-      window.Render.renderAll();
-      scheduleSave();
+      renderNow();
     });
     form.addEventListener('change', (e) => {
       if (e.target && e.target.type === 'file') return;
-      window.Render.renderAll();
-      scheduleSave();
+      renderNow();
     });
 
     document.querySelectorAll('input[data-photo]').forEach((input) => {

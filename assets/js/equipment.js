@@ -83,12 +83,21 @@
     ]));
     return baseSelectOptions;
   }
-  function isCustom(sel) { return !!sel?.selectedOptions[0]?.hasAttribute('data-custom'); }
+  function isCustom(sel) { return sel?.selectedOptions[0]?.hasAttribute('data-custom'); }
+  function isGroupedMake(value) {
+    const text = String(value || '').trim();
+    return !!text && !isSingleMake(text);
+  }
   function syncCustom(sel) {
     if (!sel) return;
-    const active = isCustom(sel), input = $(sel.id + 'Custom'), wrap = $(sel.id + 'CustomWrap');
-    if (wrap) wrap.hidden = !active;
-    if (input) input.disabled = !active;
+    const input = $(sel.id + 'Custom'), wrap = $(sel.id + 'CustomWrap');
+    /* With a grouped make the models come from several manufacturers at once,
+       so a wattage is often the only thing the operator has to hand. The
+       free-text box under the model picker stays available for that case
+       rather than waiting for "Custom model…" to be chosen first. */
+    const available = isCustom(sel) || (sel.id === 'moduleModel' && isGroupedMake($('moduleMake')?.value));
+    if (wrap) wrap.hidden = !available;
+    if (input) input.disabled = !available;
   }
   function referenceModules() { return root.ModuleReferenceCatalog?.list?.() || []; }
   function workbookInverters() { return root.ModuleReferenceCatalog?.listInverters?.() || []; }
@@ -273,14 +282,47 @@
     syncCustom(sel);
     if (!isCustom(sel)) sel.dataset.appliedModel = sel.value;
   }
+  /* The make list is read top to bottom as a shortlist: the makes the company
+     actually sources, then the pairings it will accept as alternatives, then
+     Custom. Workbook and company rows supply the makes; the pairings are
+     generated from them so "Waaree / Panasonic or equivalent" does not have
+     to be typed into the template by hand every time a make is added. */
+  const MAKE_SELECTS = ['moduleMake', 'inverterMake', 'cableMake'];
+  function isSingleMake(text) {
+    const value = String(text || '').trim();
+    if (!value) return false;
+    if (/custom/i.test(value)) return false;
+    return !/[\/]|\bor equivalent\b/i.test(value);
+  }
+  function orderMakeOptions(id, authored, dynamic) {
+    const singles = [];
+    const groups = [];
+    const seen = new Set();
+    /* Duplicates are matched without regard to case: the template already
+       carries "Vikram Solar or Equivalent" and the generated pairing would
+       otherwise repeat it as "…or equivalent". */
+    const push = (list, text) => {
+      const value = String(text || '').trim();
+      const key = value.toLowerCase();
+      if (!value || seen.has(key)) return;
+      seen.add(key);
+      list.push(value);
+    };
+    dynamic.forEach(text => { if (isSingleMake(text)) push(singles, text); else push(groups, text); });
+    authored.forEach(text => { if (isSingleMake(text)) push(singles, text); else push(groups, text); });
+    for (let i = 0; i < singles.length; i += 1) {
+      for (let j = i + 1; j < singles.length; j += 1) push(groups, singles[i] + ' / ' + singles[j] + ' or equivalent');
+    }
+    return [...singles, ...groups];
+  }
   function fillSelect(sel, value, keepCustom, clearDraft) {
     const input = $(sel.id + 'Custom');
     const dynamicEntries = CATALOG_FIELDS[sel.id] ? entriesForSelect(sel.id).map(entry => entry.make || entry.label) : [];
     // Preserve the authored “Or Equivalent” options while adding exact workbook makes.
-    const labels = [...new Set([
-      ...(originalSelectOptions()[sel.id] || []).map(option => option.value),
-      ...dynamicEntries.filter(Boolean).map(String)
-    ])];
+    const authored = (originalSelectOptions()[sel.id] || []).map(option => option.value);
+    const labels = MAKE_SELECTS.includes(sel.id)
+      ? orderMakeOptions(sel.id, authored, dynamicEntries)
+      : [...new Set([...authored, ...dynamicEntries.filter(Boolean).map(String)])];
     value = value == null ? '' : String(value);
     if (clearDraft && input) input.value = '';
     const manual = new Option('Custom…', input?.value || '');
@@ -404,31 +446,46 @@
     ['iscAlphaPct', 'moduleIscAlphaPct'], ['pmaxBetaPct', 'modulePmaxBetaPct'],
     ['weightKg', 'moduleWeightKg']
   ];
+  /* One filled field means one render; a filled block must not mean one
+     render per field. The hold is what keeps the equipment block responsive
+     while a product's numbers are written onto the form. */
+  function beginFieldUpdate() { root.__qsRenderHold = (root.__qsRenderHold || 0) + 1; }
+  function endFieldUpdate() {
+    root.__qsRenderHold = Math.max(0, (root.__qsRenderHold || 0) - 1);
+    if (root.__qsRenderHold) return;
+    if (root.Render && typeof root.Render.renderAll === 'function') root.Render.renderAll();
+  }
   function applyModuleDefaults(entry) {
     if (!entry) return false;
-    const touched = [];
-    // Clear values from the previously selected product first. A missing field
-    // stays blank; it is never carried over from a different module model.
-    MODULE_FIELD_MAP.forEach(([, id]) => { const el = $(id); if (el) { el.value = ''; touched.push(id); } });
-    MODULE_FIELD_MAP.forEach(([from, id]) => {
-      const el = $(id), value = entry[from];
-      if (!el || value === '' || value === undefined || value === null) return;
-      if (id === 'moduleTech') setValue(id, value);
-      else el.value = value;
-    });
-    touched.forEach(id => fire($(id)));
-    return true;
+    beginFieldUpdate();
+    try {
+      const touched = [];
+      // Clear values from the previously selected product first. A missing field
+      // stays blank; it is never carried over from a different module model.
+      MODULE_FIELD_MAP.forEach(([, id]) => { const el = $(id); if (el) { el.value = ''; touched.push(id); } });
+      MODULE_FIELD_MAP.forEach(([from, id]) => {
+        const el = $(id), value = entry[from];
+        if (!el || value === '' || value === undefined || value === null) return;
+        if (id === 'moduleTech') setValue(id, value);
+        else el.value = value;
+      });
+      touched.forEach(id => fire($(id)));
+      return true;
+    } finally { endFieldUpdate(); }
   }
   function clearModuleDefaults() {
-    const touched = [];
-    MODULE_FIELD_MAP.forEach(([, id]) => {
-      const el = $(id);
-      if (!el) return;
-      if (id === 'moduleTech') setValue(id, '');
-      else el.value = '';
-      touched.push(id);
-    });
-    touched.forEach(id => fire($(id)));
+    beginFieldUpdate();
+    try {
+      const touched = [];
+      MODULE_FIELD_MAP.forEach(([, id]) => {
+        const el = $(id);
+        if (!el) return;
+        if (id === 'moduleTech') setValue(id, '');
+        else el.value = '';
+        touched.push(id);
+      });
+      touched.forEach(id => fire($(id)));
+    } finally { endFieldUpdate(); }
   }
   function handleModuleMakeChange() {
     const make = $('moduleMake')?.value || '';
@@ -436,6 +493,9 @@
     const generic = cat().modules.find(entry => entry.make === make && !String(entry.model || '').trim());
     if (generic) applyModuleDefaults(generic);
     else if (moduleEntriesForMake(make).length) clearModuleDefaults();
+    delete $('moduleModel')?.dataset.narrowKey;
+    delete $('moduleModel')?.dataset.lookupCleared;
+    syncCustom($('moduleModel'));
   }
   function handleModuleModelChange() {
     const sel = $('moduleModel');
@@ -454,40 +514,46 @@
 
   const INVERTER_PRODUCT_FIELDS = ['inverterKw', 'inverterVmaxDc', 'mpptMinV', 'mpptMaxV', 'inverterMaxCurrentA'];
   function clearInverterWorkbookSelection(clearModel, clearFields) {
-    writeProductSnapshot('inverterProductSnapshot', null);
-    const model = $('inverterModel');
-    if (model && clearModel) model.value = '';
-    const select = $('inverterWorkbookModel');
-    if (select) select.value = '';
-    if (clearFields) INVERTER_PRODUCT_FIELDS.forEach(id => {
-      const input = $(id);
-      if (input) { input.value = ''; fire(input); }
-    });
-    if (model && clearModel) fire(model);
+    beginFieldUpdate();
+    try {
+      writeProductSnapshot('inverterProductSnapshot', null);
+      const model = $('inverterModel');
+      if (model && clearModel) model.value = '';
+      const select = $('inverterWorkbookModel');
+      if (select) select.value = '';
+      if (clearFields) INVERTER_PRODUCT_FIELDS.forEach(id => {
+        const input = $(id);
+        if (input) { input.value = ''; fire(input); }
+      });
+      if (model && clearModel) fire(model);
+    } finally { endFieldUpdate(); }
   }
   function applyWorkbookInverter(entry) {
     if (!entry || !entry.id) return false;
-    setValue('inverterMake', entry.make);
-    const model = $('inverterModel');
-    if (model) model.value = entry.model || '';
-    writeProductSnapshot('inverterProductSnapshot', entry);
-    INVERTER_PRODUCT_FIELDS.forEach(id => { const input = $(id); if (input) input.value = ''; });
-    [
-      ['acKw', 'inverterKw'], ['maxDcVoltageV', 'inverterVmaxDc'],
-      ['mpptMinV', 'mpptMinV'], ['mpptMaxV', 'mpptMaxV'],
-      ['maxInputCurrentPerMpptA', 'inverterMaxCurrentA']
-    ].forEach(([from, to]) => {
-      const value = entry[from], input = $(to);
-      if (!input || value === '' || value === undefined || value === null) return;
-      const text = String(value).trim(), number = Number(text);
-      // An MPPT current written as “22 / 12” is not one limit; keep it in the
-      // proposal snapshot, but do not collapse it into an unsafe scalar input.
-      if (text && !text.includes('/') && Number.isFinite(number)) input.value = number;
-    });
-    if (model) fire(model);
-    INVERTER_PRODUCT_FIELDS.forEach(id => fire($(id)));
-    refreshWorkbookProductSelectors();
-    return true;
+    beginFieldUpdate();
+    try {
+      setValue('inverterMake', entry.make);
+      const model = $('inverterModel');
+      if (model) model.value = entry.model || '';
+      writeProductSnapshot('inverterProductSnapshot', entry);
+      INVERTER_PRODUCT_FIELDS.forEach(id => { const input = $(id); if (input) input.value = ''; });
+      [
+        ['acKw', 'inverterKw'], ['maxDcVoltageV', 'inverterVmaxDc'],
+        ['mpptMinV', 'mpptMinV'], ['mpptMaxV', 'mpptMaxV'],
+        ['maxInputCurrentPerMpptA', 'inverterMaxCurrentA']
+      ].forEach(([from, to]) => {
+        const value = entry[from], input = $(to);
+        if (!input || value === '' || value === undefined || value === null) return;
+        const text = String(value).trim(), number = Number(text);
+        // An MPPT current written as “22 / 12” is not one limit; keep it in the
+        // proposal snapshot, but do not collapse it into an unsafe scalar input.
+        if (text && !text.includes('/') && Number.isFinite(number)) input.value = number;
+      });
+      if (model) fire(model);
+      INVERTER_PRODUCT_FIELDS.forEach(id => fire($(id)));
+      refreshWorkbookProductSelectors();
+      return true;
+    } finally { endFieldUpdate(); }
   }
   function applyInverterDefaults() {
     const sel = $('inverterMake');
@@ -543,23 +609,38 @@
       /* Typed free text is resolved against the catalogue as it is typed, so
          a wattage or a partial model number reaches its record without the
          operator having to find it in the list first. The selection is
-         promoted to the exact model once the operator leaves the box. */
+         promoted to the exact model once the operator leaves the box.
+
+         Typing fires this on every character, so nothing here runs twice for
+         the same text: the fields are cleared once when the text stops
+         matching, and the picker is rebuilt only when the set of records it
+         would show has actually changed. */
       if (id === 'moduleModel') {
         const lookup = promote => {
           if (!isCustom(sel)) return;
           const make = $('moduleMake')?.value || '';
-          const entry = resolveModuleByText(make, input.value);
+          const text = input.value;
+          const entry = resolveModuleByText(make, text);
           sel.dataset.appliedModel = '';
           if (entry) {
+            delete sel.dataset.lookupCleared;
+            delete sel.dataset.narrowKey;
             applyModuleDefaults(entry);
             sel.dataset.appliedModel = entry.model;
             if (promote) fillModuleModel(entry.model, false, true);
             return;
           }
-          clearModuleDefaults();
-          const candidates = moduleCandidates(make, input.value);
+          if (!sel.dataset.lookupCleared) {
+            sel.dataset.lookupCleared = '1';
+            clearModuleDefaults();
+          }
+          const candidates = moduleCandidates(make, text);
+          const key = candidates.map(row => row.id || row.model).join('|');
+          const seen = sel.dataset.narrowKey;
+          if (seen !== undefined && seen === key) return;
+          sel.dataset.narrowKey = key;
           if (candidates.length) narrowPicker('moduleModel', candidates, 'moduleModelCustom', 'module');
-          else fillModuleModel(input.value || '', true, false);
+          else fillModuleModel(text || '', true, false);
         };
         input.addEventListener('input', () => lookup(false));
         input.addEventListener('change', () => lookup(true));

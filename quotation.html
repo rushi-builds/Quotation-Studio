@@ -286,8 +286,8 @@
               <label for="moduleModelCustom">Custom module model</label>
               <input type="text" id="moduleModelCustom" data-equipment-custom placeholder="Type a wattage, model number or model name…" autocomplete="off" spellcheck="false" disabled>
             </div>
-            <div class="hint" id="moduleModelHint">Pick a model, or type a wattage such as 580 to load that product's own values.</div>
-            <div class="hint" id="moduleCatalogSyncStatus" role="status" aria-live="polite">Using the built-in reference list until the private Excel catalogue is configured.</div>
+            <div class="hint" id="moduleModelHint" aria-hidden="true"></div>
+            <div class="hint" id="moduleCatalogSyncStatus" role="status" aria-live="polite"></div>
           </div>
         </div>
         <div class="row3">
@@ -321,7 +321,6 @@
               <label for="moduleTechCustom">Custom module technology</label>
               <input type="text" id="moduleTechCustom" data-equipment-custom placeholder="Enter your own module technology…" autocomplete="off" spellcheck="false" disabled>
             </div>
-            <div class="hint">Technology is the cell architecture; mono-/bifacial construction and bifaciality are separate.</div>
           </div>
         </div>
         <div class="field"><label for="inverterMake">Inverter make</label>
@@ -338,15 +337,13 @@
           </div>
         </div>
         <div class="row2">
-          <div class="field"><label for="inverterWorkbookModel">Exact model from connected INVERTER_DB (optional)</label>
-            <select id="inverterWorkbookModel" data-form-ignore aria-describedby="inverterWorkbookHint">
-              <option value="">No exact model selected — keep equivalent / manual</option>
+          <div class="field"><label for="inverterWorkbookModel">Model</label>
+            <select id="inverterWorkbookModel" data-form-ignore>
+              <option value="">No model selected</option>
             </select>
-            <div class="hint" id="inverterWorkbookHint">Selecting a workbook row fills its model, AC rating and available DC limits in this proposal only. It does not verify compatibility or change other saved proposals.</div>
           </div>
-          <div class="field"><label for="inverterModel">Inverter model (proposal text)</label>
-            <input type="text" id="inverterModel" maxlength="160" placeholder="Optional exact model or custom entry">
-            <div class="hint">Edit this only when changing the selected product. Workbook-derived values are cleared if the model text changes.</div>
+          <div class="field"><label for="inverterModel">Inverter model</label>
+            <input type="text" id="inverterModel" maxlength="160" placeholder="Type a rating such as 16 or 16kw…">
           </div>
         </div>
         <input type="hidden" id="inverterProductSnapshot" value="">
@@ -376,20 +373,18 @@
           </div>
         </div>
         <div class="row2">
-          <div class="field"><label for="workbookCableProduct">Optional cable product reference (CABLE_DB)</label>
+          <div class="field"><label for="workbookCableProduct">Cable product</label>
             <select id="workbookCableProduct" data-form-ignore>
-              <option value="">No exact cable product selected</option>
+              <option value="">Not selected</option>
             </select>
-            <div class="hint">Reference only: selecting a cable does not decide its route, length, protection, or safe conductor size.</div>
           </div>
-          <div class="field"><label for="workbookProtectionCategory">Optional protection category (PROTECTION_DB)</label>
+          <div class="field"><label for="workbookProtectionCategory">Protection</label>
             <select id="workbookProtectionCategory" data-form-ignore>
-              <option value="">Choose a category…</option>
+              <option value="">Category…</option>
             </select>
-            <select id="workbookProtectionProduct" data-form-ignore aria-label="Exact protection product reference">
-              <option value="">No exact protection product selected</option>
+            <select id="workbookProtectionProduct" data-form-ignore aria-label="Protection product">
+              <option value="">Not selected</option>
             </select>
-            <div class="hint">Reference only: no breaker/fuse/SPD rating or coordination is inferred from this product list.</div>
           </div>
         </div>
         <input type="hidden" id="cableProductSnapshot" value="">
@@ -1460,9 +1455,9 @@
 <script src="assets/js/charts.js?v=finance-fixes1"></script>
 <script src="assets/js/model.js"></script>
 <script src="assets/js/state.js?v=module-models1"></script>
-<script src="assets/js/module-catalog.js?v=module-catalog1"></script>
+<script src="assets/js/module-catalog.js?v=module-catalog2"></script>
 <script src="assets/js/equipment-calc.js"></script>
-<script src="assets/js/equipment.js?v=engine1"></script>
+<script src="assets/js/equipment.js?v=smooth1"></script>
 <script src="assets/js/render.js?v=techspecclean1"></script>
 <script src="assets/js/editor.js?v=remote-monitoring1"></script>
 <script src="assets/js/experience.js?v=proposal-stage1"></script>
@@ -1472,7 +1467,7 @@
 <script src="assets/js/workspace-prefs.js"></script>
 <script src="assets/js/platform-api.js?v=preview-isolation1"></script>
 <script src="assets/js/cloud-bridge.js?v=cloud-primary1"></script>
-<script src="assets/js/app.js?v=rwa1"></script>
+<script src="assets/js/app.js?v=renderhold1"></script>
 <script src="assets/js/control-panel.js?v=engineering-panel2"></script>
 <script src="assets/js/assistant-actions.js?v=knowledge3"></script>
 <script src="assets/js/assistant-chat.js?v=knowledge3"></script>
