@@ -47,7 +47,7 @@ function bootBuilder(seedStorage, url) {
   });
   const { window } = dom;
   const src = ['content.js', 'engineering.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
+    'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
   window.document.dispatchEvent(new window.Event('DOMContentLoaded', { bubbles: true }));
@@ -192,7 +192,7 @@ setTimeout(async () => {
     }
   };
   const src3 = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'export.js', 'share.js']
+    'catalogue-data.js', 'equipment.js', 'render.js', 'export.js', 'share.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   w3.eval(src3);
   w3.document.dispatchEvent(new w3.Event('DOMContentLoaded', { bubbles: true }));

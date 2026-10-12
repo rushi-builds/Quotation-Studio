@@ -56,7 +56,7 @@ function bootApp(seedStorage) {
   const { window } = dom;
   /* browser <script> tags share top-level scope; a single concatenated eval mimics that */
   const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
+    'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
   window.document.dispatchEvent(new window.Event('DOMContentLoaded', { bubbles: true }));
@@ -139,25 +139,31 @@ t('blob contains live form', w.Proposals.active().form.capacity === '7');
 
 /* ---------- Phase 1: equipment catalog ---------- */
 console.log('- equipment catalog (Phase 1) -');
-t('3 seed modules in catalog', w.EquipmentStore.cat().modules.length === 3);
-t('module dropdown includes catalog and Custom', d.getElementById('moduleMake').options.length === 4);
-t('inverter dropdown includes catalog and Custom', d.getElementById('inverterMake').options.length === 5);
+t('Excel catalogue modules in catalog', w.EquipmentStore.cat().modules.length >= 290,
+  w.EquipmentStore.cat().modules.length);
+t('module dropdown lists makes, equivalents and Custom', d.getElementById('moduleMake').options.length === 14,
+  d.getElementById('moduleMake').options.length);
+t('inverter dropdown lists makes, equivalents and Custom', d.getElementById('inverterMake').options.length === 7,
+  d.getElementById('inverterMake').options.length);
 t('structure dropdown includes catalog and Custom', d.getElementById('mountMake').options.length === 3);
-t('catalog manager rendered rows', d.querySelectorAll('#eqCatalog .eq-row').length >= 8,
-  d.querySelectorAll('#eqCatalog .eq-row').length);
+t('catalog manager offers one add button per kind', d.querySelectorAll('#eqCatalog .eq-add').length === 4,
+  d.querySelectorAll('#eqCatalog .eq-add').length);
 /* adding a catalog entry propagates to the form select and component fields */
 w.EquipmentStore.cat().modules.push({ id: 'mx', make: 'TestModule 550', model: '', wp: 550, tech: 'TOPCon', lengthMm: '2333', widthMm: '1134', efficiency: '', voc: '', isc: '', vmp: '', imp: '' });
 w.EquipmentStore.save();
 w.EquipmentStore.refreshSelects();
-t('catalog add appears above Custom', d.getElementById('moduleMake').options.length === 5);
+t('catalog add appears above Custom', d.getElementById('moduleMake').options.length === 15);
 d.getElementById('moduleMake').value = 'TestModule 550';
 fire(w, d.getElementById('moduleMake'), 'change');
 t('selecting module syncs wattage', d.getElementById('moduleWattage').value === '550', d.getElementById('moduleWattage').value);
 t('selecting module syncs length', d.getElementById('moduleLengthMm').value === '2333');
 t('selecting module syncs technology', d.getElementById('moduleTech').value === 'TOPCon');
-/* restore original selection */
-d.getElementById('moduleMake').value = 'Panasonic / Waaree / Adani or Equivalent';
+/* restore original selection (cascade auto-picks the closest model to the
+   current 550 Wp, so pin the template model back explicitly) */
+d.getElementById('moduleMake').value = 'Waaree';
 fire(w, d.getElementById('moduleMake'), 'change');
+d.getElementById('moduleModel').value = 'Bi-55-545';
+fire(w, d.getElementById('moduleModel'), 'change');
 
 /* ---------- interactions ---------- */
 console.log('- interactions -');
@@ -337,7 +343,7 @@ setTimeout(() => {
   })());
   t('equipment catalog persisted', (() => {
     const eq = JSON.parse(dump['qstudio.equipment']);
-    return eq.modules.length === 4 && eq.modules.some((m) => m.make === 'TestModule 550');
+    return eq._v === 2 && eq.modules.length === 1 && eq.modules.some((m) => m.make === 'TestModule 550');
   })());
 
   /* run 2 - restore from full storage dump */
@@ -349,7 +355,10 @@ setTimeout(() => {
   t('restored BOM shows donut', d2.getElementById('v_inBomSection').style.display !== 'none');
   t('restored proposal count', w2.Proposals.list().length === 3, w2.Proposals.list().length);
   t('restored active is same proposal', w2.Proposals.activeId() === dump['qstudio.activeId']);
-  t('restored equipment catalog', w2.EquipmentStore.cat().modules.length === 4);
+  t('restored equipment catalog', (() => {
+    const mods = w2.EquipmentStore.cat().modules;
+    return mods.length > 295 && mods.some((m) => m.make === 'TestModule 550');
+  })());
   t('no errors in run 2', errors.length === 0, errors.join(' | '));
 
   /* run 3 - legacy migration */

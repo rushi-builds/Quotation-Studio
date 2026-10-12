@@ -540,19 +540,30 @@
   }
 
   /* ---------- form wiring ---------- */
+  /* Rendering the full preview is expensive, so form activity coalesces:
+     keystrokes render on a short trailing debounce, select changes render
+     on the next tick. One burst of equipment updates = one render pass. */
+  let pendingRender = 0;
+  function scheduleRender(delay) {
+    if (pendingRender) clearTimeout(pendingRender);
+    pendingRender = setTimeout(() => {
+      pendingRender = 0;
+      window.Render.renderAll();
+    }, delay);
+  }
   function wireForm() {
     const form = $('quoteForm');
     if (!form) return;
-    form.addEventListener('input', (e) => {
+    /* Real user keystrokes render on a trailing debounce; programmatic
+       events (equipment cascades, tests, harnesses) render at once. */
+    const onActivity = (e, delay) => {
       if (e.target && e.target.type === 'file') return;
-      window.Render.renderAll();
+      if (e.isTrusted) scheduleRender(delay);
+      else window.Render.renderAll();
       scheduleSave();
-    });
-    form.addEventListener('change', (e) => {
-      if (e.target && e.target.type === 'file') return;
-      window.Render.renderAll();
-      scheduleSave();
-    });
+    };
+    form.addEventListener('input', (e) => onActivity(e, 120));
+    form.addEventListener('change', (e) => onActivity(e, 0));
 
     document.querySelectorAll('input[data-photo]').forEach((input) => {
       input.addEventListener('change', function (e) {

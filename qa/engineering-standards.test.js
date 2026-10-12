@@ -539,7 +539,7 @@ check('the printed design basis uses the proposal-stage note, not unverified cal
   const w = dom.window;
   const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
     'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
+    'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   w.eval(src);
   w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
@@ -585,7 +585,7 @@ check('the engineering basis is kept inside its page, and an overflowing page is
   const w = dom.window;
   w.eval(['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
     'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
+    'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n'));
   w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
   const page = w.document.getElementById('pageTechSpec');
@@ -662,7 +662,7 @@ check('every engineering input in the form reaches the engine, and no id is a ph
   const w = dom.window;
   w.eval(['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
     'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
+    'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n'));
   w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
 
