@@ -637,6 +637,51 @@
     }
     if ($('syncCatalogueBtn')) $('syncCatalogueBtn').addEventListener('click', syncCatalogueFromDrive);
     if ($('catalogueSyncStatus')) $('catalogueSyncStatus').textContent = catalogueStatusText();
+
+    /* ----- Site location resolve: geocode + NASA resource (Excel-style flow) ----- */
+    const GEO_PR = 0.78; /* system performance ratio used only for the suggestion; shown openly */
+    async function resolveSiteLocation() {
+      const btn = $('siteResolveBtn'), status = $('siteResolveStatus'), qEl = $('siteLocation');
+      if (!btn || !status || !qEl) return;
+      const q = qEl.value.trim();
+      if (!q) { status.textContent = 'Type the site location first.'; return; }
+      btn.disabled = true;
+      status.textContent = 'Resolving location…';
+      try {
+        const res = await fetch('/api/site/resolve?q=' + encodeURIComponent(q), { credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || ('Resolve failed (' + res.status + ')'));
+        const lat = Number(data.lat), lng = Number(data.lng);
+        window.StateStore.applyForm({ latitudeDeg: String(Math.round(lat * 100) / 100) });
+        scheduleSave();
+        status.textContent = data.displayName + ' · ' + Number(lat).toFixed(2) + '°N ' + Number(lng).toFixed(2) + '°E (' + data.source + (data.cached ? ', cached' : '') + '). Fetching NASA data…';
+        const rres = await fetch('/api/site/resource?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng), { credentials: 'include' });
+        const rdata = await rres.json().catch(() => ({}));
+        if (!rres.ok || !rdata.ok) throw new Error(rdata.error || ('NASA fetch failed (' + rres.status + ')'));
+        const suggest = Math.round(rdata.ghiAnnualKwhM2 * GEO_PR);
+        status.textContent = '';
+        status.append('NASA POWER: ' + rdata.ghiAnnualKwhM2 + ' kWh/m²/yr GHI · mean wind ' +
+          (rdata.windMeanMs == null ? 'n/a' : rdata.windMeanMs + ' m/s') +
+          ' (window ' + rdata.windowStart + ' → ' + rdata.windowEnd + '). Suggested gen factor ' +
+          suggest + ' = GHI × PR ' + GEO_PR + '. ');
+        const apply = document.createElement('button');
+        apply.type = 'button';
+        apply.className = 'link-btn';
+        apply.textContent = 'Apply ' + suggest;
+        apply.addEventListener('click', () => {
+          window.StateStore.applyForm({ genFactor: String(suggest) });
+          window.Render.renderAll();
+          scheduleSave();
+          status.textContent = 'Generation factor set to ' + suggest + ' from NASA POWER data (' + rdata.source + ').';
+        });
+        status.append(apply);
+      } catch (e) {
+        status.textContent = e && e.message ? e.message : 'Resolve failed';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    if ($('siteResolveBtn')) $('siteResolveBtn').addEventListener('click', resolveSiteLocation);
     document.addEventListener('keydown', (event) => {
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && String(event.key).toLowerCase() === 's') {
         event.preventDefault();          /* never open the browser's Save Page dialog */

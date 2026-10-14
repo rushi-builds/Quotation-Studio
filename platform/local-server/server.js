@@ -31,7 +31,7 @@ const COOKIE = 'qs_session';
 
 /* Deployed code marker — kept identical to platform/cloudflare/src/worker.js
    so /api/health reports the same version whichever backend serves it. */
-const CODE_VERSION = 'roles-r1';
+const CODE_VERSION = 'geo-r1';
 
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }

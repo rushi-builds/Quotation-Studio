@@ -15,6 +15,7 @@ import { d1OAuthStore } from '../../oauth-store.mjs';
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
 
 import { syncCatalogue, readCatalogue } from './catalogue.mjs';
+import { resolveLocation, fetchSiteResource } from './site-geo.mjs';
 
 import { scryptSync, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 
@@ -25,7 +26,7 @@ const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 /* Deployed code marker. /api/health reports it so an operator can prove the
    running Worker is actually the build that contains the role changes,
    instead of inferring it from behaviour. Bump on every behaviour change. */
-const CODE_VERSION = 'roles-r1';
+const CODE_VERSION = 'geo-r1';
 
 const SEND_CHANNELS = {
   whatsapp_manual: true,
@@ -1201,6 +1202,37 @@ async function handleApi(request, env, url) {
           if (e && e.code === 'NOT_CONFIGURED') return json({ error: e.message, code: 'NOT_CONFIGURED' }, 503);
           return json({ error: 'Catalogue sync failed: ' + (e && e.message ? e.message : e) }, 502);
         }
+      }
+    }
+
+    /* Site location resolve + NASA resource — same flow as the Excel
+       workbook (forward geocode of the location text, then NASA POWER),
+       server-side so no API key or token ever reaches the browser. Any
+       signed-in user may resolve; results are cached in D1. */
+    if (parts[0] === 'site' && parts[1] === 'resolve' && method === 'GET') {
+      const user = await requireUser(request, db, env);
+      if (!user) return json({ error: 'Sign in required' }, 401);
+      const q = String(url.searchParams.get('q') || '');
+      try {
+        const r = await resolveLocation(env, db, q);
+        return json({ ok: true, ...r });
+      } catch (e) {
+        if (e && e.code === 'NOT_FOUND') return json({ error: e.message, code: 'NOT_FOUND' }, 404);
+        if (e && e.code === 'BAD_QUERY') return json({ error: e.message, code: 'BAD_QUERY' }, 400);
+        return json({ error: 'Location resolve failed: ' + (e && e.message ? e.message : e) }, 502);
+      }
+    }
+    if (parts[0] === 'site' && parts[1] === 'resource' && method === 'GET') {
+      const user = await requireUser(request, db, env);
+      if (!user) return json({ error: 'Sign in required' }, 401);
+      const lat = parseFloat(url.searchParams.get('lat') || '');
+      const lng = parseFloat(url.searchParams.get('lng') || '');
+      try {
+        const r = await fetchSiteResource(env, db, lat, lng);
+        return json({ ok: true, ...r });
+      } catch (e) {
+        if (e && e.code === 'BAD_COORDINATES') return json({ error: e.message, code: 'BAD_COORDINATES' }, 400);
+        return json({ error: 'NASA resource fetch failed: ' + (e && e.message ? e.message : e) }, 502);
       }
     }
 

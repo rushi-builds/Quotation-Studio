@@ -464,10 +464,10 @@ try {
      wrangler.toml is allowed here: its stale D1 id was breaking migration
      006 (error 7404) and it must mirror the live dashboard-only vars so a
      toml deploy does not wipe them. */
-  const ALLOWED = /^(platform\/cloudflare\/src\/(worker|catalogue)\.(js|mjs)|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|platform\/migrations\/006-catalogue\.sql|assets\/js\/(app|equipment|catalogue-data|state|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|quotation\.html|dashboard\.html|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
+  const ALLOWED = /^(platform\/cloudflare\/src\/(worker|catalogue|site-geo)\.(js|mjs)|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|platform\/migrations\/006-catalogue\.sql|platform\/migrations\/007-site-geo\.sql|assets\/js\/(app|equipment|catalogue-data|state|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|quotation\.html|dashboard\.html|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
-  t('no earlier migration was modified', !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin(-verify)?\.sql|006-catalogue\.sql/.test(f)),
+  t('no earlier migration was modified', !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin(-verify)?\.sql|006-catalogue\.sql|007-site-geo\.sql/.test(f)),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 } catch (e) {
   t('git diff available to check the frozen list', false, e.message);

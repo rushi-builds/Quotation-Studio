@@ -672,7 +672,12 @@ check('every engineering input in the form reaches the engine, and no id is a ph
   const fields = [...w.document.querySelectorAll('fieldset.eng-basis input[id], fieldset.eng-basis select[id], fieldset.eng-basis textarea[id]')];
   assert.ok(fields.length >= 40, `the design-basis panel is present (${fields.length} fields)`);
   const state = w.Render.readState();
-  const unread = fields.filter((el) => !Object.prototype.hasOwnProperty.call(state, el.id)).map((el) => el.id);
+  /* siteLocation is a derivation control, not an engine input: the Resolve
+     button turns it into latitudeDeg (an engine field) and the NASA-suggested
+     genFactor only lands via an explicit Apply into the genFactor engine
+     field. Excluded so the phantom check still catches every truly dead
+     field. */
+  const unread = fields.filter((el) => el.id !== 'siteLocation' && !Object.prototype.hasOwnProperty.call(state, el.id)).map((el) => el.id);
   assert.deepEqual(unread, [], 'no design-basis field is invisible to the engine');
 
   /* and the value that arrives is the value on screen */
