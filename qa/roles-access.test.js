@@ -263,6 +263,19 @@ async function main() {
     t('no second row became elevated', readRow(OWNER).is_admin === 0 && readRow(SALES).is_admin === 0 && readRow(MEMBER).is_admin === 0,
       [readRow(OWNER).is_admin, readRow(SALES).is_admin, readRow(MEMBER).is_admin].join(','));
 
+    /* ---- Title-preserve collision (regression): the team table sends the
+       stored title with EVERY role change, so a row whose stored title reads
+       "Admin" must still take a POWER-KEY role change from the designated
+       admin - that is the title-preserve path, never elevation intent.
+       Before the fix this very shape answered 403 "Ask admin" and locked the
+       row out of every role edit. ---- */
+    r = await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'sales', roleCustom: 'Admin' }, adminSess.token);
+    t('a power-key role change with a riding "Admin" title on ANOTHER row goes through (regression: it used to answer "Ask admin")',
+      r.status === 200 && r.json.member.power === 'sales' && r.json.member.roleCustom === 'Admin',
+      r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
+    t('...as a role change only - the row did NOT elevate', readRow(OWNER).is_admin === 0, JSON.stringify(readRow(OWNER).is_admin));
+    await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'owner', roleCustom: '' }, ownerSess.token); /* restore */
+
     const memberSess = await login(PORT, MEMBER);
     r = await req(PORT, 'POST', '/api/team/role', { userId: memberReg.user.id, role: 'custom', roleCustom: 'admin' }, memberSess.token);
     t('an ordinary member cannot reach the role route at all (owner gate, 403)', r.status === 403, r.status + ' ' + JSON.stringify(r.json).slice(0, 160));

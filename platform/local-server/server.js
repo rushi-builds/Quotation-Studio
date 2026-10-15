@@ -3330,7 +3330,18 @@ async function handleApi(req, res, url) {
          custom-title box is the trigger. For anyone else it is a harmless
          custom title (sales power), so this branch is skipped. */
       const typedAdmin = rawTitle != null && rawTitle.trim().toLowerCase() === 'admin';
-      if ((typedAdmin || wanted === 'admin') && actorIsAdmin) {
+      /* A POWER-KEY role (owner / sales / viewer) with the word "admin" riding
+         along in the title on ANOTHER row is a role change via the
+         title-preserve path, not an elevation attempt: the team table sends
+         the stored title with every role change, so a row whose stored title
+         happens to read "Admin" would otherwise be locked out of every role
+         edit with this very refusal. Elevation intent (and the self-only
+         refusal below) stays exactly where it was: the Custom / admin
+         shapes, every actor, every other row. */
+      const powerKeyRole = wanted === 'owner' || wanted === 'sales' || wanted === 'viewer';
+      const elevationAttempt = (typedAdmin || wanted === 'admin') && actorIsAdmin &&
+        !(powerKeyRole && target.id !== user.id);
+      if (elevationAttempt) {
         if (target.id !== user.id) {
           return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_NOT_SELF' });
         }
