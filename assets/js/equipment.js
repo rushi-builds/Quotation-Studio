@@ -432,6 +432,33 @@
     if (pick) applyModel(cfg.kind, pick);
   }
 
+  /* Same resolution as matchTyped/syncModels, exposed for the tech-spec
+     page: a typed wattage or model name wins, otherwise an equivalent's
+     basis make contributes its nearest-kW model (Custom has no basis, so
+     nothing is picked for it). */
+  function datasheetRow(kind, makeValue, modelValue, target) {
+    const t = String(modelValue || '').trim();
+    let pool = cat()[kind].filter((r) => r && r.model);
+    const make = MAKE_ALIASES[String(makeValue || '')] || String(makeValue || '');
+    const eq = (EQUIVALENTS[kind] || []).find((e) => e.label === make);
+    const known = cat()[kind].some((r) => String((r && r.make) || (r && r.label) || '').trim() === make);
+    const basis = eq ? eq.basis : (known ? make : null);
+    if (basis) pool = pool.filter((r) => String(r.make || r.label || '') === basis);
+    const key = kind === 'modules' ? 'wp' : 'kw';
+    const tol = kind === 'modules' ? 10 : 1;
+    let pick = null;
+    if (/^\d+(\.\d+)?$/.test(t)) {
+      const n = parseFloat(t);
+      pick = closestRow(pool, n, key);
+      if (pick && Math.abs(numOf(pick[key]) - n) > tol) pick = null;
+    } else if (t) {
+      pick = pool.find((r) => String(r.model).toLowerCase() === t.toLowerCase());
+    } else if (basis && Number.isFinite(target) && target > 0) {
+      pick = closestRow(pool, target, key);
+    }
+    return pick;
+  }
+
   function setValue(id, value) {
     if (!FIELDS.includes(id) || !$(id)) return false;
     if (MODEL_OF[id]) {
@@ -603,5 +630,5 @@
     });
   }
 
-  root.EquipmentStore = { cat, save, refreshSelects, setValue, syncModels, wire, renderManager, importCloud, cloudInfo, KEY, CLOUD_KEY };
+  root.EquipmentStore = { cat, datasheetRow, save, refreshSelects, setValue, syncModels, wire, renderManager, importCloud, cloudInfo, KEY, CLOUD_KEY };
 })(typeof self !== 'undefined' ? self : this);

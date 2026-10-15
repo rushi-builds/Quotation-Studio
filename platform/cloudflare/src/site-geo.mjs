@@ -88,23 +88,24 @@ export async function resolveLocation(env, db, query) {
 
   const gKey = String(env.GOOGLE_GEOCODING_API_KEY || '').trim();
   if (gKey) {
-    const url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' +
-      encodeURIComponent(q) + '&key=' + encodeURIComponent(gKey);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Google geocoding failed (' + res.status + ')');
-    const data = await res.json().catch(() => ({}));
-    const hit = (data.results || [])[0];
-    if (data.status !== 'OK' || !hit) {
-      const e = new Error('No coordinates found for "' + q + '". Try a nearby town or add the district/state.');
-      e.code = 'NOT_FOUND';
-      throw e;
+    try {
+      const url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' +
+        encodeURIComponent(q) + '&key=' + encodeURIComponent(gKey);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Google geocoding failed (' + res.status + ')');
+      const data = await res.json().catch(() => ({}));
+      const hit = (data.results || [])[0];
+      if (data.status !== 'OK' || !hit) throw new Error('Google geocoding returned ' + (data.status || 'no result'));
+      const lat = Number(hit.geometry && hit.geometry.location && hit.geometry.location.lat);
+      const lng = Number(hit.geometry && hit.geometry.location && hit.geometry.location.lng);
+      if (!isValidLatLng(lat, lng)) throw new Error('Google geocoding returned invalid coordinates');
+      const displayName = String(hit.formatted_address || q);
+      await geoCachePut(db, key, lat, lng, displayName, 'Google Geocoding API');
+      return { lat, lng, displayName, source: 'Google Geocoding API', cached: false };
+    } catch (_) {
+      /* A key-restricted / denied Google key falls back to Nominatim, matching
+         the workbook's "Google when a key exists, else Nominatim" flow. */
     }
-    const lat = Number(hit.geometry && hit.geometry.location && hit.geometry.location.lat);
-    const lng = Number(hit.geometry && hit.geometry.location && hit.geometry.location.lng);
-    if (!isValidLatLng(lat, lng)) throw new Error('Google geocoding returned invalid coordinates');
-    const displayName = String(hit.formatted_address || q);
-    await geoCachePut(db, key, lat, lng, displayName, 'Google Geocoding API');
-    return { lat, lng, displayName, source: 'Google Geocoding API', cached: false };
   }
 
   /* Nominatim policy: identifying User-Agent, max 1 request/second. */

@@ -125,10 +125,14 @@ d.getElementById('custName').value = 'QA Customer'; fire(w, d.getElementById('cu
 d.getElementById('shareUrl').value = 'https://example.com/p/KTME-2026-013';
 fire(w, d.getElementById('shareUrl'), 'input');
 d.getElementById('waShare').click();
-const openUrl = decodeURIComponent(w.__lastOpen || '');
-t('wa.me link opened', (w.__lastOpen || '').startsWith('https://wa.me/?text='));
-t('message contains customer name', openUrl.includes('QA Customer'));
-t('message contains proposal link', openUrl.includes('https://example.com/p/KTME-2026-013'));
+/* the share handler awaits the auto-link step (a resolved microtask here,
+   CloudBridge is absent) before it opens wa.me */
+setTimeout(() => {
+  const openUrl = decodeURIComponent(w.__lastOpen || '');
+  t('wa.me link opened', (w.__lastOpen || '').startsWith('https://wa.me/?text='));
+  t('message contains customer name', openUrl.includes('QA Customer'));
+  t('message contains proposal link', openUrl.includes('https://example.com/p/KTME-2026-013'));
+}, 0);
 
 console.log('- persistence with options -');
 setTimeout(async () => {

@@ -264,6 +264,12 @@
 #pageProjects .portfolio-link h2{font-size:19px;margin:7px 0;}
 #pageProjects .portfolio-link p{font-size:9px;margin:6px 0;}
 #pageProjects .portfolio-link>div>a{font-size:10px;}
+.tap-link{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;margin-top:6px;color:#ad590e;text-decoration:none;cursor:pointer;}
+.tap-link:hover{text-decoration:underline;}
+.tap-ico{width:20px;height:20px;flex:none;color:#b45309;}
+.tap-link .tap-ico{position:relative;top:6px;}
+.engineering-open{display:inline-flex;align-items:center;gap:7px;}
+.engineering-open .tap-ico{width:17px;height:17px;color:currentColor;}
 #pageProjects .portfolio-link .power-gallery{font-size:8px;}
 .power-six.power-compact .power-warranties{margin-top:10px;}
 .power-six.power-compact .power-terms{margin-top:8px;}

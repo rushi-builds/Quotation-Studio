@@ -28,7 +28,8 @@ function check(name, condition) { assert(condition, name); passed++; console.log
     await edit({tariff:'0'});
     check('zero tariff gives no bill savings', (await page.$eval('#v_bscSavedVal',e=>e.textContent)).includes('₹0'));
     await edit({customerType:'commercial',tariff:'15',corpTaxRate:'30',depreciationRate:'20'});
-    check('tax assumptions render live', (await page.$eval('#v_inTaxSaved',e=>e.textContent))==='₹37,800');
+    /* 7 kWp default × ₹63,600/kWp × 20% depreciation × 30% corp tax = ₹26,712 */
+    check('tax assumptions render live', (await page.$eval('#v_inTaxSaved',e=>e.textContent))==='₹26,712');
     check('tax caption reflects actual assumptions', (await page.$eval('#v_inTaxRate',e=>e.textContent))==='30%');
     await edit({corpTaxRate:'0'});
     check('zero tax assumption hides illustration',!await page.$eval('#v_inTaxShieldBanner',e=>e.checkVisibility()));

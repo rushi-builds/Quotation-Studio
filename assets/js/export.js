@@ -49,6 +49,17 @@
       copy.querySelectorAll('[data-head-ref],[data-foot-company],[data-foot-tagline]').forEach(el=>{
         ['data-head-ref','data-foot-company','data-foot-tagline'].forEach(key=>el.removeAttribute(key));
       });
+      // The closing page's "Open request form" is a live button on screen; a
+      // static PDF can only link, so the snapshot carries an identical anchor
+      // and the link pass below makes it clickable.
+      copy.querySelectorAll('[data-engineering-open]').forEach(btn=>{
+        const a=document.createElement('a');
+        a.className=btn.className.replace(/\bscreen-only\b/g,'').trim();
+        a.innerHTML=btn.innerHTML;
+        const url=root.Render.requestFormUrl();
+        if(url)a.href=url;else a.removeAttribute('href');
+        btn.replaceWith(a);
+      });
       // cloneNode does not preserve chart / QR canvas pixels.
       const canvases=source.querySelectorAll('canvas');
       copy.querySelectorAll('canvas').forEach((canvas,i)=>canvas.getContext('2d').drawImage(canvases[i],0,0));
@@ -239,14 +250,21 @@
       /* Nothing is generated until the sheet passes its own checks. */
       if (await preflight() !== 'proceed') return;
       btn.disabled=true;btn.classList.add('busy');
-      try {clearTimeout(statusTimer);await exportPdf(m=>{status.textContent=m;},{format:$('pdfFormat')?.value});}
+      try{clearTimeout(statusTimer);
+        /* The PDF carries this proposal's own customer link (cover QR +
+           request form); make sure it exists before rendering. No-op when
+           not signed in or when the cloud is unavailable. */
+        await window.CloudBridge?.ensureShareLink?.();
+        await exportPdf(m=>{status.textContent=m;},{format:$('pdfFormat')?.value});}
       catch(err){console.error(err);clearTimeout(statusTimer);status.textContent=err.message || 'PDF generation failed. Please try again.';
         notice(err.message || 'PDF generation failed. Please try again.','error');}
       finally {btn.disabled=false;btn.classList.remove('busy');clearTimeout(statusTimer);statusTimer=setTimeout(()=>{status.textContent='';},8000);}
     });
     document.querySelectorAll('[data-export-format]').forEach(button=>button.addEventListener('click',async()=>{
       const old=button.textContent;button.disabled=true;
-      try{await exportPdf(m=>{if(status)status.textContent=m;},{format:button.dataset.exportFormat});}
+      try{
+        await window.CloudBridge?.ensureShareLink?.();
+        await exportPdf(m=>{if(status)status.textContent=m;},{format:button.dataset.exportFormat});}
       catch(e){if(status)status.textContent=e.message;}
       finally{button.disabled=false;button.textContent=old;root.Bess.syncControls(root.Render.lastState);root.AdditionalSystems.sync(root.Render.lastState);updateLabel();}
     }));

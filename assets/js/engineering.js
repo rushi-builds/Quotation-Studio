@@ -203,6 +203,23 @@
      coefficients, which is why the datasheet numbers are inputs here and
      never guesses.
   */
+  /* The selected inverter's MPPT count: state if provided, else the same
+     catalogue resolution the tech-spec page prints (equivalents and typed
+     models included). Unknown or Custom inverters count as one input - the
+     conservative reading, since all strings would share it. */
+  function inverterMpptCount(s) {
+    let n = num(s.inverterMppt, 0);
+    if (n > 0) return n;
+    try {
+      const es = root.EquipmentStore;
+      if (es && typeof es.datasheetRow === 'function') {
+        const row = es.datasheetRow('inverters', s.inverterMake, s.inverterModel, num(s.inverterKw, 0));
+        if (row) n = num(row.mppt, 0);
+      }
+    } catch (e) { /* catalogue unavailable: single-input reading */ }
+    return n > 0 ? n : 1;
+  }
+
   function string(s, opts) {
     const o = opts || {};
     const need = [];
@@ -249,8 +266,17 @@
     /* IEC 62548 sizes the string cable and its protection for 1.25 × Isc. */
     out.iscDesignPerString = 1.25 * isc;
     out.designCurrent = out.iscDesignPerString * out.strings;
+    /* The inverter's DC input limit is per MPPT and its datasheet states it as
+       a maximum short-circuit current: the input only ever sees the array's own
+       Isc (STC). The 1.25 factor below belongs to cable/protection sizing and
+       must not be applied again here - doing so double-counts the margin and
+       blocks sound arrays (e.g. one 13.9 A string against a 16 A input). */
+    const mpptCount = inverterMpptCount(s);
+    out.mpptCount = mpptCount;
+    out.parallelStringsPerMppt = Math.max(1, Math.ceil(out.strings / mpptCount));
+    out.mpptCurrent = isc * out.parallelStringsPerMppt;
     out.inverterMaxCurrentA = has(s.inverterMaxCurrentA) ? num(s.inverterMaxCurrentA) : null;
-    out.iscOverload = out.inverterMaxCurrentA !== null && out.designCurrent > out.inverterMaxCurrentA;
+    out.iscOverload = out.strings > 0 && out.inverterMaxCurrentA !== null && out.mpptCurrent > out.inverterMaxCurrentA;
     out.dcVoltageV = out.seriesPerString * vmp;     // nominal string voltage at STC
     out.moduleImp = imp;
     return out;
@@ -491,8 +517,9 @@
       if (st.iscOverload) {
         blocking.push({
           id: 'inverterMaxCurrentA',
-          message: st.strings + ' strings carry ' + st.designCurrent.toFixed(1) + ' A at 1.25 × Isc (IEC 62548), ' +
-            'above the inverter’s ' + st.inverterMaxCurrentA + ' A DC input limit.'
+          message: st.parallelStringsPerMppt + (st.parallelStringsPerMppt === 1 ? ' string on one MPPT carries ' : ' strings on one MPPT carry ') +
+            st.mpptCurrent.toFixed(1) + ' A of short-circuit current (Isc, STC), ' +
+            'above the inverter’s ' + st.inverterMaxCurrentA + ' A per-MPPT Isc limit.'
         });
       }
     } else {

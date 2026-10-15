@@ -224,8 +224,8 @@ t('tech spec states the installed array beside the contracted capacity',
   d.getElementById('v_tsTable').textContent.includes('7.085 kWp (contracted 7 kWp)'),
   d.getElementById('v_tsTable').textContent.match(/Installed Array Size.*?kWp[^k]*/));
 t('roof requirement remains an explicitly indicative estimate',
-  d.getElementById('v_tsTable').textContent.includes('Indicative Roof Requirement') &&
-  d.getElementById('v_tsTable').textContent.includes(Math.ceil(w.Finance.compute(w.Render.lastState).requiredArea)+' m²') &&
+  d.getElementById('v_tsTable').textContent.includes('Roof Area') &&
+  d.getElementById('v_tsTable').textContent.includes('requirement ≈ ' + Math.ceil(w.Finance.compute(w.Render.lastState).requiredArea) + ' m²') &&
   d.getElementById('v_tsTable').textContent.includes('subject to site verification'));
 d.getElementById('roofClearanceFactor').value = '1.1';
 fire(w, d.getElementById('roofClearanceFactor'), 'input');

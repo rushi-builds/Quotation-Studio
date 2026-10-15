@@ -83,7 +83,19 @@
         
         </details>
         <div class="field"><label>Customer name</label><input type="text" id="custName" value="" placeholder="Enter customer name"></div>
-        <div class="field"><label>Customer address</label><input type="text" id="custAddress" value="" placeholder="Enter site address"></div>
+        <div class="field"><label for="custAddress">Customer address</label><input type="text" id="custAddress" value="" placeholder="Enter site address"></div>
+        <div class="field"><label>Site data</label>
+          <button type="button" class="link-btn" id="siteFetchBtn">Fetch location</button>
+          <div class="hint" id="siteFetchStatus">Optional one click: resolves this address to coordinates (Google when a key is set, otherwise OpenStreetMap) and pulls measured NASA POWER solar and wind data. Fills the design latitude automatically and suggests the generation factor - typed values are never overwritten until you Apply.</div></div>
+        <input type="hidden" id="siteGeoName">
+        <input type="hidden" id="siteGeoLat">
+        <input type="hidden" id="siteGeoLng">
+        <input type="hidden" id="nasaGhi">
+        <input type="hidden" id="nasaWind">
+        <input type="hidden" id="nasaElevation">
+        <input type="hidden" id="nasaWindowStart">
+        <input type="hidden" id="nasaWindowEnd">
+        <input type="hidden" id="nasaSource">
         <div class="row3">
           <div class="field"><label>Proposal date</label><input type="date" id="propDate"></div>
           <div class="field"><label>Reference no.</label><input type="text" id="propRef" value="" autocomplete="off" spellcheck="false" placeholder="Assigned automatically for a new proposal"></div>
@@ -102,7 +114,7 @@
           </div>
         </div>
         <div class="field">
-          <label>Proposal link (optional - enables the cover QR &amp; WhatsApp share)</label>
+          <label>Customer link (auto-added on save/download - drives the cover QR &amp; WhatsApp share)</label>
           <input type="url" id="shareUrl" placeholder="https://…">
           
         </div>
@@ -405,17 +417,13 @@
         <div class="hint">The inputs below remain available for internal engineering checks. Missing inputs stay in the internal review; confirmed safety issues still appear before download.</div>
 
         <details class="eng-group">
-          <summary><span>Array geometry &amp; row spacing</span><small>Tilt, location &amp; roof clearances</small></summary>
+          <summary><span>Array geometry &amp; row spacing</span><small>Tilt &amp; roof clearances</small></summary>
           <div class="field"><label for="tiltDeg">Module tilt (° from horizontal)</label>
             <input type="number" id="tiltDeg" value="15" step="1" min="0" max="60">
             <div class="hint">Site figure. MNRE/UPNEDA rooftop specifications show 22–24° for north India, location dependent; a lower tilt needs less row spacing.</div></div>
-          <div class="field"><label for="siteLocation">Site location (address / area)</label>
-            <input type="text" id="siteLocation" placeholder="e.g. Phaltan, Satara, Maharashtra" maxlength="200" autocomplete="off">
-            <button type="button" class="link-btn" id="siteResolveBtn">Resolve location</button>
-            <div class="hint" id="siteResolveStatus">Same flow as the Excel workbook: resolves the coordinates from the location text (Google when a key is set, otherwise OpenStreetMap), then pulls measured NASA POWER data and suggests the generation factor. Typed values are never overwritten without Apply.</div></div>
           <div class="field"><label for="latitudeDeg">Site latitude (°N)</label>
             <input type="number" id="latitudeDeg" value="18.52" step="0.01" min="-60" max="60">
-            <div class="hint">Sets the winter-solstice sun angle the row pitch is built on (Pune 18.52).</div></div>
+            <div class="hint">Sets the winter-solstice sun angle the row pitch is built on (Pune 18.52). Fetched automatically from the customer address.</div></div>
           <div class="field"><label for="shadeHalfWindowHours">No-shading window (± h around solar noon)</label>
             <input type="number" id="shadeHalfWindowHours" value="3" step="0.5" min="1" max="5">
             <div class="hint">3 = no inter-row shading between 09:00 and 15:00 solar time on 21 December.</div></div>
@@ -493,9 +501,9 @@
             <input type="number" id="mpptMinV" value="160" step="10" min="0"></div>
           <div class="field"><label for="mpptMaxV">MPPT maximum voltage (V)</label>
             <input type="number" id="mpptMaxV" value="1000" step="10" min="0"></div>
-          <div class="field"><label for="inverterMaxCurrentA">Inverter max DC input current (A)</label>
+          <div class="field"><label for="inverterMaxCurrentA">Inverter max Isc per MPPT (A)</label>
             <input type="number" id="inverterMaxCurrentA" value="54" step="0.1" min="0" placeholder="from the datasheet">
-            <div class="hint">Checked against 1.25 × Isc × strings (IEC 62548).</div></div>
+            <div class="hint">The array's Isc × strings on one MPPT must stay inside it (IEC 62548).</div></div>
           <div class="field"><label for="minAmbientC">Minimum ambient (°C)</label>
             <input type="number" id="minAmbientC" value="0" step="1">
             <div class="hint">Cell temperature at dawn is taken as the ambient minimum - the coldest string voltage.</div></div>
@@ -742,7 +750,7 @@
             <span class="ktm-cover__value ktm-cover__date" id="v_coverDate" data-cover-font="16" aria-label="Proposal date"></span>
             <span class="ktm-cover__value ktm-cover__capacity-kpi" id="v_coverBadgeKwp" data-cover-font="49" aria-label="Project capacity"></span>
             <span class="ktm-cover__cost-icon" aria-hidden="true">☀</span>
-            <span class="ktm-cover__cost-label">Year-1 Generation</span>
+            <span class="ktm-cover__cost-label">Annual Generation</span>
             <span class="ktm-cover__value ktm-cover__savings-kpi" id="v_coverBadgeGen" data-cover-font="49" aria-label="Estimated first-year solar generation"></span>
           </div>
         </div>
@@ -1377,7 +1385,7 @@
         <section class="engineering-overview" aria-labelledby="engineeringOverviewTitle">
           <div class="engineering-overview-head">
             <div><div class="eyebrow">AFTER REVIEWING THIS PROPOSAL</div><h3 id="engineeringOverviewTitle">Request your engineering review</h3></div>
-            <button type="button" class="engineering-open screen-only" data-engineering-open>Open request form ↗</button>
+            <button type="button" class="engineering-open screen-only" data-engineering-open><svg class="tap-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16.4 10.4a3 3 0 0 1 3-3" opacity=".9"/><path d="M13.8 10.4a5.6 5.6 0 0 1 5.6-5.6" opacity=".55"/><path d="M11.2 10.4a8.2 8.2 0 0 1 8.2-8.2" opacity=".3"/><path d="M4.4 3.2 19.4 10.4l-6.6 2.6-2.6 6.6z"/></svg><span>Click here to open request form</span></button>
           </div>
           <ol class="engineering-steps">
             <li><b>1</b><div><strong>Confirm interest</strong><span>Interested, or ready to discuss the final scope.</span></div></li>

@@ -13,6 +13,7 @@
 (function (root) {
   const CLOUD_MAP_KEY = 'qstudio.cloudMap'; /* localId -> cloudId */
   const CLOUD_REV_KEY = 'qstudio.cloudRev'; /* cloudId -> last known server revision */
+  const PORTAL_MAP_KEY = 'qstudio.portalMap'; /* cloudId -> customer portal URL (tokens are stored hashed server-side, so the URL must be remembered here) */
   const OPEN_KEY = 'qs.cloudOpenId';
   const tabRevisions = new Map();
 
@@ -37,6 +38,16 @@
   }
   function writeRevs(map) {
     try { root.localStorage.setItem(CLOUD_REV_KEY, JSON.stringify(map)); } catch (_) {}
+  }
+  function readPortalMap() {
+    try {
+      return JSON.parse(root.localStorage.getItem(PORTAL_MAP_KEY) || '{}') || {};
+    } catch (_) {
+      return {};
+    }
+  }
+  function writePortalMap(map) {
+    try { root.localStorage.setItem(PORTAL_MAP_KEY, JSON.stringify(map)); } catch (_) {}
   }
   function rememberLink(localId, cloudId) {
     if (!localId || !cloudId) return;
@@ -106,6 +117,7 @@
   }
 
   let savePending = null, saveTarget = null, opening = false;
+  let signedIn = false, canWriteLocal = false;
   const savedSnapshots = new Map();
   function fingerprint(payload) {
     if (!payload) return '';
@@ -116,27 +128,46 @@
     const payload = collectPayload();
     return !!payload && savedSnapshots.get(payload.localId) !== fingerprint(payload);
   }
-  function saveToCloud() {
+  function saveToCloud(quiet) {
     const target = root.Proposals?.activeId();
     if (savePending) return target === saveTarget ? savePending : Promise.resolve({ok:false,error:'Another quotation is being saved. Wait for it to finish, then save this quotation.'});
     saveTarget = target;
-    savePending = performSaveToCloud(target).finally(() => { savePending = null; saveTarget = null; });
+    savePending = performSaveToCloud(target, quiet).finally(() => { savePending = null; saveTarget = null; });
     return savePending;
   }
-  async function performSaveToCloud(target) {
+  /* Is the active local quotation already linked to a cloud row? */
+  function isLinked() {
+    const localId = root.Proposals?.activeId?.();
+    return !!localId && !!cloudIdFor(localId);
+  }
+  /* Keep the cloud row in step with what was just typed. Quiet: no
+     "Saving…" flash or status chatter — this runs after every local
+     autosave, so only the resulting chip state matters. */
+  function syncIfLinked() {
+    if (opening || savePending || !signedIn || !canWriteLocal) return false;
+    if (!isLinked()) return false;
+    try { if (!hasUnsavedChanges()) return false; } catch (_) { return false; }
+    saveToCloud(true);
+    return true;
+  }
+  async function performSaveToCloud(target, quiet) {
     if (opening) return {ok:false,error:'Wait for the quotation to finish loading.'};
     const api = root.PlatformAPI;
     if (!api) return {ok:false,error:'Cloud connection unavailable.'};
     const btn = $('cloudSaveBtn');
     if (btn) btn.disabled = true;
-    setChip('sync', 'Saving…');
+    if (!quiet) setChip('sync', 'Saving…');
     try {
       const user = await api.currentUser();
       if (!user) {
-        setChip('off', 'Sign in on Dashboard');
-        setStatus('Sign in on the Dashboard first, then return here to save to cloud.');
+        signedIn = false;
+        if (!quiet) {
+          setChip('off', 'Sign in on Dashboard');
+          setStatus('Sign in on the Dashboard first, then return here to save to cloud.');
+        }
         return {ok:false,error:'Sign in on Dashboard first.'};
       }
+      signedIn = true;
       if (user.role === 'viewer') throw new Error('Your role is read-only.');
       if (root.Proposals?.activeId() !== target) throw new Error('The active quotation changed. Please save the intended quotation again.');
       /* Prefer flushing local autosave so cloud gets the latest on-screen values. */
@@ -163,8 +194,10 @@
             cloudId = result.proposal.id;
           } else if (err && err.status === 409) {
             setChip('err', 'Newer in cloud');
-            setStatus((err.message || 'Cloud has a newer version') +
-              ' Your work is still open here — export a backup, then reopen from the Dashboard.');
+            if (!quiet) {
+              setStatus((err.message || 'Cloud has a newer version') +
+                ' Your work is still open here — export a backup, then reopen from the Dashboard.');
+            }
             return {ok:false,error:'Cloud has newer changes. Your local edits are safe; reopen or back up before resolving the conflict.'};
           } else {
             throw err;
@@ -182,7 +215,7 @@
       const unsaved = hasUnsavedChanges();
       if (!unsaved && root.Proposals.activeId() === localId) await markCleanLocal(localId);
       setChip(unsaved ? 'sync' : 'on', unsaved ? 'Unsaved changes' : 'Saved in cloud');
-      setStatus('Saved to cloud · ' + (result.proposal.ref || result.proposal.title || cloudId));
+      if (!quiet) setStatus('Saved to cloud · ' + (result.proposal.ref || result.proposal.title || cloudId));
       /* Keep ?cloud= in the URL so the next save updates the same row. */
       try {
         const u = new URL(location.href);
@@ -294,6 +327,74 @@
     } finally { opening = false; }
   }
 
+  function fillShareUrl(url) {
+    const el = $('shareUrl');
+    if (!el) return;
+    el.value = url;
+    try { el.dispatchEvent(new root.Event('input', { bubbles: true })); } catch (_) {}
+  }
+
+  /* The customer-facing link for THIS proposal: save the latest state to the
+     cloud, publish a version when the proposal has none, create the portal
+     token and drop its URL into #shareUrl (which drives the cover QR, the
+     WhatsApp message and the PDF's "Open request form" link). The URL is
+     remembered per cloud proposal because tokens are stored hashed
+     server-side and cannot be listed back. */
+  async function ensureShareLink() {
+    const S = root.StateStore;
+    if (!S) return null;
+    let existing = '';
+    try { existing = String((S.collectForm().shareUrl || '') || '').trim(); } catch (_) {}
+    let cloudId = cloudIdFor(root.Proposals?.activeId?.());
+    if (!signedIn || !canWriteLocal) return existing || null;
+    if (cloudId && existing) {
+      const portals = readPortalMap();
+      if (portals[cloudId] && portals[cloudId] === existing) return existing;
+    }
+    let dirty = false;
+    try { dirty = hasUnsavedChanges(); } catch (_) {}
+    if (!cloudId || dirty) {
+      const r = await saveToCloud();
+      if (!r || !r.ok) return null;
+      cloudId = cloudIdFor(root.Proposals?.activeId?.());
+    }
+    if (!cloudId) return null;
+    const portals = readPortalMap();
+    if (portals[cloudId]) {
+      fillShareUrl(portals[cloudId]);
+      return portals[cloudId];
+    }
+    const api = root.PlatformAPI;
+    if (!api) return null;
+    try {
+      let hasVersion = false;
+      try {
+        const vr = await api.listVersions(cloudId);
+        hasVersion = !!(vr && Array.isArray(vr.versions) && vr.versions.length);
+      } catch (_) {}
+      if (!hasVersion) await api.publishProposal(cloudId, { versionLabel: '1.0' });
+      const lr = await api.createLink(cloudId, {});
+      /* The Cloudflare worker answers {portalUrl}; the local test server
+         answers {access:{portalPath:'/portal.html?t=…'}}. Accept both. */
+      let raw = lr && typeof lr.portalUrl === 'string' ? lr.portalUrl : '';
+      const acc = (lr && lr.access) || (lr && lr.link);
+      if (!raw && acc && typeof acc.portalUrl === 'string') raw = acc.portalUrl;
+      if (!raw && acc && typeof acc.portalPath === 'string') raw = acc.portalPath;
+      if (!raw && lr && typeof lr.rawToken === 'string') raw = '/portal.html?t=' + encodeURIComponent(lr.rawToken);
+      let url = '';
+      try { url = raw ? new URL(raw, location.href).href : ''; } catch (_) {}
+      if (url) {
+        portals[cloudId] = url;
+        writePortalMap(portals);
+        fillShareUrl(url);
+      }
+      return url || null;
+    } catch (err) {
+      setStatus('Could not create the customer link: ' + (err && err.message ? err.message : err));
+      return null;
+    }
+  }
+
   async function initCloudBridge() {
     const bar = $('studioCloudBar');
     if (bar) bar.hidden = false;
@@ -327,6 +428,11 @@
 
     let user = null;
     try { user = await api.currentUser(); } catch (_) { user = null; }
+    signedIn = !!user;
+    /* Write-capability gate. Uses the server's canWrite flag (effective powers,
+       so a designated ADMIN_EMAIL login passes even on a `viewer` row) with a
+       role fallback for an older backend. */
+    canWriteLocal = !!user && (user.canWrite != null ? !!user.canWrite : user.role !== 'viewer');
 
     if (user) {
       setChip('on', user.name ? ('Cloud · ' + user.name.split(' ')[0]) : 'Cloud connected');
@@ -346,11 +452,7 @@
     } catch (_) {}
     // A genuinely fresh direct-Studio draft gets a server number when signed in.
     // Never renumber an existing proposal or a manually edited reference.
-    /* Write-capability gate. Uses the server's canWrite flag (effective powers,
-       so a designated ADMIN_EMAIL login passes even on a `viewer` row) with a
-       role fallback for an older backend. */
-    const canWriteNow = !!user && (user.canWrite != null ? !!user.canWrite : user.role !== 'viewer');
-    if (!openId && canWriteNow && root.__qsFreshLocalId) {
+    if (!openId && canWriteLocal && root.__qsFreshLocalId) {
       const id = root.__qsFreshLocalId, blob = root.Proposals.get(id), oldRef = blob?.autoAssignedRef;
       root.__qsFreshLocalId = null;
       try {
@@ -372,6 +474,7 @@
     init: initCloudBridge,
     saveToCloud,
     openFromCloud,
+    ensureShareLink, syncIfLinked, isLinked,
     cloudIdFor, syncActiveLocation, hasUnsavedChanges, isOpening: () => opening
   };
 

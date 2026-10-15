@@ -176,6 +176,22 @@ try {
 }
 
 {
+  const db = memDb();
+  await stubFetch((url) => {
+    if (url.includes('maps.googleapis.com')) {
+      return new Response(JSON.stringify({ status: 'REQUEST_DENIED', results: [] }), { status: 200 });
+    }
+    if (url.includes('nominatim.openstreetmap.org')) return nominatimResponse();
+    throw new Error('unexpected fetch ' + url);
+  });
+  const r = await call({ DB: db, GOOGLE_GEOCODING_API_KEY: 'denied-key' }, 'site/resolve?q=Phaltan', 'GET', 'owner-token');
+  const g = await r.json();
+  assert.equal(r.status, 200, 'a denied Google key degrades instead of erroring');
+  assert.equal(g.source, 'OpenStreetMap Nominatim', 'denied Google falls back to Nominatim, matching the workbook flow');
+  assert.equal(g.lat, 17.99);
+}
+
+{
   await stubFetch(() => new Response(JSON.stringify({ properties: { parameter: { ALLSKY_SFC_SW_DWN: { '20250101': -999 }, WS10M: { '20250101': 2 } } } }), { status: 200 }));
   const allFill = await call({ DB: memDb() }, 'site/resource?lat=18&lng=74', 'GET', 'owner-token');
   assert.equal(allFill.status, 502, 'all-fill NASA response fails closed, not with junk numbers');

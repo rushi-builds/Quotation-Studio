@@ -463,8 +463,19 @@ try {
      deliberate migrations and nothing else in that directory may change.
      wrangler.toml is allowed here: its stale D1 id was breaking migration
      006 (error 7404) and it must mirror the live dashboard-only vars so a
-     toml deploy does not wipe them. */
-  const ALLOWED = /^(platform\/cloudflare\/src\/(worker|catalogue|site-geo)\.(js|mjs)|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|platform\/migrations\/006-catalogue\.sql|platform\/migrations\/007-site-geo\.sql|assets\/js\/(app|equipment|catalogue-data|state|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|quotation\.html|dashboard\.html|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
+     toml deploy does not wipe them. render.js is allowed for the site-data
+     round: the Technical Specification page (customer-facing rows only) and
+     readState gain the resolved location/NASA fields - no money or finance
+     logic lives in those hunks. experience.js/experience.css are allowed for
+     the three-fixes round (portfolio card tap icon + label). export.js is
+     allowed for the same round: the only hunk converts the closing page's
+     "Open request form" button into an anchor inside the PDF snapshot clone
+     so the generated PDF carries a clickable link - the on-screen button and
+     all money/finance logic are untouched. engineering.js is allowed for the
+     per-MPPT fix: the DC input current check now judges each MPPT by its own
+     parallel strings (IEC 62548) instead of summing all strings against the
+     per-input limit; designCurrent and every other output stay identical. */
+  const ALLOWED = /^(platform\/cloudflare\/src\/(worker|catalogue|site-geo)\.(js|mjs)|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|platform\/migrations\/006-catalogue\.sql|platform\/migrations\/007-site-geo\.sql|assets\/js\/(app|equipment|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|experience|export|engineering)\.js|assets\/css\/(dashboard|experience)\.css|quotation\.html|dashboard\.html|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
   t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
     changed.filter((f) => !ALLOWED.test(f)).join(', '));
   t('no earlier migration was modified', !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin(-verify)?\.sql|006-catalogue\.sql|007-site-geo\.sql/.test(f)),

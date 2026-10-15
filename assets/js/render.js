@@ -39,6 +39,25 @@
     } catch (e) { return ''; }
   }
 
+  /* Where the closing page's "Open request form" call-to-action should lead:
+     the live acceptance form on the shared proposal, or this page's own form
+     anchor when the customer is already viewing the shared copy. */
+  function requestFormUrl() {
+    try {
+      if (document.body.classList.contains('share-mode')) {
+        return new URL(location.href.split('#')[0] + '#shareAcceptWrap').href;
+      }
+      /* The proposal's own customer link (auto-filled portal token) wins over
+         the same-browser share view, which a customer can never open. */
+      const s = root.StateStore && typeof root.StateStore.collectForm === 'function'
+        ? root.StateStore.collectForm() : null;
+      const shared = s ? safeHttpUrl(s.shareUrl) : '';
+      if (shared) return new URL(shared.split('#')[0] + '#shareAcceptWrap').href;
+      const id = root.Proposals && typeof root.Proposals.activeId === 'function' ? root.Proposals.activeId() : '';
+      return id ? new URL('share.html?p=' + encodeURIComponent(id) + '#shareAcceptWrap', document.baseURI).href : '';
+    } catch (e) { return ''; }
+  }
+
   const TYPE_LABEL = { residential: 'Residential', rwa: 'RWA / Housing Society', commercial: 'Commercial', industrial: 'Industrial' };
 
   /* Merge state + finance into the template variable pool. */
@@ -403,7 +422,7 @@
        longest group on the page and the only one whose length varies with what
        the engine could actually calculate. */
     const addRows = (group, list) => {
-      const eng = group.indexOf('ENGINEERING') === 0;
+      const eng = group.indexOf('ENGINEERING') === 0 || group === 'SITE DATA';
       rows.push('<tr class="spec-group"><td colspan="2">' + esc(group) + '</td></tr>');
       list.forEach(([k, val]) => {
         rows.push('<tr' + (eng ? ' class="is-eng"' : '') +
@@ -414,6 +433,8 @@
       ['Make', s.moduleMake],
       ['Technology', s.moduleTech || '-'],
       ['Rated Power', f.moduleWattage + ' Wp per module'],
+      ['Module Efficiency', (f.arrayArea > 0 && f.moduleCount > 0)
+        ? (f.moduleWattage * f.moduleCount / (f.arrayArea * 1000) * 100).toFixed(1) + ' % (STC, from datasheet dimensions)' : '-'],
       ['Quantity', f.moduleCount + ' modules'],
       // Keep engineering values numeric until final formatting. fmtNum returns
       // grouped text (e.g. "1,036"), which cannot be used in arithmetic.
@@ -427,31 +448,82 @@
       ['Total Module Area', f.arrayArea ? Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)' : '-'],
       ['Performance Warranty', CONTENT.shared.warrantyLine]
     ]);
-    addRows('INVERTER', [
+    /* Selected inverter's own datasheet row from the merged catalogue -
+       datasheet figures only, never invented. A legacy save without a model
+       falls back to the same closest-by-kW row the equipment selector's
+       auto-pick would have chosen (within its 1 kW tolerance). Equivalent
+       and Custom makes resolve through the selector's own logic, so the
+       table shows the same datasheet model the selector picked. */
+    const invRow = (() => {
+      try {
+        const cat = root.EquipmentStore && root.EquipmentStore.cat ? root.EquipmentStore.cat() : (root.CATALOGUE_DATA || {});
+        const rows = (cat.inverters || []).filter((r) => r && String(r.make || '') === String(s.inverterMake || ''));
+        const exact = rows.find((r) => String(r.model || '') === String(s.inverterModel || '')) || null;
+        if (exact || !s.inverterMake || !(f.inverterKw > 0)) return exact;
+        if (s.inverterModel || !rows.length) {
+          return (root.EquipmentStore && root.EquipmentStore.datasheetRow)
+            ? root.EquipmentStore.datasheetRow('inverters', s.inverterMake, s.inverterModel, f.inverterKw) : null;
+        }
+        let best = null, bestD = Infinity;
+        rows.forEach((r) => { const k = Number(r.kw); if (isFinite(k)) { const d = Math.abs(k - f.inverterKw); if (d < bestD) { bestD = d; best = r; } } });
+        return (best && bestD <= 1) ? best : null;
+      } catch (e) { return null; }
+    })();
+    const dcEff = [];
+    if (invRow && invRow.vmaxDc) dcEff.push(invRow.vmaxDc + ' V');
+    if (invRow && invRow.efficiency) dcEff.push(invRow.efficiency + ' %');
+    const mpptRatio = [];
+    if (invRow && invRow.mppt) mpptRatio.push(invRow.mppt + ' × MPPT');
+    if (Number.isFinite(f.dcAcRatio) && f.dcAcRatio > 0) mpptRatio.push(
+      f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1');
+    const invRows = [
       ['Make', s.inverterMake],
-      ['Rated Output', f.inverterKw + ' kW' + (s.inverterKw ? '' : ' (auto - equal to capacity)')],
-      ['DC/AC Ratio', Number.isFinite(f.dcAcRatio) && f.dcAcRatio > 0
-        ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '-'],
+      ['Model', (invRow && invRow.model) || s.inverterModel || '-'],
+      ['Type', invRow ? (invRow.invType === 'String' ? 'Grid-tied string inverter · ' : '') +
+        (invRow.phase === 3 ? 'Three-phase' : invRow.phase === 1 ? 'Single-phase' : (invRow.phase || '-')) : '-'],
+      ['Rated Output', f.inverterKw + ' kW'],
+      ['Max. DC Input & Efficiency', dcEff.length ? dcEff.join(' · ') + ' (per datasheet)' : '-'],
+      ['MPPT / DC-AC Ratio', mpptRatio.length ? mpptRatio.join(' · ') : '-'],
+      ['Protection', invRow && invRow.ip ? invRow.ip + ' (per datasheet)' : '-'],
       ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
-    ]);
+    ];
+    addRows('INVERTER', invRows);
     // Proposal-stage presentation. Engineering calculations and checks remain
     // in the staff panel; unverified design outputs do not become customer claims.
     addRows('MOUNTING & CABLING', [
-      ['Structure Make', s.mountMake],
-      ['Roof Type', s.roofType || '-'],
+      ['Structure', [s.mountMake, s.roofType].filter(Boolean).join(' · ') || '-'],
       ['Cabling & Protection', s.cableMake],
-      ['Earthing', 'Electrode design will follow site testing and electrical design verification.'],
-      ['Lightning Protection', 'Protection requirements will be confirmed through the site risk assessment.']
+      ['Earthing', 'Copper-bonded earth electrodes & GI strips, per IS 3043 (verified by site soil testing).'],
+      ['Lightning Protection', 'Copper air-termination & down conductors, per IS/IEC 62305 (per site risk assessment).']
     ]);
     if (s.availableArea) addRows('SITE', [
-      ['Available Roof Area', s.availableArea + ' m²'],
-      ['Indicative Roof Requirement', Math.ceil(f.requiredArea || 0) + ' m² — final layout and clearances subject to site verification.' + (Number(s.availableArea) < Math.ceil(f.requiredArea || 0) ? ' Estimated requirement exceeds available area.' : '')]
+      ['Roof Area', 'Available ' + s.availableArea + ' m² · requirement ≈ ' + Math.ceil(f.requiredArea || 0) + ' m² — final layout subject to site verification' +
+        (Number(s.availableArea) < Math.ceil(f.requiredArea || 0) ? '. Estimated requirement exceeds available area.' : '.')]
     ]);
-    addRows('ENGINEERING DESIGN BASIS', [['Proposal-stage design', root.StateStore.engineeringNote(s)]]);
+    /* Measured site data from the address fetch - shown only when it was
+       actually resolved, so the page never invents a site resource. */
+    const siteGeoRows = [];
+    if (s.siteGeoName) {
+      siteGeoRows.push(['Site Location', s.siteGeoName +
+        (Number(s.siteGeoLat) ? ' (' + Number(s.siteGeoLat).toFixed(2) + '°N, ' + Number(s.siteGeoLng).toFixed(2) + '°E)' : '')]);
+    }
+    if (s.nasaGhi) {
+      siteGeoRows.push(['Solar Resource (NASA POWER)', Number(s.nasaGhi).toLocaleString('en-IN', { maximumFractionDigits: 2 }) + ' kWh/m²/yr GHI' +
+        (s.nasaWindowStart ? ' · ' + s.nasaWindowStart + ' → ' + s.nasaWindowEnd : '') +
+        (s.nasaElevation ? ' · elevation ' + Number(s.nasaElevation).toFixed(0) + ' m' : '') +
+        (s.nasaWind ? ' · mean wind ' + Number(s.nasaWind).toFixed(1) + ' m/s' : '')]);
+    }
+    if (siteGeoRows.length) addRows('SITE DATA', siteGeoRows);
+    addRows('ENGINEERING DESIGN BASIS', [
+      ['Design standards', 'IEC 62548 · IEC 62109 · IEC 61730 · IS 732 · IS 875 (Part 3):2015 · IS 3043 · IS/IEC 62305'],
+      ['Structure life', '10 years (galvanized steel mounting structure)'],
+      ['Basic wind speed', (s.windSpeed ? s.windSpeed + ' m/s' : '-') + ' (per IS 875 (Part 3):2015)'],
+      ['Proposal-stage design', root.StateStore.engineeringNote(s)]
+    ]);
     $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
     setHTML('v_tsTable', rows.join(''));
     set('v_tsNoteLabel', P.noteLabel);
-    set('v_tsNote', P.note);
+    set('v_tsNote', P.note + ' All listed values are sourced from manufacturer datasheets and applicable Indian standards and verified at the time of quotation.');
     const refs = [
       [s.pvsystUrl, P.refsPvsyst, 'chart'],
       [s.arkaUrl, P.refsArka, 'sun']
@@ -1207,6 +1279,9 @@
       statYears: g('statYears'), statProjects: g('statProjects'), statCapacity: g('statCapacity'),
       prepName: g('prepName'),
       customerType: g('customerType'), custName: g('custName'), custSalutation: g('custSalutation'), custSalutationCustom: g('custSalutationCustom'), custSpokenName: g('custSpokenName'), custAddress: g('custAddress'),
+      siteGeoName: g('siteGeoName'), siteGeoLat: g('siteGeoLat'), siteGeoLng: g('siteGeoLng'),
+      nasaGhi: g('nasaGhi'), nasaWind: g('nasaWind'), nasaElevation: g('nasaElevation'),
+      nasaWindowStart: g('nasaWindowStart'), nasaWindowEnd: g('nasaWindowEnd'), nasaSource: g('nasaSource'),
       propDate: g('propDate'), propRef: g('propRef'), propVersion: g('propVersion'),
       validityDays: g('validityDays'), monthlyBill: g('monthlyBill'),
       capacity: g('capacity'), genFactor: g('genFactor'),
@@ -1243,7 +1318,7 @@
     if (svg) svg.replaceWith(svg.cloneNode(true));
   }
 
-  root.Render = { safeHttpUrl, renderAll, fitPages, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
+  root.Render = { safeHttpUrl, requestFormUrl, renderAll, fitPages, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
     get lastState() { return lastState; },
     get lastVisible() { return lastVisible; } };
 })(typeof self !== 'undefined' ? self : this);

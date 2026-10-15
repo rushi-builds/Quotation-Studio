@@ -36,9 +36,13 @@
   function portfolioDestination(s) {
     return galleryUrl(s)||(!String(s.galleryUrl||'').trim()?'https://studio.rushidhumal-04.workers.dev/gallery.html':'');
   }
+  /* Tap-cursor line icon with ripple arcs (stroke-only, transparent background). */
+  const TAP_ICON = '<svg class="tap-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M16.4 10.4a3 3 0 0 1 3-3" opacity=".9"/><path d="M13.8 10.4a5.6 5.6 0 0 1 5.6-5.6" opacity=".55"/><path d="M11.2 10.4a8.2 8.2 0 0 1 8.2-8.2" opacity=".3"/>'
+    + '<path d="M4.4 3.2 19.4 10.4l-6.6 2.6-2.6 6.6z"/></svg>';
   function portfolioCard(s) {
-    const url=portfolioDestination(s),copy=String(s.galleryUrl||'').trim()?destinationCopy(s):destinationCopy({qrDestinationType:'gallery'});
-    return url?'<div class="portfolio-link power-portfolio-link"><div><span>THE KTM PROJECT PORTFOLIO</span><h2>See our work in detail.</h2><p>Explore installation photographs and available project media.</p><a href="'+esc(url)+'">'+esc(copy.action)+'</a></div><a class="power-gallery" href="'+esc(url)+'"><canvas width="320" height="320"></canvas><span>Scan to explore</span></a></div>':'';
+    const url=portfolioDestination(s);
+    return url?'<div class="portfolio-link power-portfolio-link"><div><span>THE KTM PROJECT PORTFOLIO</span><h2>See our work in detail.</h2><p>Explore installation photographs and available project media.</p><a class="tap-link" href="'+esc(url)+'">'+TAP_ICON+'<span>Click here to explore our projects</span></a></div><a class="power-gallery" href="'+esc(url)+'"><canvas width="320" height="320"></canvas><span>Scan to explore</span></a></div>':'';
   }
   let projectsReady=Promise.resolve(),allQrReady=Promise.resolve(),projectsRevision=0;
   function renderProjectsGallery(s) {
