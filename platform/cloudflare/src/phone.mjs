@@ -47,7 +47,9 @@ async function getCerts(fetcher, force) {
   const now = Date.now();
   const hit = certCache.get('certs');
   if (hit && !force && now - hit.at < 6 * 3600 * 1000) return hit.certs;
-  const res = await fetcher(CERTS_URL, { redirect: 'error', signal: AbortSignal.timeout(10000) });
+  // 'manual' (not 'error'): the Workers fetch rejects 'error' with a TypeError
+  // before sending. A redirect is still never followed — it surfaces as !res.ok.
+  const res = await fetcher(CERTS_URL, { redirect: 'manual', signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error('CERTS_FETCH_FAILED');
   const text = await res.text();
   if (text.length > 100000) throw new Error('CERTS_TOO_LARGE');

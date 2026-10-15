@@ -128,47 +128,99 @@ async function loadPage(base, pagePath, { cookie = '', preset = null } = {}) {
     assert.equal(seeded.status, 201, 'seed signup failed');
 
     /* A. Recovery UI honesty (mirrors studio-security.test.cjs browser half,
-       minus the viewport-fit check, which needs a real layout engine). */
+       minus the viewport-fit check, which needs a real layout engine).
+
+       The flow is three steps inside the sign-in panel — email, then the code,
+       then a new password (owner decision, 2026-10-10). Opening it must fire
+       nothing: the server is not asked about any address until the user submits
+       one, so merely loading the page can never confirm or deny an account. */
     {
       const { window, calls } = await loadPage(base, '/index.html#forgotPassword');
-      const notice = window.document.getElementById('recoveryNotice');
-      t('recovery deep link shows persistent notice',
-        notice && notice.hidden === false, notice && notice.hidden);
-      t('notice copy stays honest (no email sent)',
-        notice.textContent.includes('No recovery email has been sent'),
-        notice.textContent.slice(0, 120));
-      const back = Array.from(notice.querySelectorAll('button'))
-        .find((b) => b.textContent === 'Back to sign in');
-      back.click();
-      t('Back to sign in dismisses', notice.hidden === true);
-      window.document.getElementById('forgotPassword').click();
-      t('Forgot password re-opens notice', notice.hidden === false);
-      t('UI issues zero recovery-secret requests',
-        calls.filter((u) => u.includes('/api/auth/forgot-password')).length === 0,
+      const doc = window.document;
+      const rp = doc.getElementById('f-rp');
+      t('recovery deep link opens the reset panel', rp && rp.hidden === false, rp && rp.hidden);
+      t('sign-in panel is swapped out', doc.getElementById('f-in').hidden === true);
+      /* All three steps now stand on the card, so the guarantee is no longer
+         "the others are absent" but "the others cannot be used": a code box
+         is visible before any code exists, and must be inert until then. */
+      t('step 1 is live while steps 2 and 3 are locked',
+        !!doc.querySelector('[data-rstep="1"]:not([data-locked])') &&
+        !!doc.querySelector('[data-rstep="2"][data-locked]') &&
+        !!doc.querySelector('[data-rstep="3"][data-locked]'));
+      t('a locked step cannot be typed into or submitted',
+        Array.from(doc.querySelectorAll('[data-rstep="2"] input,[data-rstep="2"] button,[data-rstep="3"] input,[data-rstep="3"] button'))
+          .every((el) => el.disabled));
+      t('email step asks for the address',
+        !!doc.getElementById('r-e') && !!doc.querySelector('#f-rp [data-rstep="1"] .cta2'));
+      t('code step carries the resend control and its counter',
+        !!doc.getElementById('rp-resend') && !!doc.getElementById('rp-timer') && !!doc.getElementById('rp-attempts') &&
+        /resend/i.test(doc.getElementById('rp-resend').textContent),
+        doc.getElementById('rp-resend') && doc.getElementById('rp-resend').textContent + ' | ' + (doc.getElementById('rp-timer') || {}).textContent);
+      t('password step has the new-password field', !!doc.getElementById('r-p'));
+      t('no code or token is pre-filled or rendered',
+        !/\b\d{6}\b/.test((rp && rp.textContent) || '') && !(rp && rp.querySelector('[name="token"]')),
+        rp && rp.textContent.slice(0, 120));
+      t('UI issues zero recovery requests when the panel merely opens',
+        calls.filter((u) => /\/api\/auth\/(forgot-password|verify-code|reset-password)/.test(u)).length === 0,
         calls.join(','));
+
+      const back = rp.querySelector('[data-go="in"]');
+      t('Back to sign in present', !!back);
+      back.click();
+      t('Back to sign in returns to the sign-in form',
+        rp.hidden === true && doc.getElementById('f-in').hidden === false);
+      doc.getElementById('forgotPassword').click();
+      t('Forgot password re-opens the reset panel',
+        rp.hidden === false && doc.getElementById('f-in').hidden === true);
       window.close();
     }
 
-    /* B. Social UI states (mirrors oauth-browser.test.cjs DOM half). */
+    /* B. Sign-in is email + password only.
+
+       Owner decision (2026-10-10): the Google, Phone and Microsoft buttons are
+       removed from the sign-in screen, leaving the built-in email/password
+       flow as the single entry point. The provider code (oauth-ui.js,
+       phone-auth.js, and the Worker OAuth/phone routes) stays wired but
+       unreachable, so it can be restored without a rewrite; both scripts are
+       null-guarded, so an empty button set must not throw. These guards fail
+       the moment any social control returns. */
     {
       const { window } = await loadPage(base, '/index.html');
       t('StudioSocial bridge loads', !!window.StudioSocial);
-      const btn = window.document.querySelector('[data-p="google"]');
-      t('Google button exists', !!btn);
+      t('Google button removed from sign-in', !window.document.querySelector('[data-p="google"]'));
+      t('Microsoft button removed from sign-in', !window.document.querySelector('[data-p="microsoft"]'));
       t('Apple button removed from sign-in', !window.document.querySelector('[data-p="apple"]'));
-      const phoneBtn = window.document.getElementById('btnPhone');
-      t('Phone button exists with accessible label',
-        !!phoneBtn && phoneBtn.getAttribute('aria-label') === 'Continue with Phone');
+      t('Phone button removed from sign-in', !window.document.getElementById('btnPhone'));
+      t('"or continue with" divider removed', !window.document.querySelector('.or'));
       const order = Array.from(window.document.querySelectorAll('.soc button'))
         .map((b) => b.id === 'btnPhone' ? 'phone' : b.dataset.p).join(',');
-      t('sign-in order is Google, Phone, Microsoft', order === 'google,phone,microsoft', order);
+      t('no social buttons remain', order === '', order);
       t('phone-auth script loads with bridge', !!window.StudioPhone);
-      btn.click();
-      await sleep(800);
-      const msg = window.document.getElementById('socialMessage');
-      t('unconfigured provider gives honest status',
-        !msg.hidden && /not live yet|administrator configuration/i.test(msg.textContent),
-        msg.textContent.slice(0, 160));
+      t('socialMessage retained for provider-error copy',
+        !!window.document.getElementById('socialMessage'));
+      t('email and password fields present',
+        !!window.document.getElementById('i-e') && !!window.document.getElementById('i-p'));
+      t('sign-in submit button present', !!window.document.querySelector('#f-in button.cta2'));
+      t('create-account link present', !!window.document.querySelector('#f-in [data-go="up"]'));
+      t('forgot-password control present', !!window.document.getElementById('forgotPassword'));
+      /* "Remember me" (owner request, 2026-10-10) sits LEFT of Forgot password
+         on one row, UNCHECKED by default so a sign-in is browser-session-only
+         unless the user asks to be remembered. */
+      const reco = window.document.querySelector('#f-in .reco');
+      t('remember-me row present', !!reco, reco ? '' : 'no .reco row');
+      const remember = window.document.getElementById('rememberMe');
+      t('remember-me checkbox present and UNCHECKED by default',
+        !!remember && remember.type === 'checkbox' && !remember.checked,
+        remember ? 'type=' + remember.type + ' checked=' + remember.checked : 'missing');
+      t('remember-me and Forgot password share one row',
+        !!reco && !!reco.querySelector('#rememberMe') && !!reco.querySelector('#forgotPassword'));
+      /* Flex row reads left-to-right, so DOM order IS visual order here —
+         measurable in any environment, unlike layout rects under jsdom. */
+      t('remember-me is to the LEFT of Forgot password',
+        !!reco &&
+        reco.innerHTML.indexOf('rememberMe') < reco.innerHTML.indexOf('id="forgotPassword"'));
+      t('remember-me is opted IN to the form (name="remember")',
+        !!remember && remember.getAttribute('name') === 'remember');
       window.close();
     }
     {

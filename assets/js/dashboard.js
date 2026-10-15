@@ -14,10 +14,16 @@
   let allProposals = [];
   let toastTimer = null;
 
-  const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Viewer', custom: 'Custom' };
+  const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Engineer', custom: 'Custom' };
+  /* The four built-in words the SERVER may send, in the vocabulary this UI
+     shows. `viewer` reads "Engineer" on screen everywhere — a label rename
+     only: the stored role, its rank and every gate are untouched. Anything
+     a member typed passes through verbatim, so a custom title is never
+     rewritten. */
+  const SERVER_ROLE_LABEL = { Owner: 'Owner', Sales: 'Sales', Viewer: 'Engineer', Custom: 'Custom' };
   function roleLabel(roleOrUser) {
     if (roleOrUser && typeof roleOrUser === 'object') {
-      if (roleOrUser.roleLabel) return roleOrUser.roleLabel;
+      if (roleOrUser.roleLabel) return SERVER_ROLE_LABEL[roleOrUser.roleLabel] || roleOrUser.roleLabel;
       if (roleOrUser.role === 'custom' && roleOrUser.roleCustom) return roleOrUser.roleCustom;
       return roleLabel(roleOrUser.role);
     }
@@ -104,7 +110,7 @@
     if (!user) return false;
     return user.canManageTeam != null ? !!user.canManageTeam : user.role === 'owner';
   }
-  const POWER_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Viewer' };
+  const POWER_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Engineer' };
   /* S1 — the badge is the STORED role, so it can never read "Admin". The
      backend already sends `power` derived from `role` alone; this clamps it a
      second time so that no future backend change can put the word on screen.
@@ -165,7 +171,11 @@
     $('settingsName').textContent = user.name || '—';
     $('settingsEmail').textContent = user.email || '—';
     if ($('settingsRole')) {
-      $('settingsRole').textContent = roleLabel(user);
+      /* What a member typed when they signed up IS their role on screen. The
+         stored permission word only stands in when that field was left blank —
+         access is identical either way, because this is a label and not a
+         grant: `viewer` still gates every write wherever it is displayed. */
+      $('settingsRole').textContent = user.roleCustom || roleLabel(user);
       /* Red dot: self-only tell that this account is in elevated admin mode.
          Driven by the stored `elevated` flag; nobody else's payload has it. */
       if (user && user.elevated) {
@@ -185,6 +195,12 @@
       $('btnRoleEdit').classList.toggle('is-locked', !mine);
     }
     if ($('profileName')) $('profileName').value = user.name || '';
+    if ($('profilePhone')) $('profilePhone').value = user.phone || '';
+    if ($('profileTitle')) $('profileTitle').value = user.roleCustom || '';
+    if ($('profileInstagram')) $('profileInstagram').value = user.instagram || '';
+    if ($('profileLinkedin')) $('profileLinkedin').value = user.linkedin || '';
+    if ($('profileCustom')) $('profileCustom').value = user.custom || '';
+    refreshProfileNudge();
     if ($('profileSaveMsg')) $('profileSaveMsg').textContent = '';
     if ($('currPassword')) $('currPassword').value = '';
     if ($('newPassword')) $('newPassword').value = '';
@@ -202,8 +218,48 @@
     location.href = 'index.html';
   }
 
+  /* The one-time first-sign-in nudge. It reads `profile_done`, which the
+     server flips the first time the member saves Settings → Profile: a display
+     flag that appears in no gate, so showing or hiding it grants nothing. */
+  function refreshProfileNudge() {
+    const el = $('profileNudge');
+    if (!el) return;
+    el.hidden = !user || !!user.profileDone;
+  }
+
+  /* One English confirmation modal, used wherever a change deserves a pause.
+     It resolves true only on the confirming click, so nothing is written and
+     nothing is sent until the second one. Falls back to the native prompt only
+     if the browser has no <dialog>, which no supported browser lacks. */
+  function confirmDialog(opts) {
+    const o = opts || {};
+    const dlg = $('confirmBox');
+    if (!dlg) return Promise.resolve(window.confirm(o.body || 'Are you sure?'));
+    return new Promise((resolve) => {
+      const set = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+      set('cfTitle', o.title || 'Are you sure?');
+      set('cfBody', o.body || '');
+      set('cfOk', o.confirm || 'Confirm');
+      set('cfCancel', o.cancel || 'Cancel');
+      const done = (val) => {
+        closeDialog('confirmBox');
+        resolve(val);
+      };
+      const ok = $('cfOk');
+      const cancel = $('cfCancel');
+      if (ok) {
+        ok.onclick = () => done(true);
+        ok.focus();
+      }
+      if (cancel) cancel.onclick = () => done(false);
+      dlg.onclose = () => done(false);
+      if (typeof dlg.showModal === 'function') dlg.showModal();
+      else dlg.setAttribute('open', '');
+    });
+  }
+
   /* ---------- navigation ---------- */
-  let lastLaunch = null;
+  let lastLaunch = null, lastSendId = null, lastSendChannel = null;
 
   const PAGE_LABELS = {home:'Overview',proposals:'Quotations',tasks:'Follow-ups',activity:'Customer activity',send:'Sharing',publish:'Sharing',gallery:'Project gallery',reports:'Analytics',settings:'Settings'};
   function showPanel(name, preferId) {
@@ -284,7 +340,39 @@
     body.querySelectorAll('[data-open-activity]').forEach(b=>b.addEventListener('click',()=>openInStudio(b.dataset.openActivity)));
   }
 
-  let taskLoad = 0;
+  let taskLoad = 0, taskRows = [], editingTaskId = null;
+  function localDateInput(value) {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return '';
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  }
+  function localDateKey(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  }
+  function resetTaskEditor() {
+    editingTaskId = null;
+    ['taskTitle', 'taskNotes', 'taskDue'].forEach(id => { if ($(id)) $(id).value = ''; });
+    if ($('taskProposal')) $('taskProposal').value = '';
+    if ($('btnTaskAdd')) $('btnTaskAdd').textContent = 'Create follow-up';
+    if ($('btnTaskCancelEdit')) $('btnTaskCancelEdit').hidden = true;
+  }
+  function startTaskEdit(id) {
+    const task = taskRows.find(row => row.id === id);
+    if (!task || !canEdit()) return;
+    fillTaskProposalSelect(task.proposalId || '');
+    editingTaskId = task.id;
+    $('taskTitle').value = task.title || '';
+    $('taskNotes').value = task.notes || '';
+    $('taskDue').value = localDateInput(task.dueAt);
+    $('taskProposal').value = task.proposalId || '';
+    $('btnTaskAdd').textContent = 'Save changes';
+    if ($('btnTaskCancelEdit')) $('btnTaskCancelEdit').hidden = false;
+    const editor = document.querySelector('.task-compose');
+    if (editor) editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('taskTitle').focus();
+  }
   async function refreshTasksPanel() {
     const requestId = ++taskLoad;
     fillTaskProposalSelect();
@@ -296,11 +384,15 @@
     }
   }
 
-  function fillTaskProposalSelect() {
+  function fillTaskProposalSelect(preserveId) {
     const sel = $('taskProposal');
     if (!sel) return;
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">No linked proposal</option>' +
+    const cur = preserveId || sel.value;
+    const accessible = allProposals.some(p => p.id === cur);
+    const missing = cur && !accessible
+      ? '<option value="' + escapeHtml(cur) + '">Linked quotation unavailable — keep existing link</option>'
+      : '';
+    sel.innerHTML = '<option value="">No linked quotation</option>' + missing +
       allProposals.map((p) => (
         '<option value="' + escapeHtml(p.id) + '">' +
         escapeHtml((p.customer || 'Untitled') + (p.ref ? ' · ' + p.ref : '')) +
@@ -311,22 +403,37 @@
 
   function renderTasks(rows) {
     const body = $('tasksBody'); if (!body) return;
+    taskRows = Array.isArray(rows) ? rows.slice() : [];
+    const openRows = taskRows.filter(t => t.status === 'open');
+    const overdue = openRows.filter(t => !!t.overdue);
+    const todayKey = localDateKey(new Date());
+    const dueToday = openRows.filter(t => !!t.dueAt && localDateKey(t.dueAt) === todayKey && !t.overdue);
+    const reminder = $('taskReminderSummary');
+    if (reminder) {
+      const parts = [];
+      if (overdue.length) parts.push(overdue.length + ' overdue');
+      if (dueToday.length) parts.push(dueToday.length + ' due today');
+      reminder.hidden = !parts.length;
+      reminder.className = 'task-reminder' + (overdue.length ? ' overdue' : '');
+      reminder.textContent = parts.length ? parts.join(' · ') + '. In-app only; no automatic WhatsApp or email reminders are sent.' : '';
+    }
     const filter = $('taskFilter')?.value || 'all';
-    rows = rows.filter(t => {
+    const visibleRows = taskRows.filter(t => {
       if (filter === 'all') return true;
       if (filter === 'done') return t.status === 'done';
       if (t.status !== 'open') return false;
       if (filter === 'open') return true;
       if (filter === 'overdue') return !!t.overdue;
-      return !!t.dueAt && new Date(t.dueAt).toDateString() === new Date().toDateString();
+      return !!t.dueAt && localDateKey(t.dueAt) === todayKey;
     }).sort((a,b)=> (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || (Date.parse(a.dueAt) || Infinity) - (Date.parse(b.dueAt) || Infinity));
-    if ($('taskCount')) $('taskCount').textContent = String(rows.length);
-    if (!rows.length) { body.innerHTML = emptyState('A clear list. A fresh start.','No follow-ups in this view. Plan your next step on the right.','✓'); return; }
-    body.innerHTML = rows.map(t => {
+    if ($('taskCount')) $('taskCount').textContent = String(visibleRows.length);
+    if (!visibleRows.length) { body.innerHTML = emptyState('A clear list. A fresh start.','No follow-ups in this view. Plan your next step on the right.','✓'); return; }
+    body.innerHTML = visibleRows.map(t => {
       const prop = allProposals.find(p=>p.id===t.proposalId);
       const action = (act,label,cls='') => '<button type="button" class="' + cls + '" data-act="' + act + '" data-id="' + escapeHtml(t.id) + '">' + label + '</button>';
-      const check = canEdit() ? action(t.status === 'open' ? 'task-done' : 'task-reopen', t.status === 'done' ? '✓' : '<span class="sr-only">' + (t.status === 'open' ? 'Complete task' : 'Reopen task') + '</span>', 'task-check') : '<span class="task-check" aria-label="' + escapeHtml(t.status) + '">' + (t.status === 'done' ? '✓' : '') + '</span>';
-      return '<article class="task-item ' + escapeHtml(t.status) + '">' + check + '<div class="task-copy"><h3>' + escapeHtml(t.title) + '</h3><div class="task-meta"><span class="' + (t.overdue ? 'late' : '') + '">' + escapeHtml(t.dueAt ? fmtDate(t.dueAt) : 'No due date') + '</span>' + (prop ? '<button type="button" class="text-link" data-task-quote="' + escapeHtml(prop.id) + '">' + escapeHtml(prop.customer || prop.ref || 'Quotation') + '</button>' : '') + (t.status === 'cancelled' ? '<span>Cancelled</span>' : '') + '</div>' + (t.notes ? '<p>' + escapeHtml(t.notes) + '</p>' : '') + '</div>' + (canEdit() ? '<details class="row-menu"><summary aria-label="Task actions">⋯</summary><div class="row-menu-list">' + (t.status === 'open' ? action('task-cancel','Cancel task') : action('task-reopen','Reopen task')) + action('task-del','Delete task','danger') + '</div></details>' : '') + '</article>';
+      const checkLabel = t.status === 'open' ? 'Complete task' : 'Reopen task';
+      const check = canEdit() ? action(t.status === 'open' ? 'task-done' : 'task-reopen', '<span class="sr-only">' + checkLabel + '</span>', 'task-check') : '<span class="task-check" aria-label="' + escapeHtml(t.status) + '">' + (t.status === 'done' ? '✓' : '') + '</span>';
+      return '<article class="task-item ' + escapeHtml(t.status) + '">' + check + '<div class="task-copy"><h3>' + escapeHtml(t.title) + '</h3><div class="task-meta"><span class="' + (t.overdue ? 'late' : '') + '">' + escapeHtml(t.dueAt ? fmtDate(t.dueAt) : 'No due date') + '</span>' + (prop ? '<button type="button" class="text-link" data-task-quote="' + escapeHtml(prop.id) + '">' + escapeHtml(prop.customer || prop.ref || 'Quotation') + '</button>' : (t.proposalId ? '<span>Linked quotation unavailable</span>' : '')) + (t.status === 'cancelled' ? '<span>Cancelled</span>' : '') + '</div>' + (t.notes ? '<p>' + escapeHtml(t.notes) + '</p>' : '') + '</div>' + (canEdit() ? '<details class="row-menu"><summary aria-label="Task actions">⋯</summary><div class="row-menu-list">' + action('task-edit','Edit details') + (t.status === 'open' ? action('task-cancel','Cancel task') : action('task-reopen','Reopen task')) + action('task-del','Delete task','danger') + '</div></details>' : '') + '</article>';
     }).join('');
     body.querySelectorAll('[data-act]').forEach(btn=>btn.addEventListener('click',onTaskAction));
     body.querySelectorAll('[data-task-quote]').forEach(btn=>btn.addEventListener('click',()=>openInStudio(btn.dataset.taskQuote)));
@@ -336,15 +443,17 @@
     const btn = ev.currentTarget;
     const act = btn.getAttribute('data-act');
     const id = btn.getAttribute('data-id');
+    if (act === 'task-edit') {
+      startTaskEdit(id);
+      return;
+    }
+    if (act === 'task-del' && !confirm('Delete this follow-up task?')) return;
     btn.disabled = true;
     try {
       if (act === 'task-done') await api.updateTask(id, { status: 'done' });
       else if (act === 'task-cancel') await api.updateTask(id, { status: 'cancelled' });
       else if (act === 'task-reopen') await api.updateTask(id, { status: 'open' });
-      else if (act === 'task-del') {
-        if (!confirm('Delete this follow-up task?')) return;
-        await api.deleteTask(id);
-      }
+      else if (act === 'task-del') await api.deleteTask(id);
       await refreshTasksPanel();
       await refreshAll();
     } catch (err) {
@@ -361,20 +470,29 @@
       return;
     }
     const due = $('taskDue') && $('taskDue').value;
+    const payload = {
+      title,
+      notes: ($('taskNotes') && $('taskNotes').value) || '',
+      proposalId: ($('taskProposal') && $('taskProposal').value) || null,
+      dueAt: due ? new Date(due + 'T23:59:59.999').toISOString() : null
+    };
+    const btn = $('btnTaskAdd');
+    if (btn) btn.disabled = true;
     try {
-      await api.createTask({
-        title,
-        notes: ($('taskNotes') && $('taskNotes').value) || '',
-        proposalId: ($('taskProposal') && $('taskProposal').value) || undefined,
-        dueAt: due ? new Date(due + 'T17:00:00').toISOString() : undefined
-      });
-      if ($('taskTitle')) $('taskTitle').value = '';
-      if ($('taskNotes')) $('taskNotes').value = '';
-      toast('Follow-up added');
+      if (editingTaskId) {
+        await api.updateTask(editingTaskId, payload);
+        toast('Follow-up updated');
+      } else {
+        await api.createTask(payload);
+        toast('Follow-up added');
+      }
+      resetTaskEditor();
       await refreshTasksPanel();
       await refreshAll();
     } catch (err) {
-      toast(err.message || 'Could not add task');
+      toast(err.message || (editingTaskId ? 'Could not update follow-up' : 'Could not add task'));
+    } finally {
+      if (btn) btn.disabled = !canEdit();
     }
   }
 
@@ -472,35 +590,41 @@
     title.maxLength = 60;
     title.setAttribute('aria-label', 'Display title');
 
-    /* Power keys. A stored custom title is offered too so it stays selected
-       instead of silently becoming one of the three built-ins. */
-    if (user.role === 'custom' || (user.roleCustom && user.role !== 'owner')) {
-      const c = document.createElement('option');
-      c.value = 'custom';
-      c.textContent = user.roleLabel || user.roleCustom || 'Custom title';
-      c.selected = true;
-      sel.append(c);
-    }
+    /* Power keys, in order — Custom sits LAST because picking it is what opens
+       the typed-title box. It is offered as an INSTRUCTION, not as a stored
+       value: the wording lives in the box underneath, and a Sales or Engineer
+       row never grows a custom entry just because a title survived a role
+       change. */
     ['owner', 'sales', 'viewer'].forEach((r) => {
       const o = document.createElement('option');
       o.value = r; o.textContent = roleLabel(r);
       if (user.role === r) o.selected = true;
       sel.append(o);
     });
+    /* Custom sits LAST, worded exactly as the team table words it, and its
+       label is an INSTRUCTION rather than a stored value: pick it and the box
+       below is where you type. It is offered on EVERY row, not only one
+       already stored as custom — this pencil is where the designated mailbox
+       types "admin", and a row that starts at Sales would otherwise have no
+       way to reach that door at all. */
+    const customOpt = document.createElement('option');
+    customOpt.value = 'custom';
+    customOpt.textContent = 'Custom — type here';
+    if (user.role === 'custom') customOpt.selected = true;
+    sel.append(customOpt);
 
+    /* Whatever title the account already has is loaded ONCE and never blanked
+       by a role choice: a hidden box still holds its text, so saving after a
+       move to Sales or Engineer sends the wording back and preserves it. */
+    title.value = user.roleCustom || '';
     function syncTitle() {
       const v = sel.value;
-      if (v === 'custom') {
-        title.hidden = false; title.disabled = false;
-        title.placeholder = 'Typed title (for example Project lead)';
-        title.value = user.role === 'custom' ? (user.roleCustom || '') : title.value;
-      } else if (v === 'owner') {
-        title.hidden = false; title.disabled = false;
-        title.placeholder = 'Display title (optional — blank shows "Owner")';
-        title.value = user.role === 'owner' ? (user.roleCustom || '') : '';
-      } else {
-        title.hidden = true; title.disabled = true; title.value = '';
-      }
+      const titleable = v === 'custom' || v === 'owner';
+      title.hidden = !titleable;
+      title.disabled = false;
+      title.placeholder = v === 'custom'
+        ? 'Typed title (for example Project lead)'
+        : 'Display title (optional — blank shows "Owner")';
     }
     sel.addEventListener('change', syncTitle);
     syncTitle();
@@ -515,7 +639,7 @@
       const v = sel.value;
       const t = title.value.trim();
       if (v === 'custom' && !t) { toast('Enter a title, or pick a power level'); return; }
-      const titleToSend = (v === 'custom' || v === 'owner') ? t : '';
+      const titleToSend = t;
       save.disabled = true;
       try {
         const out = await api.setTeamRole(user.id, v, titleToSend);
@@ -551,7 +675,7 @@
     sel.focus();
   }
 
-  /* Team panel. Columns: contact, typed title, power badge, last sign-in (from
+  /* Team panel. Columns: name, contact, stored-role badge, last sign-in (from
      the sessions table), and the role control.
 
      Every member may READ it; only an owner or the designated admin gets the
@@ -560,8 +684,217 @@
      /api/team/role keeps its own owner gate — so this is presentation, not the
      boundary. `canManageTeam` in the response says which view to render.
 
-     Power badge and title are separate on purpose: the title is what a member
-     typed, the badge is their STORED role. Neither ever reflects elevation. */
+     The EDIT cell holds the role select and, for a titleable row, the title
+     input — separate on purpose: the title is what a member typed, the badge
+     is their STORED role, and neither ever reflects elevation. The INFO cell
+     opens the member card, which every member may open and only a manager may
+     act from. */
+  /* ---------- member info card ----------
+     The eye at the end of a team row opens one card with everything the server
+     is willing to show THIS actor about that member: display details for
+     everyone, and the remove button only when the server said this actor
+     manages the team.
+
+     The card is presentation, not the boundary. DELETE /api/team/members/:id
+     keeps its own owner gate and refuses your own row, the OWNER_EMAIL row and
+     an elevated row, so a client that forges the manage flag gets nothing but
+     a refusal. */
+  let teamMembers = [];
+  let teamCanManage = false;
+  let memberInFocus = null;
+
+  function memberById(id) {
+    return teamMembers.find((m) => m && m.id === id) || null;
+  }
+
+  function closeDialog(id) {
+    const dlg = $(id);
+    if (!dlg) return;
+    if (typeof dlg.close === 'function' && dlg.open) dlg.close();
+    else dlg.removeAttribute('open');
+  }
+
+  /* --- member card: reach-out helpers ------------------------------------
+     Everything below reads display data the member published about
+     THEMSELVES in Settings, plus one bit of present-tense state. The card is
+     presentation; the server remains the boundary, so nothing here decides
+     who may see what. */
+
+  /* A stable hue from a string, so the same person is the same colour on every
+     screen and nothing has to be stored or agreed on. */
+  function tintFrom(seed) {
+    let h = 0;
+    const s = String(seed || '?');
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h % 360;
+  }
+  function applyAvatarTint(el, seed) {
+    if (!el) return;
+    const hue = tintFrom(seed);
+    el.style.background = 'hsl(' + hue + ' 62% 88%)';
+    el.style.color = 'hsl(' + hue + ' 58% 26%)';
+  }
+
+  /* Ten minutes reads as "here now"; before that the honest minute count, and
+     before that the sign-in date. It uses only lastLogin, which the team list
+     already carries, so there is no new endpoint and nothing to keep fresh. */
+  function statusOf(lastLogin) {
+    const t = lastLogin ? new Date(lastLogin).getTime() : 0;
+    if (!t || isNaN(t)) return { live: false, text: 'No sign-in recorded' };
+    const mins = (Date.now() - t) / 60000;
+    if (mins < 10) return { live: true, text: 'Active now' };
+    if (mins < 60) return { live: false, text: 'Last seen ' + Math.max(1, Math.round(mins)) + ' min ago' };
+    return { live: false, text: 'Last sign-in ' + fmtDate(lastLogin) };
+  }
+
+  /* wa.me wants the international number with no + and no spaces. A bare
+     10-digit number is read as this workspace's own country code; a number
+     that already carries one is left exactly as the member typed it. */
+  function waHref(phone) {
+    const digits = String(phone || '').replace(/[^0-9]/g, '');
+    if (digits.length < 10) return '';
+    return 'https://wa.me/' + (digits.length === 10 ? '91' + digits : digits);
+  }
+
+  function paintLike(m) {
+    const b = $('miLike');
+    if (b) {
+      const on = !!(m && m.likedByMe);
+      b.classList.toggle('is-liked', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.title = on ? 'Remove your kudos' : 'Give kudos';
+    }
+    const c = $('miLikeCount');
+    if (c) c.textContent = String((m && Number(m.likes)) || 0);
+  }
+
+  /* One vote per member per member is enforced by the server's unique pair;
+     this only paints whatever answer comes back, so a double click simply
+     flips twice and lands where the server says it should. */
+  async function toggleLike() {
+    const m = memberInFocus;
+    if (!m) return;
+    try {
+      const out = await api.toggleMemberLike(m.id);
+      m.likes = Number(out && out.likes) || 0;
+      m.likedByMe = !!(out && out.likedByMe);
+      paintLike(m);
+    } catch (err) {
+      toast(err.message || 'Could not save that');
+    }
+  }
+
+  function openMemberInfo(memberId) {
+    const m = memberById(memberId);
+    const dlg = $('memberInfo');
+    if (!m || !dlg) return;
+    memberInFocus = m;
+    /* Badge word, never a label derived from elevation: the card shows the
+       stored role like every other surface does. */
+    const pwr = storedPowerWord(m);
+    const set = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+    /* A link the member has not published is removed rather than greyed out:
+       there is nothing to click, and a dead pill is worse than no pill. */
+    const setLink = (id, href) => {
+      const el = $(id);
+      if (!el) return;
+      if (href) { el.href = href; el.hidden = false; }
+      else { el.removeAttribute('href'); el.hidden = true; }
+    };
+    set('miAvatar', (String(m.name || '?').trim().charAt(0) || '?').toUpperCase());
+    set('miName', m.name || '—');
+    set('miSubtitle', powerLabel(pwr));
+    /* Every member receives these fields — the eye opens the same card for
+       everyone — so this is an honest reading of the row, never an unhide. */
+    set('miEmail', m.email || 'Not shared');
+    set('miPhone', m.phone || 'Not added yet');
+    set('miTitle', m.roleCustom || '—');
+    set('miRole', powerLabel(pwr));
+    set('miFirst', m.createdAt ? fmtDate(m.createdAt) : '—');
+    set('miLast', m.lastLogin ? fmtDate(m.lastLogin) : '—');
+    set('miNote', '');
+    /* Reach-out row and present state. The links are what this member chose to
+       publish about themselves in Settings, so showing them to the team is not
+       an unhide. Each pill is drawn from the saved profile value: the number
+       becomes WhatsApp, the account address becomes the mail link, and an
+       empty value hides the pill rather than greying it out. */
+    applyAvatarTint($('miAvatar'), m.email || m.name);
+    const st = statusOf(m.lastLogin);
+    if ($('miStatus')) $('miStatus').textContent = st.text;
+    if ($('miStatusDot')) $('miStatusDot').classList.toggle('is-live', st.live);
+    setLink('miWa', waHref(m.phone));
+    setLink('miIg', m.instagram);
+    setLink('miLi', m.linkedin);
+    setLink('miCustom', m.custom);
+    /* "Contact him directly" opens the member's own address in the reader's
+       mail app. It is the same contact detail the row already carries, so it
+       confers nothing new — it is a button where the copy pill used to be. */
+    setLink('miContact', m.email ? 'mailto:' + m.email : '');
+    paintLike(m);
+    const manage = $('miManage');
+    if (manage) manage.hidden = !teamCanManage;
+    /* Sign-in times answer "when was this person last active". An owner/admin
+       may read everyone's; every other account reads its OWN row and nothing
+       else — so whoever signed in can still see when they signed in. For
+       anyone else the status line and both rows are removed outright, not
+       greyed. teamCanManage is the SERVER's flag, the same one the EDIT cell
+       and the role control follow, and it starts false, so this fails closed. */
+    const seeSignIn = !!teamCanManage || !!(user && m && m.id === user.id);
+    ['miStatusRow', 'miFirstRow', 'miLastRow'].forEach((id) => {
+      const el = $(id);
+      if (el) el.hidden = !seeSignIn;
+    });
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', '');
+  }
+
+  /* Removal is irreversible, so the warning is a real dialog that names the
+     account and spells out what leaves with it, and NOTHING is sent until the
+     second click. The counts come back in the response and are read out in the
+     toast, so the scope is confirmed after the fact as well as before. */
+  function askRemoveMember() {
+    const m = memberInFocus;
+    const dlg = $('deleteConfirm');
+    if (!m || !dlg) return;
+    const set = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+    set('dcName', m.name || '—');
+    set('dcEmail', m.email || '');
+    set('dcNote', '');
+    const btn = $('dcConfirm');
+    if (btn) { btn.disabled = false; btn.textContent = 'Delete permanently'; }
+    closeDialog('memberInfo');
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', '');
+  }
+
+  async function confirmRemoveMember() {
+    const m = memberInFocus;
+    const note = $('dcNote');
+    const btn = $('dcConfirm');
+    if (!m) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+    if (note) note.textContent = '';
+    try {
+      const out = await api.deleteTeamMember(m.id);
+      const rc = (out && out.removed) || {};
+      const bits = [];
+      const push = (n, one, many) => { if (n) bits.push(n + ' ' + (n === 1 ? one : many)); };
+      push(rc.proposals, 'quotation', 'quotations');
+      push(rc.customers, 'customer', 'customers');
+      push(rc.tasks, 'task', 'tasks');
+      push(rc.galleryUploads, 'photo', 'photos');
+      push(rc.sessions, 'active session', 'active sessions');
+      closeDialog('deleteConfirm');
+      memberInFocus = null;
+      toast('Removed ' + (m.name || 'member') + (bits.length ? ' — ' + bits.join(', ') : ''));
+      await refreshTeamPanel();
+    } catch (err) {
+      if (note) note.textContent = err.message || 'Could not remove this member';
+      if (btn) { btn.disabled = false; btn.textContent = 'Delete permanently'; }
+      toast(err.message || 'Could not remove this member');
+    }
+  }
+
   async function refreshTeamPanel() {
     const body = $('teamBody');
     if (!body) return;
@@ -569,64 +902,92 @@
     try {
       const r = await api.listTeam();
       const members = (r && r.members) || [];
+      /* The member card reads from here, because it opens after this function
+         has returned. */
+      teamMembers = members;
       /* Read-only unless the server says this actor manages the team. Falling
          back to the local flag keeps an older backend behaving as before. */
       const manage = r && r.canManageTeam != null ? !!r.canManageTeam : canManage();
-      /* The heading pill and the intro line follow the same server flag, so a
-         member is never told this screen is theirs to control. */
+      teamCanManage = manage;
+      /* The heading pill follows the same server flag, so a member is never
+         told this screen is theirs to control. The intro line under the heading
+         is fixed copy in dashboard.html — one theme line for everyone, because
+         the gate speaks for itself: the pill says who may act and the EDIT cell
+         says "Only owner access" on every row a member cannot change. */
       if ($('teamAccessPill')) $('teamAccessPill').textContent = manage ? 'Owner access' : 'Read-only';
-      if ($('teamPanelSub')) {
-        $('teamPanelSub').textContent = manage
-          ? 'Control who can create, share and manage. The power badge shows the stored role; the title beside it is wording a member typed, which is never used to decide access.'
-          : 'Read-only. The power badge shows the stored role; the title beside it is wording a member typed, which is never used to decide access. Only the workspace owner can change a role.';
-      }
       body.innerHTML = members.map((m) => {
         const pwr = storedPowerWord(m);
-        const isCustom = m.role === 'custom' || !!m.roleCustom;
-        /* A title is editable for custom (required) and owner (optional display
-           title: powers stay Owner, the chip shows the title). */
+        /* Selection follows the POWER KEY alone. A Sales or Engineer row may
+           legitimately carry a preserved title now (role_custom rides along a
+           role change), and that must not re-label the row as a custom role:
+           the wording lives on the member card, not in this dropdown. The
+           typed-title box therefore appears only for owner and custom. */
+        const isCustom = m.role === 'custom';
         const titleable = isCustom || m.role === 'owner';
         const titleId = 'teamTitle_' + m.id;
+        /* Contact detail goes to EVERY member now: the eye opens the full card
+           for anyone, so the address and number ride the same row. Only the
+           controls differ — Edit and Remove stay with the manager. */
+        const contact = escapeHtml(m.email || '') +
+          (m.phone ? '<span class="contact-sub">' + escapeHtml(m.phone) + '</span>' : '');
+        /* The eye is the one control every row carries, manager or not. */
+        const eye = '<td class="team-info-cell"><button type="button" class="team-info-btn" data-info="' + escapeHtml(m.id) +
+          '" aria-label="View info for ' + escapeHtml(m.name) + '" title="View info">👁</button></td>';
         if (!manage) {
-          /* View-only: no contact column content and no control. Six cells so
-             the header still lines up. */
+          /* View-only: the same information, no control. The EDIT cell says
+             what it says on the tin instead of offering a dead affordance.
+             Six cells so the header lines up. */
           return '<tr data-member="' + escapeHtml(m.id) + '" class="team-readonly">' +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
-            '<td class="muted">—</td>' +
-            '<td>' + escapeHtml(m.roleCustom || roleLabel(m.role)) + '</td>' +
+            '<td class="muted">' + contact + '</td>' +
             '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span></td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
-            '<td class="muted micro">Owner only</td>' +
+            '<td class="muted micro">Only owner access</td>' +
+            eye +
           '</tr>';
         }
         let opts = ['owner', 'sales', 'viewer'].map((role) => (
           '<option value="' + role + '"' + (!isCustom && m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
         )).join('');
-        opts = '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom title</option>' + opts;
+        /* Custom sits LAST, and its label is an INSTRUCTION rather than a
+           stored value: pick it and the box below is where you type. The
+           wording itself never lives in the dropdown. */
+        opts += '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom — type here</option>';
         /* Never an "Admin" entry here: elevation is self-service and lives in
            the own-role pencil, so no owner can raise or lower anyone else. */
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
-          '<td class="muted">' + escapeHtml(m.email || '') + '</td>' +
-          '<td><input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
-            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
-            ' placeholder="' + (m.role === 'owner' ? 'Display title (optional)' : 'Typed title') + '"' +
-            (titleable ? '' : ' disabled') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" /></td>' +
+          '<td class="muted">' + contact + '</td>' +
           '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span></td>' +
           '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
-          '<td><select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
-            opts + '</select></td>' +
+          '<td class="team-edit-cell">' +
+            '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
+            opts + '</select>' +
+            '<input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
+            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
+            ' placeholder="' + (m.role === 'owner' ? 'Display title (optional)' : 'Typed title') + '"' +
+            (titleable ? '' : ' hidden') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" />' +
+          '</td>' +
+          eye +
         '</tr>';
       }).join('') || '<tr><td colspan="' + COLS + '" class="empty">No members.</td></tr>';
       if (!manage && members.length) {
         body.insertAdjacentHTML('beforeend',
-          '<tr><td colspan="' + COLS + '" class="empty micro">Read-only. Only the workspace owner can change roles. Your title: ' +
+          '<tr><td colspan="' + COLS + '" class="empty micro">Read-only — Only owner access: only the workspace owner can change roles. Your role: ' +
           escapeHtml(roleLabel(user)) + '.</td></tr>');
       }
-      if (!manage) return;
-
+      /* No `if (!manage) return` here, and that is deliberate. Everything below
+         binds controls that exist ONLY on a manager's rows — a read-only row
+         has no role select and no title box, so those querySelectorAll calls
+         simply find nothing and cost nothing. The eye, by contrast, is on EVERY
+         row: returning early here used to render the button for every role and
+         then leave it with no listener, so the click went nowhere and only a
+         manager could actually open a card. */
       const applyRole = async (memberId, role, titleVal) => {
-        const out = await api.setTeamRole(memberId, role, (role === 'custom' || role === 'owner') ? titleVal : '');
+        /* The title travels with EVERY role, Sales and Engineer included: that
+           is what preserves the wording across a role change instead of
+           wiping it. The badge still comes from the power key alone. */
+        const out = await api.setTeamRole(memberId, role, titleVal);
         if (out && out.note) toast(out.note);
         if (memberId === user.id && out && out.member) {
           user.role = out.member.role;
@@ -654,7 +1015,10 @@
           const id = sel.getAttribute('data-team-user');
           const row = sel.closest('tr');
           const input = row ? row.querySelector('.team-title-input') : null;
-          if (input) input.disabled = sel.value !== 'custom' && sel.value !== 'owner';
+          /* The box appears only for the two roles that carry wording; on
+             Sales / Engineer it is gone rather than greyed out. */
+          const wantsTitle = sel.value === 'custom' || sel.value === 'owner';
+          if (input) { input.hidden = !wantsTitle; input.disabled = !wantsTitle; }
           try {
             await applyRole(id, sel.value, input ? input.value.trim() : '');
             toast('Role updated');
@@ -681,6 +1045,13 @@
             await refreshTeamPanel();
           }
         });
+      });
+
+      /* The card opens for everyone; what it offers inside is decided from
+         teamCanManage, which the server set — this listener is only the
+         click, never the permission. */
+      body.querySelectorAll('.team-info-btn').forEach((btn) => {
+        btn.addEventListener('click', () => openMemberInfo(btn.getAttribute('data-info')));
       });
     } catch (err) {
       body.innerHTML = '<tr><td colspan="' + COLS + '" class="empty">' + escapeHtml(err.message || 'Could not load team') + '</td></tr>';
@@ -710,6 +1081,8 @@
     const id = $('sendSelect') && $('sendSelect').value;
     if (sendLoadedId !== id) { ['sendMessage','sendRecipientName','sendRecipientTo'].forEach(key=>{ if ($(key)) $(key).value=''; }); sendLoadedId=id; }
     lastLaunch = null;
+    lastSendId = null;
+    lastSendChannel = null;
     if ($('btnSendLaunch')) $('btnSendLaunch').hidden = true;
     if ($('btnSendCopy')) $('btnSendCopy').hidden = true;
     if ($('sendResult')) {
@@ -753,7 +1126,7 @@
           'Kind regards';
       }
       if ($('sendHonesty') && preview.honestyNote) {
-        $('sendHonesty').textContent = 'Sharing opens your app; delivery is not confirmed.';
+        $('sendHonesty').textContent = 'Preparing does not share the message. Launching WhatsApp/email or copying records only that action; delivery is not confirmed.';
       }
       renderSends((sends && sends.sends) || []);
     } catch (err) {
@@ -764,8 +1137,23 @@
   function renderSends(rows) {
     const body = $('sendsBody'); if (!body) return;
     if (!rows.length) { body.innerHTML = emptyState('Nothing shared yet.','Prepare a message to start the conversation.','↗'); return; }
-    body.innerHTML = rows.map(s => '<article class="send-item"><span class="client-icon" aria-hidden="true">↗</span><div><strong>' + escapeHtml(s.recipientName || s.recipientTo || 'Customer') + '</strong><p>' + escapeHtml(s.channelLabel || s.channel) + '</p><span class="badge ' + (s.state === 'failed' || s.state === 'cancelled' ? 'rejected' : 'sent') + '">' + escapeHtml(s.stateLabel || s.state) + '</span><p><small>' + escapeHtml(fmtDate(s.createdAt)) + '</small></p></div>' + (canEdit() && !['cancelled','failed'].includes(s.state) ? '<button type="button" class="text-link" data-cancel-send="' + escapeHtml(s.id) + '">Cancel</button>' : '') + '</article>').join('');
+    body.innerHTML = rows.map(s => '<article class="send-item"><span class="client-icon" aria-hidden="true">↗</span><div><strong>' + escapeHtml(s.recipientName || s.recipientTo || 'Customer') + '</strong><p>' + escapeHtml(s.channelLabel || s.channel) + '</p><span class="badge ' + (s.state === 'failed' || s.state === 'cancelled' ? 'rejected' : s.state === 'share_clicked' ? 'sent' : '') + '">' + escapeHtml(s.stateLabel || s.state) + '</span><p><small>' + escapeHtml(fmtDate(s.createdAt)) + '</small></p></div>' + (canEdit() && !['cancelled','failed'].includes(s.state) ? '<button type="button" class="text-link" data-cancel-send="' + escapeHtml(s.id) + '">Cancel</button>' : '') + '</article>').join('');
     body.querySelectorAll('[data-cancel-send]').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;try{await api.updateSendState(btn.dataset.cancelSend,'cancelled');await refreshSendPanelKeepMessage();toast('Send cancelled');}catch(err){toast(err.message || 'Could not cancel');btn.disabled=false;}}));
+  }
+
+  function invalidatePreparedSend() {
+    if (!lastSendId) return;
+    lastLaunch = null;
+    lastSendId = null;
+    lastSendChannel = null;
+    if ($('btnSendLaunch')) $('btnSendLaunch').hidden = true;
+    if ($('btnSendCopy')) $('btnSendCopy').hidden = true;
+    const box = $('sendResult');
+    if (box) {
+      box.style.display = 'block';
+      box.className = 'banner info';
+      box.textContent = 'The recipient, channel, or message changed. Prepare it again before sharing or copying.';
+    }
   }
 
   async function prepareSend() {
@@ -776,23 +1164,42 @@
     }
     const btn = $('btnSendPrepare');
     if (btn) btn.disabled = true;
+    const draft = {
+      channel: ($('sendChannel') && $('sendChannel').value) || 'whatsapp_manual',
+      recipientName: ($('sendRecipientName') && $('sendRecipientName').value) || '',
+      recipientTo: ($('sendRecipientTo') && $('sendRecipientTo').value) || '',
+      messageBody: ($('sendMessage') && $('sendMessage').value) || ''
+    };
     try {
-      let message = ($('sendMessage') && $('sendMessage').value) || '';
-      /* Placeholder replaced server-side if empty link line; keep user edits. */
+      /* The server inserts the real link into the placeholder without losing
+         any surrounding user-written text. */
       const r = await api.createSend(id, {
-        channel: ($('sendChannel') && $('sendChannel').value) || 'whatsapp_manual',
-        recipientName: ($('sendRecipientName') && $('sendRecipientName').value) || '',
-        recipientTo: ($('sendRecipientTo') && $('sendRecipientTo').value) || '',
-        messageBody: message.includes('[A secure link will be inserted')
-          ? undefined
-          : message,
+        ...draft,
+        messageBody: draft.messageBody.trim() ? draft.messageBody : undefined,
         publishFirst: true,
-        expiresInDays: 30,
-        markShareClicked: true
+        expiresInDays: 30
       });
-      if ($('sendSelect').value !== id) { toast('Sharing prepared for the previous quotation'); await refreshAll(); return; }
+      const formChanged = $('sendSelect').value !== id ||
+        ($('sendChannel') && $('sendChannel').value !== draft.channel) ||
+        ($('sendRecipientName') && $('sendRecipientName').value !== draft.recipientName) ||
+        ($('sendRecipientTo') && $('sendRecipientTo').value !== draft.recipientTo) ||
+        ($('sendMessage') && $('sendMessage').value !== draft.messageBody);
+      if (formChanged) {
+        lastLaunch = null;
+        lastSendId = null;
+        lastSendChannel = null;
+        if ($('btnSendLaunch')) $('btnSendLaunch').hidden = true;
+        if ($('btnSendCopy')) $('btnSendCopy').hidden = true;
+        toast('A draft was prepared, but the form changed while it was saving. Review it and prepare again.');
+        await refreshAll();
+        return;
+      }
       lastLaunch = r.launch || null;
-      if ($('sendMessage') && r.launch && r.launch.copyText) {
+      lastSendId = r.send && r.send.id || null;
+      lastSendChannel = draft.channel;
+      if ($('sendMessage') && r.send && r.send.messageBody) {
+        $('sendMessage').value = r.send.messageBody;
+      } else if ($('sendMessage') && r.launch && r.launch.copyText) {
         $('sendMessage').value = r.launch.copyText;
       }
       const box = $('sendResult');
@@ -800,11 +1207,11 @@
         box.style.display = 'block';
         box.className = 'banner on ok';
         box.innerHTML =
-          '<strong>Ready to share.</strong> State recorded as <em>share opened (not delivery-confirmed)</em>.<br />' +
-          'Portal: <code style="word-break:break-all;font-size:12px">' +
+          '<strong>Message prepared — not shared yet.</strong> State is <em>Draft</em> until you launch WhatsApp/email or copy the message.<br />' +
+          'Customer link: <code style="word-break:break-all;font-size:12px">' +
           escapeHtml((r.launch && r.launch.portalUrl) || '') + '</code>' +
           '<div class="muted" style="margin-top:6px;font-size:12px">' +
-          escapeHtml((r.launch && r.launch.honesty) || '') + '</div>';
+          escapeHtml((r.launch && r.launch.honesty) || 'Delivery is not confirmed.') + '</div>';
       }
       if ($('btnSendLaunch')) {
         const canLaunch = !!(lastLaunch && (lastLaunch.whatsappUrl || lastLaunch.mailtoUrl));
@@ -813,8 +1220,11 @@
           lastLaunch && lastLaunch.whatsappUrl ? 'Open WhatsApp' :
           lastLaunch && lastLaunch.mailtoUrl ? 'Open email app' : 'Open channel';
       }
-      if ($('btnSendCopy')) $('btnSendCopy').hidden = false;
-      toast('Send prepared');
+      if ($('btnSendCopy')) {
+        $('btnSendCopy').textContent = lastSendChannel === 'copy_link' ? 'Copy link' : 'Copy message';
+        $('btnSendCopy').hidden = false;
+      }
+      toast('Message prepared — not shared yet');
       await refreshAll();
       fillSendSelect(id);
       await refreshSendPanelKeepMessage();
@@ -840,11 +1250,38 @@
     if ($('sendRecipientName') && name) $('sendRecipientName').value = name;
     if ($('sendRecipientTo') && to) $('sendRecipientTo').value = to;
     if (lastLaunch) {
-      if ($('btnSendCopy')) $('btnSendCopy').hidden = false;
+      if ($('btnSendCopy')) {
+        $('btnSendCopy').textContent = lastSendChannel === 'copy_link' ? 'Copy link' : 'Copy message';
+        $('btnSendCopy').hidden = false;
+      }
       if ($('btnSendLaunch')) {
         const canLaunch = !!(lastLaunch.whatsappUrl || lastLaunch.mailtoUrl);
         $('btnSendLaunch').hidden = !canLaunch;
       }
+    }
+  }
+
+  async function recordShareAction(note) {
+    if (!lastSendId) {
+      toast('Prepare a message first');
+      return false;
+    }
+    try {
+      const result = await api.updateSendState(lastSendId, 'share_clicked', note);
+      const box = $('sendResult');
+      if (box) {
+        box.style.display = 'block';
+        box.className = 'banner on ok';
+        const actionText = lastSendChannel === 'copy_link' ? 'copied the customer link' : 'launched the channel or copied the message';
+        box.innerHTML = '<strong>Share action started.</strong> This only records that you ' + actionText + '; delivery is not confirmed.';
+      }
+      toast('Share action started — delivery not confirmed');
+      await refreshAll();
+      await refreshSendPanelKeepMessage();
+      return !!(result && result.send);
+    } catch (err) {
+      toast('The action was started, but its status could not sync. ' + (err.message || 'Try again when online.'));
+      return false;
     }
   }
 
@@ -858,7 +1295,12 @@
       toast('This channel has no external launch URL — use Copy message');
       return;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      void recordShareAction(lastLaunch.whatsappUrl ? 'User initiated WhatsApp share' : 'User initiated email share');
+    } catch (_) {
+      toast('Could not launch the share app. The send remains a draft.');
+    }
   }
 
   async function copySendMessage() {
@@ -870,9 +1312,11 @@
     }
     try {
       await navigator.clipboard.writeText(text);
-      toast('Message copied');
+      await recordShareAction(lastSendChannel === 'copy_link'
+        ? 'User copied the customer link to clipboard'
+        : 'User copied the message to clipboard');
     } catch (_) {
-      toast('Copy failed — select the message text manually');
+      toast('Copy failed — select the message text manually. The send remains a draft.');
     }
   }
 
@@ -1421,6 +1865,11 @@
     if ($('btnSaveProfile')) {
       $('btnSaveProfile').addEventListener('click', async () => {
         const name = ($('profileName') && $('profileName').value || '').trim();
+        const phone = ($('profilePhone') && $('profilePhone').value || '').trim();
+        const title = ($('profileTitle') && $('profileTitle').value || '').trim();
+        const instagram = (($('profileInstagram') && $('profileInstagram').value) || '').trim();
+        const linkedin = (($('profileLinkedin') && $('profileLinkedin').value) || '').trim();
+        const custom = (($('profileCustom') && $('profileCustom').value) || '').trim();
         const msg = $('profileSaveMsg');
         if (msg) msg.textContent = '';
         if (!name) {
@@ -1428,20 +1877,56 @@
           toast('Name cannot be empty');
           return;
         }
+        /* Read back in English before anything is written. This updates
+           display details only — the job title never decides access. */
+        const ok = await confirmDialog({
+          title: 'Save your profile?',
+          body: 'Your display name, contact number, job title and social links will be updated across the workspace. Your access does not change.',
+          confirm: 'Save changes'
+        });
+        if (!ok) return;
         $('btnSaveProfile').disabled = true;
         try {
-          const r = await api.updateProfile({ name });
+          const r = await api.updateProfile({ name, phone, title, instagram, linkedin, custom });
           user = r.user;
           showApp();
           await renderHome();
-          if (msg) msg.textContent = 'Name saved.';
-          toast('Name saved');
+          refreshProfileNudge();
+          if (msg) msg.textContent = 'Profile saved.';
+          toast('Profile saved');
         } catch (err) {
-          if (msg) msg.textContent = err.message || 'Could not update name';
-          toast(err.message || 'Could not update name');
+          if (msg) msg.textContent = err.message || 'Could not save profile';
+          toast(err.message || 'Could not save profile');
         } finally {
           $('btnSaveProfile').disabled = false;
         }
+      });
+    }
+
+    /* Member card, removal warning and the one-time nudge — bound once, so a
+       re-render of the table can never stack a second listener. */
+    if ($('memberInfoClose')) $('memberInfoClose').addEventListener('click', () => closeDialog('memberInfo'));
+    if ($('miDelete')) $('miDelete').addEventListener('click', askRemoveMember);
+    /* The heart lives in the card, which is rebuilt only as HTML — so it is
+       bound once, here, and reads memberInFocus on click. Every other pill in
+       the reach-out row is a plain <a>, so the browser does the navigating and
+       none of them need a listener (the two copy buttons are gone). */
+    if ($('miLike')) $('miLike').addEventListener('click', toggleLike);
+    if ($('dcCancel')) $('dcCancel').addEventListener('click', () => closeDialog('deleteConfirm'));
+    if ($('dcConfirm')) $('dcConfirm').addEventListener('click', confirmRemoveMember);
+    if ($('btnNudgeClose')) {
+      $('btnNudgeClose').addEventListener('click', () => {
+        const el = $('profileNudge');
+        if (el) el.hidden = true;
+      });
+    }
+    if ($('btnNudgeGo')) {
+      $('btnNudgeGo').addEventListener('click', () => {
+        showPanel('settings');
+        document.querySelectorAll('[data-settings]').forEach((n) => n.classList.toggle('selected', n.dataset.settings === 'profile'));
+        document.querySelectorAll('[data-settings-section]').forEach((n) => { n.hidden = n.dataset.settingsSection !== 'profile'; });
+        const focusField = $('profilePhone') || $('profileName');
+        if (focusField) focusField.focus();
       });
     }
 
@@ -1474,6 +1959,9 @@
     if ($('btnSendPrepare')) $('btnSendPrepare').addEventListener('click', prepareSend);
     if ($('btnSendLaunch')) $('btnSendLaunch').addEventListener('click', launchChannel);
     if ($('btnSendCopy')) $('btnSendCopy').addEventListener('click', copySendMessage);
+    ['sendMessage', 'sendRecipientName', 'sendRecipientTo'].forEach(id => {
+      if ($(id)) $(id).addEventListener('input', invalidatePreparedSend);
+    });
     if ($('sendSelect')) {
       $('sendSelect').addEventListener('change', () => {
         if ($('sendMessage')) $('sendMessage').value = '';
@@ -1484,6 +1972,7 @@
     }
     if ($('sendChannel')) {
       $('sendChannel').addEventListener('change', () => {
+        invalidatePreparedSend();
         /* Refresh defaults for the new channel without wiping a custom message. */
         const id = $('sendSelect') && $('sendSelect').value;
         if (!id) return;
@@ -1511,12 +2000,17 @@
     }
     if ($('taskFilter')) $('taskFilter').addEventListener('change', refreshTasksPanel);
     if ($('btnTaskAdd')) $('btnTaskAdd').addEventListener('click', addTask);
+    if ($('btnTaskCancelEdit')) $('btnTaskCancelEdit').addEventListener('click', resetTaskEditor);
     if ($('btnReportRefresh')) $('btnReportRefresh').addEventListener('click', refreshReportsPanel);
     if ($('btnGalleryUpload')) $('btnGalleryUpload').addEventListener('click', uploadGalleryPhoto);
     if ($('galleryViewerClose')) $('galleryViewerClose').addEventListener('click', () => { const d = $('galleryViewer'); if (d && d.open) d.close(); });
     if ($('galleryViewer')) $('galleryViewer').addEventListener('click', (e) => { const d = $('galleryViewer'); if (e.target === d && d.open) d.close(); });
 
-    const resync = () => { if (user && !document.hidden) refreshAll(); };
+    const resync = () => {
+      if (!user || document.hidden) return;
+      refreshAll();
+      if ($('panel-tasks')?.classList.contains('on')) refreshTasksPanel();
+    };
     document.addEventListener('visibilitychange', resync);
     window.addEventListener('pageshow', (e) => { if (e.persisted) resync(); });
     setInterval(resync, 60000);
@@ -1524,7 +2018,7 @@
     try {
       const avail = await api.isAvailable();
       if (!avail) {
-        showAuthError('Can\u2019t reach the platform server. This link is a static preview (no backend) \u2014 open the live :8787 server preview to sign in.');
+        showAuthError('This static preview has no connected backend and cannot access production records. Use a configured local API server or a staging backend for data workflows.');
         return;
       }
       user = await api.currentUser();

@@ -26,16 +26,21 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   fs.writeFileSync(dbPath,JSON.stringify(db));
   const second=await api('auth/register',{email:'new-'+randomUUID()+'@example.test',name:'New signup',password:randomUUID()+'Cc3!',role:'Owner',roleCustom:'owner',permissionRole:'owner'});
   assert.equal(second.body.user.role,'viewer');assert.equal(second.body.user.roleCustom,'Owner');
-  assert.equal((await api('team/members',undefined,second.body.token)).status,403);
+  /* Read is open to every signed-in member (see worker.js on GET /team/members,
+     and platform-api / team-profile asserting 200 view-only) — so this signup
+     that asked for permissionRole:'owner' proves least privilege by being able
+     to READ below while the three WRITES after it stay 403. This asserted 403
+     before viewer read-only shipped, and has been stale since. */
+  assert.equal((await api('team/members',undefined,second.body.token)).status,200);
   assert.equal((await api('team/role',{userId:first.body.user.id,role:'viewer'},second.body.token)).status,403);
   assert.equal((await api('proposals',{title:'Unauthorized draft'},second.body.token)).status,403);
   assert.equal((await api('auth/profile',{role:'owner'},second.body.token)).body.user.role,'viewer');
   const team=await api('team/members',undefined,first.body.token);assert.equal(team.status,200);
   assert.equal(team.body.members.find(m=>m.id===first.body.user.id).role,'owner');
   const quote=await api('proposals',{title:'Preserved quotation',form:{custName:'Audit only',capacity:'7'}},first.body.token);assert.equal(quote.status,201);
-  const recovery=await api('auth/forgot-password',{email});assert.equal(recovery.status,403);assert.equal(recovery.body.recoveryCode,undefined);
+  const recovery=await api('auth/forgot-password',{email});assert.equal(recovery.status,503);assert.equal(recovery.body.code,'RECOVERY_UNAVAILABLE');assert.equal(recovery.body.recoveryCode,undefined);
   const unknown=await api('auth/forgot-password',{email:'unknown@example.test'});assert.deepEqual(unknown,recovery);
-  const reset=await api('auth/reset-password',{email,code:oldCode,password:newPassword});assert.equal(reset.status,403);assert.equal(reset.body.token,undefined);
+  const reset=await api('auth/reset-password',{email,code:oldCode,password:newPassword});assert.equal(reset.status,503);assert.equal(reset.body.token,undefined);
   assert.equal((await api('auth/login',{email,password})).status,200);
   assert.equal((await api('proposals/'+quote.body.proposal.id,undefined,first.body.token)).status,200);
   assert.equal((await api('auth/change-password',{currentPassword:'wrong-password',newPassword},first.body.token)).status,400);
@@ -46,17 +51,30 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   console.log('PASS: least-privilege signup, forged-role denial, existing owner/session/data preserved, explicit owner promotion, password change and legacy reset rejection.');
   browser=await chromium.launch({executablePath:await bundle.executablePath(),args:bundle.args.filter(a=>a!=='--single-process'),headless:true});
   const page=await browser.newPage();let recoveryCalls=0;
-  page.on('request',r=>{if(r.url().includes('/api/auth/forgot-password'))recoveryCalls++;});
+  page.on('request',r=>{if(/\/api\/auth\/(forgot-password|verify-code|reset-password)/.test(r.url()))recoveryCalls++;});
   await page.goto(base+'/index.html#forgotPassword');
-  await page.locator('#recoveryNotice').waitFor({state:'visible'});
-  assert.match(await page.locator('#recoveryNotice').innerText(),/No recovery email has been sent/);
-  await page.getByRole('button',{name:'Back to sign in'}).click();
+  await page.locator('#f-rp').waitFor({state:'visible'});
+  /* Three steps share the sign-in panel (owner decision, 2026-10-10): the email,
+     then the code with its resend counter, then a new password. All three stand
+     on the card so the shape of the task reads at a glance — steps 2 and 3 are
+     dimmed, inert and disabled until the step before them has done its job, so
+     a code box cannot be typed into before any code exists. Opening it must ask
+     the server nothing at all: merely arriving cannot confirm an account exists. */
+  assert.ok(await page.locator('#r-e').isVisible());
+  assert.equal(await page.evaluate(()=>document.querySelector('[data-rstep="2"]').hasAttribute('data-locked')),true);
+  assert.equal(await page.evaluate(()=>document.querySelector('[data-rstep="3"]').hasAttribute('data-locked')),true);
+  assert.ok(await page.evaluate(()=>Array.from(document.querySelectorAll('[data-rstep="2"] input,[data-rstep="2"] button,[data-rstep="3"] input,[data-rstep="3"] button')).every(el=>el.disabled)),'a locked step must not be typeable or submittable');
+  assert.ok(await page.evaluate(()=>{const m=document.querySelector('#f-rp .rmeta');return !!document.getElementById('rp-resend')&&!!document.getElementById('rp-timer')&&!!document.getElementById('rp-attempts')&&/resend/i.test(document.getElementById('rp-resend').textContent)&&!!m;}));
+  assert.ok(await page.evaluate(()=>!/\b\d{6}\b/.test(document.getElementById('f-rp').textContent)),'no code may be rendered in the panel');
+  /* Two controls now answer to that name — the header arrow and the footer
+     link — so the arrow is named directly rather than left ambiguous. */
+  await page.locator('#f-rp .rpback').click();
   await page.locator('#forgotPassword').click();
-  assert.equal(await page.locator('#recoveryNotice').isVisible(),true);
+  assert.equal(await page.locator('#f-rp').isVisible(),true);
   assert.equal(recoveryCalls,0,'UI must not issue or expose reset secrets');
   await page.setViewportSize({width:390,height:844});
-  assert.ok(await page.locator('#recoveryNotice').evaluate(e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;}));
-  console.log('PASS: recovery deep link and button show persistent honest guidance, mobile fit, no secret request.');
+  assert.ok(await page.locator('#f-rp').evaluate(e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;}));
+  console.log('PASS: recovery deep link opens the reset panel with its resend counter, no secret request, mobile fit.');
 
  }finally{
   if(browser)await browser.close();server.kill();await new Promise(r=>server.exitCode!==null?r():server.once('exit',r));fs.rmSync(data,{recursive:true,force:true});

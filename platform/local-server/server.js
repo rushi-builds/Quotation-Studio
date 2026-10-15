@@ -16,6 +16,9 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { URL } = require('url');
+/* Outbound SMTP for password recovery. Same conversation as the Worker, which
+   reaches Gmail through cloudflare:sockets instead. */
+const tls = require('tls');
 
 const ROOT = path.resolve(__dirname, '../..');
 const DATA_DIR = process.env.QS_DATA_DIR
@@ -27,11 +30,50 @@ const HOST = process.env.HOST || '0.0.0.0';
 const assistantModule = import('../gemini.mjs');
 let assistantLimiter;
 const SESSION_DAYS = 30;
+/* "Remember me" is OFF by default (owner decision, 2026-10-10): the sign-in
+   then returns a session cookie with NO Max-Age, so the browser drops it when
+   it closes, and the server-side session row is capped at 12 hours as defence
+   in depth. Ticking the box restores the 30-day behaviour. */
+const SESSION_HOURS_SHORT = 12;
 const COOKIE = 'qs_session';
+
+/* --- Password recovery (owner decision, 2026-10-10) ------------------------
+   These mirror platform/cloudflare/src/worker.js EXACTLY. The two backends must
+   answer the same way or the parity suites lose their meaning, so a change here
+   is a change there.
+
+   OTP_TTL_MS              how long a code lives.
+   OTP_MAX_RESENDS         resends after the first code (1 + 3 = 4 emails).
+   OTP_RESEND_COOLDOWN_MS  floor the client and server both enforce between issues.
+   OTP_MAX_ATTEMPTS        wrong guesses against ONE code before it is voided —
+                            a 6-digit code is 1e6 combinations, so without this a
+                            caller could grind through them inside the window.
+   RECOVERY_*              budget on the endpoints themselves (anti mail-bombing).
+   RECOVERY_MAIL_*         the company mailbox and subject. */
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_RESENDS = 3;
+const OTP_RESEND_COOLDOWN_MS = 45 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const RECOVERY_PER_EMAIL_MAX = 6;
+const RECOVERY_PER_EMAIL_WINDOW_MS = 15 * 60 * 1000;
+const RECOVERY_PER_IP_MAX = 40;
+const RECOVERY_PER_IP_WINDOW_MS = 15 * 60 * 1000;
+const RECOVERY_MAIL_FROM = 'ktmenergyexperts@gmail.com';
+/* A plain hyphen, not an em dash: the em dash is the one reason this subject
+   used to be base64-encoded in the header. */
+const RECOVERY_MAIL_SUBJECT = 'KTM Studio - password reset code';
+/* The logo ships WITH the message instead of being pointed at. Two things made
+   that worth doing: the only URL in the mail pointed at an obscure shared host
+   (a link a filter has to weigh before it weighs anything else), and Gmail does
+   not render a remote image until the reader allows it — so the mark the brand
+   requires was simply missing in the one folder a reader actually looks in. */
+const LOGO_PATH = '/assets/images/ktm-logo-light.png';
+const LOGO_CID = 'ktm-logo';
+const RECOVERY_429 = 'Too many requests. Please try again in a few minutes.';
 
 /* Deployed code marker — kept identical to platform/cloudflare/src/worker.js
    so /api/health reports the same version whichever backend serves it. */
-const CODE_VERSION = 'geo-r1';
+const CODE_VERSION = 'reconcile-r1';
 
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }
@@ -157,6 +199,416 @@ function sendAuthLimited(res, retryAfterSec) {
     'Retry-After': String(Math.max(1, retryAfterSec || 60))
   });
 }
+
+/* --- Password recovery: throttles, delivery, template ---------------------
+   Mirrors the Worker. The recovery budget is SEPARATE from the sign-in one on
+   purpose: a recovery request is not a sign-in failure, so counting it in
+   `fails` would lock a real user out, and neither budget should be able to
+   starve the other. Same scopes the Worker uses (`recovery:*`, `recovery-ip:*`,
+   `recovery-issued:*`), held in memory here because the local server has no D1. */
+const recoveryHits = new Map();
+function recoveryBucket(key) {
+  let b = recoveryHits.get(key);
+  if (!b) {
+    b = { windowStart: 0, windowCount: 0, blockedUntil: 0 };
+    recoveryHits.set(key, b);
+  }
+  return b;
+}
+/** Returns null if allowed, or retry-after seconds if blocked. */
+function recoveryThrottleCheck(req, email) {
+  const now = Date.now();
+  const ip = recoveryBucket('recovery-ip:' + clientIp(req));
+  if (ip.windowStart && now - ip.windowStart <= RECOVERY_PER_IP_WINDOW_MS && ip.windowCount >= RECOVERY_PER_IP_MAX) {
+    return Math.max(1, Math.ceil((ip.windowStart + RECOVERY_PER_IP_WINDOW_MS - now) / 1000));
+  }
+  const em = String(email || '').trim().toLowerCase();
+  if (em) {
+    const eb = recoveryBucket('recovery:' + em);
+    if (eb.windowStart && now - eb.windowStart <= RECOVERY_PER_EMAIL_WINDOW_MS && eb.windowCount >= RECOVERY_PER_EMAIL_MAX) {
+      return Math.max(1, Math.ceil((eb.windowStart + RECOVERY_PER_EMAIL_WINDOW_MS - now) / 1000));
+    }
+  }
+  return null;
+}
+function recoveryThrottleHit(req, email) {
+  const now = Date.now();
+  const keys = [['recovery-ip:' + clientIp(req), RECOVERY_PER_IP_WINDOW_MS]];
+  const em = String(email || '').trim().toLowerCase();
+  if (em) keys.push(['recovery:' + em, RECOVERY_PER_EMAIL_WINDOW_MS]);
+  for (const [key, windowMs] of keys) {
+    const b = recoveryBucket(key);
+    if (!b.windowStart || now - b.windowStart > windowMs) { b.windowStart = now; b.windowCount = 0; }
+    b.windowCount += 1;
+  }
+}
+function sendRecoveryLimited(res, retryAfterSec) {
+  return sendJson(res, 429, { error: RECOVERY_429 }, {
+    'Retry-After': String(Math.max(1, retryAfterSec || 60))
+  });
+}
+/* Every recovery route starts here, and it runs BEFORE the account lookup and
+   BEFORE the throttle. Two consequences that both matter: a deployment with no
+   delivery channel answers the same way for every address, and it does exactly
+   the same amount of work for each — so neither the status nor the effort spent
+   can be used to probe which addresses exist. Matches the Worker. */
+function recoveryUnavailable(res) {
+  return sendJson(res, 503, {
+    error: 'Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent.',
+    code: 'RECOVERY_UNAVAILABLE'
+  });
+}
+function recoveryConfigured() {
+  return Boolean(String(process.env.SMTP_PASSWORD || '').replace(/\s+/g, ''));
+}
+/* Compare two fixed-length hex digests without leaking how far along they are. */
+function hexEqual(a, b) {
+  const x = Buffer.from(String(a || ''), 'hex');
+  const y = Buffer.from(String(b || ''), 'hex');
+  if (x.length !== y.length || x.length === 0) return false;
+  try { return crypto.timingSafeEqual(x, y); } catch (_) { return false; }
+}
+
+/* A rejected code looks the SAME whether the address has no account, or the
+   code is wrong, expired, already used, or out of attempts. One string for all
+   five, so nothing about the reply distinguishes them. Matches the Worker. */
+const RESET_REJECTED = {
+  error: 'That code is invalid or has expired. Request a new one.',
+  code: 'CODE_INVALID'
+};
+function findActiveReset(db, userId) {
+  const now = Date.now();
+  return (db.password_resets || []).find((r) =>
+    r.user_id === userId && !r.used_at && Date.parse(r.expires_at) > now) || null;
+}
+/* Counting a miss against the ACTIVE code (when there is one) is what stops
+   1e6 combinations being ground through inside the 10-minute window. An address
+   with no account has no code to count against, which costs nothing: the reply
+   is identical either way. This only records the miss — it never writes to the
+   socket, so a rejected path sends exactly one response. */
+function countResetMiss(db, email) {
+  const em = String(email || '').trim().toLowerCase();
+  const userRow = em ? (db.users || []).find((u) => String(u.email || '').toLowerCase() === em) : null;
+  if (!userRow) return;
+  const active = findActiveReset(db, userRow.id);
+  if (active) {
+    const tries = (Number(active.attempts) || 0) + 1;
+    active.attempts = tries;
+    // Five misses void the code.
+    if (tries >= OTP_MAX_ATTEMPTS) active.used_at = nowISO();
+  }
+  saveDb(db);
+}
+/* One gate behind BOTH verify-code and reset-password, so the two can never
+   drift into accepting different things. Returns { user, row } on success or
+   { rejected: <payload> } on failure — the CALLER sends the reply. Note the
+   Worker's twin returns a ready Response instead, because json() hands one back
+   while sendJson() writes directly; keeping the write on one side of that
+   boundary is what stops a rejected path writing twice. */
+function checkResetCode(db, email, code) {
+  const em = String(email || '').trim().toLowerCase();
+  const shaped = String(code || '').replace(/\s+/g, '');
+  const miss = () => { countResetMiss(db, em); return { rejected: RESET_REJECTED }; };
+  if (!em || shaped.length !== 6 || !/^\d{6}$/.test(shaped)) return miss();
+  const user = (db.users || []).find((u) => String(u.email || '').toLowerCase() === em);
+  if (!user) return miss();
+  const row = findActiveReset(db, user.id);
+  if (!row) return miss();
+  if ((Number(row.attempts) || 0) >= OTP_MAX_ATTEMPTS) return miss();
+  if (!hexEqual(row.code_hash, hashToken(shaped))) return miss();
+  return { user, row };
+}
+
+function mailEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+/* RFC 2047 PERMITS an encoded-word, and its §6.2 asks you not to use one where
+   US-ASCII would do the job. Encoding an all-ASCII subject anyway drops a
+   base64 blob into the one header a reader glances at first — the shape a
+   filter associates with a message that is hiding something. So encode only
+   what cannot travel as it stands: a plain subject goes out plain. */
+function encodeSubject(s) {
+  const str = String(s);
+  if (/^[\x20-\x7e]*$/.test(str)) return str;
+  return '=?UTF-8?B?' + Buffer.from(str, 'utf8').toString('base64') + '?=';
+}
+/* The recovery email. Table layout and inline styles only: Gmail strips most
+   <style> blocks. The logo is an ABSOLUTE url because email has no origin —
+   Gmail blocks remote images until the reader allows them, which is why the
+   code itself is plain text and never lives inside an image. */
+function recoveryEmailHtml(origin, displayName, otp) {
+  const logoUrl = origin
+    ? origin.replace(/\/+$/, '') + '/assets/images/ktm-logo-light.png'
+    : '';
+  const logo = logoUrl
+    ? '<img src="' + mailEsc(logoUrl) + '" width="150" alt="KTM Energy Experts" ' +
+      'style="display:block;border:0;height:auto;width:150px;max-width:100%">'
+    : '';
+  /* The name is user-typed, so it is clipped before it reaches the line: an
+     unbounded name would push the greeting past the 998-octet cap that RFC
+     5322 places on every line of a message. Eighty characters is already far
+     past any name anyone types. */
+  const nameForMail = Array.from(String(displayName || '')).slice(0, 80).join('');
+  const greeting = nameForMail ? 'Hello ' + mailEsc(nameForMail) + ',' : 'Hello,';
+  /* Joined by a NEWLINE, not by nothing. Concatenating these elements collapsed
+     the whole template into one ~2,600-octet line: past that same 998-octet
+     cap, and the exact shape of a base64 spam blob. Every boundary below falls
+     after a closing tag or between block elements, where HTML collapses the
+     newline back into whitespace that is already there — the reader sees
+     nothing. The body style is written as ONE string so the break can never
+     land inside an attribute value. */
+  return [
+    '<!doctype html><html lang="en"><body style="margin:0;padding:0;background:#f4f6f9;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#17304a">',
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:24px 12px"><tr><td align="center">',
+    '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden">',
+    '<tr><td style="padding:26px 32px 18px;border-bottom:1px solid #eef2f7">' + logo + '</td></tr>',
+    '<tr><td style="padding:26px 32px 8px">',
+    '<h1 style="margin:0 0 16px;font-size:20px;line-height:1.35;font-weight:700;color:#17304a">Reset your KTM Studio password</h1>',
+    '<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#3c4a5e">' + greeting + '</p>',
+    '<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#3c4a5e">We received a request to reset the password for your KTM Studio account. Enter the code below to continue.</p>',
+    '<p style="margin:0 0 20px;text-align:center"><span style="display:inline-block;font-size:30px;letter-spacing:9px;font-weight:700;color:#17304a;background:#f4f6f9;border:1px dashed #c9d3e0;border-radius:10px;padding:15px 10px 15px 19px">' + mailEsc(otp) + '</span></p>',
+    '<p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#3c4a5e">This code expires in <strong>10 minutes</strong> and can be used <strong>only once</strong>.</p>',
+    '<p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#3c4a5e">If you did not request this, simply ignore this email &mdash; your password has not changed.</p>',
+    '<p style="margin:0;font-size:14px;line-height:1.6;color:#3c4a5e">Please do not share this code. KTM Energy Experts will never ask for it.</p>',
+    '</td></tr>',
+    '<tr><td style="padding:18px 32px 26px;border-top:1px solid #eef2f7">',
+    '<p style="margin:0;font-size:12px;line-height:1.7;color:#8494a8">This is an automatically generated email from KTM Energy Experts.<br>Please do not reply to this message.</p>',
+    '</td></tr></table>',
+    '</td></tr></table></body></html>'
+  ].join('\n');
+}
+
+/* Minimal SMTP submission client: Gmail on 465 with implicit TLS (port 25 is
+   blocked by the platform and is not used here either). The From address is the
+   company mailbox, which Google owns — a third-party relay cannot send AS a
+   gmail.com address, because SPF would not align and Google would reject or
+   spam it.
+
+   Returns { ok: true } or { ok: false, reason }. The reason is for logs and
+   /api/health only; it is never echoed to a caller, because a delivery-specific
+   error would only ever fire for real accounts and would become an oracle. */
+/* RFC 5322 requires a Date, and most filters treat a message without one —
+   or without a Message-ID — as forged. Both are exactly the kind of omission
+   that sends a legitimate code to Spam. The zone is written +0000 rather than
+   the "GMT" toUTCString emits, because GMT is the obsolete form. */
+function mailDate() {
+  return new Date().toUTCString().replace(/GMT$/, '+0000');
+}
+function mailMessageId() {
+  return crypto.randomBytes(12).toString('hex') + '.' + Date.now().toString(36) + '@gmail.com';
+}
+/* The plain-text alternative is DERIVED from the HTML rather than written a
+   second time. Two copies of this copy would drift, and the OTP is the one
+   line that must never be allowed to go stale in one of them. */
+function htmlToText(html) {
+  return String(html)
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<img[^>]*\balt="([^"]*)"[^>]*>/gi, '$1')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|tr|td|h[1-6]|li|table)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&mdash;|&#8212;/g, '\u2014')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+    .split('\n')
+    .map((l) => l.replace(/[ \t\u00a0]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+}
+async function smtpSend(toAddress, subject, htmlBody, origin) {
+  const user = String(process.env.SMTP_USER || '').trim() || RECOVERY_MAIL_FROM;
+  /* Every whitespace is removed, not just the ends: Gmail shows an App
+     Password as four groups of four (abcd efgh ijkl mnop) and people paste it
+     exactly as shown, so an inner space would otherwise reach AUTH LOGIN and
+     fail there with an unhelpful 535. The groups are purely visual — the
+     credential is the sixteen characters. */
+  const pass = String(process.env.SMTP_PASSWORD || '').replace(/\s+/g, '');
+  if (!pass) return { ok: false, reason: 'SMTP_PASSWORD is not configured' };
+  const to = String(toAddress || '').trim();
+  if (!to) return { ok: false, reason: 'no recipient' };
+
+  /* Inline the logo, opportunistically. The HTML is written against a remote
+     URL so that it stands entirely on its own; only when the bytes are
+     genuinely in hand does the src become a cid: reference and the image ride
+     along as a related part. Every failure path leaves the message exactly as
+     it was, because a logo is never worth losing the code over. */
+  let html = htmlBody;
+  let related = null;
+  try {
+    const full = path.join(ROOT, LOGO_PATH.replace(/^\//, ''));
+    const bytes = fs.existsSync(full) ? fs.readFileSync(full) : null;
+    if (bytes && bytes.length) {
+      const inlined = htmlBody.replace(
+        /(<img[^>]*\bsrc=")[^"]*ktm-logo-light\.png(")/,
+        '$1cid:' + LOGO_CID + '$2'
+      );
+      if (inlined !== htmlBody) {
+        html = inlined;
+        related = [{ cid: LOGO_CID, type: 'image/png', data: bytes.toString('base64') }];
+      }
+    }
+  } catch (_) { /* keep the remote URL */ }
+
+  let socket = null;
+  try {
+    socket = await new Promise((resolve, reject) => {
+      const s = tls.connect({ host: 'smtp.gmail.com', port: 465, servername: 'smtp.gmail.com' });
+      const onErr = (e) => reject(e);
+      s.once('error', onErr);
+      s.once('secureConnect', () => { s.removeListener('error', onErr); resolve(s); });
+      /* Idle timeout: fires when the PEER goes silent for 20s (it resets on
+         every received byte), which is exactly the hang a fixed deadline misses. */
+      s.setTimeout(20000, () => s.destroy(new Error('SMTP timed out')));
+    });
+    socket.setNoDelay(true);
+
+    const queue = [];
+    let pending = '';
+    let finished = false;
+    let notify = null;
+    const wake = () => { const n = notify; notify = null; if (n) n(); };
+    socket.on('data', (d) => {
+      pending += d.toString('utf8');
+      let i;
+      while ((i = pending.indexOf('\n')) >= 0) {
+        queue.push(pending.slice(0, i).replace(/\r$/, ''));
+        pending = pending.slice(i + 1);
+      }
+      wake();
+    });
+    const end = () => { finished = true; wake(); };
+    socket.on('end', end);
+    socket.on('close', end);
+    socket.on('error', end);
+
+    async function readLine() {
+      for (;;) {
+        if (queue.length) return queue.shift();
+        if (finished) throw new Error('SMTP connection closed by peer');
+        // Register first, then re-check: data can land between the check above
+        // and subscribing, and without the re-check that race hangs forever.
+        await new Promise((r) => {
+          notify = r;
+          if (queue.length || finished) { notify = null; r(); }
+        });
+      }
+    }
+    /* SMTP replies can span lines: "250-…" then a final "250 …". */
+    async function readReply() {
+      const lines = [];
+      for (;;) {
+        const line = await readLine();
+        if (line.length < 4) continue;
+        lines.push(line);
+        if (line[3] === ' ') break;
+        if (line[3] !== '-') break;
+        if (lines.length > 40) break;
+      }
+      if (!lines.length) throw new Error('empty SMTP reply');
+      return { code: parseInt(lines[0].slice(0, 3), 10), text: lines.join(' | ') };
+    }
+    const write = (cmd) => new Promise((resolve, reject) => {
+      socket.write(cmd + '\r\n', (e) => (e ? reject(e) : resolve()));
+    });
+    async function expect(cmd, want) {
+      await write(cmd);
+      const r = await readReply();
+      if (r.code !== want) {
+        throw new Error(String(cmd).split(' ')[0] + ' refused: ' + r.text.slice(0, 200));
+      }
+      return r;
+    }
+
+    const banner = await readReply();
+    if (banner.code !== 220) throw new Error('no SMTP banner: ' + banner.text.slice(0, 160));
+    /* Mirrors the Worker: the client name is echoed verbatim into the
+       "Received: from ..." line, and `localhost` reads the way a broken laptop
+       script reads — every filter knows that name. */
+    await expect('EHLO qs-studio-rushi.ktmenergyexperts.workers.dev', 250);
+    await expect('AUTH LOGIN', 334);
+    await expect(Buffer.from(user, 'utf8').toString('base64'), 334);
+    await expect(Buffer.from(pass, 'utf8').toString('base64'), 235);
+    await expect('MAIL FROM:<' + user + '>', 250);
+    await expect('RCPT TO:<' + to + '>', 250);
+    await expect('DATA', 354);
+
+    /* Dot-stuffing: a body line starting with "." would otherwise end the
+       message early. Normalise to CRLF, which SMTP requires.
+       multipart/alternative, plain FIRST: an HTML-only message is one of the
+       oldest spam signals there is, and the plain part is what a filter reads
+       to decide what this even is. Date and Message-ID go in the headers for
+       the same reason — a legitimate code should not look forged.
+       When related parts are supplied the alternatives nest INSIDE a
+       multipart/related, which is the only place a cid: image may legally
+       live. With none, this is byte-for-byte the plain alternative. */
+    const outer = '----=_Part_' + crypto.randomBytes(12).toString('hex');
+    const alt = '----=_Part_' + crypto.randomBytes(12).toString('hex');
+    const onePart = (label, value) => [
+      '--' + alt,
+      'Content-Type: ' + label + '; charset=UTF-8',
+      'Content-Transfer-Encoding: 8bit',
+      '',
+      String(value).replace(/\r\n?/g, '\n').replace(/\n+$/, '')
+    ].join('\n');
+    const alternatives = [
+      onePart('text/plain', htmlToText(html)),
+      '',
+      onePart('text/html', html),
+      '',
+      '--' + alt + '--'
+    ].join('\n');
+    const hasRelated = Array.isArray(related) && related.length > 0;
+    const data = hasRelated
+      ? [
+          '--' + outer,
+          'Content-Type: multipart/alternative; boundary="' + alt + '"',
+          '',
+          alternatives,
+          related.map((r) => [
+            '--' + outer,
+            'Content-Type: ' + r.type,
+            'Content-ID: <' + r.cid + '>',
+            'Content-Transfer-Encoding: base64',
+            '',
+            /* RFC 2045 stops base64 lines at 76 characters. */
+            String(r.data).replace(/(.{76})/g, '$1\n').replace(/\n$/, '')
+          ].join('\n')).join('\n'),
+          '--' + outer + '--'
+        ].join('\n')
+      : alternatives;
+    const contentType = hasRelated
+      ? 'multipart/related; boundary="' + outer + '"'
+      : 'multipart/alternative; boundary="' + alt + '"';
+    const stuffed = data.split('\n').map((l) => (l.charAt(0) === '.' ? '.' + l : l)).join('\n');
+    const message = [
+      'From: KTM Studio <' + user + '>',
+      'To: <' + to + '>',
+      'Subject: ' + encodeSubject(subject),
+      'Date: ' + mailDate(),
+      'Message-ID: <' + mailMessageId() + '>',
+      'MIME-Version: 1.0',
+      'Content-Type: ' + contentType,
+      'X-Auto-Response-Suppress: All',
+      'Auto-Submitted: auto-generated',
+      '',
+      stuffed.replace(/\n/g, '\r\n')
+    ].join('\r\n') + '\r\n.\r\n';
+    await write(message);
+    const accepted = await readReply();
+    if (accepted.code !== 250) throw new Error('message rejected: ' + accepted.text.slice(0, 200));
+    try { await write('QUIT'); } catch (_) { /* closing anyway */ }
+    return { ok: true, inlined: !!related, logo: related ? related[0].data.length : 0, wire: message.length };
+  } catch (e) {
+    return { ok: false, reason: String((e && e.message) || e).slice(0, 300) };
+  } finally {
+    try { if (socket) socket.destroy(); } catch (_) { /* already closed */ }
+  }
+}
 function proposalRevision(row) {
   const n = Number(row && row.revision);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
@@ -193,6 +645,7 @@ function publicToken(t, rawToken) {
     firstOpenedAt: t.first_opened_at || null,
     lastOpenedAt: t.last_opened_at || null,
     openCount: t.open_count || 0,
+    active: !t.revoked_at && (!t.expires_at || Date.parse(t.expires_at) > Date.now()),
     portalPath: '/portal.html?t='
   };
   if (rawToken) {
@@ -272,8 +725,8 @@ const SEND_CHANNELS = {
   other: { label: 'Other / offline', provider: 'manual' }
 };
 const SEND_STATES = {
-  draft: 'Draft',
-  share_clicked: 'Share opened (not delivery-confirmed)',
+  draft: 'Draft (not shared)',
+  share_clicked: 'Share action started (not delivery-confirmed)',
   submitted_to_provider: 'Submitted to provider',
   delivered: 'Delivered (provider-confirmed only)',
   failed: 'Failed',
@@ -334,6 +787,24 @@ function buildDefaultMessage(row, portalUrl) {
     form.companyEmail ? String(form.companyEmail) : ''
   ].filter((line, i, arr) => !(line === '' && arr[i - 1] === ''));
   return lines.join('\n');
+}
+function messageWithPortalLink(value, row, portalUrl) {
+  const placeholder = '[A secure link will be inserted when you prepare the send]';
+  const linkedUrl = /https?:\/\/[^\s"'<>]*\/portal\.html\?t=[^\s"'<>]*/g;
+  let message = String(value || '').trim() || buildDefaultMessage(row, portalUrl);
+  message = message.replaceAll(placeholder, portalUrl);
+  if (linkedUrl.test(message)) message = message.replace(linkedUrl, portalUrl);
+  if (!message.includes(portalUrl)) {
+    const suffix = '\n\nSecure proposal link (read-only):\n' + portalUrl;
+    message = message.slice(0, Math.max(0, 4000 - suffix.length)).trimEnd() + suffix;
+  }
+  if (message.length > 4000) {
+    const linkAt = message.lastIndexOf(portalUrl);
+    message = linkAt >= 0 && linkAt + portalUrl.length > 4000
+      ? message.slice(0, Math.max(0, 4000 - portalUrl.length - 1)).trimEnd() + '\n' + portalUrl
+      : message.slice(0, 4000);
+  }
+  return message;
 }
 function digitsForWhatsApp(value) {
   const raw = String(value || '').trim();
@@ -497,6 +968,10 @@ function passwordPolicyError(password) {
   if (p.length < 8) return 'Password must be at least 8 characters';
   if (p.length > 128) return 'Password must be at most 128 characters';
   if (/\s/.test(p)) return 'Password cannot contain spaces';
+  /* Mixed characters (owner request, 2026-10-10): at least TWO of lowercase /
+     uppercase / digits / symbols. Set-password paths only, never sign-in. */
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((r) => r.test(p)).length;
+  if (classes < 2) return 'Password must mix at least two of: lowercase, uppercase, digits, symbols';
   return null;
 }
 function revokeUserSessions(db, userId, keepToken) {
@@ -506,29 +981,90 @@ function revokeUserSessions(db, userId, keepToken) {
     return false;
   });
 }
-function issuePasswordReset(db, user) {
-  /* Invalidate previous unused codes for this user. */
+/* Issue a fresh code: voids any previous unused one for that user and stores
+   only its hash. `resendCount` is how many times this recovery attempt has
+   already been re-issued AFTER the first code (0 on the first). */
+function issuePasswordReset(db, user, resendCount) {
   const now = nowISO();
   (db.password_resets || []).forEach((r) => {
     if (r.user_id === user.id && !r.used_at) r.used_at = now;
   });
-  const raw = crypto.randomBytes(4).toString('hex') + '-' + crypto.randomBytes(4).toString('hex');
+  /* 6 numeric digits: the code is read off a screen and typed back in, so hex
+     would be slower to enter and easier to mistype. */
+  const raw = String(crypto.randomBytes(4).readUInt32BE(0) % 1000000).padStart(6, '0');
   const row = {
     id: uid('rst'),
     user_id: user.id,
-    code_hash: hashToken(raw.toLowerCase()),
-    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    code_hash: hashToken(raw),
+    expires_at: new Date(Date.now() + OTP_TTL_MS).toISOString(),
     used_at: null,
+    resend_count: Number.isFinite(resendCount) && resendCount > 0 ? Math.floor(resendCount) : 0,
+    attempts: 0,
     created_at: now
   };
   db.password_resets.push(row);
-  return raw.toLowerCase();
+  return raw;
 }
 function saveDb(db) {
   ensureData();
   const tmp = DB_PATH + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
   fs.renameSync(tmp, DB_PATH);
+}
+async function getExcelProductCatalogLocal(force) {
+  const db = loadDb();
+  const cache = db.excelProductCatalog || null;
+  const configured = !!((process.env.GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID || process.env.GOOGLE_DRIVE_MODULE_CATALOG_FILE_ID) && process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON);
+  const rawTtl = Number(process.env.EXCEL_CATALOG_SYNC_TTL_SECONDS);
+  const ttl = (Number.isFinite(rawTtl) ? Math.min(3600, Math.max(30, rawTtl)) : 300) * 1000;
+  const age = cache ? Date.now() - Date.parse(cache.checkedAt || '') : Infinity;
+  const bodyFor = (value, stale, warning) => ({
+    source: 'excel', modules: value.modules || [], inverters: value.inverters || [],
+    cables: value.cables || [], protection: value.protection || [], rowCount: value.rowCount || 0,
+    rowCounts: value.rowCounts || {}, rejectedRows: value.rejectedRows || 0,
+    rejectedRowsBySheet: value.rejectedRowsBySheet || {}, sheets: value.sheets || {},
+    sourceFileName: value.fileName || 'Connected Excel workbook',
+    fileModifiedAt: value.fileModifiedAt || '', syncedAt: value.syncedAt || '',
+    checkedAt: value.checkedAt || '', stale: stale === true, warning: warning || ''
+  });
+  if (!force && cache && Number.isFinite(age) && age < ttl) return { status: 200, body: bodyFor(cache, false, '') };
+  if (!configured) {
+    if (cache) return { status: 200, body: bodyFor(cache, true, 'Excel sync is not configured; showing the last saved workbook snapshot.') };
+    return { status: 503, body: { error: 'Excel catalogue is not connected yet.', code: 'EXCEL_SYNC_NOT_CONFIGURED' } };
+  }
+  try {
+    const { syncModuleCatalogFromDrive } = await import('../cloudflare/src/excel-module-catalog.mjs');
+    const result = await syncModuleCatalogFromDrive(process.env, { previous: cache ? {
+      fileId: cache.fileId, fileModifiedAt: cache.fileModifiedAt, fileChecksum: cache.fileChecksum
+    } : null });
+    if (result.unchanged && cache) {
+      cache.checkedAt = result.checkedAt || nowISO();
+      db.excelProductCatalog = cache;
+      saveDb(db);
+      return { status: 200, body: bodyFor(cache, false, '') };
+    }
+    const next = {
+      fileId: result.fileId, fileName: result.fileName || 'Solar_EPC_Software_FINAL_v0.2.xlsm',
+      fileModifiedAt: result.fileModifiedAt || '', fileChecksum: result.fileChecksum || '',
+      syncedAt: result.syncedAt || nowISO(), checkedAt: result.checkedAt || nowISO(),
+      rowCount: Number(result.rowCount) || 0, rowCounts: result.rowCounts || {},
+      rejectedRows: Number(result.rejectedRows) || 0, rejectedRowsBySheet: result.rejectedRowsBySheet || {},
+      sheets: result.sheets || {}, modules: result.modules || [], inverters: result.inverters || [],
+      cables: result.cables || [], protection: result.protection || []
+    };
+    db.excelProductCatalog = next;
+    saveDb(db);
+    return { status: 200, body: bodyFor(next, false, '') };
+  } catch (error) {
+    const code = String(error && error.code || 'EXCEL_SYNC_FAILED');
+    const message = code === 'EXCEL_DRIVE_CONFIG_INVALID'
+      ? 'Excel sync needs its private Drive connection configured.'
+      : code === 'EXCEL_DRIVE_FILE_UNAVAILABLE'
+        ? 'The configured workbook is unavailable to the read-only Drive connection.'
+        : 'The Excel catalogue could not be refreshed. The previous saved copy, if any, has been kept.';
+    if (cache) return { status: 200, body: bodyFor(cache, true, message) };
+    return { status: code === 'EXCEL_DRIVE_CONFIG_INVALID' ? 503 : 502, body: { error: message, code } };
+  }
 }
 
 const MIME = {
@@ -661,9 +1197,12 @@ function sessionCookie(token, maxAgeSec, req) {
     COOKIE + '=' + encodeURIComponent(token),
     'Path=/',
     'HttpOnly',
-    'SameSite=' + (isHttps ? 'None' : 'Lax'),
-    'Max-Age=' + String(maxAgeSec)
+    'SameSite=' + (isHttps ? 'None' : 'Lax')
   ];
+  /* maxAgeSec === null means "session cookie": no Max-Age, so the browser
+     discards it when it closes. That is what makes "Remember me" being OFF
+     mean anything. 0 is still emitted — logout relies on it to clear. */
+  if (maxAgeSec !== null && maxAgeSec !== undefined) parts.push('Max-Age=' + String(maxAgeSec));
   if (isHttps) parts.push('Secure');
   return parts.join('; ');
 }
@@ -719,8 +1258,13 @@ function parseRoleTitle(raw) {
 }
 function roleDisplay(u) {
   if (!u) return '';
-  if (u.role_custom) return String(u.role_custom);
   const r = String(u.role || '').toLowerCase();
+  /* The typed title is the LABEL only where a title is a real thing: owner and
+     custom. A Sales / Engineer row still keeps its wording in role_custom — so
+     it is shown as the job title and returns the moment the member comes back
+     to a titleable role — but it is labelled by its power, like every other
+     row. */
+  if (u.role_custom && (r === 'owner' || r === 'custom')) return String(u.role_custom);
   if (r === 'owner') return 'Owner';
   if (r === 'sales') return 'Sales';
   if (r === 'viewer') return 'Viewer';
@@ -728,7 +1272,11 @@ function roleDisplay(u) {
 }
 function publicUser(u) {
   const admin = canManageTeam(u);
-  const elevated = isAdminRow(u) || isHiddenAdmin(u);
+  /* The red-dot flag is the STORED elevation ONLY. The designated mailbox is
+     not elevated by virtue of its address — the address only decides who MAY
+     type "admin" (canElevate) — so the dot appears once, and only once, admin
+     has actually been set. */
+  const elevated = isAdminRow(u);
   return {
     id: u.id,
     email: u.email,
@@ -751,6 +1299,13 @@ function publicUser(u) {
        Self-only (publicUser is the /me shape). */
     elevated: isAdminRow(u),
     canElevate: canElevate(u),
+    /* Contact number and the profile-nudge flag — parity with the worker.
+       Self-only by construction: publicUser is the GET /api/auth/me shape. */
+    phone: u.phone || '',
+    instagram: u.instagram_url || '',
+    linkedin: u.linkedin_url || '',
+    custom: u.custom_url || '',
+    profileDone: Number(u.profile_done || 0) === 1,
     createdAt: u.created_at || null
   };
 }
@@ -785,8 +1340,20 @@ function memberPayload(u, lastLogin, opts) {
     id: u.id,
     name: u.name,
     /* Contact detail is owner / designated-admin only — parity with the
-       worker. Omitted rather than blanked, so there is nothing to unhide. */
+       worker. Omitted rather than blanked, so there is nothing to unhide.
+       The contact number rides the exact same opt-in, so the two can never
+       drift apart: whoever may see the address may see the number. */
     ...(o.contact ? { email: u.email } : {}),
+    ...(o.contact ? { phone: u.phone || '' } : {}),
+    /* Profile links and kudos are TEAM-visible by design: a social profile is
+       public anyway and the point of the card is being able to reach the
+       person. `likedByMe` is the caller's own vote only, and the pair confers
+       nothing — it is a count of clicks, never a permission. */
+    instagram: u.instagram_url || '',
+    linkedin: u.linkedin_url || '',
+    custom: u.custom_url || '',
+    likes: Number(o.likes || 0),
+    likedByMe: !!o.likedByMe,
     role: u.role,
     roleCustom: u.role_custom || null,
     /* Typed title. Elevation never writes it, so this string is identical
@@ -795,9 +1362,15 @@ function memberPayload(u, lastLogin, opts) {
     power: stored,
     canWrite: roleRank(stored) >= roleRank('sales'),
     canManageTeam: roleRank(stored) >= roleRank('owner'),
-    lastLogin: login,
-    lastLoginLabel: login ? new Date(login).toISOString() : null,
-    createdAt: u.created_at
+    /* Sign-in times answer "when was this person last active", which is an
+       owner/admin question. They are OMITTED for everyone else — parity with
+       the worker's S2 move, so a row carries no date to unhide. `login` is
+       still computed above so the creation-time fallback stays in one place.
+       The team list passes `signin` from the CALLER's manage flag; the
+       role-change route passes true because its gate is already owner/admin. */
+    ...(o.signin ? { lastLogin: login } : {}),
+    ...(o.signin ? { lastLoginLabel: login ? new Date(login).toISOString() : null } : {}),
+    ...(o.signin ? { createdAt: u.created_at } : {})
   };
 }
 /* The actor's OWN row: the same payload plus what only they may know about
@@ -806,9 +1379,11 @@ function memberPayload(u, lastLogin, opts) {
    viewer-level elevated account reads canWrite false (badge) and
    effectiveCanWrite true (what it may actually do). */
 function selfMemberPayload(u, lastLogin, opts) {
-  /* Own row: always allowed its own contact detail. */
-  return Object.assign(memberPayload(u, lastLogin, Object.assign({ contact: true }, opts || {})), {
-    isAdmin: isAdminRow(u) || isHiddenAdmin(u),
+  /* Own row: always allowed its own contact detail AND its own sign-in times —
+     parity with the worker. An account may always read when IT last signed in;
+     the team list overrides `signin` with the manage flag for every other row. */
+  return Object.assign(memberPayload(u, lastLogin, Object.assign({ contact: true, signin: true }, opts || {})), {
+    isAdmin: isAdminRow(u),
     elevated: isAdminRow(u),
     canElevate: canElevate(u),
     effectiveCanWrite: requireRole(u, 'sales'),
@@ -853,9 +1428,12 @@ function adminOwnerConflict() {
   return !!a && a === o;
 }
 /** Permission rank: custom titles act as Sales (can write, cannot manage team).
- *  An elevated row and the designated ADMIN_EMAIL login both rank above Owner. */
+ *  POWER follows the ROLE — an elevated row (one that typed "admin") or a
+ *  stored Owner. The ADMIN_EMAIL address itself grants NOTHING: it only decides
+ *  who MAY type "admin" (see canElevate). Logging in with that mailbox leaves
+ *  you at your stored rank until you do. */
 function permissionRole(user) {
-  if (isAdminRow(user) || isHiddenAdmin(user)) return 'admin';
+  if (isAdminRow(user)) return 'admin';
   const r = String((user && user.role) || '').toLowerCase();
   if (r === 'owner') return 'owner';
   if (r === 'viewer') return 'viewer';
@@ -869,9 +1447,11 @@ function canElevate(user) {
   return isHiddenAdmin(user);
 }
 /* Owner-sees-all: owner, elevated and the designated admin read every row;
-   members stay scoped to their own owner_id exactly as before. */
+   members stay scoped to their own owner_id exactly as before. VISIBILITY IS
+   NOT POWER — the designated mailbox keeps reading this workspace's rows, but
+   team edit/delete comes from permissionRole, i.e. from the ROLE. */
 function seesAll(user) {
-  return requireRole(user, 'owner');
+  return requireRole(user, 'owner') || isHiddenAdmin(user);
 }
 /* In-memory parity with the worker's OWN_SCOPE SQL guard: true when the row is
    visible to this caller. `scope === null` lifts the owner_id filter. */
@@ -993,14 +1573,20 @@ function requireUser(req, db) {
   if (user && applyOwnerBootstrap(user)) saveDb(db);
   return user || null;
 }
-function createSession(db, user) {
+function createSession(db, user, ttlMs) {
+  /* ttlMs is the server-side life of the session — see worker.js. */
+  const ttl = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : SESSION_DAYS * 864e5;
   const token = crypto.randomBytes(24).toString('hex');
-  const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
+  const expires = new Date(Date.now() + ttl).toISOString();
   db.sessions.push({ token, user_id: user.id, expires_at: expires, created_at: nowISO() });
   return { token, expiresAt: expires };
 }
-function authSuccessHeaders(token, req) {
-  return { 'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400, req) };
+function authSuccessHeaders(token, req, remember) {
+  /* remember === true → 30-day cookie. Anything else → a session cookie (no
+     Max-Age) that the browser discards when it closes. */
+  return {
+    'Set-Cookie': sessionCookie(token, remember ? SESSION_DAYS * 86400 : null, req)
+  };
 }
 function safePath(urlPath) {
   const decoded = decodeURIComponent(urlPath.split('?')[0]);
@@ -1236,39 +1822,53 @@ async function handleApi(req, res, url) {
         /* Elevation is never granted at signup, and the flag is written
            explicitly so local JSON rows carry it like the SQL rows do. */
         is_admin: 0,
+        /* Contact number and the profile-nudge flag, written explicitly so a
+           local JSON row matches what migration 006 gives a SQL row. */
+        phone: '',
+        profile_done: 0,
         created_at: nowISO(),
         updated_at: nowISO()
       };
       db.users.push(user);
       applyOwnerBootstrap(user);
       authThrottleSuccess(email);
-      const sess = createSession(db, user);
+      /* Create Account offers no "Remember me" control, so a fresh sign-up gets
+         the secure default: a session cookie plus the 12-hour server cap. */
+      const sess = createSession(db, user, SESSION_HOURS_SHORT * 3600 * 1000);
       saveDb(db);
-      return sendJson(res, 201, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req));
+      return sendJson(res, 201, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req, false));
     }
 
     if (parts[0] === 'auth' && parts[1] === 'login' && method === 'POST') {
+      /* ONE message for BOTH failure paths, on purpose — see worker.js. Saying
+         "no such account" only for an unknown address would let anyone test
+         which addresses are registered (no username enumeration). */
+      const LOGIN_FAILED = 'Invalid email or password. Don’t have an account yet? Create one.';
       const body = await readBody(req);
       const email = String(body.email || '').trim().toLowerCase();
       const password = String(body.password || '');
+      /* "Remember me" is OFF by default: session cookie (no Max-Age) plus the
+         12-hour server cap. Ticking it restores the 30-day behaviour. */
+      const remember = body.remember === true || body.remember === 'true';
       const blocked = authThrottleCheck(req, email);
       if (blocked != null) return sendAuthLimited(res, blocked);
       if (!email || !password) {
         authThrottleFail(req, email);
-        return sendJson(res, 401, { error: 'Invalid email or password' });
+        return sendJson(res, 401, { error: LOGIN_FAILED });
       }
       const user = (db.users || []).find((u) => u.email.toLowerCase() === email);
       /* Uniform failure path: same status + message whether email is unknown
          or password is wrong (no username enumeration on login). */
       if (!user || !verifyPassword(password, user.password_hash)) {
         authThrottleFail(req, email);
-        return sendJson(res, 401, { error: 'Invalid email or password' });
+        return sendJson(res, 401, { error: LOGIN_FAILED });
       }
       applyOwnerBootstrap(user);
       authThrottleSuccess(email);
-      const sess = createSession(db, user);
+      const ttlMs = remember ? SESSION_DAYS * 864e5 : SESSION_HOURS_SHORT * 3600 * 1000;
+      const sess = createSession(db, user, ttlMs);
       saveDb(db);
-      return sendJson(res, 200, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req));
+      return sendJson(res, 200, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req, remember));
     }
 
     if (parts[0] === 'auth' && parts[1] === 'logout' && method === 'POST') {
@@ -1288,14 +1888,161 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { user: publicUser(user) });
     }
 
-    // Public recovery is fail-closed until a verified delivery channel exists.
-    // Reject reset as well: previously disclosed, unexpired codes must not work.
-    // Identical response for known/unknown accounts; no lookup or code issuance.
-    if (parts[0] === 'auth' && ['forgot-password', 'reset-password'].includes(parts[1]) && method === 'POST') {
-      return sendJson(res, 403, {
-        error: 'Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent.',
-        code: 'RECOVERY_UNAVAILABLE'
-      });
+    // --- Password recovery (owner decision, 2026-10-10) --------------------
+    // The fail-closed gate is lifted: a verified delivery channel now exists
+    // (outbound SMTP to Gmail on 465, sending as the company mailbox).
+    //
+    // Uniformity is the load-bearing property here. Whether or not the address
+    // has an account, the caller sees the SAME status and the SAME body at every
+    // step — accepted, cooling down, over the resend limit, throttled. Account
+    // state is only ever revealed by a code the caller already holds.
+    if (parts[0] === 'auth' && parts[1] === 'forgot-password' && method === 'POST') {
+      const body = await readBody(req);
+      Object.assign(db, loadDb()); // readBody awaited; retain other concurrent creations.
+      const email = String(body.email || '').trim().toLowerCase();
+
+      // Fail closed, before the throttle and before any account lookup: a
+      // deployment with no delivery channel must answer every address
+      // identically AND do exactly the same work for each, or the difference in
+      // status — or in effort — becomes an oracle.
+      if (!recoveryConfigured()) return recoveryUnavailable(res);
+
+      const blocked = recoveryThrottleCheck(req, email);
+      if (blocked != null) return sendRecoveryLimited(res, blocked);
+
+      const ACCEPTED = {
+        ok: true,
+        message: 'If that email has an account, a reset code is on its way. Check your inbox and spam folder.'
+      };
+      if (!email) return sendJson(res, 200, ACCEPTED);
+
+      // Issuance state is tracked for EVERY address, including ones with no
+      // account. If only real accounts were counted, an over-limit reply would
+      // confirm the account exists; tracking both keeps the reply identical.
+      const issued = recoveryBucket('recovery-issued:' + email);
+      const now = Date.now();
+      const attemptLive = issued.windowStart && now - issued.windowStart < OTP_TTL_MS;
+      const issuedCount = attemptLive ? issued.windowCount : 0;
+
+      if (attemptLive && issuedCount >= 1 + OTP_MAX_RESENDS) {
+        return sendJson(res, 429, {
+          error: 'Too many codes have been requested for this attempt. Please wait a few minutes and start again.',
+          code: 'RESEND_LIMIT'
+        }, { 'Retry-After': String(Math.max(1, Math.ceil((issued.windowStart + OTP_TTL_MS - now) / 1000))) });
+      }
+      if (attemptLive && now < issued.blockedUntil) {
+        return sendJson(res, 429, {
+          error: 'Please wait a moment before requesting another code.',
+          code: 'RESEND_COOLDOWN'
+        }, { 'Retry-After': String(Math.max(1, Math.ceil((issued.blockedUntil - now) / 1000))) });
+      }
+
+      // A known account gets a code; an unknown one follows the identical path
+      // minus the send. The response below is the same either way.
+      const user = (db.users || []).find((u) => String(u.email || '').toLowerCase() === email);
+      if (user) {
+        // `issuedCount` is how many codes this attempt has already produced, so
+        // it IS this issuance's resend number: 0 on the first, 1 on the second.
+        const otp = issuePasswordReset(db, user, issuedCount);
+        const to = user.email;
+        const origin = 'http://127.0.0.1:' + PORT;
+        const html = recoveryEmailHtml(origin, user.name, otp);
+        // Mirror of the Worker's ctx.waitUntil: the reply must not wait on the
+        // network, or a known address answers slower than an unknown one and that
+        // timing gap becomes an oracle the body no longer exposes.
+        setImmediate(() => {
+          smtpSend(to, RECOVERY_MAIL_SUBJECT, html, origin).then((sent) => {
+            if (sent.ok) {
+              // Positive evidence, mirroring the Worker: without it a
+              // successful send and one that never ran look identical in the
+              // stream, and "no error appeared" is not proof that mail left.
+              console.log('recovery.sent', JSON.stringify({ bytes: html.length, inlined: !!sent.inlined, logo: sent.logo || 0, wire: sent.wire || 0 }));
+            } else {
+              // Deliberately NOT echoed to the caller: a delivery-specific error
+              // would only ever fire for real accounts, which is an oracle.
+              console.log('recovery.send_failed', JSON.stringify({ reason: sent.reason }));
+            }
+          }).catch(() => {});
+        });
+      }
+
+      // Record the issuance for BOTH branches so the counters advance in step.
+      if (attemptLive) {
+        issued.windowCount += 1;
+      } else {
+        issued.windowStart = now;
+        issued.windowCount = 1;
+      }
+      issued.blockedUntil = now + OTP_RESEND_COOLDOWN_MS;
+
+      saveDb(db);
+      recoveryThrottleHit(req, email);
+      return sendJson(res, 200, ACCEPTED);
+    }
+
+    // Step 2 of the recovery flow: prove the code BEFORE asking for a new
+    // password, so nobody types a password and only then learns the code was
+    // wrong. The code is deliberately NOT consumed here — the caller still has
+    // to set the password, and burning it now would strand anyone whose chosen
+    // password failed policy. It runs through the same gate as the reset below,
+    // so the two cannot disagree about what counts as valid.
+    if (parts[0] === 'auth' && parts[1] === 'verify-code' && method === 'POST') {
+      const body = await readBody(req);
+      Object.assign(db, loadDb()); // readBody awaited; retain other concurrent creations.
+      const email = String(body.email || '').trim().toLowerCase();
+      const code = String(body.code || '').replace(/\s+/g, '');
+
+      // Fail closed first, exactly like the other two recovery routes. With no
+      // delivery channel no code can ever exist, and gating AFTER the throttle
+      // would let the difference between "503 here" and "429 there" say whether
+      // an address has storage behind it.
+      if (!recoveryConfigured()) return recoveryUnavailable(res);
+
+      const blocked = recoveryThrottleCheck(req, email);
+      if (blocked != null) return sendRecoveryLimited(res, blocked);
+      recoveryThrottleHit(req, email);
+
+      const checked = checkResetCode(db, email, code);
+      if (checked.rejected) return sendJson(res, 400, checked.rejected);
+      return sendJson(res, 200, { ok: true, message: 'Code verified. Choose a new password.' });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'reset-password' && method === 'POST') {
+      const body = await readBody(req);
+      Object.assign(db, loadDb()); // readBody awaited; retain other concurrent creations.
+      const email = String(body.email || '').trim().toLowerCase();
+      const code = String(body.code || '').replace(/\s+/g, '');
+      const password = String(body.password || '');
+
+      // Fail closed first, ahead of both the policy check and the throttle: when
+      // the channel is off no code can be valid, and answering "bad password"
+      // here while forgot-password answers 503 would give one deployment two
+      // different faces.
+      if (!recoveryConfigured()) return recoveryUnavailable(res);
+
+      // Cheap first among the real checks: a malformed password is a client-side
+      // problem and costs no attempt against the code.
+      const policy = passwordPolicyError(password);
+      if (policy) return sendJson(res, 400, { error: policy });
+
+      const blocked = recoveryThrottleCheck(req, email);
+      if (blocked != null) return sendRecoveryLimited(res, blocked);
+      recoveryThrottleHit(req, email);
+
+      const checked = checkResetCode(db, email, code);
+      if (checked.rejected) return sendJson(res, 400, checked.rejected);
+      const user = checked.user;
+      const active = checked.row;
+
+      active.used_at = nowISO();
+      user.password_hash = hashPassword(password);
+      user.updated_at = nowISO();
+      // A password change voids every other session: whoever holds the code has
+      // proven control of the mailbox, and stale cookies must not outlive that.
+      revokeUserSessions(db, user.id, null);
+      authThrottleSuccess(user.email);
+      saveDb(db);
+      return sendJson(res, 200, { ok: true, message: 'Password updated. You can sign in now.' });
     }
 
     if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
@@ -1331,12 +2078,97 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       const user = (db.users || []).find((u) => u.id === sessionUser.id);
       if (!user) return sendJson(res, 401, { error: 'Sign in required' });
+      /* Display data only, and deliberately so — parity with the worker: this
+         writes name, contact number, the display title and the profile-nudge
+         flag, and never `role` or `is_admin`. A member editing their own
+         profile can no more grant themselves reach than they can reach another
+         row: permission is written in exactly one place, POST /api/team/role,
+         which keeps its own owner gate. */
+      const next = {
+        name: user.name,
+        phone: user.phone || '',
+        roleCustom: user.role_custom || null,
+        instagram: user.instagram_url || '',
+        linkedin: user.linkedin_url || '',
+        custom: user.custom_url || ''
+      };
       if (body.name != null) {
-        const name = String(body.name || '').trim();
+        const name = String(body.name || '').trim().replace(/\s+/g, ' ');
         if (!name) return sendJson(res, 400, { error: 'Name cannot be empty.' });
-        user.name = name.slice(0, 120);
+        next.name = name.slice(0, 120);
       }
-      /* Role is set at Create account (or Team). Profile only updates name. */
+      if (body.phone != null) {
+        /* A contact number is display data, so the shape check only rejects
+           what a stray paste would carry. Empty is valid — declining to
+           publish a number is a choice, not an incomplete profile. */
+        const phone = String(body.phone || '').trim().slice(0, 30);
+        if (phone && !/^[0-9+\-().\s]{3,30}$/.test(phone)) {
+          return sendJson(res, 400, { error: 'A phone number may contain digits and the characters + - ( ) only.' });
+        }
+        next.phone = phone;
+      }
+      /* Social profile links. Display data only — shown as buttons on the
+         member card, team-wide, because a social profile is public anyway and
+         the point is reaching the person. An empty value simply means "not
+         shared", never an error. A bare handle is completed to that platform's
+         own URL; anything else must already be an http(s) URL, so a stray paste
+         cannot smuggle a javascript: or data: scheme into an <a href>. */
+      const socialLink = (kind, raw) => {
+        const v = String(raw || '').trim().slice(0, 300);
+        if (!v) return { value: '' };
+        const base = kind === 'instagram' ? 'https://instagram.com/' : 'https://www.linkedin.com/in/';
+        const url = v.charAt(0) === '@'
+          ? base + v.replace(/^@+/, '')
+          : (/^https?:\/\//i.test(v) ? v : base + v.replace(/^\/+/, ''));
+        if (!/^https?:\/\/[^\s]+$/i.test(url)) return { error: true };
+        return { value: url };
+      };
+      if (body.instagram != null) {
+        const parsed = socialLink('instagram', body.instagram);
+        if (parsed.error) return sendJson(res, 400, { error: 'That does not look like an Instagram link.' });
+        next.instagram = parsed.value;
+      }
+      if (body.linkedin != null) {
+        const parsed = socialLink('linkedin', body.linkedin);
+        if (parsed.error) return sendJson(res, 400, { error: 'That does not look like a LinkedIn link.' });
+        next.linkedin = parsed.value;
+      }
+      /* The "any other link" field — parity with the worker. Same contract as
+         the two platform links, but no bare-handle completion: a custom link
+         has no platform to complete to, so it must already be an http(s) URL.
+         The scheme check is what stops a stray paste smuggling javascript: or
+         data: into the button's href. */
+      if (body.custom != null) {
+        const v = String(body.custom || '').trim().slice(0, 300);
+        if (v && !/^https?:\/\/[^\s]+$/i.test(v)) {
+          return sendJson(res, 400, { error: 'That does not look like a link. Start it with https://' });
+        }
+        next.custom = v;
+      }
+      /* The display title, accepted as `title` or `roleCustom`. Validated by
+         parseRoleTitle, which maps NOTHING: a title is wording and can never
+         decide power. An explicitly empty value clears it rather than
+         erroring, which is how a member undoes a title they no longer want. */
+      const rawTitle = body.title != null ? body.title : body.roleCustom;
+      if (rawTitle != null) {
+        const typed = String(rawTitle).trim();
+        if (!typed) {
+          next.roleCustom = null;
+        } else {
+          const parsed = parseRoleTitle(typed);
+          if (parsed.error) return sendJson(res, 400, { error: parsed.error });
+          next.roleCustom = parsed.roleCustom;
+        }
+      }
+      user.name = next.name;
+      user.phone = next.phone;
+      user.role_custom = next.roleCustom;
+      user.instagram_url = next.instagram;
+      user.linkedin_url = next.linkedin;
+      user.custom_url = next.custom;
+      /* profile_done flips on any successful save: it hides the one-time
+         "update your role and info" nudge and appears in no gate. */
+      user.profile_done = 1;
       user.updated_at = nowISO();
       saveDb(db);
       return sendJson(res, 200, { user: publicUser(user) });
@@ -1358,6 +2190,18 @@ async function handleApi(req, res, url) {
           manualChannels: Object.keys(SEND_CHANNELS),
           providerDelivery: false,
           note: 'Manual WhatsApp/email record share_clicked only. Delivered requires a future provider webhook.'
+        },
+        /* Password recovery. Reports only whether the delivery channel is
+           configured — never the address, never a password — so an operator can
+           tell "secret not set" apart from "mail is not arriving". The same
+           answer goes to every caller, matching the Worker. */
+        recovery: {
+          selfService: true,
+          channel: 'smtp',
+          deliveryConfigured: Boolean(String(process.env.SMTP_PASSWORD || '').replace(/\s+/g, '')),
+          codeTtlMinutes: Math.round(OTP_TTL_MS / 60000),
+          resendLimit: OTP_MAX_RESENDS,
+          verifyAttempts: OTP_MAX_ATTEMPTS
         },
         features: {
           notifications: true,
@@ -1475,6 +2319,18 @@ async function handleApi(req, res, url) {
        null for owner/hidden admin (every row is in scope), the user's own id
        for members, whose reads stay exactly as narrowly scoped as before. */
     const scope = scopeOf(user);
+
+    /* Only sanitized module/inverter/cable/protection rows reach proposals;
+       workbook macros and operational/cost/customer tabs never leave the file. */
+    if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts.length === 2 && method === 'GET') {
+      const result = await getExcelProductCatalogLocal(false);
+      return sendJson(res, result.status, result.body);
+    }
+    if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts[2] === 'sync' && parts.length === 3 && method === 'POST') {
+      if (!canAdmin) return sendJson(res, 403, { error: 'Only the workspace owner can sync the connected Excel catalogue.' });
+      const result = await getExcelProductCatalogLocal(true);
+      return sendJson(res, result.status, result.body);
+    }
 
     /* Gemini: authenticated, owner-scoped, read-only, opt-in. */
     if (parts[0] === 'assistant' && parts.length === 2) {
@@ -1948,10 +2804,10 @@ async function handleApi(req, res, url) {
           id,
           label: SEND_CHANNELS[id].label,
           provider: SEND_CHANNELS[id].provider,
-          recordsAs: 'share_clicked',
+          recordsAs: 'draft',
           deliveryVerified: false
         })),
-        honestyNote: 'Opening WhatsApp or your mail app only records that you started sharing. It does not prove the message was sent or delivered.'
+        honestyNote: 'Preparing a message does not mark it shared. A WhatsApp, email or copy action records only that you started sharing; delivery is unconfirmed.'
       });
     }
 
@@ -1984,6 +2840,17 @@ async function handleApi(req, res, url) {
       const channel = String(body.channel || 'whatsapp_manual');
       if (!SEND_CHANNELS[channel]) {
         return sendJson(res, 400, { error: 'Unsupported send channel' });
+      }
+      const recipientTo = String(body.recipientTo || '').trim().slice(0, 200);
+      const recipientName = String(body.recipientName || row.customer_name || '').trim().slice(0, 200);
+      const waDigits = channel === 'whatsapp_manual' ? digitsForWhatsApp(recipientTo) : '';
+      if (channel === 'whatsapp_manual' && !waDigits) {
+        return sendJson(res, 400, {
+          error: 'Enter a valid WhatsApp mobile number with country code (for example +91 98765 43210).'
+        });
+      }
+      if (channel === 'email_manual' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientTo)) {
+        return sendJson(res, 400, { error: 'Enter a valid email address.' });
       }
 
       /* Ensure a published version + fresh customer link so the message has a real portal URL. */
@@ -2045,20 +2912,7 @@ async function handleApi(req, res, url) {
       const host = req.headers.host || ('localhost:' + PORT);
       const proto = (req.headers['x-forwarded-proto'] || 'http').split(',')[0].trim() || 'http';
       const portalUrl = proto + '://' + host + '/portal.html?t=' + encodeURIComponent(rawToken);
-      const messageBody = String(body.messageBody || buildDefaultMessage(row, portalUrl)).slice(0, 4000);
-      const recipientTo = String(body.recipientTo || '').trim().slice(0, 200);
-      const recipientName = String(body.recipientName || row.customer_name || '').trim().slice(0, 200);
-
-      if (channel === 'whatsapp_manual' && recipientTo && !digitsForWhatsApp(recipientTo)) {
-        return sendJson(res, 400, {
-          error: 'Enter a valid WhatsApp mobile number with country code (for example +91 98765 43210).'
-        });
-      }
-      if (channel === 'email_manual' && recipientTo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientTo)) {
-        return sendJson(res, 400, { error: 'Enter a valid email address.' });
-      }
-
-      const markShared = body.markShareClicked !== false;
+      const messageBody = messageWithPortalLink(body.messageBody || body.message, row, portalUrl);
       const sendRow = {
         id: uid('snd'),
         proposal_id: row.id,
@@ -2066,7 +2920,7 @@ async function handleApi(req, res, url) {
         token_id: tokenRow.id,
         owner_id: user.id,
         channel,
-        state: markShared ? 'share_clicked' : 'draft',
+        state: 'draft',
         recipient_name: recipientName,
         recipient_to: recipientTo,
         message_body: messageBody,
@@ -2076,29 +2930,22 @@ async function handleApi(req, res, url) {
         note: String(body.note || '').slice(0, 500),
         created_at: nowISO(),
         updated_at: nowISO(),
-        share_clicked_at: markShared ? nowISO() : null,
+        share_clicked_at: null,
         submitted_at: null,
         delivered_at: null
       };
       db.sends.push(sendRow);
-
-      if (row.status === 'draft' || row.status === 'ready' || row.status === 'internal_review') {
-        row.status = 'sent';
-        if (!row.sent_at) row.sent_at = nowISO();
-        row.updated_at = nowISO();
-      }
 
       recordEvent(db, {
         token_id: tokenRow.id,
         version_id: version.id,
         proposal_id: row.id,
         owner_id: user.id,
-        event_type: markShared ? 'share_clicked' : 'send_drafted',
+        event_type: 'send_drafted',
         meta: { channel, sendId: sendRow.id }
       });
       saveDb(db);
 
-      const waDigits = channel === 'whatsapp_manual' ? digitsForWhatsApp(recipientTo) : '';
       const launch = {
         whatsappUrl: waDigits
           ? ('https://wa.me/' + waDigits + '?text=' + encodeURIComponent(messageBody))
@@ -2110,10 +2957,10 @@ async function handleApi(req, res, url) {
             ) +
             '&body=' + encodeURIComponent(messageBody))
           : null,
-        copyText: messageBody,
+        copyText: channel === 'copy_link' ? portalUrl : messageBody,
         portalUrl,
         /* Explicit: these launches are not provider delivery receipts */
-        honesty: 'Launching WhatsApp or mail only means the share flow was opened. Delivery is unconfirmed until a provider reports it.'
+        honesty: 'The share action is not started yet. Launching WhatsApp/email or copying the message records only that action, not delivery.'
       };
 
       return sendJson(res, 201, {
@@ -2152,7 +2999,16 @@ async function handleApi(req, res, url) {
       }
       sendRow.state = next;
       sendRow.updated_at = nowISO();
-      if (next === 'share_clicked' && !sendRow.share_clicked_at) sendRow.share_clicked_at = nowISO();
+      if (next === 'share_clicked' && !sendRow.share_clicked_at) {
+        sendRow.share_clicked_at = nowISO();
+        const proposal = (db.proposals || []).find((p) => p.id === sendRow.proposal_id && inScope(scope, p));
+        if (proposal && ['draft', 'ready', 'internal_review'].includes(proposal.status)) {
+          proposal.status = 'sent';
+          if (!proposal.sent_at) proposal.sent_at = nowISO();
+          proposal.updated_at = nowISO();
+          proposal.revision = proposalRevision(proposal) + 1;
+        }
+      }
       if (next === 'submitted_to_provider' && !sendRow.submitted_at) sendRow.submitted_at = nowISO();
       if (next === 'delivered' && !sendRow.delivered_at) sendRow.delivered_at = nowISO();
       if (body.note) sendRow.note = String(body.note).slice(0, 500);
@@ -2280,6 +3136,17 @@ async function handleApi(req, res, url) {
         task.title = title.slice(0, 200);
       }
       if (body.notes != null) task.notes = String(body.notes).slice(0, 2000);
+      if (body.proposalId !== undefined) {
+        const proposalId = body.proposalId == null ? '' : String(body.proposalId).trim();
+        const existingProposalId = task.proposal_id == null ? '' : String(task.proposal_id);
+        /* Keep an existing link when the task is editable but that proposal is
+           no longer visible to this user. New/replacement links must be in scope. */
+        if (proposalId && proposalId !== existingProposalId &&
+            !(db.proposals || []).some((p) => p.id === proposalId && inScope(scope, p))) {
+          return sendJson(res, 404, { error: 'Proposal not found for this task' });
+        }
+        task.proposal_id = proposalId || null;
+      }
       if (body.dueAt !== undefined) {
         if (body.dueAt === null || body.dueAt === '') task.due_at = null;
         else {
@@ -2385,15 +3252,32 @@ async function handleApi(req, res, url) {
       /* Local single-tenant: list accounts on this server. Company org scoping
          comes later. Last login comes from the sessions list (most recent
          session issued), falling back to account creation. */
+      /* Kudos: one pass over the likes rather than a lookup per row. The
+         array is optional — an older data file simply has no hearts. */
+      const likeRows = db.member_likes || [];
+      const likeCount = new Map();
+      likeRows.forEach((r) => {
+        if (!r || !r.target_id) return;
+        likeCount.set(r.target_id, (likeCount.get(r.target_id) || 0) + 1);
+      });
+      const mineSet = new Set(
+        likeRows.filter((r) => r && r.liker_id === user.id).map((r) => r.target_id)
+      );
+      const kudos = (u) => ({ likes: likeCount.get(u.id) || 0, likedByMe: mineSet.has(u.id) });
       const members = (db.users || []).map((u) => {
         const logins = (db.sessions || [])
           .filter((x) => x.user_id === u.id)
           .map((x) => String(x.created_at || ''));
         const login = logins.sort().pop() || null;
-        /* S2: only the actor's own row carries an elevation field. */
+        /* S2: only the actor's own row carries an elevation field. Contact
+           detail, by contrast, goes to every member — the eye opens the same
+           card for everyone — so only the CONTROLS stay behind the gate.
+           Sign-in times ride the caller's manage flag for everyone ELSE's
+           row; the caller's own row keeps them, because an account may always
+           read when it itself last signed in. */
         return u.id === user.id
-          ? selfMemberPayload(u, login)
-          : memberPayload(u, login, { contact: canAdmin });
+          ? selfMemberPayload(u, login, kudos(u))
+          : memberPayload(u, login, Object.assign({ contact: true, signin: canAdmin }, kudos(u)));
       });
       return sendJson(res, 200, {
         members,
@@ -2408,12 +3292,25 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'team' && parts[1] === 'role' && method === 'POST') {
-      if (!canAdmin) {
-        return sendJson(res, 403, { error: 'Only the workspace owner can change roles.' });
-      }
       const body = await readBody(req);
       const targetId = String(body.userId || '');
       const wanted = String(body.role || '').trim().toLowerCase();
+      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
+        ? String(body.roleCustom)
+        : (body.title != null && body.title !== '') ? String(body.title) : null;
+      /* THE SELF-ELEVATION DOOR. Power follows the ROLE now, so the designated
+         mailbox reaches this route at its stored rank with nothing to its name
+         — and the owner gate below would refuse it, which would mean elevation
+         could never be STARTED. So before that gate, exactly one passage is
+         open: the designated address, naming its OWN row, asking for the word
+         "admin". It opens nothing else — every other row and every other
+         command stops at the gate — and once inside, the checks that already
+         exist (ELEVATION_NOT_SELF, self-only elevation) apply unchanged. */
+      const wantsAdminWord = (rawTitle != null && rawTitle.trim().toLowerCase() === 'admin') || wanted === 'admin';
+      const selfElevationDoor = canElevate(user) && targetId === user.id && wantsAdminWord;
+      if (!canAdmin && !selfElevationDoor) {
+        return sendJson(res, 403, { error: 'Only the workspace owner can change roles.' });
+      }
       const target = (db.users || []).find((u) => u.id === targetId);
       if (!target) return sendJson(res, 404, { error: 'User not found' });
 
@@ -2426,10 +3323,6 @@ async function handleApi(req, res, url) {
       if (targetElevated && !actorIsAdmin) {
         return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
       }
-
-      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
-        ? String(body.roleCustom)
-        : (body.title != null && body.title !== '') ? String(body.title) : null;
 
       /* ---- ELEVATION by typing "admin" ----
          Self-service for the designated ADMIN_EMAIL login only, on its own row.
@@ -2459,7 +3352,14 @@ async function handleApi(req, res, url) {
       if (rawTitle != null) {
         const t = parseRoleTitle(rawTitle);
         if (t.error) return sendJson(res, 400, { error: t.error });
-        parsed = wantsOwner ? { role: 'owner', roleCustom: t.roleCustom } : t;
+        /* A title rides ALONGSIDE a power key instead of replacing it: owner
+           keeps owner power with the title as its chip, and Sales/Engineer
+           keeps the wording in role_custom — that is the title preserve, so a
+           role change edits ACCESS and never the wording. Only `custom` takes
+           its power from a title arriving with no explicit power key. */
+        parsed = wantsOwner ? { role: 'owner', roleCustom: t.roleCustom }
+          : (wanted === 'sales' || wanted === 'viewer') ? { role: wanted, roleCustom: t.roleCustom }
+          : t;
       } else if (wantsCustom) {
         parsed = { error: 'Choose a power level, or send a title to show.' };
       } else {
@@ -2491,8 +3391,97 @@ async function handleApi(req, res, url) {
       const note = normalizeEmail(target.email) === ownerEmail() && parsed.role !== 'owner'
         ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in (its display title is kept). To make this change stick, remove or change OWNER_EMAIL in the server environment.'
         : null;
-      const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target);
+      /* This route is owner / designated-admin gated, so the returned row keeps
+         its sign-in times and never drifts from the team list's shape. */
+      const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target, undefined, { signin: true });
       return sendJson(res, 200, { member: outMember, note });
+    }
+
+    /* Removing a member — parity with the worker: owner or designated admin
+       only, the same three rows unreachable, and the same counts returned so
+       the confirmation can read them out loud before anything is sent.
+
+       The JSON store has no foreign keys, so the cascade the worker gets from
+       ON DELETE CASCADE is performed here by hand, in dependency order:
+       proposal children first, then the owner's own rows, then the account. */
+    /* ---- the heart on the member card: ONE vote per member per member ----
+       Anyone signed in may press it — it is a count of clicks and decides
+       nothing — but the unique pair is what makes it exactly one: a row for an
+       already-voted pair is never appended twice, so a double click or a
+       replayed request cannot inflate the counter. The route is a TOGGLE, so
+       the front end sends the same POST either way and the reply says which
+       state it landed in. */
+    if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts[3] === 'like' && method === 'POST') {
+      const targetId = String(parts[2]);
+      const target = (db.users || []).find((u) => u.id === targetId);
+      if (!target) return sendJson(res, 404, { error: 'User not found' });
+      db.member_likes = db.member_likes || [];
+      const at = db.member_likes.findIndex((r) => r && r.liker_id === user.id && r.target_id === targetId);
+      let liked;
+      if (at >= 0) {
+        db.member_likes.splice(at, 1);
+        liked = false;
+      } else {
+        db.member_likes.push({ liker_id: user.id, target_id: targetId, created_at: nowISO() });
+        liked = true;
+      }
+      saveDb(db);
+      const count = db.member_likes.filter((r) => r && r.target_id === targetId).length;
+      return sendJson(res, 200, { ok: true, likes: count, likedByMe: liked });
+    }
+
+    if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts.length === 3 && method === 'DELETE') {
+      if (!canAdmin) return sendJson(res, 403, { error: 'Only the workspace owner can remove members.' });
+      const target = (db.users || []).find((u) => u.id === String(parts[2]));
+      if (!target) return sendJson(res, 404, { error: 'User not found' });
+      if (target.id === user.id) {
+        return sendJson(res, 403, { error: 'You cannot remove the account you are signed in with.' });
+      }
+      if (ownerEmail() && normalizeEmail(target.email) === ownerEmail()) {
+        return sendJson(res, 403, {
+          error: 'This mailbox is the workspace OWNER_EMAIL, so it cannot be removed. Change or remove that server variable first.'
+        });
+      }
+      if (isAdminRow(target) && !canElevate(user)) {
+        return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
+      }
+
+      const mine = (row) => row && row.owner_id === target.id;
+      const ownedProposalIds = new Set((db.proposals || []).filter(mine).map((p) => p.id));
+      const ownedVersionIds = new Set((db.versions || []).filter((v) => mine(v) || ownedProposalIds.has(v.proposal_id)).map((v) => v.id));
+      const ownsProposal = (row) => row && (ownedProposalIds.has(row.proposal_id) || ownedVersionIds.has(row.version_id));
+
+      const owned = {
+        proposals: ownedProposalIds.size,
+        customers: (db.customers || []).filter(mine).length,
+        tasks: (db.tasks || []).filter(mine).length,
+        notifications: (db.notifications || []).filter(mine).length,
+        galleryUploads: (db.gallery || []).filter((g) => g && g.created_by === target.id).length,
+        sessions: (db.sessions || []).filter((s) => s && s.user_id === target.id).length
+      };
+
+      db.tokens = (db.tokens || []).filter((t) => !mine(t) && !ownsProposal(t));
+      db.events = (db.events || []).filter((e) => !ownsProposal(e));
+      db.sends = (db.sends || []).filter((s) => !mine(s) && !ownsProposal(s));
+      db.versions = (db.versions || []).filter((v) => !mine(v) && !ownedProposalIds.has(v.proposal_id));
+      db.proposals = (db.proposals || []).filter((p) => !mine(p));
+      db.customers = (db.customers || []).filter((c) => !mine(c));
+      db.tasks = (db.tasks || []).filter((t) => !mine(t));
+      db.notifications = (db.notifications || []).filter((n) => !mine(n));
+      db.gallery = (db.gallery || []).filter((g) => !(g && g.created_by === target.id));
+      db.sessions = (db.sessions || []).filter((s) => !(s && s.user_id === target.id));
+      db.password_resets = (db.password_resets || []).filter((r) => !(r && r.user_id === target.id));
+      /* Kudos rows point both ways — the ones this member gave and the ones it
+         received — and only the team list reads them, so they go with the
+         account instead of surviving as a count of a ghost. */
+      db.member_likes = (db.member_likes || [])
+        .filter((r) => !(r && (r.liker_id === target.id || r.target_id === target.id)));
+      db.users = (db.users || []).filter((u) => u.id !== target.id);
+      saveDb(db);
+      return sendJson(res, 200, {
+        ok: true,
+        removed: Object.assign({ email: target.email, name: target.name }, owned)
+      });
     }
 
     return sendJson(res, 404, { error: 'Unknown API route' });

@@ -8,6 +8,13 @@
 
 (function () {
   const $ = (id) => document.getElementById(id);
+  const PRODUCTION_VERCEL_HOST = 'quotation-studio-taupe.vercel.app';
+  function isUnisolatedVercelPreview() {
+    try {
+      const host = String(location.hostname || '').toLowerCase();
+      return host.endsWith('.vercel.app') && host !== PRODUCTION_VERCEL_HOST;
+    } catch (_) { return false; }
+  }
 
   function param(name) {
     return new URLSearchParams(location.search).get(name);
@@ -216,6 +223,7 @@
   }
 
   function postEvent(token, type, meta) {
+    if (isUnisolatedVercelPreview()) return;
     try {
       fetch('/api/portal/event', {
         method: 'POST',
@@ -232,6 +240,14 @@
       showGate(
         'Link required',
         'Open the secure link provided by your installer. A proposal ID alone is not enough to view this page.',
+        true
+      );
+      return;
+    }
+    if (isUnisolatedVercelPreview()) {
+      showGate(
+        'Preview is isolated from production',
+        'Secure customer links are not opened from a Vercel Preview. Use the production quotation link instead.',
         true
       );
       return;

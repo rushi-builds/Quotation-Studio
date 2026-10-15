@@ -6,6 +6,8 @@ const { spawn } = require('child_process');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
 const SERVER = path.join(ROOT, 'platform/local-server/server.js');
@@ -63,8 +65,55 @@ function cookieFrom(res) {
 function tokenFrom(res) {
   return (res && res.json && res.json.token) || '';
 }
+/* The server keeps only a SHA-256 of the reset code, so a test that needs the
+   code itself recovers it the way anyone holding the database would: 1e6
+   six-digit guesses. Which is exactly why the code is single-use and
+   attempt-capped — the hash alone is not the defence, the expiry and the
+   attempt counter are. */
+function recoverResetCode() {
+  const db = JSON.parse(fs.readFileSync(path.join(DATA, 'db.json'), 'utf8'));
+  const row = (db.password_resets || []).filter((x) => !x.used_at).pop();
+  if (!row) return null;
+  for (let i = 0; i < 1000000; i++) {
+    const c = String(i).padStart(6, '0');
+    if (crypto.createHash('sha256').update(c).digest('hex') === row.code_hash) return c;
+  }
+  return null;
+}
+
+async function testVercelPreviewIsolation() {
+  let requests = 0;
+  const self = {};
+  const context = {
+    self,
+    location: { hostname: 'quotation-studio-git-review-arena.vercel.app', protocol: 'https:' },
+    fetch: async () => { requests++; throw new Error('Preview must not reach the live API'); },
+    setTimeout,
+    clearTimeout,
+    AbortController,
+    URL
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'assets/js/platform-api.js'), 'utf8'), context);
+  const available = await self.PlatformAPI.isAvailable();
+  t('Vercel Preview backend is reported unavailable without a network call', available === false && requests === 0, requests);
+  let blocked = false;
+  try { await self.PlatformAPI.listProposals(); }
+  catch (err) { blocked = err && err.code === 'PREVIEW_BACKEND_DISABLED'; }
+  t('Vercel Preview API calls are blocked before reaching the production rewrite', blocked && requests === 0, requests);
+  let portalRequests = 0;
+  const portalContext = {
+    location: { hostname: 'quotation-studio-git-review-arena.vercel.app', search: '?t=customer-token' },
+    document: { readyState: 'complete', getElementById: () => null },
+    window: {}, URLSearchParams,
+    fetch: async () => { portalRequests++; throw new Error('Preview must not fetch customer data'); }
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'assets/js/portal.js'), 'utf8'), portalContext);
+  t('Vercel Preview customer portal blocks proposal reads before fetch', portalRequests === 0, portalRequests);
+
+}
 
 async function main() {
+  await testVercelPreviewIsolation();
   fs.rmSync(DATA, { recursive: true, force: true });
   fs.mkdirSync(DATA, { recursive: true });
 
@@ -72,7 +121,12 @@ async function main() {
     env: Object.assign({}, process.env, {
       PORT: String(PORT),
       HOST: '127.0.0.1',
-      QS_DATA_DIR: DATA
+      QS_DATA_DIR: DATA,
+      /* Recovery is live in these tests: the channel must be CONFIGURED for the
+         endpoint to answer at all (it fails closed when it is not). The value is
+         a dummy, so every send stops at AUTH and no mail ever leaves the
+         machine — only the issuing, throttling and verification paths run. */
+      SMTP_PASSWORD: 'dummy-not-a-real-secret'
     }),
     cwd: ROOT,
     stdio: ['ignore', 'pipe', 'pipe']
@@ -103,6 +157,19 @@ async function main() {
       password: 'short'
     });
     t('reject short password', r.status === 400);
+
+    /* Mixed characters (owner request, 2026-10-10): at least two of lowercase /
+       uppercase / digits / symbols. Applies to passwords being SET only — the
+       sign-in path below never runs this policy, so no existing account can be
+       locked out by it. */
+    r = await req('POST', '/api/auth/register', {
+      name: 'Test Owner',
+      email: 'owner@example.com',
+      password: 'abcdefghijkl'
+    });
+    t('reject single-class password (no mixed characters)',
+      r.status === 400 && /mix at least two/i.test((r.json && r.json.error) || ''),
+      r.json && r.json.error);
 
     r = await req('POST', '/api/auth/register', {
       name: 'Test Owner',
@@ -194,13 +261,47 @@ async function main() {
       password: 'wrong-password'
     });
     t('bad login 401', r.status === 401);
-    t('bad login uniform message', r.json && r.json.error === 'Invalid email or password');
+    /* The copy carries a create-account hint now, but the security property is
+       that ONE message serves BOTH failures. Capture it so the unknown-email
+       case below can be compared against it exactly. */
+    const uniformLoginError = r.json && r.json.error;
+    t('bad login message explains itself', /^Invalid email or password\./.test(uniformLoginError || ''));
+    t('bad login message invites a new account', /Create one\./.test(uniformLoginError || ''));
 
     r = await req('POST', '/api/auth/login', {
       email: 'nobody-not-registered@example.com',
       password: 'wrong-password'
     });
-    t('unknown email same 401 message', r.status === 401 && r.json.error === 'Invalid email or password');
+    /* THE anti-enumeration property: an unknown address must never be told
+       "no such account". Same status AND byte-identical message as a wrong
+       password, so nothing distinguishes the two from outside. */
+    t('unknown email same 401 message', r.status === 401 && r.json.error === uniformLoginError);
+
+    /* "Remember me" is OFF by default (owner decision, 2026-10-10): the cookie
+       carries no Max-Age, so the browser drops it when it closes, and the
+       server-side session row is capped at 12 hours. Ticking the box restores
+       the 30-day behaviour. */
+    r = await req('POST', '/api/auth/login', {
+      email: 'owner@example.com', password: 'password123'
+    });
+    const defaultCookie = (r.setCookie || []).join(' | ');
+    t('remember me OFF by default: cookie has no Max-Age',
+      r.status === 200 && !/Max-Age=/.test(defaultCookie), defaultCookie);
+    t('remember me OFF by default: session capped near 12 hours', (() => {
+      const hours = (Date.parse(r.json.expiresAt) - Date.now()) / 36e5;
+      return hours > 11.5 && hours <= 12.1;
+    })());
+
+    r = await req('POST', '/api/auth/login', {
+      email: 'owner@example.com', password: 'password123', remember: true
+    });
+    const rememberedCookie = (r.setCookie || []).join(' | ');
+    t('remember me ticked: cookie carries the 30-day Max-Age',
+      r.status === 200 && /Max-Age=2592000/.test(rememberedCookie), rememberedCookie);
+    t('remember me ticked: session expires about 30 days out', (() => {
+      const days = (Date.parse(r.json.expiresAt) - Date.now()) / 864e5;
+      return days > 29 && days <= 30.1;
+    })());
 
     /* Exhaust backoff on a throwaway email: 5 quick fails then 429. */
     const burn = 'burn-' + Date.now() + '@example.com';
@@ -319,26 +420,64 @@ async function main() {
     t('portal loads portal.js', portalHtml.body.includes('portal.js'));
 
     /* ---- Phase C: send centre (honest manual states) ---- */
+    r = await req('GET', '/api/proposals/' + pid + '/send-preview', null, cookie2);
+    t('send preview exposes a matching contract and draft state', r.status === 200 && r.json.proposal.id === pid &&
+      Array.isArray(r.json.channels) && r.json.channels.every(c => c.recordsAs === 'draft') &&
+      typeof r.json.defaultRecipientName === 'string' && typeof r.json.honestyNote === 'string');
+
     r = await req('POST', '/api/proposals/' + pid + '/sends', {
       channel: 'whatsapp_manual',
       recipientName: 'Portal Customer',
       recipientTo: '9876543210',
+      messageBody: 'Hello Portal Customer — our team prepared a custom note. [A secure link will be inserted when you prepare the send] Please reply with questions.',
       publishFirst: true,
       markShareClicked: true
     }, cookie2);
     t('send prepare 201', r.status === 201 && r.json.send && r.json.launch, r.status);
-    t('send state is share_clicked', r.json.send.state === 'share_clicked', r.json.send && r.json.send.state);
+    t('preparation remains an unshared draft', r.json.send.state === 'draft' && r.json.send.shareClickedAt === null && r.json.send.stateLabel === 'Draft (not shared)', r.json.send && r.json.send.state);
     t('send never claims verified delivery', r.json.send.deliveryIsVerified === false);
-    t('whatsapp launch url present', !!(r.json.launch && r.json.launch.whatsappUrl && r.json.launch.whatsappUrl.includes('wa.me')));
+    t('whatsapp launch url present', !!(r.json.launch && r.json.launch.whatsappUrl && r.json.launch.whatsappUrl.includes('wa.me/919876543210')));
     t('portal url in launch', !!(r.json.launch && r.json.launch.portalUrl && r.json.launch.portalUrl.includes('portal.html?t=')));
+    t('message and copy include the real portal URL', r.json.launch.copyText === r.json.send.messageBody && r.json.send.messageBody.includes(r.json.launch.portalUrl) && !r.json.send.messageBody.includes('[A secure link'));
+    t('one-time active access token and version are returned', !!(r.json.access && r.json.access.token && r.json.access.active === true && r.json.version && r.json.version.versionLabel));
+    t('custom message text survives real portal-link insertion', r.json.send.messageBody.startsWith('Hello Portal Customer — our team prepared a custom note.') && r.json.send.messageBody.endsWith('Please reply with questions.'));
     const sendId = r.json.send.id;
     const sendTok = r.json.access && r.json.access.token;
+    t('send link opens the created portal token', r.json.send.portalUrl === r.json.launch.portalUrl && !!sendTok);
+    const customerPortal = await req('GET', '/api/portal/proposal?t=' + encodeURIComponent(sendTok));
+    t('generated send link opens its published customer snapshot',
+      customerPortal.status === 200 && customerPortal.json.snapshot.customerName === 'CHANGED DRAFT',
+      customerPortal.status === 200 ? customerPortal.json.snapshot.customerName : customerPortal.status);
+    t('WhatsApp launch message is the encoded send text',
+      new URL(r.json.launch.whatsappUrl).searchParams.get('text') === r.json.send.messageBody);
+
+    r = await req('GET', '/api/proposals/' + pid, null, cookie2);
+    t('preparing does not mark proposal sent', r.status === 200 && r.json.proposal.status !== 'sent', r.json.proposal && r.json.proposal.status);
+    const revisionBeforeShare = r.json.proposal.revision;
+
+    r = await req('POST', '/api/sends/' + sendId + '/state', { state: 'share_clicked', note: 'User copied the message' }, cookie2);
+    t('actual share action records share_clicked', r.status === 200 && r.json.send.state === 'share_clicked' && !!r.json.send.shareClickedAt && r.json.send.deliveryIsVerified === false, r.status);
+    const sharedProposal = await req('GET', '/api/proposals/' + pid, null, cookie2);
+    t('share action updates proposal status and bumps its revision',
+      sharedProposal.json.proposal.status === 'sent' && sharedProposal.json.proposal.revision === revisionBeforeShare + 1);
+    const staleShareWrite = await req('PUT', '/api/proposals/' + pid, { status: 'draft', baseRevision: revisionBeforeShare }, cookie2);
+    t('pre-share Studio revision cannot overwrite the share status', staleShareWrite.status === 409, staleShareWrite.status);
 
     r = await req('POST', '/api/sends/' + sendId + '/state', { state: 'delivered' }, cookie2);
     t('manual cannot mark delivered', r.status === 400 && r.json.code === 'DELIVERY_NOT_AVAILABLE', r.status);
 
     r = await req('POST', '/api/sends/' + sendId + '/state', { state: 'cancelled' }, cookie2);
     t('manual can cancel', r.status === 200 && r.json.send.state === 'cancelled');
+
+    const versionsBeforeInvalid = (await req('GET', '/api/proposals/' + pid + '/versions', null, cookie2)).json.versions.length;
+    const linksBeforeInvalid = (await req('GET', '/api/proposals/' + pid + '/links', null, cookie2)).json.links.length;
+    r = await req('POST', '/api/proposals/' + pid + '/sends', {
+      channel: 'whatsapp_manual', recipientTo: '123', publishFirst: true
+    }, cookie2);
+    t('invalid WhatsApp recipient is rejected before creating data', r.status === 400, r.status);
+    t('invalid share creates no version or link',
+      (await req('GET', '/api/proposals/' + pid + '/versions', null, cookie2)).json.versions.length === versionsBeforeInvalid &&
+      (await req('GET', '/api/proposals/' + pid + '/links', null, cookie2)).json.links.length === linksBeforeInvalid);
 
     r = await req('GET', '/api/proposals/' + pid + '/sends', null, cookie2);
     t('sends list', r.status === 200 && r.json.sends.length >= 1);
@@ -347,10 +486,20 @@ async function main() {
       channel: 'email_manual',
       recipientTo: 'customer@example.com',
       recipientName: 'Portal Customer',
+      messageBody: 'Please review the details at [A secure link will be inserted when you prepare the send]. Call if you need help.',
       publishFirst: true
     }, cookie2);
-    t('email send prepare', r.status === 201 && r.json.launch && r.json.launch.mailtoUrl, r.status);
+    t('email send preparation returns matching launch keys', r.status === 201 && r.json.launch && r.json.launch.mailtoUrl && r.json.launch.copyText === r.json.send.messageBody, r.status);
     t('email mailto has recipient', r.json.launch.mailtoUrl.includes('customer%40example.com') || r.json.launch.mailtoUrl.includes('customer@example.com'));
+    t('email preparation also remains draft', r.json.send.state === 'draft' && r.json.send.shareClickedAt === null);
+    t('email custom text and real link are preserved', r.json.send.messageBody.startsWith('Please review the details at ') && r.json.send.messageBody.endsWith('Call if you need help.') && r.json.send.messageBody.includes(r.json.send.portalUrl));
+
+    r = await req('POST', '/api/proposals/' + pid + '/sends', {
+      channel: 'copy_link',
+      messageBody: 'Copy link channel',
+      publishFirst: true
+    }, cookie2);
+    t('copy_link channel returns the customer URL as copyText', r.status === 201 && r.json.launch.copyText === r.json.launch.portalUrl && r.json.send.messageBody.includes(r.json.launch.portalUrl));
 
     r = await req('GET', '/api/health');
     t('health phase C or later', r.status === 200 && ['C','D','E'].includes(r.json.phase), r.json && r.json.phase);
@@ -373,6 +522,34 @@ async function main() {
 
     r = await req('GET', '/api/tasks', null, cookie2);
     t('list tasks', r.status === 200 && r.json.tasks.some((x) => x.id === taskId));
+
+    const taskTarget = await req('POST', '/api/proposals', {
+      form: { custName: 'Task relink target', capacity: '5' }
+    }, cookie2);
+    const taskTargetId = taskTarget.json.proposal.id;
+    r = await req('PUT', '/api/tasks/' + taskId, {
+      title: 'Rescheduled customer follow-up',
+      notes: 'New notes',
+      dueAt: new Date(Date.now() + 5 * 864e5).toISOString(),
+      proposalId: taskTargetId
+    }, cookie2);
+    t('edit task changes date, notes and linked proposal', r.status === 200 && r.json.task.title === 'Rescheduled customer follow-up' && r.json.task.notes === 'New notes' && r.json.task.proposalId === taskTargetId && Date.parse(r.json.task.dueAt) > Date.now() + 4 * 864e5, r.status);
+    r = await req('PUT', '/api/tasks/' + taskId, { proposalId: 'prp_not_accessible' }, cookie2);
+    t('invalid task relink is rejected', r.status === 404, r.status);
+    r = await req('GET', '/api/tasks', null, cookie2);
+    t('failed task relink preserves the previous proposal', r.json.tasks.find(x => x.id === taskId).proposalId === taskTargetId);
+    r = await req('PUT', '/api/tasks/' + taskId, { proposalId: null }, cookie2);
+    t('task can be intentionally unlinked', r.status === 200 && r.json.task.proposalId === null);
+
+    const localDbPath = path.join(DATA, 'db.json');
+    const localDb = JSON.parse(fs.readFileSync(localDbPath, 'utf8'));
+    const formerLink = 'prp_formerly_accessible';
+    localDb.tasks.find(x => x.id === taskId).proposal_id = formerLink;
+    fs.writeFileSync(localDbPath, JSON.stringify(localDb, null, 2));
+    r = await req('PUT', '/api/tasks/' + taskId, {
+      title: 'Edit keeps an unavailable existing link', proposalId: formerLink
+    }, cookie2);
+    t('task edits preserve a prior link when that proposal is no longer accessible', r.status === 200 && r.json.task.proposalId === formerLink, r.status);
 
     r = await req('PUT', '/api/tasks/' + taskId, { status: 'done' }, cookie2);
     t('complete task', r.status === 200 && r.json.task.status === 'done');
@@ -423,22 +600,38 @@ async function main() {
     r = await req('GET', '/api/proposals', null, viewerCookie);
     t('viewer can list own proposals', r.status === 200);
 
-    /* CHANGED by the elevation round (item 5): the team panel is now readable
-       by every member, and only the ability to CHANGE a role plus the contact
-       column stay owner/designated-admin only. This assertion used to be
-       `r.status === 403`. The write gate is still proven below and in
-       qa/roles-access.test.js. */
+    /* CHANGED by the elevation round (item 5): the team panel is readable by
+       every member, and only the ability to CHANGE a role plus the Remove
+       button stay owner/designated-admin only. Contact detail now rides every
+       row too, because the eye opens the same card for everyone. This
+       assertion used to be `r.status === 403`. The write gate is still proven
+       below and in qa/roles-access.test.js. */
     r = await req('GET', '/api/team/members', null, viewerCookie);
     t('viewer may READ the team panel (view-only)', r.status === 200 && Array.isArray(r.json.members), r.status);
     t('viewer is told it does not manage the team', r.json.canManageTeam === false, JSON.stringify(r.json.canManageTeam));
-    t('viewer gets no contact detail for another member',
-      !r.json.members.some((m) => m.email === 'owner@example.com'), JSON.stringify(r.json.members.map((m) => m.email)));
+    t('viewer sees the same contact detail as the owner (the eye shows it to all)',
+      r.json.members.some((m) => m.email === 'owner@example.com'), JSON.stringify(r.json.members.map((m) => m.email)));
     t('viewer still sees its own email', r.json.members.some((m) => m.email === 'viewer@example.com'));
     t('viewer sees no elevation field on another row',
       !r.json.members.filter((m) => m.email !== 'viewer@example.com').some((m) => 'isAdmin' in m || 'canElevate' in m));
 
     r = await req('POST', '/api/team/role', { userId: 'someone-else', role: 'viewer' }, viewerCookie);
     t('viewer still cannot CHANGE a role', r.status === 403, r.status);
+
+    const teamDb = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+    teamDb.users.find(u => u.id === viewerId).role = 'sales';
+    fs.writeFileSync(fixturePath, JSON.stringify(teamDb));
+    const memberTask = await req('POST', '/api/tasks', { title: 'Member-owned team follow-up' }, viewerCookie);
+    t('sales member can create a follow-up', memberTask.status === 201, memberTask.status);
+    r = await req('PUT', '/api/tasks/' + memberTask.json.task.id, {
+      title: 'Owner rescheduled member follow-up',
+      dueAt: new Date(Date.now() + 6 * 864e5).toISOString(),
+      proposalId: pid
+    }, cookie2);
+    t('owner can edit a member follow-up and link an accessible proposal',
+      r.status === 200 && r.json.task.title === 'Owner rescheduled member follow-up' &&
+      r.json.task.proposalId === pid && Date.parse(r.json.task.dueAt) > Date.now() + 5 * 864e5,
+      r.status);
 
     r = await req('GET', '/api/health');
     t('health phase E', r.status === 200 && r.json.phase === 'E');
@@ -492,15 +685,46 @@ async function main() {
     t('new password works', r.status === 200);
     cookie2 = cookieFrom(r);
 
+    /* Self-service recovery (owner decision, 2026-10-10).
+
+       The property that matters is UNIFORMITY: every step answers with the same
+       status and body whether the address has an account or not, so none of it
+       is an enumeration oracle. The only difference between the two paths is
+       whether mail is attempted — and that now happens AFTER the reply is
+       written, so response time cannot tell them apart either. */
     r = await req('POST', '/api/auth/forgot-password', {
       email: 'owner@example.com'
     });
-    t('forgot password unavailable without disclosing secrets', r.status === 403 && r.json.code === 'RECOVERY_UNAVAILABLE' && !r.json.recoveryCode);
-    const unavailable = r.json;
+    const recoAccepted = r;
+    t('known account: code request accepted', r.status === 200 && r.json.ok === true, r.status + ' ' + JSON.stringify(r.json));
+    t('accepted reply leaks no code and no token',
+      !/\b\d{6}\b/.test(JSON.stringify(r.json)) && !r.json.token && !r.json.recoveryCode,
+      JSON.stringify(r.json));
     r = await req('POST', '/api/auth/forgot-password', {email:'no-such-user-xyz@example.com'});
-    t('unknown account gets identical recovery response', r.status === 403 && JSON.stringify(r.json) === JSON.stringify(unavailable));
+    t('unknown account gets identical recovery response',
+      r.status === recoAccepted.status && JSON.stringify(r.json) === JSON.stringify(recoAccepted.json),
+      r.status + ' ' + JSON.stringify(r.json));
+
+    /* The cooldown is per ADDRESS, so an unknown address opens its own window
+       on its first call and then walks exactly the same sequence. */
+    r = await req('POST', '/api/auth/forgot-password', {email:'owner@example.com'});
+    t('immediate second request is throttled', r.status === 429 && r.json.code === 'RESEND_COOLDOWN', r.status + ' ' + JSON.stringify(r.json));
+    const recoCooldown = JSON.stringify(r.json);
+    r = await req('POST', '/api/auth/forgot-password', {email:'no-such-user-xyz@example.com'});
+    t('unknown account throttled identically', r.status === 429 && JSON.stringify(r.json) === recoCooldown, r.status + ' ' + JSON.stringify(r.json));
+
+    /* Verify and reset answer the same way for a wrong code and for an address
+       that has no account at all. */
+    r = await req('POST', '/api/auth/verify-code', {email:'owner@example.com', code:'000000'});
+    const badVerify = r;
+    t('wrong code rejected on verify', r.status === 400 && r.json.code === 'CODE_INVALID' && !r.json.token, r.status + ' ' + JSON.stringify(r.json));
+    r = await req('POST', '/api/auth/verify-code', {email:'ghost@example.test', code:'000000'});
+    t('unknown account verify is indistinguishable',
+      r.status === badVerify.status && JSON.stringify(r.json) === JSON.stringify(badVerify.json),
+      r.status + ' ' + JSON.stringify(r.json));
+
     r = await req('POST', '/api/auth/reset-password', {email:'owner@example.com',code:'old-code',password:'resetpass88'});
-    t('public reset disabled including legacy codes', r.status === 403 && !r.json.token);
+    t('reset with a legacy/wrong code rejected', r.status === 400 && r.json.code === 'CODE_INVALID' && !r.json.token, r.status + ' ' + JSON.stringify(r.json));
     r = await req('POST', '/api/auth/login', {email:'owner@example.com',password:'newpass999'});
     t('recovery attempts preserve current password', r.status === 200);
     cookie2 = cookieFrom(r);
@@ -587,6 +811,67 @@ async function main() {
 
     r = await req('POST', '/api/auth/profile', { role: 'owner' }, customTok);
     t('profile ignores role change body', r.status === 200 && r.json.user.role === 'viewer', r.status);
+
+    /* --- Self-service recovery, full round trip (owner decision, 2026-10-10) --
+       Run on two dedicated accounts so it neither depends on nor disturbs any
+       password the rest of this file signs in with, and so no test has to wait
+       out the 45-second resend cooldown: each account makes its FIRST request. */
+    r = await req('POST', '/api/auth/register', {
+      name: 'Reco Round Trip', email: 'reco-round@example.com', password: 'password123', role: 'viewer'
+    });
+    t('recovery fixture registered', r.status === 201, r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/forgot-password', { email: 'reco-round@example.com' });
+    t('recovery code issued', r.status === 200 && r.json.ok === true, r.status + ' ' + JSON.stringify(r.json));
+
+    const roundCode = recoverResetCode();
+    t('code recovered from the stored hash', typeof roundCode === 'string' && /^\d{6}$/.test(roundCode), roundCode);
+
+    r = await req('POST', '/api/auth/verify-code', { email: 'reco-round@example.com', code: roundCode });
+    t('verify accepts the real code', r.status === 200 && r.json.ok === true, r.status + ' ' + JSON.stringify(r.json));
+    t('verify hands back no session and no code', !r.json.token && !/\b\d{6}\b/.test(JSON.stringify(r.json)), JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/verify-code', { email: 'reco-round@example.com', code: roundCode });
+    t('verify stays repeatable until the password is set', r.status === 200, r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/reset-password', { email: 'reco-round@example.com', code: roundCode, password: 'brandnew99' });
+    t('reset accepts the real code', r.status === 200 && r.json.ok === true, r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/login', { email: 'reco-round@example.com', password: 'password123' });
+    t('old password no longer works', r.status === 401, r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/login', { email: 'reco-round@example.com', password: 'brandnew99' });
+    t('new password works', r.status === 200, r.status + ' ' + JSON.stringify(r.json));
+
+    r = await req('POST', '/api/auth/reset-password', { email: 'reco-round@example.com', code: roundCode, password: 'anotherone1' });
+    t('code is single use', r.status === 400 && r.json.code === 'CODE_INVALID', r.status + ' ' + JSON.stringify(r.json));
+
+    /* Attempt cap. A 6-digit code is only 1e6 combinations, so five misses void
+       it rather than let a caller grind through the 10-minute window. Read back
+       from the stored row: the API deliberately cannot show the difference
+       between a voided code and a wrong one, which is the whole point. */
+    r = await req('POST', '/api/auth/register', {
+      name: 'Reco Attempts', email: 'reco-attempts@example.com', password: 'password123', role: 'viewer'
+    });
+    t('attempt fixture registered', r.status === 201, r.status);
+    r = await req('POST', '/api/auth/forgot-password', { email: 'reco-attempts@example.com' });
+    t('attempt fixture code issued', r.status === 200, r.status);
+    let verifyMisses = 0;
+    for (let miss = 0; miss < 5; miss++) {
+      r = await req('POST', '/api/auth/verify-code', { email: 'reco-attempts@example.com', code: String(100000 + miss) });
+      if (r.status === 400 && r.json && r.json.code === 'CODE_INVALID') verifyMisses++;
+      else t('wrong code rejected on attempt ' + (miss + 1), false, r.status + ' ' + JSON.stringify(r.json));
+    }
+    t('all five wrong codes rejected with the same reply', verifyMisses === 5, verifyMisses);
+    {
+      const db = JSON.parse(fs.readFileSync(path.join(DATA, 'db.json'), 'utf8'));
+      const uid2 = ((db.users.find((u) => u.email === 'reco-attempts@example.com')) || {}).id;
+      const rows = (db.password_resets || []).filter((x) => x.user_id === uid2);
+      const row = rows[rows.length - 1];
+      t('five misses void the code',
+        !!row && Number(row.attempts) >= 5 && !!row.used_at,
+        row ? 'attempts=' + row.attempts + ' used_at=' + row.used_at : 'no password_resets row');
+    }
     }
 
   } finally {
