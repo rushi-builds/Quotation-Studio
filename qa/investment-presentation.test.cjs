@@ -40,6 +40,8 @@ const battery = require('./bess-fixture.js');
           expected: { gross: Finance.fmtINR(f.grossTotal), net: Finance.fmtINR(f.netInvestment), base: Finance.fmtINR(f.projectCost), gst: '+ ' + Finance.fmtINR(f.gstAmount), subsidy: '− ' + Finance.fmtINR(f.subsidy) },
           labels: [text('v_inCostBaseL'), text('v_inCostNetL')],
           cards: page.querySelectorAll('.inv-card').length,
+          equipmentIcons: [...page.querySelectorAll('#v_inIncludes .inc-img, #v_inIncludes .inc-item>svg')].map(el => ({ visible: el.checkVisibility(), width: parseFloat(getComputedStyle(el).width), height: parseFloat(getComputedStyle(el).height) })),
+          cardFills: [...page.querySelectorAll('.inv-card')].map(el => getComputedStyle(el).backgroundImage),
           cardRows: [...page.querySelectorAll('.inv-card')].map(el => ({ top: el.offsetTop, width: el.offsetWidth })),
           chartHeight: page.querySelector('#chartBridge').clientHeight,
           chartAspectCorrect: Math.abs(page.querySelector('#chartBridge').width / page.querySelector('#chartBridge').clientWidth - page.querySelector('#chartBridge').height / page.querySelector('#chartBridge').clientHeight) < .03,
@@ -60,6 +62,10 @@ const battery = require('./bess-fixture.js');
       for (const key of ['gross', 'net', 'base', 'gst', 'subsidy']) assert.equal(result[key], result.expected[key], key);
       assert.equal(result.header, 'TOTAL PAYABLE TO KTM · INCLUDING GST');
       assert.equal(result.cards, 5);
+      assert.equal(result.equipmentIcons.length, 6, 'all six equipment inclusion icons retained');
+      assert(result.equipmentIcons.every(icon => icon.visible && icon.width >= 24 && icon.height >= 24), 'equipment icons are visible, not hidden by CSS');
+      assert(result.cardFills.every(fill => fill.includes('linear-gradient')), 'all five cards have a soft colour fill');
+      assert.equal(new Set(result.cardFills).size, 5, 'distinct, restrained palette for all five cards');
       assert(result.cardRows.slice(0, 3).every(card => card.top === result.cardRows[0].top && card.width >= 200));
       assert(result.cardRows[3].top === result.cardRows[4].top && result.cardRows[3].top > result.cardRows[0].top && result.cardRows[3].width >= 300, 'three cost cards then two wider benefit cards');
       assert(result.chartHeight >= 240 && result.chartAspectCorrect, 'tall chart is redrawn, never stretched');

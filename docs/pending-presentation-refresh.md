@@ -33,3 +33,14 @@
 ## Preview publishing
 
 The owner explicitly authorized this consolidated push. Existing GitHub integrations may trigger Vercel previews and automated Cloudflare builds. No manual Cloudflare/production deployment or PR merge is part of this handoff. The owner/OpenCode must review checks, handle the known baseline-test issues, and use the approved deployment workflow. Do not describe an old preview as the current release.
+
+## Post-release visual corrections — local, not deployed
+
+Owner reported the `f6b330c` deployment live as version `b2bb248a-674e-4e10-b4a4-d0f1b4d970fe` (reported by owner/OpenCode, not independently checked here).
+
+Subsequent screenshot feedback is addressed locally:
+- Automatic Residential About portrait uses its full image with `contain` in a matching 460px-tall frame; the text column reserves space so company statistics do not overlap it. Other categories and manual uploads retain their prior frame treatment. No artwork regenerated.
+- Five Investment cards retain 3+2 placement with distinct restrained blue, cream, mint, lavender and peach fills.
+- Restored all six original equipment inclusion images, previously hidden by the Investment CSS. Compact spacing preserves A4 clearance with BOM, tax notes and payment warnings.
+- Validation: About all-category/upload/reload/share/print/snapshot checks pass; all 15 Investment fixtures plus real 15-page Detailed PDF pass; inclusion visibility and full-portrait framing assertions added. Visual discovery 27/0, Finance 82/0, Integration 117/0. Finance and CloudBridge unchanged.
+- These corrections are NOT included in the previously reported live `f6b330c`; no subsequent push or deployment has been performed as part of this correction.

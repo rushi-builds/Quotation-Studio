@@ -25,10 +25,19 @@ const { chromium } = require('playwright');
       await view.locator('#img_about').evaluate(img => img.decode());
       const image = await view.locator('#img_about').evaluate(img => ({
         src: img.getAttribute('src'), width: img.naturalWidth, visible: img.checkVisibility(),
-        fit: getComputedStyle(img).objectFit, pageHeight: img.closest('.page').scrollHeight
+        fit: getComputedStyle(img).objectFit, pageHeight: img.closest('.page').scrollHeight,
+        fullFrame: img.closest('.page').classList.contains('about-full-photo'),
+        ratioDifference: Math.abs(img.clientWidth / img.clientHeight - img.naturalWidth / img.naturalHeight),
+        statsClear: img.closest('.photo-top').getBoundingClientRect().bottom + 10 <= document.getElementById('v_abStats').getBoundingClientRect().top
       }));
       assert.equal(image.src, expected); assert(image.width && image.visible && image.pageHeight <= 1124);
-      assert.equal(image.fit, 'cover');
+      const fullFrame = expected === sources.residential;
+      assert.equal(image.fit, fullFrame ? 'contain' : 'cover');
+      assert.equal(image.fullFrame, fullFrame, 'full framing only for automatic Residential artwork');
+      if (fullFrame) {
+        assert(image.ratioDifference < .01, 'complete portrait uses its native aspect ratio');
+        assert(image.statsClear, 'full portrait stays clear of company statistics');
+      }
       assert.equal(await view.locator('#pageAbout .pg-body').textContent(), copy, 'photo changes do not rewrite company copy');
     }
     async function snapshot(expected) {
@@ -72,6 +81,7 @@ const { chromium } = require('playwright');
         photo.style.height = getComputedStyle(source).height;
         photo.style.width = getComputedStyle(source).width;
         photo.style.position = 'relative'; photo.style.top = '0'; photo.style.right = '0';
+        photo.querySelector('img').style.objectFit = getComputedStyle(source.querySelector('img')).objectFit;
         document.body.append(photo);
         try { return (await html2canvas(photo, { scale: 1, logging: false })).toDataURL(); }
         finally { photo.remove(); }

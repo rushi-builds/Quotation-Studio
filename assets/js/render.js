@@ -336,6 +336,9 @@
     // Uploaded images remain proposal-specific. Customer View applies saved
     // uploads before rendering, so recognise those non-default sources too.
     const isDefault = Object.values(ABOUT_PHOTOS).some(([src]) => new URL(src, document.baseURI).href === img.src);
+    // This tall pergola image needs its full frame, not a centre-cropped slot.
+    // Uploaded photos and other categories retain their existing treatment.
+    $('pageAbout')?.classList.toggle('about-full-photo', !override && isDefault && (!ABOUT_PHOTOS[s.customerType] || s.customerType === 'residential'));
     if (override || !isDefault) {
       if (override && img.getAttribute('src') !== override) img.setAttribute('src', override);
       img.removeAttribute('data-print-src');
