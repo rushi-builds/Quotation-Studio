@@ -251,8 +251,8 @@
       if (await preflight() !== 'proceed') return;
       btn.disabled=true;btn.classList.add('busy');
       try{clearTimeout(statusTimer);
-        /* The PDF carries this proposal's own customer link (cover QR +
-           request form); make sure it exists before rendering. No-op when
+        /* The PDF carries this proposal's own customer request link;
+           make sure it exists before rendering. No-op when
            not signed in or when the cloud is unavailable. */
         await window.CloudBridge?.ensureShareLink?.();
         await exportPdf(m=>{status.textContent=m;},{format:$('pdfFormat')?.value});}

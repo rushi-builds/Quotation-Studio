@@ -142,21 +142,8 @@
       });
     }
 
-    /* cover QR - generated only from a real link provided by the user */
-    const qrWrap = $('coverQrWrap');
-    if (qrWrap) {
-      const url = (s.shareUrl || '').trim();
-      if (url && /^https?:\/\//i.test(url) && root.QRCode && $('qrCover')) {
-        qrWrap.style.display = '';
-        try {
-          root.QRCode.toCanvas($('qrCover'), url,
-            { width: 92, margin: 1, color: { dark: '#1C2B3F', light: '#FFFFFF' } },
-            function () { /* drawn */ });
-        } catch (e) { qrWrap.style.display = 'none'; }
-      } else {
-        qrWrap.style.display = 'none';
-      }
-    }
+    // Keep the cover artwork unobstructed. Customer links still serve request
+    // actions and WhatsApp sharing; portfolio QR codes remain on later pages.
   }
 
   /* ================================================================== */
