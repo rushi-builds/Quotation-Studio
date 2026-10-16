@@ -1131,31 +1131,50 @@
           <div class="rule-orange"></div>
           <p class="body-para body-para-wide" id="v_inDesc"></p>
 
+          <section class="inv-total" aria-label="Total payable to KTM including GST">
+            <div>
+              <div class="inv-total-label">TOTAL PAYABLE TO KTM · INCLUDING GST</div>
+              <div class="inv-total-value" id="v_inGrossTotal">-</div>
+              <div class="inv-total-copy">As per the agreed payment schedule.</div>
+              <div class="inv-total-copy" id="v_inGrossScope" style="display:none;">Solar project amount; optional upgrades priced separately.</div>
+            </div>
+            <div class="inv-total-checks"><div>✓ GST included</div><div>✓ Before estimated subsidy</div></div>
+          </section>
+          <div class="inv-breakdown-title">YOUR INVESTMENT BREAKDOWN</div>
           <div class="inv-cards">
             <div class="inv-card">
+              <span class="inv-icon" aria-hidden="true">₹</span>
               <div class="inv-l" id="v_inCostBaseL"></div>
               <div class="inv-v" id="v_inCostBase">-</div>
+              <div class="inv-cap"><span id="v_inRateL"></span>: <b id="v_inRate"></b></div>
             </div>
             <div class="inv-card">
+              <span class="inv-icon" aria-hidden="true">%</span>
               <div class="inv-l" id="v_inCostGstL"></div>
               <div class="inv-v" id="v_inCostGst">-</div>
+              <div class="inv-cap">Included in project total</div>
             </div>
             <div class="inv-card inv-card-sub">
+              <span class="inv-icon" aria-hidden="true">✓</span>
               <div class="inv-l" id="v_inCostSubL"></div>
               <div class="inv-v" id="v_inCostSub">-</div>
               <div class="inv-cap" id="v_inCostSubCap"></div>
             </div>
             <div class="inv-card inv-card-net">
+              <span class="inv-icon" aria-hidden="true">₹</span>
               <div class="inv-l" id="v_inCostNetL"></div>
               <div class="inv-v" id="v_inCostNet">-</div>
-              <div class="inv-cap"><span id="v_inRateL"></span>: <b id="v_inRate"></b></div>
+              <div class="inv-cap">Estimated cost after subsidy.<br>Not the amount due to KTM.</div>
             </div>
             <div class="inv-card inv-card-payback">
+              <span class="inv-icon" aria-hidden="true">↗</span>
               <div class="inv-l" id="v_inPaybackLabel"></div>
               <div class="inv-v" id="v_inPayback">-</div>
               <div class="inv-cap" id="v_inPaybackNote"></div>
             </div>
           </div>
+
+          <div class="inv-payment-note"><b>Payment and subsidy are separate.</b> The estimated subsidy is not an upfront discount; eligibility, approval and disbursement follow the applicable scheme.</div>
 
           <!-- Commercial & Industrial Tax Shield Banner -->
           <div class="tax-shield-banner" id="v_inTaxShieldBanner" style="display:none;">
@@ -1166,9 +1185,10 @@
             </div>
           </div>
 
+          <div class="inv-charts">
           <div class="chart-block" id="v_inBridgeSolo">
             <div class="chart-title" id="v_inBridgeTitle"></div>
-            <canvas id="chartBridge" class="chart-canvas" data-h="340" width="718" height="340"></canvas>
+            <canvas id="chartBridge" class="chart-canvas" data-h="210" width="718" height="210"></canvas>
           </div>
 
           <div class="bom-section" id="v_inBomSection" style="display:none;">
@@ -1178,6 +1198,8 @@
               <canvas id="chartDonut" class="chart-canvas" width="230" height="230"></canvas>
               <div class="bom-legend" id="v_inBomLegend"></div>
             </div>
+          </div>
+
           </div>
 
           <div class="sec-label mt-12" id="v_inIncludesLabel"></div>

@@ -214,12 +214,11 @@ details.page-group > summary::-webkit-details-marker{display:none;}
   display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:0 var(--page-pad);
 }
-/* Give the website its own line rather than clipping it behind the tagline.
-   Keep the existing footer height so print/PDF content clearance is unchanged. */
-.pg-foot .pf-left{font-size:8.6px;color:var(--gray);min-width:0;flex:1;display:flex;flex-direction:column;gap:2px;line-height:1.2;}
-.pg-foot .pf-contact{overflow-wrap:anywhere;}
-.pg-foot .pf-website{white-space:nowrap;}
-.pg-foot .pf-mid{font-size:8.2px;color:#B08850;letter-spacing:.12em;text-transform:uppercase;font-weight:600;white-space:nowrap;flex-shrink:0;}
+/* Keep standard company contact and website together. A shorter tagline
+   gives the complete domain room without shrinking or clipping the website. */
+.pg-foot .pf-left{font-size:8.6px;color:var(--gray);min-width:0;flex:1;display:flex;align-items:center;flex-wrap:wrap;column-gap:4px;row-gap:1px;line-height:1.2;}
+.pg-foot .pf-contact,.pg-foot .pf-website,.pg-foot .pf-divider{white-space:nowrap;}
+.pg-foot .pf-mid{font-size:7.4px;color:#B08850;letter-spacing:.035em;text-transform:uppercase;font-weight:600;white-space:nowrap;flex-shrink:0;}
 .pg-foot .pf-right{font-size:9px;color:var(--navy);font-weight:700;white-space:nowrap;flex-shrink:0;}
 
 /* corner photo — clean rectangle with orange base accent */
@@ -1759,3 +1758,59 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 .studio-cloud-bar .link-btn{flex:0 0 auto;padding:5px 10px;font-size:11px;}
 .cloud-sync-hint{flex:1 0 100%;font-size:10.5px;line-height:1.45;color:var(--navy-soft);}
 .cloud-sync-hint:empty{display:none;}
+
+/* Investment: gross amount is payable; estimated subsidy is a separate benefit. */
+#pageInvestment .inv-total{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-shrink:0;background:linear-gradient(115deg,#172e43,#223e54);border-left:4px solid var(--orange);border-radius:10px;padding:12px 18px;color:#fff;margin:0 0 9px;}
+#pageInvestment .inv-total-label{font-size:9px;font-weight:600;letter-spacing:.09em;color:#d1dce4;}
+#pageInvestment .inv-total-value{font:600 28px/1.35 'Poppins',sans-serif;letter-spacing:-.7px;margin-top:3px;}
+#pageInvestment .inv-total-copy{font-size:10px;line-height:1.5;color:#c0ced8;margin-top:2px;}
+#pageInvestment .inv-total-checks{border-left:1px solid #ffffff30;padding-left:18px;font-size:10px;line-height:2;color:#d7e1e8;}
+#pageInvestment .inv-breakdown-title{font-size:9px;letter-spacing:.1em;font-weight:700;color:#5a6b7b;margin:0 0 7px;}
+#pageInvestment .inv-cards{margin:0 0 8px;gap:8px;flex-shrink:0;}
+#pageInvestment .inv-card{padding:9px 8px;border-radius:9px;}
+#pageInvestment .inv-icon{display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:#f0f4f7;color:#526b80;font-weight:700;font-size:12px;margin-bottom:5px;}
+#pageInvestment .inv-l{font-size:8px;line-height:1.5;min-height:24px;letter-spacing:.025em;}
+#pageInvestment .inv-v{font-size:16px;letter-spacing:-.4px;white-space:nowrap;}
+#pageInvestment .inv-card-sub .inv-icon{background:#e5f0e8;color:#43805e;}
+#pageInvestment .inv-card-net{background:#f2f6fa;border-color:#dae4ed;}
+#pageInvestment .inv-card-net .inv-l{color:#71808d;}
+#pageInvestment .inv-card-net .inv-v{color:#294d6a;}
+#pageInvestment .inv-card-net .inv-cap{color:#6d7e8c;}
+#pageInvestment .inv-card-payback .inv-icon{background:#fbedda;color:#ad6b27;}
+#pageInvestment .inv-payment-note{font-size:9px;line-height:1.5;color:#687d8e;background:#fafbfc;border:1px solid #e6ebef;border-radius:7px;padding:8px 11px;margin-bottom:8px;}
+#pageInvestment #v_inDesc{margin:5px 0 9px;line-height:1.5;}
+#pageInvestment .chart-block{margin-top:8px;}
+#pageInvestment .spacer{max-height:10px;}
+/* Retain every chart, scope item and payment term inside A4, also with BOM
+   and the commercial tax illustration. Compact spacing, not financial data. */
+#pageInvestment .inv-cap{font-size:8.6px;line-height:1.3;}
+#pageInvestment .rule-orange{margin:7px 0;}
+#pageInvestment .includes-grid{gap:5px 8px;}
+#pageInvestment .includes-grid .inc-item{padding:5px 7px;}
+#pageInvestment .includes-grid .inc-img{width:24px;height:24px;flex-basis:24px;}
+#pageInvestment .sec-label{margin-bottom:6px;}
+#pageInvestment .pay-chip{padding:8px;}
+#pageInvestment #chartBridge{height:210px!important;}
+#pageInvestment.has-bom .bom-row{font-size:9.6px;line-height:1.35;padding:2px 0;}
+#pageInvestment.has-bom .bom-pct{font-size:9px;}
+#pageInvestment.has-bom .bom-intro{margin-bottom:5px;}
+#pageInvestment.has-bom .bom-warn{padding:5px 8px;font-size:9px;}
+#pageInvestment.has-bom .spacer{max-height:10px;}
+
+/* With an itemised BOM, compare both cost charts side by side instead of
+   pushing payment terms under the footer. Each chart retains its own labels. */
+#pageInvestment .inv-charts{flex-shrink:0;}
+#pageInvestment.has-bom .inv-charts{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-top:6px;align-items:start;}
+#pageInvestment.has-bom .inv-charts>div{min-width:0;}
+#pageInvestment.has-bom #chartBridge{width:100%!important;height:190px!important;}
+#pageInvestment.has-bom #chartDonut{width:90px!important;height:90px!important;}
+#pageInvestment.has-bom #v_inBomTitle{margin-top:0;}
+#pageInvestment.has-bom .bom-flex{gap:8px;}
+/* Leave room for an entered payment-percentage warning on itemised offers. */
+#pageInvestment.has-bom .inv-total{padding-top:10px;padding-bottom:10px;}
+#pageInvestment.has-bom .sec-label{padding-top:4px;padding-bottom:4px;}
+#pageInvestment.has-bom .includes-grid .inc-item{padding-top:3px;padding-bottom:3px;}
+#pageInvestment.has-bom .pay-chip{padding-top:7px;padding-bottom:7px;}
+#pageInvestment.has-bom .spacer{min-height:0;max-height:0;}
+#pageInvestment.has-bom .bom-row{gap:4px;}
+#pageInvestment.has-bom .bom-pct{width:32px;}

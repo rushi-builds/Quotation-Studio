@@ -31,6 +31,7 @@ const { chromium } = require('playwright');
         const others = [...footer.children].filter(el => el !== url && !el.contains(url)).map(el => el.getBoundingClientRect());
         return {
           page: footer.closest('.page').id, text: url.textContent,
+          inline: !footer.classList.contains('pg-foot') || Math.abs(footer.querySelector('.pf-contact').getBoundingClientRect().top - url.getBoundingClientRect().top) < 1,
           contained: text.left >= box.left && text.right <= box.right && text.top >= box.top && text.bottom <= box.bottom,
           fits: url.scrollWidth <= url.clientWidth + 1,
           separated: others.every(other => text.right <= other.left + 1 || text.left >= other.right - 1 || text.bottom <= other.top + 1 || text.top >= other.bottom - 1)
@@ -39,7 +40,7 @@ const { chromium } = require('playwright');
       assert(footers.length >= 6, 'all visible proposal footers checked');
       for (const footer of footers) {
         assert.equal(footer.text, expected, footer.page);
-        assert(footer.contained && footer.fits && footer.separated, JSON.stringify(footer));
+        assert(footer.contained && footer.fits && footer.separated && footer.inline, JSON.stringify(footer));
       }
       return footers.length;
     }

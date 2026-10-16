@@ -27,7 +27,7 @@ const CONTENT = {
 
   /* Elements shared across pages (edited once, applied everywhere) */
   shared: {
-    footerTagline: 'Engineering Excellence • Premium Quality • Trusted Performance',
+    footerTagline: 'Engineering Excellence • Trusted Performance',
     warrantyLine: '25-Year Module Performance Warranty'
   },
 
@@ -250,28 +250,28 @@ const CONTENT = {
   pageInvestment: {
     heading: 'Investment & Cost Breakdown',
     sub: 'Transparent Pricing. Outstanding Long-Term Returns.',
-    desc: 'A professionally engineered {capacity} rooftop solar system is one of the highest-returning investments available to a property owner today - delivering guaranteed energy savings, government subsidies and inflation-proof returns for over 25 years.',
+    desc: 'Your project price, applicable GST and estimated subsidy — clearly separated.',
     cards: {
-      projectCost: 'Project Cost',
+      projectCost: 'Project Cost · Excluding GST',
       gstLine: 'GST',
-      subsidy: 'Government Subsidy',
-      subsidyCaptionAuto: 'PM Surya Ghar - auto-calculated',
+      subsidy: 'Estimated Subsidy',
+      subsidyCaptionAuto: 'PM Surya Ghar · Subject to approval',
       subsidyCaptionTopUp: 'PM Surya Ghar + Maharashtra state top-up (entered)',
       subsidyCaptionOverride: 'As per proposal',
       subsidyCaptionNA: 'Not applicable for this connection type',
       totalCost: 'Total Project Cost',
       totalCostCaption: 'Including GST',
-      netInvestment: 'Net Investment',
-      netInvestmentCaption: 'Payable after subsidy'
+      netInvestment: 'Effective Cost After Subsidy',
+      netInvestmentCaption: 'Not the amount due to KTM'
     },
     paybackCard: { label: 'Estimated Payback', note: 'Projected solar savings', noRecovery: 'Within the 25-year projection' },
-    rateChip: 'Effective Rate',
+    rateChip: 'Quoted Rate',
     bridgeTitle: 'COST BUILD-UP',
     bomTitle: 'COST COMPOSITION',
     bomIntro: 'Indicative composition of the project cost (before GST), as entered for this proposal:',
     paymentLabel: 'PAYMENT SCHEDULE',
     paymentNote: 'Milestones as per agreement. Amounts shown against the total project cost including GST.',
-    disclaimer: 'Figures are engineering estimates based on the inputs above; actual generation and savings depend on site conditions, DISCOM tariff and policy at installation. Subsidy as per PM Surya Ghar slabs on the proposal date - subject to change.'
+    disclaimer: 'Generation and savings are estimates. Actual performance depends on site conditions, tariff and policy. Subsidy is subject to eligibility and approval.'
   },
 
   /* ------------------------------------------------------------------ */
@@ -306,7 +306,7 @@ const CONTENT = {
     differentiators: [
       { icon: 'gear',   title: 'In-House Structure Manufacturing', desc: 'Precision-engineered HDGI mounting structures, designed and manufactured in-house.' },
       { icon: 'drone',  title: 'Drone Site Survey', desc: 'Precision aerial mapping for accurate shadow analysis, roof measurement and layout planning.' },
-      { icon: 'chart',  title: 'PVsyst Energy Simulation', desc: 'Yield assessment is prepared during the agreed engineering scope, using verified site and equipment inputs-not generated automatically by this quotation.' },
+      { icon: 'chart',  title: 'PVsyst Energy Simulation', desc: 'Site-specific yield assessment is prepared during the agreed engineering scope.' },
       { icon: 'shield', title: 'Quality & Safety First', desc: 'Installation, earthing and testing to IS 732, IS 3043, IS/IEC 60364-7-712 and the IEC 62446-1 schedule, with quality audits at every stage.' },
       { icon: 'wrench', title: 'End-to-End EPC & After-Sales Support', desc: 'From design to commissioning to long-term AMC - we are with you for the life of the system.' },
       { icon: 'star',   title: '4.8-Star Rated on Google', desc: '400+ verified customer reviews across Maharashtra.' }
@@ -514,6 +514,11 @@ const PROJECT_IMAGES = {
    Both builder and customer view use this, so saved proposals get the same
    corrected engineering sequence without changing their financial inputs. */
 const CONTENT_COPY_UPDATES = Object.freeze({
+  "Engineering Excellence • Premium Quality • Trusted Performance": "Engineering Excellence • Trusted Performance",
+  "A professionally engineered {capacity} rooftop solar system is one of the highest-returning investments available to a property owner today - delivering guaranteed energy savings, government subsidies and inflation-proof returns for over 25 years.": "Your project price, applicable GST and estimated subsidy — clearly separated.",
+  "Yield assessment is prepared during the agreed engineering scope, using verified site and equipment inputs-not generated automatically by this quotation.": "Site-specific yield assessment is prepared during the agreed engineering scope.",
+  "PM Surya Ghar - auto-calculated": "PM Surya Ghar · Subject to approval",
+  "Figures are engineering estimates based on the inputs above; actual generation and savings depend on site conditions, DISCOM tariff and policy at installation. Subsidy as per PM Surya Ghar slabs on the proposal date - subject to change.": "Generation and savings are estimates. Actual performance depends on site conditions, tariff and policy. Subsidy is subject to eligibility and approval.",
   /* Wind, water-tightness and blanket-compliance claims retired: a document
      that does not compute the wind load cannot call a structure "engineered for
      monsoon wind loads". Proposals saved before this get the honest wording. */
@@ -526,7 +531,7 @@ const CONTENT_COPY_UPDATES = Object.freeze({
   "Surplus generation is exported to the grid and credited via net metering.": "Conceptual grid-tied layout, not a wiring plan. Protection and import/export are subject to site design and DISCOM approval.",
   "Designed Specifically for Your Property": "Initial Equipment & Design Basis",
   "Every KTM solar installation begins with a precision site assessment and PVsyst energy simulation - ensuring your system is engineered for maximum yield, not just installed for minimum cost. The following specifications have been tailored to your roof geometry, orientation and local solar radiation data.": "This proposal is an initial estimate based on the inputs shown. Roof measurements, shading, structural suitability and electricity data still need engineering verification. Detailed design and yield assessment follow the site review; supplied report links are listed under Technical Specification.",
-  "Every system is yield-optimised using PVsyst software before a single panel is installed.": "Yield assessment is prepared during the agreed engineering scope, using verified site and equipment inputs-not generated automatically by this quotation.",
+  "Every system is yield-optimised using PVsyst software before a single panel is installed.": "Site-specific yield assessment is prepared during the agreed engineering scope.",
   "1. Accept This Proposal": "Electricity information",
   "Sign below, or reply to us by email or WhatsApp - we take it from there.": "The latest bill, tariff category and sanctioned load help establish the design basis.",
   "2. Detailed Survey & Engineering": "Roof & site information",
@@ -546,6 +551,14 @@ function upgradeProposalContent(value) {
   const out = JSON.parse(JSON.stringify(value), (key, entry) =>
     typeof entry === 'string' && Object.prototype.hasOwnProperty.call(CONTENT_COPY_UPDATES, entry)
       ? CONTENT_COPY_UPDATES[entry] : entry);
+  if (out.pageInvestment && out.pageInvestment.rateChip === 'Effective Rate') out.pageInvestment.rateChip = 'Quoted Rate';
+  const investmentCards = out.pageInvestment && out.pageInvestment.cards;
+  if (investmentCards) {
+    if (investmentCards.projectCost === 'Project Cost') investmentCards.projectCost = 'Project Cost · Excluding GST';
+    if (investmentCards.subsidy === 'Government Subsidy') investmentCards.subsidy = 'Estimated Subsidy';
+    if (investmentCards.netInvestment === 'Net Investment') investmentCards.netInvestment = 'Effective Cost After Subsidy';
+    if (investmentCards.netInvestmentCaption === 'Payable after subsidy') investmentCards.netInvestmentCaption = 'Not the amount due to KTM';
+  }
   if (out.exec && out.exec.sub === 'Everything you need to know about your rooftop solar investment - on one page.') out.exec.sub = 'Your system, energy potential and turnkey delivery - at a glance.';
   if (out.exec && out.exec.systemHeroLabels && out.exec.systemHeroLabels.generation === 'Estimated Year-1 Generation') out.exec.systemHeroLabels.generation = 'Estimated Monthly Generation';
   if (out.exec && out.exec.systemKpis && !out.exec.systemKpis.annualGen) {

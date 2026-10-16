@@ -789,6 +789,9 @@
     set('v_inSub', root.Bess.included(s) ? 'Solar-only pricing • see Storage Assessment for the separate battery upgrade.' : P.sub);
     set('v_inDesc', tpl(P.desc, v));
 
+    set('v_inGrossTotal', F.fmtINR(f.grossTotal));
+    const separateUpgrades = root.Bess.included(s) || root.AdditionalSystems.included(s);
+    show('v_inGrossScope', separateUpgrades);
     set('v_inCostBase', F.fmtINR(f.projectCost));
     set('v_inCostBaseL', P.cards.projectCost);
     set('v_inCostGst', '+ ' + F.fmtINR(f.gstAmount));
@@ -796,7 +799,7 @@
     set('v_inCostSub', '− ' + F.fmtINR(f.subsidy));
     set('v_inCostSubL', P.cards.subsidy);
     set('v_inCostNet', F.fmtINR(f.netInvestment));
-    set('v_inCostNetL', root.Bess.included(s) ? 'Solar-only net investment' : P.cards.netInvestment);
+    set('v_inCostNetL', separateUpgrades ? 'Solar-only effective cost' : P.cards.netInvestment);
     /* subsidy caption reflects exactly how the number was derived */
     if ($('rwaEligibilityField')) $('rwaEligibilityField').hidden = s.customerType !== 'rwa';
     const subCap = f.subsidyAuto && s.customerType === 'rwa' ? (f.rwaEligibilityConfirmed ? 'RWA · entered eligible capacity' : 'RWA provisional · verify eligibility') : f.subsidyAuto ? (f.stateTopUp > 0 ? P.cards.subsidyCaptionTopUp : P.cards.subsidyCaptionAuto)
@@ -853,7 +856,7 @@
       '<div class="inc-item">' + (it.img ? '<img class="inc-img" src="assets/images/' + it.img + '" alt="">' : I.get(it.icon || 'check', 16, '#D96A0E')) +
       '<div class="inc-t">' + esc(it.title) + '</div></div>').join(''));
     set('v_inPayLabel', P.paymentLabel);
-    set('v_inPayNote', (root.Bess.included(s) ? 'Solar-only milestones. ' : '') + P.paymentNote);
+    set('v_inPayNote', (separateUpgrades ? 'Solar-only milestones. ' : '') + P.paymentNote);
     const pay = [
       ['v_inPayA', f.pay.advance, 'Advance - on signing'],
       ['v_inPayD', f.pay.dispatch, 'Before material dispatch'],
@@ -1111,7 +1114,10 @@
       const website = document.createElement('span');
       website.className = 'pf-website';
       website.textContent = s.companyWebsite;
-      el.replaceChildren(contact, website);
+      const divider = document.createElement('span');
+      divider.className = 'pf-divider';
+      divider.textContent = '•';
+      el.replaceChildren(contact, divider, website);
     });
     const tagline = String(CONTENT.shared.footerTagline || '').replace(/&nbsp;/g, ' ').replace(/<[^>]*>/g, '');
     document.querySelectorAll('[data-foot-tagline]').forEach((el) => { el.textContent = tagline; });

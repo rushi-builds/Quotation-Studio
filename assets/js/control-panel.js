@@ -16,7 +16,7 @@
 
     const overview = element('section', 'studio-overview');
     overview.setAttribute('aria-label', 'Live quotation summary');
-    overview.innerHTML = '<div class="studio-overview-top"><span><i></i> LIVE QUOTATION</span><span class="studio-page-count"></span></div><div class="studio-metrics"><div><small>System capacity</small><strong data-metric="capacity"></strong></div><div><small>Net investment</small><strong data-metric="investment"></strong></div><div><small>Year-one energy</small><strong data-metric="energy"></strong></div></div>';
+    overview.innerHTML = '<div class="studio-overview-top"><span><i></i> LIVE QUOTATION</span><span class="studio-page-count"></span></div><div class="studio-metrics"><div><small>System capacity</small><strong data-metric="capacity"></strong></div><div><small>Total Project Cost</small><strong data-metric="investment"></strong></div><div><small>Annual Energy</small><strong data-metric="energy"></strong></div></div>';
     const overviewBar = element('div', 'studio-overview-bar');
     overviewBar.append(overview);
     panel.insertBefore(overviewBar, form);
@@ -213,9 +213,11 @@
       const state = window.Render.lastState || window.Render.readState();
       const f = window.Finance.compute(state);
       overview.querySelector('[data-metric="capacity"]').textContent = (state.capacity || '-') + ' kWp';
-      overview.querySelector('[data-metric="investment"]').previousElementSibling.textContent=(window.Bess.included(state)||window.AdditionalSystems.included(state))?'Solar-only investment':'Net investment';
-      overview.querySelector('[data-metric="investment"]').textContent = window.Finance.fmtINR(f.netInvestment);
+      overview.querySelector('[data-metric="investment"]').previousElementSibling.textContent=(window.Bess.included(state)||window.AdditionalSystems.included(state))?'Solar Project Cost':'Total Project Cost';
+      overview.querySelector('[data-metric="investment"]').textContent = window.Finance.fmtINR(f.grossTotal);
+      overview.querySelector('[data-metric="investment"]').title = 'Including GST, before estimated subsidy; optional upgrades priced separately';
       overview.querySelector('[data-metric="energy"]').textContent = window.Finance.fmtNum(f.annualGen) + ' kWh';
+      overview.querySelector('[data-metric="energy"]').title = 'Estimated first-year annual generation';
       overview.querySelector('.studio-page-count').textContent = window.Render.lastVisible.length + ' pages';
       /* Live derived read-outs. The rate fields above them are per-kWp and
          per-Wp, so without these the panel looks like it ignores the capacity
