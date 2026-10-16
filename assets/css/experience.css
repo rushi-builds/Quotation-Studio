@@ -208,6 +208,11 @@
 .portfolio-link p,.power-six .power-company-services p{font-size:10px;line-height:1.7;color:#64788a;}
 .portfolio-link>div>a{display:inline-block;font-size:11px;font-weight:700;margin-top:6px;}
 .power-six .power-company-services{border-top:1px solid #e0e6ec;margin-top:24px;padding-top:5px;}
+/* The company page includes fixed-height portfolio artwork. Keep its compact
+   spacing inside A4 (including bottom padding), not just above the footer. */
+.power-six.power-compact .power-company{padding:22px 26px;margin-bottom:20px;}
+.power-six.power-compact .power-capabilities{margin-bottom:20px;}
+.power-six.power-compact .power-company-services{margin-top:18px;}
 .power-six .power-support{display:flex;justify-content:space-between;align-items:center;gap:20px;border-radius:10px;background:#071a2e;color:#fff;padding:22px;margin-top:20px;}
 .power-six .power-support h2{font-size:17px;margin:8px 0 0;color:#fff;}
 .power-six .power-support>div:last-child{text-align:right;max-width:48%;overflow-wrap:anywhere;}

@@ -19,7 +19,11 @@ const battery=require('./bess-fixture.js');
   assert.ok(ticks.labels.some(t=>t.text==='₹83.33k'));
   assert.ok(ticks.labels.every(t=>t.left>=0&&t.right<=ticks.gridStart-8&&t.align==='right'),'all currency suffixes have a dedicated gutter');
   const fixtures=[
-   ['residential',{}],['commercial',{customerType:'commercial',capacity:'100',loanAmt:'3000000',loanRate:'9',loanYears:'10'}],
+   ['residential',{}],
+   // Screenshot regression: a normal 3 kWp offer used to fail on the ABOUT
+   // page (scrollHeight 1130), despite the message blaming equipment text.
+   ['reported 3 kWp export',{custName:'Dhaval',capacity:'3',costPerWp:'62.5',gstPercent:'8.9',tariff:'10'}],
+   ['commercial',{customerType:'commercial',capacity:'100',loanAmt:'3000000',loanRate:'9',loanYears:'10'}],
    ['industrial zero-interest',{customerType:'industrial',capacity:'25',loanAmt:'500000',loanRate:'0',loanYears:'10'}],
    ['RWA provisional',{customerType:'rwa',capacity:'100',loanAmt:'3000000',loanRate:'9',loanYears:'10'}],
    ['RWA confirmed',{customerType:'rwa',capacity:'100',rwaEligibleKwp:'60'}],
@@ -55,9 +59,24 @@ const battery=require('./bess-fixture.js');
    }
    console.log('PASS:',name,'— six pages, consistent values/charts, A4 geometry, unchanged detailed proposal');
   }
-  await p.evaluate(()=>{StateStore.applyForm({...StateStore.DEFAULTS,custName:'Power Proposal QA',propRef:'QA-SIX-PAGES',galleryUrl:'https://example.com/solar',arkaUrl:'https://example.com/arka-report',pvsystUrl:'https://example.com/pvsyst-report'});Render.renderAll();});
+  // Keep the real overflow guard: genuinely excessive user content must still
+  // abort without clipping text, capturing a PDF or leaking temporary pages.
+  const blocked=await p.evaluate(async()=>{
+   StateStore.applyForm({...StateStore.DEFAULTS,custName:'Overflow QA',durationText:'Delivery requires site verification. '.repeat(400)});Render.renderAll();
+   const original=html2canvas;let captured=false;
+   window.html2canvas=async()=>{captured=true;throw Error('Unexpected capture of overflowing text');};
+   try {await Exporter.exportPdf(()=>{},{format:'power'});return {blocked:false};}
+   catch(error){return {blocked:error.message.includes('too much text'),captured,clean:!document.querySelector('.pdf-snapshot')};}
+   finally {window.html2canvas=original;}
+  });
+  assert.deepEqual(blocked,{blocked:true,captured:false,clean:true});
+  console.log('PASS: genuine text overflow still blocks export before capture and cleans up.');
+  await p.evaluate(()=>{StateStore.applyForm({...StateStore.DEFAULTS,custName:'Dhaval',capacity:'3',costPerWp:'62.5',gstPercent:'8.9',tariff:'10',propRef:'QA-SIX-PAGES',galleryUrl:'https://example.com/solar',arkaUrl:'https://example.com/arka-report',pvsystUrl:'https://example.com/pvsyst-report'});Render.renderAll();});
   const id=await p.evaluate(()=>{Proposals.saveActive(StateStore.collectForm(),CONTENT,PROJECT_IMAGES);return Proposals.activeId();});
-  const q=await context.newPage();q.on('pageerror',e=>errors.push(e.message));await q.goto(base+'/share.html?p='+encodeURIComponent(id));await q.waitForFunction(()=>window.Render?.lastState);
+  const q=await context.newPage();q.on('pageerror',e=>errors.push(e.message));
+  // Export stays fixed A4 even when the saved customer view is phone-sized.
+  await q.setViewportSize({width:390,height:844});
+  await q.goto(base+'/share.html?p='+encodeURIComponent(id));await q.waitForFunction(()=>window.Render?.lastState);
   await q.selectOption('#pdfFormat','power');assert.match(await q.locator('#pdfFormat option:checked').textContent(),/6-page/);
   // Real rasterisation + PDF save from a persisted Customer View; keep a review copy.
   const pdf=await q.evaluate(async()=>{
