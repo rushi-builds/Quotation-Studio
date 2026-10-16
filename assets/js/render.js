@@ -1253,6 +1253,58 @@
 
   /* ================================================================== */
   let lastState = null;
+  // Project context is derived from the selected supplement, never written
+  // back into saved CONTENT, engineering inputs or financial calculations.
+  function renderSystemContext(s, f) {
+    const A = root.AdditionalSystems, active = A.included(s), p = A.presentation(s);
+    $('pageInvestment')?.classList.toggle('has-system-context', active);
+    const name = A.name(s), short = name.length > 44 ? name.slice(0, 43) + '…' : name;
+    const label = $('v_coverSystem');
+    if (label) { label.hidden = !active; label.textContent = active ? short + ' · ' + A.reason(s) : ''; label.title = name; }
+    const defaults = {
+      img_solution: ['assets/images/page-solution.jpg', 'Modern building with solar roof'],
+      img_exec: ['assets/images/summary-carport-ev.jpg', 'Concept render of a house with rooftop solar and an optional EV charging point']
+    };
+    let systemPhoto = false;
+    for (const [id, [original, alt]] of Object.entries(defaults)) {
+      const img = $(id); if (!img) continue;
+      const custom = root.__qsPageImages?.[id];
+      const known = [original, ...Object.values(A.presentations).map(it => 'assets/images/' + it.image)];
+      const managed = known.some(src => new URL(src, document.baseURI).href === img.src);
+      if (id === 'img_solution') systemPhoto = active && !custom && managed;
+      if (!custom && managed) {
+        const src = active ? 'assets/images/' + p.image : original;
+        if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+        img.alt = active ? 'Illustrative ' + name + ' — not a construction drawing' : alt;
+      }
+    }
+    $('pageSolution')?.classList.toggle('has-system-image', systemPhoto);
+    // Reset the static scope note every time, so disabling/switching cannot
+    // leave a prior system's detail in an otherwise ordinary solar proposal.
+    const basicNote = 'The exact equipment ratings are listed in Technical Specification. Detailed inclusions and exclusions are listed in EPC Scope; review those sections before ordering.';
+    set('v_soScopeNote', basicNote);
+    if (!active) return;
+    const basis = A.inBase(s) ? 'included in quoted rate' : 'separately quoted';
+    const context = short + ' · ' + basis;
+    set('v_exSub', context + ' · See system supplement for scope and limitations.');
+    set('v_soSub', CONTENT.pageSolution.sub + ' · ' + short);
+    set('v_soScopeNote', basicNote + ' ' + short + ': ' + A.priceText(s) + '. Review its System Scope before acceptance.');
+    set('v_tsGroupsLabel', CONTENT.pageTechSpec.groupsLabel + ' · ' + short);
+    set('v_scClosing', CONTENT.pageScope.closing + ' ' + short + ': see the system scope, exclusions and acceptance checks.');
+    set('v_wrSub', CONTENT.pageWarranty.sub + ' · Additional-system warranty: see agreed System Scope.');
+    set('v_svSub', 'Solar energy projections · additional-system operating effects are not modelled.');
+    set('v_inSub', short + ' · ' + A.priceText(s));
+    set('v_inGrossScope', A.inBase(s) ? 'System scope included in base quote; no second charge.' : 'System upgrade excluded; agree its price and payments separately.');
+    if (root.Bess.included(s)) set('v_inGrossScope', $('v_inGrossScope').textContent + ' Battery priced separately.');
+    if (A.inBase(s)) {
+      set('v_inCostNetL', CONTENT.pageInvestment.cards.netInvestment);
+      set('v_inPayNote', 'System scope included. ' + CONTENT.pageInvestment.paymentNote);
+      set('v_finSub', 'Cash-flow illustration uses the entered solar quote, including scope priced in its base rate; system operating effects are not modelled.');
+      set('v_opSub', 'Solar options; verify included system scope and rates for each option. No upgrade price is added automatically.');
+      set('v_tmSub', 'Solar EPC terms · included additional scope and warranty require written agreement.');
+    }
+  }
+
   function renderAll(stateOverride) {
     const raw = stateOverride || readState();
     const s = root.Bess.resolve(raw,F.compute(raw));
@@ -1275,6 +1327,7 @@
       set('v_exHeroNetLabel','Estimated Monthly Generation');
       set('v_tmSub','Solar EPC terms • additional system scope, price and payment terms require separate agreement.');
     }
+    renderSystemContext(s, f);
     updateLiveChip(s, f);
     fitPages();
     drawCharts(f);

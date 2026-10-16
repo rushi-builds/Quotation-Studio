@@ -146,3 +146,34 @@
 .sp-flow-node>i small{display:block;font-size:6px;letter-spacing:.04em;color:#899ba3;}
 .sp-flow-node>svg{display:inline-block;vertical-align:middle;position:relative;z-index:1;}
 .sp-flow-node>b{display:block;font-size:8px;margin-top:5px;}
+
+/* Project-package controls and compact, consistent document context. */
+.system-structure-fields{background:#f5f8fa;border:1px solid #dbe5eb;border-radius:10px;padding:12px;margin:14px 0;}
+.system-field-heading{font-size:11px;font-weight:700;color:#264559;margin-bottom:12px;}
+.system-field-heading small{display:block;font-weight:400;font-size:10px;color:#657b89;margin-top:5px;}
+.system-pricing-hint{border-left:3px solid #c48d42;background:#fff8ec;padding:10px;line-height:1.7;}
+.cover-system-label{position:absolute;z-index:2;top:17%;left:53%;right:4%;padding:9px 11px;border-radius:6px;border-left:3px solid #ed9d41;background:#173549ed;color:#fff;font:600 10px/1.55 'Inter',sans-serif;overflow-wrap:anywhere;}
+.cover-system-label[hidden]{display:none;}
+.sp-system-facts{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;padding:7px 14px;background:#f1f6f7;border:1px solid #dce6e8;border-radius:8px;margin-top:14px;}
+.system-page .sp-system-hero{height:250px;}
+.system-page .sp-system-intro{padding:14px 0;}
+.system-page .sp-system-intro>p{font-size:11px;line-height:1.7;}
+.system-page .sp-system-flow{padding:14px;}
+.system-page .sp-panel{padding:13px 14px;}
+.system-page .sp-panel .sp-list{font-size:9px;line-height:1.65;}
+.system-page .sp-engineering-notes{font-size:9px;line-height:1.7;padding:12px 15px;}
+.system-page .sp-signoff{margin-top:15px;padding-top:12px;}
+.system-page .sp-detail-ribbon strong{font-size:17px;}
+.system-page .sp-hero h2{font-size:29px;line-height:1.2;}
+#pageSolution.has-system-image .photo-top img{object-fit:contain;}
+/* Commercial tax notes plus system context share the existing A4 budget. */
+#pageInvestment.has-system-context.has-tax #chartBridge{height:240px!important;}
+#pageInvestment.has-system-context.has-tax .inv-total{padding-top:10px;padding-bottom:10px;}
+#pageInvestment.has-system-context.has-tax .pay-chip{padding-top:7px;padding-bottom:7px;}
+/* Itemised commercial offers also retain percentage warnings above the
+   absolute disclaimer; reclaim margins, never financial lines or chart data. */
+#pageInvestment.has-system-context.has-bom .inv-total{padding-top:8px;padding-bottom:8px;margin-bottom:8px;}
+#pageInvestment.has-system-context.has-bom .inv-charts{margin-bottom:2px;}
+#pageInvestment.has-system-context.has-bom .inv-cards{margin-bottom:6px;}
+#pageInvestment.has-system-context.has-bom .inv-card{padding-top:7px;padding-bottom:7px;}
+#pageInvestment.has-system-context.has-bom #v_inDesc{margin-bottom:8px;}

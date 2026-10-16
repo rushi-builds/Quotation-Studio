@@ -8,7 +8,7 @@
   const pageLabel=n=>n+' '+(n===1?'Page':'Pages');
   const formats={bess:{title:'BESS Report',ids:['pageBessOverview','pageBessAssessment']},system:{title:'Additional System Report',ids:['pageSystemOverview','pageSystemDetail']},'system-power':{title:'System Power Proposal',ids:['pageSystemOverview']}};
   function formatsFor(s) {
-    const name=String(s.systemName||root.AdditionalSystems.templates[s.systemTemplate]?.name||'Additional System').trim()||'Additional System';
+    const name=root.AdditionalSystems.name(s);
     return {...formats,system:{...formats.system,title:name+' Report'},'system-power':{...formats['system-power'],title:name+' Power Proposal'}};
   }
   function updateLabel() {
