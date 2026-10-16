@@ -153,7 +153,7 @@
     const precise=v=>Number.isFinite(v)?v.toLocaleString('en-IN',{maximumFractionDigits:3}):'-';
     const paybackText=f.netInvestment<=0?'Not applicable':payback(f);
     const header=n=>'<header class="power-head"><img src="assets/images/ktm-logo-light.png" alt="Company logo"><div>POWER PROPOSAL · '+n+' / '+POWER_PAGE_COUNT+'<br><span>'+esc(s.propRef)+' · v'+esc(s.propVersion)+'</span></div></header>';
-    const foot=n=>'<footer class="power-foot"><span>'+esc(s.companyName)+' · '+esc(s.companyPhone)+'</span><span>Power Proposal · '+n+' / '+POWER_PAGE_COUNT+'</span></footer>';
+    const foot=n=>'<footer class="power-foot"><span>'+esc(s.companyName)+' · '+esc(s.companyPhone)+'</span><span class="power-foot-website">'+esc(s.companyWebsite)+'</span><span>Power Proposal · '+n+' / '+POWER_PAGE_COUNT+'</span></footer>';
     const heading=(n,title)=>{
       const emphasis=['Your energy.','Support.','behind the numbers.','Long-term value.','investment.','& support.'][n-1];
       const split=title.lastIndexOf(emphasis);

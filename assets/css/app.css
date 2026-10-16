@@ -214,9 +214,13 @@ details.page-group > summary::-webkit-details-marker{display:none;}
   display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:0 var(--page-pad);
 }
-.pg-foot .pf-left{font-size:8.6px;color:var(--gray);white-space:nowrap;overflow:hidden;}
-.pg-foot .pf-mid{font-size:8.2px;color:#B08850;letter-spacing:.12em;text-transform:uppercase;font-weight:600;white-space:nowrap;}
-.pg-foot .pf-right{font-size:9px;color:var(--navy);font-weight:700;white-space:nowrap;}
+/* Give the website its own line rather than clipping it behind the tagline.
+   Keep the existing footer height so print/PDF content clearance is unchanged. */
+.pg-foot .pf-left{font-size:8.6px;color:var(--gray);min-width:0;flex:1;display:flex;flex-direction:column;gap:2px;line-height:1.2;}
+.pg-foot .pf-contact{overflow-wrap:anywhere;}
+.pg-foot .pf-website{white-space:nowrap;}
+.pg-foot .pf-mid{font-size:8.2px;color:#B08850;letter-spacing:.12em;text-transform:uppercase;font-weight:600;white-space:nowrap;flex-shrink:0;}
+.pg-foot .pf-right{font-size:9px;color:var(--navy);font-weight:700;white-space:nowrap;flex-shrink:0;}
 
 /* corner photo — clean rectangle with orange base accent */
 .photo-top{

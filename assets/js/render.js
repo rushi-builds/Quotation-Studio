@@ -1104,8 +1104,15 @@
     });
     const meta = s.propRef + '  •  v' + s.propVersion + '  •  ' + (F.fmtDate(s.propDate) || '-');
     document.querySelectorAll('[data-head-ref]').forEach((el) => { el.textContent = meta; });
-    const footLeft = s.companyName + '  •  ' + s.companyPhone + '  •  ' + s.companyWebsite;
-    document.querySelectorAll('[data-foot-company]').forEach((el) => { el.textContent = footLeft; });
+    document.querySelectorAll('[data-foot-company]').forEach((el) => {
+      const contact = document.createElement('span');
+      contact.className = 'pf-contact';
+      contact.textContent = s.companyName + '  •  ' + s.companyPhone;
+      const website = document.createElement('span');
+      website.className = 'pf-website';
+      website.textContent = s.companyWebsite;
+      el.replaceChildren(contact, website);
+    });
     const tagline = String(CONTENT.shared.footerTagline || '').replace(/&nbsp;/g, ' ').replace(/<[^>]*>/g, '');
     document.querySelectorAll('[data-foot-tagline]').forEach((el) => { el.textContent = tagline; });
     /* Same cover-derived mark, with transparent ink suited to its surface. */
