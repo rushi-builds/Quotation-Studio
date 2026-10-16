@@ -323,7 +323,31 @@
   /* ================================================================== */
   /* PAGE 3 - ABOUT                                                      */
   /* ================================================================== */
+  const ABOUT_PHOTOS = {
+    residential: ['assets/images/page-solution.jpg', 'Illustrative residential rooftop solar'],
+    commercial: ['assets/images/cover-commercial-scene.jpg', 'Illustrative commercial solar office campus'],
+    industrial: ['assets/images/page-about.jpg', 'Industrial rooftop solar facility'],
+    rwa: ['assets/images/cover-rwa-scene.jpg', 'Illustrative housing society rooftop solar']
+  };
+  function renderAboutPhoto(s) {
+    const img = $('img_about');
+    if (!img) return;
+    const override = root.__qsPageImages && root.__qsPageImages.img_about;
+    // Uploaded images remain proposal-specific. Customer View applies saved
+    // uploads before rendering, so recognise those non-default sources too.
+    const isDefault = Object.values(ABOUT_PHOTOS).some(([src]) => new URL(src, document.baseURI).href === img.src);
+    if (override || !isDefault) {
+      if (override && img.getAttribute('src') !== override) img.setAttribute('src', override);
+      img.alt = 'About KTM Energy Experts — proposal image';
+      return;
+    }
+    const choice = ABOUT_PHOTOS[s.customerType];
+    const [src, alt] = Array.isArray(choice) ? choice : ABOUT_PHOTOS.residential;
+    if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+    img.alt = alt;
+  }
   function renderAbout(s, f, v) {
+    renderAboutPhoto(s);
     const P = CONTENT.pageAbout;
     set('v_abEyebrow', tpl(P.eyebrow, v));
     setHTML('v_abHeading', esc(P.heading1) + '<br>' + esc(P.heading2));
