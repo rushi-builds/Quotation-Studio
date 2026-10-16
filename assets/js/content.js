@@ -362,6 +362,7 @@ const CONTENT = {
   pageWarranty: {
     heading: 'Warranty & Installation Journey',
     sub: 'Quality Assured. Professionally Delivered.',
+    intro: 'From equipment installation to testing and handover, each stage follows the agreed project scope. The warranty coverage and installation milestones below give you a clear understanding of how your system will be delivered, what is covered and the support available after commissioning.',
     warrLabel: 'INDUSTRY-LEADING WARRANTY',
     warranties: [
       { icon: 'panel',  title: 'Solar Modules', b1: '25-Year Linear Performance Warranty', b2: '10-Year Product Warranty' },

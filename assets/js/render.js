@@ -1006,6 +1006,7 @@
     const P = CONTENT.pageWarranty;
     set('v_wrHeading', P.heading);
     set('v_wrSub', P.sub);
+    set('v_wrIntro', P.intro);
     set('v_wrWarrLabel', P.warrLabel);
     setHTML('v_wrWarranties', P.warranties.map((it) =>
       '<div class="card warr-card">' + I.chip(it.icon, 28) +
