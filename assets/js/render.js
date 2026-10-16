@@ -324,10 +324,10 @@
   /* PAGE 3 - ABOUT                                                      */
   /* ================================================================== */
   const ABOUT_PHOTOS = {
-    residential: ['assets/images/page-solution.jpg', 'Illustrative residential rooftop solar'],
-    commercial: ['assets/images/cover-commercial-scene.jpg', 'Illustrative commercial solar office campus'],
-    industrial: ['assets/images/page-about.jpg', 'Industrial rooftop solar facility'],
-    rwa: ['assets/images/cover-rwa-scene.jpg', 'Illustrative housing society rooftop solar']
+    residential: ['assets/images/about-residential-solar.jpg', 'Illustrative residential solar pergola with outdoor dining terrace', 'assets/images/masters/about-residential-solar-4k.webp'],
+    commercial: ['assets/images/about-commercial-solar.jpg', 'Illustrative commercial rooftop solar', 'assets/images/masters/about-commercial-solar-4k.webp'],
+    industrial: ['assets/images/page-about.jpg', 'Industrial rooftop solar facility', 'assets/images/masters/about-industrial-solar-4k.webp'],
+    rwa: ['assets/images/about-rwa-solar.jpg', 'Illustrative housing society rooftop solar', 'assets/images/masters/about-rwa-solar-4k.webp']
   };
   function renderAboutPhoto(s) {
     const img = $('img_about');
@@ -338,13 +338,15 @@
     const isDefault = Object.values(ABOUT_PHOTOS).some(([src]) => new URL(src, document.baseURI).href === img.src);
     if (override || !isDefault) {
       if (override && img.getAttribute('src') !== override) img.setAttribute('src', override);
+      img.removeAttribute('data-print-src');
       img.alt = 'About KTM Energy Experts — proposal image';
       return;
     }
     const choice = ABOUT_PHOTOS[s.customerType];
-    const [src, alt] = Array.isArray(choice) ? choice : ABOUT_PHOTOS.residential;
+    const [src, alt, printSrc] = Array.isArray(choice) ? choice : ABOUT_PHOTOS.residential;
     if (img.getAttribute('src') !== src) img.setAttribute('src', src);
     img.alt = alt;
+    img.setAttribute('data-print-src', printSrc);
   }
   function renderAbout(s, f, v) {
     renderAboutPhoto(s);
@@ -816,6 +818,10 @@
     set('v_inGrossTotal', F.fmtINR(f.grossTotal));
     const separateUpgrades = root.Bess.included(s) || root.AdditionalSystems.included(s);
     show('v_inGrossScope', separateUpgrades);
+    if ($('pageInvestment')) {
+      $('pageInvestment').classList.toggle('has-tax', !!(f.isCommercialOrInd && f.taxShield > 0));
+      $('pageInvestment').classList.toggle('has-upgrades', !!separateUpgrades);
+    }
     set('v_inCostBase', F.fmtINR(f.projectCost));
     set('v_inCostBaseL', P.cards.projectCost);
     set('v_inCostGst', '+ ' + F.fmtINR(f.gstAmount));

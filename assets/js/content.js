@@ -249,7 +249,7 @@ const CONTENT = {
   /* ------------------------------------------------------------------ */
   pageInvestment: {
     heading: 'Investment & Cost Breakdown',
-    sub: 'Transparent Pricing. Outstanding Long-Term Returns.',
+    sub: '',
     desc: 'Your project price, applicable GST and estimated subsidy — clearly separated.',
     cards: {
       projectCost: 'Project Cost · Excluding GST',
@@ -515,6 +515,7 @@ const PROJECT_IMAGES = {
    Both builder and customer view use this, so saved proposals get the same
    corrected engineering sequence without changing their financial inputs. */
 const CONTENT_COPY_UPDATES = Object.freeze({
+  "Transparent Pricing. Outstanding Long-Term Returns.": "",
   "Engineering Excellence • Premium Quality • Trusted Performance": "Engineering Excellence • Trusted Performance",
   "A professionally engineered {capacity} rooftop solar system is one of the highest-returning investments available to a property owner today - delivering guaranteed energy savings, government subsidies and inflation-proof returns for over 25 years.": "Your project price, applicable GST and estimated subsidy — clearly separated.",
   "Yield assessment is prepared during the agreed engineering scope, using verified site and equipment inputs-not generated automatically by this quotation.": "Site-specific yield assessment is prepared during the agreed engineering scope.",

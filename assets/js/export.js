@@ -43,6 +43,13 @@
     pages.forEach((p,index)=>{
       const source=$(p.id), copy=source.cloneNode(true);
       copy.style.transform='none';
+      // Keep the builder light; load high-resolution artwork only in the
+      // detached PDF snapshot. Uploaded photos have no print override.
+      copy.querySelectorAll('img[data-print-src]').forEach(img=>{
+        img.src=img.getAttribute('data-print-src');
+        img.removeAttribute('srcset');
+        img.removeAttribute('sizes');
+      });
       if(standaloneTitle){copy.querySelector('.pf-right').textContent='Page '+(index+1)+' of '+pages.length;copy.querySelector('.pg-head-meta').textContent=standaloneTitle+' · '+(root.Render.lastState.propRef||'');}
       // Live chrome updates use document-wide data bindings; detach those from
       // the snapshot so later form edits cannot rewrite captured metadata.

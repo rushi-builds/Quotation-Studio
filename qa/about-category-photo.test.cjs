@@ -13,8 +13,8 @@ const { chromium } = require('playwright');
     page.on('pageerror', error => errors.push(error.message));
     const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     const sources = {
-      residential: 'assets/images/page-solution.jpg', commercial: 'assets/images/cover-commercial-scene.jpg',
-      industrial: 'assets/images/page-about.jpg', rwa: 'assets/images/cover-rwa-scene.jpg'
+      residential: 'assets/images/about-residential-solar.jpg', commercial: 'assets/images/about-commercial-solar.jpg',
+      industrial: 'assets/images/page-about.jpg', rwa: 'assets/images/about-rwa-solar.jpg'
     };
     const shots = path.join(__dirname, 'shots', 'about-category'); fs.mkdirSync(shots, { recursive: true });
     await page.goto(base + '/quotation.html');
@@ -32,11 +32,13 @@ const { chromium } = require('playwright');
       assert.equal(await view.locator('#pageAbout .pg-body').textContent(), copy, 'photo changes do not rewrite company copy');
     }
     async function snapshot(expected) {
+      const printSrc = await page.locator('#img_about').getAttribute('data-print-src');
+      const expectedPrint = printSrc || expected;
       const captured = await page.evaluate(async expected => {
         const real = html2canvas; let result;
         window.html2canvas = async () => {
           const image = document.querySelector('.pdf-snapshot #img_about');
-          result = { src: image.getAttribute('src'), loaded: image.complete && image.naturalWidth > 0 };
+          result = { src: image.getAttribute('src'), loaded: image.complete && image.naturalWidth > 0, width: image.naturalWidth, height: image.naturalHeight };
           // Inspect the real exporter snapshot, but do not create a mocked PDF.
           throw new Error('ABOUT_SNAPSHOT_CHECK');
         };
@@ -45,11 +47,15 @@ const { chromium } = require('playwright');
         finally { window.html2canvas = real; }
         return { ...result, cleaned: !document.querySelector('.pdf-snapshot') };
       }, expected);
-      assert.equal(captured.src, expected); assert(captured.loaded && captured.cleaned);
+      assert.equal(captured.src, expectedPrint); assert(captured.loaded && captured.cleaned);
+      if (printSrc) assert.equal(Math.max(captured.width, captured.height), 4096, '4K-size export master');
     }
     for (const [category, src] of Object.entries(sources)) {
       await page.evaluate(category => { StateStore.applyForm({ customerType: category, custName: 'About photo QA' }); Render.renderAll(); window.__qsSaveNow(); }, category);
       await check(page, src);
+      if (category !== 'industrial') {
+        assert(await page.evaluate(src => [...document.querySelectorAll('.page img:not(#img_about)')].every(img => img.getAttribute('src') !== src), src), 'new About art is not reused on another proposal page');
+      }
       await page.reload(); await page.waitForFunction(() => !!window.Render?.lastState);
       await check(page, src); await snapshot(src);
       const id = await page.evaluate(() => Proposals.activeId());
@@ -61,7 +67,10 @@ const { chromium } = require('playwright');
       await page.setViewportSize({ width: 390, height: 844 }); await check(page, src);
       await page.setViewportSize({ width: 1440, height: 1100 });
       const png = await page.evaluate(async () => {
-        const photo = document.querySelector('#pageAbout .photo-top').cloneNode(true);
+        const source = document.querySelector('#pageAbout .photo-top');
+        const photo = source.cloneNode(true);
+        photo.style.height = getComputedStyle(source).height;
+        photo.style.width = getComputedStyle(source).width;
         photo.style.position = 'relative'; photo.style.top = '0'; photo.style.right = '0';
         document.body.append(photo);
         try { return (await html2canvas(photo, { scale: 1, logging: false })).toDataURL(); }
@@ -84,6 +93,7 @@ const { chromium } = require('playwright');
     for (const customerType of Object.keys(sources)) {
       await page.evaluate(customerType => { StateStore.applyForm({ customerType }); Render.renderAll(); }, customerType);
       await check(page, uploaded);
+      assert.equal(await page.locator('#img_about').getAttribute('data-print-src'), null, 'uploaded photo never replaced by a default 4K master');
     }
     await page.evaluate(() => window.__qsSaveNow());
     await page.reload(); await page.waitForFunction(() => !!window.Render?.lastState); await check(page, uploaded);

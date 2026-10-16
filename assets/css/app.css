@@ -1759,58 +1759,63 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 .cloud-sync-hint{flex:1 0 100%;font-size:10.5px;line-height:1.45;color:var(--navy-soft);}
 .cloud-sync-hint:empty{display:none;}
 
-/* Investment: gross amount is payable; estimated subsidy is a separate benefit. */
-#pageInvestment .inv-total{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-shrink:0;background:linear-gradient(115deg,#172e43,#223e54);border-left:4px solid var(--orange);border-radius:10px;padding:12px 18px;color:#fff;margin:0 0 9px;}
-#pageInvestment .inv-total-label{font-size:9px;font-weight:600;letter-spacing:.09em;color:#d1dce4;}
-#pageInvestment .inv-total-value{font:600 28px/1.35 'Poppins',sans-serif;letter-spacing:-.7px;margin-top:3px;}
-#pageInvestment .inv-total-copy{font-size:10px;line-height:1.5;color:#c0ced8;margin-top:2px;}
-#pageInvestment .inv-total-checks{border-left:1px solid #ffffff30;padding-left:18px;font-size:10px;line-height:2;color:#d7e1e8;}
-#pageInvestment .inv-breakdown-title{font-size:9px;letter-spacing:.1em;font-weight:700;color:#5a6b7b;margin:0 0 7px;}
-#pageInvestment .inv-cards{margin:0 0 8px;gap:8px;flex-shrink:0;}
-#pageInvestment .inv-card{padding:9px 8px;border-radius:9px;}
-#pageInvestment .inv-icon{display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;background:#f0f4f7;color:#526b80;font-weight:700;font-size:12px;margin-bottom:5px;}
-#pageInvestment .inv-l{font-size:8px;line-height:1.5;min-height:24px;letter-spacing:.025em;}
-#pageInvestment .inv-v{font-size:16px;letter-spacing:-.4px;white-space:nowrap;}
-#pageInvestment .inv-card-sub .inv-icon{background:#e5f0e8;color:#43805e;}
-#pageInvestment .inv-card-net{background:#f2f6fa;border-color:#dae4ed;}
-#pageInvestment .inv-card-net .inv-l{color:#71808d;}
-#pageInvestment .inv-card-net .inv-v{color:#294d6a;}
-#pageInvestment .inv-card-net .inv-cap{color:#6d7e8c;}
-#pageInvestment .inv-card-payback .inv-icon{background:#fbedda;color:#ad6b27;}
-#pageInvestment .inv-payment-note{font-size:9px;line-height:1.5;color:#687d8e;background:#fafbfc;border:1px solid #e6ebef;border-radius:7px;padding:8px 11px;margin-bottom:8px;}
-#pageInvestment #v_inDesc{margin:5px 0 9px;line-height:1.5;}
-#pageInvestment .chart-block{margin-top:8px;}
-#pageInvestment .spacer{max-height:10px;}
-/* Retain every chart, scope item and payment term inside A4, also with BOM
-   and the commercial tax illustration. Compact spacing, not financial data. */
-#pageInvestment .inv-cap{font-size:8.6px;line-height:1.3;}
-#pageInvestment .rule-orange{margin:7px 0;}
-#pageInvestment .includes-grid{gap:5px 8px;}
-#pageInvestment .includes-grid .inc-item{padding:5px 7px;}
-#pageInvestment .includes-grid .inc-img{width:24px;height:24px;flex-basis:24px;}
-#pageInvestment .sec-label{margin-bottom:6px;}
-#pageInvestment .pay-chip{padding:8px;}
-#pageInvestment #chartBridge{height:210px!important;}
-#pageInvestment.has-bom .bom-row{font-size:9.6px;line-height:1.35;padding:2px 0;}
-#pageInvestment.has-bom .bom-pct{font-size:9px;}
-#pageInvestment.has-bom .bom-intro{margin-bottom:5px;}
-#pageInvestment.has-bom .bom-warn{padding:5px 8px;font-size:9px;}
-#pageInvestment.has-bom .spacer{max-height:10px;}
-
-/* With an itemised BOM, compare both cost charts side by side instead of
-   pushing payment terms under the footer. Each chart retains its own labels. */
-#pageInvestment .inv-charts{flex-shrink:0;}
-#pageInvestment.has-bom .inv-charts{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-top:6px;align-items:start;}
+/* Investment — two calm rows, prominent gross price and a correctly
+   proportioned chart. All amounts still come from the frozen Finance engine. */
+#pageInvestment .pg-sub{font-size:12px;}
+#pageInvestment .pg-sub:empty{display:none;}
+#pageInvestment #v_inDesc{margin:6px 0 12px;line-height:1.55;}
+#pageInvestment .rule-orange{margin:8px 0;flex-shrink:0;}
+#pageInvestment .inv-total{display:flex;align-items:center;justify-content:space-between;gap:22px;flex-shrink:0;background:#1b354a;border-left:3px solid var(--orange);border-radius:10px;padding:16px 20px;color:#fff;margin:0 0 12px;}
+#pageInvestment .inv-total-label{font-size:9px;font-weight:600;letter-spacing:.09em;color:#d2dfe8;}
+#pageInvestment .inv-total-value{font:600 32px/1.2 'Poppins',sans-serif;letter-spacing:-.6px;margin:7px 0 5px;}
+#pageInvestment .inv-total-copy{font-size:10px;line-height:1.5;color:#cedbe4;}
+#pageInvestment .inv-total-checks{border-left:1px solid #ffffff30;padding-left:20px;font-size:10px;line-height:2.1;color:#e0e8ed;}
+#pageInvestment .inv-breakdown-title{font-size:9px;letter-spacing:.1em;font-weight:700;color:#657788;margin:0 0 9px;}
+#pageInvestment .inv-cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:0 0 9px;flex-shrink:0;}
+#pageInvestment .inv-card{grid-column:span 2;padding:12px 14px;border:1px solid #dfe6ec;border-radius:9px;min-width:0;background:#fff;}
+#pageInvestment .inv-card:nth-child(n+4){grid-column:span 3;}
+#pageInvestment .inv-l{font-size:9.2px;line-height:1.4;min-height:0;letter-spacing:.025em;color:#617387;}
+#pageInvestment .inv-v{font:600 22px/1.2 'Poppins',sans-serif;color:#203b51;letter-spacing:-.45px;white-space:nowrap;margin:7px 0 5px;}
+#pageInvestment .inv-cap{font-size:9.2px;color:#6b7c8d;line-height:1.45;margin:0;}
+#pageInvestment .inv-card-sub{background:#f3f8f5;border-color:#d6e6dc;}
+#pageInvestment .inv-card-sub .inv-v{color:#327554;}
+#pageInvestment .inv-card-net{background:#f0f5fa;border-color:#d9e4ee;}
+#pageInvestment .inv-card-net .inv-v{color:#224d6c;}
+#pageInvestment .inv-card-payback{background:#fff9f0;border-color:#efdfc8;}
+#pageInvestment .inv-card-payback .inv-v{color:#996123;}
+#pageInvestment .inv-payment-note{font-size:9.2px;line-height:1.5;color:#6b7c8d;margin:0 0 10px;}
+#pageInvestment .inv-charts{flex-shrink:0;margin-bottom:10px;}
+#pageInvestment .chart-block{margin:0;}
+#pageInvestment .chart-title{font-size:10px;letter-spacing:.045em;}
+#pageInvestment #chartBridge{width:100%!important;height:300px!important;}
+#pageInvestment .includes-grid{gap:6px 14px;}
+#pageInvestment .includes-grid .inc-item{padding:0;background:none;border:0;border-radius:0;gap:6px;}
+#pageInvestment .includes-grid .inc-item::before{content:'✓';font-size:10px;color:#52816a;}
+#pageInvestment .includes-grid .inc-img,#pageInvestment .includes-grid .inc-item>svg{display:none;}
+#pageInvestment .includes-grid .inc-t{font-size:10px;line-height:1.4;}
+#pageInvestment .sec-label{font-size:9.5px;line-height:1.4;padding:0;background:none;border-radius:0;margin-bottom:8px;color:#526a7e;}
+#pageInvestment .spacer{min-height:0;max-height:0;}
+#pageInvestment .pay-chip{padding:9px 10px;}
+#pageInvestment .pay-chip .pa{font-size:12px;}
+/* Itemised offers keep their supporting composition alongside the taller
+   bridge, not stacked under it. No financial lines or warnings are removed. */
+#pageInvestment.has-bom .inv-charts{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;align-items:start;}
 #pageInvestment.has-bom .inv-charts>div{min-width:0;}
-#pageInvestment.has-bom #chartBridge{width:100%!important;height:190px!important;}
+#pageInvestment.has-bom #chartBridge{height:270px!important;}
 #pageInvestment.has-bom #chartDonut{width:90px!important;height:90px!important;}
 #pageInvestment.has-bom #v_inBomTitle{margin-top:0;}
 #pageInvestment.has-bom .bom-flex{gap:8px;}
-/* Leave room for an entered payment-percentage warning on itemised offers. */
-#pageInvestment.has-bom .inv-total{padding-top:10px;padding-bottom:10px;}
-#pageInvestment.has-bom .sec-label{padding-top:4px;padding-bottom:4px;}
-#pageInvestment.has-bom .includes-grid .inc-item{padding-top:3px;padding-bottom:3px;}
-#pageInvestment.has-bom .pay-chip{padding-top:7px;padding-bottom:7px;}
-#pageInvestment.has-bom .spacer{min-height:0;max-height:0;}
-#pageInvestment.has-bom .bom-row{gap:4px;}
-#pageInvestment.has-bom .bom-pct{width:32px;}
+#pageInvestment.has-bom .bom-row{font-size:9.6px;line-height:1.35;padding:2px 0;gap:4px;}
+#pageInvestment.has-bom .bom-pct{font-size:9px;width:32px;}
+#pageInvestment.has-bom .bom-intro{margin-bottom:5px;}
+#pageInvestment.has-bom .bom-warn{padding:5px 8px;font-size:9px;}
+
+#pageInvestment.has-tax #chartBridge,#pageInvestment.has-upgrades #chartBridge{height:270px!important;}
+/* A narrower itemised chart needs less height for the same natural aspect
+   ratio; retain space for tax notes and payment-percentage warnings. */
+#pageInvestment.has-bom #chartBridge{height:240px!important;}
+#pageInvestment.has-bom .inv-charts{margin-bottom:6px;}
+#pageInvestment.has-bom .inv-cards{gap:9px;}
+#pageInvestment.has-bom .inv-card{padding-top:10px;padding-bottom:10px;}
+#pageInvestment .spacer{flex:0 0 8px;min-height:8px;max-height:8px;}
+#pageInvestment.has-tax .spacer,#pageInvestment.has-bom .spacer{flex-basis:4px;min-height:4px;max-height:4px;}
