@@ -16,7 +16,7 @@
 
     const overview = element('section', 'studio-overview');
     overview.setAttribute('aria-label', 'Live quotation summary');
-    overview.innerHTML = '<div class="studio-overview-top"><span><i></i> LIVE QUOTATION</span><span class="studio-page-count"></span></div><div class="studio-metrics"><div><small>System capacity</small><strong data-metric="capacity"></strong></div><div><small>Net investment</small><strong data-metric="investment"></strong></div><div><small>Year-one energy</small><strong data-metric="energy"></strong></div></div>';
+    overview.innerHTML = '<div class="studio-overview-top"><span><i></i> LIVE QUOTATION</span><span class="studio-page-count"></span></div><div class="studio-metrics"><div><small>System capacity</small><strong data-metric="capacity"></strong></div><div><small>Total Project Cost</small><strong data-metric="investment"></strong></div><div><small>Annual Energy</small><strong data-metric="energy"></strong></div></div>';
     const overviewBar = element('div', 'studio-overview-bar');
     overviewBar.append(overview);
     panel.insertBefore(overviewBar, form);
@@ -83,8 +83,6 @@
     const configs = [
       ['custName', 'Customer & system', 'users', 'pageCover', 'Customer, site and proposal details'],
       ['moduleMake', 'Equipment & design', 'panel', 'pageTechSpec', 'Modules, inverter and roof specifications'],
-      ['bessEnabled', 'Battery storage (BESS)', 'bolt', 'pageBessOverview', 'Optional storage, backup and a separate value assessment'],
-      ['systemEnabled', 'Additional systems', 'grid2', 'pageSystemOverview', 'Zero Export, monitoring, EV charging, DG coordination or Custom'],
       ['costPerWp', 'Pricing & savings', 'chart', 'pageInvestment', 'Pricing, tariff and calculation assumptions'],
       ['payAdvance', 'Payment & financing', 'rupee', 'pageInvestment', 'Payment milestones, optional loan & tax illustration'],
       ['optName', 'Compare system options', 'panel', 'pageOptions', 'Good, Better and Best configurations'],
@@ -93,7 +91,8 @@
       ['durationText', 'Terms & delivery', 'shield', 'pageTerms', 'Delivery commitments and jurisdiction'],
       ['companyName', 'Company branding', 'building', 'pageAbout', 'Company identity and contact information'],
       ['up_cover', 'Page photographs', 'drone', 'pageCover', 'Replace photographs on individual pages'],
-      ['galleryUrl', 'QR & links', 'globe', 'pageClosing', 'What the customer’s QR code opens']
+      ['galleryUrl', 'QR & links', 'globe', 'pageClosing', 'What the customer’s QR code opens'],
+      ['systemEnabled', 'Advanced Systems', 'grid2', 'pageSystemOverview', 'Solar roofs, carports, controls & battery storage']
     ];
     /* Everything the dealer touches once, not per quote, folds into the
        advanced drawer after the sections are built. */
@@ -117,10 +116,53 @@
       const view = element('button', 'studio-view-page', 'View related page ↗'); view.type = 'button';
       view.addEventListener('click', () => {
         let page = $(target);
+        if(field==='systemEnabled'&&(!page||!page.getClientRects().length)&&window.Bess.enabled(window.Render.lastState))page=$('pageBessOverview');
         if (!page || !page.getClientRects().length) page = $('pageExec');
         if (!page || !page.getClientRects().length) page = $('pageCover');
         page.scrollIntoView({behavior: 'instant', block: 'start'});
       });
+      if (field === 'systemEnabled') {
+        const pickerField=element('div','field system-picker-field'),pickerLabel=element('label','','Select system'),picker=element('select');
+        picker.id='advancedSystemSelect';picker.setAttribute('data-system-picker','');pickerLabel.htmlFor=picker.id;
+        [['none','No Advanced System'],...['weatherproof','carport'].map(key=>[key,window.AdditionalSystems.templates[key].name]),['bess','Battery Energy Storage (BESS)'],...['monitoring','dg'].map(key=>[key,window.AdditionalSystems.templates[key].name]),...Object.entries(window.AdditionalSystems.templates).filter(([key])=>!['weatherproof','carport','monitoring','dg'].includes(key)).map(([key,t])=>[key,t.name]),['custom','Custom system…'],['combined','Saved package + battery']].forEach(([value,text])=>{const option=new Option(text,value);if(value==='combined'){option.id='combinedSystemOption';option.hidden=true;option.disabled=true;}picker.add(option);});
+        pickerField.append(pickerLabel,picker);fieldset.prepend(pickerField);$('systemTemplate').closest('.field').hidden=true;
+        const card=element('div','selected-system-card');card.id='selectedSystemCard';card.hidden=true;pickerField.after(card);
+        const battery=element('div','selected-battery-fields');battery.id='selectedBatteryFields';battery.dataset.section='bessEnabled';battery.hidden=true;
+        const batteryFields=$('bessEnabled').closest('fieldset');batteryFields.querySelector('legend').classList.add('studio-sr-only');battery.append(batteryFields);fieldset.append(battery);
+        // Routine fields first; colour roles are identical across every system.
+        const group=(label,tone,nodes)=>{const box=element('section','system-input-group');box.dataset.inputTone=tone;box.setAttribute('aria-label',label);box.append(element('h3','system-input-heading',label),...nodes);return box;};
+        const tone=(node,value)=>{node.dataset.inputTone=value;return node;};
+        const packagePrice=$('systemPriceMode').closest('.field');
+        const packagePriceGroup=group('Pricing','price',[]);packagePrice.before(packagePriceGroup);
+        packagePriceGroup.append(packagePrice,$('systemPricingHint'),$('systemBaseReviewField'),$('systemPriceField'));
+        tone($('systemEditDetails'),'scope');tone($('systemAdditions').closest('details'),'scope');
+        const sizing=$('bessSizing').closest('.field'),backupInputs=$('bessLoad').closest('.row2');backupInputs.id='bessBackupInputs';backupInputs.hidden=true;
+        const price=group('Pricing','price',[$('bessCost').closest('.field'),$('bessCostHint')]);
+        const setup=group('Battery & sizing goal','scope',[$('bessModel').closest('.field'),$('bessCustomIdentity'),sizing,backupInputs]);
+        const custom=tone($('bessAdditions').closest('details'),'scope');
+        const specifications=tone($('bessCapacity').closest('details'),'technical');specifications.id='bessSpecifications';
+        const advanced=$('bessAutoSetup');tone(advanced.querySelector('details'),'technical');
+        const operating=tone($('bessUseCase').closest('details'),'economics');operating.id='bessOperating';
+        const reportPreferences=tone($('bessInclude').closest('details'),'report');reportPreferences.id='bessReportPreferences';
+        const inputStatus=$('bessInputStatus');if(inputStatus)reportPreferences.append(inputStatus);
+        $('bessFields').append(price,setup,custom,advanced,specifications,operating,reportPreferences,$('bessValidation'));
+        $('bessModel').addEventListener('change',()=>{if($('bessModel').value==='custom')$('bessCapacity').closest('details').open=true;});
+        picker.addEventListener('input',event=>event.stopPropagation());
+        picker.addEventListener('change',()=>{
+          const chosen=picker.value;if(chosen==='combined')return;
+          const old={system:$('systemEnabled').checked,battery:$('bessEnabled').checked};
+          $('systemEnabled').checked=!['none','bess'].includes(chosen);$('bessEnabled').checked=chosen==='bess';
+          if($('systemEnabled').checked){$('systemTemplate').value=chosen;$('systemTemplate').dispatchEvent(new Event('change',{bubbles:true}));if($('systemTemplate').value!==chosen){$('systemEnabled').checked=old.system;$('bessEnabled').checked=old.battery;}}
+          else if(chosen==='bess'&&!$('bessModel').value&&!['bessMake','bessCapacity','bessPower'].some(id=>$(id).value.trim())){
+            $('bessModel').value='pylon-us5000';$('bessModel').dispatchEvent(new Event('change',{bubbles:true}));
+          }
+          window.Render.renderAll();
+        });
+        const review=element('details','system-review');review.id='systemReview';review.hidden=true;
+        const reviewSummary=element('summary');reviewSummary.id='systemReviewSummary';
+        const reviewItems=element('ul');reviewItems.id='systemReviewItems';
+        review.append(reviewSummary,reviewItems,element('p','system-review-note','Proposal review only. Final site design and installation approval are separate.'));details.append(review);
+      }
       fieldset.append(view); sections.push({field, details, text, description});
     });
     // Keep content and equipment libraries out of routine quotation inputs.
@@ -147,7 +189,7 @@
       engFs.querySelector('legend').classList.add('studio-sr-only');
       wrap.insertBefore(d, engFs); d.append(engFs);
     }
-    /* Panel order: the working list, then QR & links, then the drawer, and
+    /* Panel order: the working list, then QR & links, Advanced Systems, the drawer, and
        Advanced Edit last. */
     form.insertBefore(wrap, $('advancedPanel'));
 
@@ -213,9 +255,11 @@
       const state = window.Render.lastState || window.Render.readState();
       const f = window.Finance.compute(state);
       overview.querySelector('[data-metric="capacity"]').textContent = (state.capacity || '-') + ' kWp';
-      overview.querySelector('[data-metric="investment"]').previousElementSibling.textContent=(window.Bess.included(state)||window.AdditionalSystems.included(state))?'Solar-only investment':'Net investment';
-      overview.querySelector('[data-metric="investment"]').textContent = window.Finance.fmtINR(f.netInvestment);
+      overview.querySelector('[data-metric="investment"]').previousElementSibling.textContent=(window.Bess.included(state)||window.AdditionalSystems.included(state))?'Solar Project Cost':'Total Project Cost';
+      overview.querySelector('[data-metric="investment"]').textContent = window.Finance.fmtINR(f.grossTotal);
+      overview.querySelector('[data-metric="investment"]').title = 'Including GST, before estimated subsidy; optional upgrades priced separately';
       overview.querySelector('[data-metric="energy"]').textContent = window.Finance.fmtNum(f.annualGen) + ' kWh';
+      overview.querySelector('[data-metric="energy"]').title = 'Estimated first-year annual generation';
       overview.querySelector('.studio-page-count').textContent = window.Render.lastVisible.length + ' pages';
       /* Live derived read-outs. The rate fields above them are per-kWp and
          per-Wp, so without these the panel looks like it ignores the capacity
@@ -244,10 +288,9 @@
       sections.forEach(({field, text, description}) => { text.querySelector('small').textContent = summaries[field] || description; });
       const selected = $('proposalSelect').selectedOptions[0];
       if (selected) selected.textContent = '#' + (state.propRef || 'Draft') + ' · ' + (state.custName || 'Untitled customer') + ' - ' + (state.capacity || '0') + ' kWp · v' + (state.propVersion || '1.0');
-      const bessSection=document.querySelector('[data-section="bessEnabled"] summary small');
-      if(bessSection) bessSection.textContent=window.Bess.enabled(state) ? (window.Bess.included(state)?'Included':'Standalone')+' · '+(state.bessCapacity||'-')+' kWh' : 'Not included · solar-only proposal';
+      if(!window.Bess.enabled(state))$('bessInputStatus').textContent='No battery storage selected.';
       const sysSummary=document.querySelector('[data-section="systemEnabled"] summary small');
-      if(sysSummary)sysSummary.textContent=window.AdditionalSystems.enabled(state)?(state.systemName||'Custom system')+' · '+(window.AdditionalSystems.included(state)?'included':'standalone'):'Optional controls, charging or a custom system';
+      if(sysSummary){const selected=[];if(window.AdditionalSystems.enabled(state))selected.push(window.AdditionalSystems.name(state));if(window.Bess.enabled(state))selected.push('Battery storage'+(state.bessCapacity?' · '+state.bessCapacity+' kWh':''));sysSummary.textContent=selected.join(' + ')||'Solar roofs, carports, controls & battery storage';}
       /* The panel stays silent about the reference too - the pre-flight
          raises it before a PDF exists. */
       refWarning.hidden = true;
@@ -384,14 +427,15 @@
 
     function reveal(input) {
       if (!input) return;
-      if(input.id==='systemEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-system-choice="yes"]');}
-      if(input.id==='bessEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-bess-choice="yes"]');}
+      if(input.id==='systemEnabled'){input.closest('.studio-section').open=true;input=$('advancedSystemSelect');}
+      if(input.id==='bessEnabled'){input.closest('.studio-section').open=true;input=$('advancedSystemSelect');}
       if (input.closest('[data-adv]')) $('modeAll').click();
       for (let parent = input.parentElement; parent && parent !== panel; parent = parent.parentElement) {
         if (parent.tagName === 'DETAILS') parent.open = true;
       }
       input.scrollIntoView({behavior: 'instant', block: 'center'}); input.focus({preventScroll: true});
     }
+    form.addEventListener('click',event=>{const button=event.target.closest('[data-system-review-target]');if(button)reveal($(button.dataset.systemReviewTarget));});
     const searchInput = $('studioSearch'), results = $('studioSearchResults'), clear = search.querySelector('button');
     function clearSearch() { searchInput.value = ''; results.hidden = true; clear.hidden = true; }
     function find() {
@@ -417,7 +461,7 @@
     }
     searchInput.addEventListener('input', find); clear.addEventListener('click', () => { clearSearch(); searchInput.focus(); });
     searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') { clearSearch(); e.stopPropagation(); } });
-    document.addEventListener('qs:rendered', update); update();
+    document.addEventListener('qs:rendered', update);window.AdditionalSystems.sync(window.Render.lastState||window.Render.readState());update();
   }
   document.addEventListener('DOMContentLoaded', boot);
 })();

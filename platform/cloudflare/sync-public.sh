@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Copy front-end from repo root into ./public for Workers Assets deploy.
+# Delegate to the canonical cross-platform sync (single source of truth).
+# The old inline copy list drifted behind sync-public.js (it missed
+# oauth-complete.html and the generated _headers file).
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-PUB="$(cd "$(dirname "$0")" && pwd)/public"
-rm -rf "$PUB"
-mkdir -p "$PUB/assets"
-for f in index.html dashboard.html quotation.html portal.html share.html gallery.html; do
-  [ -f "$ROOT/$f" ] && cp -f "$ROOT/$f" "$PUB/"
-done
-cp -a "$ROOT/assets/." "$PUB/assets/"
-echo "Synced public/ from repo root ($(find "$PUB" -type f | wc -l) files)"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+if ! command -v node >/dev/null 2>&1; then
+  echo "node is required to sync public/ (wrangler builds need it too)" >&2
+  exit 1
+fi
+exec node "$HERE/sync-public.js"

@@ -12,6 +12,11 @@ main = "src/worker.js"
 compatibility_date = "2024-11-12"
 compatibility_flags = ["nodejs_compat"]
 
+# Fresh git clones have no ./public (it is gitignored). Populate it before
+# every wrangler deploy so Workers Builds / CI never fail on missing assets.
+[build]
+command = "node sync-public.js"
+
 # Static HTML/CSS/JS/images — must be under this package so ASSETS binds on deploy.
 # If you only paste worker code in the dashboard, ASSETS is missing → black page error.
 [assets]

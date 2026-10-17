@@ -29,12 +29,11 @@
 .sp-project b{font-size:12px;color:#23384a;max-width:52%;overflow-wrap:anywhere;}
 .sp-hero{height:303px;position:relative;border-radius:11px;overflow:hidden;background:#13283e;}
 .sp-hero>img{position:absolute;width:100%;height:100%;object-fit:cover;inset:0;}
-.sp-hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,28,47,.97),rgba(9,28,47,.78) 43%,rgba(9,28,47,0) 78%);}
-.sp-hero-copy{position:absolute;top:25px;left:27px;width:350px;color:#fff;}
+.sp-hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,28,47,.38),rgba(9,28,47,.16) 45%,rgba(9,28,47,0) 80%);}
+.sp-hero-copy{text-shadow:0 1px 4px rgba(5,18,29,.75),0 2px 12px rgba(5,18,29,.35);position:absolute;top:25px;left:27px;width:350px;color:#fff;}
 .sp-hero-copy>span{display:inline-block;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#f2c386;border-bottom:1px solid #f2c386;padding-bottom:8px;}
 .sp-hero h2{font:600 37px/1.18 'Poppins',sans-serif;letter-spacing:-1.3px;margin:13px 0 10px;color:#fff;}
 .sp-hero p{font-size:10px;line-height:1.75;max-width:280px;color:#dfE8ef;margin:0;}
-.sp-hero-caption{position:absolute;bottom:9px;right:12px;font-size:7px;color:white;text-shadow:0 1px 3px #111;background:#12293cbd;padding:3px 6px;border-radius:3px;}
 .sp-product{display:flex;justify-content:space-between;align-items:center;gap:15px;border-bottom:1px solid #dce2e5;padding:14px 0 12px;margin-bottom:14px;}
 .sp-product small,.sp-system-intro small{font-size:7px;letter-spacing:.13em;color:#8a744d;font-weight:700;display:block;margin-bottom:6px;}
 .sp-product b{font-size:12px;overflow-wrap:anywhere;display:block;}
@@ -146,3 +145,146 @@
 .sp-flow-node>i small{display:block;font-size:6px;letter-spacing:.04em;color:#899ba3;}
 .sp-flow-node>svg{display:inline-block;vertical-align:middle;position:relative;z-index:1;}
 .sp-flow-node>b{display:block;font-size:8px;margin-top:5px;}
+
+/* Project-package controls and compact, consistent document context. */
+.system-structure-fields{background:#f5f8fa;border:1px solid #dbe5eb;border-radius:10px;padding:12px;margin:14px 0;}
+.system-field-heading{font-size:11px;font-weight:700;color:#264559;margin-bottom:12px;}
+.system-field-heading small{display:block;font-weight:400;font-size:10px;color:#657b89;margin-top:5px;}
+.system-pricing-hint{border-left:3px solid #c48d42;background:#fff8ec;padding:10px;line-height:1.7;}
+.cover-system-label{position:absolute;z-index:2;top:79.2%;left:6.604%;width:36%;color:#f9fafb;font:500 9px/1.15 'Inter',Arial,sans-serif;overflow-wrap:anywhere;}
+.cover-system-label small{display:block;margin-bottom:1px;color:#f3bd78;font-size:6px;line-height:1.15;letter-spacing:.1em;font-weight:600;}
+.cover-system-label span{display:block;}
+.cover-system-label[hidden]{display:none;}
+.sp-system-facts{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;padding:7px 14px;background:#f1f6f7;border:1px solid #dce6e8;border-radius:8px;margin-top:14px;}
+.system-page .sp-system-intro{padding:14px 0;}
+.system-page .sp-system-intro>p{font-size:11px;line-height:1.7;}
+.system-page .sp-system-flow{padding:14px;}
+.system-page .sp-panel{padding:13px 14px;}
+.system-page .sp-panel .sp-list{font-size:9px;line-height:1.65;}
+.system-page .sp-engineering-notes{font-size:9px;line-height:1.7;padding:12px 15px;}
+.system-page .sp-signoff{margin-top:15px;padding-top:12px;}
+.system-page .sp-detail-ribbon strong{font-size:17px;}
+.system-page .sp-hero h2{font-size:29px;line-height:1.2;}
+/* Commercial tax notes plus system context share the existing A4 budget. */
+#pageInvestment.has-system-context.has-tax #chartBridge{height:240px!important;}
+#pageInvestment.has-system-context.has-tax .inv-total{padding-top:10px;padding-bottom:10px;}
+#pageInvestment.has-system-context.has-tax .pay-chip{padding-top:7px;padding-bottom:7px;}
+/* Itemised commercial offers also retain percentage warnings above the
+   absolute disclaimer; reclaim margins, never financial lines or chart data. */
+#pageInvestment.has-system-context.has-bom .inv-total{padding-top:8px;padding-bottom:8px;margin-bottom:8px;}
+#pageInvestment.has-system-context.has-bom .inv-charts{margin-bottom:2px;}
+#pageInvestment.has-system-context.has-bom .inv-cards{margin-bottom:6px;}
+#pageInvestment.has-system-context.has-bom .inv-card{padding-top:7px;padding-bottom:7px;}
+#pageInvestment.has-system-context.has-bom #v_inDesc{margin-bottom:8px;}
+
+/* BESS-matched compact full-bleed frame. Native-ratio image geometry also works in PDF capture. */
+.system-page .sp-system-hero{height:303px;display:block;background:#13283e;}
+.system-page .sp-system-hero>img{position:absolute;inset:auto;left:0;top:50%;width:100%;height:auto;max-width:none;max-height:none;transform:translateY(-50%);object-fit:cover;display:block;}
+.system-page .sp-system-hero .sp-hero-copy{text-shadow:0 1px 4px rgba(5,18,29,.75),0 2px 12px rgba(5,18,29,.35);position:absolute;left:30px;top:32px;bottom:auto;width:400px;max-width:calc(100% - 60px);min-width:0;padding:0;}
+.system-page .sp-system-hero .sp-hero-copy>small{display:block;font-size:8px;line-height:1.5;letter-spacing:.13em;color:#ffedcf;text-transform:uppercase;font-weight:600;}
+.system-page .sp-system-hero h2{font-size:34px;line-height:1.17;letter-spacing:-.8px;margin:12px 0 10px;overflow-wrap:anywhere;text-shadow:inherit;}
+.system-page .sp-system-hero .sp-hero-breathline{font-size:11px;line-height:1.65;font-weight:400;color:#fff;max-width:350px;margin:0;text-shadow:inherit;}
+.system-page .sp-system-intro{padding:12px 0;}
+.system-page .sp-section-label{margin-top:12px;margin-bottom:7px;}
+.system-page .sp-system-flow{padding:12px 16px;}
+.system-page .sp-note{margin-top:10px;padding-top:8px;}
+.system-page.sp-density-2 .sp-system-hero h2{font-size:27px;}
+.system-page .sp-system-brief{display:block;margin-top:14px;}
+.studio-system-storage{margin:8px 12px 14px;}
+.studio-system-storage>fieldset{border:0;margin:0;padding:12px 0 0;}
+.system-edit-details{margin-top:12px;}
+
+/* Compact package choices and a single, on-demand preparer review. */
+.system-package-label{font-size:11px;font-weight:650;color:#29465b;margin:0 0 10px;}
+.studio-system-storage>summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.system-battery-state{font-size:10px;font-weight:400;color:#6b8293;margin-left:auto;}
+.system-review{border:1px solid #e2e8e9;border-radius:9px;margin:0 12px 14px;background:#fbfcfc;}
+.system-review[hidden],.system-review-confirm[hidden]{display:none!important;}
+.system-review>summary{padding:12px;font-size:11px;font-weight:650;color:#876126;cursor:pointer;}
+.system-review[data-state="reviewed"]>summary{color:#2d7262;}
+.system-review ul{list-style:none;margin:0;padding:0 12px;}
+.system-review li{border-top:1px solid #e7ecee;padding:8px 0;display:flex;gap:8px;align-items:baseline;}
+.system-review li:before{content:'•';color:#a77730;flex:none;}
+.system-review li[data-state="invalid"]:before{color:#b44732;}
+.system-review li[data-state="reviewed"]:before{content:'✓';color:#2d7262;}
+.system-review li button{font:inherit;font-size:11px;line-height:1.6;text-align:left;white-space:normal;overflow-wrap:anywhere;border:0;padding:0;background:none;color:#3a5264;cursor:pointer;box-shadow:none;}
+.system-review li button:hover{text-decoration:underline;}
+.system-review li button:focus-visible{outline:2px solid #bd863e;outline-offset:3px;}
+.system-review-note{font-size:10px;line-height:1.6;color:#7a8791;margin:10px 12px 12px;}
+.system-review-confirm label{font-size:11px;line-height:1.6;display:flex;align-items:flex-start;gap:7px;}
+.system-review-confirm input[type="checkbox"]{width:auto;flex:none;margin-top:3px;}
+.sp-linked-equipment{display:grid;grid-template-columns:1fr 1fr;gap:16px;border-top:1px solid #dce5e9;margin-top:14px;padding-top:11px;}
+.sp-linked-equipment small{display:block;font-size:7px;color:#768995;text-transform:uppercase;letter-spacing:.07em;}
+.sp-linked-equipment b{display:block;font-size:9px;font-weight:500;line-height:1.6;margin-top:4px;color:#385368;overflow-wrap:anywhere;}
+@media print{.system-review{display:none!important;}}
+/* The existing floating PDF action must not cover checklist text while it
+   is being reviewed; the normal footer download remains available. */
+body:has([data-section="systemEnabled"][open] #systemReview[open]:not([hidden])) .pdf-fab{display:none;}
+
+/* One selector, one selected-system card. Existing state IDs remain intact. */
+.system-picker-field{margin-bottom:13px;}
+.selected-system-card{border:1px solid #d9e5e7;border-radius:12px;overflow:hidden;background:linear-gradient(145deg,#f2f7f6,#fff);margin-bottom:16px;}
+.selected-system-card[hidden],.selected-battery-fields[hidden]{display:none!important;}
+.selected-system-card>div{padding:13px;}
+.selected-system-card>div>small{font-size:8px;letter-spacing:.12em;color:#9b733c;}
+.selected-system-card strong{display:block;font:600 16px/1.35 'Poppins',sans-serif;color:#173b4b;margin:5px 0;}
+.selected-system-card p{font-size:11px;line-height:1.65;color:#637a89;margin:6px 0;}
+.selected-system-metrics{display:flex;gap:8px;margin-top:11px;}
+.selected-system-metrics>span{flex:1;min-width:0;border:1px solid #e0e8e8;border-radius:7px;padding:8px;background:#fff;}
+.selected-system-metrics b{display:block;font-size:12px;color:#20544f;overflow-wrap:anywhere;}
+.selected-system-metrics small{display:block;font-size:9px;line-height:1.5;color:#738590;margin-top:3px;}
+.selected-system-card .selected-system-note{font-size:10px;border-top:1px solid #e3e9e9;margin-top:10px;padding-top:8px;}
+.selected-battery-fields{margin:0 0 14px;}
+.selected-battery-fields>fieldset.bess-controls{border:0;padding:0;margin:0;}
+.custom-additions-input textarea{width:100%;min-height:85px;}
+.system-page .sp-system-brief{display:grid;grid-template-columns:1.15fr 1fr;gap:20px;}
+.sp-functional-note{background:#f3f7f6;border:1px solid #dfe8e5;border-radius:8px;padding:13px 14px;align-self:start;margin-top:14px;}
+.sp-functional-note small,.sp-custom-additions small{display:block;font-size:7px;letter-spacing:.08em;color:#8c754e;}
+.sp-functional-note b{display:block;font-size:11px;color:#2a5154;margin:7px 0;}
+.sp-functional-note p,.sp-custom-additions p{font-size:9px;line-height:1.7;color:#667e86;margin:5px 0 0;overflow-wrap:anywhere;}
+.sp-custom-additions{border-left:2px solid #c59a5c;background:#faf7ef;padding:10px 13px;margin:12px 0;}
+.sp-density-1 .sp-section-label{margin-top:12px;margin-bottom:7px;}
+.sp-density-1 .sp-panel{padding:11px 12px;}
+.sp-density-1 .sp-custom-additions{padding:8px 11px;margin:9px 0;}
+.sp-density-2 .sp-section-label{margin-top:9px;margin-bottom:6px;}
+.sp-density-2 .sp-panel{padding:9px 10px;}
+.sp-density-2 .sp-custom-additions{padding:7px 10px;margin:8px 0;}
+.sp-density-2 .sp-custom-additions p{font-size:8.5px;line-height:1.55;}
+.sp-density-2 .sp-row{padding:4px 0;}
+.sp-density-2 .sp-engineering-notes{padding:9px 12px;}
+.sp-density-2 .sp-signoff{margin-top:10px;padding-top:9px;}
+.sp-density-2 .sp-method{font-size:7.5px;line-height:1.5;}
+
+.selected-system-card .selected-system-configuration{font-size:10px;color:#39756b;margin-top:2px;}
+.selected-system-card .selected-system-warning{font-size:10px;color:#8a5e22;background:#fcf5e8;border-left:2px solid #d1a05a;padding:7px 9px;}
+
+/* Builder-only hierarchy: price / scope / technical / economics / report. */
+[data-section="systemEnabled"] [data-input-tone]{--input-bg:#f3f8f5;--input-edge:#d7e7dd;--input-ink:#275e4e;background:var(--input-bg);border:1px solid var(--input-edge);border-radius:10px;}
+[data-section="systemEnabled"] [data-input-tone="price"]{--input-bg:#fff9ef;--input-edge:#ecdcbf;--input-ink:#84602e;}
+[data-section="systemEnabled"] [data-input-tone="technical"]{--input-bg:#f2f7fc;--input-edge:#d8e4ef;--input-ink:#365d82;}
+[data-section="systemEnabled"] [data-input-tone="economics"]{--input-bg:#f7f4fb;--input-edge:#e3dbef;--input-ink:#695586;}
+[data-section="systemEnabled"] [data-input-tone="report"]{--input-bg:#f6f8fa;--input-edge:#dfe5eb;--input-ink:#57697c;}
+.system-input-group{padding:12px;margin:12px 0;}
+.system-input-heading{font:700 10px/1.5 'Inter',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--input-ink);margin:0 0 12px;}
+.system-input-group>.field:last-child,.system-input-group>.field:last-child label{margin-bottom:0;}
+.system-input-group>.hint:last-child{margin-bottom:0;}
+[data-section="systemEnabled"] .bess-model[data-input-tone]{padding:12px;}
+[data-section="systemEnabled"] .bess-model[data-input-tone]>summary{color:var(--input-ink);margin-bottom:0;}
+[data-section="systemEnabled"] .bess-model[data-input-tone][open]>summary{margin-bottom:12px;}
+.system-input-group #systemPricingHint{border:0;background:none;padding:0;margin:0 0 10px;font-size:10px;}
+#selectedSystemCard .selected-system-note{font-size:9px;margin-top:8px;padding-top:7px;}
+#selectedSystemCard .selected-system-metrics{margin-top:9px;}
+#selectedSystemCard>div{padding:12px;}
+
+/* Optional, connected Leak Proof water assessment. */
+#systemWaterCard[hidden],#systemWaterFields[hidden]{display:none!important;}
+#systemWaterResult{font-size:11px;color:#326c60;line-height:1.6;margin:10px 0;}
+.rw-diagram{display:block;width:100%;height:auto;margin:12px 0;}
+#systemWaterDiagram .rw-diagram{margin-bottom:0;}
+.sp-water-tag{display:flex;gap:14px;align-items:baseline;background:#eff7f3;border:1px solid #d9e9e0;border-radius:7px;padding:8px 11px;margin-top:10px;font-size:8px;color:#326a5b;}
+.sp-water-tag b{white-space:nowrap;}
+.sp-water-tag span{line-height:1.6;}
+.rainwater-page .sp-title{font-size:28px;}
+.rainwater-page .sp-sub{margin-bottom:12px;}
+.rainwater-page .sp-row{padding:5px 0;}
+.rainwater-page .sp-engineering-notes{padding:10px 13px;}

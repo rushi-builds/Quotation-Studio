@@ -64,7 +64,10 @@
       const note=language==='hi'?'नीचे बताए गए मूल्य, बचत और भुगतान केवल सौर प्रणाली के लिए हैं। बैटरी स्टोरेज अलग कीमत वाला विकल्प है। उसकी क्षमता, अतिरिक्त लागत, बैकअप की शर्तें और आकलन प्रस्ताव के बैटरी पृष्ठों पर देखें। बैटरी की बचत को सौर बचत में न जोड़ें।':language==='mr'?'पुढे सांगितलेल्या किंमती, बचत आणि देयके केवळ सौर यंत्रणेसाठी आहेत. बॅटरी स्टोरेज हा स्वतंत्र किमतीचा पर्याय आहे. क्षमता, अतिरिक्त किंमत, बॅकअपच्या अटी आणि अंदाज प्रस्तावातील बॅटरी पृष्ठांवर पाहा. बॅटरीची बचत सौर बचतीत मिळवू नका.':'The prices, savings and payments below are solar-only. Optional battery storage is priced separately. See the battery pages for capacity, additional investment, backup conditions and the storage-only assessment. Do not add its savings to the solar estimate.';
       script.splice(1,0,note);
     }
-    if(root.AdditionalSystems.included(s))script.splice(1,0,language==='hi'?'अतिरिक्त प्रणाली अलग कीमत पर प्रस्तावित है। सौर गणना में उसके प्रभाव शामिल नहीं हैं।':language==='mr'?'अतिरिक्त यंत्रणा स्वतंत्र किमतीत प्रस्तावित आहे. सौर गणनेत तिचे परिणाम समाविष्ट नाहीत.':'An additional system is proposed and priced separately. Its effects on generation or consumption are not included in the solar calculations.');
+    if(root.AdditionalSystems.included(s)) {
+      const included=root.AdditionalSystems.inBase(s);
+      script.splice(1,0,language==='hi'?(included?'अतिरिक्त प्रणाली का सहमत दायरा दर्ज सौर कीमत में शामिल है। दोबारा शुल्क नहीं जोड़ा गया है।':'अतिरिक्त प्रणाली अलग कीमत पर प्रस्तावित है।')+' उसके परिचालन प्रभाव सौर गणना में शामिल नहीं हैं।':language==='mr'?(included?'अतिरिक्त यंत्रणेचा मान्य आवाका नोंदवलेल्या सौर किमतीत समाविष्ट आहे. दुसरे शुल्क जोडलेले नाही.':'अतिरिक्त यंत्रणा स्वतंत्र किमतीत प्रस्तावित आहे.')+' तिचे कार्यात्मक परिणाम सौर गणनेत समाविष्ट नाहीत.':(included?'The agreed additional system scope is included in the entered solar quoted price. No second charge is added.':'An additional system is proposed and priced separately.')+' Its effects on generation or consumption are not included in the solar calculations.');
+    }
     return script;
   }
   let host, state=null, stateKey='', language='en', mode='idle', revision=0, timer;

@@ -11,12 +11,12 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';
   await page.setViewport({width:1440,height:1050});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
-  check('workspace loads with fourteen collapsible input sections',await page.$$eval('.studio-section',e=>e.length===14));
+  check('workspace loads with thirteen collapsible input sections with BESS inside Advanced Systems',await page.$$eval('.studio-section',e=>e.length===13));
   check('only the customer section starts open',await page.$$eval('.studio-section',els=>els.filter(e=>e.open).length===1&&els[0].open));
   check('original quotation controls remain unique',await page.evaluate(()=>Object.keys(StateStore.DEFAULTS).every(id=>document.querySelectorAll('#'+id).length===1)));
   check('search is not a quotation input',await page.evaluate(()=>!('studioSearch' in StateStore.collectForm())));
   check('Essentials mode has accessible state and equipment access',await page.evaluate(()=>document.getElementById('modeEss').getAttribute('aria-pressed')==='true'&&document.querySelector('[data-section="moduleMake"]').checkVisibility()&&!document.querySelector('[data-section="companyName"]').checkVisibility()));
-  check('live summary matches the existing Finance engine',await page.evaluate(()=>{const f=Finance.compute(Render.lastState);return document.querySelector('[data-metric="investment"]').textContent===Finance.fmtINR(f.netInvestment)&&document.querySelector('[data-metric="energy"]').textContent===Finance.fmtNum(f.annualGen)+' kWh';}));
+  check('live summary matches the existing Finance engine',await page.evaluate(()=>{const f=Finance.compute(Render.lastState);return document.querySelector('[data-metric="investment"]').textContent===Finance.fmtINR(f.grossTotal)&&document.querySelector('[data-metric="energy"]').textContent===Finance.fmtNum(f.annualGen)+' kWh';}));
   check('local save is persistent and honestly labelled',await page.$eval('#saveIndicator',e=>/^Saved in this browser · \d{2}:\d{2}$/.test(e.textContent)&&e.dataset.state==='saved'));
   const shots=path.join(__dirname,'shots');fs.mkdirSync(shots,{recursive:true});await page.screenshot({path:path.join(shots,'control-panel-desktop.png')});
   async function edit(id,value){await page.$eval('#'+id,(e,v)=>{e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));},value);}

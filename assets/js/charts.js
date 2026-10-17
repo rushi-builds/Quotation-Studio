@@ -260,7 +260,7 @@
       { label: 'Project Cost', v: f.projectCost, color: NAVY, sub: 'excl. GST' },
       { label: '+ GST', v: f.gstAmount, color: NAVY_SOFT, sub: f.gstPercent + '%', start: f.projectCost },
       { label: '− Subsidy', v: -f.subsidy, color: GREEN, sub: f.subsidy > 0 ? 'PM Surya Ghar' : '-', start: f.grossTotal },
-      { label: 'Net Payable', v: f.netInvestment, color: ORANGE, sub: 'your investment', total: true }
+      { label: 'Effective Cost', v: f.netInvestment, color: ORANGE, sub: 'after subsidy', total: true }
     ];
     const pad = { l: 16, r: 16, t: 34, b: 42 };
     const ih = H - pad.t - pad.b;
@@ -387,6 +387,9 @@
       a = a2;
     });
     ctx.textAlign = 'center';
+    // Compact itemised offers already show this total in the cost card.
+    // Keep redundant centre labels from crossing the smaller donut ring.
+    if (W < 150) return;
     ctx.fillStyle = NAVY;
     ctx.font = '800 15px ' + FONT_DISPLAY;
     ctx.fillText(shortINR(total), cx, cy - 1);

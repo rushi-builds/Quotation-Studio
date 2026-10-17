@@ -8,8 +8,8 @@
   const pageLabel=n=>n+' '+(n===1?'Page':'Pages');
   const formats={bess:{title:'BESS Report',ids:['pageBessOverview','pageBessAssessment']},system:{title:'Additional System Report',ids:['pageSystemOverview','pageSystemDetail']},'system-power':{title:'System Power Proposal',ids:['pageSystemOverview']}};
   function formatsFor(s) {
-    const name=String(s.systemName||root.AdditionalSystems.templates[s.systemTemplate]?.name||'Additional System').trim()||'Additional System';
-    return {...formats,system:{...formats.system,title:name+' Report'},'system-power':{...formats['system-power'],title:name+' Power Proposal'}};
+    const water=root.Rainwater.enabled(s),name=root.AdditionalSystems.name(s)+(water?' + Rainwater harvesting':'');
+    return {...formats,system:{...formats.system,title:name+' Report',ids:[...formats.system.ids,...(water?['pageRainwater']:[])]},'system-power':{...formats['system-power'],title:name+' Power Proposal'}};
   }
   function updateLabel() {
     const s=root.Render.lastState||{},select=$('pdfFormat'),reports=formatsFor(s);
@@ -43,6 +43,13 @@
     pages.forEach((p,index)=>{
       const source=$(p.id), copy=source.cloneNode(true);
       copy.style.transform='none';
+      // Keep the builder light; load high-resolution artwork only in the
+      // detached PDF snapshot. Uploaded photos have no print override.
+      copy.querySelectorAll('img[data-print-src]').forEach(img=>{
+        img.src=img.getAttribute('data-print-src');
+        img.removeAttribute('srcset');
+        img.removeAttribute('sizes');
+      });
       if(standaloneTitle){copy.querySelector('.pf-right').textContent='Page '+(index+1)+' of '+pages.length;copy.querySelector('.pg-head-meta').textContent=standaloneTitle+' · '+(root.Render.lastState.propRef||'');}
       // Live chrome updates use document-wide data bindings; detach those from
       // the snapshot so later form edits cannot rewrite captured metadata.
@@ -103,6 +110,7 @@
           reject(new Error('An image did not load. Check the image source and try again.'));
         },20000);
       })));
+      root.SupplementDesign.fit(snapshot);
       if(format==='power') pages.forEach(page=>{
         const footer=page.querySelector('footer'),last=footer.previousElementSibling;
         if(last.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-4 || page.scrollHeight>1124 || page.scrollWidth>page.clientWidth+1)
@@ -251,8 +259,8 @@
       if (await preflight() !== 'proceed') return;
       btn.disabled=true;btn.classList.add('busy');
       try{clearTimeout(statusTimer);
-        /* The PDF carries this proposal's own customer link (cover QR +
-           request form); make sure it exists before rendering. No-op when
+        /* The PDF carries this proposal's own customer request link;
+           make sure it exists before rendering. No-op when
            not signed in or when the cloud is unavailable. */
         await window.CloudBridge?.ensureShareLink?.();
         await exportPdf(m=>{status.textContent=m;},{format:$('pdfFormat')?.value});}

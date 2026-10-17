@@ -35,7 +35,7 @@ const OUT = __dirname + '/shots';
   /* ---- integrity ---- */
   const pageCount = await page.$$eval('.page', (els) => els.length);
   const visibleCount = await page.$$eval('.page', (els) => els.filter((e) => e.getClientRects().length > 0).length);
-  t('21 page shells (options, financing and BESS hidden by default)', pageCount === 21, pageCount);
+  t('22 page shells (options, financing and BESS hidden by default)', pageCount === 22, pageCount);
   t('15 visible (options hidden by default)', visibleCount === 15, visibleCount);
   const kv = await page.evaluate(() => ({
     coverName: document.getElementById('v_coverCustName').textContent,
@@ -100,7 +100,7 @@ const OUT = __dirname + '/shots';
   });
   t('donut painted', donutPixels > 100, donutPixels);
 
-  /* ---- system options (Good/Better/Best) + cover QR ---- */
+  /* ---- system options (Good/Better/Best) + unobstructed cover ---- */
   await page.evaluate(() => { document.getElementById('optName').focus(); });
   await page.type('#optName', 'Good - 5 kWp');
   await page.evaluate(() => { const c = document.getElementById('capacity'); c.value = '5'; c.dispatchEvent(new Event('input', { bubbles: true })); });
@@ -143,23 +143,17 @@ const OUT = __dirname + '/shots';
 
   await page.evaluate(() => { const u = document.getElementById('shareUrl'); u.value = 'https://example.com/proposals/KTME-2026-013'; u.dispatchEvent(new Event('input', { bubbles: true })); });
   await new Promise((r) => setTimeout(r, 600));
-  const qr = await page.evaluate(() => {
-    const wrap = document.getElementById('coverQrWrap');
-    const c = document.getElementById('qrCover');
-    if (!wrap || !c) return { shown: false };
-    const ctx = c.getContext('2d');
-    const d = ctx.getImageData(0, 0, c.width, c.height).data;
-    let dark = 0;
-    for (let i = 0; i < d.length; i += 4) if (d[i] < 100) dark++;
-    return { shown: wrap.getClientRects().length > 0, w: c.width, dark };
-  });
-  t('cover QR shown for valid link', qr.shown === true, JSON.stringify(qr));
-  t('cover QR painted', qr.w >= 92 && qr.dark > 200, JSON.stringify(qr));
+  const cleanCover = await page.evaluate(() => ({
+    absent: !document.querySelector('#coverQrWrap, #qrCover, #pageCover .cover-qr'),
+    link: StateStore.collectForm().shareUrl
+  }));
+  t('valid customer link does not add a cover QR', cleanCover.absent, cleanCover);
+  t('customer link stays available for sharing', cleanCover.link === 'https://example.com/proposals/KTME-2026-013', cleanCover.link);
   await page.evaluate(() => { const u = document.getElementById('shareUrl'); u.value = ''; u.dispatchEvent(new Event('input', { bubbles: true })); });
   await new Promise((r) => setTimeout(r, 400));
-  const qrGone = await page.evaluate(() => document.getElementById('coverQrWrap').getClientRects().length === 0);
-  t('cover QR hidden when link cleared', qrGone, qrGone);
-  /* restore the demo link so the cover screenshot shows the QR */
+  const qrGone = await page.evaluate(() => !document.querySelector('#coverQrWrap, #qrCover, #pageCover .cover-qr'));
+  t('cover stays QR-free when link cleared', qrGone, qrGone);
+  /* Restore the demo link for the WhatsApp check; the cover stays QR-free. */
   await page.evaluate(() => { const u = document.getElementById('shareUrl'); u.value = 'https://example.com/proposals/KTME-2026-013'; u.dispatchEvent(new Event('input', { bubbles: true })); });
   await new Promise((r) => setTimeout(r, 500));
 

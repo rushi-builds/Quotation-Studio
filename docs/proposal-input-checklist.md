@@ -98,8 +98,9 @@ not shown. Nothing is invented.
 - **Valid for (days)** — default 15. This becomes the printed "valid until" date.
 - **Avg. monthly bill** — optional. Fill it if you want the bill-offset figure
   (how much of their bill the system covers) instead of a generic savings claim.
-- **Proposal link** — optional, and only if you actually have a hosted URL. The
-  cover QR is generated from this and is hidden when the field is empty.
+- **Proposal link** — use a real hosted customer URL for request actions and
+  WhatsApp sharing. The cover intentionally has no QR overlay; project-gallery
+  QR codes remain on the portfolio and contact pages.
 
 **Proposals strip (top of the panel)**
 
@@ -316,9 +317,9 @@ shown, which is the honest default.
   **not** attach the PDF. You still have to attach the file yourself.
 - **Customer view** opens `share.html?p=<id>`, which reads the proposal out of
   **this browser's storage**. It therefore works only on your own machine: a
-  customer who opens that address sees *"Proposal not found"*. Same for the
-  cover QR — it points at whatever URL you typed, so only point it at something
-  that genuinely resolves for them.
+  customer who opens that address sees *"Proposal not found"*. For sharing
+  across devices, use a published customer portal link that genuinely resolves
+  for them. The cover has no QR overlay.
 
 **Storage warning.** Autosave and *Save now* keep the proposal **in this browser
 only** — there is no server. Use **Save proposal file** to write a single
