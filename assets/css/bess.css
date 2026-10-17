@@ -177,3 +177,44 @@
 #pageInvestment.has-system-context.has-bom .inv-cards{margin-bottom:6px;}
 #pageInvestment.has-system-context.has-bom .inv-card{padding-top:7px;padding-bottom:7px;}
 #pageInvestment.has-system-context.has-bom #v_inDesc{margin-bottom:8px;}
+
+/* Keep the entire concept photo visible. Titles live alongside, never on
+   top of the roof, columns or vehicles. Shared by main and standalone PDFs. */
+.system-page .sp-system-hero{height:auto;display:grid;grid-template-columns:32% minmax(0,1fr);align-items:stretch;background:#132b3c;}
+.system-page .sp-system-hero>img{position:static;inset:auto;grid-column:2;grid-row:1;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain;display:block;}
+.system-page .sp-system-hero .sp-hero-copy{position:static;grid-column:1;grid-row:1;width:auto;min-width:0;padding:22px 19px;display:flex;flex-direction:column;justify-content:center;}
+.system-page .sp-system-hero .sp-hero-copy>small{font-size:7px;letter-spacing:.14em;color:#e7b86c;}
+.system-page .sp-system-hero h2{font-size:25px;line-height:1.25;letter-spacing:-.8px;margin:12px 0 0;overflow-wrap:break-word;}
+.sp-illustration-note{font-size:7px;color:#84919c;text-align:right;margin:5px 0 0;}
+.system-page .sp-system-brief{display:block;margin-top:14px;}
+#pageExec.has-system-image .exec-artwork img,.power-hero.has-system-image img{object-fit:contain;background:#132b3c;}
+.studio-system-storage{margin:8px 12px 14px;}
+.studio-system-storage>fieldset{border:0;margin:0;padding:12px 0 0;}
+.system-edit-details{margin-top:12px;}
+
+/* Compact package choices and a single, on-demand preparer review. */
+.system-package-label{font-size:11px;font-weight:650;color:#29465b;margin:0 0 10px;}
+.studio-system-storage>summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.system-battery-state{font-size:10px;font-weight:400;color:#6b8293;margin-left:auto;}
+.system-review{border:1px solid #e2e8e9;border-radius:9px;margin:0 12px 14px;background:#fbfcfc;}
+.system-review[hidden],.system-review-confirm[hidden]{display:none!important;}
+.system-review>summary{padding:12px;font-size:11px;font-weight:650;color:#876126;cursor:pointer;}
+.system-review[data-state="reviewed"]>summary{color:#2d7262;}
+.system-review ul{list-style:none;margin:0;padding:0 12px;}
+.system-review li{border-top:1px solid #e7ecee;padding:8px 0;display:flex;gap:8px;align-items:baseline;}
+.system-review li:before{content:'•';color:#a77730;flex:none;}
+.system-review li[data-state="invalid"]:before{color:#b44732;}
+.system-review li[data-state="reviewed"]:before{content:'✓';color:#2d7262;}
+.system-review li button{font:inherit;font-size:11px;line-height:1.6;text-align:left;white-space:normal;overflow-wrap:anywhere;border:0;padding:0;background:none;color:#3a5264;cursor:pointer;box-shadow:none;}
+.system-review li button:hover{text-decoration:underline;}
+.system-review li button:focus-visible{outline:2px solid #bd863e;outline-offset:3px;}
+.system-review-note{font-size:10px;line-height:1.6;color:#7a8791;margin:10px 12px 12px;}
+.system-review-confirm label{font-size:11px;line-height:1.6;display:flex;align-items:flex-start;gap:7px;}
+.system-review-confirm input[type="checkbox"]{width:auto;flex:none;margin-top:3px;}
+.sp-linked-equipment{display:grid;grid-template-columns:1fr 1fr;gap:16px;border-top:1px solid #dce5e9;margin-top:14px;padding-top:11px;}
+.sp-linked-equipment small{display:block;font-size:7px;color:#768995;text-transform:uppercase;letter-spacing:.07em;}
+.sp-linked-equipment b{display:block;font-size:9px;font-weight:500;line-height:1.6;margin-top:4px;color:#385368;overflow-wrap:anywhere;}
+@media print{.system-review{display:none!important;}}
+/* The existing floating PDF action must not cover checklist text while it
+   is being reviewed; the normal footer download remains available. */
+body:has([data-section="systemEnabled"][open] #systemReview[open]:not([hidden])) .pdf-fab{display:none;}

@@ -7,7 +7,7 @@ Previous pushed checkpoint: `f9efb04f4293b7adba2acd82c66ade67391263d9`.
 
 Four new presets join Zero Export, Monitoring, EV Charging, Power-Factor Correction and DG–Solar Coordination:
 
-- Weatherproof Solar Roof
+- Leak Proof Solar Roof
 - Solar Carport
 - Elevated Solar Canopy
 - Solar Pergola
@@ -52,3 +52,54 @@ This is targeted regression evidence, not a claim that every repository test or 
 The new checkpoint is a normal descendant of f9efb04, so its complete source tree contains both the approved presentation fixes and this upgrade; published history is not squashed or rewritten. Publish only `arena/d435d7ac-quotation-studio`; PR #21 stays open against `merge/reconcile-v1`.
 
 The f9efb04 GitHub checks show a failed **Workers Builds: studio** check linked to a Cloudflare **production** build (`3a549f77-3814-41bc-a5a2-9d07d5ecea24`), as well as the successful Vercel Preview deployment. GitHub contains no Actions workflow controlling that integration. A future failed build cannot be assumed. Arena initially paused publishing and informed the owner of this automatic-build risk. The owner subsequently explicitly instructed the push and asked for a Cloudflare deployment handoff for OpenCode. Report any automatic Cloudflare build separately from the Vercel preview result. Arena must not run Wrangler, change cloud settings, merge the PR or manually deploy production as part of this request. OpenCode/owner must inspect the latest build/deployment before deciding whether a manual deployment is needed.
+
+## Screenshot-review corrections — authorised for Vercel preview
+
+The owner subsequently requested minimal input controls, whole/unmasked photos,
+“Leak Proof” naming, and automatic report content. These follow-up corrections
+were developed locally on top of 52f1cf5. The owner has now explicitly requested
+a fresh Vercel preview, authorising their commit and feature-branch push together
+with the final workflow polish in `docs/advanced-systems-polish.md`. The older
+52f1cf5 preview does not contain these corrections. No PR merge or manual
+production deployment is part of this preview publication.
+
+- Customer-facing preset name is **Leak Proof Solar Roof**, including old saved
+  preset names, main context and download labels. The internal `weatherproof`
+  key and image filename are deliberately retained for saved-data compatibility.
+  This name is not a blanket leak-free warranty; the scoped engineering limits
+  and agreed acceptance requirements remain in the report.
+- Removed the duplicated inline BESS/system download buttons and verbose setup
+  hints. Formats remain available from the existing footer download selector.
+- One **Advanced Systems** input section contains the additional-system package
+  and a folded **Battery storage (BESS)** subsection. Routine package inputs are
+  template, price mode and (for separate pricing) amount; narrative/site/report
+  preferences are in the folded **Scope & site details** panel. Existing IDs,
+  independent enable/include flags and BESS calculations are preserved.
+- Enabling an entirely blank package starts with Leak Proof and fills its scope.
+  Known presets fill missing narrative and proposed roofing/drainage/acceptance
+  text on render, reload and Customer View. Nonempty custom edits are preserved.
+  No measured dimensions, price, verified warranty or backup approval is invented.
+  Previously entered custom/commercial/site values prevent an automatic switch.
+- All four package hero photos show the complete image without a dark text
+  overlay. The title is in a separate panel; redundant slogans/callouts are
+  removed. The short concept-image qualification is outside the photograph.
+  Package-managed executive/Power images also use contain, not crop. Customer
+  uploads and the approved About artwork are preserved.
+
+Follow-up checks: focused real minimal-input workflow passed for all four new
+presets (whole-photo geometry, scope auto-fill, blank measured facts, legacy name
+migration, reload, Customer View, nested BESS auto-sizing and mobile controls).
+All four rendered pages were visually reviewed. The 72-case package matrix plus
+8 dense financing/BOM/tax cases passed; actual 2/1/6/17-page exports passed.
+The existing optional-systems browser suite passed **94/0**. Render reconciliation passed **123/0**. Pure package checks
+passed **10**, supplements **63/0**, Finance **82/0**, integration **117/0**,
+assistant-knowledge/voice Node tests **13/0**, and the 13-field real JSON/duplicate
+lifecycle passed. See `qa/shots/system-minimal/` for the reviewed image/input PNGs.
+
+The older full `control-panel.test.js` harness is **not green**: it asserts that
+three retired audio-identity preferences must exist as DOM controls; those are
+also absent in the pushed baseline HTML. Exploratory later assertions also assume
+QR controls force All Settings and immediate related-page scrolling. No unrelated
+application behavior was altered to satisfy those assumptions. Only its expected
+section count was updated to account for the intentional BESS grouping; use the
+new focused workflow test as evidence for this change, not a whole-repo pass claim.

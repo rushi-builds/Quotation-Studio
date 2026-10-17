@@ -1,7 +1,7 @@
 /* Optional project systems: editable scope, explicit commercial basis, no Finance mutations. */
 'use strict';
 (function(root){
- const DEFAULTS={systemEnabled:false,systemInclude:true,systemTemplate:'custom',systemReason:'requested',systemName:'',systemPurpose:'',systemEquipment:'',systemScope:'',systemNotes:'',systemExclusions:'',systemPrice:'',systemDelivery:'',systemWarranty:'',systemPriceMode:'separate',systemAreaM2:'',systemHeightM:'',systemBays:'',systemWeatherProtection:'pending',systemRoofing:'',systemDrainage:'',systemAcceptance:''};
+ const DEFAULTS={systemEnabled:false,systemInclude:true,systemTemplate:'custom',systemReason:'requested',systemName:'',systemPurpose:'',systemEquipment:'',systemScope:'',systemNotes:'',systemExclusions:'',systemPrice:'',systemDelivery:'',systemWarranty:'',systemPriceMode:'separate',systemAreaM2:'',systemHeightM:'',systemBays:'',systemWeatherProtection:'pending',systemRoofing:'',systemDrainage:'',systemAcceptance:'',systemBaseReviewed:false,systemScopeReviewed:false};
  const templates={
   "zero": {
     "name": "Zero Export Control",
@@ -44,11 +44,11 @@
     "exclusions": "Generator supply, overhaul or fuel\nMajor switchgear replacement unless priced\nBattery backup and guaranteed fuel savings"
   },
   "weatherproof": {
-    "name": "Weatherproof Solar Roof",
+    "name": "Leak Proof Solar Roof",
     "purpose": "Create a rain-protected usable rooftop space beneath the solar installation, subject to an engineered roofing and drainage design.",
-    "equipment": "Solar support frame and selected roofing / weatherproofing assembly\nEngineered joints, wall flashings, gutters and downpipes\nCompatible fixings and existing-roof interfaces",
+    "equipment": "Solar support frame and proposed sealed roofing assembly\nEngineered joints, wall flashings, gutters and downpipes\nCompatible fixings and existing-roof interfaces",
     "scope": "Survey the roof, usable area and requested clear height\nAgree the roofing system, drainage route and junction details\nEngineer supports and connections for site conditions\nTest agreed water-ingress criteria and record handover",
-    "notes": "Design intent is rain protection, not a blanket leak-free guarantee. Standard PV modules and sealed anchor holes alone do not form a weatherproof roof. Joint movement, wind-driven rain, drainage and existing roof condition require review. Scope-specific warranty must be agreed in writing.",
+    "notes": "Design intent is rain protection, not a blanket leak-free guarantee. Standard PV modules and sealed anchor holes alone do not form a leak-proof roof. Joint movement, wind-driven rain, drainage and existing roof condition require review. Scope-specific warranty must be agreed in writing.",
     "exclusions": "Existing roof repairs and concealed defects unless priced\nUnspecified civil works, drainage extensions or approvals\nLifetime leak-free performance or invented warranty periods"
   },
   "carport": {
@@ -56,30 +56,30 @@
     "purpose": "Provide a defined solar-covered parking area with usable vehicle access and a site-engineered support structure.",
     "equipment": "Selected PV modules and engineered carport structure\nDesigned foundations, baseplates and site connections\nRoofing, drainage and lighting only where specified",
     "scope": "Confirm parking bays, vehicle clearances and movement\nSurvey services, foundation conditions and site constraints\nEngineer the frame, foundations and electrical interfaces\nAgree acceptance checks and hand over the installed scope",
-    "notes": "Parking bays, covered area and clear height are preparer-entered requirements, not automatic structural sizing. Rain protection requires an explicit roofing specification. EV charging, battery backup and associated savings are not included merely by selecting a carport.",
-    "exclusions": "EV charger, battery storage or vehicle supply\nUnspecified excavation, paving, utilities or foundations\nWeatherproof roofing and drainage unless explicitly agreed"
+    "notes": "Parking bays, covered area and clear height are project requirements; final structural design is site-specific. Rain protection requires an explicit roofing specification. EV charging, battery backup and associated savings are not included merely by selecting a carport.",
+    "exclusions": "EV charger, battery storage or vehicle supply\nUnspecified excavation, paving, utilities or foundations\nLeak-proof roofing and drainage unless explicitly agreed"
   },
   "canopy": {
     "name": "Elevated Solar Canopy",
     "purpose": "Provide usable clear space beneath an elevated solar array on a suitable terrace or site.",
     "equipment": "Selected solar modules and elevated engineered frame\nDesigned roof connections or foundations and corrosion protection\nCable routing, access and fall protection as specified",
     "scope": "Agree clear height, covered footprint and access needs\nAssess the supporting roof and existing waterproofing\nEngineer frame, wind actions, connections and anchoring\nInspect workmanship and record agreed handover checks",
-    "notes": "An elevated array is not automatically a weatherproof roof. Module gaps can admit rain. Post count, spans and foundation sizes cannot be inferred from the illustration or solar kWp. Structural adequacy and site access require competent engineering review.",
-    "exclusions": "Weatherproof roof, guttering or enclosed room unless priced\nExisting structural strengthening or roof repairs\nUnspecified civil works, approvals or access alterations"
+    "notes": "An elevated array does not by itself form a leak-proof roof. Module gaps can admit rain. Post count, spans and foundation sizes cannot be inferred from the illustration or solar kWp. Structural adequacy and site access require competent engineering review.",
+    "exclusions": "Leak-proof roof, guttering or enclosed room unless priced\nExisting structural strengthening or roof repairs\nUnspecified civil works, approvals or access alterations"
   },
   "pergola": {
     "name": "Solar Pergola",
     "purpose": "Integrate solar generation with an architectural outdoor seating or dining space, with comfort and weather protection agreed for the site.",
     "equipment": "Selected PV modules and architectural support frame\nAgreed finishes and compatible mounting details\nLighting, roofing and drainage only where specified",
     "scope": "Agree footprint, clear height, aesthetics and intended use\nReview shading, access and requested weather protection\nEngineer the support frame, roof interfaces and electrical work\nInspect finishes and test the explicitly included systems",
-    "notes": "A solar pergola provides the agreed outdoor structure, not an automatically enclosed or weatherproof room. Decorative furniture, lighting, rain protection and finish samples require explicit scope approval. Rendered appearance does not establish structural dimensions or warranty.",
+    "notes": "A solar pergola provides the agreed outdoor structure, not an enclosed or leak-proof room unless explicitly specified. Decorative furniture, lighting, rain protection and finish samples require explicit scope approval. Rendered appearance does not establish structural dimensions or warranty.",
     "exclusions": "Furniture, landscaping and decorative lighting unless priced\nWeatherproofing, gutters or building alterations unless agreed\nUnverified finish, comfort or leak-free guarantees"
   }
 };
  const presentations={
   "weatherproof": {
     "image": "system-weatherproof-roof.jpg",
-    "short": "Weatherproof solar roof",
+    "short": "Leak Proof solar roof",
     "flow": [
       "ROOF & RAIN SURVEY",
       "ENGINEERED ROOFING",
@@ -173,19 +173,43 @@
   }
 };
 
+ // Proposed scope text, not measured dimensions, a certified design or warranty.
+ const siteDefaults={
+  weatherproof:{systemRoofing:'Proposed sealed roofing assembly with compatible joints, wall flashings and fixings; final method after site survey.',systemDrainage:'Proposed gutters and downpipes to an agreed discharge point; route and capacity after survey.',systemAcceptance:'Inspect joints, flashings and drainage; complete agreed water-ingress checks before handover.'},
+  carport:{systemRoofing:'PV canopy on an engineered frame; rain-protection roofing only where expressly included.',systemDrainage:'Review rainwater discharge, foundations and vehicle access during the site survey.',systemAcceptance:'Inspect frame, fixings and electrical work; verify agreed vehicle clearances and handover checks.'},
+  canopy:{systemRoofing:'Elevated PV array on an engineered frame; a sealed roof is not included unless agreed.',systemDrainage:'Review existing roof drainage, penetrations and discharge routes before installation.',systemAcceptance:'Inspect supports, roof interfaces, access and electrical work against the agreed design.'},
+  pergola:{systemRoofing:'Architectural PV frame and agreed finishes; sealed roofing and lighting only where specified.',systemDrainage:'Review rainwater discharge and interfaces with the existing terrace or outdoor space.',systemAcceptance:'Inspect structure, finishes and electrical work; test expressly included lighting or rain protection.'}
+ };
+ function resolve(input={}){
+  const s={...input};if(!enabled(s))return s;
+  const t=template(s);if(!t)return s;
+  for(const [key,value]of Object.entries(t)){
+   const id='system'+key[0].toUpperCase()+key.slice(1);
+   if(!String(s[id]??'').trim())s[id]=value;
+  }
+  if(s.systemTemplate==='weatherproof'&&s.systemName==='Weatherproof Solar Roof')s.systemName=t.name;
+  for(const [key,value]of Object.entries(siteDefaults[s.systemTemplate]||{}))if(!String(s[key]??'').trim())s[key]=value;
+  return s;
+ }
+ function fillPreset(key){
+  const t=template({systemTemplate:key});if(!t)return;
+  for(const [name,value]of Object.entries(t))document.getElementById('system'+name[0].toUpperCase()+name.slice(1)).value=value;
+  for(const [id,value]of Object.entries(siteDefaults[key]||{}))document.getElementById(id).value=value;
+ }
+
  const own=(obj,key)=>Object.prototype.hasOwnProperty.call(obj,key);
  const enabled=s=>s?.systemEnabled===true;
  const included=s=>enabled(s)&&(s.systemInclude===undefined||s.systemInclude===true);
  const reason=s=>({requested:'Customer requested',recommended:'Recommended upgrade',alternative:'Optional alternative'}[s?.systemReason]||'Optional alternative');
  const template=s=>own(templates,s?.systemTemplate)?templates[s.systemTemplate]:null;
  const presentation=s=>own(presentations,s?.systemTemplate)?presentations[s.systemTemplate]:presentations.custom;
- const name=s=>String(s?.systemName||template(s)?.name||'Additional system').trim()||'Additional system';
+ const name=s=>{const value=String(s?.systemName||template(s)?.name||'Additional system').trim();return s?.systemTemplate==='weatherproof'&&value==='Weatherproof Solar Roof'?'Leak Proof Solar Roof':value||'Additional system';};
  const priceMode=s=>s?.systemPriceMode==='included'?'included':'separate';
  const inBase=s=>priceMode(s)==='included';
  function decimal(v){return ['string','number'].includes(typeof v)&&/^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?$/i.test(String(v).trim())&&Number.isFinite(Number(v))?Number(v):null;}
  function price(s){if(inBase(s))return null;const v=decimal(s?.systemPrice);return v!==null&&v>=0?v:null;}
  function priceText(s){return inBase(s)?'Included in solar quoted price':price(s)===null?'Price to be confirmed':(root.Finance?.fmtINR||((n)=>'₹'+Math.round(n).toLocaleString('en-IN')))(price(s));}
- function priceNote(s){return inBase(s)?'Preparer has included this scope in the base solar rate / BOM. No second charge is added. Confirm scope and applicable tax treatment.':'Separate tax-inclusive quotation; excluded from solar totals and payment milestones. Agree upgrade payments separately. Do not duplicate standard EPC scope.';}
+ function priceNote(s){return inBase(s)?'This scope is included in the quoted solar rate / BOM. No second charge is added. Confirm scope and applicable tax treatment.':'Separate tax-inclusive quotation; excluded from solar totals and payment milestones. Agree upgrade payments separately. Do not duplicate standard EPC scope.';}
  function specifications(s){
   if(!presentation(s).structural)return [];
   const positive=(v,unit,integer=false)=>{if(v===''||v==null)return 'To be confirmed';const n=decimal(v);return n!==null&&n>0&&(!integer||Number.isInteger(n))?n.toLocaleString('en-IN',{maximumFractionDigits:3})+unit:'Invalid entry — review';};
@@ -194,37 +218,110 @@
   rows.push(['Weather protection',({__proto__:null,pending:'To be confirmed',open:'Open shade — not rainproof',rain:'Rain protection requested; design to be agreed'})[s.systemWeatherProtection]||'To be confirmed']);
   return rows;
  }
- function readForm(){return Object.fromEntries(Object.keys(DEFAULTS).map(k=>{const el=document.getElementById(k);return [k,typeof DEFAULTS[k]==='boolean'?(el?el.checked:DEFAULTS[k]):el?.value??DEFAULTS[k]];}));}
+ function equipmentContext(s,f={}){
+  if(!included(s)||!presentation(s).structural)return [];
+  const amount=(n,unit)=>Number.isFinite(n)&&n>0?n.toLocaleString('en-IN',{maximumFractionDigits:3})+unit:'To be confirmed';
+  const modules=[s.moduleMake,s.moduleModel].filter(Boolean).join(' · ');
+  const inverter=[s.inverterMake,s.inverterModel].filter(Boolean).join(' · ');
+  return [['Solar modules',[modules,Number.isInteger(f.moduleCount)&&f.moduleCount>0?f.moduleCount+' × '+amount(f.moduleWattage,' Wp'):'Quantity to be confirmed'].filter(Boolean).join(' — ')],['Solar inverter',[inverter,amount(f.inverterKw,' kW')].filter(Boolean).join(' — ')]];
+ }
+ // A preparer review aid, never an engineering certificate or a financial model.
+ function review(input={},battery=null){
+  const s=resolve(input),rows=[];
+  const add=(label,target,pending=false,invalid=false)=>rows.push({label,target,pending,invalid});
+  if(enabled(s)){
+   if(inBase(s))add(s.systemBaseReviewed===true?'Base rate / BOM inclusion reviewed':'Confirm this upgrade is in the entered base rate / BOM','systemBaseReviewed',s.systemBaseReviewed!==true);
+   else {const value=price(s),entered=String(s.systemPrice??'').trim();add(value!==null?'Upgrade price entered; outside solar totals':entered?'Correct the upgrade price':'Upgrade price pending — quote required','systemPrice',value===null,!!entered&&value===null);}
+   const complete=['systemName','systemPurpose','systemEquipment','systemScope','systemExclusions','systemNotes'].every(id=>String(s[id]??'').trim());
+   add(!complete?'Complete the custom scope and exclusions':s.systemScopeReviewed===true?'Scope and exclusions reviewed':'Review the proposed scope and exclusions',complete?'systemScopeReviewed':'systemPurpose',!complete||s.systemScopeReviewed!==true);
+   if(presentation(s).structural){
+    const ids=['systemAreaM2','systemHeightM',...(s.systemTemplate==='carport'?['systemBays']:[])];
+    const bad=ids.find(id=>String(s[id]??'').trim()&&(decimal(s[id])===null||decimal(s[id])<=0||(id==='systemBays'&&!Number.isInteger(decimal(s[id])))));
+    const missing=ids.find(id=>!String(s[id]??'').trim());
+    add(bad?'Correct the entered site dimensions':missing?'Site dimensions pending — proposal-stage scope only':'Site requirements entered; final engineering still required',bad||missing||'systemAreaM2',!!bad||!!missing,!!bad);
+   }
+  }
+  if(battery?.enabled){
+   add(battery.cost===null?'Battery installed price pending':'Battery price entered; outside solar totals','bessCost',battery.cost===null);
+   const incomplete=(battery.errors?.length||0)+(battery.missing?.length||0);
+   add(incomplete?'Review battery specifications and sizing':'Battery specifications entered; verify OEM compatibility','bessModel',!!incomplete,!!battery.errors?.length);
+   if((battery.mode||s.bessUseCase||'backup')==='backup')add(battery.backupHours!==null?'Backup inputs entered; commissioning still required':'Outage backup is not yet established','bessBackupReady',battery.backupHours===null);
+   else if(battery.annualBenefit===null||(battery.economicErrors?.length||0)>0)add('Complete storage operating assumptions before claiming savings','bessUseCase',true);
+  }
+  return rows;
+ }
+ function hasEdits(s){
+  if(inBase(s)||s.systemScopeReviewed===true||s.systemBaseReviewed===true)return true;
+  if(['systemPrice','systemDelivery','systemWarranty','systemAreaM2','systemHeightM','systemBays'].some(id=>String(s[id]??'').trim()))return true;
+  const expected={...Object.fromEntries(Object.entries(template(s)||{}).map(([k,v])=>['system'+k[0].toUpperCase()+k.slice(1),v])),...siteDefaults[s.systemTemplate]};
+  if(['systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions','systemRoofing','systemDrainage','systemAcceptance'].some(id=>String(s[id]??'').trim()&&String(s[id]).trim()!==String(expected[id]??'').trim()))return true;
+  return !!s.systemWeatherProtection&&s.systemWeatherProtection!==(s.systemTemplate==='weatherproof'?'rain':'pending');
+ }
+ function readForm(templateOverride){
+  const s=Object.fromEntries(Object.keys(DEFAULTS).map(k=>{const el=document.getElementById(k);return [k,typeof DEFAULTS[k]==='boolean'?(el?el.checked:DEFAULTS[k]):el?.value??DEFAULTS[k]];}));
+  if(typeof templateOverride==='string')s.systemTemplate=templateOverride;
+  return resolve(s);
+ }
+
  function sync(s){
   const fields=document.getElementById('systemFields');if(!fields)return;
   fields.hidden=!enabled(s);
+  if(enabled(s)&&template(s))for(const id of [...Object.keys(template(s)).map(k=>'system'+k[0].toUpperCase()+k.slice(1)),...Object.keys(siteDefaults[s.systemTemplate]||{})]){const el=document.getElementById(id);if(el&&s[id]!=null&&(!el.value.trim()||(id==='systemName'&&s.systemTemplate==='weatherproof'&&el.value==='Weatherproof Solar Roof')))el.value=s[id];}
   document.querySelectorAll('[data-system-choice]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.systemChoice==='yes')===enabled(s))));
   document.getElementById('systemCustomName').hidden=s.systemTemplate!=='custom';
-  document.getElementById('systemStatus').textContent=!enabled(s)?'Optional project systems. No extra pages added.':included(s)?'Selected system is reflected through the quotation + two scope pages. Separate 1- and 2-page downloads remain available.':'Standalone documents only; the main solar quotation is unchanged.';
+  document.getElementById('systemStatus').hidden=!enabled(s);
+  document.getElementById('systemStatus').textContent=enabled(s)?(template(s)?'Scope auto-filled. Edit site details only if needed.':'Enter the custom scope below.'):'Optional solar upgrades and controls.';
   const structure=document.getElementById('systemStructureFields');if(structure)structure.hidden=!presentation(s).structural;
   const bays=document.getElementById('systemBaysField');if(bays)bays.hidden=s.systemTemplate!=='carport';
   const amount=document.getElementById('systemPriceField');if(amount)amount.hidden=inBase(s);
-  const hint=document.getElementById('systemPricingHint');if(hint)hint.textContent=priceNote(s)+(inBase(s)?' This selection does not change the solar rate automatically.':'');
+  const baseReview=document.getElementById('systemBaseReviewField');if(baseReview)baseReview.hidden=!inBase(s);
+  const hint=document.getElementById('systemPricingHint');if(hint)hint.textContent=inBase(s)?'Include this scope in your entered solar rate / BOM; no extra charge is added.':'Outside solar totals. Enter an agreed tax-inclusive upgrade price.';
+  const reviewPanel=document.getElementById('systemReview');
+  if(reviewPanel){
+   const rows=review(s,root.Bess?.compute(s,root.Finance.compute(s))),pending=rows.filter(r=>r.pending).length;
+   reviewPanel.hidden=!rows.length;
+   document.getElementById('systemReviewSummary').textContent='Before sharing · '+(pending?pending+' '+(pending===1?'item':'items')+' to review':'commercial checks reviewed');
+   reviewPanel.dataset.state=pending?'pending':'reviewed';
+   const list=document.getElementById('systemReviewItems');list.replaceChildren();
+   rows.forEach(r=>{const item=document.createElement('li'),button=document.createElement('button');item.dataset.state=r.invalid?'invalid':r.pending?'pending':'reviewed';button.type='button';button.dataset.systemReviewTarget=r.target;button.textContent=r.label;item.append(button);list.append(item);});
+  }
   document.querySelectorAll('[data-export-format^="system"]').forEach(b=>b.disabled=!enabled(s));
  }
  function wire(){
-  document.querySelectorAll('[data-system-choice]').forEach(b=>b.addEventListener('click',()=>{const el=document.getElementById('systemEnabled');el.checked=b.dataset.systemChoice==='yes';el.dispatchEvent(new Event('input',{bubbles:true}));}));
+  document.querySelectorAll('[data-system-choice]').forEach(b=>b.addEventListener('click',()=>{
+   const el=document.getElementById('systemEnabled');el.checked=b.dataset.systemChoice==='yes';
+   if(el.checked&&document.getElementById('systemTemplate').value==='custom'&&document.getElementById('systemPriceMode').value!=='included'&&!['systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions','systemPrice','systemAreaM2','systemHeightM','systemBays','systemRoofing','systemDrainage','systemAcceptance','systemDelivery','systemWarranty'].some(id=>document.getElementById(id).value.trim())){
+    document.getElementById('systemTemplate').value='weatherproof';fillPreset('weatherproof');
+    document.getElementById('systemWeatherProtection').value='rain';document.getElementById('systemScopeReviewed').checked=false;document.getElementById('systemBaseReviewed').checked=false;previous='weatherproof';
+   }
+   el.dispatchEvent(new Event('input',{bubbles:true}));
+  }));
+  const form=document.getElementById('quoteForm');
+  const scopeIds=['capacity','roofType','moduleMake','moduleModel','moduleWattage','inverterMake','inverterModel','inverterKw','systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions','systemRoofing','systemDrainage','systemAcceptance','systemAreaM2','systemHeightM','systemBays'];
+  const rateIds=['costPerWp','costPerKwp','gstPercent','bomModules','bomInverter','bomStructure','bomBos','bomInstall','bomLiaison','systemPriceMode'];
+  const invalidate=e=>{if(scopeIds.includes(e.target.id))document.getElementById('systemScopeReviewed').checked=false;if(rateIds.includes(e.target.id)||scopeIds.includes(e.target.id))document.getElementById('systemBaseReviewed').checked=false;};
+  form.addEventListener('input',invalidate,true);form.addEventListener('change',invalidate,true);
   const select=document.getElementById('systemTemplate');
   let previous=select.value;
+  // A select emits input before change; do not render the new preset until
+  // confirmation has preserved or replaced the previous scope.
+  select.addEventListener('input',e=>e.stopPropagation());
   select.addEventListener('focus',()=>previous=select.value);
   select.addEventListener('change',()=>{
    if(select.value===previous)return;
-   const old=['systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions','systemPrice','systemDelivery','systemWarranty','systemAreaM2','systemHeightM','systemBays','systemRoofing','systemDrainage','systemAcceptance'].some(id=>document.getElementById(id).value.trim());
+   const old=hasEdits(readForm(previous));
    if(old&&select.value!==previous&&!root.confirm('Change system template? Price, dimensions, delivery and warranty will reset. Presets replace the editable scope; Custom keeps it as a starting point. Uploaded proposal photos are kept.')){select.value=previous;return;}
    for(const id of ['systemPrice','systemWarranty','systemDelivery','systemAreaM2','systemHeightM','systemBays','systemRoofing','systemDrainage','systemAcceptance'])document.getElementById(id).value='';
    document.getElementById('systemPriceMode').value='separate';
    document.getElementById('systemWeatherProtection').value=select.value==='weatherproof'?'rain':'pending';
+   document.getElementById('systemScopeReviewed').checked=false;
+   document.getElementById('systemBaseReviewed').checked=false;
    const t=template({systemTemplate:select.value});
-   if(t)for(const [key,value]of Object.entries(t))document.getElementById('system'+key[0].toUpperCase()+key.slice(1)).value=value;
+   if(t)fillPreset(select.value);
    else document.getElementById('systemName').value='';
    previous=select.value;
   });
  }
- const api={DEFAULTS,templates,presentations,enabled,included,reason,template,presentation,name,priceMode,inBase,decimal,price,priceText,priceNote,specifications,readForm,sync,wire};
+ const api={DEFAULTS,templates,presentations,siteDefaults,resolve,enabled,included,reason,template,presentation,name,priceMode,inBase,decimal,price,priceText,priceNote,specifications,equipmentContext,review,hasEdits,readForm,sync,wire};
  if(typeof module==='object'&&module.exports)module.exports=api;else root.AdditionalSystems=api;
 })(typeof self!=='undefined'?self:this);

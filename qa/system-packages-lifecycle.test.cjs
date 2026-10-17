@@ -9,7 +9,7 @@ const {chromium}=require('playwright');
   page.on('dialog',d=>d.accept());page.on('pageerror',e=>errors.push(e.message));
   await page.goto((process.env.QA_BASE||'http://127.0.0.1:8080')+'/quotation.html');
   await page.waitForFunction(()=>!!window.Render?.lastState);
-  const fields={systemEnabled:true,systemInclude:true,systemTemplate:'carport',systemName:'Solar Carport',systemPriceMode:'included',systemPrice:'125000',systemAreaM2:'48',systemHeightM:'2.8',systemBays:'2',systemWeatherProtection:'rain',systemRoofing:'Project-specific roofing',systemDrainage:'Agreed drain connection',systemAcceptance:'Agreed ingress inspection'};
+  const fields={systemEnabled:true,systemInclude:true,systemTemplate:'carport',systemName:'Solar Carport',systemPriceMode:'included',systemPrice:'125000',systemAreaM2:'48',systemHeightM:'2.8',systemBays:'2',systemWeatherProtection:'rain',systemRoofing:'Project-specific roofing',systemDrainage:'Agreed drain connection',systemAcceptance:'Agreed ingress inspection',systemBaseReviewed:true,systemScopeReviewed:true};
   await page.evaluate(fields=>{StateStore.applyForm({...StateStore.DEFAULTS,...fields});Render.renderAll();__qsSaveNow();},fields);
   const check=(actual,label)=>{for(const[k,v]of Object.entries(fields))assert.equal(actual[k],v,label+' '+k);};
   let id=await page.evaluate(()=>Proposals.activeId());

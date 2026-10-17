@@ -1266,12 +1266,14 @@
       img_exec: ['assets/images/summary-carport-ev.jpg', 'Concept render of a house with rooftop solar and an optional EV charging point']
     };
     let systemPhoto = false;
+    $('pageExec')?.classList.remove('has-system-image');
     for (const [id, [original, alt]] of Object.entries(defaults)) {
       const img = $(id); if (!img) continue;
       const custom = root.__qsPageImages?.[id];
       const known = [original, ...Object.values(A.presentations).map(it => 'assets/images/' + it.image)];
       const managed = known.some(src => new URL(src, document.baseURI).href === img.src);
       if (id === 'img_solution') systemPhoto = active && !custom && managed;
+      if (id === 'img_exec') $('pageExec')?.classList.toggle('has-system-image',active && !custom && managed);
       if (!custom && managed) {
         const src = active ? 'assets/images/' + p.image : original;
         if (img.getAttribute('src') !== src) img.setAttribute('src', src);
@@ -1307,7 +1309,7 @@
 
   function renderAll(stateOverride) {
     const raw = stateOverride || readState();
-    const s = root.Bess.resolve(raw,F.compute(raw));
+    const s = root.Bess.resolve(root.AdditionalSystems.resolve(raw),F.compute(raw));
     if(!stateOverride) root.Bess.applyDerived(s);
     lastState = s;
     const f = F.compute(s);

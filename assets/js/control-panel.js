@@ -83,8 +83,7 @@
     const configs = [
       ['custName', 'Customer & system', 'users', 'pageCover', 'Customer, site and proposal details'],
       ['moduleMake', 'Equipment & design', 'panel', 'pageTechSpec', 'Modules, inverter and roof specifications'],
-      ['bessEnabled', 'Battery storage (BESS)', 'bolt', 'pageBessOverview', 'Optional storage, backup and a separate value assessment'],
-      ['systemEnabled', 'Additional systems', 'grid2', 'pageSystemOverview', 'Zero Export, monitoring, EV charging, DG coordination or Custom'],
+      ['systemEnabled', 'Advanced Systems', 'grid2', 'pageSystemOverview', 'Solar roofs, carports, controls & battery storage'],
       ['costPerWp', 'Pricing & savings', 'chart', 'pageInvestment', 'Pricing, tariff and calculation assumptions'],
       ['payAdvance', 'Payment & financing', 'rupee', 'pageInvestment', 'Payment milestones, optional loan & tax illustration'],
       ['optName', 'Compare system options', 'panel', 'pageOptions', 'Good, Better and Best configurations'],
@@ -121,6 +120,18 @@
         if (!page || !page.getClientRects().length) page = $('pageCover');
         page.scrollIntoView({behavior: 'instant', block: 'start'});
       });
+      if (field === 'systemEnabled') {
+        const battery = element('details', 'bess-model studio-system-storage');
+        battery.dataset.section = 'bessEnabled';
+        const batterySummary=element('summary');batterySummary.append(element('span','','Battery storage (BESS)'),element('small','system-battery-state'));battery.append(batterySummary);
+        const batteryFields = $('bessEnabled').closest('fieldset');
+        batteryFields.querySelector('legend').classList.add('studio-sr-only');
+        battery.append(batteryFields); details.append(battery);
+        const review=element('details','system-review');review.id='systemReview';review.hidden=true;
+        const reviewSummary=element('summary');reviewSummary.id='systemReviewSummary';
+        const reviewItems=element('ul');reviewItems.id='systemReviewItems';
+        review.append(reviewSummary,reviewItems,element('p','system-review-note','Proposal review only. Final site design and installation approval are separate.'));details.append(review);
+      }
       fieldset.append(view); sections.push({field, details, text, description});
     });
     // Keep content and equipment libraries out of routine quotation inputs.
@@ -246,10 +257,10 @@
       sections.forEach(({field, text, description}) => { text.querySelector('small').textContent = summaries[field] || description; });
       const selected = $('proposalSelect').selectedOptions[0];
       if (selected) selected.textContent = '#' + (state.propRef || 'Draft') + ' · ' + (state.custName || 'Untitled customer') + ' - ' + (state.capacity || '0') + ' kWp · v' + (state.propVersion || '1.0');
-      const bessSection=document.querySelector('[data-section="bessEnabled"] summary small');
-      if(bessSection) bessSection.textContent=window.Bess.enabled(state) ? (window.Bess.included(state)?'Included':'Standalone')+' · '+(state.bessCapacity||'-')+' kWh' : 'Not included · solar-only proposal';
+      const batteryState=document.querySelector('.system-battery-state');if(batteryState)batteryState.textContent=window.Bess.enabled(state)?(state.bessCapacity?state.bessCapacity+' kWh':'Review sizing'):'Not selected';
+      if(!window.Bess.enabled(state))$('bessInputStatus').textContent='No battery storage selected.';
       const sysSummary=document.querySelector('[data-section="systemEnabled"] summary small');
-      if(sysSummary)sysSummary.textContent=window.AdditionalSystems.enabled(state)?(state.systemName||'Custom system')+' · '+(window.AdditionalSystems.included(state)?'included':'standalone'):'Optional controls, charging or a custom system';
+      if(sysSummary){const selected=[];if(window.AdditionalSystems.enabled(state))selected.push(window.AdditionalSystems.name(state));if(window.Bess.enabled(state))selected.push('Battery storage'+(state.bessCapacity?' · '+state.bessCapacity+' kWh':''));sysSummary.textContent=selected.join(' + ')||'Solar roofs, carports, controls & battery storage';}
       /* The panel stays silent about the reference too - the pre-flight
          raises it before a PDF exists. */
       refWarning.hidden = true;
@@ -387,13 +398,14 @@
     function reveal(input) {
       if (!input) return;
       if(input.id==='systemEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-system-choice="yes"]');}
-      if(input.id==='bessEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-bess-choice="yes"]');}
+      if(input.id==='bessEnabled'){input.closest('.studio-system-storage').open=true;input.closest('.studio-section').open=true;input=document.querySelector('[data-bess-choice="yes"]');}
       if (input.closest('[data-adv]')) $('modeAll').click();
       for (let parent = input.parentElement; parent && parent !== panel; parent = parent.parentElement) {
         if (parent.tagName === 'DETAILS') parent.open = true;
       }
       input.scrollIntoView({behavior: 'instant', block: 'center'}); input.focus({preventScroll: true});
     }
+    form.addEventListener('click',event=>{const button=event.target.closest('[data-system-review-target]');if(button)reveal($(button.dataset.systemReviewTarget));});
     const searchInput = $('studioSearch'), results = $('studioSearchResults'), clear = search.querySelector('button');
     function clearSearch() { searchInput.value = ''; results.hidden = true; clear.hidden = true; }
     function find() {
@@ -419,7 +431,7 @@
     }
     searchInput.addEventListener('input', find); clear.addEventListener('click', () => { clearSearch(); searchInput.focus(); });
     searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') { clearSearch(); e.stopPropagation(); } });
-    document.addEventListener('qs:rendered', update); update();
+    document.addEventListener('qs:rendered', update);window.AdditionalSystems.sync(window.Render.lastState||window.Render.readState());update();
   }
   document.addEventListener('DOMContentLoaded', boot);
 })();

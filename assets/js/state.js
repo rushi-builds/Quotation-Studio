@@ -202,7 +202,7 @@
       const el = document.getElementById(id);
       if (!el || el.hasAttribute('data-equipment-custom')) return;
       if (typeof root.EquipmentStore?.setValue === 'function' && root.EquipmentStore.setValue(id, vals[id])) return;
-      if (el.type === 'checkbox') el.checked = id==='bessEnabled' ? root.Bess.enabled({bessEnabled:vals[id]}) : ['bessInclude','bessAutoEconomics','systemEnabled','systemInclude'].includes(id) ? vals[id]===true : !!vals[id];
+      if (el.type === 'checkbox') el.checked = id==='bessEnabled' ? root.Bess.enabled({bessEnabled:vals[id]}) : ['bessInclude','bessAutoEconomics','systemEnabled','systemInclude','systemBaseReviewed','systemScopeReviewed'].includes(id) ? vals[id]===true : !!vals[id];
       else {
         // Presets/imports can contain makes outside this browser's catalog.
         // Preserve them rather than silently saving an empty select value.

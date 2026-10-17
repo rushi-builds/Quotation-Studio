@@ -73,6 +73,8 @@ export default {
     "systemRoofing": "",
     "systemDrainage": "",
     "systemAcceptance": "",
+    "systemBaseReviewed": false,
+    "systemScopeReviewed": false,
     "companyName": "KTM Energy Experts",
     "companyTagline": "Govt. Approved Solar EPC Contractor | Est. 2015",
     "companyPhone": "+91 93094 86769",
@@ -11248,11 +11250,11 @@ export default {
       "exclusions": "Generator supply, overhaul or fuel\nMajor switchgear replacement unless priced\nBattery backup and guaranteed fuel savings"
     },
     "weatherproof": {
-      "name": "Weatherproof Solar Roof",
+      "name": "Leak Proof Solar Roof",
       "purpose": "Create a rain-protected usable rooftop space beneath the solar installation, subject to an engineered roofing and drainage design.",
-      "equipment": "Solar support frame and selected roofing / weatherproofing assembly\nEngineered joints, wall flashings, gutters and downpipes\nCompatible fixings and existing-roof interfaces",
+      "equipment": "Solar support frame and proposed sealed roofing assembly\nEngineered joints, wall flashings, gutters and downpipes\nCompatible fixings and existing-roof interfaces",
       "scope": "Survey the roof, usable area and requested clear height\nAgree the roofing system, drainage route and junction details\nEngineer supports and connections for site conditions\nTest agreed water-ingress criteria and record handover",
-      "notes": "Design intent is rain protection, not a blanket leak-free guarantee. Standard PV modules and sealed anchor holes alone do not form a weatherproof roof. Joint movement, wind-driven rain, drainage and existing roof condition require review. Scope-specific warranty must be agreed in writing.",
+      "notes": "Design intent is rain protection, not a blanket leak-free guarantee. Standard PV modules and sealed anchor holes alone do not form a leak-proof roof. Joint movement, wind-driven rain, drainage and existing roof condition require review. Scope-specific warranty must be agreed in writing.",
       "exclusions": "Existing roof repairs and concealed defects unless priced\nUnspecified civil works, drainage extensions or approvals\nLifetime leak-free performance or invented warranty periods"
     },
     "carport": {
@@ -11260,23 +11262,23 @@ export default {
       "purpose": "Provide a defined solar-covered parking area with usable vehicle access and a site-engineered support structure.",
       "equipment": "Selected PV modules and engineered carport structure\nDesigned foundations, baseplates and site connections\nRoofing, drainage and lighting only where specified",
       "scope": "Confirm parking bays, vehicle clearances and movement\nSurvey services, foundation conditions and site constraints\nEngineer the frame, foundations and electrical interfaces\nAgree acceptance checks and hand over the installed scope",
-      "notes": "Parking bays, covered area and clear height are preparer-entered requirements, not automatic structural sizing. Rain protection requires an explicit roofing specification. EV charging, battery backup and associated savings are not included merely by selecting a carport.",
-      "exclusions": "EV charger, battery storage or vehicle supply\nUnspecified excavation, paving, utilities or foundations\nWeatherproof roofing and drainage unless explicitly agreed"
+      "notes": "Parking bays, covered area and clear height are project requirements; final structural design is site-specific. Rain protection requires an explicit roofing specification. EV charging, battery backup and associated savings are not included merely by selecting a carport.",
+      "exclusions": "EV charger, battery storage or vehicle supply\nUnspecified excavation, paving, utilities or foundations\nLeak-proof roofing and drainage unless explicitly agreed"
     },
     "canopy": {
       "name": "Elevated Solar Canopy",
       "purpose": "Provide usable clear space beneath an elevated solar array on a suitable terrace or site.",
       "equipment": "Selected solar modules and elevated engineered frame\nDesigned roof connections or foundations and corrosion protection\nCable routing, access and fall protection as specified",
       "scope": "Agree clear height, covered footprint and access needs\nAssess the supporting roof and existing waterproofing\nEngineer frame, wind actions, connections and anchoring\nInspect workmanship and record agreed handover checks",
-      "notes": "An elevated array is not automatically a weatherproof roof. Module gaps can admit rain. Post count, spans and foundation sizes cannot be inferred from the illustration or solar kWp. Structural adequacy and site access require competent engineering review.",
-      "exclusions": "Weatherproof roof, guttering or enclosed room unless priced\nExisting structural strengthening or roof repairs\nUnspecified civil works, approvals or access alterations"
+      "notes": "An elevated array does not by itself form a leak-proof roof. Module gaps can admit rain. Post count, spans and foundation sizes cannot be inferred from the illustration or solar kWp. Structural adequacy and site access require competent engineering review.",
+      "exclusions": "Leak-proof roof, guttering or enclosed room unless priced\nExisting structural strengthening or roof repairs\nUnspecified civil works, approvals or access alterations"
     },
     "pergola": {
       "name": "Solar Pergola",
       "purpose": "Integrate solar generation with an architectural outdoor seating or dining space, with comfort and weather protection agreed for the site.",
       "equipment": "Selected PV modules and architectural support frame\nAgreed finishes and compatible mounting details\nLighting, roofing and drainage only where specified",
       "scope": "Agree footprint, clear height, aesthetics and intended use\nReview shading, access and requested weather protection\nEngineer the support frame, roof interfaces and electrical work\nInspect finishes and test the explicitly included systems",
-      "notes": "A solar pergola provides the agreed outdoor structure, not an automatically enclosed or weatherproof room. Decorative furniture, lighting, rain protection and finish samples require explicit scope approval. Rendered appearance does not establish structural dimensions or warranty.",
+      "notes": "A solar pergola provides the agreed outdoor structure, not an enclosed or leak-proof room unless explicitly specified. Decorative furniture, lighting, rain protection and finish samples require explicit scope approval. Rendered appearance does not establish structural dimensions or warranty.",
       "exclusions": "Furniture, landscaping and decorative lighting unless priced\nWeatherproofing, gutters or building alterations unless agreed\nUnverified finish, comfort or leak-free guarantees"
     }
   },

@@ -35,13 +35,60 @@ check('requirements do not imply sizing or an invented footprint',()=>{
  assert(invalid.slice(0,3).every(([,value])=>value==='Invalid entry — review'));
 });
 check('carport is not silently an EV charger or a weatherproof roof',()=>{
- assert.match(A.templates.carport.exclusions,/EV charger/);assert.match(A.templates.carport.exclusions,/Weatherproof/);
+ assert.match(A.templates.carport.exclusions,/EV charger/);assert.match(A.templates.carport.exclusions,/Leak-proof/);
  assert.match(A.templates.weatherproof.notes,/sealed anchor holes alone do not/);
- assert.match(A.templates.canopy.notes,/not automatically a weatherproof roof/);
+ assert.match(A.templates.canopy.notes,/does not by itself form a leak-proof roof/);
+});
+check('known packages auto-fill narrative and proposed site scope without inventing measured facts',()=>{
+ for(const key of Object.keys(A.templates)){
+  const s=A.resolve({systemEnabled:true,systemTemplate:key});
+  for(const field of ['systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions'])assert(s[field]);
+  assert.equal(s.systemPrice,undefined);assert.equal(s.systemAreaM2,undefined);assert.equal(s.systemHeightM,undefined);
+ }
+ const custom=A.resolve({systemEnabled:true,systemTemplate:'carport',systemScope:'My agreed scope',systemRoofing:'My roofing'});
+ assert.equal(custom.systemScope,'My agreed scope');assert.equal(custom.systemRoofing,'My roofing');
+ assert.equal(A.name({systemTemplate:'weatherproof',systemName:'Weatherproof Solar Roof'}),'Leak Proof Solar Roof');
+ assert.equal(A.resolve({systemEnabled:true,systemTemplate:'weatherproof',systemName:'Weatherproof Solar Roof'}).systemName,'Leak Proof Solar Roof');
+ assert.equal(A.resolve({systemEnabled:true,systemTemplate:'custom'}).systemPurpose,undefined);
 });
 check('neither price mode changes the frozen solar computation',()=>{
  const base={capacity:'7',costPerKwp:'62500',gstPercent:'8.9',genFactor:'1460',customerType:'residential'};
  const expected=JSON.stringify(F.compute(base));
  for(const kind of Object.keys(A.templates))for(const mode of ['separate','included'])assert.equal(JSON.stringify(F.compute({...base,systemEnabled:true,systemTemplate:kind,systemPriceMode:mode,systemPrice:'125000',systemAreaM2:'50',systemHeightM:'3',systemBays:'2'})),expected);
+});
+check('review never auto-approves missing prices, proposed scope or dimensions',()=>{
+ const rows=A.review({systemEnabled:true,systemTemplate:'carport'});
+ assert.equal(rows.length,3);assert(rows.every(r=>r.pending));
+ assert.match(rows[2].label,/proposal-stage/);
+ assert(A.review({systemEnabled:true,systemTemplate:'carport',systemAreaM2:'-1'})[2].invalid);
+ assert(A.review({systemEnabled:true,systemTemplate:'carport',systemBays:'1.5'})[2].invalid);
+ assert.equal(A.review({}).length,0);
+});
+check('included mode needs explicit, strict base-cost review, never a stale second price',()=>{
+ for(const value of [false,undefined,'true','false',1])assert(A.review({systemEnabled:true,systemTemplate:'zero',systemPriceMode:'included',systemBaseReviewed:value,systemPrice:'999999'})[0].pending);
+ assert(!A.review({systemEnabled:true,systemTemplate:'zero',systemPriceMode:'included',systemBaseReviewed:true})[0].pending);
+});
+check('completed commercial checks do not certify a structure',()=>{
+ const rows=A.review({systemEnabled:true,systemTemplate:'carport',systemPrice:'125000',systemScopeReviewed:true,systemAreaM2:'48',systemHeightM:'2.8',systemBays:'2'});
+ assert(rows.every(r=>!r.pending));assert.match(rows[2].label,/engineering still required/);
+});
+check('battery checks retain pending backup and operating assumptions',()=>{
+ const b={enabled:true,cost:null,missing:['Rated capacity'],errors:[],backupHours:null,annualBenefit:null,economicErrors:[]};
+ assert(A.review({bessUseCase:'backup'},b).every(r=>r.pending));
+ assert(A.review({bessUseCase:'self'},b).some(r=>/operating assumptions/.test(r.label)));
+ assert(!A.review({bessUseCase:'self'},{...b,cost:50000,missing:[],annualBenefit:-100}).some(r=>/operating assumptions/.test(r.label)));
+});
+check('solar equipment context follows the frozen calculation, not a second sizing rule',()=>{
+ const s={capacity:'7',systemEnabled:true,systemTemplate:'carport',moduleMake:'Waaree',moduleModel:'Test module',moduleWattage:'545',inverterMake:'Sungrow',inverterModel:'Test inverter'};
+ const f=F.compute(s),rows=A.equipmentContext(s,f);assert.equal(rows.length,2);
+ assert(rows[0][1].includes(f.moduleCount+' × 545 Wp'));assert(rows[1][1].includes('Sungrow'));
+ assert.equal(A.equipmentContext({...s,systemEnabled:false},f).length,0);
+ assert.equal(A.equipmentContext({...s,systemTemplate:'zero'},f).length,0);
+});
+check('unmodified generated templates switch freely; actual edits require confirmation',()=>{
+ const base=A.resolve({systemEnabled:true,systemTemplate:'carport',systemWeatherProtection:'pending'});
+ assert(!A.hasEdits(base));assert(A.hasEdits({...base,systemScope:'My changed scope'}));
+ assert(A.hasEdits({...base,systemPrice:'0'}));assert(A.hasEdits({...base,systemScopeReviewed:true}));
+ assert(A.hasEdits({...base,systemPriceMode:'included'}));
 });
 console.log(`${checks} package checks passed.`);
