@@ -16,8 +16,8 @@ const {chromium}=require('playwright');
   await page.waitForFunction(()=>Render.lastState.systemName==='Leak Proof Solar Roof');
   assert.equal(await page.locator('#systemTemplate').inputValue(),'weatherproof');
   assert.equal(await page.locator('#systemEditDetails').evaluate(el=>el.open),false);
-  assert.equal(await page.locator('#systemFields input:visible,#systemFields select:visible,#systemFields textarea:visible').count(),2);
-  console.log('PASS: unified selector auto-fills Leak Proof; two routine pricing inputs, no duplicate downloads or separate BESS group');
+  assert.equal(await page.locator('#systemFields input:visible,#systemFields select:visible,#systemFields textarea:visible').count(),3);
+  console.log('PASS: unified selector auto-fills Leak Proof; two pricing inputs plus optional collection switch, no duplicate downloads or separate BESS group');
   const folder=path.join(__dirname,'shots','system-minimal');fs.mkdirSync(folder,{recursive:true});
   for(const kind of ['weatherproof','carport','canopy','pergola']){
    await page.selectOption('#advancedSystemSelect',kind);await page.waitForFunction(key=>Render.lastState.systemTemplate===key,kind);
@@ -25,12 +25,12 @@ const {chromium}=require('playwright');
     await document.fonts.ready;const img=document.querySelector('#systemOverviewBody .sp-hero>img');await img.decode();
     const s=Render.lastState,title=document.querySelector('#systemOverviewBody .sp-hero-copy'),body=systemOverviewBody;
     const ir=img.getBoundingClientRect(),tr=title.getBoundingClientRect(),footer=pageSystemOverview.querySelector('footer').getBoundingClientRect().top;
-    return {name:AdditionalSystems.name(s),fit:getComputedStyle(img).objectFit,clear:tr.right<=ir.left+1,blankFacts:!s.systemAreaM2&&!s.systemHeightM&&!s.systemBays&&!s.systemPrice,filled:['systemPurpose','systemEquipment','systemScope','systemExclusions','systemNotes','systemRoofing','systemDrainage','systemAcceptance'].every(id=>!!s[id]),fits:[...body.children].every(el=>el.getBoundingClientRect().bottom<footer-2),detailFits:[...systemDetailBody.children].every(el=>el.getBoundingClientRect().bottom<pageSystemDetail.querySelector('footer').getBoundingClientRect().top-2),noOldName:!body.textContent.includes('Weatherproof Solar Roof')};
+    return {name:AdditionalSystems.name(s),fit:getComputedStyle(img).objectFit,clear:getComputedStyle(title).position==='absolute'&&tr.left>=ir.left&&tr.bottom<=ir.bottom+1,blankFacts:!s.systemAreaM2&&!s.systemHeightM&&!s.systemBays&&!s.systemPrice,filled:['systemPurpose','systemEquipment','systemScope','systemExclusions','systemNotes','systemRoofing','systemDrainage','systemAcceptance'].every(id=>!!s[id]),fits:[...body.children].every(el=>el.getBoundingClientRect().bottom<footer-2),detailFits:[...systemDetailBody.children].every(el=>el.getBoundingClientRect().bottom<pageSystemDetail.querySelector('footer').getBoundingClientRect().top-2),noOldName:!body.textContent.includes('Weatherproof Solar Roof')};
    });
    assert.equal(check.fit,'contain');assert(check.clear&&check.blankFacts&&check.filled&&check.fits&&check.detailFits&&check.noOldName,JSON.stringify(check));
    const png=await page.evaluate(async()=>{const copy=pageSystemOverview.cloneNode(true);copy.style.transform='none';const host=document.createElement('div');host.className='pdf-snapshot';host.append(copy);document.body.append(host);try{return(await html2canvas(copy,{scale:1.2,logging:false,backgroundColor:'#fff'})).toDataURL();}finally{host.remove();}});
    fs.writeFileSync(path.join(folder,kind+'.png'),Buffer.from(png.split(',')[1],'base64'));
-   console.log('PASS:',check.name,'— auto-filled scope/site proposals, entire photo unmasked, both pages fit; no invented dimensions or price');
+   console.log('PASS:',check.name,'— auto-filled scope/site proposals, full photo with transparent title overlay, both pages fit; no invented dimensions or price');
   }
   await page.evaluate(()=>{StateStore.applyForm({...StateStore.DEFAULTS,systemEnabled:true,systemTemplate:'weatherproof',systemName:'Weatherproof Solar Roof'});Render.renderAll();__qsSaveNow();});
   await page.reload();await page.waitForFunction(()=>Render.lastState?.systemName==='Leak Proof Solar Roof');

@@ -34,7 +34,6 @@
 .sp-hero-copy>span{display:inline-block;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#f2c386;border-bottom:1px solid #f2c386;padding-bottom:8px;}
 .sp-hero h2{font:600 37px/1.18 'Poppins',sans-serif;letter-spacing:-1.3px;margin:13px 0 10px;color:#fff;}
 .sp-hero p{font-size:10px;line-height:1.75;max-width:280px;color:#dfE8ef;margin:0;}
-.sp-hero-caption{position:absolute;bottom:9px;right:12px;font-size:7px;color:white;text-shadow:0 1px 3px #111;background:#12293cbd;padding:3px 6px;border-radius:3px;}
 .sp-product{display:flex;justify-content:space-between;align-items:center;gap:15px;border-bottom:1px solid #dce2e5;padding:14px 0 12px;margin-bottom:14px;}
 .sp-product small,.sp-system-intro small{font-size:7px;letter-spacing:.13em;color:#8a744d;font-weight:700;display:block;margin-bottom:6px;}
 .sp-product b{font-size:12px;overflow-wrap:anywhere;display:block;}
@@ -178,14 +177,20 @@
 #pageInvestment.has-system-context.has-bom .inv-card{padding-top:7px;padding-bottom:7px;}
 #pageInvestment.has-system-context.has-bom #v_inDesc{margin-bottom:8px;}
 
-/* Keep the entire concept photo visible. Titles live alongside, never on
-   top of the roof, columns or vehicles. Shared by main and standalone PDFs. */
-.system-page .sp-system-hero{height:auto;display:grid;grid-template-columns:32% minmax(0,1fr);align-items:stretch;background:#132b3c;}
-.system-page .sp-system-hero>img{position:static;inset:auto;grid-column:2;grid-row:1;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain;display:block;}
-.system-page .sp-system-hero .sp-hero-copy{position:static;grid-column:1;grid-row:1;width:auto;min-width:0;padding:22px 19px;display:flex;flex-direction:column;justify-content:center;}
-.system-page .sp-system-hero .sp-hero-copy>small{font-size:7px;letter-spacing:.14em;color:#e7b86c;}
-.system-page .sp-system-hero h2{font-size:25px;line-height:1.25;letter-spacing:-.8px;margin:12px 0 0;overflow-wrap:break-word;}
-.sp-illustration-note{font-size:7px;color:#84919c;text-align:right;margin:5px 0 0;}
+/* Full-image heroes with transparent text overlay; no side partition. */
+.system-page .sp-system-hero{height:auto;display:block;background:#132b3c;}
+.system-page .sp-system-hero>img{position:relative;inset:auto;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain;display:block;}
+.system-page .sp-system-hero .sp-hero-shade{background:linear-gradient(90deg,rgba(10,31,46,.88),rgba(10,31,46,.36) 48%,rgba(10,31,46,0) 80%);}
+.system-page .sp-system-hero .sp-hero-copy{position:absolute;left:27px;bottom:28px;top:auto;width:55%;min-width:0;padding:0;}
+.system-page .sp-system-hero .sp-hero-copy>small{font-size:7px;letter-spacing:.14em;color:#f3c581;}
+.system-page .sp-system-hero h2{font-size:31px;line-height:1.2;letter-spacing:-.8px;margin:12px 0 0;overflow-wrap:anywhere;text-shadow:0 1px 9px #10253777;}
+.system-page .sp-system-intro{padding:12px 0;}
+.system-page .sp-section-label{margin-top:12px;margin-bottom:7px;}
+.system-page .sp-system-flow{padding:12px 16px;}
+.system-page .sp-note{margin-top:10px;padding-top:8px;}
+.system-page.sp-density-1 .sp-system-hero>img{max-height:390px;}
+.system-page.sp-density-2 .sp-system-hero>img{max-height:330px;}
+.system-page.sp-density-2 .sp-system-hero h2{font-size:27px;}
 .system-page .sp-system-brief{display:block;margin-top:14px;}
 #pageExec.has-system-image .exec-artwork img,.power-hero.has-system-image img{object-fit:contain;background:#132b3c;}
 .studio-system-storage{margin:8px 12px 14px;}
@@ -273,3 +278,16 @@ body:has([data-section="systemEnabled"][open] #systemReview[open]:not([hidden]))
 #selectedSystemCard .selected-system-note{font-size:9px;margin-top:8px;padding-top:7px;}
 #selectedSystemCard .selected-system-metrics{margin-top:9px;}
 #selectedSystemCard>div{padding:12px;}
+
+/* Optional, connected Leak Proof water assessment. */
+#systemWaterCard[hidden],#systemWaterFields[hidden]{display:none!important;}
+#systemWaterResult{font-size:11px;color:#326c60;line-height:1.6;margin:10px 0;}
+.rw-diagram{display:block;width:100%;height:auto;margin:12px 0;}
+#systemWaterDiagram .rw-diagram{margin-bottom:0;}
+.sp-water-tag{display:flex;gap:14px;align-items:baseline;background:#eff7f3;border:1px solid #d9e9e0;border-radius:7px;padding:8px 11px;margin-top:10px;font-size:8px;color:#326a5b;}
+.sp-water-tag b{white-space:nowrap;}
+.sp-water-tag span{line-height:1.6;}
+.rainwater-page .sp-title{font-size:28px;}
+.rainwater-page .sp-sub{margin-bottom:12px;}
+.rainwater-page .sp-row{padding:5px 0;}
+.rainwater-page .sp-engineering-notes{padding:10px 13px;}

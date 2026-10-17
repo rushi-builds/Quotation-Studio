@@ -1,5 +1,9 @@
 # Input-first Advanced Systems and fresh report visuals
 
+> Later hero overlay and optional collection changes are documented in
+> [rainwater-collection.md](rainwater-collection.md). The owner separately
+> authorised that subsequent batch's feature-branch/Vercel preview publication.
+
 Status: **owner authorised feature-branch publishing and a Vercel Preview on
 17 October 2026** ("sandox through nahi vercel through dikha please").
 No PR merge or manual production deployment is authorised. The linked Cloudflare

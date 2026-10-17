@@ -8,8 +8,8 @@
   const pageLabel=n=>n+' '+(n===1?'Page':'Pages');
   const formats={bess:{title:'BESS Report',ids:['pageBessOverview','pageBessAssessment']},system:{title:'Additional System Report',ids:['pageSystemOverview','pageSystemDetail']},'system-power':{title:'System Power Proposal',ids:['pageSystemOverview']}};
   function formatsFor(s) {
-    const name=root.AdditionalSystems.name(s);
-    return {...formats,system:{...formats.system,title:name+' Report'},'system-power':{...formats['system-power'],title:name+' Power Proposal'}};
+    const water=root.Rainwater.enabled(s),name=root.AdditionalSystems.name(s)+(water?' + Rainwater harvesting':'');
+    return {...formats,system:{...formats.system,title:name+' Report',ids:[...formats.system.ids,...(water?['pageRainwater']:[])]},'system-power':{...formats['system-power'],title:name+' Power Proposal'}};
   }
   function updateLabel() {
     const s=root.Render.lastState||{},select=$('pdfFormat'),reports=formatsFor(s);

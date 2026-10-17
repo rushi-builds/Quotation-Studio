@@ -52,7 +52,7 @@ function boot() {
   });
   const w = dom.window;
   const files = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
-    'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+    'rainwater.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
     'module-catalog.js', 'equipment-calc.js', 'equipment.js', 'render.js', 'editor.js',
     'experience.js', 'export.js', 'app.js'];
   w.eval(files.map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n'));

@@ -46,7 +46,7 @@ function bootBuilder(seedStorage) {
     }
   });
   const { window } = dom;
-  const src = ['content.js', 'engineering.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+  const src = ['content.js', 'engineering.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'rainwater.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
     'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);

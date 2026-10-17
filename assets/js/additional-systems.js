@@ -1,7 +1,8 @@
 /* Optional project systems: editable scope, explicit commercial basis, no Finance mutations. */
 'use strict';
 (function(root){
- const DEFAULTS={systemEnabled:false,systemInclude:true,systemTemplate:'custom',systemReason:'requested',systemName:'',systemPurpose:'',systemEquipment:'',systemScope:'',systemNotes:'',systemExclusions:'',systemPrice:'',systemDelivery:'',systemWarranty:'',systemPriceMode:'separate',systemAreaM2:'',systemHeightM:'',systemBays:'',systemWeatherProtection:'pending',systemRoofing:'',systemDrainage:'',systemAcceptance:'',systemBaseReviewed:false,systemScopeReviewed:false,systemAdditions:'',bessAdditions:'',bessAdditionsReviewed:false};
+ const W=typeof module==='object'&&module.exports?require('./rainwater.js'):root.Rainwater;
+ const DEFAULTS={...W.DEFAULTS,systemEnabled:false,systemInclude:true,systemTemplate:'custom',systemReason:'requested',systemName:'',systemPurpose:'',systemEquipment:'',systemScope:'',systemNotes:'',systemExclusions:'',systemPrice:'',systemDelivery:'',systemWarranty:'',systemPriceMode:'separate',systemAreaM2:'',systemHeightM:'',systemBays:'',systemWeatherProtection:'pending',systemRoofing:'',systemDrainage:'',systemAcceptance:'',systemBaseReviewed:false,systemScopeReviewed:false,systemAdditions:'',bessAdditions:'',bessAdditionsReviewed:false};
  const templates={
   "zero": {
     "name": "Zero Export Control",
@@ -250,6 +251,15 @@
    if((battery.mode||s.bessUseCase||'backup')==='backup')add(battery.backupHours!==null?'Backup inputs entered; commissioning still required':'Outage backup is not yet established','bessBackupReady',battery.backupHours===null);
    else if(battery.annualBenefit===null||(battery.economicErrors?.length||0)>0)add('Complete storage operating assumptions before claiming savings','bessUseCase',true);
   }
+  if(W.enabled(s)){
+   const water=W.compute(s),ready=water.annual!==null&&!water.errors.length&&String(s.systemWaterRainSource||'').trim();
+   add(ready?'Rainwater collection scenario entered; verify site basis':'Complete rainwater area, rainfall reference and collection assumptions','systemWaterRainMm',!ready);
+   add(s.systemWaterRoute==='storage'||s.systemWaterRoute==='recharge'?'Collection route proposed; site design required':'Agree the rainwater collection route','systemWaterRoute',!['storage','recharge'].includes(s.systemWaterRoute));
+   const storm=water.peak!==null&&water.eventDelivered!==null&&(s.systemWaterRoute!=='storage'||water.tankCapture!==null);
+   add(storm?'Storm / collection scenario entered; final hydraulic design required':'Complete storm, first-flush and collection checks','systemWaterIntensity',!storm);
+   const checked=s.systemWaterPriceMode==='included'?s.systemWaterPriceReviewed===true:W.price(s)!==null;
+   add(checked?'Harvesting commercial basis entered':'Confirm harvesting price / included scope',s.systemWaterPriceMode==='included'?'systemWaterPriceReviewed':'systemWaterPrice',!checked);
+  }
   return rows;
  }
  const insights={
@@ -288,6 +298,7 @@
   panel.append(body);
  }
  function hasEdits(s){
+  if(Object.entries(W.DEFAULTS).some(([k,v])=>String(s[k]??v)!==String(v)))return true;
   if(inBase(s)||s.systemScopeReviewed===true||s.systemBaseReviewed===true)return true;
   if(['systemPrice','systemDelivery','systemWarranty','systemAreaM2','systemHeightM','systemBays'].some(id=>String(s[id]??'').trim()))return true;
   const expected={...Object.fromEntries(Object.entries(template(s)||{}).map(([k,v])=>['system'+k[0].toUpperCase()+k.slice(1),v])),...siteDefaults[s.systemTemplate]};
@@ -303,6 +314,7 @@
  function sync(s){
   const fields=document.getElementById('systemFields');if(!fields)return;
   fields.hidden=!enabled(s);
+  W.sync(s);
   previousTemplate=s.systemTemplate||'custom';
   syncPicker(s);
   if(enabled(s)&&template(s))for(const id of [...Object.keys(template(s)).map(k=>'system'+k[0].toUpperCase()+k.slice(1)),...Object.keys(siteDefaults[s.systemTemplate]||{})]){const el=document.getElementById(id);if(el&&s[id]!=null&&(!el.value.trim()||(id==='systemName'&&s.systemTemplate==='weatherproof'&&el.value==='Weatherproof Solar Roof')))el.value=s[id];}
@@ -339,7 +351,7 @@
   const form=document.getElementById('quoteForm');
   const scopeIds=['capacity','roofType','moduleMake','moduleModel','moduleWattage','inverterMake','inverterModel','inverterKw','systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions','systemRoofing','systemDrainage','systemAcceptance','systemAdditions','systemAreaM2','systemHeightM','systemBays'];
   const rateIds=['costPerWp','costPerKwp','gstPercent','bomModules','bomInverter','bomStructure','bomBos','bomInstall','bomLiaison','systemPriceMode'];
-  const invalidate=e=>{if(['capacity','inverterKw'].includes(e.target.id)||(e.target.id.startsWith('bess')&&!['bessAdditionsReviewed','bessInclude','bessReason','bessCost'].includes(e.target.id)))document.getElementById('bessAdditionsReviewed').checked=false;if(scopeIds.includes(e.target.id))document.getElementById('systemScopeReviewed').checked=false;if(rateIds.includes(e.target.id)||scopeIds.includes(e.target.id))document.getElementById('systemBaseReviewed').checked=false;};
+  const invalidate=e=>{if(scopeIds.includes(e.target.id)||rateIds.includes(e.target.id)||e.target.id==='systemPrice')document.getElementById('systemWaterPriceReviewed').checked=false;if(e.target.id.startsWith('systemWater')&&!['systemWaterPriceReviewed','systemWaterPrice'].includes(e.target.id)){document.getElementById('systemScopeReviewed').checked=false;document.getElementById('systemBaseReviewed').checked=false;document.getElementById('systemWaterPriceReviewed').checked=false;}if(['capacity','inverterKw'].includes(e.target.id)||(e.target.id.startsWith('bess')&&!['bessAdditionsReviewed','bessInclude','bessReason','bessCost'].includes(e.target.id)))document.getElementById('bessAdditionsReviewed').checked=false;if(scopeIds.includes(e.target.id))document.getElementById('systemScopeReviewed').checked=false;if(rateIds.includes(e.target.id)||scopeIds.includes(e.target.id))document.getElementById('systemBaseReviewed').checked=false;};
   form.addEventListener('input',invalidate,true);form.addEventListener('change',invalidate,true);
   const select=document.getElementById('systemTemplate');
   previousTemplate=select.value;
@@ -352,6 +364,7 @@
    const old=hasEdits(readForm(previousTemplate));
    if(old&&select.value!==previousTemplate&&!root.confirm('Change system template? Price, dimensions, delivery and warranty will reset. Presets replace the editable scope; Custom keeps the editable scope as a starting point. Custom additions will reset. Uploaded proposal photos are kept.')){select.value=previousTemplate;return;}
    for(const id of ['systemPrice','systemWarranty','systemDelivery','systemAreaM2','systemHeightM','systemBays','systemRoofing','systemDrainage','systemAcceptance','systemAdditions'])document.getElementById(id).value='';
+   for(const [id,value]of Object.entries(W.DEFAULTS)){const el=document.getElementById(id);if(el.type==='checkbox')el.checked=value;else el.value=value;}
    document.getElementById('systemPriceMode').value='separate';
    document.getElementById('systemWeatherProtection').value=select.value==='weatherproof'?'rain':'pending';
    document.getElementById('systemScopeReviewed').checked=false;

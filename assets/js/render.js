@@ -1095,6 +1095,7 @@
     { id: 'pageBessAssessment', nav: 'Storage Value', title: 'Storage Assessment', render: (s,f)=>root.Bess.assessment(s,f), visible: s=>root.Bess.included(s) },
     { id: 'pageSystemOverview', nav: 'Additional System', title: 'Additional System', render: (s,f)=>root.SupplementDesign.systemOverview(s,f), visible:s=>root.AdditionalSystems.included(s) },
     { id: 'pageSystemDetail', nav: 'System Scope', title: 'Additional System Scope', render: (s,f)=>root.SupplementDesign.systemDetail(s,f), visible:s=>root.AdditionalSystems.included(s) },
+    { id:'pageRainwater',nav:'Rainwater',title:'Rainwater Collection',render:s=>root.SupplementDesign.rainwater(s),visible:s=>root.Rainwater.included(s) },
     { id: 'pageScope', nav: 'EPC Scope', title: 'EPC Scope', render: renderScope },
     { id: 'pageQuality', nav: 'Quality', title: 'Installation Quality', render: renderQuality },
     { id: 'pageSavings', nav: 'Savings', title: 'Generation & Savings', render: renderSavings },
@@ -1260,7 +1261,8 @@
     $('pageInvestment')?.classList.toggle('has-system-context', active);
     const name = A.name(s), short = name.length > 44 ? name.slice(0, 43) + '…' : name;
     const label = $('v_coverSystem');
-    if (label) { label.hidden = !active; label.textContent = active ? short + ' · ' + A.reason(s) : ''; label.title = name; }
+    const water=root.Rainwater.enabled(s),batteryIncluded=root.Bess.included(s);
+    if(label){label.hidden=!(active||batteryIncluded);label.textContent=[active?short:'',active&&water?'Rainwater harvesting':'',batteryIncluded?'Battery Energy Storage':''].filter(Boolean).join(' · ');label.title=label.textContent;}
     const defaults = {
       img_solution: ['assets/images/page-solution.jpg', 'Modern building with solar roof'],
       img_exec: ['assets/images/summary-carport-ev.jpg', 'Concept render of a house with rooftop solar and an optional EV charging point']
@@ -1298,6 +1300,12 @@
     set('v_inSub', short + ' · ' + A.priceText(s));
     set('v_inGrossScope', A.inBase(s) ? 'System scope included in base quote; no second charge.' : 'System upgrade excluded; agree its price and payments separately.');
     if (root.Bess.included(s)) set('v_inGrossScope', $('v_inGrossScope').textContent + ' Battery priced separately.');
+    if(water){
+      set('v_soScopeNote',$('v_soScopeNote').textContent+' Rainwater harvesting: '+root.Rainwater.summary(s)+'.');
+      set('v_scClosing',$('v_scClosing').textContent+' Rainwater collection: see the connected collection assessment.');
+      set('v_inGrossScope',$('v_inGrossScope').textContent+' Harvesting: '+root.Rainwater.priceText(s)+(s.systemWaterPriceMode==='included'?'; no second charge.':', separately quoted.'));
+      set('v_exSub',$('v_exSub').textContent+' Rainwater collection proposed.');
+    }
     if (A.inBase(s)) {
       set('v_inCostNetL', CONTENT.pageInvestment.cards.netInvestment);
       set('v_inPayNote', 'System scope included. ' + CONTENT.pageInvestment.paymentNote);
