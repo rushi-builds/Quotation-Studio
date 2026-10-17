@@ -129,10 +129,23 @@
         const card=element('div','selected-system-card');card.id='selectedSystemCard';card.hidden=true;pickerField.after(card);
         const battery=element('div','selected-battery-fields');battery.id='selectedBatteryFields';battery.dataset.section='bessEnabled';battery.hidden=true;
         const batteryFields=$('bessEnabled').closest('fieldset');batteryFields.querySelector('legend').classList.add('studio-sr-only');battery.append(batteryFields);fieldset.append(battery);
-        // Make the sizing goal one useful routine choice, with expert overrides folded.
-        const sizing=$('bessSizing').closest('.field');$('bessModel').closest('.field').after(sizing);
-        const reportPreferences=$('bessInclude').closest('details');$('bessFields').append(reportPreferences);const inputStatus=$('bessInputStatus');if(inputStatus)reportPreferences.append(inputStatus);
-        const backupInputs=$('bessLoad').closest('.row2');backupInputs.id='bessBackupInputs';backupInputs.hidden=true;
+        // Routine fields first; colour roles are identical across every system.
+        const group=(label,tone,nodes)=>{const box=element('section','system-input-group');box.dataset.inputTone=tone;box.setAttribute('aria-label',label);box.append(element('h3','system-input-heading',label),...nodes);return box;};
+        const tone=(node,value)=>{node.dataset.inputTone=value;return node;};
+        const packagePrice=$('systemPriceMode').closest('.field');
+        const packagePriceGroup=group('Pricing','price',[]);packagePrice.before(packagePriceGroup);
+        packagePriceGroup.append(packagePrice,$('systemPricingHint'),$('systemBaseReviewField'),$('systemPriceField'));
+        tone($('systemEditDetails'),'scope');tone($('systemAdditions').closest('details'),'scope');
+        const sizing=$('bessSizing').closest('.field'),backupInputs=$('bessLoad').closest('.row2');backupInputs.id='bessBackupInputs';backupInputs.hidden=true;
+        const price=group('Pricing','price',[$('bessCost').closest('.field'),$('bessCostHint')]);
+        const setup=group('Battery & sizing goal','scope',[$('bessModel').closest('.field'),$('bessCustomIdentity'),sizing,backupInputs]);
+        const custom=tone($('bessAdditions').closest('details'),'scope');
+        const specifications=tone($('bessCapacity').closest('details'),'technical');specifications.id='bessSpecifications';
+        const advanced=$('bessAutoSetup');tone(advanced.querySelector('details'),'technical');
+        const operating=tone($('bessUseCase').closest('details'),'economics');operating.id='bessOperating';
+        const reportPreferences=tone($('bessInclude').closest('details'),'report');reportPreferences.id='bessReportPreferences';
+        const inputStatus=$('bessInputStatus');if(inputStatus)reportPreferences.append(inputStatus);
+        $('bessFields').append(price,setup,custom,advanced,specifications,operating,reportPreferences,$('bessValidation'));
         $('bessModel').addEventListener('change',()=>{if($('bessModel').value==='custom')$('bessCapacity').closest('details').open=true;});
         picker.addEventListener('input',event=>event.stopPropagation());
         picker.addEventListener('change',()=>{

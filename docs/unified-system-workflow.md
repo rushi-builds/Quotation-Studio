@@ -1,5 +1,9 @@
 # Unified Select system — local implementation
 
+> Subsequent input hierarchy and image changes, with their separate owner
+> authorisation for a Vercel Preview, are documented in
+> [system-input-hierarchy.md](system-input-hierarchy.md).
+
 Status: **owner authorised feature-branch publishing and a Vercel Preview on
 17 October 2026 ("verce through preview de") after local verification**.
 No PR merge or manual production deployment is authorised. The existing linked

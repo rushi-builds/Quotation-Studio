@@ -88,7 +88,7 @@
     "structural": true
   },
   "carport": {
-    "image": "system-carport.jpg",
+    "image": "system-carport-concept.jpg",
     "short": "Solar carport",
     "flow": [
       "PARKING & SITE SURVEY",
@@ -118,7 +118,7 @@
     "structural": true
   },
   "zero": {
-    "image": "energy-controls.jpg",
+    "image": "system-zero-concept.jpg",
     "short": "Zero export control",
     "flow": [
       "SITE METERING",
@@ -127,7 +127,7 @@
     ]
   },
   "monitoring": {
-    "image": "energy-controls.jpg",
+    "image": "system-monitoring-concept.jpg",
     "short": "Energy monitoring",
     "flow": [
       "ENERGY METERS",
@@ -136,7 +136,7 @@
     ]
   },
   "ev": {
-    "image": "summary-carport-ev.jpg",
+    "image": "system-ev-concept.jpg",
     "short": "EV charging integration",
     "flow": [
       "SITE CAPACITY",
@@ -145,7 +145,7 @@
     ]
   },
   "pfc": {
-    "image": "energy-controls.jpg",
+    "image": "system-pfc-concept.jpg",
     "short": "Power-factor correction",
     "flow": [
       "SITE MEASUREMENTS",
@@ -154,7 +154,7 @@
     ]
   },
   "dg": {
-    "image": "energy-controls.jpg",
+    "image": "system-dg-concept.jpg",
     "short": "DG–solar coordination",
     "flow": [
       "GENERATOR & PV",
@@ -273,21 +273,19 @@
   const batteryPanel=document.getElementById('selectedBatteryFields');if(batteryPanel)batteryPanel.hidden=!battery;
   const backup=document.getElementById('bessBackupInputs');if(backup)backup.hidden=s.bessSizing!=='backup';
   if(!battery&&!system)return;
-  const f=root.Finance.compute(s),b=root.Bess.compute(s,f),presentationData=presentation(s);
-  const image=document.createElement('img');image.src='assets/images/'+(battery?'storage-evening.jpg':presentationData.image);image.alt='Concept illustration';
-  const body=document.createElement('div'),eyebrow=document.createElement('small'),heading=document.createElement('strong'),description=document.createElement('p'),metrics=document.createElement('div');
-  eyebrow.textContent=battery?'STORAGE OPTION':'SELECTED SYSTEM';heading.textContent=battery?'Battery Energy Storage':name(s);
-  description.textContent=battery?((root.StorageCatalog.get(s.bessModel)?'':'Custom specification · ')+(s.bessMake||'Enter your battery model.')):(own(insights,s.systemTemplate)?insights[s.systemTemplate]:insights.custom)[1];
+  const f=root.Finance.compute(s),b=root.Bess.compute(s,f);
+  const body=document.createElement('div'),eyebrow=document.createElement('small'),heading=document.createElement('strong'),metrics=document.createElement('div');
+  eyebrow.textContent=battery?'BATTERY CONFIGURATION':'SYSTEM SUMMARY';heading.textContent=battery?(s.bessMake||'Battery configuration'):name(s);
   metrics.className='selected-system-metrics';
   const value=(v,unit)=>Number.isFinite(v)?v.toLocaleString('en-IN',{maximumFractionDigits:2})+unit:'Pending';
   const chips=battery?[[value(b.capacity,' kWh'),'Rated bank'],[value(b.usableAc,' kWh'),'Usable AC scenario'],[value(b.power,' kW'),'Design output limit']]:[[f.capacity+' kWp','Solar quotation'],[inBase(s)?'Included':price(s)!==null?root.Finance.fmtINR(price(s)):'To be quoted','Price basis']];
   chips.forEach(([v,label])=>{const el=document.createElement('span'),strong=document.createElement('b'),small=document.createElement('small');strong.textContent=v;small.textContent=label;el.append(strong,small);metrics.append(el);});
-  body.append(eyebrow,heading,description);
+  body.append(eyebrow,heading);
   if(battery&&s.bessSpecMode==='auto'){const a=root.Bess.sizing(s,f),configuration=document.createElement('p');configuration.className='selected-system-configuration';configuration.textContent=a.units&&a.model?a.units+' × '+a.model.rated+' kWh battery modules · automatic':'Sizing inputs required';body.append(configuration);if(a.issue){const warning=document.createElement('p');warning.className='selected-system-warning';warning.textContent=a.issue;body.append(warning);}}
   body.append(metrics);
-  if(battery){const m=root.StorageCatalog.get(s.bessModel);if(m){const source=document.createElement('a');source.href=m.source;source.target='_blank';source.rel='noopener noreferrer';source.className='selected-system-source';source.textContent='Catalogue reference · '+m.name;body.append(source);}const note=document.createElement('p');note.className='selected-system-note';note.textContent=(m?'Catalogue-based':'Manual-specification')+' design scenario; inverter / BMS compatibility and outage support require confirmation.';body.append(note);}
+  if(battery){const note=document.createElement('p');note.className='selected-system-note';note.textContent=(root.StorageCatalog.get(s.bessModel)?'Catalogue-based':'Manual-specification')+' scenario · not compatibility approval.';body.append(note);}
   if(battery&&system){const note=document.createElement('p');note.textContent='Saved combined proposal: '+name(s)+' + battery. Both sets of existing values are retained.';body.append(note);}
-  panel.append(image,body);
+  panel.append(body);
  }
  function hasEdits(s){
   if(inBase(s)||s.systemScopeReviewed===true||s.systemBaseReviewed===true)return true;
@@ -310,14 +308,14 @@
   if(enabled(s)&&template(s))for(const id of [...Object.keys(template(s)).map(k=>'system'+k[0].toUpperCase()+k.slice(1)),...Object.keys(siteDefaults[s.systemTemplate]||{})]){const el=document.getElementById(id);if(el&&s[id]!=null&&(!el.value.trim()||(id==='systemName'&&s.systemTemplate==='weatherproof'&&el.value==='Weatherproof Solar Roof')))el.value=s[id];}
   document.querySelectorAll('[data-system-choice]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.systemChoice==='yes')===enabled(s))));
   document.getElementById('systemCustomName').hidden=s.systemTemplate!=='custom';
-  document.getElementById('systemStatus').hidden=!enabled(s);
-  document.getElementById('systemStatus').textContent=enabled(s)?(template(s)?'Scope auto-filled. Edit site details only if needed.':'Enter the custom scope below.'):'Optional solar upgrades and controls.';
+  document.getElementById('systemStatus').hidden=true;
+  document.getElementById('systemStatus').textContent='';
   const structure=document.getElementById('systemStructureFields');if(structure)structure.hidden=!presentation(s).structural;
   const bays=document.getElementById('systemBaysField');if(bays)bays.hidden=s.systemTemplate!=='carport';
   const amount=document.getElementById('systemPriceField');if(amount)amount.hidden=inBase(s);
   const customReview=document.getElementById('bessCustomReviewField');if(customReview)customReview.hidden=!String(s.bessAdditions||'').trim();
   const baseReview=document.getElementById('systemBaseReviewField');if(baseReview)baseReview.hidden=!inBase(s);
-  const hint=document.getElementById('systemPricingHint');if(hint)hint.textContent=inBase(s)?'Include this scope in your entered solar rate / BOM; no extra charge is added.':'Outside solar totals. Enter an agreed tax-inclusive upgrade price.';
+  const hint=document.getElementById('systemPricingHint');if(hint)hint.textContent=inBase(s)?'Included in entered solar rate / BOM. No second charge.':'Separate from solar totals.';
   const reviewPanel=document.getElementById('systemReview');
   if(reviewPanel){
    const rows=review(s,root.Bess?.compute(s,root.Finance.compute(s))),pending=rows.filter(r=>r.pending).length;

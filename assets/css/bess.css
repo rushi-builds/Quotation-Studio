@@ -223,7 +223,6 @@ body:has([data-section="systemEnabled"][open] #systemReview[open]:not([hidden]))
 .system-picker-field{margin-bottom:13px;}
 .selected-system-card{border:1px solid #d9e5e7;border-radius:12px;overflow:hidden;background:linear-gradient(145deg,#f2f7f6,#fff);margin-bottom:16px;}
 .selected-system-card[hidden],.selected-battery-fields[hidden]{display:none!important;}
-.selected-system-card>img{width:100%;height:140px;object-fit:contain;display:block;background:#142e3d;}
 .selected-system-card>div{padding:13px;}
 .selected-system-card>div>small{font-size:8px;letter-spacing:.12em;color:#9b733c;}
 .selected-system-card strong{display:block;font:600 16px/1.35 'Poppins',sans-serif;color:#173b4b;margin:5px 0;}
@@ -233,7 +232,6 @@ body:has([data-section="systemEnabled"][open] #systemReview[open]:not([hidden]))
 .selected-system-metrics b{display:block;font-size:12px;color:#20544f;overflow-wrap:anywhere;}
 .selected-system-metrics small{display:block;font-size:9px;line-height:1.5;color:#738590;margin-top:3px;}
 .selected-system-card .selected-system-note{font-size:10px;border-top:1px solid #e3e9e9;margin-top:10px;padding-top:8px;}
-.selected-system-source{font-size:10px;display:inline-block;margin-top:10px;color:#39756b;}
 .selected-battery-fields{margin:0 0 14px;}
 .selected-battery-fields>fieldset.bess-controls{border:0;padding:0;margin:0;}
 .custom-additions-input textarea{width:100%;min-height:85px;}
@@ -257,3 +255,21 @@ body:has([data-section="systemEnabled"][open] #systemReview[open]:not([hidden]))
 
 .selected-system-card .selected-system-configuration{font-size:10px;color:#39756b;margin-top:2px;}
 .selected-system-card .selected-system-warning{font-size:10px;color:#8a5e22;background:#fcf5e8;border-left:2px solid #d1a05a;padding:7px 9px;}
+
+/* Builder-only hierarchy: price / scope / technical / economics / report. */
+[data-section="systemEnabled"] [data-input-tone]{--input-bg:#f3f8f5;--input-edge:#d7e7dd;--input-ink:#275e4e;background:var(--input-bg);border:1px solid var(--input-edge);border-radius:10px;}
+[data-section="systemEnabled"] [data-input-tone="price"]{--input-bg:#fff9ef;--input-edge:#ecdcbf;--input-ink:#84602e;}
+[data-section="systemEnabled"] [data-input-tone="technical"]{--input-bg:#f2f7fc;--input-edge:#d8e4ef;--input-ink:#365d82;}
+[data-section="systemEnabled"] [data-input-tone="economics"]{--input-bg:#f7f4fb;--input-edge:#e3dbef;--input-ink:#695586;}
+[data-section="systemEnabled"] [data-input-tone="report"]{--input-bg:#f6f8fa;--input-edge:#dfe5eb;--input-ink:#57697c;}
+.system-input-group{padding:12px;margin:12px 0;}
+.system-input-heading{font:700 10px/1.5 'Inter',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--input-ink);margin:0 0 12px;}
+.system-input-group>.field:last-child,.system-input-group>.field:last-child label{margin-bottom:0;}
+.system-input-group>.hint:last-child{margin-bottom:0;}
+[data-section="systemEnabled"] .bess-model[data-input-tone]{padding:12px;}
+[data-section="systemEnabled"] .bess-model[data-input-tone]>summary{color:var(--input-ink);margin-bottom:0;}
+[data-section="systemEnabled"] .bess-model[data-input-tone][open]>summary{margin-bottom:12px;}
+.system-input-group #systemPricingHint{border:0;background:none;padding:0;margin:0 0 10px;font-size:10px;}
+#selectedSystemCard .selected-system-note{font-size:9px;margin-top:8px;padding-top:7px;}
+#selectedSystemCard .selected-system-metrics{margin-top:9px;}
+#selectedSystemCard>div{padding:12px;}
