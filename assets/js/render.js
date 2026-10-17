@@ -1331,6 +1331,7 @@
     }
     renderSystemContext(s, f);
     updateLiveChip(s, f);
+    root.SupplementDesign.fit();
     fitPages();
     drawCharts(f);
     if (typeof document !== 'undefined' && document.dispatchEvent) {

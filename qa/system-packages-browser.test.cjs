@@ -38,7 +38,7 @@ const {chromium}=require('playwright');
   }
   const kinds=['zero','monitoring','ev','pfc','dg','weatherproof','carport','canopy','pergola'];
   for(const kind of kinds){
-   await page.selectOption('#systemTemplate',kind);
+   await page.selectOption('#advancedSystemSelect',kind);
    assert(await page.locator('#systemPurpose').inputValue());
    for(const category of ['residential','commercial','industrial','rwa'])for(const mode of ['separate','included']){
     await apply({customerType:category,systemPriceMode:mode,systemPrice:'99999',systemAreaM2:'48',systemHeightM:'2.8',systemBays:'2',systemRoofing:'Agreed roofing and finishes after site design.',systemDrainage:'Gutters to the agreed existing stormwater discharge.',systemAcceptance:'Site inspection and agreed water-ingress checks.',systemWarranty:'Only agreed OEM / contractor terms',systemDelivery:'After site and design approval'});
@@ -48,7 +48,7 @@ const {chromium}=require('playwright');
   }
   // Dense commercial offers must retain tax, BOM and financing notes too.
   for(const kind of ['weatherproof','carport','canopy','pergola']){
-   await page.selectOption('#systemTemplate',kind);
+   await page.selectOption('#advancedSystemSelect',kind);
    for(const mode of ['separate','included']){
     await apply({customerType:'commercial',systemPriceMode:mode,systemPrice:'125000',bomModules:'250000',bomInverter:'70000',bomStructure:'50000',bomBos:'30000',bomInstall:'30000',bomLiaison:'15200',payCompletion:'5',loanAmt:'200000',loanRate:'9',loanYears:'5'});
     await verify();
@@ -57,10 +57,10 @@ const {chromium}=require('playwright');
   await apply({bomModules:'',bomInverter:'',bomStructure:'',bomBos:'',bomInstall:'',bomLiaison:'',payCompletion:'10',loanAmt:'',loanRate:'',loanYears:'',systemPrice:'99999'});
   console.log('PASS: eight dense architectural cases — commercial tax + BOM + payment warning + financing, both price modes');
   // Real confirmation must protect current custom scope when the user cancels.
-  accept=false;await page.selectOption('#systemTemplate','carport');accept=true;
+  accept=false;await page.selectOption('#advancedSystemSelect','carport');accept=true;
   assert.equal(await page.locator('#systemTemplate').inputValue(),'pergola');
   assert.equal(await page.locator('#systemPrice').inputValue(),'99999');
-  await page.selectOption('#systemTemplate','carport');
+  await page.selectOption('#advancedSystemSelect','carport');
   assert.equal(await page.locator('#systemPrice').inputValue(),'');assert.equal(await page.locator('#systemAreaM2').inputValue(),'');
   assert.equal(await page.locator('#systemPriceMode').inputValue(),'separate');
   await apply({customerType:'residential',systemAreaM2:'48',systemHeightM:'2.8',systemBays:'2',systemPrice:'125000',systemWeatherProtection:'rain'});

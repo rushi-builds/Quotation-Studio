@@ -110,6 +110,7 @@
           reject(new Error('An image did not load. Check the image source and try again.'));
         },20000);
       })));
+      root.SupplementDesign.fit(snapshot);
       if(format==='power') pages.forEach(page=>{
         const footer=page.querySelector('footer'),last=footer.previousElementSibling;
         if(last.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-4 || page.scrollHeight>1124 || page.scrollWidth>page.clientWidth+1)

@@ -1,5 +1,9 @@
 # Advanced Systems — final local workflow polish
 
+> Historical checkpoint (published 929545f). The subsequent **unified-selector**
+> implementation is documented in [unified-system-workflow.md](unified-system-workflow.md)
+> and supersedes the independent / nested-BESS UI described below.
+
 The owner subsequently authorised publishing this completed local work as a
 feature-branch commit and Vercel Preview. No PR merge or manual production
 deployment by Arena is authorised. Existing Cloudflare Git auto-builds may run

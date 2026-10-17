@@ -116,17 +116,35 @@
       const view = element('button', 'studio-view-page', 'View related page ↗'); view.type = 'button';
       view.addEventListener('click', () => {
         let page = $(target);
+        if(field==='systemEnabled'&&(!page||!page.getClientRects().length)&&window.Bess.enabled(window.Render.lastState))page=$('pageBessOverview');
         if (!page || !page.getClientRects().length) page = $('pageExec');
         if (!page || !page.getClientRects().length) page = $('pageCover');
         page.scrollIntoView({behavior: 'instant', block: 'start'});
       });
       if (field === 'systemEnabled') {
-        const battery = element('details', 'bess-model studio-system-storage');
-        battery.dataset.section = 'bessEnabled';
-        const batterySummary=element('summary');batterySummary.append(element('span','','Battery storage (BESS)'),element('small','system-battery-state'));battery.append(batterySummary);
-        const batteryFields = $('bessEnabled').closest('fieldset');
-        batteryFields.querySelector('legend').classList.add('studio-sr-only');
-        battery.append(batteryFields); details.append(battery);
+        const pickerField=element('div','field system-picker-field'),pickerLabel=element('label','','Select system'),picker=element('select');
+        picker.id='advancedSystemSelect';picker.setAttribute('data-system-picker','');pickerLabel.htmlFor=picker.id;
+        [['none','No advanced system'],['bess','Battery Energy Storage (BESS)'],...Object.entries(window.AdditionalSystems.templates).map(([key,t])=>[key,t.name]),['custom','Custom system…'],['combined','Saved package + battery']].forEach(([value,text])=>{const option=new Option(text,value);if(value==='combined'){option.id='combinedSystemOption';option.hidden=true;option.disabled=true;}picker.add(option);});
+        pickerField.append(pickerLabel,picker);fieldset.prepend(pickerField);$('systemTemplate').closest('.field').hidden=true;
+        const card=element('div','selected-system-card');card.id='selectedSystemCard';card.hidden=true;pickerField.after(card);
+        const battery=element('div','selected-battery-fields');battery.id='selectedBatteryFields';battery.dataset.section='bessEnabled';battery.hidden=true;
+        const batteryFields=$('bessEnabled').closest('fieldset');batteryFields.querySelector('legend').classList.add('studio-sr-only');battery.append(batteryFields);fieldset.append(battery);
+        // Make the sizing goal one useful routine choice, with expert overrides folded.
+        const sizing=$('bessSizing').closest('.field');$('bessModel').closest('.field').after(sizing);
+        const reportPreferences=$('bessInclude').closest('details');$('bessFields').append(reportPreferences);const inputStatus=$('bessInputStatus');if(inputStatus)reportPreferences.append(inputStatus);
+        const backupInputs=$('bessLoad').closest('.row2');backupInputs.id='bessBackupInputs';backupInputs.hidden=true;
+        $('bessModel').addEventListener('change',()=>{if($('bessModel').value==='custom')$('bessCapacity').closest('details').open=true;});
+        picker.addEventListener('input',event=>event.stopPropagation());
+        picker.addEventListener('change',()=>{
+          const chosen=picker.value;if(chosen==='combined')return;
+          const old={system:$('systemEnabled').checked,battery:$('bessEnabled').checked};
+          $('systemEnabled').checked=!['none','bess'].includes(chosen);$('bessEnabled').checked=chosen==='bess';
+          if($('systemEnabled').checked){$('systemTemplate').value=chosen;$('systemTemplate').dispatchEvent(new Event('change',{bubbles:true}));if($('systemTemplate').value!==chosen){$('systemEnabled').checked=old.system;$('bessEnabled').checked=old.battery;}}
+          else if(chosen==='bess'&&!$('bessModel').value&&!['bessMake','bessCapacity','bessPower'].some(id=>$(id).value.trim())){
+            $('bessModel').value='pylon-us5000';$('bessModel').dispatchEvent(new Event('change',{bubbles:true}));
+          }
+          window.Render.renderAll();
+        });
         const review=element('details','system-review');review.id='systemReview';review.hidden=true;
         const reviewSummary=element('summary');reviewSummary.id='systemReviewSummary';
         const reviewItems=element('ul');reviewItems.id='systemReviewItems';
@@ -257,7 +275,6 @@
       sections.forEach(({field, text, description}) => { text.querySelector('small').textContent = summaries[field] || description; });
       const selected = $('proposalSelect').selectedOptions[0];
       if (selected) selected.textContent = '#' + (state.propRef || 'Draft') + ' · ' + (state.custName || 'Untitled customer') + ' - ' + (state.capacity || '0') + ' kWp · v' + (state.propVersion || '1.0');
-      const batteryState=document.querySelector('.system-battery-state');if(batteryState)batteryState.textContent=window.Bess.enabled(state)?(state.bessCapacity?state.bessCapacity+' kWh':'Review sizing'):'Not selected';
       if(!window.Bess.enabled(state))$('bessInputStatus').textContent='No battery storage selected.';
       const sysSummary=document.querySelector('[data-section="systemEnabled"] summary small');
       if(sysSummary){const selected=[];if(window.AdditionalSystems.enabled(state))selected.push(window.AdditionalSystems.name(state));if(window.Bess.enabled(state))selected.push('Battery storage'+(state.bessCapacity?' · '+state.bessCapacity+' kWh':''));sysSummary.textContent=selected.join(' + ')||'Solar roofs, carports, controls & battery storage';}
@@ -397,8 +414,8 @@
 
     function reveal(input) {
       if (!input) return;
-      if(input.id==='systemEnabled'){input.closest('.studio-section').open=true;input=document.querySelector('[data-system-choice="yes"]');}
-      if(input.id==='bessEnabled'){input.closest('.studio-system-storage').open=true;input.closest('.studio-section').open=true;input=document.querySelector('[data-bess-choice="yes"]');}
+      if(input.id==='systemEnabled'){input.closest('.studio-section').open=true;input=$('advancedSystemSelect');}
+      if(input.id==='bessEnabled'){input.closest('.studio-section').open=true;input=$('advancedSystemSelect');}
       if (input.closest('[data-adv]')) $('modeAll').click();
       for (let parent = input.parentElement; parent && parent !== panel; parent = parent.parentElement) {
         if (parent.tagName === 'DETAILS') parent.open = true;

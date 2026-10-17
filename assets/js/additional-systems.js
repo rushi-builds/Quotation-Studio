@@ -1,7 +1,7 @@
 /* Optional project systems: editable scope, explicit commercial basis, no Finance mutations. */
 'use strict';
 (function(root){
- const DEFAULTS={systemEnabled:false,systemInclude:true,systemTemplate:'custom',systemReason:'requested',systemName:'',systemPurpose:'',systemEquipment:'',systemScope:'',systemNotes:'',systemExclusions:'',systemPrice:'',systemDelivery:'',systemWarranty:'',systemPriceMode:'separate',systemAreaM2:'',systemHeightM:'',systemBays:'',systemWeatherProtection:'pending',systemRoofing:'',systemDrainage:'',systemAcceptance:'',systemBaseReviewed:false,systemScopeReviewed:false};
+ const DEFAULTS={systemEnabled:false,systemInclude:true,systemTemplate:'custom',systemReason:'requested',systemName:'',systemPurpose:'',systemEquipment:'',systemScope:'',systemNotes:'',systemExclusions:'',systemPrice:'',systemDelivery:'',systemWarranty:'',systemPriceMode:'separate',systemAreaM2:'',systemHeightM:'',systemBays:'',systemWeatherProtection:'pending',systemRoofing:'',systemDrainage:'',systemAcceptance:'',systemBaseReviewed:false,systemScopeReviewed:false,systemAdditions:'',bessAdditions:'',bessAdditionsReviewed:false};
  const templates={
   "zero": {
     "name": "Zero Export Control",
@@ -203,6 +203,7 @@
  const reason=s=>({requested:'Customer requested',recommended:'Recommended upgrade',alternative:'Optional alternative'}[s?.systemReason]||'Optional alternative');
  const template=s=>own(templates,s?.systemTemplate)?templates[s.systemTemplate]:null;
  const presentation=s=>own(presentations,s?.systemTemplate)?presentations[s.systemTemplate]:presentations.custom;
+ let previousTemplate='custom';
  const name=s=>{const value=String(s?.systemName||template(s)?.name||'Additional system').trim();return s?.systemTemplate==='weatherproof'&&value==='Weatherproof Solar Roof'?'Leak Proof Solar Roof':value||'Additional system';};
  const priceMode=s=>s?.systemPriceMode==='included'?'included':'separate';
  const inBase=s=>priceMode(s)==='included';
@@ -242,6 +243,7 @@
    }
   }
   if(battery?.enabled){
+   if(String(s.bessAdditions||'').trim())add(s.bessAdditionsReviewed===true?'Battery project additions reviewed':'Review custom battery additions for the selected model','bessAdditionsReviewed',s.bessAdditionsReviewed!==true);
    add(battery.cost===null?'Battery installed price pending':'Battery price entered; outside solar totals','bessCost',battery.cost===null);
    const incomplete=(battery.errors?.length||0)+(battery.missing?.length||0);
    add(incomplete?'Review battery specifications and sizing':'Battery specifications entered; verify OEM compatibility','bessModel',!!incomplete,!!battery.errors?.length);
@@ -250,11 +252,48 @@
   }
   return rows;
  }
+ const insights={
+  weatherproof:['Rain management','A sealed roofing assembly, flashings and drainage work together; PV modules alone are not a sealed roof.'],
+  carport:['Dual-use parking','Solar generation shares the parking footprint. Vehicle access, headroom and foundations remain site-specific.'],
+  canopy:['Usable space below','An elevated array can retain access beneath the panels. Roof loading, wind actions and clearances determine the final design.'],
+  pergola:['Architectural integration','Solar shading is coordinated with the outdoor layout. Lighting, rain protection and finishes are included only when specified.'],
+  zero:['Control, not backup','Export limiting uses site metering and compatible inverter control. Dynamic response and curtailment must be reviewed.'],
+  monitoring:['Visibility before decisions','Metering helps identify when energy is produced and consumed. A dashboard alone does not guarantee bill savings.'],
+  ev:['A defined charging option','Charging power depends on vehicle limits and site capacity. Solar availability does not guarantee solar-only charging.'],
+  pfc:['Measure before sizing','Power-factor correction starts with load and harmonic measurements; solar kWp alone does not size a capacitor bank.'],
+  dg:['Coordinated operation','Generator minimum loading, reverse-power protection and the solar control sequence require project-specific commissioning.'],
+  custom:['Your project scope','Project-specific equipment, work and exclusions are defined in the editable scope and custom additions.']
+ };
+ function syncPicker(s){
+  const picker=document.getElementById('advancedSystemSelect');if(!picker)return;
+  const battery=root.Bess.enabled(s),system=enabled(s),combined=document.getElementById('combinedSystemOption');
+  if(combined){combined.hidden=!(battery&&system);combined.disabled=!(battery&&system);}
+  picker.value=battery&&system?'combined':battery?'bess':system?(template(s)?s.systemTemplate:'custom'):'none';
+  const panel=document.getElementById('selectedSystemCard');panel.hidden=!(battery||system);panel.replaceChildren();
+  const batteryPanel=document.getElementById('selectedBatteryFields');if(batteryPanel)batteryPanel.hidden=!battery;
+  const backup=document.getElementById('bessBackupInputs');if(backup)backup.hidden=s.bessSizing!=='backup';
+  if(!battery&&!system)return;
+  const f=root.Finance.compute(s),b=root.Bess.compute(s,f),presentationData=presentation(s);
+  const image=document.createElement('img');image.src='assets/images/'+(battery?'storage-evening.jpg':presentationData.image);image.alt='Concept illustration';
+  const body=document.createElement('div'),eyebrow=document.createElement('small'),heading=document.createElement('strong'),description=document.createElement('p'),metrics=document.createElement('div');
+  eyebrow.textContent=battery?'STORAGE OPTION':'SELECTED SYSTEM';heading.textContent=battery?'Battery Energy Storage':name(s);
+  description.textContent=battery?((root.StorageCatalog.get(s.bessModel)?'':'Custom specification · ')+(s.bessMake||'Enter your battery model.')):(own(insights,s.systemTemplate)?insights[s.systemTemplate]:insights.custom)[1];
+  metrics.className='selected-system-metrics';
+  const value=(v,unit)=>Number.isFinite(v)?v.toLocaleString('en-IN',{maximumFractionDigits:2})+unit:'Pending';
+  const chips=battery?[[value(b.capacity,' kWh'),'Rated bank'],[value(b.usableAc,' kWh'),'Usable AC scenario'],[value(b.power,' kW'),'Design output limit']]:[[f.capacity+' kWp','Solar quotation'],[inBase(s)?'Included':price(s)!==null?root.Finance.fmtINR(price(s)):'To be quoted','Price basis']];
+  chips.forEach(([v,label])=>{const el=document.createElement('span'),strong=document.createElement('b'),small=document.createElement('small');strong.textContent=v;small.textContent=label;el.append(strong,small);metrics.append(el);});
+  body.append(eyebrow,heading,description);
+  if(battery&&s.bessSpecMode==='auto'){const a=root.Bess.sizing(s,f),configuration=document.createElement('p');configuration.className='selected-system-configuration';configuration.textContent=a.units&&a.model?a.units+' × '+a.model.rated+' kWh battery modules · automatic':'Sizing inputs required';body.append(configuration);if(a.issue){const warning=document.createElement('p');warning.className='selected-system-warning';warning.textContent=a.issue;body.append(warning);}}
+  body.append(metrics);
+  if(battery){const m=root.StorageCatalog.get(s.bessModel);if(m){const source=document.createElement('a');source.href=m.source;source.target='_blank';source.rel='noopener noreferrer';source.className='selected-system-source';source.textContent='Catalogue reference · '+m.name;body.append(source);}const note=document.createElement('p');note.className='selected-system-note';note.textContent=(m?'Catalogue-based':'Manual-specification')+' design scenario; inverter / BMS compatibility and outage support require confirmation.';body.append(note);}
+  if(battery&&system){const note=document.createElement('p');note.textContent='Saved combined proposal: '+name(s)+' + battery. Both sets of existing values are retained.';body.append(note);}
+  panel.append(image,body);
+ }
  function hasEdits(s){
   if(inBase(s)||s.systemScopeReviewed===true||s.systemBaseReviewed===true)return true;
   if(['systemPrice','systemDelivery','systemWarranty','systemAreaM2','systemHeightM','systemBays'].some(id=>String(s[id]??'').trim()))return true;
   const expected={...Object.fromEntries(Object.entries(template(s)||{}).map(([k,v])=>['system'+k[0].toUpperCase()+k.slice(1),v])),...siteDefaults[s.systemTemplate]};
-  if(['systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions','systemRoofing','systemDrainage','systemAcceptance'].some(id=>String(s[id]??'').trim()&&String(s[id]).trim()!==String(expected[id]??'').trim()))return true;
+  if(['systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions','systemRoofing','systemDrainage','systemAcceptance','systemAdditions'].some(id=>String(s[id]??'').trim()&&String(s[id]).trim()!==String(expected[id]??'').trim()))return true;
   return !!s.systemWeatherProtection&&s.systemWeatherProtection!==(s.systemTemplate==='weatherproof'?'rain':'pending');
  }
  function readForm(templateOverride){
@@ -266,6 +305,8 @@
  function sync(s){
   const fields=document.getElementById('systemFields');if(!fields)return;
   fields.hidden=!enabled(s);
+  previousTemplate=s.systemTemplate||'custom';
+  syncPicker(s);
   if(enabled(s)&&template(s))for(const id of [...Object.keys(template(s)).map(k=>'system'+k[0].toUpperCase()+k.slice(1)),...Object.keys(siteDefaults[s.systemTemplate]||{})]){const el=document.getElementById(id);if(el&&s[id]!=null&&(!el.value.trim()||(id==='systemName'&&s.systemTemplate==='weatherproof'&&el.value==='Weatherproof Solar Roof')))el.value=s[id];}
   document.querySelectorAll('[data-system-choice]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.systemChoice==='yes')===enabled(s))));
   document.getElementById('systemCustomName').hidden=s.systemTemplate!=='custom';
@@ -274,6 +315,7 @@
   const structure=document.getElementById('systemStructureFields');if(structure)structure.hidden=!presentation(s).structural;
   const bays=document.getElementById('systemBaysField');if(bays)bays.hidden=s.systemTemplate!=='carport';
   const amount=document.getElementById('systemPriceField');if(amount)amount.hidden=inBase(s);
+  const customReview=document.getElementById('bessCustomReviewField');if(customReview)customReview.hidden=!String(s.bessAdditions||'').trim();
   const baseReview=document.getElementById('systemBaseReviewField');if(baseReview)baseReview.hidden=!inBase(s);
   const hint=document.getElementById('systemPricingHint');if(hint)hint.textContent=inBase(s)?'Include this scope in your entered solar rate / BOM; no extra charge is added.':'Outside solar totals. Enter an agreed tax-inclusive upgrade price.';
   const reviewPanel=document.getElementById('systemReview');
@@ -292,26 +334,26 @@
    const el=document.getElementById('systemEnabled');el.checked=b.dataset.systemChoice==='yes';
    if(el.checked&&document.getElementById('systemTemplate').value==='custom'&&document.getElementById('systemPriceMode').value!=='included'&&!['systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions','systemPrice','systemAreaM2','systemHeightM','systemBays','systemRoofing','systemDrainage','systemAcceptance','systemDelivery','systemWarranty'].some(id=>document.getElementById(id).value.trim())){
     document.getElementById('systemTemplate').value='weatherproof';fillPreset('weatherproof');
-    document.getElementById('systemWeatherProtection').value='rain';document.getElementById('systemScopeReviewed').checked=false;document.getElementById('systemBaseReviewed').checked=false;previous='weatherproof';
+    document.getElementById('systemWeatherProtection').value='rain';document.getElementById('systemScopeReviewed').checked=false;document.getElementById('systemBaseReviewed').checked=false;previousTemplate='weatherproof';
    }
    el.dispatchEvent(new Event('input',{bubbles:true}));
   }));
   const form=document.getElementById('quoteForm');
-  const scopeIds=['capacity','roofType','moduleMake','moduleModel','moduleWattage','inverterMake','inverterModel','inverterKw','systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions','systemRoofing','systemDrainage','systemAcceptance','systemAreaM2','systemHeightM','systemBays'];
+  const scopeIds=['capacity','roofType','moduleMake','moduleModel','moduleWattage','inverterMake','inverterModel','inverterKw','systemName','systemPurpose','systemEquipment','systemScope','systemNotes','systemExclusions','systemRoofing','systemDrainage','systemAcceptance','systemAdditions','systemAreaM2','systemHeightM','systemBays'];
   const rateIds=['costPerWp','costPerKwp','gstPercent','bomModules','bomInverter','bomStructure','bomBos','bomInstall','bomLiaison','systemPriceMode'];
-  const invalidate=e=>{if(scopeIds.includes(e.target.id))document.getElementById('systemScopeReviewed').checked=false;if(rateIds.includes(e.target.id)||scopeIds.includes(e.target.id))document.getElementById('systemBaseReviewed').checked=false;};
+  const invalidate=e=>{if(['capacity','inverterKw'].includes(e.target.id)||(e.target.id.startsWith('bess')&&!['bessAdditionsReviewed','bessInclude','bessReason','bessCost'].includes(e.target.id)))document.getElementById('bessAdditionsReviewed').checked=false;if(scopeIds.includes(e.target.id))document.getElementById('systemScopeReviewed').checked=false;if(rateIds.includes(e.target.id)||scopeIds.includes(e.target.id))document.getElementById('systemBaseReviewed').checked=false;};
   form.addEventListener('input',invalidate,true);form.addEventListener('change',invalidate,true);
   const select=document.getElementById('systemTemplate');
-  let previous=select.value;
+  previousTemplate=select.value;
   // A select emits input before change; do not render the new preset until
   // confirmation has preserved or replaced the previous scope.
   select.addEventListener('input',e=>e.stopPropagation());
-  select.addEventListener('focus',()=>previous=select.value);
+  select.addEventListener('focus',()=>previousTemplate=select.value);
   select.addEventListener('change',()=>{
-   if(select.value===previous)return;
-   const old=hasEdits(readForm(previous));
-   if(old&&select.value!==previous&&!root.confirm('Change system template? Price, dimensions, delivery and warranty will reset. Presets replace the editable scope; Custom keeps it as a starting point. Uploaded proposal photos are kept.')){select.value=previous;return;}
-   for(const id of ['systemPrice','systemWarranty','systemDelivery','systemAreaM2','systemHeightM','systemBays','systemRoofing','systemDrainage','systemAcceptance'])document.getElementById(id).value='';
+   if(select.value===previousTemplate)return;
+   const old=hasEdits(readForm(previousTemplate));
+   if(old&&select.value!==previousTemplate&&!root.confirm('Change system template? Price, dimensions, delivery and warranty will reset. Presets replace the editable scope; Custom keeps the editable scope as a starting point. Custom additions will reset. Uploaded proposal photos are kept.')){select.value=previousTemplate;return;}
+   for(const id of ['systemPrice','systemWarranty','systemDelivery','systemAreaM2','systemHeightM','systemBays','systemRoofing','systemDrainage','systemAcceptance','systemAdditions'])document.getElementById(id).value='';
    document.getElementById('systemPriceMode').value='separate';
    document.getElementById('systemWeatherProtection').value=select.value==='weatherproof'?'rain':'pending';
    document.getElementById('systemScopeReviewed').checked=false;
@@ -319,9 +361,9 @@
    const t=template({systemTemplate:select.value});
    if(t)fillPreset(select.value);
    else document.getElementById('systemName').value='';
-   previous=select.value;
+   previousTemplate=select.value;
   });
  }
- const api={DEFAULTS,templates,presentations,siteDefaults,resolve,enabled,included,reason,template,presentation,name,priceMode,inBase,decimal,price,priceText,priceNote,specifications,equipmentContext,review,hasEdits,readForm,sync,wire};
+ const api={DEFAULTS,templates,presentations,siteDefaults,resolve,enabled,included,reason,template,presentation,name,priceMode,inBase,decimal,price,priceText,priceNote,specifications,equipmentContext,review,insights,syncPicker,hasEdits,readForm,sync,wire};
  if(typeof module==='object'&&module.exports)module.exports=api;else root.AdditionalSystems=api;
 })(typeof self!=='undefined'?self:this);

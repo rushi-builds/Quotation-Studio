@@ -12,15 +12,15 @@ const {chromium}=require('playwright');
   await page.goto(base+'/quotation.html');await page.waitForFunction(()=>!!window.Render?.lastState);
   assert(await page.evaluate(()=>document.querySelector('[data-section="systemEnabled"] summary strong').textContent==='Advanced Systems'&&document.querySelector('[data-section="bessEnabled"]').closest('[data-section="systemEnabled"]')&&!document.querySelector('.supplement-downloads')));
   await page.locator('[data-section="systemEnabled"] > summary').click();
-  await page.locator('[data-system-choice="yes"]').click();
+  await page.selectOption('#advancedSystemSelect','weatherproof');
   await page.waitForFunction(()=>Render.lastState.systemName==='Leak Proof Solar Roof');
   assert.equal(await page.locator('#systemTemplate').inputValue(),'weatherproof');
   assert.equal(await page.locator('#systemEditDetails').evaluate(el=>el.open),false);
-  assert.equal(await page.locator('#systemFields input:visible,#systemFields select:visible,#systemFields textarea:visible').count(),3);
-  console.log('PASS: one-click enable auto-fills Leak Proof preset; three routine inputs, duplicate downloads removed, BESS nested inside Advanced Systems');
+  assert.equal(await page.locator('#systemFields input:visible,#systemFields select:visible,#systemFields textarea:visible').count(),2);
+  console.log('PASS: unified selector auto-fills Leak Proof; two routine pricing inputs, no duplicate downloads or separate BESS group');
   const folder=path.join(__dirname,'shots','system-minimal');fs.mkdirSync(folder,{recursive:true});
   for(const kind of ['weatherproof','carport','canopy','pergola']){
-   await page.selectOption('#systemTemplate',kind);await page.waitForFunction(key=>Render.lastState.systemTemplate===key,kind);
+   await page.selectOption('#advancedSystemSelect',kind);await page.waitForFunction(key=>Render.lastState.systemTemplate===key,kind);
    const check=await page.evaluate(async()=>{
     await document.fonts.ready;const img=document.querySelector('#systemOverviewBody .sp-hero>img');await img.decode();
     const s=Render.lastState,title=document.querySelector('#systemOverviewBody .sp-hero-copy'),body=systemOverviewBody;
@@ -39,12 +39,12 @@ const {chromium}=require('playwright');
   await share.goto(base+'/share.html?p='+encodeURIComponent(id));await share.waitForFunction(()=>Render.lastState?.systemName==='Leak Proof Solar Roof');
   assert(await share.evaluate(()=>systemDetailBody.textContent.includes('Inspect joints')&&!systemOverviewBody.textContent.includes('Weatherproof Solar Roof')));await share.close();
   await page.evaluate(()=>{document.querySelector('[data-section="systemEnabled"]').open=true;document.querySelector('[data-section="bessEnabled"]').open=true;});
-  await page.locator('[data-bess-choice="yes"]').click();await page.selectOption('#bessModel','pylon-us5000');
+  await page.selectOption('#advancedSystemSelect','bess');await page.selectOption('#bessModel','pylon-us5000');
   await page.waitForFunction(()=>Render.lastState.bessSpecMode==='auto'&&Number(Render.lastState.bessCapacity)>0);
   await page.setViewportSize({width:390,height:844});await page.evaluate(()=>Render.fitPages());
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&bessModel.closest('[data-section="systemEnabled"]')&&document.querySelector('[data-section="systemEnabled"] summary small').textContent.includes('Battery storage')));
   await page.evaluate(()=>{document.querySelector('[data-section="bessEnabled"]').open=false;document.querySelector('[data-section="systemEnabled"]').scrollIntoView({behavior:'instant',block:'start'});});
   await page.locator('[data-section="systemEnabled"]').screenshot({path:path.join(folder,'controls-mobile.png')});assert.deepEqual(errors,[]);
-  console.log('PASS: legacy naming migration, incomplete saved preset auto-fill, reload, Customer View, nested BESS catalogue auto-sizing and mobile layout');
+  console.log('PASS: legacy naming migration, incomplete saved preset auto-fill, reload, Customer View, unified BESS catalogue auto-sizing and mobile layout');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
