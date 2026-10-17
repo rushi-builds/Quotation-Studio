@@ -83,7 +83,6 @@
     const configs = [
       ['custName', 'Customer & system', 'users', 'pageCover', 'Customer, site and proposal details'],
       ['moduleMake', 'Equipment & design', 'panel', 'pageTechSpec', 'Modules, inverter and roof specifications'],
-      ['systemEnabled', 'Advanced Systems', 'grid2', 'pageSystemOverview', 'Solar roofs, carports, controls & battery storage'],
       ['costPerWp', 'Pricing & savings', 'chart', 'pageInvestment', 'Pricing, tariff and calculation assumptions'],
       ['payAdvance', 'Payment & financing', 'rupee', 'pageInvestment', 'Payment milestones, optional loan & tax illustration'],
       ['optName', 'Compare system options', 'panel', 'pageOptions', 'Good, Better and Best configurations'],
@@ -92,7 +91,8 @@
       ['durationText', 'Terms & delivery', 'shield', 'pageTerms', 'Delivery commitments and jurisdiction'],
       ['companyName', 'Company branding', 'building', 'pageAbout', 'Company identity and contact information'],
       ['up_cover', 'Page photographs', 'drone', 'pageCover', 'Replace photographs on individual pages'],
-      ['galleryUrl', 'QR & links', 'globe', 'pageClosing', 'What the customer’s QR code opens']
+      ['galleryUrl', 'QR & links', 'globe', 'pageClosing', 'What the customer’s QR code opens'],
+      ['systemEnabled', 'Advanced Systems', 'grid2', 'pageSystemOverview', 'Solar roofs, carports, controls & battery storage']
     ];
     /* Everything the dealer touches once, not per quote, folds into the
        advanced drawer after the sections are built. */
@@ -124,7 +124,7 @@
       if (field === 'systemEnabled') {
         const pickerField=element('div','field system-picker-field'),pickerLabel=element('label','','Select system'),picker=element('select');
         picker.id='advancedSystemSelect';picker.setAttribute('data-system-picker','');pickerLabel.htmlFor=picker.id;
-        [['none','No advanced system'],['bess','Battery Energy Storage (BESS)'],...Object.entries(window.AdditionalSystems.templates).map(([key,t])=>[key,t.name]),['custom','Custom system…'],['combined','Saved package + battery']].forEach(([value,text])=>{const option=new Option(text,value);if(value==='combined'){option.id='combinedSystemOption';option.hidden=true;option.disabled=true;}picker.add(option);});
+        [['none','No Advanced System'],...['weatherproof','carport'].map(key=>[key,window.AdditionalSystems.templates[key].name]),['bess','Battery Energy Storage (BESS)'],...['monitoring','dg'].map(key=>[key,window.AdditionalSystems.templates[key].name]),...Object.entries(window.AdditionalSystems.templates).filter(([key])=>!['weatherproof','carport','monitoring','dg'].includes(key)).map(([key,t])=>[key,t.name]),['custom','Custom system…'],['combined','Saved package + battery']].forEach(([value,text])=>{const option=new Option(text,value);if(value==='combined'){option.id='combinedSystemOption';option.hidden=true;option.disabled=true;}picker.add(option);});
         pickerField.append(pickerLabel,picker);fieldset.prepend(pickerField);$('systemTemplate').closest('.field').hidden=true;
         const card=element('div','selected-system-card');card.id='selectedSystemCard';card.hidden=true;pickerField.after(card);
         const battery=element('div','selected-battery-fields');battery.id='selectedBatteryFields';battery.dataset.section='bessEnabled';battery.hidden=true;
@@ -189,7 +189,7 @@
       engFs.querySelector('legend').classList.add('studio-sr-only');
       wrap.insertBefore(d, engFs); d.append(engFs);
     }
-    /* Panel order: the working list, then QR & links, then the drawer, and
+    /* Panel order: the working list, then QR & links, Advanced Systems, the drawer, and
        Advanced Edit last. */
     form.insertBefore(wrap, $('advancedPanel'));
 

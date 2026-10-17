@@ -151,10 +151,11 @@
 .system-field-heading{font-size:11px;font-weight:700;color:#264559;margin-bottom:12px;}
 .system-field-heading small{display:block;font-weight:400;font-size:10px;color:#657b89;margin-top:5px;}
 .system-pricing-hint{border-left:3px solid #c48d42;background:#fff8ec;padding:10px;line-height:1.7;}
-.cover-system-label{position:absolute;z-index:2;top:17%;left:53%;right:4%;padding:9px 11px;border-radius:6px;border-left:3px solid #ed9d41;background:#173549ed;color:#fff;font:600 10px/1.55 'Inter',sans-serif;overflow-wrap:anywhere;}
+.cover-system-label{position:absolute;z-index:2;top:79.2%;left:6.604%;width:36%;color:#f9fafb;font:500 9px/1.15 'Inter',Arial,sans-serif;overflow-wrap:anywhere;}
+.cover-system-label small{display:block;margin-bottom:1px;color:#f3bd78;font-size:6px;line-height:1.15;letter-spacing:.1em;font-weight:600;}
+.cover-system-label span{display:block;}
 .cover-system-label[hidden]{display:none;}
 .sp-system-facts{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;padding:7px 14px;background:#f1f6f7;border:1px solid #dce6e8;border-radius:8px;margin-top:14px;}
-.system-page .sp-system-hero{height:250px;}
 .system-page .sp-system-intro{padding:14px 0;}
 .system-page .sp-system-intro>p{font-size:11px;line-height:1.7;}
 .system-page .sp-system-flow{padding:14px;}
@@ -164,7 +165,6 @@
 .system-page .sp-signoff{margin-top:15px;padding-top:12px;}
 .system-page .sp-detail-ribbon strong{font-size:17px;}
 .system-page .sp-hero h2{font-size:29px;line-height:1.2;}
-#pageSolution.has-system-image .photo-top img{object-fit:contain;}
 /* Commercial tax notes plus system context share the existing A4 budget. */
 #pageInvestment.has-system-context.has-tax #chartBridge{height:240px!important;}
 #pageInvestment.has-system-context.has-tax .inv-total{padding-top:10px;padding-bottom:10px;}
@@ -177,22 +177,18 @@
 #pageInvestment.has-system-context.has-bom .inv-card{padding-top:7px;padding-bottom:7px;}
 #pageInvestment.has-system-context.has-bom #v_inDesc{margin-bottom:8px;}
 
-/* Full-image heroes with transparent text overlay; no side partition. */
-.system-page .sp-system-hero{height:auto;display:block;background:#132b3c;}
-.system-page .sp-system-hero>img{position:relative;inset:auto;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain;display:block;}
-.system-page .sp-system-hero .sp-hero-shade{background:linear-gradient(90deg,rgba(10,31,46,.88),rgba(10,31,46,.36) 48%,rgba(10,31,46,0) 80%);}
-.system-page .sp-system-hero .sp-hero-copy{position:absolute;left:27px;bottom:28px;top:auto;width:55%;min-width:0;padding:0;}
+/* BESS-matched compact full-bleed frame. Native-ratio image geometry also works in PDF capture. */
+.system-page .sp-system-hero{height:303px;display:block;background:#13283e;}
+.system-page .sp-system-hero>img{position:absolute;inset:auto;left:0;top:50%;width:100%;height:auto;max-width:none;max-height:none;transform:translateY(-50%);object-fit:cover;display:block;}
+.system-page .sp-system-hero .sp-hero-copy{position:absolute;left:27px;top:25px;bottom:auto;width:350px;min-width:0;padding:0;}
 .system-page .sp-system-hero .sp-hero-copy>small{font-size:7px;letter-spacing:.14em;color:#f3c581;}
 .system-page .sp-system-hero h2{font-size:31px;line-height:1.2;letter-spacing:-.8px;margin:12px 0 0;overflow-wrap:anywhere;text-shadow:0 1px 9px #10253777;}
 .system-page .sp-system-intro{padding:12px 0;}
 .system-page .sp-section-label{margin-top:12px;margin-bottom:7px;}
 .system-page .sp-system-flow{padding:12px 16px;}
 .system-page .sp-note{margin-top:10px;padding-top:8px;}
-.system-page.sp-density-1 .sp-system-hero>img{max-height:390px;}
-.system-page.sp-density-2 .sp-system-hero>img{max-height:330px;}
 .system-page.sp-density-2 .sp-system-hero h2{font-size:27px;}
 .system-page .sp-system-brief{display:block;margin-top:14px;}
-#pageExec.has-system-image .exec-artwork img,.power-hero.has-system-image img{object-fit:contain;background:#132b3c;}
 .studio-system-storage{margin:8px 12px 14px;}
 .studio-system-storage>fieldset{border:0;margin:0;padding:12px 0 0;}
 .system-edit-details{margin-top:12px;}

@@ -18,6 +18,10 @@
    const tooFull=()=>{const foot=page.querySelector('footer').getBoundingClientRect().top;return [...page.querySelector('.pg-body').children].some(el=>el.getBoundingClientRect().bottom>foot-5);};
    if(tooFull())page.classList.add('sp-density-1');
    if(tooFull()){page.classList.remove('sp-density-1');page.classList.add('sp-density-2');}
+   const hero=page.querySelector('.sp-system-hero'),heading=hero?.querySelector('h2');
+   if(heading){heading.style.fontSize='';let size=parseFloat(getComputedStyle(heading).fontSize);
+    while(size>18&&heading.getBoundingClientRect().bottom>hero.getBoundingClientRect().bottom-18){size=Math.max(18,size-.5);heading.style.fontSize=size+'px';}
+   }
   });
  }
  function flow(s,b){

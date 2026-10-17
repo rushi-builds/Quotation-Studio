@@ -26,12 +26,12 @@ const {chromium}=require('playwright');
      return children.filter(el=>el.id!=='v_inDisclaimer'&&el.getBoundingClientRect().bottom>boundary).map(el=>id+': '+(el.id||el.className));
     });
     const power=Experience.buildPowerPages(s);const powerBad=power.checkVisibility()?[...power.querySelectorAll('.power-page')].filter(pg=>pg.querySelector('.power-body').getBoundingClientRect().bottom>pg.querySelector('footer').getBoundingClientRect().top-4).map(pg=>pg.id):[];const powerText=power.textContent;power.remove();
-    return {expectedPages:17+(f.financing?1:0),category:s.customerType,bad,powerBad,main,finance:JSON.stringify(f)===JSON.stringify(expected),gross:v_inGrossTotal.textContent,expectedGross:Finance.fmtINR(f.grossTotal),name:A.name(s),price:A.priceText(s),mainText:v_inSub.textContent,detail:systemDetailBody.textContent,cover:v_coverSystem.textContent,photo:img_solution.getAttribute('src'),expectedPhoto:'assets/images/'+A.presentation(s).image,hero:document.querySelector('#systemOverviewBody .sp-hero img').getAttribute('src'),mode:A.priceMode(s),powerText};
+    return {expectedPages:17+(f.financing?1:0),category:s.customerType,bad,powerBad,main,finance:JSON.stringify(f)===JSON.stringify(expected),gross:v_inGrossTotal.textContent,expectedGross:Finance.fmtINR(f.grossTotal),name:A.name(s),price:A.priceText(s),mainText:v_inSub.textContent,detail:systemDetailBody.textContent,cover:v_coverSystem.textContent,photo:img_solution.getAttribute('src'),expectedPhoto:'assets/images/page-solution.jpg',expectedHero:'assets/images/'+A.presentation(s).image,hero:document.querySelector('#systemOverviewBody .sp-hero img').getAttribute('src'),mode:A.priceMode(s),powerText};
    });
    assert(result.finance,'package scope must not mutate Finance');assert.equal(result.gross,result.expectedGross);
    assert.equal(result.main.length,result.expectedPages,'exactly two system pages, with financing only when entered');
    assert.deepEqual(result.bad,[],'A4 clearance: '+result.name+' / '+result.category+' / '+result.mode+' '+JSON.stringify(result.bad));assert.deepEqual(result.powerBad,[],'six-page Power layout');
-   assert.equal(result.photo,result.expectedPhoto);assert.equal(result.hero,result.expectedPhoto);
+   assert.equal(result.photo,result.expectedPhoto);assert.equal(result.hero,result.expectedHero);
    assert(result.mainText.includes(result.price)&&result.cover.includes(result.name));assert(result.detail.includes(result.price));
    assert(result.powerText.includes(result.name));
    if(result.mode==='included'){assert(!result.powerText.includes('Additional system · separately priced'));assert(!result.detail.includes('99,999'));}

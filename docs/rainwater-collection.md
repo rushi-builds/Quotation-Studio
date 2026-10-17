@@ -1,5 +1,11 @@
 # Full-image system heroes and optional Leak Proof rainwater collection
 
+> Subsequent owner correction: main-report linkage is text-only and system heroes
+> match the compact BESS frame. See [system-text-context.md](system-text-context.md)
+> for the newer corrections, which supersede the tall/uncropped presentation
+> described below. The owner separately authorised those corrections' feature-branch
+> push and Vercel Preview.
+
 Status: **owner authorised feature-branch push and Vercel Preview on 17 October
 2026** ("vercel through link please"), after local verification. No PR merge or
 manual production deployment is authorised. The linked Cloudflare Git auto-build

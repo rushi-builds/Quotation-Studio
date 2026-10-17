@@ -24,13 +24,13 @@ const {chromium}=require('playwright');
    const check=await page.evaluate(async()=>{
     await document.fonts.ready;const img=document.querySelector('#systemOverviewBody .sp-hero>img');await img.decode();
     const s=Render.lastState,title=document.querySelector('#systemOverviewBody .sp-hero-copy'),body=systemOverviewBody;
-    const ir=img.getBoundingClientRect(),tr=title.getBoundingClientRect(),footer=pageSystemOverview.querySelector('footer').getBoundingClientRect().top;
+    const ir=img.closest('.sp-hero').getBoundingClientRect(),tr=title.getBoundingClientRect(),footer=pageSystemOverview.querySelector('footer').getBoundingClientRect().top;
     return {name:AdditionalSystems.name(s),fit:getComputedStyle(img).objectFit,clear:getComputedStyle(title).position==='absolute'&&tr.left>=ir.left&&tr.bottom<=ir.bottom+1,blankFacts:!s.systemAreaM2&&!s.systemHeightM&&!s.systemBays&&!s.systemPrice,filled:['systemPurpose','systemEquipment','systemScope','systemExclusions','systemNotes','systemRoofing','systemDrainage','systemAcceptance'].every(id=>!!s[id]),fits:[...body.children].every(el=>el.getBoundingClientRect().bottom<footer-2),detailFits:[...systemDetailBody.children].every(el=>el.getBoundingClientRect().bottom<pageSystemDetail.querySelector('footer').getBoundingClientRect().top-2),noOldName:!body.textContent.includes('Weatherproof Solar Roof')};
    });
-   assert.equal(check.fit,'contain');assert(check.clear&&check.blankFacts&&check.filled&&check.fits&&check.detailFits&&check.noOldName,JSON.stringify(check));
+   assert.equal(check.fit,'cover');assert(check.clear&&check.blankFacts&&check.filled&&check.fits&&check.detailFits&&check.noOldName,JSON.stringify(check));
    const png=await page.evaluate(async()=>{const copy=pageSystemOverview.cloneNode(true);copy.style.transform='none';const host=document.createElement('div');host.className='pdf-snapshot';host.append(copy);document.body.append(host);try{return(await html2canvas(copy,{scale:1.2,logging:false,backgroundColor:'#fff'})).toDataURL();}finally{host.remove();}});
    fs.writeFileSync(path.join(folder,kind+'.png'),Buffer.from(png.split(',')[1],'base64'));
-   console.log('PASS:',check.name,'— auto-filled scope/site proposals, full photo with transparent title overlay, both pages fit; no invented dimensions or price');
+   console.log('PASS:',check.name,'— auto-filled scope/site proposals, compact BESS-height photo with transparent title overlay, both pages fit; no invented dimensions or price');
   }
   await page.evaluate(()=>{StateStore.applyForm({...StateStore.DEFAULTS,systemEnabled:true,systemTemplate:'weatherproof',systemName:'Weatherproof Solar Roof'});Render.renderAll();__qsSaveNow();});
   await page.reload();await page.waitForFunction(()=>Render.lastState?.systemName==='Leak Proof Solar Roof');
