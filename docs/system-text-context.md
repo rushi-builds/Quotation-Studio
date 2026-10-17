@@ -1,5 +1,9 @@
 # Text-only main-report linkage and compact supplement heroes
 
+> Subsequent photo-lighting and headline/breathline changes are documented in
+> [system-hero-polish.md](system-hero-polish.md). The owner separately authorised
+> that later batch's feature-branch push and Vercel Preview.
+
 Status: owner authorised feature-branch push and a fresh Vercel Preview on
 17 October 2026 ("preview vercel") after local verification. This correction
 supersedes published checkpoint a54ee51. No PR merge or manual production

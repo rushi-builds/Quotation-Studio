@@ -29,8 +29,8 @@
 .sp-project b{font-size:12px;color:#23384a;max-width:52%;overflow-wrap:anywhere;}
 .sp-hero{height:303px;position:relative;border-radius:11px;overflow:hidden;background:#13283e;}
 .sp-hero>img{position:absolute;width:100%;height:100%;object-fit:cover;inset:0;}
-.sp-hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,28,47,.97),rgba(9,28,47,.78) 43%,rgba(9,28,47,0) 78%);}
-.sp-hero-copy{position:absolute;top:25px;left:27px;width:350px;color:#fff;}
+.sp-hero-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(9,28,47,.38),rgba(9,28,47,.16) 45%,rgba(9,28,47,0) 80%);}
+.sp-hero-copy{text-shadow:0 1px 4px rgba(5,18,29,.75),0 2px 12px rgba(5,18,29,.35);position:absolute;top:25px;left:27px;width:350px;color:#fff;}
 .sp-hero-copy>span{display:inline-block;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#f2c386;border-bottom:1px solid #f2c386;padding-bottom:8px;}
 .sp-hero h2{font:600 37px/1.18 'Poppins',sans-serif;letter-spacing:-1.3px;margin:13px 0 10px;color:#fff;}
 .sp-hero p{font-size:10px;line-height:1.75;max-width:280px;color:#dfE8ef;margin:0;}
@@ -180,9 +180,10 @@
 /* BESS-matched compact full-bleed frame. Native-ratio image geometry also works in PDF capture. */
 .system-page .sp-system-hero{height:303px;display:block;background:#13283e;}
 .system-page .sp-system-hero>img{position:absolute;inset:auto;left:0;top:50%;width:100%;height:auto;max-width:none;max-height:none;transform:translateY(-50%);object-fit:cover;display:block;}
-.system-page .sp-system-hero .sp-hero-copy{position:absolute;left:27px;top:25px;bottom:auto;width:350px;min-width:0;padding:0;}
-.system-page .sp-system-hero .sp-hero-copy>small{font-size:7px;letter-spacing:.14em;color:#f3c581;}
-.system-page .sp-system-hero h2{font-size:31px;line-height:1.2;letter-spacing:-.8px;margin:12px 0 0;overflow-wrap:anywhere;text-shadow:0 1px 9px #10253777;}
+.system-page .sp-system-hero .sp-hero-copy{text-shadow:0 1px 4px rgba(5,18,29,.75),0 2px 12px rgba(5,18,29,.35);position:absolute;left:30px;top:32px;bottom:auto;width:400px;max-width:calc(100% - 60px);min-width:0;padding:0;}
+.system-page .sp-system-hero .sp-hero-copy>small{display:block;font-size:8px;line-height:1.5;letter-spacing:.13em;color:#ffedcf;text-transform:uppercase;font-weight:600;}
+.system-page .sp-system-hero h2{font-size:34px;line-height:1.17;letter-spacing:-.8px;margin:12px 0 10px;overflow-wrap:anywhere;text-shadow:inherit;}
+.system-page .sp-system-hero .sp-hero-breathline{font-size:11px;line-height:1.65;font-weight:400;color:#fff;max-width:350px;margin:0;text-shadow:inherit;}
 .system-page .sp-system-intro{padding:12px 0;}
 .system-page .sp-section-label{margin-top:12px;margin-bottom:7px;}
 .system-page .sp-system-flow{padding:12px 16px;}
