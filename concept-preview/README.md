@@ -1,8 +1,20 @@
+# Dashboard entry — latest owner clarification
+
+The owner explicitly requested the login-after **Dashboard**: Overview, Quotations, Follow-ups and Customer activity, not the quotation builder. `/concept-preview/` now opens **dashboard.html**. Direct Studio preview remains at `/concept-preview/studio.html`; it is not the Dashboard landing page.
+
+`dashboard.html` is a separate copy of the original dashboard from e31c8e3. Original dashboard controllers/styles are reused unchanged. The real API import is replaced only in this copy by `dashboard-fixtures.js`: memory-only sample proposals/tasks/notifications and a fake demo identity. No real sign-in, authentication bypass, cloud data or production API is involved. CSP blocks connections, early sandbox isolates browser storage, no new sidebar sections. Original assistant/OAuth/equipment imports omitted from the copy. Real app entry points and frozen sources unchanged.
+
+The four original panels are interactive with sample data. A sample response note appears in Overview and its associated follow-up is listed in the existing task list. Opening/editing a quotation explicitly enters the isolated Studio copy. Reset/reload discards sample changes. Unsupported actions clearly report unavailable rather than falling through to production. This is not all master-backlog work.
+
+Dashboard QA: **16 checks passed** — original four panels, sample quotation search, task completion, notifications mark-read, mobile navigation, zero API/external requests and browser errors. No credentials required to view sample data.
+
+---
+
 # Original Studio — isolated feature preview
 
 ## Owner correction
 
-The first concept was a separate six-screen dashboard. The owner found the extra navigation confusing and asked to see enhancements in the **original Studio layout**, quickly, while keeping the preview separate from the real app. That six-screen interface is retired. `/concept-preview/` now opens `/concept-preview/studio.html`.
+The first concept was a separate six-screen dashboard. The owner found the extra navigation confusing and asked to see enhancements in the **original Studio layout**, quickly, while keeping the preview separate from the real app. That six-screen interface is retired. The Studio copy remains at `/concept-preview/studio.html`; the landing page now follows the Dashboard clarification above.
 
 ## What this is
 

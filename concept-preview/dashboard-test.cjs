@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict'),path=require('node:path'),{pathToFileURL}=require('node:url');
+const dep=n=>require.resolve(n,{paths:[path.resolve(__dirname,'../qa'),__dirname]});
+const {chromium:pw}=require(dep('playwright'));
+(async()=>{const chrome=(await import(pathToFileURL(dep('@sparticuz/chromium')).href)).default;const b=await pw.launch({executablePath:await chrome.executablePath(),args:chrome.args.filter(a=>a!=='--single-process')});let checks=0;const check=(x,msg)=>{assert(x,msg);checks++;};try{
+ const context=await b.newContext({viewport:{width:1440,height:1000}});const p=await context.newPage(),errors=[],api=[],external=[];
+ p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text());});context.on('request',r=>{const u=new URL(r.url());if(u.pathname.startsWith('/api/'))api.push(u.href);if(!['localhost','127.0.0.1'].includes(u.hostname)&&!['data:','blob:'].includes(u.protocol))external.push(u.href);});
+ await p.goto('http://127.0.0.1:8080/concept-preview/');await p.waitForSelector('#homeBody .kpis');check(p.url().endsWith('/concept-preview/dashboard.html'),'landing is Dashboard, not quotation');check(await p.locator('#dash').isVisible(),'Dashboard open without credentials');
+ for(const name of ['home','proposals','tasks','activity']){await p.locator(`.side-nav [data-panel="${name}"]`).click();check(await p.locator(`#panel-${name}`).isVisible(),name+' panel works');}
+ await p.locator('.side-nav [data-panel="proposals"]').click();check(await p.locator('#propTableBody tr').count()===5,'five sample proposals');await p.locator('#filterQ').fill('Patil');check(await p.locator('#propTableBody tr').count()===1,'quotation search works');await p.locator('#filterQ').fill('');
+ await p.locator('.side-nav [data-panel="activity"]').click();await p.locator('#notifBody article').first().waitFor();check((await p.locator('#activityBody').innerText()).includes('Customer requested changes'),'sample response activity readable');await p.locator('#notifBody [data-read]').first().click();await p.waitForFunction(()=>document.querySelector('#notifUnreadLabel').textContent==='1 unread');check(true,'mark notification read');
+ await p.locator('.side-nav [data-panel="home"]').click();await p.locator('#homeBody [data-done]').first().waitFor();await p.locator('#homeBody [data-done]').first().click();await p.waitForFunction(()=>document.querySelectorAll('#homeBody [data-done]').length===2);check(true,'existing complete-followup works with memory fixtures');
+ await p.screenshot({path:'/home/user/qs-dashboard-preview.png'});
+ await p.setViewportSize({width:390,height:900});await p.locator('#btnMenu').click();await p.locator('.side-nav [data-panel="proposals"]').click();check(await p.locator('#panel-proposals').isVisible(),'mobile original navigation works');check(!(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth)),'mobile no horizontal page overflow');
+ check(api.length===0,'zero API calls');check(external.length===0,'zero external requests');check(errors.length===0,errors.join(';'));console.log('PASS: '+checks+' Dashboard checks, original four panels, search/tasks/notifications/mobile, no API/external requests or browser errors.');
+ }finally{await b.close();}})().catch(e=>{console.error(e);process.exit(1)});
