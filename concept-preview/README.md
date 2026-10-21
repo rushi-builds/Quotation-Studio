@@ -8,6 +8,22 @@ The four original panels are interactive with sample data. A sample response not
 
 Dashboard QA: **16 checks passed** — original four panels, sample quotation search, task completion, notifications mark-read, mobile navigation, zero API/external requests and browser errors. No credentials required to view sample data.
 
+## Quotation summaries — current preview addition
+
+Owner requested a concise, aesthetic **See summary** action inside the existing Quotations list, with prices, materials, charts and comparison to other quotations. No new sidebar section.
+
+- Row customer names and **See summary** open an accessible, dismissible overlay without leaving Dashboard. Explicit Edit in Studio remains separate. Existing search/filter rendering is preserved; a solar-EPC price column is added.
+- Four metrics: entered gross solar EPC price, installed capacity, gross solar ₹/Wp, and separately priced additional scope. No combined total, ROI or Finance-engine changes.
+- Interactive seven-segment donut: six explicitly entered selling-price allocations plus GST. Click its legend to inspect an item. Allocations must reconcile to entered base/tax/gross; otherwise the chart is withheld, never invented from total price alone.
+- Material/specification/quantity table, scope treatment, pending prices, and concise previous-revision details where an earlier sample snapshot exists.
+- Comparison defaults to same-category accessible quotations; all-workspace comparison is optional. Zero-based ₹/Wp bars, peer selector and side-by-side price/capacity/materials/inverter/scope table. Peer differences are descriptive, not quality judgments or market benchmarks. Separate upgrades are excluded from solar rate.
+- Previous/next browse and genuine values-only customer XLSX snapshot download. No private costs/margins, hidden sheets, formulas or write-back.
+- Original System/Light/Dark appearance respected; desktop/tablet/mobile layouts, native dialog focus/Escape and keyboard tabs supported.
+
+`quote-summary-data.js` supplies **explicit illustrative fixtures** only: entered gross/base/tax/allocation, equipment selections, scope and a few revision snapshots. These are not prices retrieved from real quotations, verified OEM compatibility, engineering recommendations or market rates. Production integration would need permission-scoped saved quotation/version data and actual BOM selling-price allocation; missing records remain unavailable. Existing mock Overview quoted-sum now reconciles to those same entered sample prices instead of an unrelated hardcoded total.
+
+Verification: **58 summary checks PASS** plus **16 existing Dashboard checks PASS**. Five quote allocations reconcile, module quantities reconcile to capacities, ₹/Wp/peer differences correct, unknown data not fabricated, included/optional scope not double charged, XLSX parsed, search/browse/name click, mobile/tablet, dark theme and Escape/focus paths checked. Zero API/external requests and zero browser/CSP errors. Desktop Summary/Compare, mobile Summary and dark Summary screenshots reviewed. Original Finance, CloudBridge, BESS and app.css hashes unchanged; unrelated existing tracked patch unchanged. All additions/edits restricted to this preview directory.
+
 ---
 
 # Original Studio — isolated feature preview

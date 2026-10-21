@@ -17,7 +17,7 @@
  ];
  let notes=[{id:'note-1',proposalId:'demo-patil',title:'Sample customer requested scope changes · Revision 2.0',body:'Demo response only. Review scope and prepare a new revision; latest offer is not automatically accepted.',unread:true,createdAt:iso(-1)},{id:'note-2',proposalId:'demo-anand',title:'Sample quotation link opened',body:'An open is not proof of reading, acceptance or payment.',unread:true,createdAt:iso(-3)}];
  const activity=[{id:'event-1',proposalId:'demo-patil',proposalTitle:'Patil Residence · Sample response: changes requested on v2.0',type:'Customer requested changes · sample',createdAt:iso(-1)},{id:'event-2',proposalId:'demo-anand',proposalTitle:'Anand Industries · Sample',type:'link_opened',createdAt:iso(-3)},{id:'event-3',proposalId:'demo-green',proposalTitle:'Green Meadows RWA · Sample',type:'survey_requested',createdAt:iso(-5)},{id:'event-4',proposalId:'demo-patil',proposalTitle:'Patil Residence · Sample',type:'version_published',createdAt:iso(-24)}];
- const report=()=>{const byStatus={};proposals.forEach(p=>byStatus[p.status]=(byStatus[p.status]||0)+1);return {proposals:{total:proposals.length,accepted:byStatus.accepted||0,byStatus},value:{quotedSum:7250000,proposalsWithValue:5,proposalsMissingValue:0},engagement:{versionsPublished:7,activeCustomerLinks:3,linkOpens:2,surveyRequests:1,pdfDownloadRequests:0,suspectedPrefetches:0},honesty:['All records and values are illustrative sample data.','Quoted value is not revenue or collected payment.','Sample customer responses do not prove identity or authorise an order.']};};
+ const report=()=>{const byStatus={};proposals.forEach(p=>byStatus[p.status]=(byStatus[p.status]||0)+1);return {proposals:{total:proposals.length,accepted:byStatus.accepted||0,byStatus},value:{quotedSum:proposals.reduce((sum,p)=>sum+(window.DemoQuoteSummaryData?.get(p.id)?.gross||0),0),proposalsWithValue:proposals.filter(p=>window.DemoQuoteSummaryData?.get(p.id)?.gross>0).length,proposalsMissingValue:proposals.filter(p=>!window.DemoQuoteSummaryData?.get(p.id)).length},engagement:{versionsPublished:7,activeCustomerLinks:3,linkOpens:2,surveyRequests:1,pdfDownloadRequests:0,suspectedPrefetches:0},honesty:['All records and values are illustrative sample data.','Quoted value is not revenue or collected payment.','Sample customer responses do not prove identity or authorise an order.']};};
  const api={
   isAvailable:async()=>true,currentUser:async()=>clone(user),me:async()=>({user:clone(user)}),
   listProposals:async()=>({proposals:clone(proposals)}),
@@ -43,6 +43,8 @@
  window.PlatformAPI=new Proxy(api,{get:(target,key)=>key in target?target[key]:async()=>{throw Error('This action is not enabled in the sample Dashboard. No live changes were made.');}});
  window.__dashboardDemo=true;
  document.addEventListener('click',e=>{
+  const summary=e.target.closest('[data-act="open"].record-link,[data-open],[data-open-activity]');
+  if(summary&&window.QuoteSummary){e.preventDefault();e.stopImmediatePropagation();window.QuoteSummary.open(summary.dataset.id||summary.dataset.open||summary.dataset.openActivity);return;}
   const target=e.target.closest('[data-act="open"],[data-open],[data-open-activity],#btnNewFromHome,#btnNewProposal,a.studio-link');
   if(target){e.preventDefault();e.stopImmediatePropagation();location.href=new URL('concept-preview/studio.html',document.baseURI).href;return;}
   if(e.target.closest('#btnLogout')){e.preventDefault();e.stopImmediatePropagation();window.QSDash?.toast('Sample workspace—no real login session to sign out.');}
