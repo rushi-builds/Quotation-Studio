@@ -1,48 +1,49 @@
-# Offer workspace — isolated concept preview
+# Original Studio — isolated feature preview
 
-Owner-authorised, disposable UI prototype. Open `/concept-preview/` on the feature-branch Vercel preview. This is **not** production feature integration, an engineering calculation, a signed order, or a verified customer acceptance workflow.
+## Owner correction
 
-## Scope and reuse
+The first concept was a separate six-screen dashboard. The owner found the extra navigation confusing and asked to see enhancements in the **original Studio layout**, quickly, while keeping the preview separate from the real app. That six-screen interface is retired. `/concept-preview/` now opens `/concept-preview/studio.html`.
 
-Six connected screens: Scope & pricing, Revisions, Customer view, Site survey, Follow-ups, and Excel export. Uses the existing read-only dashboard stylesheet (Inter fonts and button primitives), KTM logo and approved residential illustration. No existing application entry points, source files, finance/calculation engine, CloudBridge, authentication, configuration or database schema are edited.
+## What this is
 
-Sample prices, names, dates and task records are deliberately synthetic. Do not enter real customer information. UI values are not estimates derived from the live finance engine.
+`studio.html` is a copy of the original `quotation.html` at feature commit `153bc2fccd61dfc046149fc8d83f74bcf183d8f6` (its original Studio HTML is unchanged from the preceding source). All original form inputs, report pages, original design/styles, Finance/rendering modules, normal Essentials/All settings and original section order are retained. **No new sidebar or top-level navigation categories.** No root/app files are edited.
 
-## Isolation
+The copy adds only sandbox bootstrap, preview styling, sample data and a small UI adapter. It removes CloudBridge, PlatformAPI and assistant script imports **from the copy**, not their original source files. Original Finance, genFactor=1460 and CloudBridge remain frozen.
 
-- All new files live in `concept-preview/`; existing app does not import the demo.
-- No fetch/XHR, APIs, authentication, email, database access, local/session storage or cookies.
-- Page CSP sets `connect-src 'none'` and `form-action 'none'` as an additional barrier. Do not remove it to enable production calls.
-- State is memory-local to one tab and resets on reload. A reset dialog is available.
-- No real share links/tokens, identity verification, spam controls or public response endpoint are implemented.
-- Sample customer responses are explicitly unverified and browser-timestamped, not server acknowledgements or e-signatures.
-- No external fonts, scripts, image services or analytics.
+## First bounded slice, not the entire master backlog
 
-## Interactions to review
+1. The existing Live Quotation summary gains one compact additional-scope line. Review scope opens the existing Advanced Systems section, not a new screen. Existing system/battery/rainwater fields are the only sources; no duplicate commercial inputs.
+2. Solar gross is read from `Finance.compute(Render.lastState).grossTotal`; add-on prices never change the Finance result or produce a combined total. Unpriced scope is not zero. Included scope reuses existing inclusion acknowledgements.
+3. The **existing Customer view** button opens a read-only snapshot of the actual report with its current customer, prices and original artwork. The report is cloned into a scriptless sandboxed iframe; charts are captured, IDs retained only in the separate document. The open snapshot does not change if working inputs change behind it.
+4. Three sample response choices: Interested/next steps, Request changes, Not proceeding. Responses are bound to the exact form snapshot in memory, not just an editable version label. They never mark the original proposal accepted/won. An edited offer requires a fresh response.
+5. Customer Excel download lives inside the **existing Save, backup & reset** tools, not a new menu. Actual `.xlsx`, one public values-only sheet, no formulas, hidden sheets, internal margins/private notes or write-back. Current working quotation snapshot; not an immutable published deployment or signed document.
 
-1. Change a scope treatment or mark unpriced rainwater scope customer-requested. Observe separate totals/pending-price labels and conditional cover warning.
-2. Included scope requires an explicit existing-price acknowledgement before sample publication. The solar gross number never changes. Unpriced scope is not zero.
-3. Draft changes never rewrite published snapshots. Publish an in-memory sample revision to view/export the changes. This is not an engineering/commercial completeness approval; pending values stay explicitly pending.
-4. Old customer views remain pinned. The newer-revision action is explicit; no real token-authorisation mechanism is simulated.
-5. Submit a sample response to an old revision; see its version/source in activity. The latest revision still needs a fresh response. Create a contextual follow-up if desired.
-6. Save survey source/value/units locally. This never applies survey data to sizing or rewrites the quotation.
-7. Add, complete and filter sample tasks. No actual reminders are sent.
-8. Download a genuine values-only `.xlsx` of the latest published sample, never the unpublished draft. It is editable by the recipient, not tamper-proof. No hidden worksheets, internal costs, private notes, formulas or live connections.
+Further catalogue work, CRM, survey UI, automated notifications, real public response endpoints/identity checks, production version-link policy and other backlog items are **not implemented** in this preview.
 
-## Tests
+## Data and safety
 
-Run a local static server from the repo root: `HOST=0.0.0.0 PORT=8080 node scripts/serve.js` (use a process manager for a persistent server). With QA Playwright and @sparticuz/chromium dependencies and required Linux shared libraries available, run `node concept-preview/test.cjs`. Dependencies resolve from `qa/node_modules` or `NODE_PATH`. Test origin defaults to `http://127.0.0.1:8080` and rejects non-local hosts. Optional `CONCEPT_TEST_OUTPUT` sets an external screenshot directory; default `/tmp/qs-concept-evidence`.
+- Explicit sample customer/reference and illustrative Leak Proof price ₹84,000 are seeded into the isolated copy. Solar defaults/calculations are the original app's, not hardcoded new results. No rainfall/engineering/prices are inferred.
+- A bootstrap runs **before** original model/state scripts and replaces localStorage/sessionStorage with fresh in-memory stores, never reading the real ones. Fails closed if isolation cannot be established. Refresh discards preview proposals, tasks and responses.
+- No auth tokens, live API modules, cloud saves, server response storage or emails. CSP blocks all network connections/forms. No telemetry/external fonts.
+- External navigation and original live WhatsApp/location actions are blocked. Same-origin blob downloads remain allowed for local Excel/PDF/backup exports.
+- A customer snapshot iframe has no scripts/forms/editables/live links and cannot run scripts, submit forms, open popups or navigate the top window. Customer input is rendered as text, not HTML.
+- Sample responses are local, unverified acknowledgements—not a server timestamp, buyer identity verification, electronic signature, order or payment authorisation.
+- Preview copy only; no production deploy, integration enablement or PR merge authorised.
 
-Browser QA passed 53 assertions covering six screens at 1440/768/390px, immutable snapshots, inclusion acknowledgement, old-version responses, escaped user content, contextual tasks, survey source, parsed XLSX contents, reload/reset, zero API/external requests/storage access and zero JS/CSP console errors. Screenshot review: desktop scope/customer and mobile scope.
+## Verification
 
-## Publishing and rollback
+`test.cjs` runs against a local static server and rejects non-local origins. Dependencies resolve from `qa/node_modules` or NODE_PATH: Playwright and @sparticuz/chromium, with suitable Linux shared libraries. Run the repo's static server, then `node concept-preview/test.cjs`. Optional `CONCEPT_TEST_OUTPUT` stores screenshots outside Git.
 
-Publishing is restricted to the current fixed feature branch; no PR merge or production deployment is authorised. The starting remote feature commit was `0af437dddc35b01caf78a9885e3f4db5bb86c5b2`.
+**45 checks passed**: redirect to original Studio, every original DOM ID retained, no six-screen sidebar, normal original cover updates, Finance gross baseline ₹484,822.80 unchanged by separate/included scope price changes, original genFactor1460, unpriced/inclusion status, real storage isolation with sentinels, frozen report snapshot, version/snapshot-specific sample responses, genuine parsed customer XLSX, 390/768px layout, refresh reset, zero API/external requests and zero browser/CSP errors.
 
-The local checkout had pre-existing unrelated tracked/untracked differences and an older HEAD. A separate temporary Git index based on the verified remote feature commit is used to publish **only this directory**, preserving all those pre-existing local files, the original index and local HEAD. No reset, checkout, clean, history rewrite or staging of unrelated files.
+Original Power PDF export also passed: **6 pages, 2,294,097 bytes**, zero page errors. Report/hero imagery and original financial geometry not redesigned. Desktop Studio/customer and mobile customer screenshots reviewed. Full production regression/other backlog features not claimed complete.
 
-To cancel, remove only `concept-preview/` in a separately approved change. Nothing outside it depends on the demo. Decide whether to remove the demo before any future production release.
+## Publishing / cancellation
+
+All changes stay within `concept-preview/`. A temporary Git index based on the remote feature HEAD publishes only this directory to the fixed feature branch, preserving the unrelated pre-existing working tree, index and older local HEAD. No reset/checkout/clean/force-push.
+
+Removing this directory later removes the preview; no original entry point imports it. Review/remove the prototype before an eventual production merge if not wanted.
 
 ## Third party
 
-`vendor/xlsx.mini.min.js`: SheetJS Community Edition, npm `@e965/xlsx` 0.20.3, unmodified mini distribution, Apache-2.0. Its licence is in `vendor/SHEETJS-LICENSE.txt`. Used only for sample workbook creation and test readback; no user workbook import. No root or application dependency files changed.
+Unmodified `vendor/xlsx.mini.min.js`: SheetJS CE, npm `@e965/xlsx` 0.20.3, Apache-2.0. Licence: `vendor/SHEETJS-LICENSE.txt`. No app dependency manifests changed. Only local sample workbook writing/test readback, not untrusted file import.

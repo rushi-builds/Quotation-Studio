@@ -1,0 +1,60 @@
+/* Preview-only enhancements; original builder/report styles remain unchanged. */
+.original-preview-notice{height:35px;padding:7px 21px;display:flex;gap:14px;align-items:center;background:#122d43;color:#dce7ef;font:10px Inter,Arial,sans-serif;position:relative;z-index:80;box-sizing:border-box;}
+.original-preview-notice strong{font-size:8px;letter-spacing:1px;color:#efd3a5;}
+.original-preview-notice span{font-size:9px;}
+.original-preview-notice button{margin-left:auto;border:0;background:none;color:#e7edf3;font:9px Inter,Arial,sans-serif;cursor:pointer;}
+.original-feature-preview .form-panel,.original-feature-preview .preview-panel{height:calc(100dvh - 35px);}
+.offer-scope-line{margin-top:12px;padding-top:11px;border-top:1px solid #dce6ec;display:flex;gap:10px;align-items:center;font-size:10px;line-height:1.55;}
+.offer-scope-line div{flex:1;min-width:0;}
+.offer-scope-line small{display:block;color:#6e7f8d;font-size:8px;margin-top:3px;}
+.offer-scope-line strong{color:#203e51;font-size:11px;font-weight:600;}
+.offer-scope-line button{background:white;border:1px solid #d6e1e8;border-radius:6px;font:9px Inter,Arial,sans-serif;padding:7px 10px;cursor:pointer;color:#4f6b7f;}
+.offer-scope-line.has-pending strong{color:#9a753d;}
+.studio-overview .offer-scope-line{border-color:#ffffff26;}
+.studio-overview .offer-scope-line strong{color:#f0d2a0;}
+.studio-overview .offer-scope-line small{color:#b6c7d4;}
+.studio-overview .offer-scope-line.has-pending strong{color:#f3cc87;}
+.offer-response-pill{padding:8px 11px;background:#f0f7f3;border:1px solid #dbe9e0;border-radius:7px;font:10px Inter,Arial,sans-serif;line-height:1.6;color:#45705a;margin:10px 0 0;}
+.offer-quiet-hint{font:9px Inter,Arial,sans-serif;color:#6f8292;line-height:1.65;margin:9px 0;}
+.offer-tools-excel{margin:9px 0 3px;}
+.offer-highlight{outline:2px solid #d5b778!important;outline-offset:3px;}
+.offer-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:160;background:#18364e;color:#fff;border-radius:9px;padding:12px 18px;max-width:calc(100vw - 32px);font:11px/1.6 Inter,Arial,sans-serif;box-shadow:0 8px 26px #122d4326;}
+.offer-customer-dialog{border:0;padding:0;border-radius:14px;width:min(1100px,calc(100vw - 32px));height:calc(100dvh - 36px);max-width:none;max-height:none;overflow:hidden;background:#f2f5f8;color:#17364c;box-shadow:0 20px 80px #10273c40;}
+.offer-customer-dialog::backdrop{background:#102c4499;backdrop-filter:blur(3px);}
+.offer-customer-head{min-height:66px;background:white;border-bottom:1px solid #dce5ec;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 22px;font-family:Inter,Arial,sans-serif;}
+.offer-customer-head strong{display:block;font-size:13px;font-weight:600;}
+.offer-customer-head small{display:block;margin-top:5px;font-size:9px;color:#7d8f9b;}
+.offer-customer-actions{display:flex;gap:8px;flex-shrink:0;}
+.offer-customer-actions button,.offer-respond button{font:10px Inter,Arial,sans-serif;border:1px solid #d8e3eb;border-radius:7px;padding:10px 13px;background:white;color:#29495e;cursor:pointer;}
+.offer-customer-actions .offer-primary,.offer-respond .offer-primary{background:#173b54;color:white;border-color:#173b54;}
+.offer-customer-scroll{height:calc(100% - 67px);overflow:auto;padding:21px 22px 30px;}
+.offer-customer-summary,.offer-respond{max-width:830px;margin:0 auto 18px;padding:20px;border:1px solid #dde6ec;border-radius:11px;background:white;font-family:Inter,Arial,sans-serif;}
+.offer-customer-summary .offer-kicker{font-size:8px;color:#a17c40;letter-spacing:1.2px;display:block;margin-bottom:12px;}
+.offer-customer-summary h2{font-size:20px;letter-spacing:-.6px;margin:0 0 8px;}
+.offer-customer-summary p{font-size:10px;line-height:1.65;color:#7b8c98;margin:0;}
+.offer-customer-totals{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:17px 0;}
+.offer-customer-totals>div{border:1px solid #e2e9ef;border-radius:9px;padding:15px;}
+.offer-customer-totals span{font-size:9px;display:block;color:#687f90;}
+.offer-customer-totals strong{font-size:24px;font-weight:500;display:block;margin:8px 0;letter-spacing:-.6px;}
+.offer-customer-totals small{font-size:9px;display:block;color:#84939e;line-height:1.6;}
+.offer-customer-items{display:grid;gap:9px;}
+.offer-customer-item{display:flex;justify-content:space-between;gap:12px;padding-bottom:8px;border-bottom:1px solid #edf1f4;font-size:10px;line-height:1.6;}
+.offer-customer-item span{color:#6e8292;}
+.offer-customer-item strong{font-weight:500;text-align:right;}
+.offer-customer-pending{color:#946f31!important;border-left:2px solid #d4b57c;padding-left:10px;margin-top:13px!important;}
+.offer-respond summary{font-size:12px;font-weight:600;cursor:pointer;}
+.offer-respond>p{font-size:10px;color:#7b8b97;line-height:1.65;}
+.offer-response-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0;}
+.offer-response-choices label{border:1px solid #dce5ec;padding:13px 9px;border-radius:8px;display:flex;gap:7px;font-size:10px;align-items:center;cursor:pointer;color:#4f687b;}
+.offer-response-choices label:has(input:checked){background:#edf5f1;border-color:#9bbcab;color:#35634d;}
+.offer-response-choices input{accent-color:#3c745a;}
+.offer-respond .offer-field{display:block;font-size:10px;color:#6b7f8e;margin:13px 0;}
+.offer-respond input[type=text],.offer-respond textarea{display:block;width:100%;box-sizing:border-box;font:11px Inter,Arial,sans-serif;color:#29495e;border:1px solid #dce5ed;border-radius:7px;padding:10px;margin-top:7px;}
+.offer-respond textarea{min-height:66px;resize:vertical;}
+.offer-respond .offer-consent{display:flex;align-items:flex-start;gap:7px;font-size:9px;color:#758895;line-height:1.7;margin:14px 0;}
+.offer-respond .offer-response-success{background:#f0f8f3;border:1px solid #d9e9de;border-radius:8px;padding:15px;font-size:11px;color:#447459;line-height:1.7;}
+.offer-original-document{width:100%;display:block;border:0;background:#edf1f5;min-height:400px;}
+.offer-doc-label{font:9px Inter,Arial,sans-serif;color:#8999a4;text-align:center;padding:10px 0 15px;}
+.original-feature-preview [hidden]{display:none!important;}
+@media(max-width:900px){.original-preview-notice{height:auto;min-height:41px;padding:8px 13px;gap:7px;flex-wrap:wrap;}.original-preview-notice strong{font-size:7px;}.original-preview-notice span{font-size:8px;}.original-feature-preview .form-panel,.original-feature-preview .preview-panel{height:auto;}.offer-customer-dialog{width:calc(100vw - 12px);height:calc(100dvh - 12px);border-radius:10px;}.offer-customer-head{padding:12px;gap:9px;}.offer-customer-head strong{font-size:11px;}.offer-customer-head small{font-size:8px;max-width:190px;}.offer-customer-actions{gap:5px;}.offer-customer-actions button{padding:9px;font-size:9px;}.offer-customer-scroll{padding:13px 10px 20px;}.offer-customer-summary,.offer-respond{padding:16px;}.offer-customer-totals{gap:8px;}.offer-customer-totals>div{padding:12px;}.offer-customer-totals strong{font-size:20px;}.offer-response-choices{grid-template-columns:1fr;gap:6px;}.offer-response-choices label{padding:10px;}}
+@media print{.original-preview-notice,.offer-scope-line,.offer-response-pill,.offer-quiet-hint,.offer-toast,.offer-customer-dialog{display:none!important;}}
