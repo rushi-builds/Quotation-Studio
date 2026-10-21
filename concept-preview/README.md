@@ -8,20 +8,39 @@ The four original panels are interactive with sample data. A sample response not
 
 Dashboard QA: **16 checks passed** — original four panels, sample quotation search, task completion, notifications mark-read, mobile navigation, zero API/external requests and browser errors. No credentials required to view sample data.
 
-## Growth Hub — current business-wide preview
+## Growth Hub — current tracking-first business workspace
 
-Owner corrected the scope: **the whole business**, not quotation follow-ups. Professional navigation name: **Growth Hub**, using the same sidebar/page-menu slot. Direct route: `dashboard.html?panel=growth`; previous `?panel=sales` remains compatible. Familiar Dashboard retained; contextual Quotations Analytics and existing summaries/search preserved.
+**The owner rejected the content editor/planner.** The active Dashboard now loads `business-engine.js`, `business-fixtures.js` and `business-pulse.js`; the previous `growth-hub.js` editor and its tests are historical, not active. No post editing, creative prompts, cover export or publishing planner is exposed.
 
-- **Overview:** independent business contacts, new enquiries, content reviews, local plans and recorded source mix. No quoted-value/revenue card or made-up performance growth.
-- **Contacts:** eight explicit fictional contacts/organisations, not quotation-derived; list/pipeline, service/source filters and search, manual add, optional email/phone, duplicate guard, stage/owner/notes/history/next-step editing and filtered formula-safe CSV. No contact import, sync or outreach.
-- **Content studio:** Instagram/LinkedIn/Google Business brief, service/audience/goal/theme/language/format controls; editable local English/Hinglish starter copy; actual branded 1080×1350 SVG cover, caption TXT and draft saving. Cover only—not a finished carousel or edited reel.
-- **Creative assistant:** useful contextual caption, reel-script and campaign-strategy prompts, copy/download and claim/asset/consent safeguards. Explicit **prompt mode, AI not connected**; starter copy is a template, not model output.
-- **Planner:** seven-day calendar, channel-filtered queue, review/sample approval/future local plan, explicit IST. Edits invalidate approval and local plan. No publishing scheduler or production authorisation.
-- **Insights:** recorded source/stage distribution; disconnected-channel requirements; no invented reach/clicks/ROI. No CRM/social/AI provider connected. All state resets on reload.
+Studio owns the business records. Sparrow/Bigin were references only; nothing is read, written or connected in their accounts. Existing Growth Hub sidebar/page-menu slot and `?panel=growth` / `?panel=sales` routes retained. Contextual Quotations Analytics, summaries/comparison and rounded quotation search preserved.
 
-Public Bigin/SparrowCRM/Buffer research, evidence limits, actual preview capabilities and production prerequisites: [growth-research.md](growth-research.md). Owner's private Sparrow contacts URL redirected to login; no authenticated account data was inspected. Production integration is not approved by this preview.
+- **Overview:** independent new-lead / issued-quotation / first-win event counts, monthly/daily/yearly chart with keyboard-accessible drilldown and series toggles, source donut → CRM filter, due/overdue follow-ups, recent activity and operation shortcuts. Events are counted by their own dates, not presented as a same-cohort conversion funnel. A stage edit does not issue a quotation or prove payment/installation.
+- **Leads & pipeline:** independent synthetic business history, seven stages, list/pipeline, search/source/stage filters, add/edit company/person/service/owner/contact details, duplicate guard, notes/history, future IST follow-ups, filtered formula-safe CSV. Consent is not inferred from a phone number, source or stage. First recorded wins remain historical events if a lead reopens.
+- **Performance:** Instagram views, LinkedIn impressions and website sessions stay separate. Date presets/custom/available history; daily/monthly/yearly groups; null gaps and measured-day coverage; actual business-history CSV export. Website source/medium rows reconcile to available sessions and retain unknowns. Read-only lifetime post snapshots are not report-period totals. Period-unique reach, visitor identities, ad spend/ROI and all-time backfill are not invented.
+- **Communications:** illustrative WhatsApp/Gmail/Outlook threads linked to Studio leads, provider/team-waiting filters, owners, escaped internal notes and handling markers; linked internal calendar/meetings with future IST validation. No sending, external read marking, email-open inference or invitations.
+- **Automations:** draft rule builder, trigger/source/conversation-channel/action/owner conditions, deterministic dry-run matching, stable deduplication keys, explicit disconnected-sender/permission blockers and simulation history. Today’s past-due task times count as overdue. No rule is activated and no simulated task/message/notification is executed.
+- **Connections:** eight separate disconnected preparations for Instagram, LinkedIn, Website, WhatsApp, Gmail, Outlook, Google Calendar and Outlook Calendar. Account-label/history/cadence preferences only. Sync disabled; no successful sync, data-through or scheduled run is fabricated. No secret/token/password fields.
 
-Verification: **96 Growth Hub + 58 summary + 16 Dashboard checks = 170 PASS**, zero API/external requests/browser errors. Actual exports/clipboard, consent boundary, duplicate/formula/injection guards, editorial gates, IST dates/past-time rejection, existing features, keyboard/modal paths and desktop/mobile/tablet/real Dark appearance checked. Screenshots reviewed. Frozen Finance/CloudBridge/BESS/app.css hashes and unrelated tracked patch unchanged.
+**Boundary:** functional isolated prototype with pure reporting/snapshot-validation/receipt-fold/readiness logic and local workflows. Fixtures are synthetic, not KTM results. All edits and setup drafts are memory-only and reset on reload. Provider adapters, OAuth, persistent Studio CRM/database wiring, webhook handlers, durable jobs and real auto-updates are **not implemented**. Unconnected mode shows unavailable measurements, not fake zero activity. Future provider access/history/retention differs by account and metric.
+
+Current design, metric definitions, official provider research and the production integration contract: [tracking-research.md](tracking-research.md). Earlier editorial research is explicitly archived at [growth-research.md](growth-research.md).
+
+### Current verification (21 October 2026)
+
+**48 engine + 104 tracking-workspace browser + 58 quotation-summary + 16 native Dashboard = 226 checks PASS.** Browser suites report zero API/external requests or browser errors. Desktop, 390px, 768px and actual Dark screenshots reviewed. Checks include reconciliation, IST boundaries, partial coverage, nullable revisions, same-day overdue rules, channel conditions, rule simulation, real parsed CSV exports, injection/formula guards, forms, keyboard/focus/Escape, local reset, unconnected state, existing quotation summaries/Analytics/search and native Dashboard interactions. These results supersede the rejected editor’s historical 170-check count; they are not provider/API or production tests.
+
+Run:
+
+```sh
+node concept-preview/business-engine-test.cjs
+node concept-preview/business-pulse-test.cjs
+node concept-preview/quote-summary-test.cjs
+node concept-preview/dashboard-test.cjs
+```
+
+Browser tests use Playwright and the existing Chromium runtime conventions (see each script). Serve the repository on port 8080, bound to `0.0.0.0`. In this workspace, dependencies are external to Git at `/home/user/qs-preview-tools/node_modules`; Chromium uses `/tmp/chromium` with `/tmp/qs-al2023/lib`. Browser evidence is outside Git at `/home/user/qs-business-evidence`.
+
+Finance/CloudBridge/BESS/app.css hashes and the unrelated tracked patch remain unchanged from the preservation baseline. Only `concept-preview/` files are published. Review/merge/deploy remain separate approvals; preview publication is not production approval.
 
 ## Superseded prototype: contextual Analytics + Sales & Marketing
 

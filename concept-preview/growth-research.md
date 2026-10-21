@@ -1,3 +1,5 @@
+> **Archived / superseded.** The owner rejected this editorial direction. The current tracking-first workspace does not load its content editor, creative assistant or planner. See [tracking-research.md](tracking-research.md) and the current README for active capabilities and verification. The text below records historical research only.
+
 # Growth Hub — research and implementation boundary
 
 Research date: **21 October 2026**. These are public vendor descriptions, not independently verified product tests or an instruction to buy/integrate a service. The isolated preview is a design/workflow prototype, not a replacement for a deployed CRM or social scheduler.
