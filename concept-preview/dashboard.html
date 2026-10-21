@@ -23,6 +23,7 @@
       <link rel="stylesheet" href="assets/css/dashboard-pearl.css?v=workspace7-ai4" />
   <link rel="stylesheet" href="concept-preview/dashboard-preview.css">
 <link rel="stylesheet" href="concept-preview/quote-summary.css">
+<link rel="stylesheet" href="concept-preview/sales-workspace.css">
 </head>
   <body class="dashboard-concept">
 <div class="dashboard-preview-banner"><strong>ORIGINAL DASHBOARD · PREVIEW</strong><span>Sample workspace · no login needed · no live data</span><button type="button" id="dashboardDemoReset">Reset demo</button></div>
@@ -83,9 +84,9 @@
             ><button type="button" class="nav-item" data-panel="gallery">
               <span class="ico" aria-hidden="true">◇</span
               ><span class="label">Project gallery</span></button
-            ><button type="button" class="nav-item" data-panel="reports">
-              <span class="ico" aria-hidden="true">◇</span
-              ><span class="label">Analytics</span>
+            ><button type="button" class="nav-item" data-panel="sales">
+              <span class="ico" aria-hidden="true">↗</span
+              ><span class="label">Sales &amp; Marketing</span>
             </button>
           </details>
         </nav>
@@ -243,7 +244,7 @@
                 </button>
               </div>
             </div>
-            <div id="propStats" class="stat-chips"></div>
+            <div class="quotation-insights-row"><div id="propStats" class="stat-chips"></div><button type="button" id="quoteAnalytics" class="quotation-analytics-link" data-go-panel="reports"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V5M17 16V8"/></svg>Analytics <span aria-hidden="true">↗</span></button></div>
             <section class="card quote-library">
               <div class="library-toolbar">
                 <div class="search-field">
@@ -719,12 +720,20 @@
               </aside>
             </div>
           </section>
-          <section id="panel-reports" class="panel">
+          <section id="panel-sales" class="panel sales-workspace" aria-labelledby="salesHeading">
+<div class="page-heading"><div><span class="eyebrow">THE NEXT CONVERSATION</span><h1 id="salesHeading">Sales &amp; Marketing</h1><p class="sub">Focus the right lead. Make the next move.</p></div><div class="topbar-actions"><span class="sales-draft-badge">Drafts only · sample data</span></div></div>
+<div class="sales-view-tabs" role="tablist" aria-label="Sales workspace"><button type="button" id="salesTab-desk" role="tab" aria-selected="true" aria-controls="salesDesk">Action desk</button><button type="button" id="salesTab-campaign" role="tab" aria-selected="false" aria-controls="salesCampaign" tabindex="-1">Campaign studio <span>↗</span></button></div>
+<div id="salesDesk" role="tabpanel" aria-labelledby="salesTab-desk"></div>
+<div id="salesCampaign" role="tabpanel" aria-labelledby="salesTab-campaign" hidden></div>
+<div id="salesStatus" class="sales-screen-reader" role="status" aria-live="polite"></div>
+</section>
+<section id="panel-reports" class="panel">
+            <button type="button" class="sales-back-link" id="analyticsBack" data-go-panel="proposals">← Back to quotations</button>
             <div class="page-heading">
               <div>
                 <span class="eyebrow">THE BIGGER PICTURE</span>
-                <h1>Business overview</h1>
-                <p class="sub">Real numbers from your saved work.</p>
+                <h1>Quotation analytics</h1>
+                <p class="sub">Pipeline, quoted value &amp; engagement.</p>
               </div>
               <div class="topbar-actions">
                 <button
@@ -1190,5 +1199,6 @@
 
 <script src="concept-preview/vendor/xlsx.mini.min.js"></script>
 <script src="concept-preview/quote-summary.js"></script>
+<script src="concept-preview/sales-workspace.js"></script>
 </body>
 </html>

@@ -8,6 +8,17 @@ The four original panels are interactive with sample data. A sample response not
 
 Dashboard QA: **16 checks passed** — original four panels, sample quotation search, task completion, notifications mark-read, mobile navigation, zero API/external requests and browser errors. No credentials required to view sample data.
 
+## Contextual Analytics + Sales & Marketing
+
+Analytics is now a contextual button beside the Quotations status chips, with a return link and Quotations kept active in navigation. Its former sidebar/page-menu slot is replaced by **Sales & Marketing**—no additional navigation slot. Direct sample route: `dashboard.html?panel=sales`.
+
+- **Action desk:** open quoted pipeline (not revenue), due/overdue tasks, explicit sample marketing-permission count, and next actions sorted by recorded response, task dates and stage. Accepted/closed offers excluded from open pipeline. Review opens the existing quote-summary overlay; existing tasks open native Follow-ups; planning a missing next step creates a memory-only task without reminders or duplicate creation.
+- **Campaign studio:** purpose + category segmentation; per-recipient selection; eligibility and exclusion reasons; editable personalized templates; recipient preview; clipboard copy; real plain-text draft download; up to four session-only saved drafts with restore and eligibility recheck. Unknown/empty/unclosed template fields block export. Reload discards drafts and sample task changes.
+- **Permission fixtures are explicit and fictitious**, not consent inferred from quotation stages or link opens. Patil/Anand allow existing quotation contact, not marketing; Green allows marketing and has a recorded survey request; Hillview allows marketing; Westside and unknown records have no recorded contact permission. Follow-up requires a shared open quotation; survey requires an explicit request; awareness requires marketing permission; referral additionally uses the accepted group without claiming installation completion. No auto-selection on purpose changes. Exports recheck eligibility.
+- Drafts only: no real WhatsApp/email delivery, scheduling, CRM writes, AI scores, revenue claims, installation claims or production integration. Company signature and sample templates must be reviewed before any real-world use. Existing summary/comparison and rounded quotation search preserved. Original controllers, Finance/CloudBridge/BESS/app.css untouched.
+
+Verification: **75 Sales/Analytics checks + 58 summary checks + 16 original Dashboard checks PASS**. Desktop/390px/768px and dark appearance screenshots reviewed; contextual navigation, keyboard tabs, memory tasks, consent gates, unknown record denial/escaping, template validation, clipboard, parsed draft export, session reset and existing features checked. Zero API/external requests and browser errors. Frozen hashes and unrelated tracked patch verified unchanged.
+
 ## Quotation summaries — current preview addition
 
 Owner requested a concise, aesthetic **See summary** action inside the existing Quotations list, with prices, materials, charts and comparison to other quotations. No new sidebar section.
