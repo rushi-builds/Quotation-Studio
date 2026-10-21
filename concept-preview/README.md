@@ -8,7 +8,25 @@ The four original panels are interactive with sample data. A sample response not
 
 Dashboard QA: **16 checks passed** — original four panels, sample quotation search, task completion, notifications mark-read, mobile navigation, zero API/external requests and browser errors. No credentials required to view sample data.
 
-## Contextual Analytics + Sales & Marketing
+## Growth Hub — current business-wide preview
+
+Owner corrected the scope: **the whole business**, not quotation follow-ups. Professional navigation name: **Growth Hub**, using the same sidebar/page-menu slot. Direct route: `dashboard.html?panel=growth`; previous `?panel=sales` remains compatible. Familiar Dashboard retained; contextual Quotations Analytics and existing summaries/search preserved.
+
+- **Overview:** independent business contacts, new enquiries, content reviews, local plans and recorded source mix. No quoted-value/revenue card or made-up performance growth.
+- **Contacts:** eight explicit fictional contacts/organisations, not quotation-derived; list/pipeline, service/source filters and search, manual add, optional email/phone, duplicate guard, stage/owner/notes/history/next-step editing and filtered formula-safe CSV. No contact import, sync or outreach.
+- **Content studio:** Instagram/LinkedIn/Google Business brief, service/audience/goal/theme/language/format controls; editable local English/Hinglish starter copy; actual branded 1080×1350 SVG cover, caption TXT and draft saving. Cover only—not a finished carousel or edited reel.
+- **Creative assistant:** useful contextual caption, reel-script and campaign-strategy prompts, copy/download and claim/asset/consent safeguards. Explicit **prompt mode, AI not connected**; starter copy is a template, not model output.
+- **Planner:** seven-day calendar, channel-filtered queue, review/sample approval/future local plan, explicit IST. Edits invalidate approval and local plan. No publishing scheduler or production authorisation.
+- **Insights:** recorded source/stage distribution; disconnected-channel requirements; no invented reach/clicks/ROI. No CRM/social/AI provider connected. All state resets on reload.
+
+Public Bigin/SparrowCRM/Buffer research, evidence limits, actual preview capabilities and production prerequisites: [growth-research.md](growth-research.md). Owner's private Sparrow contacts URL redirected to login; no authenticated account data was inspected. Production integration is not approved by this preview.
+
+Verification: **96 Growth Hub + 58 summary + 16 Dashboard checks = 170 PASS**, zero API/external requests/browser errors. Actual exports/clipboard, consent boundary, duplicate/formula/injection guards, editorial gates, IST dates/past-time rejection, existing features, keyboard/modal paths and desktop/mobile/tablet/real Dark appearance checked. Screenshots reviewed. Frozen Finance/CloudBridge/BESS/app.css hashes and unrelated tracked patch unchanged.
+
+## Superseded prototype: contextual Analytics + Sales & Marketing
+
+The following describes the previous quotation-focused prototype, superseded by Growth Hub. Its controller/test are retained as historical files, not loaded by the current Dashboard. Contextual Analytics remains; its scoped stylesheet is still used for that control.
+
 
 Analytics is now a contextual button beside the Quotations status chips, with a return link and Quotations kept active in navigation. Its former sidebar/page-menu slot is replaced by **Sales & Marketing**—no additional navigation slot. Direct sample route: `dashboard.html?panel=sales`.
 
