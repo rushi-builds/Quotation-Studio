@@ -90,6 +90,13 @@ ok('write paths are hard-gated + storage/timer deps removed (Arena P1-3/P2-3)', 
   const bp = read('assets/js/pulse/business-pulse.js');
   assert.ok(bp.includes('window.PlatformAPI.currentUser()'), 'must use currentUser() (envelope-safe)');
   assert.ok(!bp.includes('window.PlatformAPI.me()'), 'raw me() envelope must not be trusted');
+  assert.ok(bp.includes('const crm=leads().length===0'), 'CRM availability must come from lead records, not the quotation feed');
+  assert.ok(bp.includes('rep?pro.total:counts'), 'quotation totals must never fake a zero from empty CRM');
+  assert.ok(bp.includes('state.proposalsTotal==null'), 'proposal-list fallback count must be wired from the adapter');
+  assert.ok((bp.match(/not date-filtered/g)||[]).length >= 3, 'server summary must be labelled all-records (period picker does not filter it)');
+  assert.ok(!bp.includes('Sample mode: synthetic'), 'sample-mode footer must not render in production');
+  assert.ok(bp.includes('Missing history is unavailable, not zero'), 'activity history must be unavailable when CRM is absent');
+  assert.ok(bp.includes('An empty source split is unavailable, not a recorded zero'), 'lead sources must be unavailable when CRM is absent');
   const qs = read('assets/js/pulse/quote-summary.js');
   assert.ok(qs.includes('get:()=>null'), 'quote-summary details() reader must be null-safe');
   const pd = read('assets/js/pulse/pulse-data.js');
@@ -134,6 +141,8 @@ ok('desk KPI distinct-customer mapping present (Arena P2-2)', () => {
     assert.ok(data.events.length === 1 && data.events[0].text.startsWith('Quotation link opened'), 'activity label mapped');
     assert.strictEqual(data.report.value.quotedSum, 480000, 'server report attached');
     assert.deepStrictEqual(data.feeds, { tasks: 'ok', activity: 'ok', proposals: 'ok', report: 'ok' }, 'feeds healthy when all settle');
+    assert.strictEqual(data.proposalsTotal, 1, 'real proposal count exposed for report-fallback');
+    assert.strictEqual(data.activityTotal, 1, 'real activity count exposed');
     /* undated task must never become a fake overdue or today follow-up */
     const O = require(path.join(ROOT, 'assets/js/pulse/pulse-operations.js'));
     const now = Date.parse('2026-10-22T05:00:00Z');

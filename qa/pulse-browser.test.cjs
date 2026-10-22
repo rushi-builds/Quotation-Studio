@@ -134,9 +134,12 @@ const PASSWORD = "ReviewPass!123";
     const metrics = await p.locator("#biBody .gh-metrics .gh-metric").allTextContents();
     const strongs = await p.locator("#biBody .gh-metrics .gh-metric strong").allTextContents();
     ok("overview renders 4 metric cards", metrics.length === 4, JSON.stringify(metrics));
+    ok("New leads shows — with no-CRM note (never a fabricated 0)", /New leads/.test(metrics[0]) && (strongs[0] || "") === "—" && /Lead CRM not connected/.test(metrics[0]), "value=" + (strongs[0] || "") + " | " + metrics[0]);
     ok("quotations managed shows server total 3", /Quotations managed/.test(metrics[1]) && /\b3\b/.test(strongs[1] || ""), "value=" + (strongs[1] || ""));
     ok("quoted value shows ₹ with a nonzero recorded sum", /Quoted value/.test(metrics[2]) && /₹/.test(strongs[2] || "") && !/—/.test(strongs[2] || ""), "value=" + (strongs[2] || ""));
     ok("overdue follow-ups shows server count 1", /Overdue follow-ups/.test(metrics[3]) && (strongs[3] || "") === "1", "value=" + (strongs[3] || ""));
+    ok("server summary labelled all-records (period picker does not filter)", metrics.join(" ").match(/not date-filtered/g).length >= 3, "");
+    ok("no sample-mode footer anywhere", !/Sample mode/.test(panelText), "sample footer leaked");
     ok("no degraded note when all feeds healthy", (await p.locator(".bi-degraded-note").count()) === 0, "");
 
     /* desk: real overdue signal + undated never overdue + unlinked labels */
@@ -155,6 +158,11 @@ const PASSWORD = "ReviewPass!123";
     ok("undated task not placed in today's follow-ups (no invented due)", !/Undated follow-up/.test(followups), followups.slice(0, 240));
     ok("no invented 12:00 due anywhere in the follow-up table", !/12:00/.test(followups), "found invented noon");
     ok("real overdue task still surfaces with honest time label", /Site survey call/.test(followups), followups.slice(0, 240));
+
+    /* overview charts: absent-CRM history/sources are unavailable, not zero charts */
+    const overviewText = await p.evaluate(() => document.getElementById("biBody").textContent);
+    ok("activity history explicitly unavailable without CRM (never zero buckets)", /no measured lead\/quotation-issue\/win history exists to chart/.test(overviewText), overviewText.slice(0, 240));
+    ok("lead sources explicitly unavailable without CRM (empty split is not a zero)", /An empty source split is unavailable, not a recorded zero/.test(overviewText), overviewText.slice(0, 240));
 
     /* governance connections: honest states + disabled controls, no fake-save */
     await p.click('#ghTabs [data-bi-tab="connections"]');
@@ -204,6 +212,19 @@ const PASSWORD = "ReviewPass!123";
     const degMetrics = await dp.locator("#biBody .gh-metrics .gh-metric").allTextContents();
     ok("overdue metric under feed failure is a real number or — (never a fake 0)", /[1-9]/.test(degMetrics[3] || "") || /—/.test(degMetrics[3] || ""), JSON.stringify(degMetrics));
     await dp.close();
+
+    /* report feed fails while proposal list succeeds -> totals come from the
+       real proposal records, quoted value becomes — (no fake zero) */
+    const dp2 = await ctx.newPage();
+    dp2.on("pageerror", (e) => errors.push("report-fail pageerror: " + e.message));
+    await dp2.route("**/api/reports/summary*", (r) => r.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "forced report outage" }) }));
+    await dp2.goto(origin + "/dashboard.html?panel=sales");
+    await dp2.waitForSelector(".bi-degraded-note", { timeout: 20000 });
+    const rFailMetrics = await dp2.locator("#biBody .gh-metrics .gh-metric").allTextContents();
+    const rFailVals = await dp2.locator("#biBody .gh-metrics .gh-metric strong").allTextContents();
+    ok("report outage: quotations managed falls back to real proposal count 3 (never empty-CRM zero)", /Quotations managed/.test(rFailMetrics[1] || "") && (rFailVals[1] || "") === "3", "value=" + rFailVals[1]);
+    ok("report outage: quoted value becomes — (unavailable, not zero)", /Quoted value/.test(rFailMetrics[2] || "") && /—/.test(rFailMetrics[2]), JSON.stringify(rFailMetrics));
+    await dp2.close();
 
     /* expired / bogus session fails closed on Pulse */
     const exp = await browser.newContext({ viewport: { width: 1280, height: 900 } });

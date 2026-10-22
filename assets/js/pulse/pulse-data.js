@@ -106,6 +106,8 @@
       report,
       feeds,
       degraded,
+      proposalsTotal: proposalsRes.status === 'fulfilled' ? proposals.length : null,
+      activityTotal: activityRes.status === 'fulfilled' ? events.length : null,
       writable: false,
       ownerName: 'Owner',
       persistence: 'none'
