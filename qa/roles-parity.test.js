@@ -488,23 +488,26 @@ for (const [label, src] of BOTH) {
 }
 
 /* ---------- 14. patch scope and frozen baselines (correct comparison base) ---------- */
-/* Rebuilt 2026-10-23 after the verification round. The old checks diffed the
-   whole working line against origin/main, so files never touched by any given
-   patch (the merged pulse assets, the branch-only deploy config) tripped the
-   frozen / scope checks even when that patch was innocent. Now:
+/* Rebuilt 2026-10-23 after the verification round; sharpened the same day
+   after the exact-head review probes found two false passes in the draft:
+     - rename detection kept only a rename's destination, which could hide a
+       committed `git mv vercel.json qa/…` deletion (guard now diffs with
+       --no-renames, NUL-delimited, so BOTH ends are on the books);
+     - a worktree restoration of a BASE copy could mask a committed
+       violation (the scope is now an explicit BASE→HEAD committed-tree
+       diff; worktree dirt is reported separately and is never an input to
+       the verdict).
+   Semantics here, all unchanged since the rebuild:
 
      - frozen guarantee: the family is pinned by BLOB HASH to the owner's
-       golden tree 8cc7db1 - explicit, additive, decoupled from main's state;
-     - patch-scope checks: run against the PR's own base (branch-off commit),
-       resolved by qa/pr-scope-guard.cjs, never the line-wide origin/main
-       span;
-     - deploy configs: still fully detected, with NO broad exception - any
-       wrangler*.toml / vercel.json change inside the patch scope fails,
-       historical allowances included;
-     - negative proof: qa/pr-scope.test.cjs shows a mutated frozen file, a
-       touched deploy config and an out-of-scope file each fail the guard.
-
-   The allowlist itself is NOT widened in any direction by this rebuild. */
+       golden tree 8cc7db1; deletion counts; main's drifting state is
+       irrelevant;
+     - deploy configs are detected with NO broad exception - any
+       wrangler config or vercel.json change, rename or deletion inside the committed
+       patch scope fails, historical allowances included;
+     - allowlist is NOT widened;
+     - negative proof lives in qa/pr-scope.test.cjs (renames, deletions,
+       worktree masks, mutation traps). */
 {
   const base = guard.resolveBase(ROOT);
   t('patch-scope comparison base resolves (line-tip or explicit QS_PR_BASE)', !!base && !!base.ref, JSON.stringify(base));
@@ -514,7 +517,7 @@ for (const [label, src] of BOTH) {
   const blBad = bl.filter((b) => !b.ok);
   t('FROZEN calc/pricing family byte-identical to golden base ' + guard.GOLDEN_BASE_REF,
     blBad.length === 0 && bl.length === guard.FROZEN_FILES.length, JSON.stringify(blBad));
-  t('FROZEN calc/pricing/finance/export files untouched (patch scope, base ' + (base ? base.ref.slice(0, 10) : '?') + ' [' + (base ? base.from : '?') + '])',
+  t('FROZEN calc/pricing/finance/export files untouched (committed BASE→HEAD scope, base ' + (base ? base.ref.slice(0, 10) : '?') + ' [' + (base ? base.from : '?') + '])',
     frozen.length === 0, frozen.join(', '));
   /* Owner decision (2026-10-10): the Google, Phone and Microsoft buttons were
      removed from index.html, leaving the built-in email/password flow as the
@@ -533,13 +536,13 @@ for (const [label, src] of BOTH) {
      base onward, ANY deploy-config edit is a violation a review must
      explicitly re-allow. Negative coverage in qa/pr-scope.test.cjs. */
   const deployTouched = guard.deployConfigTouches(changed);
-  t('deploy config / zone / NS untouched (any wrangler*/vercel.json change fails; no broad exception)',
+  t('deploy config untouched (committed BASE→HEAD scope; any wrangler*/vercel.json change, rename or deletion fails; no broad exception)',
     deployTouched.length === 0, deployTouched.join(', '));
   /* Allowlist of files the reconciled line (arena + catalogue-sync merge) may
      touch - copied verbatim, NOT widened. The base is the patch's own, so
      previously merged work no longer appears in the diff. */
   const unintended = guard.scopeOffenders(changed);
-  t('changed files are the intended set (patch scope, allowlist unwidened)',
+  t('changed files are the intended set (committed BASE→HEAD scope, allowlist unwidened)',
     unintended.length === 0, unintended.join(', '));
   t('no earlier migration was modified',
     !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-catalogue|006-profile-info|007-site-geo|007-member-links-likes|008-member-custom-link|009-recovery-resend|010-excel-product-catalog/.test(f)),

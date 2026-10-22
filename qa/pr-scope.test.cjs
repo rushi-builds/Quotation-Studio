@@ -1,13 +1,19 @@
 /* PR-scope guard test — positive coverage on this checkout plus NEGATIVE
-   coverage (the Space directive of 2026-10-23): deliberately mutating a
-   frozen file, touching a deploy config, or stepping outside the allowlist
-   MUST fail the guard. The negative half runs entirely inside a throwaway
-   git repo under this suite's temp dir - this checkout is never mutated.
-   Run: node pr-scope.test.cjs */
+   coverage: deliberately mutating a frozen file, touching a deploy config,
+   stepping outside the allowlist, RENAMING a protected config (rename
+   detection must not hide it), MOVING an out-of-scope file into qa/
+   (rename source must not vanish), COMMITTED deploy-config / out-of-scope
+   edits masked by a worktree restoration (committed verdict must win), and
+   worktree-noise controls (hygiene never flips the committed verdict).
+
+   Each scenario runs in its OWN mkdtemp throwaway git repo under the OS
+   temp dir (this checkout is never mutated, concurrent runs never collide,
+   and everything is removed at the end). Run: node pr-scope.test.cjs */
 'use strict';
 
-const { execFileSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
+const os = require('os');
 const fs = require('fs');
 
 const guard = require('./pr-scope-guard.cjs');
@@ -15,17 +21,19 @@ const ROOT = path.join(__dirname, '..');
 
 let pass = 0, fail = 0;
 const t = (name, cond, extra) => {
-  if (cond) { pass++; console.log('  ✓', name); }
-  else { fail++; console.error('  ✗ FAIL:', name, extra !== undefined ? '→ ' + String(extra).slice(0, 300) : ''); }
+  if (cond) { pass++; console.log('  ✓ ' + name); }
+  else { fail++; console.error('  ✗ FAIL: ' + name + (extra !== undefined ? '  → ' + String(extra).slice(0, 300) : '')); }
 };
 
-/* -------- throwaway repo helper: two-commit base→head fixture -------- */
-function tmpRepo(dir, baseFiles, headEdits) {
-  fs.rmSync(dir, { recursive: true, force: true });
-  fs.mkdirSync(dir, { recursive: true });
-  const env = { ...process.env };
+/* throwaway repos, created exactly once per name (cached), each inside its
+   own mkdtemp root so parallel suites cannot collide. */
+let tmproot = null;
+const cache = new Map();
+function repo(name, baseFiles, headEdits) {
+  if (cache.has(name)) return cache.get(name);
+  const dir = fs.mkdtempSync(path.join(tmproot, name + '-'));
   const run = (args) => {
-    const r = spawnSync('git', args, { cwd: dir, encoding: 'utf8', env });
+    const r = spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
     if (r.status !== 0) throw new Error('git ' + args.join(' ') + ' → ' + r.status + ' ' + r.stderr);
     return r.stdout;
   };
@@ -38,24 +46,40 @@ function tmpRepo(dir, baseFiles, headEdits) {
   run(['add', '-A']);
   run(['-c', 'user.email=qa@example', '-c', 'user.name=qa', 'commit', '-q', '--allow-empty', '-m', 'base']);
   const base = run(['rev-parse', 'HEAD']).trim();
-  if (baseFiles !== headEdits) {
+  if (headEdits) {
     for (const [rel, text] of Object.entries(headEdits)) {
       const p = path.join(dir, rel);
       if (text === null) fs.rmSync(p);
       else { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); }
     }
+    run(['add', '-A']);
+    run(['-c', 'user.email=qa@example', '-c', 'user.name=qa', 'commit', '-q', '--allow-empty', '-m', 'head']);
   }
-  run(['add', '-A']);
-  run(['-c', 'user.email=qa@example', '-c', 'user.name=qa', 'commit', '-q', '--allow-empty', '-m', 'head']);
-  return { run, base };
+  const out = { dir, run, base };
+  cache.set(name, out);
+  return out;
 }
 
+/* base tree = full pristine frozen family + pristine configs; a head can
+   then break selected members. Inside the throwaway repo the BASE tree
+   stands in for 8cc7db1, so every golden baseline entry is a real blob
+   compare - no absent-ref shortcut. */
+const mk = (k) => Array.from({ length: k }, (_, i) => 'const x' + i + ' = ' + i + ';  calculate has been frozen\n').join('');
+const pristineFamily = () => Object.fromEntries(guard.FROZEN_FILES.map((f, i) => [f, mk(10 + i * 3)]));
+const baseAssets = () => Object.assign(pristineFamily(), { 'vercel.json': '{"rewrites":["/api/*"]}\n', [WRANGLER]: 'name = "tmp"\n', [STRAY]: 'stray\n' });
 const FIN = () => guard.FROZEN_FILES[0]; /* assets/js/finance.js */
 const BRIDGE = () => guard.FROZEN_FILES[1]; /* assets/js/cloud-bridge.js */
+const VERCEL = 'vercel.json';
 const WRANGLER = 'platform/cloudflare/wrangler.git.toml';
+const STRAY = 'misc/stray.js';
+const verify = (name, baseFiles, headEdits) => {
+  const r = repo(name, baseFiles, headEdits);
+  return guard.verify(r.dir, { base: r.base, goldenRef: r.base });
+};
 
 async function main() {
-  console.log('\npr-scope guard (correct comparison base, explicit golden baseline, deploy-config detection)');
+  tmproot = fs.mkdtempSync(path.join(os.tmpdir(), 'pr-scope-'));
+  console.log('\npr-scope guard (correct comparison base, explicit golden baseline, exception-free deploy detection, rename + worktree traps)');
 
   /* ================= POSITIVE: this checkout ================= */
   const v = guard.verify(ROOT);
@@ -64,8 +88,8 @@ async function main() {
   t('PR scope = test-only files (guard + suite + patched parity), nothing else',
     v.changed.every((f) => /^qa\//.test(f)) && v.changed.length <= 4, JSON.stringify(v.changed));
 
-  t('FROZEN files untouched in PR scope', v.frozen.length === 0, JSON.stringify(v.frozen));
-  t('deploy config untouched in PR scope (no exceptions granted)', v.deploy.length === 0, JSON.stringify(v.deploy));
+  t('FROZEN files untouched in committed PR scope', v.frozen.length === 0, JSON.stringify(v.frozen));
+  t('deploy config untouched in committed PR scope (no exceptions granted)', v.deploy.length === 0, JSON.stringify(v.deploy));
   t('changed files are inside the (unwidened) allowlist', v.scope.length === 0, JSON.stringify(v.scope));
 
   const bl = guard.baselineMatch(ROOT);
@@ -75,71 +99,109 @@ async function main() {
   t('quote-calc freeze pinned explicitly: finance.js byte-identical to 8cc7db1', byName[FIN()] === true);
   t('quote-calc freeze pinned explicitly: cloud-bridge.js byte-identical to 8cc7db1', byName[BRIDGE()] === true);
 
-  /* ================= NEGATIVE: throwaway repos ================= */
-  /* base tree = FULL pristine frozen family; head sneaks in: frozen mutation,
-     deploy-config edit and an out-of-scope file. The base tree sha stands in
-     for 8cc7db1 inside the throwaway repo, so every golden baseline entry is
-     a real blob compare - no absent-ref shortcut anywhere. Throwaway repos
-     live under the OS temp dir (never inside the checkout) and are removed
-     on the way out. */
-  const TMPROOT = path.join(require('os').tmpdir(), 'pr-scope-negatives');
-  const dir = path.join(TMPROOT, 'negative');
-  try {
-    const mk = (k) => Array.from({ length: k }, (_, i) => 'const x' + i + ' = ' + i + ';  calculate has been frozen\n').join('');
-    const pristineFamily = () => Object.fromEntries(guard.FROZEN_FILES.map((f, i) => [f, mk(10 + i * 3)]));
-    const repo = tmpRepo(dir, Object.assign(pristineFamily(), { [WRANGLER]: 'name = "tmp"\n', 'qa/sentinel.txt': 'base\n' }),
-      Object.fromEntries([
-        [FIN(), mk(41)], /* deliberately frozen file MUTATED */
-        [BRIDGE(), mk(39)], /* the second quote file MUTATED too */
-        [WRANGLER, 'name = "tmp"\naccount_id = "_changed"\n'], /* deploy config touched */
-        ['misc/stray.js', 'stray\n'] /* outside the allowlist */
-      ]));
+  /* ================= NEGATIVE: rename traps ================= */
+  /* rename-ONLY fixtures: no frozen mutation, no out-of-scope add. A
+     protected config must fail ALONE even when its destination sits inside
+     an allowed path - rename detection may not erase the violation. */
+  const vMove = verify('vercel-rename', baseAssets(), { [VERCEL]: null, 'qa/archived-config.json': '{"rewrites":["/api/*","/_tmp"]}\n' });
+  t('tmp fixture: vercel.json renamed away — BOTH rename ends are in the scope list',
+    vMove.changed.includes(VERCEL) && vMove.changed.includes('qa/archived-config.json'), JSON.stringify(vMove.changed));
+  t('NEGATIVE rename: committed vercel.json rename fails the deploy check (source retained)', vMove.deploy.includes(VERCEL), JSON.stringify(vMove.deploy));
+  t('NEGATIVE rename: config rename fails INDEPENDENTLY (no other violation present)',
+    vMove.ok === false && vMove.frozen.length === 0 && vMove.scope.length === 0, JSON.stringify({ frozen: vMove.frozen, scope: vMove.scope }));
 
-    const vBad = guard.verify(dir, { base: repo.base, goldenRef: repo.base });
-    t('tmp fixture: guard runs base→head', Array.isArray(vBad.changed) && vBad.changed.length >= 3, JSON.stringify(vBad.changed));
-    t('NEGATIVE: mutated frozen file is detected (finance.js)', vBad.frozen.includes(FIN()), JSON.stringify(vBad.frozen));
-    t('NEGATIVE: mutated frozen file is detected (cloud-bridge.js)', vBad.frozen.includes(BRIDGE()), JSON.stringify(vBad.frozen));
-    t('NEGATIVE: deploy-config edit is detected (wrangler*.toml, no exception)', vBad.deploy.includes(WRANGLER), JSON.stringify(vBad.deploy));
-    t('NEGATIVE: out-of-scope file is detected', vBad.scope.includes('misc/stray.js'), JSON.stringify(vBad.scope));
-    t('NEGATIVE: guard verdict on the tampered tree is NOT ok', vBad.ok === false, JSON.stringify({ frozen: vBad.frozen, deploy: vBad.deploy }));
-    t('NEGATIVE: golden blob-compare catches the in-tree mutation (mutated blobs differ from base)',
-      vBad.baseline.filter((b) => [FIN(), BRIDGE()].includes(b.file)).every((b) => !b.ok && b.base && b.head && b.base !== b.head),
-      JSON.stringify(vBad.baseline.filter((b) => [FIN(), BRIDGE()].includes(b.file))));
-    t('NEGATIVE: the other eight family members stay ok:true (no over-flagging)',
-      vBad.baseline.filter((b) => ![FIN(), BRIDGE()].includes(b.file)).every((b) => b.ok),
-      JSON.stringify(vBad.baseline.filter((b) => !b.ok && ![FIN(), BRIDGE()].includes(b.file))));
+  const vWr = verify('wrangler-rename', baseAssets(), { [WRANGLER]: null, 'qa/archive-wrangler.toml': 'name = "tmp"\n' });
+  t('NEGATIVE rename: wrangler*.toml rename fails too (source AND config-shaped destination kept)',
+    vWr.deploy.includes(WRANGLER) && vWr.ok === false, JSON.stringify({ changed: vWr.changed, deploy: vWr.deploy }));
 
-    /* list-level detection helpers catch even a plain mention */
-    t('helper: frozenTouches flags finance.js + cloud-bridge.js only',
-      JSON.stringify(guard.frozenTouches([FIN(), BRIDGE(), 'assets/js/dashboard.js'])) === JSON.stringify([FIN(), BRIDGE()]));
-    t('helper: deployConfigTouches flags deploy configs it sees, nothing else',
-      JSON.stringify(guard.deployConfigTouches([WRANGLER, 'platform/cloudflare/wrangler.toml', 'vercel.json', 'src/app.ts']))
-        === JSON.stringify([WRANGLER, 'platform/cloudflare/wrangler.toml', 'vercel.json']));
+  /* out-of-scope file relocated into an allowed directory: with rename
+     detection only the destination would remain and the offender would
+     vanish; --no-renames keeps the source on the books. */
+  const vMoveOut = verify('stray-into-qa', baseAssets(), { [STRAY]: null, 'qa/relocated.js': 'stray\n' });
+  t('NEGATIVE rename: out-of-scope source moved into qa/ stays an offender', vMoveOut.scope.includes(STRAY), JSON.stringify(vMoveOut.scope));
+  t('NEGATIVE rename: the relocation still fails the guard', vMoveOut.ok === false, JSON.stringify({ ok: vMoveOut.ok, scope: vMoveOut.scope }));
 
-    /* and the CLEAN throwaway repo proves the guard does not false-positive */
-    const dirClean = dir + '-clean';
-    const repo2 = tmpRepo(dirClean, Object.assign(pristineFamily(), { 'misc/stray.js': 'stray in base, not in scope\n' }),
-      Object.fromEntries([['qa/log.txt', 'clean head change\n']]));
-    const vClean = guard.verify(dirClean, { base: repo2.base, goldenRef: repo2.base });
-    t('control: clean tmp repo passes the guard end to end (ok:true, zero violations)',
-      vClean.ok === true && vClean.frozen.length === 0 && vClean.deploy.length === 0 && vClean.scope.length === 0,
-      JSON.stringify({ frozen: vClean.frozen, deploy: vClean.deploy, scope: vClean.scope, ok: vClean.ok }));
-    t('control: every pristine family member is ok:true under the golden compare (no false positives)',
-      vClean.baseline.length === guard.FROZEN_FILES.length && vClean.baseline.every((b) => b.ok),
-      JSON.stringify(vClean.baseline.filter((b) => !b.ok)));
-    /* a head commit that rewrites a frozen file with IDENTICAL content is not a violation */
-    const repo3 = tmpRepo(dir + '-rewrite', pristineFamily(),
-      Object.fromEntries(guard.FROZEN_FILES.map((f, i) => [f, mk(10 + i * 3)])));
-    const vSame = guard.verify(dir + '-rewrite', { base: repo3.base, goldenRef: repo3.base });
-    t('control: identical-content re-adds are not flagged as frozen violations',
-      vSame.frozen.length === 0 && vSame.baseline.every((b) => b.ok) === true, JSON.stringify(vSame.frozen));
-  } finally {
-    try { fs.rmSync(TMPROOT, { recursive: true, force: true }); } catch (_) {}
-    try { execFileSync('git', ['worktree', 'prune']); } catch (_) {}
-  }
+  /* plain deletion (no rename at all) of a protected config */
+  const vDel = verify('vercel-delete', baseAssets(), { [VERCEL]: null });
+  t('NEGATIVE delete: committed vercel.json deletion fails on its own', vDel.deploy.includes(VERCEL) && vDel.ok === false, JSON.stringify(vDel.deploy));
+
+  /* ================= NEGATIVE: worktree masks ================= */
+  /* 1. commit a deploy-config edit, then restore that ONE file from base in
+        the worktree without touching HEAD/index. The committed violation
+        must stay visible; the restored file shows up as hygiene only. */
+  const maskFixture = repo('worktree-mask', baseAssets(), { [VERCEL]: '{"rewrites":["/api/*","/changed"]}\n' });
+  fs.writeFileSync(path.join(maskFixture.dir, VERCEL), '{"rewrites":["/api/*"]}\n'); /* base copy restored */
+  const vMask = guard.verify(maskFixture.dir, { base: maskFixture.base, goldenRef: maskFixture.base });
+  t('control: the worktree copy was genuinely restored (equals the pristine content)',
+    fs.readFileSync(path.join(maskFixture.dir, VERCEL), 'utf8') === '{"rewrites":["/api/*"]}\n');
+  t('NEGATIVE mask: committed deploy-config edit survives the worktree restoration', vMask.deploy.includes(VERCEL) && vMask.ok === false, JSON.stringify(vMask.deploy));
+  t('NEGATIVE mask: the restoration is reported as worktree dirt, never as a verdict pass',
+    vMask.worktree.dirty.includes(VERCEL), JSON.stringify(vMask.worktree));
+
+  /* 2. the same trap with an out-of-scope committed edit */
+  const mask2 = repo('worktree-mask-scope', baseAssets(), { [STRAY]: 'stray\nCHANGED-ON-HEAD\n' });
+  fs.writeFileSync(path.join(mask2.dir, STRAY), 'stray\n'); /* base copy restored */
+  const vMask2 = guard.verify(mask2.dir, { base: mask2.base, goldenRef: mask2.base });
+  t('NEGATIVE mask: committed out-of-scope edit survives a worktree restoration',
+    vMask2.scope.includes(STRAY) && vMask2.ok === false, JSON.stringify({ scope: vMask2.scope, ok: vMask2.ok }));
+
+  /* 3. committed-clean repo + unrelated dirty/untracked noise: the verdict
+     stays ok and the noise is REPORTED separately (never an ok input). */
+  const noise = repo('worktree-noise', baseAssets(), { 'qa/log.txt': 'clean head change\n' });
+  fs.writeFileSync(path.join(noise.dir, 'junk-nobody-tracks.tmp'), 'untracked\n');
+  fs.writeFileSync(path.join(noise.dir, 'qa/log.txt'), 'dirty working copy of a committed file\n');
+  const vNoise = guard.verify(noise.dir, { base: noise.base, goldenRef: noise.base });
+  t('control: unrelated worktree noise does NOT flip the committed verdict',
+    vNoise.ok === true && vNoise.frozen.length === 0 && vNoise.deploy.length === 0 && vNoise.scope.length === 0,
+    JSON.stringify({ ok: vNoise.ok, deploy: vNoise.deploy, scope: vNoise.scope }));
+  t('control: the noise is still visible in the hygiene block (untracked + dirty lists)',
+    vNoise.worktree.untracked.includes('junk-nobody-tracks.tmp') && vNoise.worktree.dirty.includes('qa/log.txt'),
+    JSON.stringify(vNoise.worktree));
+
+  /* ================= the original mutation negatives ================= */
+  const vBad = verify('frozen-mutation', baseAssets(), {
+    [FIN()]: mk(41), /* deliberately frozen file MUTATED */
+    [BRIDGE()]: mk(39), /* the second quote file MUTATED too */
+    [VERCEL]: '{"rewrites:[changed}"}\n' /* deploy config touched too */
+  });
+  t('tmp fixture: guard runs base→head', Array.isArray(vBad.changed) && vBad.changed.length >= 3, JSON.stringify(vBad.changed));
+  t('NEGATIVE: mutated frozen file is detected (finance.js)', vBad.frozen.includes(FIN()), JSON.stringify(vBad.frozen));
+  t('NEGATIVE: mutated frozen file is detected (cloud-bridge.js)', vBad.frozen.includes(BRIDGE()), JSON.stringify(vBad.frozen));
+  t('NEGATIVE: deploy-config edit is detected (no exception)', vBad.deploy.includes(VERCEL), JSON.stringify(vBad.deploy));
+  t('NEGATIVE: guard verdict on the tampered tree is NOT ok', vBad.ok === false, JSON.stringify({ frozen: vBad.frozen, deploy: vBad.deploy }));
+  t('NEGATIVE: golden blob-compare catches the in-tree mutation (mutated blobs differ from base)',
+    vBad.baseline.filter((b) => [FIN(), BRIDGE()].includes(b.file)).every((b) => !b.ok && b.base && b.head && b.base !== b.head),
+    JSON.stringify(vBad.baseline.filter((b) => [FIN(), BRIDGE()].includes(b.file))));
+  t('NEGATIVE: the other eight family members stay ok:true (no over-flagging)',
+    vBad.baseline.filter((b) => ![FIN(), BRIDGE()].includes(b.file)).every((b) => b.ok),
+    JSON.stringify(vBad.baseline.filter((b) => !b.ok && ![FIN(), BRIDGE()].includes(b.file))));
+
+/* out-of-scope plain edit (misc/stray.js over-edit) */
+  const vStray = verify('stray-add', baseAssets(), { [STRAY]: 'stray\nOUT-OF-SCOPE-HEAD-EDIT\n' });
+  t('NEGATIVE: out-of-scope file is detected', vStray.scope.includes(STRAY) && vStray.ok === false, JSON.stringify(vStray.scope));
+
+  /* list-level detection helpers */
+  t('helper: frozenTouches flags finance.js + cloud-bridge.js only',
+    JSON.stringify(guard.frozenTouches([FIN(), BRIDGE(), 'assets/js/dashboard.js'])) === JSON.stringify([FIN(), BRIDGE()]));
+  t('helper: deployConfigTouches flags deploy configs it sees, nothing else',
+    JSON.stringify(guard.deployConfigTouches([WRANGLER, 'platform/cloudflare/wrangler.toml', VERCEL, 'src/app.ts']))
+      === JSON.stringify([WRANGLER, 'platform/cloudflare/wrangler.toml', VERCEL]));
+
+  /* pristine / no-false-positive controls */
+  const vClean = verify('control-clean', baseAssets(), { 'qa/log.txt': 'clean head change\n' });
+  t('control: clean tmp repo passes the guard end to end (ok:true, zero violations)',
+    vClean.ok === true && vClean.frozen.length === 0 && vClean.deploy.length === 0 && vClean.scope.length === 0,
+    JSON.stringify({ frozen: vClean.frozen, deploy: vClean.deploy, scope: vClean.scope, ok: vClean.ok }));
+  t('control: every pristine family member is ok:true under the golden compare (no false positives)',
+    vClean.baseline.length === guard.FROZEN_FILES.length && vClean.baseline.every((b) => b.ok),
+    JSON.stringify(vClean.baseline.filter((b) => !b.ok)));
+  const vSame = verify('control-rewrite', pristineFamily(), pristineFamily());
+  t('control: identical-content re-adds are not flagged as frozen violations',
+    vSame.frozen.length === 0 && vSame.baseline.every((b) => b.ok) === true, JSON.stringify(vSame.frozen));
 
   console.log('\n==== RESULT: ' + pass + ' passed, ' + fail + ' failed ====');
-  process.exit(fail ? 1 : 0);
+  process.exitCode = fail ? 1 : 0;
 }
 
-main().catch((e) => { console.error('FATAL', e); process.exit(1); });
+main().then(() => { try { fs.rmSync(tmproot, { recursive: true, force: true }); } catch (_) {} })
+  .catch((e) => { console.error('FATAL', e); try { if (tmproot) fs.rmSync(tmproot, { recursive: true, force: true }); } catch (_) {} process.exitCode = 1; });

@@ -83,10 +83,42 @@ function resolveBase(repoRoot, opts) {
   return null;
 }
 
-function changedFiles(repoRoot, baseRef) {
+/* Committed scope: an explicit BASE→HEAD (or target) TREE comparison.
+   Defaults to the checked-out HEAD commit. --no-renames is mandatory so a
+   rename reports BOTH its source and its destination: with rename detection
+   the diff keeps only the destination, which once let a committed
+   `git mv vercel.json qa/archived-config.json` erase the live config while
+   the destination sat inside an allowed QA path. NUL-delimited records keep
+   unusual filenames parseable. The worktree is deliberately NOT part of
+   this input - see worktreeStatus. */
+function changedFiles(repoRoot, baseRef, opts) {
   if (!baseRef) return null;
-  return git(repoRoot, ['diff', '--name-only', baseRef])
-    .split(/\r?\n/).filter(Boolean);
+  const target = (opts && opts.target) || 'HEAD';
+  return git(repoRoot, ['diff', '--name-only', '-z', '--no-renames', baseRef, target])
+    .split('\0')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/* Worktree hygiene, reported separately from the committed verdict. The
+   guard certifies COMMITTED trees. Direction that matters (negative-tested):
+   a restoration of a BASE copy into the worktree must never mask a
+   committed deploy-config or out-of-scope edit; and conversely, unrelated
+   dirty/untracked working files never flip a committed verdict, because
+   they are not an input to `ok` at all. */
+function worktreeStatus(repoRoot) {
+  const dirty = [];
+  const untracked = [];
+  for (const line of git(repoRoot, ['status', '--porcelain']).split(/\r?\n/).filter(Boolean)) {
+    const state = line.slice(0, 2);
+    const path_ = line.slice(3);
+    if (state === '??') untracked.push(path_);
+    else if (path_.includes(' -> ')) { /* status rename record: report both ends */
+      const [from, to] = path_.split(' -> ');
+      dirty.push(from.trim(), to.trim());
+    } else dirty.push(path_);
+  }
+  return { dirty, untracked };
 }
 
 /* 1-2: written so list-based detection and tree-based one stay
@@ -122,24 +154,29 @@ function baselineMatch(repoRoot, treeIsh) {
 }
 
 /* One-shot structured verdict (positive runs + tmp-repo negative runs).
-   opts.base / opts.env override the base like resolveBase. */
+   opts.base / opts.env pick the base like resolveBase; opts.target pins the
+   HEAD side (default 'HEAD' = the committed tree). The returned `worktree`
+   block is informational hygiene (dirty + untracked names): `ok` reflects
+   ONLY committed scope/deploy/frozen/baseline violations. */
 function verify(repoRoot, opts) {
-  const base = resolveBase(repoRoot, opts || {});
+  const o = opts || {};
+  const base = resolveBase(repoRoot, o);
   if (!base) return { ok: false, base: null, reason: 'no comparison base resolvable' };
-  const changed = changedFiles(repoRoot, base.ref);
+  const changed = changedFiles(repoRoot, base.ref, o);
   if (!changed) return { ok: false, base, reason: 'git diff failed' };
   const frozen = frozenTouches(changed);
   const deploy = deployConfigTouches(changed);
   const scope = scopeOffenders(changed);
-  const baseline = baselineMatch(repoRoot, opts && opts.goldenRef);
+  const baseline = baselineMatch(repoRoot, o.goldenRef);
   return {
     ok: frozen.length === 0 && deploy.length === 0 && scope.length === 0 && baseline.every((b) => b.ok),
-    base, changed, frozen, deploy, scope, baseline
+    base, target: (o.target || 'HEAD'), changed, frozen, deploy, scope, baseline,
+    worktree: worktreeStatus(repoRoot)
   };
 }
 
 module.exports = {
   GOLDEN_BASE_REF, FROZEN_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
-  resolveBase, changedFiles,
+  resolveBase, changedFiles, worktreeStatus,
   frozenTouches, deployConfigTouches, scopeOffenders, baselineMatch, verify, git
 };
