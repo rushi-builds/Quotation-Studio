@@ -18,7 +18,13 @@
     </script>
       <link rel="stylesheet" href="assets/css/dashboard.css?v=workspace7-ai5" />
       <link rel="stylesheet" href="assets/css/dashboard-pearl.css?v=workspace7-ai4" />
-  </head>
+        <link rel="stylesheet" href="assets/css/quote-summary.css" />
+      <link rel="stylesheet" href="assets/css/growth-hub.css" />
+      <link rel="stylesheet" href="assets/css/business-pulse.css" />
+      <link rel="stylesheet" href="assets/css/pulse-ui.css" />
+      <link rel="stylesheet" href="assets/css/pulse-polish.css" />
+      <link rel="stylesheet" href="assets/css/pulse-governance.css" />
+</head>
   <body>
     <div id="authScreen" class="splash">
       <div class="splash-card">
@@ -77,9 +83,9 @@
             ><button type="button" class="nav-item" data-panel="gallery">
               <span class="ico" aria-hidden="true">◇</span
               ><span class="label">Project gallery</span></button
-            ><button type="button" class="nav-item" data-panel="reports">
-              <span class="ico" aria-hidden="true">◇</span
-              ><span class="label">Analytics</span>
+            ><button type="button" class="nav-item" data-panel="sales">
+              <span class="ico" aria-hidden="true">↗</span
+              ><span class="label">Studio Pulse</span>
             </button>
           </details>
         </nav>
@@ -713,12 +719,20 @@
               </aside>
             </div>
           </section>
+          <section id="panel-sales" class="panel growth-hub bi-workspace" aria-labelledby="growthHeading">
+            <div class="page-heading"><div><span class="eyebrow">BUSINESS INTELLIGENCE &amp; OPERATIONS</span><h1 id="growthHeading">Studio Pulse</h1><p class="sub">Every channel. Every conversation. A clearer business picture.</p></div><div class="topbar-actions"><span class="gh-mode">Your Studio · connections later</span></div></div>
+            <div id="ghTabs" class="gh-tabs" role="tablist" aria-label="Business workspace"></div>
+            <div id="biControls"></div>
+            <div id="biBody" role="tabpanel" aria-labelledby="biTab-overview"></div>
+            <div id="ghStatus" class="gh-sr" role="status" aria-live="polite"></div>
+          </section>
           <section id="panel-reports" class="panel">
+            <button type="button" class="sales-back-link" id="analyticsBack" data-go-panel="proposals"> Back to quotations</button>
             <div class="page-heading">
               <div>
                 <span class="eyebrow">THE BIGGER PICTURE</span>
-                <h1>Business overview</h1>
-                <p class="sub">Real numbers from your saved work.</p>
+                <h1>Quotation analytics</h1>
+                <p class="sub">Pipeline, quoted value &amp; engagement.</p>
               </div>
               <div class="topbar-actions">
                 <button
@@ -1180,6 +1194,18 @@
     <script src="assets/js/assistant-actions.js?v=workspace7-ai4"></script>
     <script src="assets/js/assistant-chat.js?v=workspace7-ai4"></script>
     <script src="assets/js/dashboard-ui.js?v=workspace7-ai4"></script>
-  <script src="assets/js/oauth-ui.js?v=oauth1"></script>
+  <script src="assets/vendor/xlsx.mini.min.js"></script>
+      <script src="assets/js/pulse/quote-summary.js"></script>
+      <dialog id="ghDialog" class="gh-dialog" aria-labelledby="ghDialogTitle" aria-describedby="ghDialogSub"><div class="gh-dialog-head"><div><h2 id="ghDialogTitle"></h2><small id="ghDialogSub"></small></div><button type="button" class="gh-dialog-close" id="ghDialogClose" aria-label="Close growth dialog">×</button></div><div id="ghDialogBody" class="gh-dialog-body"></div></dialog>
+      <script src="assets/js/pulse/business-engine.js"></script>
+      <script src="assets/js/pulse/pulse-operations.js"></script>
+      <script src="assets/js/pulse/pulse-governance.js"></script>
+      <script src="assets/js/pulse/pulse-brand.js"></script>
+      <script src="assets/js/pulse/pulse-customer.js"></script>
+      <script src="assets/js/pulse/pulse-ui.js"></script>
+      <script src="assets/js/pulse/pulse-governance-ui.js"></script>
+      <script src="assets/js/pulse/pulse-data.js"></script>
+      <script src="assets/js/pulse/business-pulse.js"></script>
+      <script src="assets/js/oauth-ui.js?v=oauth1"></script>
 </body>
 </html>
