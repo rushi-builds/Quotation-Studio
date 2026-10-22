@@ -8,39 +8,32 @@ The four original panels are interactive with sample data. A sample response not
 
 Dashboard QA: **16 checks passed** — original four panels, sample quotation search, task completion, notifications mark-read, mobile navigation, zero API/external requests and browser errors. No credentials required to view sample data.
 
-## Growth Hub — current tracking-first business workspace
+## Studio Pulse — current business tracking & customer operations
 
-**The owner rejected the content editor/planner.** The active Dashboard now loads `business-engine.js`, `business-fixtures.js` and `business-pulse.js`; the previous `growth-hub.js` editor and its tests are historical, not active. No post editing, creative prompts, cover export or publishing planner is exposed.
+**Growth Hub is now Studio Pulse**, using the same sidebar/page-menu slot and compatible `?panel=growth` / `?panel=sales` routes. Seven contextual tabs: Overview, Action desk, Leads & pipeline, Performance, Communications, Automations, Connections. Studio owns the records; Sparrow/Bigin remain references only. No post editor, creative prompts or publishing planner is exposed.
 
-Studio owns the business records. Sparrow/Bigin were references only; nothing is read, written or connected in their accounts. Existing Growth Hub sidebar/page-menu slot and `?panel=growth` / `?panel=sales` routes retained. Contextual Quotations Analytics, summaries/comparison and rounded quotation search preserved.
+- Original reference-inspired daily/monthly/yearly activity charts, lead-source donut, follow-ups, activity, provider-separated analytics, coverage gaps, website acquisition rows and exports retained.
+- **Action desk:** priority deadlines/unanswered threads/ownership gaps/missing next steps/old records; owner/type filters, progressive list, direct customer/thread/task actions and actual CSV export.
+- **Customer 360:** combined CRM/messages/tasks/meetings/notes/outbox/control timeline, category filters, record editing, outreach pause, opt-out and staff-recorded channel-permission evidence. Missing timestamps, real visitor identity and verified permissions are not invented. Explicit repeat opportunities are supported.
+- **Automation control room:** Draft → Review → Approved → Active/Paused. Rule edits invalidate approval. Internal actions really create isolated tasks/notices; external activation stays locked. Message previews, bounded fields, schedules, immutable recipients, review/cancel, quiet hours, reply/closed/opt-out/pause stop gates, readiness blockers and control history. Configuration approval is never a send.
+- **Business results:** lead-created source cohorts and first-win outcomes through today, observed win share with maturity warning, measured response pairs/median elapsed interval. No invented revenue/payment/ROI.
+- **Workspace data:** real JSON backup download; optional local SQLite service with atomic persistence, CAS revision checks, append-only prior control history and a real 15-second internal worker. Safe backup restore only into a new empty sample database, resetting approvals/cancelling pending actions.
 
-- **Overview:** independent new-lead / issued-quotation / first-win event counts, monthly/daily/yearly chart with keyboard-accessible drilldown and series toggles, source donut → CRM filter, due/overdue follow-ups, recent activity and operation shortcuts. Events are counted by their own dates, not presented as a same-cohort conversion funnel. A stage edit does not issue a quotation or prove payment/installation.
-- **Leads & pipeline:** independent synthetic business history, seven stages, list/pipeline, search/source/stage filters, add/edit company/person/service/owner/contact details, duplicate guard, notes/history, future IST follow-ups, filtered formula-safe CSV. Consent is not inferred from a phone number, source or stage. First recorded wins remain historical events if a lead reopens.
-- **Performance:** Instagram views, LinkedIn impressions and website sessions stay separate. Date presets/custom/available history; daily/monthly/yearly groups; null gaps and measured-day coverage; actual business-history CSV export. Website source/medium rows reconcile to available sessions and retain unknowns. Read-only lifetime post snapshots are not report-period totals. Period-unique reach, visitor identities, ad spend/ROI and all-time backfill are not invented.
-- **Communications:** illustrative WhatsApp/Gmail/Outlook threads linked to Studio leads, provider/team-waiting filters, owners, escaped internal notes and handling markers; linked internal calendar/meetings with future IST validation. No sending, external read marking, email-open inference or invitations.
-- **Automations:** draft rule builder, trigger/source/conversation-channel/action/owner conditions, deterministic dry-run matching, stable deduplication keys, explicit disconnected-sender/permission blockers and simulation history. Today’s past-due task times count as overdue. No rule is activated and no simulated task/message/notification is executed.
-- **Connections:** eight separate disconnected preparations for Instagram, LinkedIn, Website, WhatsApp, Gmail, Outlook, Google Calendar and Outlook Calendar. Account-label/history/cadence preferences only. Sync disabled; no successful sync, data-through or scheduled run is fabricated. No secret/token/password fields.
+### Static vs persistent sample mode
 
-**Boundary:** functional isolated prototype with pure reporting/snapshot-validation/receipt-fold/readiness logic and local workflows. Fixtures are synthetic, not KTM results. All edits and setup drafts are memory-only and reset on reload. Provider adapters, OAuth, persistent Studio CRM/database wiring, webhook handlers, durable jobs and real auto-updates are **not implemented**. Unconnected mode shows unavailable measurements, not fake zero activity. Future provider access/history/retention differs by account and metric.
+**Vercel/static:** checked-in CSP still blocks connections and the original sandbox is untouched. Memory-only edits reset on reload; no backend/provider requests. Download a sample backup to retain edits.
 
-Current design, metric definitions, official provider research and the production integration contract: [tracking-research.md](tracking-research.md). Earlier editorial research is explicitly archived at [growth-research.md](growth-research.md).
+**Optional local SQLite:** `python3 concept-preview/pulse-server.py --db /home/user/studio-pulse-demo.sqlite3 --port 8090 --scheduler`. Database must remain outside Git. Browser uses a dedicated relative, same-origin sample endpoint, never the production `/api` rewrite. Edits survive reload; the local worker can execute approved internal rules. This anonymous sample server is **not** production authentication/tenant isolation; no real customer data or credentials should be put in it.
 
-### Current verification (21 October 2026)
+**Still absent:** provider adapters, OAuth/token vault, real mail/calendar/social/WhatsApp sync, secure live consent/template/window validation, production permission-scoped APIs and real message delivery. All eight external connections remain disconnected. No provider call, customer message or external invitation was made.
 
-**48 engine + 104 tracking-workspace browser + 58 quotation-summary + 16 native Dashboard = 226 checks PASS.** Browser suites report zero API/external requests or browser errors. Desktop, 390px, 768px and actual Dark screenshots reviewed. Checks include reconciliation, IST boundaries, partial coverage, nullable revisions, same-day overdue rules, channel conditions, rule simulation, real parsed CSV exports, injection/formula guards, forms, keyboard/focus/Escape, local reset, unconnected state, existing quotation summaries/Analytics/search and native Dashboard interactions. These results supersede the rejected editor’s historical 170-check count; they are not provider/API or production tests.
+Full design, schema/runtime boundaries, startup/restore instructions and test evidence: **[pulse-implementation.md](pulse-implementation.md)**. Official provider research: [tracking-research.md](tracking-research.md). Prior editorial research is archived at [growth-research.md](growth-research.md).
 
-Run:
+### Current verification — 22 October 2026
 
-```sh
-node concept-preview/business-engine-test.cjs
-node concept-preview/business-pulse-test.cjs
-node concept-preview/quote-summary-test.cjs
-node concept-preview/dashboard-test.cjs
-```
+**421 PASS:** 48 reporting engine + 66 operations/safety + 49 SQLite/HTTP/worker/restore + 80 new UI/durable-browser/background/conflict-recovery + 104 business-workspace + 58 quotation-summary + 16 native Dashboard. Static browser suites observed zero production-API/external requests and browser errors. Local-mode tests exercise only the isolated endpoint. Desktop/390px/768px/actual Dark, timeline, action desk, control room, outbox, results and persistent-worker screenshots reviewed. These are not production/provider/auth/load tests.
 
-Browser tests use Playwright and the existing Chromium runtime conventions (see each script). Serve the repository on port 8080, bound to `0.0.0.0`. In this workspace, dependencies are external to Git at `/home/user/qs-preview-tools/node_modules`; Chromium uses `/tmp/chromium` with `/tmp/qs-al2023/lib`. Browser evidence is outside Git at `/home/user/qs-business-evidence`.
-
-Finance/CloudBridge/BESS/app.css hashes and the unrelated tracked patch remain unchanged from the preservation baseline. Only `concept-preview/` files are published. Review/merge/deploy remain separate approvals; preview publication is not production approval.
+Existing summaries/comparison/contextual Analytics/pill search remain intact. Finance/CloudBridge/BESS/app.css/sandbox hashes and the unrelated tracked patch match the preservation baseline. Only concept-preview files are published; no merge/manual production deployment performed. Separate review → merge approval → parity → correct owner production connection/deploy remains required.
 
 ## Superseded prototype: contextual Analytics + Sales & Marketing
 

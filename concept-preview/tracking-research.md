@@ -1,3 +1,5 @@
+> **22 October update:** Growth Hub is now **Studio Pulse**. Customer 360, action desk, approval/outbox controls, cohort results, safe backups and an optional isolated local SQLite/internal-worker runtime are implemented. The older memory-only/backend-absent statements below describe the prior static tracking build; static Vercel still has those boundaries. Current details and 421-check verification: [pulse-implementation.md](pulse-implementation.md). Actual external provider/OAuth/production integrations remain absent.
+
 # Studio business tracking — implementation and integration boundary
 
 Date: 21 October 2026. Scope: an isolated, disposable Dashboard preview. Studio is the master system; Sparrow and Bigin were reference products, not integration targets. The owner asked for tracking and business operations, not another Instagram/LinkedIn editor. External connections are deferred.
