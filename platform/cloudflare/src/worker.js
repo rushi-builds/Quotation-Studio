@@ -331,7 +331,7 @@ function rolesIssues(env) {
   const o = ownerEmail(env), a = adminEmail(env);
   if (o && !EMAIL_SHAPE.test(o)) issues.push('OWNER_EMAIL is set but is not a valid email address, so the workspace owner bootstrap cannot match any account');
   if (a && !EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address, so the designated admin login cannot match any account');
-  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox, so the ADMIN_EMAIL designation is redundant: the bootstrap already makes that account a visible Owner. Set ADMIN_EMAIL to the personal mailbox and OWNER_EMAIL to the company mailbox.');
+  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox, so the ADMIN_EMAIL designation is redundant: the same mailbox is both designations, and the sign-in lockout backstop restores it to Owner whenever no team manager would remain');
   return issues;
 }
 /* Typed title wins over the power word. Power is decided by permissionRole,
@@ -518,15 +518,16 @@ function isHiddenAdmin(user, env) {
   return normalizeEmail(user.email) === designated;
 }
 /* P1 — the case where the two designated emails collide. With
-   ADMIN_EMAIL == OWNER_EMAIL both variables aim at the SAME row: the bootstrap
-   promotes that account to owner (preserving any display title), which makes the
-   ADMIN_EMAIL designation redundant rather than harmful — the account is
-   already a visible Owner, and it may still elevate itself.
+ADMIN_EMAIL == OWNER_EMAIL both variables aim at the SAME row: the lockout
+backstop restores that account to owner (preserving any display title)
+whenever no team manager would remain, which makes the ADMIN_EMAIL
+designation redundant rather than harmful — the account can still elevate
+itself either way.
 
-   Nothing oscillates, because the bootstrap is the only automatic role
-   transition left in the product. This exists purely so /api/health can report
-   what is almost certainly a deploy-time mistake. With two different mailboxes
-   this is false. */
+Saved roles persist exactly as written; the backstop is the only automatic
+role transition left in the product. This exists purely so /api/health can
+report what is almost certainly a deploy-time mistake. With two different
+mailboxes this is false. */
 function adminOwnerConflict(env) {
   const a = adminEmail(env), o = ownerEmail(env);
   return !!a && a === o;
@@ -977,24 +978,30 @@ async function requireUser(request, db, env) {
   if (user) await applyOwnerBootstrap(db, env, user);
   return user;
 }
-/* Bootstrap owner: the deployed workspace designates one login email via the
-   OWNER_EMAIL variable. That account is promoted to owner (persisted) on any
-   authenticated request. One-way: removing the variable does not demote.
+/* Bootstrap owner LOCKOUT BACKSTOP: the deployed workspace designates one
+login email via the OWNER_EMAIL variable. Roles persist EXACTLY as saved -
+owner direction, 2026-10-22: a demoted or re-titled row is never rewritten
+automatically, so "what an owner saved stays saved" everywhere.
 
-   UNCONDITIONAL — no role_custom / typed-title gate. The company mailbox must
-   become the visible Owner even if that row signed up with a typed title, so
-   nothing here may refuse to promote it.
-
-   This is the ONLY automatic role transition in the product. The ADMIN_EMAIL
-   row is deliberately left exactly as it is stored — see the note above
-   applyOwnerBootstrap. */
+The only automatic role transition left is this: when a sign-in from the
+designated mailbox arrives while the workspace has NO row with
+owner-or-elevated power (no owner role, no is_admin = 1), that sign-in
+restores the mailbox to Owner (persisted, title preserved) so nobody can
+be locked out of team management. One-way: removing the variable does not
+demote. */
 async function ensureBootstrapOwner(db, env, user) {
   const designated = ownerEmail(env);
   if (!designated || !user || user.role === 'owner') return;
   if (normalizeEmail(user.email) !== designated) return;
+  /* LOCKOUT BACKSTOP only: a saved role is never rewritten. Promote
+  solely when NOTHING in the workspace can manage the team any more - no
+  owner role and no elevated (is_admin = 1) row. Otherwise the saved role
+  stands as-is, so an owner-demoted sales row really stays sales. */
+  const capable = await one(db, "SELECT COUNT(*) AS n FROM users WHERE role = 'owner' OR is_admin = 1");
+  if (Number((capable && capable.n) || 0) > 0) return;
   /* Promote the ROLE only. role_custom is deliberately PRESERVED, not wiped:
      an owner may carry a display title (powers = Owner, chip = "Director"), and
-     the unconditional bootstrap must not erase it on the next request. Display
+     the backstop must not erase it on the next request. Display
      is title-first, so the chip reads the title while the power badge reads
      Owner. */
   await run(
@@ -3538,12 +3545,12 @@ async function handleApi(request, env, url, ctx) {
       }
       if (parsed.error) return json({ error: parsed.error }, 400);
 
-      /* Self-demotion. Allowed whenever a backstop exists: the OWNER_EMAIL
-         bootstrap always restores the company owner, so the workspace can never
-         be left without one. The designated admin and any elevated row are
-         exempt (their reach is not in this column). Only when there is no
-         OWNER_EMAIL backstop AND no other owner do we refuse, to avoid a genuine
-         lockout. */
+      /* /* Self-demotion. Allowed whenever a backstop exists: the OWNER_EMAIL
+lockout backstop restores the company owner whenever no team manager
+would remain, so the workspace can never be left without one. The
+designated admin and any elevated row are exempt (their reach is not in
+this column). Only when there is no OWNER_EMAIL backstop AND no other
+owner do we refuse, to avoid a genuine lockout. */
       if (target.id === user.id && parsed.role !== 'owner' && !actorIsAdmin && !targetElevated) {
         if (!ownerEmail(env)) {
           const otherOwners = await all(db, "SELECT id FROM users WHERE id != ? AND role = 'owner'", user.id);
@@ -3574,11 +3581,11 @@ async function handleApi(request, env, url, ctx) {
       }
       target.role = parsed.role;
       target.role_custom = parsed.roleCustom;
-      /* Honest note, not a block: the OWNER_EMAIL bootstrap is unconditional, so
-         a demotion of that mailbox is restored (role only, title kept) next. */
-      const note = normalizeEmail(target.email) === ownerEmail(env) && parsed.role !== 'owner'
-        ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in (its display title is kept). To make the change stick, remove or change OWNER_EMAIL in the Worker variables.'
-        : null;
+      /* Honest note, not a block: the saved role STICKS everywhere now; the
+  lockout backstop can restore owner only if no team manager would remain. */
+  const note = normalizeEmail(target.email) === ownerEmail(env) && parsed.role !== 'owner'
+    ? 'Saved. The saved role now sticks for every mailbox. One safety exception: if this workspace is ever left with no owner and no elevated account, the OWNER_EMAIL mailbox is restored on its next sign-in so nobody is locked out of team management.'
+    : null;
       /* This route is owner / designated-admin gated, so the returned row keeps
          its sign-in times and never drifts from the team list's shape. */
       const outMember = (target.id === user.id) ? selfMemberPayload(target, env) : memberPayload(target, env, undefined, { signin: true });

@@ -191,7 +191,7 @@ for (const [label, src] of BOTH) {
     !/role_custom = 'Founder'/.test(src) && !/role_custom = ''/.test(src));
   const boot = fn(src, 'applyOwnerBootstrap', ['createSession', 'requireUser', 'revokeUserSessions']);
   t(label + ': applyOwnerBootstrap only promotes the OWNER_EMAIL row',
-    /ensureBootstrapOwner\(db, env, user\);|return applyBootstrapOwner\(user\);/.test(boot) && boot.split('\n').length < 12,
+    /ensureBootstrapOwner\(db, env, user\);|return applyBootstrapOwner\(user(, db)?\);/.test(boot) && boot.split('\n').length < 12,
     boot.slice(0, 220));
   t(label + ': the removal is documented in the source so it is not "fixed" back in',
     /deliberately NO automatic demotion/.test(src));
@@ -201,7 +201,7 @@ for (const [label, src] of BOTH) {
   t(label + ': adminOwnerConflict survives as a config diagnostic', /function adminOwnerConflict/.test(src));
 }
 
-/* ---------- 4. C2: the owner bootstrap is unconditional ---------- */
+/* ---------- 4. C2: the owner bootstrap is a lockout backstop ---------- */
 const bootW = fn(worker, 'ensureBootstrapOwner', ['healAdminRow']);
 const bootS = fn(server, 'applyBootstrapOwner', ['healAdminRow']);
 t('C2 worker: bootstrap matches on OWNER_EMAIL', /ownerEmail\(env\)/.test(bootW));
@@ -210,10 +210,14 @@ t('C2 worker: bootstrap PRESERVES the title on promotion (no role_custom = NULL)
   !/role_custom = NULL/.test(bootW) && /SET role = \?, updated_at = \?/.test(bootW));
 t('C2 server: bootstrap has NO typed-title gate', !/if \(user\.role_custom\)/.test(bootS) && !/role_custom\) return/.test(bootS));
 t('C2 server: bootstrap PRESERVES the title (no role_custom = null)', !/role_custom = null/.test(bootS));
+  t('C2b worker: the bootstrap promotes ONLY as a lockout backstop (fires only when zero owner/elevated rows remain)',
+    /WHERE role = 'owner' OR is_admin = 1/.test(bootW));
+  t('C2b server: the bootstrap promotes ONLY as a lockout backstop',
+    /Number\(u\.is_admin\) === 1/.test(bootS) && /u\.role === 'owner' \|\| Number\(u\.is_admin\) === 1/.test(bootS));
 t('worker: the bootstrap is the only transition applyOwnerBootstrap performs',
   /async function applyOwnerBootstrap\(db, env, user\) \{\s*\n\s*await ensureBootstrapOwner\(db, env, user\);\s*\n\s*\}/.test(worker));
 t('server: the bootstrap is the only transition applyOwnerBootstrap performs',
-  /function applyOwnerBootstrap\(user\) \{\s*\n\s*return applyBootstrapOwner\(user\);\s*\n\s*\}/.test(server));
+  /function applyOwnerBootstrap\(user, db\) \{\s*\n\s*return applyBootstrapOwner\(user, db\);\s*\n\s*\}/.test(server));
 
 /* ---------- 5. setTeamRole: the elevation path, identical in both ---------- */
 for (const [label, src] of BOTH) {

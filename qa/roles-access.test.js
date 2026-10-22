@@ -8,14 +8,15 @@
 
    The model under test:
 
-     OWNER_EMAIL  the company mailbox. Promoted to owner unconditionally on
-                  every request, so it is always the visible Owner.
+     OWNER_EMAIL  the company mailbox. Its SAVED role sticks everywhere; it is
+restored to Owner by sign-in only as a LOCKOUT BACKSTOP, when the
+workspace would otherwise be left with no owner and no elevated account.
      ADMIN_EMAIL  a personal mailbox that MAY elevate. Its stored row is left
                   EXACTLY as it is - nothing demotes or retitles it
                   automatically - and reach comes from ADMIN_EMAIL, and
                   permanently from the stored is_admin flag once it elevates
-                  itself. The OWNER_EMAIL bootstrap is the only automatic role
-                  transition left in the product.
+                  itself. The OWNER_EMAIL lockout backstop is the only automatic role
+transition left in the product.
      is_admin     stored elevation. Outranks owner. Changes no display field.
 
    Deliberately NOT covered here: Firebase / phone auth (untouched by this
@@ -218,14 +219,20 @@ async function main() {
     t('an elevated row keeps its stored role across further requests', readRow(ADMIN).role === 'owner' && readRow(ADMIN).is_admin === 1,
       readRow(ADMIN).role + '/' + JSON.stringify(readRow(ADMIN).is_admin));
 
-    /* ---- item 4 EXTRA: elevated outranks owner, so an admin can edit owners ---- */
-    const ownerReg = await register(PORT, OWNER, 'KTM Energy', 'Project lead');
-    const ownerSess = await login(PORT, OWNER);
-    r = await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'custom', roleCustom: 'Operations' }, adminSess.token);
-    t('more than owner: an elevated actor CAN change the bootstrap owner row', r.status === 200 && r.json.member.roleCustom === 'Operations',
-      r.status + ' ' + JSON.stringify(r.json).slice(0, 200));
-    await login(PORT, OWNER);
-    t('...and the unconditional bootstrap puts OWNER_EMAIL straight back', readRow(OWNER).role === 'owner', readRow(OWNER).role);
+    /* ---- item 4 EXTRA: elevated outranks owner, so an admin can edit the designated row ---- */
+const ownerReg = await register(PORT, OWNER, 'KTM Energy', 'Project lead');
+t('owner-directed model: designated signup is NOT force-promoted (parsed role + kept title)',
+  ownerReg.user.role === 'viewer' && ownerReg.user.roleCustom === 'Project lead',
+  ownerReg.user.role + '/' + String(ownerReg.user.roleCustom));
+const ownerSess = await login(PORT, OWNER);
+r = await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'owner', roleCustom: 'Operations' }, adminSess.token);
+t('more than owner: an elevated actor CAN edit the designated row (title-preserved owner promotion)',
+  r.status === 200 && r.json.member.roleCustom === 'Operations' && r.json.member.power === 'owner',
+  r.status + ' ' + JSON.stringify(r.json).slice(0, 200));
+await login(PORT, OWNER);
+t('...and the SAVED promotion sticks on sign-in: a real owner the workspace itself holds',
+  readRow(OWNER).role === 'owner' && readRow(OWNER).role_custom === 'Operations',
+  readRow(OWNER).role + '/' + String(readRow(OWNER).role_custom));
 
     /* ---- item 4: an owner who is NOT the designated admin cannot touch it ---- */
     r = await req(PORT, 'POST', '/api/team/role', { userId: adminReg.user.id, role: 'viewer' }, ownerSess.token);
@@ -252,11 +259,11 @@ async function main() {
     t('a non-admin owner typing "admin" on another row sets a harmless custom title (200, sales power)',
       r.status === 200 && r.json.member.power === 'sales' && r.json.member.roleCustom === 'admin', r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
     t('...and it did NOT elevate that row', readRow(SALES).is_admin === 0, JSON.stringify(readRow(SALES).is_admin));
-    await req(PORT, 'POST', '/api/team/role', { userId: salesReg.user.id, role: 'owner' }, ownerSess.token); /* restore */
+    await req(PORT, 'POST', '/api/team/role', { userId: salesReg.user.id, role: 'owner' }, adminSess.token); /* restore (elevated actor: after the saved change the row itself no longer carries owner power) */
 
     r = await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'custom', roleCustom: 'admin' }, ownerSess.token);
     t('the OWNER_EMAIL row is not elevated by typing "admin" either (is_admin stays 0)', readRow(OWNER).is_admin === 0, JSON.stringify(readRow(OWNER).is_admin));
-    await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'owner', roleCustom: '' }, ownerSess.token); /* restore */
+    await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'owner', roleCustom: '' }, adminSess.token); /* restore (elevated actor: after the saved change the row itself no longer carries owner power) */
 
     r = await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'custom', roleCustom: 'admin' }, adminSess.token);
     t('the designated admin cannot elevate ANOTHER row (self-only)', r.status === 403 && r.json.code === 'ELEVATION_NOT_SELF', r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
@@ -274,7 +281,7 @@ async function main() {
       r.status === 200 && r.json.member.power === 'sales' && r.json.member.roleCustom === 'Admin',
       r.status + ' ' + JSON.stringify(r.json).slice(0, 160));
     t('...as a role change only - the row did NOT elevate', readRow(OWNER).is_admin === 0, JSON.stringify(readRow(OWNER).is_admin));
-    await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'owner', roleCustom: '' }, ownerSess.token); /* restore */
+    await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'owner', roleCustom: '' }, adminSess.token); /* restore (elevated actor: after the saved change the row itself no longer carries owner power) */
 
     const memberSess = await login(PORT, MEMBER);
     r = await req(PORT, 'POST', '/api/team/role', { userId: memberReg.user.id, role: 'custom', roleCustom: 'admin' }, memberSess.token);
@@ -492,20 +499,18 @@ async function main() {
     r = await req(PORT, 'POST', '/api/proposals', { title: 'nope' }, viewerSess.token);
     t('viewer cannot create', r.status === 403, r.status);
 
-    /* ---- C2 honesty: demoting the OWNER_EMAIL mailbox is restored ---- */
-    r = await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'sales' }, adminSess.token);
-    t('demoting the OWNER_EMAIL row returns an honest note', r.status === 200 && typeof r.json.note === 'string' && r.json.note.length > 0, JSON.stringify(r.json).slice(0, 200));
-    await login(PORT, OWNER);
-    t('OWNER_EMAIL row is restored to owner on its next sign-in (unconditional bootstrap)', readRow(OWNER).role === 'owner');
-
-    /* ---- C2: the bootstrap is unconditional and runs on register ---- */
-    t('C2 bootstrap: OWNER_EMAIL was owner immediately after signup', ownerReg.user.role === 'owner', ownerReg.user.role);
-    t('C2 bootstrap: signup PRESERVED the typed title (no NULL-wipe)', ownerReg.user.roleCustom === 'Project lead', String(ownerReg.user.roleCustom));
-    const ownerMe = await req(PORT, 'GET', '/api/auth/me', null, (await login(PORT, OWNER)).token);
-    t('visible owner label is Owner', ownerMe.json.user.roleLabel === 'Owner', ownerMe.json.user.roleLabel);
-    t('visible owner canManageTeam', ownerMe.json.user.canManageTeam === true);
-    t('a visible owner is NOT told it can elevate', ownerMe.json.user.canElevate === false, JSON.stringify(ownerMe.json.user.canElevate));
-    t('a visible owner row is not elevated', ownerMe.json.user.isAdmin === false, JSON.stringify(ownerMe.json.user.isAdmin));
+    /* ---- C2 honesty: the designated mailbox's SAVED role now sticks ---- */
+r = await req(PORT, 'POST', '/api/team/role', { userId: ownerReg.user.id, role: 'sales' }, adminSess.token);
+t('demoting the designated mailbox returns the honest stick-note', r.status === 200 && typeof r.json.note === 'string' && /sticks/.test(r.json.note), JSON.stringify(r.json).slice(0, 240));
+await login(PORT, OWNER);
+t('the SAVED sales role persists on the designated mailbox across sign-ins', readRow(OWNER).role === 'sales', readRow(OWNER).role);
+/* ---- C2 backstop: signup never force-promotes; the typed title survived every write ---- */
+t('C2 backstop: the typed signup title made it through unchanged', ownerReg.user.roleCustom === 'Project lead', String(ownerReg.user.roleCustom));
+const ownerMe = await req(PORT, 'GET', '/api/auth/me', null, (await login(PORT, OWNER)).token);
+t('saved Sales displays as Sales', ownerMe.json.user.roleLabel === 'Sales', ownerMe.json.user.roleLabel);
+t('powers follow the saved role (Sales: write yes, team-manage no)', ownerMe.json.user.canWrite === true && ownerMe.json.user.canManageTeam === false, JSON.stringify(ownerMe.json.user.canManageTeam));
+t('a demoted designated owner is NOT told it can elevate', ownerMe.json.user.canElevate === false, JSON.stringify(ownerMe.json.user.canElevate));
+t('a demoted designated owner row is not elevated', ownerMe.json.user.isAdmin === false, JSON.stringify(ownerMe.json.user.isAdmin));
 
     /* ---- P1 guard: ADMIN_EMAIL == OWNER_EMAIL -> bootstrap wins, no oscillation ---- */
     const PORT2 = PORT + 400;

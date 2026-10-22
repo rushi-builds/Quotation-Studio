@@ -1237,7 +1237,7 @@ function rolesIssues() {
   const o = ownerEmail(env), a = adminEmail(env);
   if (o && !EMAIL_SHAPE.test(o)) issues.push('OWNER_EMAIL is set but is not a valid email address, so the workspace owner bootstrap cannot match any account');
   if (a && !EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address, so the designated admin login cannot match any account');
-  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox, so the ADMIN_EMAIL designation is redundant: the bootstrap already makes that account a visible Owner. Set ADMIN_EMAIL to the personal mailbox and OWNER_EMAIL to the company mailbox.');
+  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox, so the ADMIN_EMAIL designation is redundant: the same mailbox is both designations, and the sign-in lockout backstop restores it to Owner whenever no team manager would remain');
   return issues;
 }
 /* Typed title wins over the power word — parity with the Cloudflare worker.
@@ -1420,9 +1420,10 @@ function isHiddenAdmin(user) {
   return normalizeEmail(user.email) === designated;
 }
 /* P1: both variables naming one mailbox makes the ADMIN_EMAIL designation
-   redundant — the bootstrap already makes that account a visible Owner, and
-   nothing oscillates because the bootstrap is the only automatic role
-   transition left. Reported by /api/health as a likely deploy-time mistake. */
+redundant — the sign-in lockout backstop restores that account to Owner
+(preserving any display title) whenever no team manager would remain, and
+saved roles persist exactly as written in between. Reported by /api/health
+as a likely deploy-time mistake. */
 function adminOwnerConflict() {
   const a = adminEmail(), o = ownerEmail();
   return !!a && a === o;
@@ -1520,20 +1521,24 @@ function sessionTokenFrom(req) {
   return cookies[COOKIE] || cookies['qs_client'] || null;
 }
 /* Bootstrap owner (local parity with worker): OWNER_EMAIL designates one login
-   email; that account is promoted to owner (persisted). One-way.
-   UNCONDITIONAL — no typed-title gate, so the company mailbox becomes the
-   visible Owner even if it signed up with a title.
-
-   This is the ONLY automatic role transition in the product; the ADMIN_EMAIL
-   row is deliberately left exactly as it is stored — see the note above
-   applyOwnerBootstrap. */
-function applyBootstrapOwner(user) {
+email. Roles persist EXACTLY as saved - owner direction, 2026-10-22: a
+demoted or re-titled row is never rewritten automatically. The ONLY
+automatic transition left is the lockout backstop: when a sign-in from the
+designated mailbox arrives while no row holds owner-or-elevated power, that
+sign-in restores the mailbox to Owner (persisted, title preserved) so
+nobody can be locked out of team management. */
+function applyBootstrapOwner(user, db) {
   const designated = ownerEmail();
   if (!designated || !user || user.role === 'owner') return false;
   if (normalizeEmail(user.email) !== designated) return false;
+  /* LOCKOUT BACKSTOP only: a saved role is never rewritten. Promote
+  solely when NOTHING can manage the team any more - no owner role and no
+  elevated (is_admin = 1) row. Otherwise the saved role stands as-is. */
+  const capable = ((db && db.users) || []).some((u) => u.role === 'owner' || Number(u.is_admin) === 1);
+  if (capable) return false;
   /* Promote the ROLE only; role_custom is PRESERVED so an owner can carry a
-     display title (powers = Owner, chip = the title) without the unconditional
-     bootstrap erasing it on the next request. */
+  display title (powers = Owner, chip = the title) without the backstop
+  erasing it. */
   user.role = 'owner';
   user.updated_at = nowISO();
   return true;
@@ -1559,8 +1564,8 @@ function applyBootstrapOwner(user) {
 /* Kept as a thin wrapper so the three call sites (requireUser, login,
    register) read as one named transition. Returns true when it mutated the row
    so the caller can persist. */
-function applyOwnerBootstrap(user) {
-  return applyBootstrapOwner(user);
+function applyOwnerBootstrap(user, db) {
+  return applyBootstrapOwner(user, db);
 }
 function requireUser(req, db) {
   scrubExpiredSessions(db);
@@ -1570,7 +1575,7 @@ function requireUser(req, db) {
   if (!session) return null;
   if (Date.parse(session.expires_at) <= Date.now()) return null;
   const user = (db.users || []).find((u) => u.id === session.user_id);
-  if (user && applyOwnerBootstrap(user)) saveDb(db);
+  if (user && applyOwnerBootstrap(user, db)) saveDb(db);
   return user || null;
 }
 function createSession(db, user, ttlMs) {
@@ -1830,7 +1835,7 @@ async function handleApi(req, res, url) {
         updated_at: nowISO()
       };
       db.users.push(user);
-      applyOwnerBootstrap(user);
+      applyOwnerBootstrap(user, db);
       authThrottleSuccess(email);
       /* Create Account offers no "Remember me" control, so a fresh sign-up gets
          the secure default: a session cookie plus the 12-hour server cap. */
@@ -1863,7 +1868,7 @@ async function handleApi(req, res, url) {
         authThrottleFail(req, email);
         return sendJson(res, 401, { error: LOGIN_FAILED });
       }
-      applyOwnerBootstrap(user);
+      applyOwnerBootstrap(user, db);
       authThrottleSuccess(email);
       const ttlMs = remember ? SESSION_DAYS * 864e5 : SESSION_HOURS_SHORT * 3600 * 1000;
       const sess = createSession(db, user, ttlMs);
@@ -3378,9 +3383,12 @@ async function handleApi(req, res, url) {
       }
       if (parsed.error) return sendJson(res, 400, { error: parsed.error });
 
-      /* Self-demotion allowed whenever the OWNER_EMAIL backstop exists (it
-         always restores the company owner), or another owner exists. Designated
-         admin and elevated rows are exempt. */
+      /* /* Self-demotion. Allowed whenever a backstop exists: the OWNER_EMAIL
+lockout backstop restores the company owner whenever no team manager
+would remain, so the workspace can never be left without one. The
+designated admin and any elevated row are exempt (their reach is not in
+this column). Only when there is no OWNER_EMAIL designation AND no other
+owner do we refuse, to avoid a genuine lockout. */
       if (target.id === user.id && parsed.role !== 'owner' && !actorIsAdmin && !targetElevated) {
         if (!ownerEmail()) {
           const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
@@ -3400,8 +3408,8 @@ async function handleApi(req, res, url) {
       target.updated_at = nowISO();
       saveDb(db);
       const note = normalizeEmail(target.email) === ownerEmail() && parsed.role !== 'owner'
-        ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in (its display title is kept). To make this change stick, remove or change OWNER_EMAIL in the server environment.'
-        : null;
+  ? 'Saved. The saved role now sticks for every mailbox. One safety exception: if this workspace is ever left with no owner and no elevated account, the OWNER_EMAIL mailbox is restored on its next sign-in so nobody is locked out of team management.'
+  : null;
       /* This route is owner / designated-admin gated, so the returned row keeps
          its sign-in times and never drifts from the team list's shape. */
       const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target, undefined, { signin: true });
