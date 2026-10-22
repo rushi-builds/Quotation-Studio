@@ -4,7 +4,7 @@
   const O = PulseOperations, E = BusinessEngine;
   let ctx, deskKind = 'All', deskOwner = 'All', outboxFilter = 'All', controlTab = 'rules', deskLimit = 25;
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const button = (action, label, id = '', kind = 'secondary', attrs = '') => '<button type="button" class="gh-' + kind + '" data-pulse-action="' + action + '" data-id="' + h(id) + '" ' + attrs + '>' + label + '</button>';
+  const button = (action, label, id = '', kind = 'secondary', attrs = '') => '<button type="button" class="gh-' + kind + '" data-pulse-action="' + action + '" data-id="' + h(id) + '" ' + attrs + '>' + PulseBrand.buttonLabel(action,label) + '</button>';
   const heading = (name, sub, right = '') => '<div class="gh-head"><div><h2>' + h(name) + '</h2><small>' + h(sub) + '</small></div>' + right + '</div>';
   const pill = (text, kind = '') => '<span class="gh-pill ' + kind + '">' + h(text) + '</span>';
   const field = (label, html, full = false) => '<label class="gh-field ' + (full ? 'full' : '') + '"><span>' + h(label) + '</span>' + html + '</label>';
@@ -15,7 +15,7 @@
   function commit(message) { ctx.render(); if (message) ctx.announce(message); }
   function timeline(lead) {
     const data = activeData(), rows = O.timeline(data, lead.id), now = Date.now();
-    return '<section class="pulse-customer"><div class="pulse-section-title"><div><span class="gh-eyebrow">ONE CUSTOMER · ONE TIMELINE</span><h3>Customer 360</h3></div>' + '<div class="gh-actions">' + button('edit-record', 'Edit record ↓', lead.id) + button('compose', '+ Draft follow-up', lead.id) + '</div></div><div class="pulse-customer-flags">' + pill(lead.outreachPaused ? 'Outreach paused' : 'Outreach not paused') + pill(lead.optedOut ? 'Opted out · no outreach' : 'Channel permission checked separately') + '</div><div class="gh-actions">' + button('pause-customer', lead.outreachPaused ? 'Resume for fresh review' : 'Pause all outreach', lead.id) + button('optout-customer', lead.optedOut ? 'Record re-consent review' : 'Record opt-out', lead.id) + button('permission', 'Permission evidence', lead.id) + '</div><div class="pulse-timeline-filters" role="group" aria-label="Timeline category">' + ['All', 'CRM', 'Task', 'Meeting', 'WhatsApp', 'Gmail', 'Outlook', 'Note', 'Control', 'Outbox'].map(type => button('timeline-filter', type, type, 'text', 'aria-pressed="' + (type === 'All') + '"')).join('') + '</div><ol class="pulse-timeline">' + rows.map(row => '<li data-pulse-kind="' + h(row.kind) + '"><i class="pulse-timeline-dot"></i><div><div class="pulse-timeline-meta">' + pill(row.kind) + '<time>' + (row.dateOnly ? h(row.when) + ' · date only' : when(row.when)) + '</time>' + (row.when && Date.parse(row.when) > now ? pill('Upcoming') : '') + '</div><strong>' + h(row.label) + '</strong><p>' + h(row.detail) + '</p></div></li>').join('') + '</ol></section>';
+    return '<section class="pulse-customer"><div class="pulse-section-title"><div><span class="gh-eyebrow">ONE CUSTOMER · ONE TIMELINE</span><h3>Customer 360</h3></div>' + '<div class="gh-actions">' + button('edit-record', 'Edit record ↓', lead.id) + button('compose', '+ Draft follow-up', lead.id) + '</div></div><div class="pulse-customer-flags">' + pill(lead.outreachPaused ? 'Outreach paused' : 'Outreach not paused') + pill(lead.optedOut ? 'Opted out · no outreach' : 'Channel permission checked separately') + '</div><div class="gh-actions">' + button('pause-customer', lead.outreachPaused ? 'Resume for fresh review' : 'Pause all outreach', lead.id) + button('optout-customer', lead.optedOut ? 'Record re-consent review' : 'Record opt-out', lead.id) + button('permission', 'Permission evidence', lead.id) + '</div><div class="pulse-timeline-filters" role="group" aria-label="Timeline category">' + ['All', 'CRM', 'Task', 'Meeting', 'WhatsApp', 'Gmail', 'Outlook', 'Note', 'Control', 'Outbox'].map(type => button('timeline-filter', type, type, 'text', 'aria-pressed="' + (type === 'All') + '"')).join('') + '</div><ol class="pulse-timeline">' + rows.map(row => '<li data-pulse-kind="' + h(row.kind) + '"><i class="pulse-timeline-dot"></i><div><div class="pulse-timeline-meta">' + PulseBrand.badge(row.kind,'mini') + pill(row.kind) + '<time>' + (row.dateOnly ? h(row.when) + ' · date only' : when(row.when)) + '</time>' + (row.when && Date.parse(row.when) > now ? pill('Upcoming') : '') + '</div><strong>' + h(row.label) + '</strong><p>' + h(row.detail) + '</p></div></li>').join('') + '</ol></section>';
   }
   function desk() {
     const data = activeData(), rows = O.desk(data, Date.now()), filtered = rows.filter(r => (deskKind === 'All' || r.kind === deskKind) && (deskOwner === 'All' || r.owner === deskOwner)), visible = filtered.slice(0,deskLimit);
@@ -72,7 +72,8 @@
         if (action === 'open-desk') ctx.show('desk');
         if (action === 'desk-filter') { deskKind = id; deskLimit=25;desk(); }
         if(action==='desk-more'){deskLimit+=25;desk();}
-        if(action==='edit-record'){document.getElementById('biLeadForm')?.scrollIntoView({block:'start'});document.querySelector('#biLeadForm input')?.focus();}
+        if(action==='edit-record'){PulseCustomer.select('details',true);}
+        if(action==='customer-section')PulseCustomer.select(id);
         if (action === 'customer') ctx.leadDialog(id);
         if (action === 'conversation') ctx.threadDialog(id);
         if (action === 'plan-task') ctx.eventForm('task', id);
@@ -139,5 +140,5 @@
       } catch (error) { const el = document.getElementById('pulseError'); if (el) el.textContent = error.message; else ctx.announce(error.message); }
     });
   }
-  window.PulseUI = Object.freeze({ mount, desk, room, timeline, overviewStrip, results, storageCard });
+  window.PulseUI = Object.freeze({ mount, desk, room, timeline, overviewStrip, results, storageCard, organizeCustomer:lead=>PulseCustomer.organize(ctx,lead) });
 })();

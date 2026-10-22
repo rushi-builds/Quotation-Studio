@@ -19,6 +19,12 @@ Dashboard QA: **16 checks passed** — original four panels, sample quotation se
 - **Business results:** lead-created source cohorts and first-win outcomes through today, observed win share with maturity warning, measured response pairs/median elapsed interval. No invented revenue/payment/ROI.
 - **Workspace data:** real JSON backup download; optional local SQLite service with atomic persistence, CAS revision checks, append-only prior control history and a real 15-second internal worker. Safe backup restore only into a new empty sample database, resetting approvals/cancelling pending actions.
 
+### Visual polish — current
+
+Colourful local channel marks (Instagram, LinkedIn, WhatsApp, Gmail, Outlook and calendars), restrained teal primary actions, consistent line icons, readable typography, semantic stage/status accents and visible keyboard focus. Brand colour never implies a verified account. Assets are pinned MIT-licensed SuperTinyIcons representations; attribution/trademark boundary in [brand-icons/README.md](brand-icons/README.md), not a claim of official endorsement.
+
+Customer 360 now has a compact stage/owner/next-step/last-conversation summary and keyboard-accessible **Timeline / Details / Tasks / Conversations** panels. Tasks can be completed within the customer panel, with a real internal audit event and preserved Tasks context. Four preset lead quick views (All / My / New / No next step) compose with existing report/source/stage/search filters and CSV export. They are quick presets, not durable user-created saved searches. Operational tabs show current-queue context; report-period controls remain on Overview, Leads and Performance. Original quotation search/Analytics remain unchanged.
+
 ### Static vs persistent sample mode
 
 **Vercel/static:** checked-in CSP still blocks connections and the original sandbox is untouched. Memory-only edits reset on reload; no backend/provider requests. Download a sample backup to retain edits.
@@ -31,7 +37,7 @@ Full design, schema/runtime boundaries, startup/restore instructions and test ev
 
 ### Current verification — 22 October 2026
 
-**421 PASS:** 48 reporting engine + 66 operations/safety + 49 SQLite/HTTP/worker/restore + 80 new UI/durable-browser/background/conflict-recovery + 104 business-workspace + 58 quotation-summary + 16 native Dashboard. Static browser suites observed zero production-API/external requests and browser errors. Local-mode tests exercise only the isolated endpoint. Desktop/390px/768px/actual Dark, timeline, action desk, control room, outbox, results and persistent-worker screenshots reviewed. These are not production/provider/auth/load tests.
+**490 PASS:** 48 reporting engine + 66 operations/safety + 49 SQLite/HTTP/worker/restore + 80 new UI/durable-browser/background/conflict-recovery + 104 business-workspace + 58 quotation-summary + 16 native Dashboard + 69 aesthetic/brand/customer-tab/quick-view/accessibility. Static browser suites observed zero production-API/external requests and browser errors. Local-mode tests exercise only the isolated endpoint. Desktop/390px/768px/actual Dark, brand marks, compact customer panels, timeline, action desk, control room, outbox, results and persistent-worker screenshots reviewed. Polish evidence is outside Git at `/home/user/qs-polish-evidence`. These are not production/provider/auth/load tests.
 
 Existing summaries/comparison/contextual Analytics/pill search remain intact. Finance/CloudBridge/BESS/app.css/sandbox hashes and the unrelated tracked patch match the preservation baseline. Only concept-preview files are published; no merge/manual production deployment performed. Separate review → merge approval → parity → correct owner production connection/deploy remains required.
 

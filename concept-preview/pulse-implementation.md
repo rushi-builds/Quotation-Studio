@@ -13,6 +13,16 @@ Date: **22 October 2026**. Owner approved the Studio Pulse name and requested cu
 - **Reply safety test:** explicitly simulated inbound example stops pending outreach. This is not a real webhook, customer reply or external provider receipt.
 - **Workspace backup:** actual JSON export includes domain records and safety controls. Restoring with the local service is supported only into a new empty sample database; imported rules become Draft and pending actions are cancelled for fresh review.
 
+## Aesthetic / usability pass
+
+`pulse-brand.js` and local `brand-icons/` replace letters/symbols with recognisable channel marks, with pinned source/MIT attribution and explicit trademark/non-endorsement notes. No remote asset request or AI-generated brand artwork. `pulse-polish.css` scopes the teal action system, line symbols, readable labels/body/table typography, subtle status tints, disabled states, keyboard focus, reduced motion, responsive layout and Dark appearance. The existing Dashboard sidebar and quotation pill search are not restyled.
+
+Customer 360 uses a compact identity and stage/owner/next-step/last-message summary above four semantic, keyboard-accessible tabs. Details are no longer all visible in the default timeline. Linked tasks and conversations have direct actions; completing a task preserves the selected Tasks panel and records the actual internal completion. `pulse-customer.js` reorganises existing form nodes rather than duplicating records or creating a second CRM controller. No external action is introduced.
+
+Four preset lead quick views compose with existing source/stage/search/date filters; export uses the same filtered set. Quick views are session UI preferences, not persistent user-created searches. Report controls are hidden on operational tabs (current queue, all recorded dates), not silently applied to the inbox/action desk/rules. The workspace-mode switch and disconnected-state explanation remain visible.
+
+The local SQLite poll also rechecks pending edits/saves/open dialogs after its asynchronous response, so an in-flight refresh cannot hydrate over an edit that began while it was waiting. Version conflicts still fail closed with backup recovery; no production network/storage boundary was relaxed.
+
 ## Two deliberately distinct runtime modes
 
 ### Static review / Vercel
@@ -59,7 +69,7 @@ Future real sending requires company-owned authorised accounts, least-privilege 
 
 ## Executed verification
 
-**421 checks PASS:**
+**490 checks PASS:**
 
 | Suite | Checks |
 | --- | ---: |
@@ -70,9 +80,10 @@ Future real sending requires company-owned authorised accounts, least-privilege 
 | `business-pulse-test.cjs` | 104 |
 | `quote-summary-test.cjs` | 58 |
 | `dashboard-test.cjs` | 16 |
+| `pulse-polish-test.cjs` | 69 |
 
 Static browser runs report zero production-API/external requests and browser errors. Local-mode browser checks use only the isolated local endpoint; verify durable edits, a real 15-second background internal action, stale-tab rejection and recovery backup. Expected conflict responses are exercised, not hidden. SQLite tests cover reopen/durability, FK projection, transaction rollback, immutable prior audit, private-file/path/prototype guards, CSRF/origin/method isolation and safe backup restore. Desktop, 390px, 768px, actual Dark, customer timeline, action desk, control room, outbox, cohort results and persistent-worker screenshots reviewed. These are not provider API, production auth/security, load or real-delivery tests.
 
-Run browser tests sequentially with Playwright/Chromium and the static server on 8080; the new UI suite also expects the optional local service with `--scheduler` on 8090. Its edits are synthetic; use a disposable sample database. In this workspace browser dependencies are outside Git at `/home/user/qs-preview-tools/node_modules`; Chromium `/tmp/chromium`, libraries `/tmp/qs-al2023/lib`. Screenshots remain outside Git at `/home/user/qs-pulse-evidence` and `/home/user/qs-business-evidence`.
+Run browser tests sequentially with Playwright/Chromium and the static server on 8080; the new UI suite also expects the optional local service with `--scheduler` on 8090. Its edits are synthetic; use a disposable sample database. In this workspace browser dependencies are outside Git at `/home/user/qs-preview-tools/node_modules`; Chromium `/tmp/chromium`, libraries `/tmp/qs-al2023/lib`. Screenshots remain outside Git at `/home/user/qs-pulse-evidence`, `/home/user/qs-business-evidence` and `/home/user/qs-polish-evidence`.
 
 Only concept-preview changes are published. Finance/CloudBridge/BESS/app.css/sandbox hashes and the unrelated tracked patch match the preservation baseline. Existing quotation summaries/comparison, contextual Analytics, pill search and native Dashboard tests pass. PR remains separate from merge approval → parity → correct owner production connection/deploy. Push-triggered CI is independent of manual production authorisation.

@@ -54,6 +54,8 @@
       if (failed || saving || changed || document.getElementById('ghDialog')?.open) return;
       try {
         const result = await request();
+        // An edit/save/modal may have begun while the poll was in flight. Never hydrate over it.
+        if (failed || saving || changed || document.getElementById('ghDialog')?.open) return;
         if (result.revision > revision && result.data) {
           applying = true; Object.assign(context.state, snapshot(result.data)); revision = result.revision; last = JSON.stringify(snapshot(context.state));
           context.render(); applying = false; update('Local worker changes loaded · revision ' + revision + '.');
