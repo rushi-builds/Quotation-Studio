@@ -261,7 +261,7 @@
   /* ---------- navigation ---------- */
   let lastLaunch = null, lastSendId = null, lastSendChannel = null;
 
-  const PAGE_LABELS = {home:'Overview',proposals:'Quotations',tasks:'Follow-ups',activity:'Customer activity',send:'Sharing',publish:'Sharing',gallery:'Project gallery',reports:'Analytics',settings:'Settings'};
+  const PAGE_LABELS = {home:'Overview',proposals:'Quotations',tasks:'Follow-ups',activity:'Customer activity',send:'Sharing',publish:'Sharing',gallery:'Project gallery',reports:'Analytics',sales:'Studio Pulse',settings:'Settings'};
   function showPanel(name, preferId) {
     if (!$('panel-' + name)) return;
     banner(null);
@@ -2026,7 +2026,7 @@
         showApp();
         await refreshAll();
         const handoff = new URLSearchParams(location.search), panel = handoff.get('panel'), id = handoff.get('proposal');
-        if (['home','proposals','tasks','activity','reports','send'].includes(panel)) {
+        if (['home','proposals','tasks','activity','reports','send','sales'].includes(panel)) {
           if (!id || allProposals.some(p=>p.id===id)) showPanel(panel,id);
         }
       } else {
