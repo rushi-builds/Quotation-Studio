@@ -43,7 +43,7 @@
     tabs.addEventListener('keydown',event=>{if(!['ArrowRight','ArrowLeft','Home','End'].includes(event.key))return;event.preventDefault();const selected=tabs.querySelector('[aria-selected="true"]').dataset.customerSection,index=sections.indexOf(selected),next=event.key==='Home'?0:event.key==='End'?3:(index+(event.key==='ArrowRight'?1:-1)+4)%4;select(sections[next],true);});
   }
   document.addEventListener('click',event=>{
-    const button=event.target.closest('[data-pulse-customer-complete]');if(!button||!context)return;
+    const button=event.target.closest('[data-pulse-customer-complete]');if(!button||button.disabled||!context||!window.PulseAccess?.canEdit())return;
     const task=context.state.tasks.find(t=>t.id===button.dataset.pulseCustomerComplete&&t.leadId===currentLead);
     if(!task||task.status!=='open')return;
     task.status='done';task.completedAt=new Date().toISOString();PulseOperations.audit(context.state,'Internal task completed',task.title,Date.now(),task.leadId);

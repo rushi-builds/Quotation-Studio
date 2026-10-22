@@ -41,3 +41,9 @@ CREATE TABLE IF NOT EXISTS control_audit (
   id TEXT PRIMARY KEY,
   payload TEXT NOT NULL CHECK (json_valid(payload))
 );
+
+-- Protected governance snapshots are only written by role-checked commands.
+CREATE TABLE IF NOT EXISTS governance_audit (
+  id TEXT PRIMARY KEY,
+  payload TEXT NOT NULL CHECK (json_valid(payload))
+);

@@ -53,12 +53,12 @@
   }
   function desk(data, now) {
     const today = E.day(now), output = [], leads = data.leads || [];
-    const add = (lead, kind, priority, detail, due, threadId = null) => {
-      if (lead) output.push({ id: kind + ':' + lead.id + ':' + (threadId || due || ''), leadId: lead.id, company: lead.company, owner: lead.owner || 'Unassigned', kind, priority, detail, due, threadId });
+    const add = (lead, kind, priority, detail, due, threadId = null, sourceId = null) => {
+      if (lead) output.push({ id: kind + ':' + lead.id + ':' + (sourceId || threadId || due || ''), leadId: lead.id, company: lead.company, owner: lead.owner || 'Unassigned', kind, priority, detail, due, threadId, sourceId });
     };
     for (const task of data.tasks || []) if (task.status === 'open' && at(task.date, task.time) < now) {
       const lead = leads.find(l => l.id === task.leadId);
-      if (!terminal(lead)) add(lead, 'Overdue', 1, task.title, new Date(at(task.date, task.time)).toISOString());
+      if (!terminal(lead)) add(lead, 'Overdue', 1, task.title, new Date(at(task.date, task.time)).toISOString(), null, task.id);
     }
     for (const thread of E.pending(data.threads || [])) {
       const age = Math.max(0, (now - Date.parse(thread.receivedAt)) / 3600000);
@@ -87,6 +87,7 @@
     }
     for (const e of (data.events || []).filter(e => e.leadId === leadId)) push(e.id, e.kind, e.text, new Date(at(e.date, e.time)).toISOString());
     for (const e of (data.ops?.audit || []).filter(e => e.leadId === leadId)) push(e.id, 'Control', e.type, e.at, e.detail);
+    for (const e of (data.governance?.audit || []).filter(e => e.leadId === leadId)) push(e.id, 'Control', e.action, e.at, e.detail+' · '+e.actor+' / '+e.role);
     for (const j of (data.ops?.jobs || []).filter(j => j.leadId === leadId)) push(j.id, 'Outbox', j.subject || j.action, j.createdAt, j.status + ' · ' + (j.reason || 'No provider delivery'));
     return items.sort((a, b) => (Date.parse(b.when) || 0) - (Date.parse(a.when) || 0));
   }

@@ -23,6 +23,36 @@ Four preset lead quick views compose with existing source/stage/search/date filt
 
 The local SQLite poll also rechecks pending edits/saves/open dialogs after its asynchronous response, so an in-flight refresh cannot hydrate over an edit that began while it was waiting. Version conflicts still fail closed with backup recovery; no production network/storage boundary was relaxed.
 
+## Connection preparations & reversible alert controls
+
+`pulse-governance.js` is a shared pure browser/Node domain layer; `pulse-governance-ui.js` and scoped CSS add controls without another sidebar. The initial ninth connection card is **+ Add**, after Outlook Calendar. The searchable catalogue includes the eight base services plus Google Sheets, Google Drive, Microsoft Teams, Slack, Telegram Business and Custom integration. A custom item is just a named preparation, not an executable integration or arbitrary webhook. Batch 1–12 at a time; up to 40 additional active preparations; repeated providers require distinct case-insensitive labels. Failed batches do not allocate IDs, partially add cards or append audit. Desired Manual/Hourly/Daily preferences do **not** schedule a job. Archive/restore is reversible; real accounts/data are not disconnected/deleted.
+
+Action desk controls are per stable **occurrence**. Overdue tasks use their task identity, so two tasks for one customer at the same deadline cannot collide. The occurrence fingerprint includes relevant recorded stage/owner/deadline/task/calendar context, not the moving “waiting Nh” text. Clock aging alone cannot undo a dismissal; new context does. Dismiss/snooze only affects alert visibility. Raw tasks/CRM/inbox data and automation triggers remain unchanged. Overview attention, visible signal/customer counts and filtered action CSV honour visibility. The actual open-follow-up table retains open tasks. A minute refresh (when not editing/in a dialog) and normal renders apply snooze expiry. History distinguishes Hidden / Expired / Restored / Context changed / Condition resolved.
+
+| Capability | Owner / Admin | Member | Viewer |
+| --- | --- | --- | --- |
+| Add/configure/archive/restore preparation | Yes | No | No |
+| Dismiss/restore alert | Yes, reason required | Request assigned occurrence | No |
+| Snooze | Up to 30 days | Assigned occurrence, up to one day | No |
+| Review request | Approve/reject with reason; stale occurrence cannot be approved | Cannot self-approve | No |
+| Existing Studio Pulse general edits / automation controls | Sample writes allowed | Read-only | Read-only |
+| Read sample records / history / export | Yes | Yes | Yes |
+
+All successful controls record actor ID/name, role, time, reason/detail. Request reviews retain the review identity and decision reason; customer timeline includes linked governance controls. JSON backup includes governance. Server projection keeps a separate append-only governance audit table. Existing entries cannot be deleted/rewritten by generic browser writes or commands. This is **not cryptographic/tamper-proof audit** against the machine/database operator, nor authenticated identity for static/imported history.
+
+**Static mode:** Owner/Admin/Member/Viewer selector is explicitly an access simulation. Reload resets it and session edits; there is no login/security claim.
+
+**Local sample mode:** `--role` fixes the capability role for **every visitor to that instance** (default Owner); `--actor-name` records the sample operator label; `--owner-name` is the assigned-owner match used for Member. GET supplies this trusted sample policy. `POST /concept-preview/pulse-api/control` accepts only `{revision, command}` and uses the server's actor, never a browser role. The shared Node engine executes inside the store's control path; SQLite save checks revision and appends projection/history atomically. Generic PUT cannot change governance even for Owner, cannot seed non-empty privileged governance, and rejects Member/Viewer general writes. Origin/CSRF/size guards remain. Conflict retains the command form and fails closed; reload is required rather than stale overwrite. Polling also respects in-flight controls. While a command awaits the server, workspace/dialog editing is inert and navigation has a dirty guard, preventing a late response from hydrating over a new edit; delayed-response browser checks verify this. Server-side backup restore remains an explicit local operator action into an empty database, not a browser privilege bypass.
+
+This anonymous sample service has **no authenticated users, no tenant/record privacy and no real production Owner/Admin authority**. All roles can read/export full synthetic data. Production must obtain trusted login/session identity, tenant/record scopes, role assignments and server-side policies before real data/people enter it. A capability preview or fixed CLI role is not that implementation. No role can connect providers, enable a missing sender or delete a customer using these alert controls.
+
+Example Member sample instance (use an already initialised synthetic workspace or explicit safe sample restore; lower roles cannot initialise general workspace data from the browser):
+
+```sh
+python3 concept-preview/pulse-server.py --db /home/user/member-sample.sqlite3 \
+  --port 8092 --role Member --actor-name 'Sample sales operator' --owner-name Sales
+```
+
 ## Two deliberately distinct runtime modes
 
 ### Static review / Vercel
@@ -69,7 +99,7 @@ Future real sending requires company-owned authorised accounts, least-privilege 
 
 ## Executed verification
 
-**490 checks PASS:**
+**691 checks PASS:**
 
 | Suite | Checks |
 | --- | ---: |
@@ -81,9 +111,12 @@ Future real sending requires company-owned authorised accounts, least-privilege 
 | `quote-summary-test.cjs` | 58 |
 | `dashboard-test.cjs` | 16 |
 | `pulse-polish-test.cjs` | 69 |
+| `pulse-governance-test.cjs` | 78 |
+| `pulse-governance-server-test.py` | 53 |
+| `pulse-governance-ui-test.cjs` | 70 |
 
 Static browser runs report zero production-API/external requests and browser errors. Local-mode browser checks use only the isolated local endpoint; verify durable edits, a real 15-second background internal action, stale-tab rejection and recovery backup. Expected conflict responses are exercised, not hidden. SQLite tests cover reopen/durability, FK projection, transaction rollback, immutable prior audit, private-file/path/prototype guards, CSRF/origin/method isolation and safe backup restore. Desktop, 390px, 768px, actual Dark, customer timeline, action desk, control room, outbox, cohort results and persistent-worker screenshots reviewed. These are not provider API, production auth/security, load or real-delivery tests.
 
-Run browser tests sequentially with Playwright/Chromium and the static server on 8080; the new UI suite also expects the optional local service with `--scheduler` on 8090. Its edits are synthetic; use a disposable sample database. In this workspace browser dependencies are outside Git at `/home/user/qs-preview-tools/node_modules`; Chromium `/tmp/chromium`, libraries `/tmp/qs-al2023/lib`. Screenshots remain outside Git at `/home/user/qs-pulse-evidence`, `/home/user/qs-business-evidence` and `/home/user/qs-polish-evidence`.
+Run browser tests sequentially with Playwright/Chromium and the static server on 8080. `pulse-ui-test.cjs` accepts `PULSE_LOCAL_URL` (default 8090); `pulse-governance-ui-test.cjs` accepts the same variable (default 8091). Use an isolated Owner sample service with `--scheduler`; this run used a separate disposable 8091 database, not the existing demonstration workspace. Its edits are synthetic; use a disposable sample database. In this workspace browser dependencies are outside Git at `/home/user/qs-preview-tools/node_modules`; Chromium `/tmp/chromium`, libraries `/tmp/qs-al2023/lib`. Screenshots remain outside Git at `/home/user/qs-pulse-evidence`, `/home/user/qs-business-evidence` , `/home/user/qs-polish-evidence` and `/home/user/qs-control-evidence`.
 
 Only concept-preview changes are published. Finance/CloudBridge/BESS/app.css/sandbox hashes and the unrelated tracked patch match the preservation baseline. Existing quotation summaries/comparison, contextual Analytics, pill search and native Dashboard tests pass. PR remains separate from merge approval → parity → correct owner production connection/deploy. Push-triggered CI is independent of manual production authorisation.
