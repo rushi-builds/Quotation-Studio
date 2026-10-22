@@ -6,17 +6,19 @@
   const actors={}; /* demo actors removed for production — identity comes from the signed-in Studio user */
   let ctx,actor=null; /* identity wired via PulseAccess.trustActor() from the signed-in Studio user */
   const local=()=>Boolean(window.PulseStorage?.enabled),canEdit=()=>G.manage(actor);
+  const locked=()=>!window.PulseData?.writable||!canEdit();
   const button=(action,label,id='',disabled=false)=>'<button type="button" class="gh-secondary" data-gov-action="'+action+'" data-id="'+h(id)+'" '+(disabled?'disabled':'')+'>'+label+'</button>';
   const time=v=>v?new Intl.DateTimeFormat('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(v))+' IST':'—';
   const mutable=new Set(['save','new-lead','new-task','new-event','complete','rule','new-rule','simulate','connection','handle-thread','rule-state','run-internal','compose','job-approve','job-cancel','test-reply','pause-customer','optout-customer','permission','quiet-hours','plan-task']);
   function allowLegacy(action){return !mutable.has(action)||canEdit();}
   async function perform(command){
+    if(!window.PulseData?.writable){ctx.close();ctx.announce('Saving is unavailable: the Studio persistence backend is not connected yet. Nothing changed.');return;}
     if(local())await PulseStorage.control(command);
     else G.execute(ctx.state,actor,command,Date.now());
     ctx.close();ctx.render();ctx.announce('Control saved. No customer record deleted and no provider connected.');
   }
-  function addCard(){return '<section class="gh-card pg-add-card"><div class="pg-add-icon">'+PulseBrand.symbol('plus')+'</div><h2>Add connection</h2><p>Another service. Another account.<br>One organised Studio workspace.</p>'+button('add','+ Add connection','',!canEdit())+'<small>Setup preparations only · connect/sync requires an authorised adapter.</small>'+button('connection-history','Archived setups · '+G.state(ctx.state).connections.filter(c=>c.archived).length)+'</section>';}
-  function extraCards(){return G.state(ctx.state).connections.filter(c=>!c.archived).map(c=>'<section class="gh-card pg-extra"><div>'+ (PulseBrand.badge(c.provider,'card')||'<span class="pg-generic">'+PulseBrand.symbol('layers')+'</span>')+'</div><h2>'+h(c.provider)+'</h2><span class="pg-status">NOT CONNECTED · ADAPTER REQUIRED</span><p>'+h(c.label)+'</p><dl><dt>Desired cadence</dt><dd>'+h(c.cadence)+' · not scheduled</dd><dt>Last successful sync</dt><dd>—</dd><dt>Data through</dt><dd>—</dd></dl><div class="gh-actions">'+button('edit-connection','Configure',c.id,!canEdit())+'<button class="gh-secondary" disabled>Sync</button>'+button('archive-connection','Archive',c.id,!canEdit())+'</div></section>').join('');}
+  function addCard(){return '<section class="gh-card pg-add-card"><div class="pg-add-icon">'+PulseBrand.symbol('plus')+'</div><h2>Add connection</h2><p>Another service. Another account.<br>One organised Studio workspace.</p>'+button('add','+ Add connection','',locked())+'<small>Setup preparations only · connect/sync requires an authorised adapter.</small>'+button('connection-history','Archived setups · '+G.state(ctx.state).connections.filter(c=>c.archived).length)+'</section>';}
+  function extraCards(){return G.state(ctx.state).connections.filter(c=>!c.archived).map(c=>'<section class="gh-card pg-extra"><div>'+ (PulseBrand.badge(c.provider,'card')||'<span class="pg-generic">'+PulseBrand.symbol('layers')+'</span>')+'</div><h2>'+h(c.provider)+'</h2><span class="pg-status">NOT CONNECTED · ADAPTER REQUIRED</span><p>'+h(c.label)+'</p><dl><dt>Desired cadence</dt><dd>'+h(c.cadence)+' · not scheduled</dd><dt>Last successful sync</dt><dd>—</dd><dt>Data through</dt><dd>—</dd></dl><div class="gh-actions">'+button('edit-connection','Configure',c.id,locked())+'<button class="gh-secondary" disabled>Sync</button>'+button('archive-connection','Archive',c.id,locked())+'</div></section>').join('');}
   function decorate(){
     if(ctx.state.tab==='connections'&&!document.querySelector('.pg-add-card'))document.querySelector('.bi-connections')?.insertAdjacentHTML('beforeend',extraCards()+addCard());
     if(ctx.state.tab==='desk'&&!document.querySelector('[data-gov-action="alert-history"]'))document.querySelector('.pulse-hero-strip')?.insertAdjacentHTML('beforeend',button('alert-history','Managed alerts & requests'));
@@ -25,12 +27,12 @@
   function lockLegacy(){
     if(!canEdit()){
       for(const root of [document.getElementById('panel-sales'),document.getElementById('ghDialog')]){
-        root?.querySelectorAll('[data-bi-action],[data-pulse-action]').forEach(b=>{if(mutable.has(b.dataset.biAction||b.dataset.pulseAction)){b.disabled=true;b.title='Owner / Admin only in this sample access model';}});
+        root?.querySelectorAll('[data-bi-action],[data-pulse-action]').forEach(b=>{if(mutable.has(b.dataset.biAction||b.dataset.pulseAction)){b.disabled=true;b.title='Owner / Admin only';}});
         root?.querySelectorAll('#biLeadForm input,#biLeadForm select,#biLeadForm textarea,#biLeadForm button[type="submit"],#ghDialogBody form:not([data-gov-form]) input,#ghDialogBody form:not([data-gov-form]) select,#ghDialogBody form:not([data-gov-form]) textarea,#ghDialogBody form:not([data-gov-form]) button[type="submit"],[data-pulse-customer-complete]').forEach(b=>{b.disabled=true;});
       }
     }
   }
-  function rowControls(row){const allowed=canEdit()||(actor.role==='Member'&&row.owner===actor.ownerName);return '<div class="pg-row-controls">'+button('alert','Manage alert',row.id,!allowed)+'</div>';}
+  function rowControls(row){const allowed=canEdit()||(actor&&actor.role==='Member'&&row.owner===actor.ownerName);return '<div class="pg-row-controls">'+button('alert','Manage alert',row.id,allowed?(!window.PulseData?.writable):true)+'</div>';}
   function addDialog(){
     ctx.dialog('Add connections','Multi-select service preparations · no OAuth or credentials requested','<form data-gov-form="add"><label class="gh-field"><span>Search services</span><input id="pgSearch" type="search" placeholder="Search a service…"></label><div class="pg-catalog">'+G.catalog.map(provider=>'<label data-catalog-name="'+h(provider.toLowerCase())+'"><input type="checkbox" name="provider" value="'+h(provider)+'">'+(PulseBrand.badge(provider,'mini')||PulseBrand.symbol('layers'))+'<span>'+h(provider)+'</span></label>').join('')+'</div><label class="gh-field"><span>Account label / batch prefix</span><input name="label" maxlength="80" required placeholder="e.g. Sales mailbox or Operations"></label><p class="gh-note">You can add another account of the same service with a different label. Extra services are not installed integrations. No account is connected and no sync runs here.</p><p id="pgError" role="status" class="gh-validation"></p><button class="gh-primary" type="submit">Add selected preparations</button></form>');
   }
@@ -51,7 +53,7 @@
       if(action==='add')addDialog();if(action==='edit-connection')editConnection(id);if(action==='connection-history')history('connections');if(action==='alert-history')history('alerts');if(action==='alert')alertDialog(id);
       const reasons={'archive-connection':['connections.archive','Archive preparation'],'restore-connection':['connections.restore','Restore preparation'],'restore-alert':['alerts.restore','Restore alert'],'approve-request':['requests.approve','Approve dismissal request'],'reject-request':['requests.reject','Reject dismissal request']};if(reasons[action])reasonDialog(reasons[action][0],id,reasons[action][1]);
     });
-    setInterval(()=>{if(['desk','overview'].includes(ctx.state.tab)&&!document.hidden&&!document.getElementById('ghDialog')?.open&&!PulseStorage.dirty&&!document.activeElement?.matches('input,select,textarea'))ctx.render();},60000);
+    setInterval(()=>{if(['desk','overview'].includes(ctx.state.tab)&&!document.hidden&&!document.getElementById('ghDialog')?.open&&!window.PulseStorage?.dirty&&!document.activeElement?.matches('input,select,textarea'))ctx.render();},60000);
     document.addEventListener('input',event=>{if(event.target.id==='pgSearch'){const q=event.target.value.toLowerCase().trim();document.querySelectorAll('[data-catalog-name]').forEach(row=>{row.hidden=!row.dataset.catalogName.includes(q);});}});
     document.addEventListener('submit',async event=>{const form=event.target.closest('[data-gov-form]');if(!form)return;event.preventDefault();const values=Object.fromEntries(new FormData(form));let command;
       try{if(form.dataset.govForm==='add'){const selected=new FormData(form).getAll('provider');command={type:'connections.add',items:selected.map(provider=>({provider,label:values.label.trim()+(selected.length>1?' · '+provider:'')}))};}

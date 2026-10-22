@@ -33,3 +33,7 @@ html[data-theme="dark"] .bi-workspace [data-stage="New"],html[data-theme="dark"]
 @media(prefers-reduced-motion:reduce){.bi-workspace button,.gh-dialog button{transition:none!important;scroll-behavior:auto!important}}
 .pulse-context-caption{display:flex;align-items:center;gap:9px;color:var(--gh-muted);font-size:10px;flex-wrap:wrap}.pulse-context-caption strong{font-size:11px;color:var(--gh-ink);font-weight:500}.bi-workspace .bi-datebar:has(.bi-date-controls[hidden]){justify-content:space-between}@media(max-width:600px){.pulse-context-caption>span{display:none}}
 @media(max-width:600px){.pulse-profile{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px 12px;align-items:center}.pulse-profile>.gh-primary{grid-column:2;justify-self:start;margin-left:0}.pulse-profile>div{width:100%}}
+
+/* Production integration: per-feed degraded note (unavailable feeds are not zeros). */
+.bi-degraded-note{margin:0 0 14px;padding:11px 14px;border:1px solid #c9862a;background:rgba(201,134,42,.08);border-radius:12px;color:#8a5a10;font-size:13.5px;line-height:1.45;}
+[data-theme='dark'] .bi-degraded-note{border-color:#a97c2b;background:rgba(200,150,60,.10);color:#e0b667;}

@@ -76,6 +76,31 @@ ok('pulse data adapter declares unwritable + empty missing-domain collections', 
   }
 });
 
+ok('write paths are hard-gated + storage/timer deps removed (Arena P1-3/P2-3)', () => {
+  const gov = read('assets/js/pulse/pulse-governance-ui.js');
+  assert.ok(gov.includes('window.PulseStorage?.dirty'), 'timer must not reference bare PulseStorage');
+  assert.ok(!/!\s*PulseStorage\.dirty/.test(gov), 'bare PulseStorage.dirty still present');
+  const performIdx = gov.indexOf('async function perform(command)');
+  const body = gov.slice(performIdx, performIdx + 400);
+  assert.ok(body.includes("if(!window.PulseData?.writable)"), 'perform() missing writable gate');
+  assert.ok(body.includes("not connected yet"), 'perform() missing honest announce');
+  assert.ok(!gov.includes("(actor.role==="), 'unguarded actor.role access still present');
+  assert.ok(gov.includes("actor&&actor.role==='Member'"), 'null-safe member check missing');
+  assert.ok(!gov.includes('demo-owner'), 'demo actors still present');
+  const bp = read('assets/js/pulse/business-pulse.js');
+  assert.ok(bp.includes('window.PlatformAPI.currentUser()'), 'must use currentUser() (envelope-safe)');
+  assert.ok(!bp.includes('window.PlatformAPI.me()'), 'raw me() envelope must not be trusted');
+  const qs = read('assets/js/pulse/quote-summary.js');
+  assert.ok(qs.includes('get:()=>null'), 'quote-summary details() reader must be null-safe');
+  const pd = read('assets/js/pulse/pulse-data.js');
+  assert.ok(pd.includes("date: t.dueAt ? (dayOf(t.dueAt) || null) : null"), 'undated tasks must not get invented dates');
+  assert.ok(pd.includes('degraded'), 'adapter must track degraded feeds');
+});
+ok('desk KPI distinct-customer mapping present (Arena P2-2)', () => {
+  const ui = read('assets/js/pulse/pulse-ui.js');
+  assert.ok(ui.includes("r.leadId || 'company:' + r.company"), 'distinct customer keys missing');
+});
+
 /* 5. adapter behaviour with stubbed APIs (node) */
 (function adapterTest() {
   const E = require(path.join(ROOT, 'assets/js/pulse/business-engine.js'));
@@ -84,7 +109,8 @@ ok('pulse data adapter declares unwritable + empty missing-domain collections', 
     listTasks: async () => ({ tasks: [
       { id: 'tk1', title: 'Call back about survey', proposalId: 'p1', dueAt: '2026-10-20T09:00:00Z', status: 'open' },
       { id: 'tk2', title: 'Send revised quote', proposalId: null, dueAt: '2026-10-25T18:30:00Z', status: 'open' },
-      { id: 'tk3', title: 'Completed task', proposalId: 'p1', status: 'done' }
+      { id: 'tk3', title: 'Completed task', proposalId: 'p1', status: 'done' },
+      { id: 'tk4', title: 'Undated follow-up', proposalId: null, status: 'open' }
     ]}),
     listActivity: async () => ({ events: [ { id: 'ev1', type: 'link_opened', proposalId: 'p1', createdAt: '2026-10-21T05:00:00Z' } ] }),
     listProposals: async () => ({ proposals: [ { id: 'p1', customer: 'KTM Energy', title: 'Rooftop solar' } ] }),
@@ -99,13 +125,16 @@ ok('pulse data adapter declares unwritable + empty missing-domain collections', 
     assert.strictEqual(data.writable, false, 'adapter must be unwritable');
     assert.deepStrictEqual(data.leads, []);
     assert.deepStrictEqual(data.threads, []);
-    assert.strictEqual(data.tasks.length, 3, 'real tasks mapped');
+    assert.strictEqual(data.tasks.length, 4, 'real tasks mapped');
     assert.strictEqual(data.tasks[0].company, 'KTM Energy', 'proposal title joins task');
     assert.ok(data.tasks[0].date >= '2026-10-20' && data.tasks[0].date <= '2026-10-20', 'IST day parse');
     assert.strictEqual(data.tasks[2].status, 'done');
+    assert.strictEqual(data.tasks[3].date, null, 'undated task: no invented date');
+    assert.strictEqual(data.tasks[3].time, null, 'undated task: no invented time');
     assert.ok(data.events.length === 1 && data.events[0].text.startsWith('Quotation link opened'), 'activity label mapped');
     assert.strictEqual(data.report.value.quotedSum, 480000, 'server report attached');
-    /* desk: real overdue open tasks surface even without lead CRM */
+    assert.deepStrictEqual(data.feeds, { tasks: 'ok', activity: 'ok', proposals: 'ok', report: 'ok' }, 'feeds healthy when all settle');
+    /* undated task must never become a fake overdue or today follow-up */
     const O = require(path.join(ROOT, 'assets/js/pulse/pulse-operations.js'));
     const now = Date.parse('2026-10-22T05:00:00Z');
     const state = { ...data, nextId: 1 };
@@ -113,12 +142,17 @@ ok('pulse data adapter declares unwritable + empty missing-domain collections', 
     const desk = O.desk(state, now);
     assert.ok(desk.some(r => r.sourceId === 'studio-tk1' && r.kind === 'Overdue'), 'overdue real task appears on desk');
     assert.ok(desk.every(r => r.sourceId !== 'studio-tk2'), 'future task not overdue');
-    /* governance role mapping */
+    assert.ok(desk.every(r => r.sourceId !== 'studio-tk4'), 'undated task never falsely overdue');
+    assert.ok(!E.followups(data.tasks, '2026-10-22').some(t => t.id === 'studio-tk4'), 'undated task not today-followup');
+    /* envelope/plain identity mapping */
     assert.strictEqual(PulseData.mapUser(stub.user).role, 'Owner');
+    assert.strictEqual(PulseData.mapUser({ user: stub.user, note: 'envelope' }).role, 'Owner', '/auth/me envelope');
     assert.strictEqual(PulseData.mapUser({ id: 'a', isAdmin: true }).role, 'Admin');
     assert.strictEqual(PulseData.mapUser({ id: 'b', canWrite: true }).role, 'Member');
     assert.strictEqual(PulseData.mapUser({ id: 'c' }).role, 'Viewer');
+    assert.strictEqual(PulseData.mapUser(null), null, 'null identity stays null (fail closed)');
+    assert.strictEqual(PulseData.mapUser({ error: 'Not signed in' }), null, 'error payload not a user');
     passed++;
-    console.log('  ok - PulseData.create() maps real API data; missing domains stay empty');
+    console.log('  ok - PulseData.create() maps real API data; degraded/undated/envelope guarded');
   }).catch(e => { console.error('  FAIL adapter test :: ' + e.stack); process.exitCode = 1; });
 })();

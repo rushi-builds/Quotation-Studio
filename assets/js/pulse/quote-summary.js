@@ -1,7 +1,7 @@
 /* Quotation summaries inside the existing Dashboard. Production: reads real proposals; price snapshots render honest "Not recorded" until a recording backend exists. */
 'use strict';
 (() => {
- const $=id=>document.getElementById(id), data={labels:[]}; /* price snapshots: no recording backend yet → details() stays null and tabs show built-in empty states */
+ const $=id=>document.getElementById(id), data={labels:[],get:()=>null}; /* price snapshots: no recording backend yet → details() stays null and tabs show built-in empty states */
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const money=n=>Number.isFinite(n)?new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(n):'Not recorded';
  const compact=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',notation:'compact',maximumFractionDigits:2}).format(n);

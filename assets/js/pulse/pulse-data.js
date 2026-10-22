@@ -53,8 +53,8 @@
         company: t.proposalId ? (titleOf[t.proposalId] || 'Linked quotation') : 'Studio task',
         title: t.title || 'Studio follow-up',
         type: 'Studio task',
-        date: t.dueAt ? dayOf(t.dueAt) : today,
-        time: t.dueAt ? (timeOf(t.dueAt) || '12:00') : '12:00',
+        date: t.dueAt ? (dayOf(t.dueAt) || null) : null,
+        time: t.dueAt ? (timeOf(t.dueAt) || null) : null,
         owner: 'Unassigned',
         status: t.status === 'done' ? 'done' : 'open',
         completedAt: t.completedAt || null
@@ -73,6 +73,19 @@
       }));
 
     const report = reportRes.status === 'fulfilled' ? reportRes.value : null;
+    /* Endpoint health is tracked per feed: a failed/unauthorised endpoint is
+       NOT the same as a fulfilled-empty collection — the UI must show
+       "unavailable", never a measured zero. */
+    const feeds = {
+      tasks: tasksRes.status === 'fulfilled' ? 'ok' : 'failed',
+      activity: activityRes.status === 'fulfilled' ? 'ok' : 'failed',
+      proposals: proposalsRes.status === 'fulfilled' ? 'ok' : 'failed',
+      report: reportRes.status === 'fulfilled' ? 'ok' : 'failed'
+    };
+    const reasons = [[tasksRes, 'tasks'], [activityRes, 'activity'], [proposalsRes, 'proposals'], [reportRes, 'reports/summary']]
+      .filter(([r]) => r.status === 'rejected')
+      .map(([, name]) => (name === 'reports/summary' ? 'reports' : name));
+    const degraded = Array.from(new Set(reasons));
 
     /* Shape-compatible workspace. Missing-domain collections are EMPTY by
        definition (leads CRM, provider metrics, threads, calendar, rules) —
@@ -91,6 +104,8 @@
       rules: [],
       /* production extras (non-fixture): */
       report,
+      feeds,
+      degraded,
       writable: false,
       ownerName: 'Owner',
       persistence: 'none'
@@ -101,7 +116,9 @@
   /* Real signed-in identity → governance access model. Roles mirror
      pulse-governance.roles; flags come from the server's publicUser payload —
      never from a dropdown or meta tag. */
-  function mapUser(user) {
+  function mapUser(payload) {
+    /* Accepts both the raw publicUser shape and the {user:...} /auth/me envelope. */
+    const user = payload && payload.user ? payload.user : payload;
     if (!user || !user.id) return null;
     let role = 'Viewer';
     if (user.role === 'owner') role = 'Owner';
