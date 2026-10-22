@@ -40,7 +40,7 @@ Action desk controls are per stable **occurrence**. Overdue tasks use their task
 
 All successful controls record actor ID/name, role, time, reason/detail. Request reviews retain the review identity and decision reason; customer timeline includes linked governance controls. JSON backup includes governance. Server projection keeps a separate append-only governance audit table. Existing entries cannot be deleted/rewritten by generic browser writes or commands. This is **not cryptographic/tamper-proof audit** against the machine/database operator, nor authenticated identity for static/imported history.
 
-**Static mode:** Owner/Admin/Member/Viewer selector is explicitly an access simulation. Reload resets it and session edits; there is no login/security claim.
+**No manual role UI:** the access-preview banner, role selector, Access rules button and role-change listener have been removed. Signed-in account/server-session permissions are the required production source; no separate user-selectable role is appropriate. Static mode remains an Owner-capability synthetic demonstration, not real login. QA injects capability contexts from the test harness only; there is no shipped role-switch control.
 
 **Local sample mode:** `--role` fixes the capability role for **every visitor to that instance** (default Owner); `--actor-name` records the sample operator label; `--owner-name` is the assigned-owner match used for Member. GET supplies this trusted sample policy. `POST /concept-preview/pulse-api/control` accepts only `{revision, command}` and uses the server's actor, never a browser role. The shared Node engine executes inside the store's control path; SQLite save checks revision and appends projection/history atomically. Generic PUT cannot change governance even for Owner, cannot seed non-empty privileged governance, and rejects Member/Viewer general writes. Origin/CSRF/size guards remain. Conflict retains the command form and fails closed; reload is required rather than stale overwrite. Polling also respects in-flight controls. While a command awaits the server, workspace/dialog editing is inert and navigation has a dirty guard, preventing a late response from hydrating over a new edit; delayed-response browser checks verify this. Server-side backup restore remains an explicit local operator action into an empty database, not a browser privilege bypass.
 
@@ -99,7 +99,7 @@ Future real sending requires company-owned authorised accounts, least-privilege 
 
 ## Executed verification
 
-**691 checks PASS:**
+**Previous full release: 691 checks PASS:**
 
 | Suite | Checks |
 | --- | ---: |
@@ -114,6 +114,8 @@ Future real sending requires company-owned authorised accounts, least-privilege 
 | `pulse-governance-test.cjs` | 78 |
 | `pulse-governance-server-test.py` | 53 |
 | `pulse-governance-ui-test.cjs` | 70 |
+
+**Role-banner correction: 277 focused checks PASS** — 77 governance UI, 69 polish, 78 governance domain and 53 command HTTP. The updated UI suite asserts no access banner/role picker/Access rules button on every Studio Pulse tab or local sample mode. Its role scenarios inject a test context; no role-change UI/listener ships.
 
 Static browser runs report zero production-API/external requests and browser errors. Local-mode browser checks use only the isolated local endpoint; verify durable edits, a real 15-second background internal action, stale-tab rejection and recovery backup. Expected conflict responses are exercised, not hidden. SQLite tests cover reopen/durability, FK projection, transaction rollback, immutable prior audit, private-file/path/prototype guards, CSRF/origin/method isolation and safe backup restore. Desktop, 390px, 768px, actual Dark, customer timeline, action desk, control room, outbox, cohort results and persistent-worker screenshots reviewed. These are not provider API, production auth/security, load or real-delivery tests.
 
