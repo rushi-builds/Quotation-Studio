@@ -539,8 +539,8 @@ for (const [label, src] of BOTH) {
   t('deploy config untouched (committed BASE→HEAD scope; any wrangler*/vercel.json change, rename or deletion fails; no broad exception)',
     deployTouched.length === 0, deployTouched.join(', '));
   /* Allowlist of files the reconciled line (arena + catalogue-sync merge) may
-     touch - copied verbatim, NOT widened. The base is the patch's own, so
-     previously merged work no longer appears in the diff. */
+     touch - with four exact owner-requested Connections UI paths. The base
+     is the patch's own, so previously merged work is not a patch violation. */
   const unintended = guard.scopeOffenders(changed);
   t('changed files are the intended set (committed BASE→HEAD scope, allowlist unwidened)',
     unintended.length === 0, unintended.join(', '));

@@ -294,6 +294,21 @@
     }
   }
 
+  // One Settings router, shared by the sidebar, direct links and Pulse shortcuts.
+  function showSettings(section = 'profile', focus = false) {
+    const buttons = [...document.querySelectorAll('[data-settings]')];
+    if (!buttons.some(b => b.dataset.settings === section)) section = 'profile';
+    showPanel('settings');
+    buttons.forEach(b => {
+      const selected = b.dataset.settings === section;
+      b.classList.toggle('selected', selected);
+      if (selected) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('[data-settings-section]').forEach(n => { n.hidden = n.dataset.settingsSection !== section; });
+    if (focus) document.querySelector('[data-settings-section="' + section + '"] h2')?.focus();
+  }
+
   const EVENT_LABELS = {
     version_published: 'Version published',
     link_opened: 'Link opened',
@@ -1816,7 +1831,7 @@
     }
   }
 
-  window.QSDash = { proposals: () => allProposals, setProposals: rows => { allProposals = rows; renderPropTable(); renderPropStats(); }, user: () => user, canEdit, canManage, powerLabel, refresh: () => refreshAll(), show: (name, id) => showPanel(name, id), open: (id) => openInStudio(id), toast,
+  window.QSDash = { proposals: () => allProposals, setProposals: rows => { allProposals = rows; renderPropTable(); renderPropStats(); }, user: () => user, canEdit, canManage, powerLabel, refresh: () => refreshAll(), show: (name, id) => showPanel(name, id), showSettings, open: (id) => openInStudio(id), toast,
     showTasks(filter) { if ($('taskFilter')) $('taskFilter').value = filter || 'all'; showPanel('tasks'); },
     filterStatus(status) { if ($('filterStatus')) $('filterStatus').value = status || ''; if ($('filterQ')) $('filterQ').value = ''; showPanel('proposals'); }
   };
@@ -1922,9 +1937,7 @@
     }
     if ($('btnNudgeGo')) {
       $('btnNudgeGo').addEventListener('click', () => {
-        showPanel('settings');
-        document.querySelectorAll('[data-settings]').forEach((n) => n.classList.toggle('selected', n.dataset.settings === 'profile'));
-        document.querySelectorAll('[data-settings-section]').forEach((n) => { n.hidden = n.dataset.settingsSection !== 'profile'; });
+        showSettings('profile');
         const focusField = $('profilePhone') || $('profileName');
         if (focusField) focusField.focus();
       });
@@ -1939,8 +1952,7 @@
     }));
     document.querySelectorAll('[data-focus]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.focus)?.focus()));
     document.querySelectorAll('[data-settings]').forEach(b=>b.addEventListener('click',()=>{
-      document.querySelectorAll('[data-settings]').forEach(n=>n.classList.toggle('selected',n===b));
-      document.querySelectorAll('[data-settings-section]').forEach(n=>n.hidden=n.dataset.settingsSection!==b.dataset.settings);
+      showSettings(b.dataset.settings);
     }));
     document.addEventListener('click', e=>document.querySelectorAll('.row-menu[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false;}));
     document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.row-menu[open]').forEach(menu=>menu.open=false);});
@@ -2026,6 +2038,7 @@
         showApp();
         await refreshAll();
         const handoff = new URLSearchParams(location.search), panel = handoff.get('panel'), id = handoff.get('proposal');
+        if (panel === 'settings') showSettings(handoff.get('section') || 'profile');
         if (['home','proposals','tasks','activity','reports','send','sales'].includes(panel)) {
           if (!id || allProposals.some(p=>p.id===id)) showPanel(panel,id);
         }

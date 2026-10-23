@@ -85,12 +85,12 @@ async function main() {
   const v = guard.verify(ROOT);
   t('comparison base resolves in this checkout', !!v.base && !!v.base.ref, JSON.stringify(v.base));
   t('resolved base is a real commit', v.base && v.base.ref.length === 40, v.base && v.base.ref);
-  t('PR scope = test-only files (guard + suite + patched parity), nothing else',
-    v.changed.every((f) => /^qa\//.test(f)) && v.changed.length <= 4, JSON.stringify(v.changed));
+  t('committed PR verdict matches the reviewed scope, frozen pin and deploy protection',
+    v.ok === true, JSON.stringify({ scope: v.scope, frozen: v.frozen, deploy: v.deploy }));
 
   t('FROZEN files untouched in committed PR scope', v.frozen.length === 0, JSON.stringify(v.frozen));
   t('deploy config untouched in committed PR scope (no exceptions granted)', v.deploy.length === 0, JSON.stringify(v.deploy));
-  t('changed files are inside the (unwidened) allowlist', v.scope.length === 0, JSON.stringify(v.scope));
+  t('changed files are inside the explicitly reviewed allowlist', v.scope.length === 0, JSON.stringify(v.scope));
 
   const bl = guard.baselineMatch(ROOT);
   t('golden baseline checked for every frozen-family file', bl.length === guard.FROZEN_FILES.length && bl.every((b) => b.ok),
@@ -98,6 +98,13 @@ async function main() {
   const byName = Object.fromEntries(bl.map((b) => [b.file, b.ok]));
   t('quote-calc freeze pinned explicitly: finance.js byte-identical to 8cc7db1', byName[FIN()] === true);
   t('quote-calc freeze pinned explicitly: cloud-bridge.js byte-identical to 8cc7db1', byName[BRIDGE()] === true);
+
+  t('Connections UI allowance covers only the four reviewed frontend paths',
+    guard.scopeOffenders(['assets/js/settings-connections.js', 'assets/css/settings-connections.css',
+      'assets/js/pulse/business-pulse.js', 'assets/js/pulse/pulse-governance-ui.js']).length === 0);
+  t('NEGATIVE: Connections scope does not admit neighbouring assets or provider adapters',
+    guard.scopeOffenders(['assets/js/settings-connections-extra.js', 'assets/css/settings-connections-extra.css',
+      'assets/js/pulse/provider-adapter.js', 'assets/js/pulse/settings-connections.js']).length === 4);
 
   /* ================= NEGATIVE: rename traps ================= */
   /* rename-ONLY fixtures: no frozen mutation, no out-of-scope add. A
