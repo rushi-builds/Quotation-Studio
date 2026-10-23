@@ -177,6 +177,16 @@ const PASSWORD = "ReviewPass!123";
     /* Approved visual integration: actual authenticated dashboard, never prototype data. */
     await p.waitForFunction(() => window.__businessPulseReady === true);
     ok('solar hero contains the real seven-tab router', await p.locator('.pulse-solar-hero #ghTabs [data-bi-tab]').count() === 7, '');
+    ok('production hero uses the exact approved preview photo',fs.readFileSync(path.join(root,'assets/images/pulse-solar-horizon.jpg')).equals(fs.readFileSync(path.join(root,'review/pulse-energy/solar-horizon.jpg'))),'');
+    ok('rendered hero no longer reuses old workspace photograph',await p.locator('.pulse-solar-hero').evaluate(el=>getComputedStyle(el).backgroundImage.includes('pulse-solar-horizon.jpg')),'');
+    ok('technical report controls are collapsed by default',!await p.locator('.bi-datebar').isVisible() && await p.locator('.pulse-solar-hero .gh-mode').count()===0,'');
+    await p.locator('[data-bi-action="report-options"]').click();
+    ok('hero date button opens original report controls',await p.locator('.bi-datebar').isVisible() && await p.locator('[data-bi-action="report-options"]').getAttribute('aria-expanded')==='true','');
+    await p.locator('#biGrain').selectOption('month');
+    await p.locator('#biGrain').selectOption('day');
+    ok('report grouping remains functional and disclosure stays open',await p.locator('#biGrain').inputValue()==='day' && await p.locator('#pulseReportOptions').evaluate(el=>el.open),'');
+    await p.locator('[data-bi-action="report-options"]').click();
+    ok('report options close without hiding summary data',!await p.locator('.bi-datebar').isVisible() && await p.locator('.pulse-visual-metric').count()===4,'');
     const surfaces = await p.evaluate(() => ({base:getComputedStyle(document.getElementById('panel-sales')).backgroundColor,card:getComputedStyle(document.querySelector('.pulse-visual-metric')).backgroundColor,image:getComputedStyle(document.querySelector('.pulse-visual-metric')).backgroundImage}));
     ok('Pulse base is transparent, not an independent blue canvas', /rgba\(0, 0, 0, 0\)/.test(surfaces.base), JSON.stringify(surfaces));
     ok('light Pulse card is white translucent glass', /linear-gradient/.test(surfaces.image) && /255, 255, 255, 0\./.test(surfaces.image), JSON.stringify(surfaces));
@@ -201,10 +211,11 @@ const PASSWORD = "ReviewPass!123";
     await p.locator('.pulse-calendar-day.selected').focus(); await p.keyboard.press('ArrowLeft');
     ok('calendar keyboard moves selection one day', await p.locator('.pulse-calendar-day.selected').getAttribute('data-pulse-date')!==selectedDay, '');
     await p.locator('[data-pulse-today]').click();
-    await p.locator('.pulse-followup-details summary').click();
+    await p.locator('.pulse-followup-details').evaluate(el=>{el.open=false;});
     await p.evaluate(()=>{document.activeElement?.blur();window.scrollTo({top:0,behavior:'instant'});});
     await p.waitForFunction(()=>window.scrollY===0);
     await p.screenshot({path:path.join(root,'qa/shots/pulse/overview-integrated-light.png'),fullPage:true,animations:'disabled'});
+    await p.locator('.pulse-solar-hero').screenshot({path:path.join(root,'qa/shots/pulse/corrected-approved-hero.png'),animations:'disabled'});
 
     /* Connection management has ONE home in Settings. Pulse is read-only. */
     await p.click('#ghTabs [data-bi-tab="connections"]');

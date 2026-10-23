@@ -106,6 +106,13 @@ async function main() {
     guard.scopeOffenders(['assets/js/settings-connections-extra.js', 'assets/css/settings-connections-extra.css',
       'assets/js/pulse/provider-adapter.js', 'assets/js/pulse/settings-connections.js']).length === 4);
 
+  t('workspace presentation allowance admits only the four named correction/review paths',
+    guard.scopeOffenders(['assets/css/workspace-fit.css', 'assets/images/pulse-solar-horizon.jpg',
+      'review/workspace-fit/index.html', 'review/workspace-fit/fixtures.js']).length === 0);
+  t('NEGATIVE: presentation allowance does not admit neighbouring CSS, images, reviews or providers',
+    guard.scopeOffenders(['assets/css/workspace-fit-extra.css', 'assets/images/pulse-other.jpg',
+      'review/workspace-fit/other.js', 'review/other/index.html', 'assets/js/pulse/provider-adapter.js']).length === 5);
+
   /* ================= NEGATIVE: rename traps ================= */
   /* rename-ONLY fixtures: no frozen mutation, no out-of-scope add. A
      protected config must fail ALONE even when its destination sits inside
