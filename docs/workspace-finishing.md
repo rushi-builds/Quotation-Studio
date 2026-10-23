@@ -65,3 +65,10 @@ behaviour are unchanged. This does not increase product request timeouts.
 Real provider OAuth/linking/sync/send remains intentionally deferred until the
 last functional phase. Test results do not claim live provider availability or
 production deployment.
+
+## Subsequent visual pass
+
+The separate, later button/icon/border/contrast/hover consistency pass and its
+updated packaging/QA results are documented in
+[workspace-visual-consistency.md](workspace-visual-consistency.md). The table
+above records the original functional finishing release, not that newer pass.
