@@ -28,6 +28,7 @@
     listGallery:()=>({items:[],gallery:[]}),listTeam:()=>({members:[user],users:[user]}),
     listConnections:()=>({connections:[]}),assistantStatus:()=>({enabled:false,available:false}),
     listVersions:()=>({versions:[]}),listLinks:()=>({links:[]}),listEvents:()=>({events:[]}),listSends:()=>({sends:[]}),
+    sendPreview:id=>({proposal:proposals.find(p=>p.id===id),defaultRecipientName:proposals.find(p=>p.id===id)?.customer||'',defaultEmail:'',defaultWhatsApp:''}),
     getProposal:id=>({proposal:proposals.find(p=>p.id===id)}),summary:()=>report
   };
   const blocked = () => Promise.reject(new Error('Visual review only — saving, sending and account changes are disabled.'));
