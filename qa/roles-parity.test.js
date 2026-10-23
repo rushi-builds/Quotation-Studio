@@ -556,8 +556,9 @@ for (const [label, src] of BOTH) {
   const unintended = guard.scopeOffenders(changed);
   t('changed files are the intended set (committed BASE→HEAD scope, allowlist unwidened)',
     unintended.length === 0, unintended.join(', '));
+  const migrationStatus=new Map(guard.git(ROOT,['diff','--no-renames','--name-status',base.ref,'HEAD']).trim().split('\n').filter(Boolean).map(line=>{const [status,file]=line.split('\t');return [file,status];}));
   t('no earlier migration was modified',
-    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-catalogue|006-profile-info|007-site-geo|007-member-links-likes|008-member-custom-link|009-recovery-resend|010-excel-product-catalog/.test(f)),
+    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-catalogue|006-profile-info|007-site-geo|007-member-links-likes|008-member-custom-link|009-recovery-resend|010-excel-product-catalog/.test(f) && !guard.newAccessMigration(f,migrationStatus.get(f))),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 }
 

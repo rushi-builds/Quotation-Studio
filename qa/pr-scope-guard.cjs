@@ -153,6 +153,9 @@ function deployConfigTouches(files) {
   return files.filter((f) => DEPLOY_CONFIG_RE.test(f));
 }
 
+// The new ACL migration may be added, never edited/deleted as an old migration.
+function newAccessMigration(file,status){return file==='platform/migrations/011-workspace-access.sql'&&status==='A';}
+
 function scopeOffenders(files) {
   return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f));
 }
@@ -198,5 +201,5 @@ function verify(repoRoot, opts) {
 module.exports = {
   GOLDEN_BASE_REF, FROZEN_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
   resolveBase, changedFiles, worktreeStatus,
-  frozenTouches, deployConfigTouches, scopeOffenders, baselineMatch, verify, git
+  frozenTouches, deployConfigTouches, scopeOffenders, newAccessMigration, baselineMatch, verify, git
 };

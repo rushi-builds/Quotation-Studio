@@ -111,6 +111,9 @@ async function main() {
       'review/workspace-fit/index.html', 'review/workspace-fit/fixtures.js']).length === 0);
   t('workspace ACL allowance admits only the four named implementation paths',
     guard.scopeOffenders(['assets/js/workspace-access.js','platform/workspace-access.mjs','platform/workspace-access-store.mjs','platform/migrations/011-workspace-access.sql']).length===0);
+  t('new ACL migration is allowed only as an additive file',guard.newAccessMigration('platform/migrations/011-workspace-access.sql','A'));
+  t('NEGATIVE: ACL migration exception never allows edits, removals, renames or other files',
+    !['M','D','R100'].some(status=>guard.newAccessMigration('platform/migrations/011-workspace-access.sql',status))&&!guard.newAccessMigration('platform/migrations/011-other.sql','A'));
   t('NEGATIVE: workspace ACL allowance excludes sibling backend, migrations and client scripts',
     guard.scopeOffenders(['assets/js/workspace-access-extra.js','platform/workspace-access-extra.mjs','platform/migrations/011-other.sql']).length===3);
   t('NEGATIVE: presentation allowance does not admit neighbouring CSS, images, reviews or providers',
