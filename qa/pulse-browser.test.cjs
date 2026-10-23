@@ -115,6 +115,15 @@ const PASSWORD = "ReviewPass!123";
     p.on("response", (r) => { const hit = assetRequests.find((a) => a.url === r.url()); if (hit) hit.status = r.status(); });
     p.on("dialog", (d) => d.accept());
 
+    await p.route('**/api/activity', async route => {
+      const response = await route.fetch();
+      if (response.ok()) {
+        const body = await response.json();
+        const list=Array.isArray(body.activity)?body.activity:body.events;
+        if (Array.isArray(list)) list.push({id:'undated-calendar-fixture',type:'Undated fixture event',createdAt:null});
+        await route.fulfill({response,json:body});
+      } else await route.fulfill({response});
+    });
     /* sign-in gate first (no session yet), then inject the disposable token */
     await p.goto(origin + "/dashboard.html");
     await p.waitForURL("**/index.html", { timeout: 15000 });
@@ -153,6 +162,7 @@ const PASSWORD = "ReviewPass!123";
 
     /* overview follow-ups: undated task honestly excluded (no invented placement) */
     await p.click('#ghTabs [data-bi-tab="overview"]');
+    await p.locator(".pulse-followup-details summary").click();
     await p.waitForSelector(".bi-task-table", { timeout: 10000 });
     const followups = await p.locator(".bi-task-table").textContent();
     ok("undated task not placed in today's follow-ups (no invented due)", !/Undated follow-up/.test(followups), followups.slice(0, 240));
@@ -163,6 +173,38 @@ const PASSWORD = "ReviewPass!123";
     const overviewText = await p.evaluate(() => document.getElementById("biBody").textContent);
     ok("activity history explicitly unavailable without CRM (never zero buckets)", /no measured lead\/quotation-issue\/win history exists to chart/.test(overviewText), overviewText.slice(0, 240));
     ok("lead sources explicitly unavailable without CRM (empty split is not a zero)", /An empty source split is unavailable, not a recorded zero/.test(overviewText), overviewText.slice(0, 240));
+
+    /* Approved visual integration: actual authenticated dashboard, never prototype data. */
+    await p.waitForFunction(() => window.__businessPulseReady === true);
+    ok('solar hero contains the real seven-tab router', await p.locator('.pulse-solar-hero #ghTabs [data-bi-tab]').count() === 7, '');
+    const surfaces = await p.evaluate(() => ({base:getComputedStyle(document.getElementById('panel-sales')).backgroundColor,card:getComputedStyle(document.querySelector('.pulse-visual-metric')).backgroundColor,image:getComputedStyle(document.querySelector('.pulse-visual-metric')).backgroundImage}));
+    ok('Pulse base is transparent, not an independent blue canvas', /rgba\(0, 0, 0, 0\)/.test(surfaces.base), JSON.stringify(surfaces));
+    ok('light Pulse card is white translucent glass', /linear-gradient/.test(surfaces.image) && /255, 255, 255, 0\./.test(surfaces.image), JSON.stringify(surfaces));
+    ok('quotation status donut is backed by the three server records', /Quotations/.test(await p.locator('.pulse-status-ring').innerText()) && /3/.test(await p.locator('.pulse-status-ring').innerText()), '');
+    ok('real activity endpoint envelope produces a measured graph point',await p.locator('[data-pulse-activity]').count()>0,'');
+    ok('calendar includes a real dated task and excludes undated source events', await p.locator('.pulse-calendar').count() === 1 && !/Undated fixture event/.test(await p.locator('.pulse-calendar').innerText()), '');
+    const taskDay = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata'}).format(new Date(tFuture.json.task.dueAt));
+    const taskMonth = taskDay.slice(0,7);
+    for (let i=0;i<2 && !await p.locator('[data-pulse-date="'+taskDay+'"]').count();i++) await p.locator('[data-pulse-month="1"]').click();
+    await p.locator('[data-pulse-date="'+taskDay+'"]').click();
+    ok('calendar date opens actual future task on its IST due date', /Future customer call/.test(await p.locator('.pulse-calendar-agenda').innerText()), '');
+    const taskRecord = p.locator('.pulse-agenda-row').filter({hasText:'Future customer call'});
+    await taskRecord.click();
+    ok('calendar detail is read-only and labels due-not-completion basis', /Due date, not completion time/.test(await p.locator('#ghDialogBody').innerText()) && await p.locator('#ghDialogBody form').count()===0, '');
+    await p.locator('#ghDialogClose').click();
+    const monthBefore=await p.locator('.pulse-calendar-month strong').innerText();
+    await p.locator('[data-pulse-month="-1"]').click();
+    ok('calendar previous-month navigation updates month', await p.locator('.pulse-calendar-month strong').innerText()!==monthBefore, '');
+    await p.locator('[data-pulse-today]').click();
+    const selectedDay = await p.locator('.pulse-calendar-day.selected').getAttribute('data-pulse-date');
+    ok('Today restores actual IST date', selectedDay===new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata'}).format(new Date()), selectedDay);
+    await p.locator('.pulse-calendar-day.selected').focus(); await p.keyboard.press('ArrowLeft');
+    ok('calendar keyboard moves selection one day', await p.locator('.pulse-calendar-day.selected').getAttribute('data-pulse-date')!==selectedDay, '');
+    await p.locator('[data-pulse-today]').click();
+    await p.locator('.pulse-followup-details summary').click();
+    await p.evaluate(()=>{document.activeElement?.blur();window.scrollTo({top:0,behavior:'instant'});});
+    await p.waitForFunction(()=>window.scrollY===0);
+    await p.screenshot({path:path.join(root,'qa/shots/pulse/overview-integrated-light.png'),fullPage:true,animations:'disabled'});
 
     /* Connection management has ONE home in Settings. Pulse is read-only. */
     await p.click('#ghTabs [data-bi-tab="connections"]');
@@ -241,6 +283,7 @@ const PASSWORD = "ReviewPass!123";
 
     /* >60s refresh lifecycle (governance timer): no PulseStorage, still alive */
     await p.click('#ghTabs [data-bi-tab="overview"]');
+    await p.locator(".pulse-followup-details summary").click();
     await p.waitForSelector(".bi-task-table", { timeout: 10000 });
     await p.evaluate(() => new Promise((r) => setTimeout(r, 60500)));
     ok("no PulseStorage global in production graph", (await p.evaluate(() => typeof window.PulseStorage)) === "undefined", "");
@@ -256,14 +299,27 @@ const PASSWORD = "ReviewPass!123";
     mp.on("pageerror", (e) => errors.push("mobile pageerror: " + e.message));
     await mp.goto(origin + "/dashboard.html?panel=sales");
     await mp.waitForSelector("#panel-sales.on", { timeout: 20000 });
+    await mp.waitForFunction(() => window.__businessPulseReady === true);
+    ok('mobile overview has no horizontal document overflow', await mp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), '');
+    for(const tab of ['desk','leads','performance','communications','automations','connections']){
+      await mp.locator('#ghTabs [data-bi-tab="'+tab+'"]').click();
+      ok('mobile '+tab+' has no document overflow', await mp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), '');
+    }
+    await mp.locator('#ghTabs [data-bi-tab="overview"]').click();
+    await mp.emulateMedia({reducedMotion:'reduce'});
+    ok('reduced motion disables solar and plot animations',await mp.locator('.pulse-trend-line').evaluateAll(nodes=>nodes.every(node=>getComputedStyle(node).animationName==='none')), '');
     await mp.screenshot({ path: path.join(root, "qa/shots/pulse/mobile-light.png"), fullPage: true, animations: "disabled" });
     await mob.close();
     const dark = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "dark" });
     const dkp = await dark.newPage();
-    await dkp.addInitScript((t) => localStorage.setItem("qs.sessionToken", t), token);
+    await dkp.addInitScript((t) => {localStorage.setItem("qs.sessionToken", t);localStorage.setItem("qs.dashboard.theme", "dark");}, token);
     dkp.on("pageerror", (e) => errors.push("dark pageerror: " + e.message));
     await dkp.goto(origin + "/dashboard.html?panel=sales");
     await dkp.waitForSelector("#panel-sales.on", { timeout: 20000 });
+    await dkp.waitForFunction(() => window.__businessPulseReady === true);
+    const darkCard=await dkp.locator('.pulse-visual-metric').first().evaluate(el=>getComputedStyle(el).backgroundColor);
+    ok('existing dark theme uses dark translucent Pulse glass', /rgba\(23, 39, 58, 0\./.test(darkCard), darkCard);
+    ok('dark overview has no horizontal document overflow',await dkp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), '');
     await dkp.screenshot({ path: path.join(root, "qa/shots/pulse/desktop-dark.png"), fullPage: false, animations: "disabled" });
     await dark.close();
 

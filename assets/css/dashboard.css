@@ -3447,3 +3447,175 @@ html[data-theme="dark"] .sidebar {
 .btn-danger:hover { filter: brightness(.94); }
 .btn-danger[disabled] { opacity: .6; cursor: wait; }
 .member-dialog.danger h2 { color: var(--red, #e5484d); }
+
+/* Studio Pulse approved visual direction, integrated into the existing solar-glass
+   dashboard. Shared surface tokens only: no editor, report/PDF or routing changes. */
+@font-face{font-family:Inter;src:url('../fonts/inter-latin-ext-400-normal.woff2');font-weight:400;font-display:swap;unicode-range:U+20B9}
+@font-face{font-family:Inter;src:url('../fonts/inter-latin-ext-500-normal.woff2');font-weight:500;font-display:swap;unicode-range:U+20B9}
+@font-face{font-family:Inter;src:url('../fonts/inter-latin-ext-600-normal.woff2');font-weight:600;font-display:swap;unicode-range:U+20B9}
+@font-face{font-family:Inter;src:url('../fonts/inter-latin-ext-700-normal.woff2');font-weight:700;font-display:swap;unicode-range:U+20B9}
+.main{--studio-glass:#ffffffeb;--studio-glass-border:#ffffffb8;--studio-glass-shadow:0 7px 26px #1736500b,inset 0 1px #ffffffb0;--studio-glass-radius:18px}
+html[data-theme="dark"] .main{--studio-glass:#17273aeb;--studio-glass-border:#c8dcf224;--studio-glass-shadow:0 7px 26px #040c1918,inset 0 1px #ffffff08}
+.main :is(.card,.hc,.kpis,.report-metric),.main #panel-settings .sc-service{background:var(--studio-glass);border-color:var(--studio-glass-border);box-shadow:var(--studio-glass-shadow);border-radius:var(--studio-glass-radius)}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .main{--studio-glass:#ffffffc7}html[data-theme="dark"] .main{--studio-glass:#17273ac7}
+  .main #panel-settings .sc-service{-webkit-backdrop-filter:blur(18px) saturate(125%);backdrop-filter:blur(18px) saturate(125%)}
+}
+#panel-sales{--gh-card:var(--studio-glass);--gh-ink:var(--text);--gh-muted:var(--muted);--gh-line:var(--line);--gh-soft:var(--surface-soft);--pulse-accent:var(--primary);--pulse-accent-hover:var(--primary);background:transparent;min-width:0}
+#panel-sales .gh-card{background:var(--studio-glass);border-color:var(--studio-glass-border);box-shadow:var(--studio-glass-shadow);border-radius:var(--studio-glass-radius)}
+#panel-sales .pulse-solar-hero{position:relative;isolation:isolate;min-height:220px;border-radius:21px;background:#f5e7d2 url('../images/dash-hero-bg.jpg') center 63%/cover;border:1px solid #ffffffa0;overflow:hidden;margin-bottom:17px;box-shadow:0 6px 25px #283c5010}
+#panel-sales .pulse-solar-hero:before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#fff6e8f0,#fff1dcb3 38%,#ffffff00 78%);z-index:-1}
+#panel-sales .pulse-solar-hero:after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 35% 20%,#fff6df60,transparent 58%);pointer-events:none;z-index:-1;animation:pulse-daylight 12s ease-in-out infinite alternate}
+#panel-sales .pulse-solar-hero .page-heading{padding:29px 29px 23px;min-height:159px;margin:0;gap:18px;align-items:flex-start}
+#panel-sales .pulse-solar-hero .eyebrow{font-size:9px;letter-spacing:1.8px;color:#81755f}
+#panel-sales .pulse-solar-hero h1{font-size:39px;font-weight:600;line-height:1.2;letter-spacing:-1.6px;color:#203047;margin:10px 0 8px}
+#panel-sales .pulse-solar-hero h1>span{color:#cc8e39}
+#panel-sales .pulse-solar-hero .sub{font-size:12px;line-height:1.7;color:#687586;margin:0}
+#panel-sales .pulse-solar-hero .gh-mode{background:#ffffffd4;color:#5a6a7e;border-color:#ffffffa0;backdrop-filter:blur(10px);font-size:9px;padding:10px 12px}
+#panel-sales .gh-tabs{display:flex;margin:0;padding:0 12px;gap:3px;border:0;border-top:1px solid #ffffff75;background:#ffffffc7;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);scrollbar-width:thin;scroll-padding-inline:12px}
+#panel-sales .gh-tabs button{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;padding:18px 11px 16px;border-bottom:3px solid transparent;opacity:1;color:#596c82;transition:background .2s,color .2s}
+#panel-sales .gh-tabs button svg{width:16px;height:16px;flex:0 0 16px}
+#panel-sales .gh-tabs button[aria-selected=true]{color:#a56f27;border-bottom-color:#e8ad50;background:#fffaf3a3;font-weight:600}
+#panel-sales .gh-tabs button:hover{background:#ffffff8a}
+html[data-theme="dark"] #panel-sales .pulse-solar-hero:before{background:linear-gradient(90deg,#142235f2,#18293abb 43%,#14223529 100%)}
+html[data-theme="dark"] #panel-sales .pulse-solar-hero:after{opacity:.16}
+html[data-theme="dark"] #panel-sales .pulse-solar-hero h1{color:#f1f4fa}
+html[data-theme="dark"] #panel-sales .pulse-solar-hero .eyebrow,html[data-theme="dark"] #panel-sales .pulse-solar-hero .sub{color:#c2ccda}
+html[data-theme="dark"] #panel-sales .pulse-solar-hero .gh-mode{background:#1b2e43cb;color:#d5e0ed;border-color:#ffffff17}
+html[data-theme="dark"] #panel-sales .gh-tabs{background:#15273bd1;border-color:#ffffff13}
+html[data-theme="dark"] #panel-sales .gh-tabs button{color:#b8c9db}
+html[data-theme="dark"] #panel-sales .gh-tabs button[aria-selected=true]{color:#f0c47b;background:#e8ad5015}
+html[data-theme="dark"] #panel-sales .gh-tabs button:hover{background:#ffffff07}
+#panel-sales .bi-datebar{background:transparent;border:0;padding:3px 0;margin-bottom:9px;gap:12px;min-height:39px}
+#panel-sales .bi-date-controls label{font-size:10px;color:var(--muted)}
+#panel-sales .bi-date-controls select,#panel-sales .bi-date-controls input{background:var(--studio-glass);font-size:10px;padding:8px 10px;border-radius:8px}
+#panel-sales .bi-mode{font-size:8px;padding:7px 9px;background:var(--studio-glass);color:var(--muted);border-color:var(--line);max-width:100%;flex-wrap:wrap}
+#panel-sales .bi-range-caption{font-size:9px;line-height:1.7;margin-bottom:16px}
+#panel-sales .pulse-visual-metrics{gap:15px;margin-bottom:19px}
+#panel-sales .pulse-visual-metric{padding:20px 17px;display:flex;align-items:center;gap:13px;transition:transform .25s,box-shadow .25s;position:relative;overflow:hidden}
+#panel-sales .pulse-visual-metric:hover{transform:translateY(-3px);box-shadow:0 12px 30px #20354c15}
+#panel-sales .pulse-metric-icon{width:41px;height:46px;flex-shrink:0;display:grid;place-items:center;border-radius:12px;color:var(--metric-color);background:color-mix(in srgb,var(--metric-color) 12%,transparent)}
+#panel-sales .pulse-metric-icon svg{width:21px;height:21px}
+#panel-sales .pulse-visual-metric>div:last-child{min-width:0}
+#panel-sales .pulse-visual-metric span{display:block;font-size:11px;color:var(--muted);font-weight:500;line-height:1.5}
+#panel-sales .pulse-visual-metric strong{display:block;font-size:27px;font-weight:600;letter-spacing:-.8px;margin:8px 0 6px;line-height:1.25;overflow-wrap:anywhere}
+#panel-sales .pulse-visual-metric small{font-size:9px;line-height:1.5;color:var(--muted)}
+#panel-sales .gh-head{padding:21px 22px 17px}
+#panel-sales .gh-head h2{display:flex;gap:9px;align-items:center;font-size:13px;letter-spacing:-.2px}
+#panel-sales .gh-head h2 svg{color:var(--muted)}
+#panel-sales .gh-head small{font-size:10px}
+#panel-sales .pulse-data-label{font-size:9px;color:var(--muted)}
+#panel-sales .pulse-overview-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(290px,1fr);gap:18px;align-items:stretch;margin-bottom:18px}
+#panel-sales .pulse-activity-chart-panel{min-height:350px;display:flex;flex-direction:column}
+#panel-sales .pulse-recorded-chart{padding:15px 19px 0;flex:1;display:flex;align-items:center;min-width:0}
+#panel-sales .pulse-recorded-chart svg{width:100%;height:auto;display:block;max-height:280px;overflow:visible}
+#panel-sales .pulse-recorded-chart text{font:11px Inter,Arial,sans-serif;fill:var(--muted)}
+#panel-sales .pulse-chart-grid line{stroke:var(--line);stroke-dasharray:3 6}
+#panel-sales .pulse-trend-line{fill:none;stroke:#d6a453;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1800;stroke-dashoffset:0;animation:pulse-line-in 1.5s ease both}
+#panel-sales .pulse-area{fill:url(#pulseActivityFill);animation:pulse-fade-in 1s ease both}
+#panel-sales [data-pulse-activity]{cursor:pointer;outline-offset:4px}
+#panel-sales [data-pulse-activity] circle{fill:var(--surface);stroke:#d6a453;stroke-width:2.5;transition:r .15s}
+#panel-sales [data-pulse-activity]:hover circle{r:6}
+#panel-sales .pulse-panel-caption{font-size:9px;color:var(--muted);line-height:1.7;padding:0 22px 18px;margin:0}
+#panel-sales .pulse-visual-empty{min-height:210px;display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:13px;padding:28px;text-align:center}
+#panel-sales .pulse-visual-empty>span{width:51px;height:51px;border-radius:16px;display:grid;place-items:center;background:color-mix(in srgb,var(--blue) 8%,transparent);color:var(--blue)}
+#panel-sales .pulse-visual-empty>span svg{width:24px;height:24px}
+#panel-sales .pulse-visual-empty strong{font-size:13px;font-weight:500}
+#panel-sales .pulse-visual-empty small{font-size:10px;color:var(--muted);line-height:1.8;max-width:280px}
+#panel-sales .pulse-overview-bottom{display:grid;grid-template-columns:1fr 1fr 1.15fr;gap:18px}
+#panel-sales .pulse-overview-bottom>.gh-card{min-height:245px;display:flex;flex-direction:column}
+#panel-sales .pulse-status-donut{display:flex;align-items:center;gap:20px;padding:5px 22px 22px;flex:1}
+#panel-sales .pulse-status-ring{width:125px;height:125px;position:relative;flex-shrink:0}
+#panel-sales .pulse-status-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+#panel-sales .pulse-status-ring>div{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px}
+#panel-sales .pulse-status-ring strong{font-size:27px;font-weight:500}
+#panel-sales .pulse-status-ring small{font-size:9px;color:var(--muted)}
+#panel-sales .pulse-status-legend{display:grid;gap:13px;flex:1;min-width:0;max-height:175px;overflow:auto}
+#panel-sales .pulse-status-legend>div{display:flex;align-items:center;gap:7px;font-size:10px;line-height:1.4}
+#panel-sales .pulse-status-legend i{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+#panel-sales .pulse-status-legend strong{margin-left:auto;font-size:10px;font-weight:500}
+#panel-sales .pulse-portal-bars{padding:6px 22px 24px;display:grid;gap:19px;flex:1;align-content:center}
+#panel-sales .pulse-portal-bars>div{display:grid;grid-template-columns:85px 1fr 28px;gap:10px;align-items:center;font-size:10px;color:var(--muted)}
+#panel-sales .pulse-portal-bars>div>div{height:7px;border-radius:6px;background:var(--surface-soft);overflow:hidden}
+#panel-sales .pulse-portal-bars i{display:block;height:100%;border-radius:6px;transform-origin:left;animation:pulse-bar-in .8s ease both}
+#panel-sales .pulse-portal-bars strong{font-size:10px;font-weight:500;text-align:right}
+#panel-sales .pulse-recent-list{padding:0 21px 15px}
+#panel-sales .pulse-recent-list>button{display:flex;align-items:center;gap:11px;width:100%;border:0;background:none;padding:13px 0;text-align:left;color:var(--text)}
+#panel-sales .pulse-recent-list>button>span{width:29px;height:31px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
+#panel-sales .pulse-recent-list>button>span svg{width:14px;height:14px}
+#panel-sales .pulse-recent-list>button>div{min-width:0;flex:1}
+#panel-sales .pulse-recent-list strong{font-size:11px;font-weight:500;line-height:1.7;display:block;overflow-wrap:anywhere}
+#panel-sales .pulse-recent-list small{font-size:9px;color:var(--muted);margin-top:4px;display:block}
+#panel-sales .pulse-recent-list>button>svg{width:12px;height:12px;color:var(--muted)}
+#panel-sales .pulse-calendar{align-self:start;min-height:350px}
+#panel-sales .pulse-calendar .gh-head{padding-bottom:13px}
+#panel-sales .pulse-calendar-arrows{display:flex;gap:6px}
+#panel-sales .pulse-calendar-arrows button{width:25px;height:25px;border:1px solid var(--line);border-radius:7px;display:grid;place-items:center;background:transparent;color:var(--muted);padding:0}
+#panel-sales .pulse-calendar-arrows svg{width:12px;height:12px;flex:0 0 12px}
+#panel-sales .pulse-calendar-month{display:flex;align-items:center;justify-content:space-between;padding:0 23px 12px;gap:10px}
+#panel-sales .pulse-calendar-month strong{font-size:11px;font-weight:500}
+#panel-sales .pulse-calendar-month button{border:0;background:none;color:var(--muted);font-size:9px;padding:3px}
+#panel-sales .pulse-calendar-week,#panel-sales .pulse-calendar-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding:0 17px;text-align:center}
+#panel-sales .pulse-calendar-week{font-size:9px;color:var(--muted);padding-bottom:6px}
+#panel-sales .pulse-calendar-day{position:relative;justify-self:center;width:30px;height:29px;display:grid;place-items:center;border:0;background:transparent;color:var(--text);border-radius:9px;font-size:11px;transition:background .2s,transform .2s;padding:0}
+#panel-sales .pulse-calendar-day:hover{background:color-mix(in srgb,var(--accent) 12%,transparent);transform:translateY(-1px)}
+#panel-sales .pulse-calendar-day[aria-current=date]{box-shadow:inset 0 0 0 1px #d7b47d}
+#panel-sales .pulse-calendar-day.has-records:after{content:'';position:absolute;bottom:3px;width:3px;height:3px;border-radius:50%;background:#be9860}
+#panel-sales .pulse-calendar-day.selected{background:#e6ae53;color:#25364c;font-weight:600;box-shadow:0 3px 8px #d6a25126}
+#panel-sales .pulse-calendar-day.selected:after{background:#25364c}
+#panel-sales .pulse-calendar-agenda{margin:12px 22px 18px;padding-top:12px;border-top:1px solid var(--line)}
+#panel-sales .pulse-agenda-heading{display:flex;align-items:center;justify-content:space-between;font-size:10px;gap:10px;margin-bottom:8px}
+#panel-sales .pulse-agenda-heading strong{font-weight:500}
+#panel-sales .pulse-agenda-heading small{font-size:9px;color:var(--muted)}
+#panel-sales .pulse-agenda-row{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;color:var(--text);text-align:left;padding:9px 0;border-radius:7px}
+#panel-sales .pulse-agenda-row:hover{background:var(--surface-soft)}
+#panel-sales .pulse-agenda-row>i{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+#panel-sales .pulse-agenda-row>span{font-size:9px;min-width:40px;color:var(--muted)}
+#panel-sales .pulse-agenda-row>strong{font-size:10px;font-weight:500;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#panel-sales .pulse-agenda-row>svg{width:11px;height:11px;flex:0 0 11px;color:var(--muted)}
+#panel-sales .pulse-calendar-empty{font-size:10px;color:var(--muted);line-height:1.8;padding:10px 0;margin:0}
+#panel-sales .pulse-calendar-coverage{font-size:8px;color:var(--muted);line-height:1.7;display:block;margin-top:8px}
+#panel-sales .pulse-definitions,#panel-sales .pulse-followup-details{font-size:10px;color:var(--muted);margin-top:19px;line-height:1.8}
+#panel-sales .pulse-definitions summary,#panel-sales .pulse-followup-details summary{cursor:pointer;padding:7px 2px}
+#panel-sales .pulse-definitions p{font-size:11px;line-height:1.9;max-width:850px;margin:11px 0}
+#panel-sales .pulse-desk-heading{border:0;background:transparent;padding:3px 1px 14px;box-shadow:none;margin:0;gap:14px}
+#panel-sales .pulse-desk-heading h2{font-size:18px;margin:0;letter-spacing:-.5px}
+#panel-sales .pulse-desk-heading .gh-eyebrow{display:none}
+#panel-sales .pulse-desk-heading p{font-size:10px;margin-top:5px}
+#panel-sales .pulse-desk-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(290px,1fr);gap:18px;align-items:start}
+#panel-sales .pulse-desk-queue{min-width:0;display:grid;gap:12px}
+#panel-sales .pulse-desk-queue .pulse-toolbar{margin:0;gap:10px}
+#panel-sales .pulse-filters{gap:6px;flex-wrap:wrap}
+#panel-sales .pulse-filters button{font-size:10px;min-height:32px;padding:7px 10px;border-radius:8px}
+#panel-sales .pulse-desk-queue .pulse-toolbar>label{font-size:10px}
+#panel-sales .pulse-action-table{min-width:610px}
+#panel-sales .pulse-action-table th{font-size:9px;padding:13px 15px}
+#panel-sales .pulse-action-table td{font-size:11px;padding:16px 15px}
+#panel-sales .pulse-action-table td small{font-size:10px}
+#panel-sales .bi-metric-row .gh-metric{padding:20px 22px}
+#panel-sales .bi-metric-row .gh-metric>span{font-size:11px}
+#panel-sales .bi-metric-row .gh-metric>strong{font-size:29px;margin:10px 0}
+#panel-sales .bi-metric-row .gh-metric>small{font-size:9px}
+#panel-sales .sc-pulse-status{background:var(--studio-glass);border-color:var(--studio-glass-border);box-shadow:var(--studio-glass-shadow)}
+#ghDialog .pulse-record-detail{padding:0 0 16px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+#ghDialog .pulse-record-detail h3{font-size:15px;margin-top:15px}
+#ghDialog .pulse-record-detail p{font-size:12px;line-height:1.8;overflow-wrap:anywhere}
+#ghDialog .pulse-record-detail small{font-size:10px;color:var(--muted);line-height:1.7}
+@keyframes pulse-daylight{from{opacity:.3}to{opacity:.65}}
+@keyframes pulse-line-in{from{stroke-dashoffset:1800}to{stroke-dashoffset:0}}
+@keyframes pulse-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes pulse-bar-in{from{scale:0 1}to{scale:1 1}}
+@media(min-width:1650px){#panel-sales .pulse-solar-hero{min-height:245px}#panel-sales .pulse-solar-hero .page-heading{min-height:184px;padding:37px 34px}#panel-sales .pulse-solar-hero h1{font-size:44px}}
+@media(max-width:1300px){#panel-sales .gh-tabs button{font-size:10px;padding:17px 9px;gap:6px}#panel-sales .pulse-visual-metric{padding:18px 13px;gap:10px}#panel-sales .pulse-metric-icon{width:35px;height:41px}#panel-sales .pulse-visual-metric strong{font-size:24px}#panel-sales .pulse-visual-metric span{font-size:10px}#panel-sales .pulse-visual-metric small{font-size:8px}#panel-sales .pulse-overview-grid,#panel-sales .pulse-desk-layout{grid-template-columns:minmax(0,1.4fr) minmax(280px,1fr)}#panel-sales .pulse-overview-bottom{grid-template-columns:1fr 1fr}#panel-sales .pulse-overview-bottom>.gh-card:last-child{grid-column:1/-1;min-height:140px}#panel-sales .pulse-recent-list{display:flex;gap:20px}#panel-sales .pulse-recent-list>button{flex:1}#panel-sales .pulse-status-donut{gap:22px}#panel-sales .bi-datebar{flex-wrap:wrap}}
+@media(max-width:1000px){#panel-sales .gh-tabs button{flex:none;font-size:11px;padding:17px 15px}#panel-sales .pulse-visual-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}#panel-sales .pulse-visual-metric{padding:20px;gap:14px}#panel-sales .pulse-visual-metric strong{font-size:27px}#panel-sales .pulse-visual-metric span{font-size:11px}#panel-sales .pulse-visual-metric small{font-size:9px}#panel-sales .pulse-overview-grid,#panel-sales .pulse-desk-layout{grid-template-columns:1fr}#panel-sales .pulse-calendar{width:100%}#panel-sales .pulse-calendar-day{width:35px;height:34px}#panel-sales .pulse-recorded-chart svg{max-height:280px}#panel-sales .pulse-activity-chart-panel{min-height:300px}#panel-sales .pulse-solar-hero .gh-mode{max-width:180px;text-align:center;line-height:1.7}#panel-sales .pulse-desk-queue .pulse-toolbar{flex-wrap:wrap}}
+@media(max-width:600px){#panel-sales .pulse-solar-hero{min-height:215px;border-radius:17px;background-position:65% 64%}#panel-sales .pulse-solar-hero .page-heading{padding:27px 21px 22px;min-height:161px;display:block}#panel-sales .pulse-solar-hero .eyebrow{font-size:8px;letter-spacing:1.3px}#panel-sales .pulse-solar-hero h1{font-size:34px;margin-top:12px}#panel-sales .pulse-solar-hero .sub{font-size:11px}#panel-sales .pulse-solar-hero .topbar-actions{display:none}#panel-sales .gh-tabs{padding:0 7px}#panel-sales .gh-tabs button{font-size:10px;padding:16px 12px;gap:6px}#panel-sales .gh-tabs button svg{width:14px;height:14px;flex-basis:14px}#panel-sales .bi-datebar{gap:10px}#panel-sales .bi-date-controls{gap:7px}#panel-sales .bi-date-controls label{font-size:9px}#panel-sales .bi-date-controls select,#panel-sales .bi-date-controls input{font-size:10px;max-width:180px}#panel-sales .bi-mode{font-size:8px;line-height:1.7}#panel-sales .bi-range-caption{font-size:9px}#panel-sales .pulse-visual-metrics{gap:10px;margin-bottom:15px}#panel-sales .pulse-visual-metric{padding:17px 12px;gap:10px;align-items:flex-start}#panel-sales .pulse-metric-icon{width:29px;height:34px;border-radius:9px}#panel-sales .pulse-metric-icon svg{width:16px;height:16px}#panel-sales .pulse-visual-metric span{font-size:10px}#panel-sales .pulse-visual-metric strong{font-size:23px;letter-spacing:-.6px;margin:7px 0}#panel-sales .pulse-visual-metric small{font-size:8px;line-height:1.7}#panel-sales .pulse-overview-grid,#panel-sales .pulse-desk-layout{gap:15px;margin-bottom:15px}#panel-sales .gh-head{padding:20px 18px 16px}#panel-sales .gh-head h2{font-size:12px;gap:7px}#panel-sales .pulse-data-label{font-size:8px;max-width:90px;text-align:right;line-height:1.7}#panel-sales .pulse-activity-chart-panel{min-height:285px}#panel-sales .pulse-recorded-chart{padding:15px 10px 0}#panel-sales .pulse-recorded-chart text{font-size:14px}#panel-sales .pulse-panel-caption{font-size:8px;padding:0 18px 18px}#panel-sales .pulse-visual-empty{padding:24px 20px;min-height:200px}#panel-sales .pulse-visual-empty strong{font-size:12px}#panel-sales .pulse-visual-empty small{font-size:10px}#panel-sales .pulse-overview-bottom{grid-template-columns:1fr;gap:15px}#panel-sales .pulse-overview-bottom>.gh-card:last-child{grid-column:auto;min-height:245px}#panel-sales .pulse-status-donut{padding:8px 24px 23px;gap:26px}#panel-sales .pulse-status-ring{width:130px;height:130px}#panel-sales .pulse-status-legend{font-size:10px}#panel-sales .pulse-portal-bars{padding:10px 23px 25px;gap:21px}#panel-sales .pulse-portal-bars>div{font-size:10px;grid-template-columns:87px 1fr 24px}#panel-sales .pulse-recent-list{display:block;padding:0 21px 15px}#panel-sales .pulse-recent-list>button{padding:15px 0}#panel-sales .pulse-calendar .gh-head{padding:21px 23px 13px}#panel-sales .pulse-calendar-day{width:34px;height:34px;font-size:11px}#panel-sales .pulse-calendar-month{padding-bottom:16px}#panel-sales .pulse-calendar-week{font-size:9px}#panel-sales .pulse-calendar-agenda{margin:12px 23px 20px}#panel-sales .pulse-agenda-row{padding:11px 0}#panel-sales .pulse-agenda-row>strong{font-size:10px}#panel-sales .pulse-calendar-coverage{font-size:8px}#panel-sales .pulse-desk-heading h2{font-size:17px}#panel-sales .pulse-desk-heading p{font-size:10px}#panel-sales .pulse-desk-heading .gh-secondary{font-size:10px}#panel-sales .bi-metric-row{gap:9px}#panel-sales .bi-metric-row .gh-metric{padding:17px 13px}#panel-sales .bi-metric-row .gh-metric>span{font-size:10px}#panel-sales .bi-metric-row .gh-metric>strong{font-size:26px}#panel-sales .bi-metric-row .gh-metric>small{font-size:8px}#panel-sales .pulse-desk-queue .pulse-toolbar{gap:10px}#panel-sales .pulse-filters button{font-size:10px;padding:7px 9px}#panel-sales .pulse-action-table{min-width:610px}#panel-sales .pulse-definitions{font-size:10px}#panel-sales .pulse-definitions p{font-size:10px}#panel-sales .bi-date-controls #biCustomDates{flex-wrap:wrap;max-width:100%}}
+@media(prefers-reduced-motion:reduce){#panel-sales *,#panel-sales *:before,#panel-sales *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}#panel-sales .pulse-visual-metric:hover,#panel-sales .pulse-calendar-day:hover{transform:none}}
+@media print{.main :is(.card,.hc,.kpis,.report-metric),.main #panel-settings .sc-service,#panel-sales .gh-card{background:var(--surface);backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}#panel-sales .pulse-solar-hero{background:var(--surface);box-shadow:none}#panel-sales .pulse-solar-hero:before,#panel-sales .pulse-solar-hero:after{display:none}}
+
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){#panel-sales .gh-card{-webkit-backdrop-filter:blur(18px) saturate(125%);backdrop-filter:blur(18px) saturate(125%)}}
+
+/* System means the existing clear Pearl appearance, not the operating-system colour scheme. */
+html[data-appearance="system"] .main{--studio-glass:linear-gradient(130deg,#ffffff80,#ffffff45);--studio-glass-border:#ffffffa6;--studio-glass-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 #ffffff80,0 6px 14px #28496c04,0 22px 55px -22px #294f752b}
+html[data-appearance="system"] #panel-sales .gh-card,html[data-appearance="system"] .main #panel-settings .sc-service{-webkit-backdrop-filter:blur(14px) saturate(110%);backdrop-filter:blur(14px) saturate(110%)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){html[data-appearance="system"] .main{--studio-glass:#fffffff5}}
+@media print{html[data-appearance="system"] .main{--studio-glass:#fff}}
