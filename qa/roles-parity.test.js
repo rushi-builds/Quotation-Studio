@@ -16,7 +16,9 @@
      - the migration file and schema.sql agree on the column
      - the frozen calculation / pricing / finance / export files are untouched
 
-   Run: node roles-parity.test.js */
+   Run: node roles-parity.test.js
+   C5 builds fresh public assets in an isolated temp workspace using the real
+   sync-public.js. No prerequisite build, cached public/ or tracked mirrors. */
 'use strict';
 
 const fs = require('fs');
@@ -24,12 +26,12 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const guard = require('./pr-scope-guard.cjs');
+const { buildPublic, publicParity } = require('./public-package.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const WORKER = path.join(ROOT, 'platform/cloudflare/src/worker.js');
 const SERVER = path.join(ROOT, 'platform/local-server/server.js');
 const DASH = path.join(ROOT, 'assets/js/dashboard.js');
-const DASH_PUB = path.join(ROOT, 'platform/cloudflare/public/assets/js/dashboard.js');
 const DASH_HOME = path.join(ROOT, 'assets/js/dashboard-home.js');
 const CSS = path.join(ROOT, 'assets/css/dashboard.css');
 const HTML = path.join(ROOT, 'dashboard.html');
@@ -408,12 +410,22 @@ t('dashboard.js: no name-plate reader consults elevation',
 t('css: the elevation hint and read-only rows are styled',
   /#roleEditor \.role-hint/.test(fs.readFileSync(CSS, 'utf8')) && /team-readonly/.test(fs.readFileSync(CSS, 'utf8')));
 
-/* ---------- 10. C5: the deployed copy matches the repo root ---------- */
-t('C5: platform/cloudflare/public exists', fs.existsSync(path.join(ROOT, 'platform/cloudflare/public')));
-for (const [rel, rootFile] of [['assets/js/dashboard.js', DASH], ['assets/js/dashboard-home.js', DASH_HOME], ['assets/css/dashboard.css', CSS], ['dashboard.html', HTML]]) {
-  const pub = path.join(ROOT, 'platform/cloudflare/public', rel);
-  t('C5: public/' + rel + ' is byte-identical to the root copy',
-    fs.existsSync(pub) && fs.readFileSync(pub, 'utf8') === fs.readFileSync(rootFile, 'utf8'));
+/* ---------- 10. C5: freshly built assets match the source checkout ---------- */
+/* A cached public/ folder is neither source nor evidence of deployed bytes.
+   Do not silently repair that cache or force generated files into Git. Build
+   through the actual packager, then retain strict byte comparisons; a broken
+   copy/missing asset still fails. Production deployment is NOT tested here. */
+let packaged;
+try {
+  packaged = buildPublic(ROOT);
+  t('C5: production packager creates a fresh isolated public artifact', fs.existsSync(packaged.publicRoot));
+  for (const entry of publicParity(ROOT, packaged.publicRoot)) {
+    t('C5: built public/' + entry.file + ' is byte-identical to the source copy', entry.ok);
+  }
+} catch (error) {
+  t('C5: isolated production packaging succeeds', false, error.message);
+} finally {
+  if (packaged) packaged.cleanup();
 }
 
 /* ---------- 11. C4 + item 5: every owner-scoped SQL site is rewritten and bound right ---------- */
