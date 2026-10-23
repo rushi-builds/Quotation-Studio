@@ -5,34 +5,76 @@
   const api=window.PlatformAPI,$=id=>document.getElementById(id);
   const h=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const providerNames={gmail:'Gmail',outlook:'Outlook',whatsapp:'WhatsApp',instagram:'Instagram',linkedin:'LinkedIn',website:'Website','google-calendar':'Google Calendar','outlook-calendar':'Outlook Calendar'};
-  let state=null,version=0,busy=false,dialog=null,returnFocus=null;
+  let state=null,version=0,busy=false,dialog=null,returnFocus=null,accessTab='accounts',accountFilter='all';
   const identity=()=>window.QSDash?.user()?.id;
   const label=p=>state?.permissionLabels?.[p]||p;
   const btn=(action,caption,attrs='')=>`<button type="button" class="btn btn-secondary btn-sm" data-wa="${action}" ${attrs}>${h(caption)}</button>`;
   const pending=(resource,permission)=>state?.requests.some(r=>r.userId===state.self.id&&r.resource===resource&&r.permission===permission&&r.status==='pending');
   function requestButton(resource,permission){return btn('request',pending(resource,permission)?'Request pending':'Request access',`data-resource="${h(resource)}" data-permission="${h(permission)}" ${pending(resource,permission)||state?.readOnlyReview?'disabled':''}`);}
-  function open(){window.QSDash?.showSettings('connections',true);$('workspaceAccess')?.scrollIntoView({block:'start',behavior:'smooth'});}
+  function open(tab='accounts'){accessTab=['accounts','requests','permissions','history'].includes(tab)?tab:'accounts';window.QSDash?.showSettings('connections',true);$('workspaceAccess')?.scrollIntoView({block:'start',behavior:'smooth'});}
   function showDialog(title,html){
     returnFocus=document.activeElement;
     // Pin the identity/revision actually shown to the reviewer. A background
     // refresh must never silently upgrade an already-open approval form.
     dialog.dataset.revision=String(state?.revision??'');dialog.dataset.user=identity()||'';
     dialog.innerHTML=`<div class="sc-dialog-head"><h2 id="waDialogTitle">${h(title)}</h2>${btn('close','Close')}</div>${html}<p id="waError" role="alert"></p>`;
+    if(state?.readOnlyReview){
+      dialog.querySelectorAll('input,select,textarea,button[type="submit"]').forEach(el=>el.disabled=true);
+      dialog.querySelector('.sc-dialog-head')?.insertAdjacentHTML('afterend','<p class="wa-preview-label">Read-only sample preview</p>');
+    }
     dialog.showModal();
   }
   const reasonField=()=>'<label>Reason<textarea name="reason" required minlength="5" maxlength="500" rows="3"></textarea></label>';
   const duration=()=>'<label>Access duration<select name="days"><option value="30">30 days</option><option value="7">7 days</option><option value="90">90 days</option><option value="0">Until revoked</option></select></label>';
+  const shortLabel=p=>({'member':'Membership','metrics.read':'Company insights','finance.read':'Financial reports','pricing.read':'Quotation pricing','followups.read':'Shared follow-ups','inbox.read':'Inbox','messages.send':'Replies','calendar.read':'Calendar','calendar.write':'Create events','connection.manage':'Account settings'}[p]||label(p));
+  function symbol(name){
+    const custom={refresh:'<path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 18 17"/>',lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',archive:'<path d="M4 8h16v12H4zM3 3h18v5H3zM9 12h6"/>'};
+    return custom[name]?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+custom[name]+'</svg>':window.PulseBrand.symbol(name);
+  }
+  const iconButton=(action,icon,caption,attrs='')=>`<button type="button" class="btn btn-secondary btn-sm wa-icon-button" data-wa="${action}" aria-label="${h(caption)}" title="${h(caption)}" ${attrs}>${symbol(icon)}</button>`;
+  const permissionIcon=p=>({'member':'person','metrics.read':'globe','finance.read':'shield','pricing.read':'layers','followups.read':'clock','inbox.read':'chat','messages.send':'arrow','calendar.read':'clock','calendar.write':'plus'}[p]||'settings');
+  const statusPill=(text,tone='neutral')=>`<span class="wa-status wa-status-${tone}"><i aria-hidden="true"></i>${h(text)}</span>`;
+  function selectTab(tab,focus=false){
+    if(!['accounts','requests','permissions','history'].includes(tab))return;
+    accessTab=tab;render();if(focus)$('wa-tab-'+tab)?.focus();
+  }
+  function accountCard(c,s){
+    const rights=Object.entries(c.permissions).filter(([p])=>p!=='connection.manage');
+    return `<article class="wa-account wa-account-card" data-wa-account="${h(c.id)}">
+      <div class="wa-account-top"><span class="wa-provider-icon">${PulseBrand.badge(providerNames[c.provider]||c.provider,'card')}</span><span class="wa-scope">${symbol(c.scope==='company'?'layers':'person')}${c.scope==='company'?'Company':'Personal'}</span>${c.canManage?iconButton('archive',c.archived?'refresh':'archive',c.archived?'Restore account preparation':'Archive account preparation',`data-resource="${h(c.id)}" ${s.readOnlyReview?'disabled':''}`):''}</div>
+      <h4 class="wa-account-name">${h(c.label)}</h4><span class="wa-provider-name">${h(providerNames[c.provider]||c.provider)}</span>
+      <div class="wa-account-status">${statusPill(c.archived?'Archived':'Not connected',c.archived?'neutral':'pending')}</div>
+      <div class="wa-rights" aria-label="Account permissions">${rights.map(([p,allowed])=>`<span class="wa-right ${allowed&&!c.archived?'is-allowed':'is-restricted'}" title="${h(label(p))}: ${c.archived?'Archived':allowed?'Allowed':'Restricted'}">${symbol(allowed&&!c.archived?'check':'lock')}<span>${h(shortLabel(p))}</span><span class="sc-sr-only"> · ${c.archived?'Archived':allowed?'Allowed':'Restricted'}</span></span>`).join('')}</div>
+      <div class="wa-card-actions">${btn('account-details','Permissions',`data-resource="${h(c.id)}"`)}${c.canShare&&!c.archived?btn('share','Manage access',`data-resource="${h(c.id)}" ${s.readOnlyReview?'disabled':''}`):''}</div>
+    </article>`;
+  }
+  function accountDetails(id){
+    const c=state.connections.find(c=>c.id===id);if(!c)return;
+    showDialog(c.label,`<div class="wa-detail-provider"><span class="wa-provider-icon">${PulseBrand.badge(providerNames[c.provider]||c.provider,'card')}</span><div><strong>${h(providerNames[c.provider]||c.provider)}</strong><p>${c.scope==='company'?'Company account':'Personal account'} · ${c.archived?'Archived':'Not connected'}</p></div></div><div class="wa-detail-permissions">${Object.entries(c.permissions).map(([p,allowed])=>`<div class="wa-detail-row"><span>${symbol(permissionIcon(p))}${h(label(p))}</span>${statusPill(c.archived?'Archived':allowed?'Allowed':'Restricted',allowed&&!c.archived?'allowed':'neutral')}${!allowed&&!c.archived&&c.scope==='company'?requestButton(c.id,p):''}</div>`).join('')}</div><p class="wa-note">Permissions control Studio access. Provider linking is separate.</p>`);
+  }
   function render(){
     const root=$('workspaceAccess');if(!root||!state)return;
     const s=state;
     const add=$('connectionsAdd')?.querySelector('button');if(add)add.disabled=Boolean(s.readOnlyReview||!s.self.member);
-    const accounts=s.connections.map(c=>`<article class="wa-account" data-wa-account="${h(c.id)}"><div class="wa-heading"><strong>${h(c.label)}</strong><span>${h(providerNames[c.provider]||c.provider)} · ${c.scope==='company'?'Company':'Personal'} · ${c.archived?'Archived':'Not connected'}</span></div><div class="wa-actions">${Object.entries(c.permissions).filter(([p])=>p!=='connection.manage').map(([p,allowed])=>`<span class="wa-permission">${h(label(p))}: ${c.archived?'Archived':allowed?'Allowed': 'Restricted'} ${!allowed&&!c.archived&&c.scope==='company'?requestButton(c.id,p):''}</span>`).join('')}${c.canShare&&!c.archived?btn('share','Manage access',`data-resource="${h(c.id)}" ${s.readOnlyReview?'disabled':''}`):''}${c.canManage?btn('archive',c.archived?'Restore':'Archive',`data-resource="${h(c.id)}" ${s.readOnlyReview?'disabled':''}`):''}</div></article>`).join('');
-    const workspace=Object.entries(s.workspacePermissions).map(([p,name])=>`<div class="wa-permission"><span>${h(name)}</span><strong>${s.permissions[p]?'Allowed':'Restricted'}</strong>${!s.permissions[p]&&(s.self.member||p==='member')?requestButton('workspace',p):''}</div>`).join('');
+    const pendingCount=s.requests.filter(r=>r.status==='pending').length;
+    const visible=s.connections.filter(c=>accountFilter==='all'||c.scope===accountFilter);
+    const accounts=visible.map(c=>accountCard(c,s)).join('');
+    const workspace=Object.keys(s.workspacePermissions).map(p=>`<div class="wa-access-tile"><span class="wa-access-icon">${symbol(permissionIcon(p))}</span><div><strong>${h(shortLabel(p))}</strong><span>${s.permissions[p]?'Access allowed':'Restricted'}</span></div>${s.permissions[p]?`<span class="wa-access-check" aria-label="${h(label(p))}: allowed">${symbol('check')}</span>`:(s.self.member?requestButton('workspace',p):`<span class="wa-access-lock" aria-label="Membership required">${symbol('lock')}</span>`)}</div>`).join('');
     const requests=s.requests.slice().reverse().map(r=>{
       const canReview=r.userId!==s.self.id&&r.status==='pending'&&(s.self.manager&&r.resource==='workspace'||s.connections.some(c=>c.id===r.resource&&c.canShare));
-      return `<article class="wa-account"><div><strong>${h(r.userName)} · ${h(label(r.permission))}</strong><p>${h(r.resourceLabel)} · ${h(r.status)}</p><p>${h(r.reason)}</p>${r.reviewReason?`<small>Decision: ${h(r.reviewReason)}</small>`:''}</div>${canReview?`<div class="wa-actions">${btn('review','Review request',`data-request="${h(r.id)}" ${s.readOnlyReview?'disabled':''}`)}</div>`:''}</article>`;
+      const status={pending:'Pending',approved:'Approved',rejected:'Declined',expired:'Expired',cancelled:'Cancelled'}[r.status]||r.status;
+      return `<article class="wa-request-card"><div class="wa-request-person"><span class="wa-avatar" aria-hidden="true">${h(r.userName?.trim().charAt(0)||'?')}</span><div><strong>${h(r.userName)}</strong><span>${h(shortLabel(r.permission))} · ${h(r.resourceLabel)}</span></div>${statusPill(status,r.status==='pending'?'pending':r.status==='approved'?'allowed':'neutral')}</div><div class="wa-request-bottom"><details class="wa-request-context"><summary>Request details</summary><p>${h(r.reason)}</p>${r.reviewReason?`<p><strong>Decision</strong> · ${h(r.reviewReason)}</p>`:''}</details>${canReview?btn('review',s.readOnlyReview?'View request':'Review request',`data-request="${h(r.id)}"`):''}</div></article>`;
     }).join('');
-    root.innerHTML=`<div class="wa-heading"><div><h3>Accounts & access</h3><p>Company tools, personal accounts and explicit permissions.</p></div><div class="wa-actions">${btn('refresh','Refresh')}${btn('prepare','+ Prepare account',s.readOnlyReview||!s.self.member?'disabled':'')}${s.self.manager?btn('share','Manage team access',`data-resource="workspace" ${s.readOnlyReview?'disabled':''}`):''}</div></div>${s.readOnlyReview?'<p class="wa-note">Read-only sample preview. No permission or account changes can be saved here.</p>':''}<p class="wa-note">Preparations do not connect a provider. No inbox, sync or sender is enabled yet.</p><div class="wa-workspace">${workspace}</div><div class="wa-accounts">${accounts||'<p>No accounts prepared yet.</p>'}</div><details class="wa-requests" id="workspaceAccessRequests" ${s.pendingReviews?'open':''}><summary>Access requests ${s.pendingReviews?`· ${s.pendingReviews} awaiting review`:''}</summary>${requests||'<p>No access requests.</p>'}</details><details><summary>Recent access history</summary>${s.audit.map(e=>`<p><strong>${h(e.action)}</strong> · ${h(e.actorName)}<br><small>${h(new Date(e.at).toLocaleString())}</small></p>`).join('')||'<p>No access decisions yet.</p>'}</details>`;
+    const history=s.audit.map(e=>`<li><span class="wa-history-dot">${symbol('shield')}</span><div><strong>${h(e.action)}</strong><span>${h(e.actorName)}</span></div><time datetime="${h(e.at)}">${h(new Date(e.at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}</time></li>`).join('');
+    const tabs=[['accounts','Accounts',s.connections.length],['requests','Requests',pendingCount],['permissions','My access',null],['history','History',null]];
+    root.innerHTML=`<div class="wa-header"><div class="wa-header-title"><span class="wa-header-icon">${symbol('shield')}</span><div><h3>Accounts & access</h3><span>${s.connections.length} ${s.connections.length===1?'account':'accounts'} · Company & personal</span></div></div><div class="wa-actions">${iconButton('refresh','refresh','Refresh access')}${s.self.manager?btn('share','Team access',`data-resource="workspace" ${s.readOnlyReview?'disabled':''}`):''}${btn('prepare','+ Add account',`${s.readOnlyReview||!s.self.member?'disabled':''}`)}</div></div>
+      <div class="wa-tabbar" role="tablist" aria-label="Accounts and access sections">${tabs.map(([key,name,count])=>`<button type="button" role="tab" id="wa-tab-${key}" data-wa="tab" data-tab="${key}" aria-controls="wa-panel-${key}" aria-selected="${accessTab===key}" tabindex="${accessTab===key?0:-1}">${name}${count!==null?`<span class="wa-tab-count ${key==='requests'&&count?'has-pending':''}">${count}</span>`:''}</button>`).join('')}</div>
+      ${!s.self.member?`<div class="wa-membership-notice"><span>${symbol('shield')}Company approval required</span>${requestButton('workspace','member')}</div>`:''}
+      <section role="tabpanel" id="wa-panel-accounts" aria-labelledby="wa-tab-accounts" ${accessTab!=='accounts'?'hidden':''}><div class="wa-account-toolbar"><span>Your accounts</span><div class="wa-scope-filters" role="group" aria-label="Account ownership">${[['all','All'],['company','Company'],['personal','Personal']].map(([key,name])=>`<button type="button" data-wa="filter" data-filter="${key}" aria-pressed="${accountFilter===key}">${name}</button>`).join('')}</div></div><div class="wa-accounts">${accounts||`<div class="wa-empty">${symbol('layers')}<strong>${s.connections.length?'No accounts in this view':'No accounts yet'}</strong><span>${s.self.member?'Add an account to organise its permissions.':'Company accounts appear after approval.'}</span></div>`}</div></section>
+      <section role="tabpanel" id="wa-panel-requests" aria-labelledby="wa-tab-requests" ${accessTab!=='requests'?'hidden':''}><div class="wa-section-heading"><strong>Access requests</strong><span>${pendingCount?pendingCount+' pending':'All up to date'}</span></div><div class="wa-requests" id="workspaceAccessRequests">${requests||`<div class="wa-empty">${symbol('check')}<strong>You're all caught up</strong><span>New access requests will appear here.</span></div>`}</div></section>
+      <section role="tabpanel" id="wa-panel-permissions" aria-labelledby="wa-tab-permissions" ${accessTab!=='permissions'?'hidden':''}><div class="wa-section-heading"><strong>My workspace access</strong><span>Signed-in permissions</span></div><div class="wa-workspace">${workspace}</div></section>
+      <section role="tabpanel" id="wa-panel-history" aria-labelledby="wa-tab-history" ${accessTab!=='history'?'hidden':''}><div class="wa-section-heading"><strong>Access history</strong><span>Recent decisions</span></div>${history?`<ol class="wa-history">${history}</ol>`:`<div class="wa-empty">${symbol('clock')}<strong>No decisions yet</strong></div>`}</section>
+      <div class="wa-footer"><span>${symbol('lock')}Account setup only · provider linking unavailable</span>${s.readOnlyReview?'<span class="wa-preview-label" title="No permissions or account changes can be saved here.">Read-only sample preview</span>':''}</div>`;
   }
   async function refresh(){
     const ticket=++version,uid=identity();
@@ -125,12 +167,15 @@
     if(identity())refresh();
   }
   document.addEventListener('click',event=>{
-    if(event.target.closest('[data-workspace-access]')){event.preventDefault();$('bellDrop')?.classList.remove('on');open();return;}
+    if(event.target.closest('[data-workspace-access]')){event.preventDefault();$('bellDrop')?.classList.remove('on');open('requests');return;}
     const b=event.target.closest('[data-wa]');if(!b||b.disabled)return;
     if(b.dataset.wa==='open'){open();return;}
+    if(b.dataset.wa==='tab'){selectTab(b.dataset.tab,true);return;}
+    if(b.dataset.wa==='filter'){accountFilter=['all','company','personal'].includes(b.dataset.filter)?b.dataset.filter:'all';render();$('workspaceAccess')?.querySelector('[data-filter="'+accountFilter+'"]')?.focus();return;}
     if(b.dataset.wa==='refresh'){refresh();return;}
     if(b.dataset.wa==='close'){dialog.close();return;}
     if(!state||busy)return;
+    if(b.dataset.wa==='account-details')accountDetails(b.dataset.resource);
     if(b.dataset.wa==='prepare')prepare();
     if(b.dataset.wa==='share')share(b.dataset.resource);
     if(b.dataset.wa==='request'){
@@ -146,8 +191,14 @@
       showDialog(c.archived?'Restore preparation':'Archive preparation',`<p>${c.archived?'Restoring does not restore old grants.':'Existing explicit grants will be revoked and pending requests cancelled. No external provider is disconnected by this action.'}</p><form data-wa-form="archive"><input type="hidden" name="connectionId" value="${h(c.id)}"><input type="hidden" name="archived" value="${!c.archived}">${reasonField()}<button type="submit" class="btn btn-primary">Confirm</button></form>`);
     }
   });
+  document.addEventListener('keydown',event=>{
+    const tab=event.target.closest('#workspaceAccess [role="tab"]');
+    if(!tab||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+    event.preventDefault();const keys=['accounts','requests','permissions','history'],index=keys.indexOf(tab.dataset.tab);
+    selectTab(event.key==='Home'?keys[0]:event.key==='End'?keys[3]:keys[(index+(event.key==='ArrowRight'?1:3))%4],true);
+  });
   document.addEventListener('qs:settings',e=>{if(e.detail==='connections')refresh();});
-  document.addEventListener('qs:session',()=>{version++;state=null;dialog?.close();if($('workspaceAccess'))refresh();});
+  document.addEventListener('qs:session',()=>{version++;state=null;accessTab='accounts';accountFilter='all';dialog?.close();if($('workspaceAccess'))refresh();});
   window.addEventListener('focus',()=>{if(identity()&&($('panel-sales')?.classList.contains('on')||!document.querySelector('[data-settings-section="connections"]')?.hidden&&$('panel-settings')?.classList.contains('on')))refresh();});
   window.StudioWorkspaceAccess=Object.freeze({open,refresh,mountPulse});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();

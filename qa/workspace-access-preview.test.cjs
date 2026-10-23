@@ -20,7 +20,7 @@ const fs=require('fs'),path=require('path'),http=require('http'),assert=require(
   try{
     const c=require('@sparticuz/chromium');const chrome=c.default||c;
     browser=await chromium.launch({executablePath:await chrome.executablePath(),args:chrome.args.filter(a=>a!=='--single-process'),headless:true});
-    const page=await browser.newPage();
+    const page=await browser.newPage({viewport:{width:1536,height:1100}});
     page.on('pageerror',e=>errors.push(e.message));
     page.on('request',r=>{if(/\/(api|auth)\//.test(new URL(r.url()).pathname))apiRequests.push(r.url());});
     for(const role of ['owner','member','pending']){
@@ -32,9 +32,49 @@ const fs=require('fs'),path=require('path'),http=require('http'),assert=require(
       check(role+' fixture rejects direct access mutations',await f.evaluate(async()=>{try{await PlatformAPI.workspaceCommand('grant',{userId:'someone'});return false;}catch{return true;}}));
       check(role+' membership presentation is correct',await f.evaluate(()=>PlatformAPI.workspaceAccess().then(s=>s.self.member))===(role!=='pending'));
       if(role==='owner'){
-        check('owner sees sample company request with disabled approval',await f.locator('#workspaceAccess [data-wa="review"]:disabled').count()===1);
+        check('default view is accounts, not a wall of permissions or request reasons',await f.locator('#wa-tab-accounts').getAttribute('aria-selected')==='true'&&!await f.locator('.wa-workspace').isVisible()&&!/Review company quotation totals/.test(await f.locator('#workspaceAccess').innerText()));
+        check('each account has a locally loaded recognisable provider logo',await f.locator('.wa-account-card .wa-provider-icon img').evaluateAll(imgs=>imgs.length===3&&imgs.every(img=>img.complete&&img.naturalWidth>0&&new URL(img.src).origin===new URL(document.baseURI).origin)));
+        await f.click('#wa-tab-requests');
+        check('requests are in their own panel with reasons collapsed',await f.locator('#wa-panel-requests').isVisible()&&!await f.locator('.wa-request-context').evaluate(e=>e.open));
+        await f.click('#workspaceAccess [data-wa="review"]');
+        check('sample request can be inspected but approval cannot be submitted',await f.locator('#workspaceAccessDialog').isVisible()&&await f.locator('#workspaceAccessDialog button[type=submit]').isDisabled());
+        check('all preview decision fields are read only',await f.locator('#workspaceAccessDialog input,#workspaceAccessDialog select,#workspaceAccessDialog textarea').evaluateAll(fields=>fields.length>0&&fields.every(field=>field.disabled)));
+        await f.locator('#workspaceAccessDialog button[type=submit]').evaluate(b=>{b.disabled=false;b.click();});
+        check('forced preview submit cannot fabricate a saved decision',await f.locator('#workspaceAccessDialog').isVisible()&&await f.evaluate(()=>PlatformAPI.workspaceAccess().then(s=>s.requests[0].status))==='pending');
+        await f.click('#workspaceAccessDialog [data-wa="close"]');
+        await f.locator('#wa-tab-requests').focus();await f.press('#wa-tab-requests','End');
+        check('tab keyboard End navigates to History with focus',await f.locator('#wa-tab-history').evaluate(e=>e===document.activeElement&&e.getAttribute('aria-selected')==='true'));
+        await f.press('#wa-tab-history','Home');
+        check('tab keyboard Home returns to Accounts',await f.locator('#wa-tab-accounts').getAttribute('aria-selected')==='true');
+        await f.click('#workspaceAccess [data-wa="account-details"] >> nth=0');
+        check('individual account permissions use a read-only detail dialog',await f.locator('#workspaceAccessDialog .wa-detail-row').count()===3);
+        await f.click('#workspaceAccessDialog [data-wa="close"]');
+        await f.click('[data-wa="filter"][data-filter="personal"]');
+        check('ownership filters show an honest empty state',await f.locator('.wa-account-card:visible').count()===0&&/No accounts in this view/.test(await f.locator('#wa-panel-accounts').innerText()));
+        await f.click('[data-wa="filter"][data-filter="all"]');
+        for(const theme of ['light','dark','system']){
+          await f.selectOption('#dashboardTheme',theme);
+          check(theme+' access tabs remain visible and selected',await f.locator('#wa-panel-accounts').isVisible()&&await f.locator('#wa-tab-accounts').getAttribute('aria-selected')==='true');
+          check(theme+' accounts have no horizontal document overflow',await f.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+          if(theme==='dark'){
+            check('dark mode applies dark glass and a light foreground to account cards',await f.locator('#workspaceAccess').evaluate(root=>{const css=getComputedStyle(root);return document.documentElement.dataset.theme==='dark'&&!css.backgroundImage.includes('255, 255, 255')&&css.color.match(/[\d.]+/g).slice(0,3).every(n=>Number(n)>100);}));
+            await f.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+            await f.locator('#workspaceAccess').screenshot({path:path.join(root,'qa/shots/workspace-access/preview-owner-dark.png'),animations:'disabled',timeout:90000});
+          }
+        }
         fs.mkdirSync(path.join(root,'qa/shots/workspace-access'),{recursive:true});
-        await page.screenshot({path:path.join(root,'qa/shots/workspace-access/preview-owner.png'),fullPage:true,timeout:90000});
+        await f.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+        await f.locator('#workspaceAccess').screenshot({path:path.join(root,'qa/shots/workspace-access/preview-owner.png'),animations:'disabled',timeout:90000});
+        await f.click('#wa-tab-requests');
+        await f.locator('#workspaceAccess').screenshot({path:path.join(root,'qa/shots/workspace-access/preview-requests.png'),animations:'disabled',timeout:90000});
+        await f.click('#wa-tab-accounts');
+        await page.setViewportSize({width:390,height:844});
+        check('mobile tabs and account cards fit without horizontal overflow',await f.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+        await f.evaluate(()=>document.querySelector('#workspaceAccess').scrollIntoView({block:'start'}));
+        await page.screenshot({path:path.join(root,'qa/shots/workspace-access/preview-owner-mobile.png'),animations:'disabled',timeout:90000});
+        await f.click('#wa-tab-permissions');
+        check('mobile My access remains usable without a long default list',await f.locator('#wa-panel-permissions').isVisible());
+        await page.setViewportSize({width:1536,height:1100});
       }
     }
     await page.goto(origin+'/review/workspace-fit/index.html?panel=sales&role=member');

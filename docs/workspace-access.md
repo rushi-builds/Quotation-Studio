@@ -174,7 +174,7 @@ preparations and decisions cannot be changed through the sample preview.
 ### Verification notes for this patch
 
 The dedicated access API (95), authenticated browser workflow (23), isolated
-preview (17), Pulse browser (77), Connections browser (67), eight-page workflow
+preview (35), Pulse browser (77), Connections browser (67), eight-page workflow
 (40), original-layout (28), label/readability (20), platform API (172), and
 existing role-access (150) checks passed. The Worker security contract passed.
 Packaging/frozen/scope/role-parity checks are also run before preview publication.
@@ -191,3 +191,14 @@ manual sharing (opening the user's own mail/WhatsApp client) is not company
 mailbox OAuth, and cannot override that external application's own permissions.
 Do not share company provider passwords with team members; connect a company
 account through an authorised provider adapter and delegate Studio access instead.
+
+### Accounts & access presentation
+
+The Settings panel uses provider-logo account cards and ownership filters.
+Accounts, Requests, My access and History are separate keyboard-navigable tabs;
+request reasons and individual permission details are disclosed on demand.
+Notifications open the Requests tab. The shared Pulse overview and all backend
+access rules are unchanged. Light/dark and mobile layouts are covered by the
+isolated preview checks, including locally loaded logos and forced-submit
+read-only protection. Sample names are fictional; the fixture remains visibly
+labelled read-only and cannot save decisions or connect providers.

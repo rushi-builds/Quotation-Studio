@@ -116,7 +116,7 @@ function check(name, condition, detail = '') {
     check('ordinary member cannot select company ownership',await sf.locator('[name="scope"] option[value="company"]').count()===0);
     await sf.locator('[name="label"]').fill('Private <img src=x onerror="window.bad=true">');
     await sf.locator('button[type="submit"]').click();await sf.waitFor({state:'hidden'});
-    check('account nickname is escaped, not executable markup',!await sales.evaluate(()=>window.bad===true)&&await sales.locator('#workspaceAccess .wa-account img').count()===0);
+    check('account nickname is escaped, not executable markup',!await sales.evaluate(()=>window.bad===true)&&await sales.locator('#workspaceAccess .wa-account-name img,#workspaceAccess [onerror]').count()===0);
     await p.click('#workspaceAccess [data-wa="refresh"]');await p.waitForSelector('#workspaceAccess [data-wa="prepare"]');
     check('company Owner does not see personal account preparation',!/Private/.test(await p.locator('#workspaceAccess').innerText()));
     check('new viewer cannot see company account metadata before approval',!/Company sales Outlook/.test(await viewer.locator('#workspaceAccess').innerText()));
@@ -168,6 +168,7 @@ function check(name, condition, detail = '') {
     await form.locator('button[type="submit"]').click();await form.waitFor({state:'hidden'});
     check('stale grant refreshes instead of overwriting a later decision',(await authed('viewer','workspace/finance')).status===403);
     // Account archive/restore uses the real endpoint and a recorded reason.
+    await p.click('#wa-tab-accounts');
     await p.waitForSelector('#workspaceAccess [data-wa="archive"]');
     await p.click(`#workspaceAccess [data-wa="archive"][data-resource="${inbox}"]`);
     await form.locator('[name="reason"]').fill('Archive this prepared shared mailbox');await form.locator('button[type="submit"]').click();await form.waitFor({state:'hidden'});

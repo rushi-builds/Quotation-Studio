@@ -9,7 +9,7 @@
   const owner=reviewRole==='owner',approved=reviewRole!=='pending';
   const day = n => new Date(now.getTime() + n * 86400000).toISOString();
   const user = { id:'review-user', name:'KTM Energy Experts', email:'layout-review@example.test', role:'owner', roleLabel:'Owner', phone:'', title:'', profileCompleted:false };
-  if(!owner)Object.assign(user,{id:'review-member',name:'Riya · sample team member',role:'viewer',roleLabel:'Team member',canWrite:false,canManageTeam:false});
+  if(!owner)Object.assign(user,{id:'review-member',name:'Riya Sharma',role:'viewer',roleLabel:'Team member',canWrite:false,canManageTeam:false});
   const proposals = [
     {id:'review-1',customer:'Sample Industries',ref:'DEMO-001',capacity:250,status:'sent',createdAt:day(-3),updatedAt:stamp},
     {id:'review-2',customer:'Sample Factory',ref:'DEMO-002',capacity:100,status:'negotiation',createdAt:day(-2),updatedAt:day(-1)},
@@ -30,13 +30,13 @@
   const providers={gmail:['inbox.read','messages.send','connection.manage'],outlook:['inbox.read','messages.send','connection.manage'],whatsapp:['inbox.read','messages.send','connection.manage'],instagram:['metrics.read','connection.manage'],linkedin:['metrics.read','connection.manage'],website:['metrics.read','connection.manage'],'google-calendar':['calendar.read','calendar.write','connection.manage'],'outlook-calendar':['calendar.read','calendar.write','connection.manage']};
   const financeAllowed=owner||approved&&reviewParams.get('finance')==='granted';
   const connections=approved?[
-    {id:'sample-outlook',label:'KTM sales mailbox · sample',provider:'outlook',scope:'company'},
-    {id:'sample-instagram',label:'KTM company Instagram · sample',provider:'instagram',scope:'company'},
-    {id:'sample-linkedin',label:'KTM company LinkedIn · sample',provider:'linkedin',scope:'company'}
+    {id:'sample-outlook',label:'KTM Sales',provider:'outlook',scope:'company'},
+    {id:'sample-instagram',label:'KTM Instagram',provider:'instagram',scope:'company'},
+    {id:'sample-linkedin',label:'KTM LinkedIn',provider:'linkedin',scope:'company'}
   ].map(c=>({...c,ownerId:'review-user',archived:false,status:'not_connected',canShare:owner,canManage:owner,permissions:Object.fromEntries(providers[c.provider].map(p=>[p,owner||p==='metrics.read']))})):[];
   const access={revision:1,readOnlyReview:true,self:{id:user.id,manager:owner,member:approved},permissions:{member:approved,'metrics.read':approved,'finance.read':financeAllowed,'pricing.read':owner,'followups.read':owner},connections,
-    requests:owner?[{id:'sample-request',userId:'review-member',userName:'Riya · sample team member',resource:'workspace',resourceLabel:'KTM workspace',permission:'finance.read',reason:'Review company quotation totals for the monthly report. Sample request only.',status:'pending',createdAt:stamp,expiresAt:day(7)}]:[],
-    pendingReviews:owner?1:0,grants:[],audit:[],users:[{id:'review-user',name:'KTM Energy Experts'},{id:'review-member',name:'Riya · sample team member'}],workspacePermissions,permissionLabels,providers,providerAdaptersReady:false};
+    requests:owner?[{id:'sample-request',userId:'review-member',userName:'Riya Sharma',resource:'workspace',resourceLabel:'KTM workspace',permission:'finance.read',reason:'Review company quotation totals for the monthly report. Sample request only.',status:'pending',createdAt:stamp,expiresAt:day(7)}]:[],
+    pendingReviews:owner?1:0,grants:[],audit:[],users:[{id:'review-user',name:'KTM Energy Experts'},{id:'review-member',name:'Riya Sharma'}],workspacePermissions,permissionLabels,providers,providerAdaptersReady:false};
   if(!owner){report.value=null;report.pricingRestricted=true;}
   const read = {
     isAvailable:()=>true, health:()=>({ok:true}), currentUser:()=>user, me:()=>({user}),
