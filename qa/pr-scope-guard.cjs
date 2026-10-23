@@ -68,6 +68,14 @@ const WORKSPACE_PRESENTATION_PATHS = new Set([
   'review/workspace-fit/index.html',
   'review/workspace-fit/fixtures.js'
 ]);
+// Owner-approved access service. Separate from presentation allowances; no
+// platform-directory, provider-adapter or migration wildcard is introduced.
+const WORKSPACE_ACCESS_PATHS=new Set([
+  'assets/js/workspace-access.js',
+  'platform/workspace-access.mjs',
+  'platform/workspace-access-store.mjs',
+  'platform/migrations/011-workspace-access.sql'
+]);
 const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|experience|export|engineering)\.js|assets\/css\/(dashboard|experience|app)\.css|quotation\.html|dashboard\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|vercel\.json|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
 
 function git(repoRoot, args) {
@@ -146,7 +154,7 @@ function deployConfigTouches(files) {
 }
 
 function scopeOffenders(files) {
-  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f));
+  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f));
 }
 
 /* The explicit golden baseline: HEAD's blob for every frozen file must

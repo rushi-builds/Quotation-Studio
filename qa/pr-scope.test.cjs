@@ -109,6 +109,10 @@ async function main() {
   t('workspace presentation allowance admits the exact label UI file and four named correction/review paths',
     guard.scopeOffenders(['assets/js/pulse/pulse-ui.js', 'assets/css/workspace-fit.css', 'assets/images/pulse-solar-horizon.jpg',
       'review/workspace-fit/index.html', 'review/workspace-fit/fixtures.js']).length === 0);
+  t('workspace ACL allowance admits only the four named implementation paths',
+    guard.scopeOffenders(['assets/js/workspace-access.js','platform/workspace-access.mjs','platform/workspace-access-store.mjs','platform/migrations/011-workspace-access.sql']).length===0);
+  t('NEGATIVE: workspace ACL allowance excludes sibling backend, migrations and client scripts',
+    guard.scopeOffenders(['assets/js/workspace-access-extra.js','platform/workspace-access-extra.mjs','platform/migrations/011-other.sql']).length===3);
   t('NEGATIVE: presentation allowance does not admit neighbouring CSS, images, reviews or providers',
     guard.scopeOffenders(['assets/css/workspace-fit-extra.css', 'assets/images/pulse-other.jpg',
       'review/workspace-fit/other.js', 'review/other/index.html', 'assets/js/pulse/provider-adapter.js', 'assets/js/pulse/pulse-ui-extra.js']).length === 6);

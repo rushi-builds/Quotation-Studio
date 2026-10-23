@@ -13,6 +13,7 @@ const PARITY_FILES = Object.freeze([
   'assets/css/dashboard.css',
   'dashboard.html',
   'assets/js/settings-connections.js',
+  'assets/js/workspace-access.js',
   'assets/css/settings-connections.css',
   'assets/js/pulse/business-pulse.js',
   'assets/js/pulse/pulse-governance-ui.js'

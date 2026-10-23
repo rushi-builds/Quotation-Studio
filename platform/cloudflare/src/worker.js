@@ -7,6 +7,8 @@
    ============================================================================ */
 'use strict';
 
+import * as accessService from '../../workspace-access.mjs';
+import { d1AccessStore, companyMetrics, quotedFinance } from '../../workspace-access-store.mjs';
 import { reserveCloudReference } from '../../reference-numbers.mjs';
 import { handleOAuth } from './oauth.mjs';
 import { handlePhoneAuth } from './phone.mjs';
@@ -2414,6 +2416,26 @@ async function handleApi(request, env, url, ctx) {
        `owner_id = ?` arm applies, exactly as before this change). */
     const scope = seesAll(user, env) ? null : user.id;
 
+    const accessActor=u=>u&&({id:u.id,name:u.name,manager:requireRole(u,'owner',env),writer:requireRole(u,'sales',env)});
+    const accessStore=d1AccessStore(db,accessActor,{
+      companyMetrics:async()=>companyMetrics(await all(db,'SELECT status FROM proposals'),await all(db,'SELECT status,due_at FROM tasks')),
+      companyFinance:async()=>quotedFinance(await all(db,'SELECT * FROM proposals'),proposalQuotedValue),
+      companyFollowups:async()=>(await all(db,"SELECT * FROM tasks ORDER BY due_at IS NULL,due_at ASC LIMIT 200")).map(publicTask)
+    });
+    if(parts[0]==='workspace'){
+      if(method==='POST'&&!request.headers.get('Authorization')&&!request.headers.get('X-QS-Session'))return json({error:'Sign in again before changing access.',code:'SESSION_HEADER_REQUIRED'},403);
+      const payload=method==='POST'?await boundedJson(request):{};
+      const current=await requireUser(request,db,env);
+      const result=await accessService.handleWorkspace({store:accessStore,actor:accessActor(current),route:parts.slice(1),method,body:payload});
+      return json(result.body,result.status);
+    }
+    if(accessService.companyRoute(parts)&&!await accessService.membershipAccess(accessStore,accessActor(user))){
+      return json({error:'Company membership requires owner approval. Request access in Settings → Connections.',code:'MEMBERSHIP_REQUIRED'},403);
+    }
+    if(accessService.financialRoute(parts,method)&&!await accessService.pricingAccess(accessStore,accessActor(user))){
+      return json({error:'Quotation pricing and snapshots require access. Request own quotation pricing in Settings → Connections.',code:'PRICING_ACCESS_REQUIRED'},403);
+    }
+
     /* Excel-backed product catalogue. Only sanitized module/inverter/cable/
        protection product rows are exposed; operational and cost sheets never leave the workbook. */
     if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts.length === 2 && method === 'GET') {
@@ -2505,7 +2527,7 @@ async function handleApi(request, env, url, ctx) {
       return new Response(row.data, {
         headers: {
           'Content-Type': row.mime || 'application/octet-stream',
-          'Cache-Control': 'private, max-age=3600',
+          'Cache-Control': 'private, no-store',
           'X-Content-Type-Options': 'nosniff'
         }
       });
@@ -3175,9 +3197,10 @@ async function handleApi(request, env, url, ctx) {
         'SELECT COUNT(*) AS c FROM notifications WHERE ' + OWN_SCOPE + ' AND read_at IS NULL',
         scope, user.id
       );
+      const accessNotes=await accessService.accessNotifications(accessStore,accessActor(user));
       return json({
-        notifications: list.map(publicNotification),
-        unread: Number(unreadRow && unreadRow.c) || 0
+        notifications: [...accessNotes,...list.map(publicNotification)],
+        unread: (Number(unreadRow && unreadRow.c)||0)+accessNotes.length
       });
     }
 
@@ -3368,6 +3391,7 @@ async function handleApi(request, env, url, ctx) {
         scope, user.id
       );
       const overdueTasks = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
+      const pricingAllowed=await accessService.pricingAccess(accessStore,accessActor(user));
       return json({
         generatedAt: nowISO(),
         role: user.role,
@@ -3378,13 +3402,14 @@ async function handleApi(request, env, url, ctx) {
           rejected: byStatus.rejected || 0,
           sentOrOut: (byStatus.sent || 0) + (byStatus.viewed || 0) + (byStatus.negotiation || 0)
         },
-        value: {
+        value: pricingAllowed ? {
           currency: 'INR',
           quotedSum,
           proposalsWithValue: quotedKnown,
           proposalsMissingValue: quotedMissing,
           note: 'Quoted value uses explicit investment fields when present, otherwise capacity × rate when both exist. Missing values are counted separately — never invented.'
-        },
+        } : null,
+        pricingRestricted: !pricingAllowed,
         engagement: {
           versionsPublished: Number(published && published.c) || 0,
           activeCustomerLinks: activeLinks,

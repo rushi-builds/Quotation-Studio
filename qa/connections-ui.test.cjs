@@ -81,7 +81,8 @@ function check(name, condition, detail = '') {
     check('eight service cards, not fabricated account records', await p.locator('.sc-service').count() === 8);
     check('all services truthfully show Not connected', (await p.locator('.sc-service .sc-status').allTextContents()).every(text => text === 'Not connected'));
     check('all connect buttons disabled', await p.locator('.sc-connect[disabled]').count() === 8);
-    check('additional accounts disabled without persistence', await p.locator('#connectionsAdd button').isDisabled());
+    await p.waitForSelector('#workspaceAccess [data-wa="prepare"]');
+    check('additional account preparation is enabled with the new ACL backend', await p.locator('#connectionsAdd button').isEnabled());
     check('blank Add card is inside the grid immediately after Outlook Calendar', await p.locator('#connectionsAdd').evaluate(element => element.parentElement.id === 'connectionsGrid' && element.previousElementSibling.dataset.service === 'outlook-calendar'));
     const outlookBox = await p.locator('[data-service="outlook-calendar"]').boundingBox();
     const addBox = await p.locator('#connectionsAdd').boundingBox();

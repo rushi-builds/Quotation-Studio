@@ -4,8 +4,12 @@
 (() => {
   if (window.parent === window || window.location.href !== 'about:srcdoc') throw Error('Review fixtures require the isolated review frame');
   const now = new Date(), stamp = now.toISOString();
+  const reviewParams=new URLSearchParams(window.parent.location.search);
+  const reviewRole=['member','pending'].includes(reviewParams.get('role'))?reviewParams.get('role'):'owner';
+  const owner=reviewRole==='owner',approved=reviewRole!=='pending';
   const day = n => new Date(now.getTime() + n * 86400000).toISOString();
   const user = { id:'review-user', name:'KTM Energy Experts', email:'layout-review@example.test', role:'owner', roleLabel:'Owner', phone:'', title:'', profileCompleted:false };
+  if(!owner)Object.assign(user,{id:'review-member',name:'Riya · sample team member',role:'viewer',roleLabel:'Team member',canWrite:false,canManageTeam:false});
   const proposals = [
     {id:'review-1',customer:'Sample Industries',ref:'DEMO-001',capacity:250,status:'sent',createdAt:day(-3),updatedAt:stamp},
     {id:'review-2',customer:'Sample Factory',ref:'DEMO-002',capacity:100,status:'negotiation',createdAt:day(-2),updatedAt:day(-1)},
@@ -21,11 +25,25 @@
     {id:'review-event-3',proposalId:'review-1',proposalTitle:'Sample Industries',type:'survey_requested',createdAt:day(-3)}
   ];
   const report = {proposals:{total:3,byStatus:{sent:1,negotiation:1,draft:1}},value:{quotedSum:12150000,proposalsWithValue:2},tasks:{open:2,overdue:1,dueToday:1},followUps:{openTasks:2,overdueTasks:1,dueToday:1},engagement:{linkOpens:1,versionsPublished:1,surveyRequests:1,pdfDownloadRequests:0}};
+  const workspacePermissions={member:'Company membership','metrics.read':'Company metrics','finance.read':'Company quoted-value reports','pricing.read':'Own quotation pricing and snapshots','followups.read':'Shared company follow-ups'};
+  const permissionLabels={...workspacePermissions,'inbox.read':'Read conversations','messages.send':'Send replies','calendar.read':'Read calendar','calendar.write':'Create calendar events','connection.manage':'Manage account preparation'};
+  const providers={gmail:['inbox.read','messages.send','connection.manage'],outlook:['inbox.read','messages.send','connection.manage'],whatsapp:['inbox.read','messages.send','connection.manage'],instagram:['metrics.read','connection.manage'],linkedin:['metrics.read','connection.manage'],website:['metrics.read','connection.manage'],'google-calendar':['calendar.read','calendar.write','connection.manage'],'outlook-calendar':['calendar.read','calendar.write','connection.manage']};
+  const financeAllowed=owner||approved&&reviewParams.get('finance')==='granted';
+  const connections=approved?[
+    {id:'sample-outlook',label:'KTM sales mailbox · sample',provider:'outlook',scope:'company'},
+    {id:'sample-instagram',label:'KTM company Instagram · sample',provider:'instagram',scope:'company'},
+    {id:'sample-linkedin',label:'KTM company LinkedIn · sample',provider:'linkedin',scope:'company'}
+  ].map(c=>({...c,ownerId:'review-user',archived:false,status:'not_connected',canShare:owner,canManage:owner,permissions:Object.fromEntries(providers[c.provider].map(p=>[p,owner||p==='metrics.read']))})):[];
+  const access={revision:1,readOnlyReview:true,self:{id:user.id,manager:owner,member:approved},permissions:{member:approved,'metrics.read':approved,'finance.read':financeAllowed,'pricing.read':owner,'followups.read':owner},connections,
+    requests:owner?[{id:'sample-request',userId:'review-member',userName:'Riya · sample team member',resource:'workspace',resourceLabel:'KTM workspace',permission:'finance.read',reason:'Review company quotation totals for the monthly report. Sample request only.',status:'pending',createdAt:stamp,expiresAt:day(7)}]:[],
+    pendingReviews:owner?1:0,grants:[],audit:[],users:[{id:'review-user',name:'KTM Energy Experts'},{id:'review-member',name:'Riya · sample team member'}],workspacePermissions,permissionLabels,providers,providerAdaptersReady:false};
+  if(!owner){report.value=null;report.pricingRestricted=true;}
   const read = {
     isAvailable:()=>true, health:()=>({ok:true}), currentUser:()=>user, me:()=>({user}),
     listProposals:()=>({proposals}),listTasks:()=>({tasks}),listActivity:()=>({activity}),
     reportSummary:()=>report,listNotifications:()=>({notifications:[],unread:0}),
     listGallery:()=>({items:[],gallery:[]}),listTeam:()=>({members:[user],users:[user]}),
+    workspaceAccess:()=>access,workspacePulse:()=>({metrics:{quotations:3,accepted:0,openFollowups:2,overdueFollowups:1},channels:connections.filter(c=>c.provider==='instagram'||c.provider==='linkedin').map(c=>({...c,metrics:null})),financeAllowed,followupsAllowed:owner}),workspaceFinance:()=>({quotedSum:12150000,proposalsWithValue:2,proposalsMissingValue:1}),workspaceFollowups:()=>({tasks,readOnly:true}),
     listConnections:()=>({connections:[]}),assistantStatus:()=>({enabled:false,available:false}),
     listVersions:()=>({versions:[]}),listLinks:()=>({links:[]}),listEvents:()=>({events:[]}),listSends:()=>({sends:[]}),
     sendPreview:id=>({proposal:proposals.find(p=>p.id===id),defaultRecipientName:proposals.find(p=>p.id===id)?.customer||'',defaultEmail:'',defaultWhatsApp:''}),
@@ -52,6 +70,7 @@
   window.addEventListener('load',()=>{
     const panel=new URLSearchParams(window.parent.location.search).get('panel');
     if(panel==='sales')window.QSDash?.show('sales');
+    if(panel==='access')window.QSDash?.showSettings('connections',true);
     const badge=document.querySelector('.bi-mode');
     if(badge)badge.prepend(document.createTextNode('REVIEW FIXTURES · '));
   });

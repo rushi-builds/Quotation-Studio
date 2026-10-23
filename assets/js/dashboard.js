@@ -166,6 +166,7 @@
     if (loginAuth) loginAuth.hide();
     else $('authScreen').style.display = 'none';
     $('dash').classList.add('on');
+    document.dispatchEvent(new CustomEvent('qs:session'));
     $('userName').textContent = user.name || 'User';
     $('userEmail').textContent = user.email || '';
     $('settingsName').textContent = user.name || '—';
@@ -311,6 +312,7 @@
     });
     document.querySelectorAll('[data-settings-section]').forEach(n => { n.hidden = n.dataset.settingsSection !== section; });
     if (focus) document.querySelector('[data-settings-section="' + section + '"] h2')?.focus();
+    document.dispatchEvent(new CustomEvent('qs:settings',{detail:section}));
   }
 
   const EVENT_LABELS = {
@@ -356,7 +358,7 @@
 
   function renderNotifications(rows) {
     const body = $('notifBody'); if (!body) return;
-    body.innerHTML = rows.length ? rows.map(n => '<article class="notification-item ' + (n.unread ? 'unread' : '') + '"><span class="activity-dot" aria-hidden="true"></span><div class="notification-copy"><h3>' + escapeHtml(n.title) + '</h3><p>' + escapeHtml(n.body || '') + '</p><small>' + escapeHtml(fmtDate(n.createdAt)) + '</small></div>' + (n.unread ? '<button type="button" class="text-link" data-read="' + escapeHtml(n.id) + '">Mark read</button>' : '') + '</article>').join('') : emptyState('You’re all caught up.','New notifications will appear here.','✓');
+    body.innerHTML = rows.length ? rows.map(n => '<article class="notification-item ' + (n.unread ? 'unread' : '') + '"><span class="activity-dot" aria-hidden="true"></span><div class="notification-copy"><h3>' + escapeHtml(n.title) + '</h3><p>' + escapeHtml(n.body || '') + '</p><small>' + escapeHtml(fmtDate(n.createdAt)) + '</small></div>' + (n.kind==='access_request' ? '<button type="button" class="text-link" data-workspace-access>Review access</button>' : n.unread ? '<button type="button" class="text-link" data-read="' + escapeHtml(n.id) + '">Mark read</button>' : '') + '</article>').join('') : emptyState('You’re all caught up.','New notifications will appear here.','✓');
     body.querySelectorAll('[data-read]').forEach(btn => btn.addEventListener('click',async()=>{
       btn.disabled=true;try { await api.markNotificationRead(btn.dataset.read); await refreshActivityPanel(); await refreshAll(); } catch(err) { toast(err.message || 'Could not mark read'); btn.disabled=false; }
     }));
@@ -555,7 +557,7 @@
       if ($('repValueHint')) {
         const known = (r.value && r.value.proposalsWithValue) || 0;
         const miss = (r.value && r.value.proposalsMissingValue) || 0;
-        $('repValueHint').textContent = known + ' priced · ' + miss + ' missing · not revenue';
+        $('repValueHint').textContent = r.pricingRestricted ? 'Restricted · request own quotation pricing in Settings → Connections' : known + ' priced · ' + miss + ' missing · not revenue';
       }
       const eng = r.engagement || {};
       const metrics = [['Published versions',eng.versionsPublished],['Active customer links',eng.activeCustomerLinks],['Share starts',eng.shareClicksRecorded],['PDF requests',eng.pdfDownloadRequests],['Survey requests',eng.surveyRequests],['Suspected previews',eng.suspectedPrefetches]];
@@ -1090,7 +1092,8 @@
         btn.addEventListener('click', () => openMemberInfo(btn.getAttribute('data-info')));
       });
     } catch (err) {
-      body.innerHTML = '<tr><td colspan="' + COLS + '" class="empty">' + escapeHtml(err.message || 'Could not load team') + '</td></tr>';
+      teamMembers=[];teamCanManage=false;
+      body.innerHTML = '<tr><td colspan="' + COLS + '" class="empty">' + escapeHtml(err.message || 'Could not load team') + (err.data?.code==='MEMBERSHIP_REQUIRED'?' <button type="button" class="text-link" data-workspace-access>Request company access</button>':'') + '</td></tr>';
     }
   }
 
@@ -1763,6 +1766,10 @@
       }));
     } catch (err) {
       if (requestId !== galleryLoad) return;
+      if(err.data?.code==='MEMBERSHIP_REQUIRED'){
+        if(count)count.textContent='Restricted';
+        grid.innerHTML='<div class="empty-pad">Company gallery requires membership. <button type="button" class="text-link" data-workspace-access>Request access</button></div>';return;
+      }
       if (count) count.textContent = 'Unavailable';
       grid.innerHTML = '<div class="empty-pad" role="status">Gallery unavailable. <button type="button" class="text-link" id="retryGallery">Retry</button></div>';
       $('retryGallery')?.addEventListener('click', refreshGalleryPanel);
