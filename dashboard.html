@@ -24,6 +24,7 @@
       <link rel="stylesheet" href="assets/css/pulse-ui.css" />
       <link rel="stylesheet" href="assets/css/pulse-polish.css" />
       <link rel="stylesheet" href="assets/css/pulse-governance.css" />
+      <link rel="stylesheet" href="assets/css/settings-connections.css?v=connections1" />
 </head>
   <body>
     <div id="authScreen" class="splash">
@@ -782,7 +783,7 @@
               <div>
                 <span class="eyebrow">MAKE YOURSELF AT HOME</span>
                 <h1>Settings</h1>
-                <p class="sub">Your profile, security and team access.</p>
+                <p class="sub">Your profile, security, team access and connected tools.</p>
               </div>
               <div class="topbar-actions"></div>
             </div>
@@ -794,6 +795,9 @@
                   Security <span>→</span></button
                 ><button type="button" data-settings="team">
                   Team & roles <span>→</span>
+                </button>
+                <button type="button" data-settings="connections" aria-controls="settingsConnections">
+                  Connections <span>→</span>
                 </button>
               </nav>
               <div>
@@ -978,6 +982,13 @@
                       </tbody>
                     </table>
                   </div>
+                </section>
+                <section id="settingsConnections" class="settings-section sc-hub" data-settings-section="connections" aria-labelledby="connectionsTitle" hidden>
+                  <header class="sc-heading">
+                    <div><span class="eyebrow">YOUR CONNECTED WORKSPACE</span><h2 id="connectionsTitle" tabindex="-1">Connections</h2><p>Company tools. The right people. One place to manage it all.</p></div>
+                    <span class="sc-phase"><span aria-hidden="true"></span>Account linking unavailable</span>
+                  </header>
+                  <div id="connectionsContent"></div>
                 </section>
               </div>
             </div>
@@ -1201,6 +1212,7 @@
       <script src="assets/js/pulse/pulse-operations.js"></script>
       <script src="assets/js/pulse/pulse-governance.js"></script>
       <script src="assets/js/pulse/pulse-brand.js"></script>
+      <script src="assets/js/settings-connections.js?v=connections1"></script>
       <script src="assets/js/pulse/pulse-customer.js"></script>
       <script src="assets/js/pulse/pulse-ui.js"></script>
       <script src="assets/js/pulse/pulse-governance-ui.js"></script>

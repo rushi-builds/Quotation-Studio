@@ -102,7 +102,7 @@ const PASSWORD = "ReviewPass!123";
     else {
       const bundled = require("@sparticuz/chromium");
       const c = bundled.default || bundled;
-      launchOpts = { executablePath: await c.executablePath(), args: c.args, headless: true };
+      launchOpts = { executablePath: await c.executablePath(), args: c.args.filter(arg => arg !== "--single-process"), headless: true };
     }
     browser = await chromium.launch(launchOpts);
     const ctx = await browser.newContext({ viewport: { width: 1536, height: 1060 } });
@@ -164,15 +164,17 @@ const PASSWORD = "ReviewPass!123";
     ok("activity history explicitly unavailable without CRM (never zero buckets)", /no measured lead\/quotation-issue\/win history exists to chart/.test(overviewText), overviewText.slice(0, 240));
     ok("lead sources explicitly unavailable without CRM (empty split is not a zero)", /An empty source split is unavailable, not a recorded zero/.test(overviewText), overviewText.slice(0, 240));
 
-    /* governance connections: honest states + disabled controls, no fake-save */
+    /* Connection management has ONE home in Settings. Pulse is read-only. */
     await p.click('#ghTabs [data-bi-tab="connections"]');
-    await p.waitForSelector(".bi-connections .bi-connection", { timeout: 10000 });
-    const connStatus = await p.locator(".bi-mini-status").first().textContent();
-    ok("provider cards say NOT CONNECTED", /NOT CONNECTED/.test(connStatus), connStatus);
-    ok("sync hard-disabled with honest aria-label", (await p.locator("[data-bi-action='sync-blocked'][disabled]").count()) > 0, "");
-    ok("governance add-card presents disabled Add connection", (await p.locator(".pg-add-card [data-gov-action='add'][disabled]").count()) > 0, "");
-    const storage = await p.locator(".pulse-storage-card").textContent();
-    ok("storage card is explicit read-only copy", /Read-only/.test(storage) && /unavailable until the persistence backend/.test(storage), storage.slice(0, 200));
+    await p.waitForSelector('.sc-pulse-status', { timeout: 10000 });
+    ok("Pulse channel status is honest about absent provider sync", /sync is not enabled/.test(await p.locator('.sc-pulse-status').textContent()), "");
+    ok("Pulse has no duplicate setup cards/forms", await p.locator('#panel-sales .bi-connections,#panel-sales .pg-add-card,#panel-sales #biConnectionForm').count() === 0, "");
+    await p.click('#panel-sales [data-open-connections]');
+    await p.waitForSelector('#settingsConnections:not([hidden])');
+    ok("Pulse shortcut opens the single Settings Connections hub", await p.locator('#panel-settings.on').count() === 1, "");
+    ok("all service Connect controls remain hard-disabled", await p.locator('.sc-connect[disabled]').count() === 8, "");
+    ok("additional-account action is unavailable without backend", await p.locator('#connectionsAdd button').isDisabled(), "");
+    await p.click('.side-nav [data-panel="sales"]');
     await p.click('#ghTabs [data-bi-tab="desk"]');
     await p.waitForSelector(".pulse-action-table tbody tr", { timeout: 10000 });
     ok("manage-alert disabled without persistence", (await p.locator("[data-gov-action='alert'][disabled]").count()) > 0, "");
@@ -243,8 +245,8 @@ const PASSWORD = "ReviewPass!123";
     await p.evaluate(() => new Promise((r) => setTimeout(r, 60500)));
     ok("no PulseStorage global in production graph", (await p.evaluate(() => typeof window.PulseStorage)) === "undefined", "");
     await p.click('#ghTabs [data-bi-tab="connections"]');
-    await p.waitForSelector(".pulse-storage-card", { timeout: 10000 });
-    ok("panel still interactive after the 61s timer window", (await p.locator(".pulse-storage-card").count()) === 1, "");
+    await p.waitForSelector(".sc-pulse-status", { timeout: 10000 });
+    ok("panel still interactive after the 61s timer window", (await p.locator(".sc-pulse-status").count()) === 1, "");
     await p.click('#ghTabs [data-bi-tab="overview"]');
 
     /* mobile + dark (fresh contexts need the disposable token injected) */
