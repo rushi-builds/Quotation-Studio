@@ -52,6 +52,13 @@
     const c=state.connections.find(c=>c.id===id);if(!c)return;
     showDialog(c.label,`<div class="wa-detail-provider"><span class="wa-provider-icon">${PulseBrand.badge(providerNames[c.provider]||c.provider,'card')}</span><div><strong>${h(providerNames[c.provider]||c.provider)}</strong><p>${c.scope==='company'?'Company account':'Personal account'} · ${c.archived?'Archived':'Not connected'}</p></div></div><div class="wa-detail-permissions">${Object.entries(c.permissions).map(([p,allowed])=>`<div class="wa-detail-row"><span>${symbol(permissionIcon(p))}${h(label(p))}</span>${statusPill(c.archived?'Archived':allowed?'Allowed':'Restricted',allowed&&!c.archived?'allowed':'neutral')}${!allowed&&!c.archived&&c.scope==='company'?requestButton(c.id,p):''}</div>`).join('')}</div><p class="wa-note">Permissions control Studio access. Provider linking is separate.</p>`);
   }
+  function historyEntry(e){
+    const d=e.detail||{}, who=state.users.find(u=>u.id===d.userId)?.name||(d.userId===state.self.id?'You':'Former member');
+    const resource=d.resource==='workspace'?'Company workspace':state.connections.find(c=>c.id===d.resource)?.label||d.label||'Account no longer available';
+    const rows=[['Changed by',e.actorName||'Former member'],...(d.userId?[['For',who]]:[]),...(d.resource?[['Account',resource]]:[]),...(d.permission?[['Permission',label(d.permission)]]:[]),...(e.action==='Access granted'?[['Duration',d.expiresAt?new Date(d.expiresAt).toLocaleString():'Until revoked']]:[]),...(d.reason?[['Reason',d.reason]]:[])];
+    const date=Number.isFinite(Date.parse(e.at))?new Date(e.at):null;
+    return `<li><span class="wa-history-dot">${symbol('shield')}</span><div><strong>${h(e.action)}</strong><span>${h(e.actorName||'Former member')}</span><details class="wa-history-details"><summary>Details</summary><dl>${rows.map(([name,value])=>`<div><dt>${h(name)}</dt><dd>${h(value)}</dd></div>`).join('')}</dl></details></div><time ${date?`datetime="${h(e.at)}" title="${h(date.toLocaleString())}"`:''}>${date?h(date.toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'Date unavailable'}</time></li>`;
+  }
   function render(){
     const root=$('workspaceAccess');if(!root||!state)return;
     const s=state;
@@ -65,32 +72,37 @@
       const status={pending:'Pending',approved:'Approved',rejected:'Declined',expired:'Expired',cancelled:'Cancelled'}[r.status]||r.status;
       return `<article class="wa-request-card"><div class="wa-request-person"><span class="wa-avatar" aria-hidden="true">${h(r.userName?.trim().charAt(0)||'?')}</span><div><strong>${h(r.userName)}</strong><span>${h(shortLabel(r.permission))} · ${h(r.resourceLabel)}</span></div>${statusPill(status,r.status==='pending'?'pending':r.status==='approved'?'allowed':'neutral')}</div><div class="wa-request-bottom"><details class="wa-request-context"><summary>Request details</summary><p>${h(r.reason)}</p>${r.reviewReason?`<p><strong>Decision</strong> · ${h(r.reviewReason)}</p>`:''}</details>${canReview?btn('review',s.readOnlyReview?'View request':'Review request',`data-request="${h(r.id)}"`):''}</div></article>`;
     }).join('');
-    const history=s.audit.map(e=>`<li><span class="wa-history-dot">${symbol('shield')}</span><div><strong>${h(e.action)}</strong><span>${h(e.actorName)}</span></div><time datetime="${h(e.at)}">${h(new Date(e.at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}</time></li>`).join('');
+    const history=s.audit.map(historyEntry).join('');
     const tabs=[['accounts','Accounts',s.connections.length],['requests','Requests',pendingCount],['permissions','My access',null],['history','History',null]];
+    root.setAttribute('aria-busy','false');
     root.innerHTML=`<div class="wa-header"><div class="wa-header-title"><span class="wa-header-icon">${symbol('shield')}</span><div><h3>Accounts & access</h3><span>${s.connections.length} ${s.connections.length===1?'account':'accounts'} · Company & personal</span></div></div><div class="wa-actions">${iconButton('refresh','refresh','Refresh access')}${s.self.manager?btn('share','Team access',`data-resource="workspace" ${s.readOnlyReview?'disabled':''}`):''}${btn('prepare','+ Add account',`${s.readOnlyReview||!s.self.member?'disabled':''}`)}</div></div>
       <div class="wa-tabbar" role="tablist" aria-label="Accounts and access sections">${tabs.map(([key,name,count])=>`<button type="button" role="tab" id="wa-tab-${key}" data-wa="tab" data-tab="${key}" aria-controls="wa-panel-${key}" aria-selected="${accessTab===key}" tabindex="${accessTab===key?0:-1}">${name}${count!==null?`<span class="wa-tab-count ${key==='requests'&&count?'has-pending':''}">${count}</span>`:''}</button>`).join('')}</div>
       ${!s.self.member?`<div class="wa-membership-notice"><span>${symbol('shield')}Company approval required</span>${requestButton('workspace','member')}</div>`:''}
-      <section role="tabpanel" id="wa-panel-accounts" aria-labelledby="wa-tab-accounts" ${accessTab!=='accounts'?'hidden':''}><div class="wa-account-toolbar"><span>Your accounts</span><div class="wa-scope-filters" role="group" aria-label="Account ownership">${[['all','All'],['company','Company'],['personal','Personal']].map(([key,name])=>`<button type="button" data-wa="filter" data-filter="${key}" aria-pressed="${accountFilter===key}">${name}</button>`).join('')}</div></div><div class="wa-accounts">${accounts||`<div class="wa-empty">${symbol('layers')}<strong>${s.connections.length?'No accounts in this view':'No accounts yet'}</strong><span>${s.self.member?'Add an account to organise its permissions.':'Company accounts appear after approval.'}</span></div>`}</div></section>
-      <section role="tabpanel" id="wa-panel-requests" aria-labelledby="wa-tab-requests" ${accessTab!=='requests'?'hidden':''}><div class="wa-section-heading"><strong>Access requests</strong><span>${pendingCount?pendingCount+' pending':'All up to date'}</span></div><div class="wa-requests" id="workspaceAccessRequests">${requests||`<div class="wa-empty">${symbol('check')}<strong>You're all caught up</strong><span>New access requests will appear here.</span></div>`}</div></section>
-      <section role="tabpanel" id="wa-panel-permissions" aria-labelledby="wa-tab-permissions" ${accessTab!=='permissions'?'hidden':''}><div class="wa-section-heading"><strong>My workspace access</strong><span>Signed-in permissions</span></div><div class="wa-workspace">${workspace}</div></section>
-      <section role="tabpanel" id="wa-panel-history" aria-labelledby="wa-tab-history" ${accessTab!=='history'?'hidden':''}><div class="wa-section-heading"><strong>Access history</strong><span>Recent decisions</span></div>${history?`<ol class="wa-history">${history}</ol>`:`<div class="wa-empty">${symbol('clock')}<strong>No decisions yet</strong></div>`}</section>
+      <section role="tabpanel" tabindex="0" id="wa-panel-accounts" aria-labelledby="wa-tab-accounts" ${accessTab!=='accounts'?'hidden':''}><div class="wa-account-toolbar"><span>Your accounts</span><div class="wa-scope-filters" role="group" aria-label="Account ownership">${[['all','All'],['company','Company'],['personal','Personal']].map(([key,name])=>`<button type="button" data-wa="filter" data-filter="${key}" aria-pressed="${accountFilter===key}">${name}</button>`).join('')}</div></div><div class="wa-accounts">${accounts||`<div class="wa-empty">${symbol('layers')}<strong>${s.connections.length?'No accounts in this view':'No accounts yet'}</strong><span>${s.self.member?'Add an account to organise its permissions.':'Company accounts appear after approval.'}</span></div>`}</div></section>
+      <section role="tabpanel" tabindex="0" id="wa-panel-requests" aria-labelledby="wa-tab-requests" ${accessTab!=='requests'?'hidden':''}><div class="wa-section-heading"><strong>Access requests</strong><span>${pendingCount?pendingCount+' pending':'All up to date'}</span></div><div class="wa-requests" id="workspaceAccessRequests">${requests||`<div class="wa-empty">${symbol('check')}<strong>You're all caught up</strong><span>New access requests will appear here.</span></div>`}</div></section>
+      <section role="tabpanel" tabindex="0" id="wa-panel-permissions" aria-labelledby="wa-tab-permissions" ${accessTab!=='permissions'?'hidden':''}><div class="wa-section-heading"><strong>My workspace access</strong><span>Signed-in permissions</span></div><div class="wa-workspace">${workspace}</div></section>
+      <section role="tabpanel" tabindex="0" id="wa-panel-history" aria-labelledby="wa-tab-history" ${accessTab!=='history'?'hidden':''}><div class="wa-section-heading"><strong>Access history</strong><span>Recent decisions</span></div>${history?`<ol class="wa-history">${history}</ol>`:`<div class="wa-empty">${symbol('clock')}<strong>No decisions yet</strong></div>`}</section>
       <div class="wa-footer"><span>${symbol('lock')}Account setup only · provider linking unavailable</span>${s.readOnlyReview?'<span class="wa-preview-label" title="No permissions or account changes can be saved here.">Read-only sample preview</span>':''}</div>`;
   }
   async function refresh(){
     const ticket=++version,uid=identity();
     state=null;
     const add=$('connectionsAdd')?.querySelector('button');if(add)add.disabled=true;
-    const root=$('workspaceAccess');if(root)root.innerHTML='<p role="status">Loading account permissions…</p>';
+    const root=$('workspaceAccess');
+    const restoreRefreshFocus=root?.contains(document.activeElement)&&document.activeElement.dataset.wa==='refresh';
+    if(root){root.setAttribute('aria-busy','true');root.innerHTML='<div class="workspace-loading" role="status"><span>Loading account permissions…</span><div class="workspace-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></div>';}
+
     // Clear any displayed company amounts while permissions are revalidated.
     document.querySelectorAll('[data-wa-sensitive]').forEach(n=>n.replaceChildren());
     try{
       const result=await api.workspaceAccess();
       if(ticket!==version||uid!==identity())return;
       state=result;render();
+      if(restoreRefreshFocus&&document.activeElement===document.body)root?.querySelector('[data-wa=refresh]')?.focus();
       const pulse=$('workspacePulse');if(pulse)await renderPulse(pulse,ticket);
     }catch(e){
       if(ticket!==version)return;
-      if(root)root.innerHTML=`<p role="status">${h(e.code==='PREVIEW_BACKEND_DISABLED'?'Access management requires the authenticated Studio backend. This preview cannot change permissions.':e.message)}</p>${btn('refresh','Retry')}`;
+      if(root){root.setAttribute('aria-busy','false');root.innerHTML=`<p role="status">${h(e.code==='PREVIEW_BACKEND_DISABLED'?'Access management requires the authenticated Studio backend. This preview cannot change permissions.':e.message)}</p>${btn('refresh','Retry')}`;}
       const pulse=$('workspacePulse');if(pulse)pulse.innerHTML='<p>Company access is unavailable.</p>'+btn('open','Manage in Settings');
     }
   }
@@ -98,6 +110,8 @@
     if(busy||!state||state.readOnlyReview)return;
     if(dialog.dataset.user!==identity()){dialog.close();return;}
     busy=true;const uid=identity(),revision=Number(dialog.dataset.revision);
+    const save=dialog.querySelector('button[type=submit]'),caption=save?.textContent;
+    dialog.setAttribute('aria-busy','true');if(save)save.textContent='Saving…';
     dialog.querySelectorAll('button').forEach(b=>b.disabled=true);
     try{
       const result=await api.workspaceCommand(command,{...fields,revision});
@@ -110,7 +124,7 @@
       if($('waError'))$('waError').textContent=e.message;
       // Never replay an approval or grant automatically after a conflict.
       if(e.status===409){state=null;dialog.close();await refresh();window.QSDash?.toast(e.message);}
-    }finally{busy=false;dialog.querySelectorAll('button').forEach(b=>b.disabled=false);}
+    }finally{busy=false;dialog.setAttribute('aria-busy','false');if(save)save.textContent=caption;dialog.querySelectorAll('button').forEach(b=>b.disabled=false);}
   }
   function prepare(){
     showDialog('Prepare an account',`<form data-wa-form="connections"><label>Service<select name="provider">${Object.entries(providerNames).map(([p,name])=>`<option value="${p}">${name}</option>`).join('')}</select></label><label>Account name<input name="label" required maxlength="100" placeholder="e.g. KTM sales mailbox"></label><label>Ownership<select name="scope"><option value="personal">My individual account · private by default</option>${state.self.manager?'<option value="company">Company account</option>':''}</select></label><p class="wa-note">Use an account nickname. Do not enter passwords, tokens or private messages. Provider consent will be a separate step.</p><button type="submit" class="btn btn-primary">Save preparation</button></form>`);

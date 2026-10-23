@@ -70,6 +70,9 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   assert.equal(recoveryCalls,0,'UI must not issue or expose reset secrets');
   await page.setViewportSize({width:390,height:844});
   assert.ok(await page.locator('#f-rp').evaluate(e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;}));
+  await page.locator('#f-rp .rpback').click();
+  assert.ok(await page.locator('#f-in').isVisible(),'mobile recovery back arrow remains reachable without a forced click');
+  assert.equal(recoveryCalls,0,'mobile navigation must not request recovery secrets');
   console.log('PASS: recovery deep link opens the reset panel with its resend counter, no secret request, mobile fit.');
 
  }finally{

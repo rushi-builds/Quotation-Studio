@@ -3647,3 +3647,17 @@ html[data-theme="dark"] #panel-sales .pulse-report-toggle{background:#1b2e43d9;c
    gradient, which is valid as a background but invalid as a text colour. */
 #panel-sales :is(.pulse-filters,.pulse-control-tabs) button[aria-pressed="true"]{color:#fff;background:#203047;border-color:#203047}
 html[data-theme="dark"] #panel-sales :is(.pulse-filters,.pulse-control-tabs) button[aria-pressed="true"]{color:#142235;background:#edc787;border-color:#edc787}
+
+/* Quiet finishing: shared async states and keyboard/touch affordances.
+   No changes to the spacious layout, glass tokens or quotation/export styles. */
+.main .workspace-loading { padding:22px 0;min-width:0;color:var(--muted);font-size:12px;line-height:1.7; }
+.main .workspace-skeleton { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px; }
+.main .workspace-skeleton i { display:block;height:110px;border:1px solid var(--studio-glass-border);border-radius:14px;background:var(--studio-glass);animation:workspace-breathe 1.6s ease-in-out infinite alternate; }
+.main #galleryGrid>.workspace-loading { grid-column:1/-1; }
+.main button:disabled { cursor:not-allowed; }
+.main :is(button,a,input,select,textarea,summary,[role="tabpanel"]):focus-visible { outline:2px solid var(--blue);outline-offset:3px; }
+.main .text-link:focus-visible,.main .record-link:focus-visible { border-radius:4px; }
+@keyframes workspace-breathe { to { opacity:.5; } }
+@media(max-width:600px) { .main .workspace-skeleton { grid-template-columns:1fr; }.main .workspace-skeleton i { height:74px; }.main .workspace-skeleton i:last-child { display:none; } }
+@media(pointer:coarse) { .main :is(.btn,.text-link,.record-link,.vall,.sc-details,.wa-tabbar>button,.wa-scope-filters>button) { min-height:44px; } }
+@media(prefers-reduced-motion:reduce) { .main .workspace-skeleton i { animation:none; } }

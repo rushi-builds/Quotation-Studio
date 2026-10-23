@@ -223,3 +223,16 @@ html[data-theme="dark"] .wa-access-check { color:#94d1b9; }
 .wa-finance [data-wa-sensitive] { display:grid;gap:5px; }
 .wa-channel-summary { display:flex;flex-wrap:wrap;gap:14px;padding-bottom:18px;font-size:11px; }
 @media(max-width:600px) { .wa-access,.wa-pulse { padding:17px; }.wa-header { align-items:flex-start; }.wa-header>.wa-actions { width:100%; }.wa-header>.wa-actions>[data-wa="prepare"] { margin-left:auto; }.wa-tabbar { gap:0; }.wa-tabbar>button { flex:1;padding:11px 5px;font-size:10px;gap:4px; }.wa-tab-count { min-width:16px;height:16px;padding:0 3px;font-size:8px; }.wa-workspace { grid-template-columns:minmax(0,1fr); }.wa-company-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }.wa-dialog { padding:20px; }.wa-heading .wa-actions { justify-content:flex-start; }.wa-footer { font-size:8px; }.wa-access .btn { min-height:38px; } }
+/* History stays concise; decision context is available without leaving Settings. */
+.wa-history-details { margin-top:8px; }
+.wa-history-details summary { width:fit-content;color:var(--muted);font-size:10px;cursor:pointer; }
+.wa-history-details dl { display:grid;gap:8px;margin:12px 0 0;padding:12px;border:1px solid var(--line);border-radius:9px;background:#6185a006; }
+.wa-history-details dl>div { display:grid;grid-template-columns:90px minmax(0,1fr);gap:12px;font-size:11px;line-height:1.7; }
+.wa-history-details dt { color:var(--muted); }.wa-history-details dd { margin:0;overflow-wrap:anywhere; }
+.wa-history li:has(details[open]) { align-items:flex-start; }
+@media(max-width:600px) { .wa-history-details dl>div { grid-template-columns:1fr;gap:1px; } }
+@media(pointer:coarse) {
+  #workspaceAccess .btn,#workspaceAccess .wa-account-top .wa-icon-button { min-height:44px; }
+  #workspaceAccess .wa-icon-button,#workspaceAccess .wa-account-top .wa-icon-button { width:44px;min-width:44px; }
+  #workspaceAccess .wa-scope-filters>button { min-width:44px; }
+}

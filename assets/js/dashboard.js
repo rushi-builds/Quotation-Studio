@@ -410,7 +410,12 @@
       const r = await api.listTasks();
       if (requestId === taskLoad) renderTasks((r && r.tasks) || []);
     } catch (err) {
-      banner('err', err.message || 'Could not load tasks');
+      if(requestId!==taskLoad)return;
+      taskRows=[];
+      if($('taskCount'))$('taskCount').textContent='Unavailable';
+      if($('taskReminderSummary'))$('taskReminderSummary').hidden=true;
+      $('tasksBody').innerHTML='<div class="hempty" role="status">Follow-ups unavailable. <button type="button" class="text-link" id="retryTasks">Retry</button></div>';
+      $('retryTasks').addEventListener('click',refreshTasksPanel);
     }
   }
 
@@ -1737,6 +1742,8 @@
     if (!grid) return;
     const requestId = ++galleryLoad;
     grid.setAttribute('aria-busy', 'true');
+    grid.innerHTML='<div class="workspace-loading" role="status"><span>Loading project photos…</span><div class="workspace-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></div>';
+    if(count)count.textContent='Loading…';
     try {
       const r = await api.listGallery();
       if (requestId !== galleryLoad) return;

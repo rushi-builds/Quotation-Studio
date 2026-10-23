@@ -98,6 +98,13 @@ function check(name, condition, detail = '') {
     await form.locator('[name="scope"]').selectOption('company');
     await form.locator('button[type="submit"]').click();
     await form.waitFor({state:'hidden'});
+    let releaseAccess;const accessGate=new Promise(r=>releaseAccess=r);
+    await p.route('**/api/workspace',async route=>{await accessGate;await route.continue();});
+    await p.click('#workspaceAccess [data-wa="refresh"]');
+    await p.waitForSelector('#workspaceAccess .workspace-skeleton');
+    check('access refresh clears old controls and exposes an accessible loading skeleton',await p.locator('#workspaceAccess').getAttribute('aria-busy')==='true'&&await p.locator('#workspaceAccess [data-wa="prepare"]').count()===0);
+    releaseAccess();await p.waitForSelector('#workspaceAccess [data-wa="prepare"]');await p.unroute('**/api/workspace');
+    check('manual access refresh restores keyboard focus without leaving a busy state',await p.locator('#workspaceAccess [data-wa="refresh"]').evaluate(e=>e===document.activeElement)&&await p.locator('#workspaceAccess').getAttribute('aria-busy')==='false');
     check('company account preparation saves through the real API without pretending to connect',/Company sales Outlook/.test(await p.locator('#workspaceAccess').innerText())&&(await view('owner')).connections[0].status==='not_connected');
     const inbox=(await view('owner')).connections[0].id;
     await cmd('owner','connections',{provider:'instagram',label:'Company Instagram',scope:'company'});
@@ -175,6 +182,14 @@ function check(name, condition, detail = '') {
     check('archive and restore are genuine reversible backend controls',(await view('owner')).connections.find(c=>c.id===inbox).archived);
     await p.click(`#workspaceAccess [data-wa="archive"][data-resource="${inbox}"]`);await form.locator('[name="reason"]').fill('Restore with fresh access decisions');await form.locator('button[type="submit"]').click();await form.waitFor({state:'hidden'});
     check('restore does not manufacture a provider connection',!(await view('owner')).connections.find(c=>c.id===inbox).archived&&(await view('owner')).connections.find(c=>c.id===inbox).status==='not_connected');
+    await p.click('#wa-tab-history');
+    check('history keeps sensitive decision context collapsed until requested',await p.locator('.wa-history-details').count()>0&&await p.locator('.wa-history-details[open]').count()===0);
+    const decision=p.locator('.wa-history li').filter({hasText:'Access revoked'}).first();
+    await decision.locator('summary').click();
+    check('history names actor, recipient, account and exact permission',/Connections review owner/.test(await decision.innerText())&&/Connections review viewer/.test(await decision.innerText())&&/Company workspace/.test(await decision.innerText())&&/Company quoted-value reports/.test(await decision.innerText()));
+    await sales.click('#wa-tab-history');await sales.locator('.wa-history-details summary').first().click();
+    check('history escapes malicious account nicknames instead of executing markup',/Private <img/.test(await sales.locator('.wa-history-details').first().innerText())&&await sales.locator('.wa-history img,.wa-history [onerror]').count()===0&&!await sales.evaluate(()=>window.bad===true));
+    await p.click('#wa-tab-accounts');
     await p.screenshot({path:path.join(shots,'owner-accounts-access.png'),fullPage:true,timeout:90000});
     for(const [theme,width,height] of [['light',390,844],['dark',1440,1050],['system',1440,1050]]){
       await p.setViewportSize({width,height});await p.selectOption('#dashboardTheme',theme);

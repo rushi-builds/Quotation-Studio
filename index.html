@@ -93,7 +93,7 @@ input,button,a{font-family:var(--f)}
    card, so the person can see the whole shape of the task before starting it.
    A step that has not been earned yet is dimmed and inert rather than absent —
    hiding it left the column jumping between states with no way to read ahead. */
-#f-rp .up{justify-content:center;gap:.95cqw;overflow-y:auto;overscroll-behavior:contain;padding-bottom:.5cqw}
+#f-rp .up{justify-content:flex-start;gap:.95cqw;overflow-y:auto;overscroll-behavior:contain;padding-bottom:.5cqw}
 .up .rps{display:flex;flex-direction:column;gap:.62cqw;transition:opacity .25s}
 .up .rps[data-locked]{opacity:.4;pointer-events:none}
 #f-rp .fg{align-self:center;margin:0}
@@ -182,8 +182,8 @@ input,button,a{font-family:var(--f)}
   </div>
  </form>
 
- <form id="f-rp" class="ov" data-mode="rp" novalidate hidden>
-  <div class="up" style="left:63.457%;top:14.772%;width:30.263%;height:69.501%">
+ <form id="f-rp" class="ov" data-mode="rp" novalidate hidden style="left:63.457%;top:14.772%;width:30.263%;height:69.501%">
+  <div class="up" style="inset:0">
    <div class="rph"><button class="rpback" type="button" data-go="in" tabindex="0" role="button" aria-label="Back to sign in">&larr;</button><span class="rpglyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 9V7a5 5 0 0 0-10 0v2H5v12h14V9h-2zm-8-2a3 3 0 0 1 6 0v2H9V7zm4 12h-2v-2h2v2z"/></svg></span></div>
    <div><h2>Reset Password</h2></div><p class="sub">We&rsquo;ll send a 6-digit code to your email to verify it&rsquo;s you.</p>
 

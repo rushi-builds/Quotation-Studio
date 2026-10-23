@@ -173,18 +173,18 @@ preparations and decisions cannot be changed through the sample preview.
 
 ### Verification notes for this patch
 
-The dedicated access API (95), authenticated browser workflow (23), isolated
-preview (35), Pulse browser (77), Connections browser (67), eight-page workflow
-(40), original-layout (28), label/readability (20), platform API (172), and
+The dedicated access API (95), authenticated browser workflow (28), isolated
+preview (42), Pulse browser (77), Connections browser (67), eight-page workflow
+(44), original-layout (28), label/readability (20), platform API (172), and
 existing role-access (150) checks passed. The Worker security contract passed.
 Packaging/frozen/scope/role-parity checks are also run before preview publication.
 
-One broader local security suite is **not fully green**: its API/security
-assertions passed, but its separate recovery-page browser section times out
-clicking `#f-rp .rpback` because `.stage` intercepts pointer events. This patch does
-not change the index/recovery UI, and does not claim that unrelated pointer
-issue is fixed. Keep it visible for a separate login-screen correction; do not
-weaken that assertion or change the quote calculation freeze to hide failures.
+The finishing pass fixes the previously documented recovery back-arrow issue:
+vertically centring overflowing recovery content had clipped the header outside
+the card. Recovery now scrolls from the top and the form's bounds match its
+card. The broader local security suite passes, including unforced desktop and
+mobile back-arrow clicks, locked recovery steps and zero secret requests on
+navigation. No recovery API/OTP logic or quote calculation freeze was changed.
 
 Company connection grants cover Studio-mediated provider actions. Existing
 manual sharing (opening the user's own mail/WhatsApp client) is not company

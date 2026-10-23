@@ -44,6 +44,10 @@ const fs=require('fs'),path=require('path'),http=require('http'),assert=require(
         await f.click('#workspaceAccessDialog [data-wa="close"]');
         await f.locator('#wa-tab-requests').focus();await f.press('#wa-tab-requests','End');
         check('tab keyboard End navigates to History with focus',await f.locator('#wa-tab-history').evaluate(e=>e===document.activeElement&&e.getAttribute('aria-selected')==='true'));
+        check('sample history context starts collapsed',await f.locator('.wa-history-details').count()===2&&await f.locator('.wa-history-details[open]').count()===0);
+        await f.locator('.wa-history-details summary').first().click();
+        check('expanded history shows actor, recipient, resource, exact permission and reason',/Riya Sharma/.test(await f.locator('.wa-history-details').first().innerText())&&/Company workspace/.test(await f.locator('.wa-history-details').first().innerText())&&/Company quoted-value reports/.test(await f.locator('.wa-history-details').first().innerText())&&/monthly report/.test(await f.locator('.wa-history-details').first().innerText()));
+        await f.locator('#workspaceAccess').screenshot({path:path.join(root,'qa/shots/workspace-access/preview-history.png'),animations:'disabled',timeout:90000});
         await f.press('#wa-tab-history','Home');
         check('tab keyboard Home returns to Accounts',await f.locator('#wa-tab-accounts').getAttribute('aria-selected')==='true');
         await f.click('#workspaceAccess [data-wa="account-details"] >> nth=0');
@@ -87,6 +91,16 @@ const fs=require('fs'),path=require('path'),http=require('http'),assert=require(
     await page.goto(origin+'/review/workspace-fit/index.html?panel=sales&role=member&finance=granted');
     f=page.frames().find(f=>f.parentFrame());await f.waitForSelector('#waCompanyFinance strong');
     check('explicit sample finance variant renders only fictional authorised value',/1,21,50,000/.test(await f.locator('#waCompanyFinance').innerText()));
+    const touch=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true,reducedMotion:'reduce'});
+    touch.on('pageerror',e=>errors.push(e.message));touch.on('request',r=>{if(/\/(api|auth)\//.test(new URL(r.url()).pathname))apiRequests.push(r.url());});
+    await touch.goto(origin+'/review/workspace-fit/index.html?panel=access');
+    const tf=touch.frames().find(f=>f.parentFrame());await tf.waitForSelector('#workspaceAccess [data-wa="prepare"]');
+    check('touch devices get comfortable account action and archive targets',await tf.locator('#workspaceAccess .btn').evaluateAll(buttons=>buttons.filter(b=>b.getClientRects().length).every(b=>b.getBoundingClientRect().height>=44))&&await tf.locator('#workspaceAccess .wa-icon-button').evaluateAll(buttons=>buttons.filter(b=>b.getClientRects().length).every(b=>b.getBoundingClientRect().width>=44)));
+    check('touch-friendly controls preserve mobile page fit',await tf.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    await tf.locator('#wa-tab-accounts').focus();await touch.keyboard.press('Tab');
+    check('keyboard can enter the selected tab panel',await tf.locator('#wa-panel-accounts').evaluate(e=>e===document.activeElement));
+    check('loading skeleton honours reduced motion',await tf.evaluate(()=>{const probe=document.createElement('div');probe.className='workspace-skeleton';probe.innerHTML='<i></i>';document.querySelector('.main').append(probe);const disabled=getComputedStyle(probe.firstChild).animationName==='none';probe.remove();return disabled;}));
+    await touch.close();
     check('preview never contacted API/auth',apiRequests.length===0,apiRequests);
     check('preview has no runtime errors',errors.length===0,errors);
     console.log('RESULT: ALL PASS ('+count+' checks)');

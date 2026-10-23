@@ -36,7 +36,10 @@
   ].map(c=>({...c,ownerId:'review-user',archived:false,status:'not_connected',canShare:owner,canManage:owner,permissions:Object.fromEntries(providers[c.provider].map(p=>[p,owner||p==='metrics.read']))})):[];
   const access={revision:1,readOnlyReview:true,self:{id:user.id,manager:owner,member:approved},permissions:{member:approved,'metrics.read':approved,'finance.read':financeAllowed,'pricing.read':owner,'followups.read':owner},connections,
     requests:owner?[{id:'sample-request',userId:'review-member',userName:'Riya Sharma',resource:'workspace',resourceLabel:'KTM workspace',permission:'finance.read',reason:'Review company quotation totals for the monthly report. Sample request only.',status:'pending',createdAt:stamp,expiresAt:day(7)}]:[],
-    pendingReviews:owner?1:0,grants:[],audit:[],users:[{id:'review-user',name:'KTM Energy Experts'},{id:'review-member',name:'Riya Sharma'}],workspacePermissions,permissionLabels,providers,providerAdaptersReady:false};
+    pendingReviews:owner?1:0,grants:[],audit:owner?[
+      {id:'sample-audit-request',actorId:'review-member',actorName:'Riya Sharma',action:'Access requested',at:stamp,detail:{resource:'workspace',permission:'finance.read',userId:'review-member',reason:'Review company quotation totals for the monthly report. Sample request only.'}},
+      {id:'sample-audit-preparation',actorId:'review-user',actorName:'KTM Energy Experts',action:'Account prepared',at:day(-1),detail:{resource:'sample-outlook',label:'KTM Sales'}}
+    ]:[],users:[{id:'review-user',name:'KTM Energy Experts'},{id:'review-member',name:'Riya Sharma'}],workspacePermissions,permissionLabels,providers,providerAdaptersReady:false};
   if(!owner){report.value=null;report.pricingRestricted=true;}
   const read = {
     isAvailable:()=>true, health:()=>({ok:true}), currentUser:()=>user, me:()=>({user}),

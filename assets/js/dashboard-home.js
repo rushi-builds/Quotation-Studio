@@ -23,20 +23,25 @@
   // No per-quotation downloads or persistent financial cache on Home.
   // Reported quoted total is not opportunity pipeline value or collected revenue.
   let X = { tasks: [], activity: [], notes: [], unread: 0, report: null };
-  let failures = new Set(), pending = null, again = false;
+  let failures = new Set(), pending = null, again = false, homeGeneration = 0;
+  const homeIdentity = () => D.user()?.id;
+  const resetHomeData = () => { X = { tasks: [], activity: [], notes: [], unread: 0, report: null }; failures.clear(); };
   function load() {
     again = true;
     if (pending) return pending;
+    $('homeBody')?.setAttribute('aria-busy','true');
     pending = (async () => {
       while (again) {
         again = false;
+        const generation=homeGeneration, uid=homeIdentity();
         const keys = ['tasks', 'activity', 'notes', 'report'];
         const results = await Promise.allSettled([
           api.listTasks(), api.listActivity(), api.listNotifications(), api.reportSummary()
         ]);
+        if(generation!==homeGeneration||uid!==homeIdentity())continue;
         results.forEach((r, i) => {
           const key = keys[i];
-          if (r.status === 'rejected') { failures.add(key); return; }
+          if (r.status === 'rejected') { failures.add(key); if(key==='report')X.report=null;else if(key==='notes'){X.notes=[];X.unread=0;}else X[key]=[]; return; }
           failures.delete(key);
           if (key === 'notes') { X.notes = r.value.notifications || []; X.unread = r.value.unread || 0; }
           else if (key === 'report') X.report = r.value;
@@ -44,7 +49,7 @@
         });
         render();
       }
-    })().finally(() => { pending = null; });
+    })().finally(() => { pending = null; $('homeBody')?.setAttribute('aria-busy','false'); });
     return pending;
   }
   window.QSDashHome = { refresh: load };
@@ -97,6 +102,9 @@
     if (root.__h === html) return; root.__h = html; root.innerHTML = html;
   }
   document.addEventListener('click', async (e) => {
+    const path=e.composedPath();
+    if(!path.some(el=>el.classList?.contains('gsearch')))closeSearch();
+    if(!path.some(el=>el.classList?.contains('bellwrap'))||e.target.closest('[data-workspace-access],#bellDrop [data-open]'))closeBell();
     if (e.target.closest('[data-retry]')) { await load(); return; }
     const record = e.target.closest('#homeBody [data-task-focus]'); if (record) { D.showTasks('all', record.dataset.taskFocus); return; }
     const task = e.target.closest('#homeBody [data-tasks]'); if (task) { D.showTasks(task.dataset.tasks); return; }
@@ -105,7 +113,6 @@
     const t = e.target.closest('#homeBody [data-open],#bellDrop [data-open]'); if (t) { D.open(t.getAttribute('data-open')); return; }
     const s = e.target.closest('#homeBody [data-status]'); if (s) { D.filterStatus(s.getAttribute('data-status')); return; }
     const g = e.target.closest('#homeBody [data-go]'); if (g) { D.show(g.getAttribute('data-go')); return; }
-    if (!e.target.closest('.gsearch')) closeSearch(); if (!e.target.closest('.bellwrap')) $('bellDrop').classList.remove('on');
   });
   $('btnNewFollowup').addEventListener('click', () => { D.showTasks('all'); setTimeout(() => $('taskTitle') && $('taskTitle').focus(), 50); });
   $('btnUserChip').addEventListener('click', () => D.show('settings'));
@@ -177,6 +184,27 @@
   document.addEventListener('click',e=>{if(!e.target.closest('.gbar-left'))closePages();});
   document.addEventListener('focusin',e=>{if(!e.target.closest('.gbar-left'))closePages();});
   $('btnBell').innerHTML = bellSvg + '<span id="bellCount" class="dot" hidden></span>';
-  $('btnBell').addEventListener('click', async () => { const box = $('bellDrop'); if (box.classList.toggle('on') === false) return; box.innerHTML = '<div class="hempty">Loading…</div>'; try { const r = await api.listNotifications(), rows = (r && r.notifications || []).slice(0, 6); box.innerHTML = '<div class="dhead"><strong>Notifications</strong><button type="button" id="bellAll">Mark all read</button></div>' + (rows.length ? rows.map((n) => '<button type="button" class="nrow' + (n.unread ? ' un' : '') + '" ' + (n.kind==='access_request'?'data-workspace-access':n.proposalId ? go('open', n.proposalId) : '') + '><strong>' + esc(n.title) + '</strong><i>' + esc(n.body || '') + '</i><em>' + ago(n.createdAt) + '</em></button>').join('') : '<div class="hempty">No notifications yet.</div>') + '<button type="button" class="dfoot" id="bellView">View all activity →</button>'; $('bellAll').onclick = async () => { try { await api.markAllNotificationsRead(); D.toast('Notifications marked read'); box.classList.remove('on'); D.refresh(); } catch (err) { D.toast(err.message || 'Failed'); } }; $('bellView').onclick = () => { box.classList.remove('on'); D.show('activity'); }; } catch (err) { box.innerHTML = '<div class="hempty">' + esc(err.message || 'Could not load') + '</div>'; } });
+  let bellVersion=0;
+  function closeBell(){bellVersion++;$('bellDrop').classList.remove('on');$('bellDrop').setAttribute('aria-busy','false');$('btnBell').setAttribute('aria-expanded','false');}
+  async function loadBell(){
+    const box=$('bellDrop'),ticket=++bellVersion,uid=homeIdentity();
+    box.setAttribute('aria-busy','true');box.innerHTML='<div class="hempty" role="status">Loading notifications…</div>';
+    try{
+      const r=await api.listNotifications();if(ticket!==bellVersion||uid!==homeIdentity())return;
+      const rows=(r?.notifications||[]).slice(0,6);
+      box.innerHTML='<div class="dhead"><strong>Notifications</strong><button type="button" id="bellAll" '+(!r?.unread?'disabled':'')+'>Mark all read</button></div>'+(rows.length?rows.map(n=>'<button type="button" class="nrow'+(n.unread?' un':'')+'" '+(n.kind==='access_request'?'data-workspace-access':n.proposalId?go('open',n.proposalId):'')+'><strong>'+esc(n.title)+'</strong><i>'+esc(n.body||'')+'</i><em>'+ago(n.createdAt)+'</em></button>').join(''):'<div class="hempty">You’re all caught up.</div>')+'<button type="button" class="dfoot" id="bellView">View all activity →</button>';
+      $('bellAll').onclick=async event=>{event.currentTarget.disabled=true;try{await api.markAllNotificationsRead();if(uid!==homeIdentity())return;D.toast('Notifications marked read');closeBell();D.refresh();}catch(err){if(uid!==homeIdentity())return;D.toast(err.message||'Could not mark notifications read');if($('bellAll'))$('bellAll').disabled=false;}};
+      $('bellView').onclick=()=>{closeBell();D.show('activity');};
+    }catch(err){if(ticket!==bellVersion||uid!==homeIdentity())return;box.innerHTML='<div class="hempty" role="status">Notifications unavailable. <button type="button" class="text-link" data-bell-retry>Retry</button></div>';box.querySelector('[data-bell-retry]').onclick=loadBell;}
+    finally{if(ticket===bellVersion)box.setAttribute('aria-busy','false');}
+  }
+  $('btnBell').setAttribute('aria-controls','bellDrop');$('btnBell').setAttribute('aria-expanded','false');
+  $('bellDrop').setAttribute('aria-label','Notifications');
+  $('btnBell').addEventListener('click',()=>{if($('bellDrop').classList.contains('on')){closeBell();return;}$('bellDrop').classList.add('on');$('btnBell').setAttribute('aria-expanded','true');loadBell();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('bellDrop').classList.contains('on')){closeBell();$('btnBell').focus();}});
+  document.addEventListener('qs:session',()=>{
+    homeGeneration++;resetHomeData();closeBell();$('bellDrop').replaceChildren();$('bellCount').hidden=true;$('bellCount').textContent='';closeSearch();results=[];searchBox.replaceChildren();
+    const root=$('homeBody');if(root){root.__h=null;root.innerHTML='<div class="workspace-loading" role="status"><span>Opening your workspace…</span><div class="workspace-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></div>';}
+  });
   document.addEventListener('qs:home', load);
 })();

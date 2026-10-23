@@ -213,6 +213,18 @@ const PASSWORD = "ReviewPass!123";
     await p.waitForFunction(()=>document.querySelector('#notifUnreadLabel').textContent!=='Unavailable');
     check('activity inline Retry recovers',await p.locator('[data-activity-retry]').count()===0);
 
+    await p.route('**/api/tasks',route=>route.fulfill({status:500,contentType:'application/json',body:'{"error":"Unavailable"}'}));
+    await go('tasks');await p.waitForSelector('#retryTasks');
+    check('follow-up outage replaces stale rows with Retry, not a false zero',await p.locator('#taskCount').textContent()==='Unavailable'&&await p.locator('#tasksBody .task-item').count()===0);
+    await p.unroute('**/api/tasks');await p.click('#retryTasks');await p.waitForSelector('#tasksBody .task-item');
+    check('follow-up inline Retry restores the active filter',/Future customer call/.test(await p.locator('#tasksBody').textContent())&&await p.locator('#retryTasks').count()===0);
+    await p.route('**/api/notifications',route=>route.fulfill({status:500,contentType:'application/json',body:'{"error":"Unavailable"}'}));
+    await p.click('#btnBell');await p.waitForSelector('#bellDrop [data-bell-retry]');
+    check('notification dropdown offers Retry and exposes its open state',await p.locator('#btnBell').getAttribute('aria-expanded')==='true');
+    await p.unroute('**/api/notifications');await p.click('#bellDrop [data-bell-retry]');await p.waitForSelector('#bellView');
+    await p.keyboard.press('Escape');
+    check('notification Escape closes popup and restores focus',await p.locator('#btnBell').evaluate(e=>e===document.activeElement&&e.getAttribute('aria-expanded')==='false'));
+
     const pixel=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jY8sAAAAASUVORK5CYII=','base64');
     for(const category of ['industrial','residential']){
       const res=await fetch(origin+'/api/gallery',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'image/png','X-Filename':category+'.png','X-Category':category,'X-Caption':encodeURIComponent('Review '+category+' roof')},body:pixel});
@@ -260,7 +272,7 @@ const PASSWORD = "ReviewPass!123";
     await p.click('#ghTabs [data-bi-tab="overview"]');
     check('original rounded header and natural layout retained',await p.locator('.gbar').evaluate(el=>getComputedStyle(el).borderRadius==='22px')&&await p.locator('.pulse-overview-grid').evaluate(el=>getComputedStyle(el).display==='grid'));
     await p.evaluate(()=>{document.getElementById('toast').classList.remove('on');document.activeElement?.blur();window.scrollTo({top:0,behavior:'instant'});});
-    await p.screenshot({path:path.join(root,'qa/shots/pulse/workflow-polish.png'),fullPage:true});
+    await p.screenshot({path:path.join(root,'qa/shots/pulse/workflow-polish.png'),fullPage:true,timeout:90000});
     check('no page or console errors across workflow audit',errors.length===0,errors.join('\n'));
     assert.equal(fails.length,0,fails.join(', '));
     console.log('RESULT: ALL PASS');
