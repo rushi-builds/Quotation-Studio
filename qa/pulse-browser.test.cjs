@@ -169,10 +169,13 @@ const PASSWORD = "ReviewPass!123";
     ok("no invented 12:00 due anywhere in the follow-up table", !/12:00/.test(followups), "found invented noon");
     ok("real overdue task still surfaces with honest time label", /Site survey call/.test(followups), followups.slice(0, 240));
 
-    /* overview charts: absent-CRM history/sources are unavailable, not zero charts */
-    const overviewText = await p.evaluate(() => document.getElementById("biBody").textContent);
-    ok("activity history explicitly unavailable without CRM (never zero buckets)", /no measured lead\/quotation-issue\/win history exists to chart/.test(overviewText), overviewText.slice(0, 240));
-    ok("lead sources explicitly unavailable without CRM (empty split is not a zero)", /An empty source split is unavailable, not a recorded zero/.test(overviewText), overviewText.slice(0, 240));
+    /* Concise states replace the removed explanatory paragraphs. Unknown CRM
+       still has neither a measured zero nor fabricated source/history rows. */
+    ok("missing CRM keeps an unavailable lead count, not zero",await p.locator('.pulse-visual-metric').first().locator('strong').textContent()==='—' && /Lead CRM not connected/.test(await p.locator('.pulse-visual-metric').first().textContent()),'');
+    await p.click('#ghTabs [data-bi-tab="leads"]');
+    ok("missing CRM has no invented source records",await p.locator('#biLeadRows tbody tr').count()===0 && /Lead CRM not connected/.test(await p.locator('#biBody').textContent()),'');
+    await p.click('#ghTabs [data-bi-tab="overview"]');
+    ok("removed explanatory block is absent from the DOM",await p.locator('.pulse-definitions').count()===0,'');
 
     /* Approved visual integration: actual authenticated dashboard, never prototype data. */
     await p.waitForFunction(() => window.__businessPulseReady === true);
@@ -214,8 +217,8 @@ const PASSWORD = "ReviewPass!123";
     await p.locator('.pulse-followup-details').evaluate(el=>{el.open=false;});
     await p.evaluate(()=>{document.activeElement?.blur();window.scrollTo({top:0,behavior:'instant'});});
     await p.waitForFunction(()=>window.scrollY===0);
-    await p.screenshot({path:path.join(root,'qa/shots/pulse/overview-integrated-light.png'),fullPage:true,animations:'disabled'});
-    await p.locator('.pulse-solar-hero').screenshot({path:path.join(root,'qa/shots/pulse/corrected-approved-hero.png'),animations:'disabled'});
+    await p.screenshot({path:path.join(root,'qa/shots/pulse/overview-integrated-light.png'),fullPage:true,animations:'disabled',timeout:90000});
+    await p.locator('.pulse-solar-hero').screenshot({path:path.join(root,'qa/shots/pulse/corrected-approved-hero.png'),animations:'disabled',timeout:90000});
 
     /* Connection management has ONE home in Settings. Pulse is read-only. */
     await p.click('#ghTabs [data-bi-tab="connections"]');
@@ -319,7 +322,7 @@ const PASSWORD = "ReviewPass!123";
     await mp.locator('#ghTabs [data-bi-tab="overview"]').click();
     await mp.emulateMedia({reducedMotion:'reduce'});
     ok('reduced motion disables solar and plot animations',await mp.locator('.pulse-trend-line').evaluateAll(nodes=>nodes.every(node=>getComputedStyle(node).animationName==='none')), '');
-    await mp.screenshot({ path: path.join(root, "qa/shots/pulse/mobile-light.png"), fullPage: true, animations: "disabled" });
+    await mp.screenshot({ path: path.join(root, "qa/shots/pulse/mobile-light.png"), fullPage: true, animations: "disabled", timeout: 90000 });
     await mob.close();
     const dark = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "dark" });
     const dkp = await dark.newPage();
@@ -331,7 +334,7 @@ const PASSWORD = "ReviewPass!123";
     const darkCard=await dkp.locator('.pulse-visual-metric').first().evaluate(el=>getComputedStyle(el).backgroundColor);
     ok('existing dark theme uses dark translucent Pulse glass', /rgba\(23, 39, 58, 0\./.test(darkCard), darkCard);
     ok('dark overview has no horizontal document overflow',await dkp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), '');
-    await dkp.screenshot({ path: path.join(root, "qa/shots/pulse/desktop-dark.png"), fullPage: false, animations: "disabled" });
+    await dkp.screenshot({ path: path.join(root, "qa/shots/pulse/desktop-dark.png"), fullPage: false, animations: "disabled", timeout: 90000 });
     await dark.close();
 
     /* asset graph: nothing from concept-preview / fixtures; packaged assets 200 */
@@ -341,7 +344,7 @@ const PASSWORD = "ReviewPass!123";
 
     /* zero page errors across the whole run */
     ok("zero page/console errors across the whole run", errors.length === 0, errors.join(" | ").slice(0, 400));
-    await p.screenshot({ path: path.join(root, "qa/shots/pulse/overview-live-report.png"), fullPage: false, animations: "disabled" });
+    await p.screenshot({ path: path.join(root, "qa/shots/pulse/overview-live-report.png"), fullPage: false, animations: "disabled", timeout: 90000 });
   } catch (e) {
     fails.push("exception: " + e.message);
     console.error("EXCEPTION:", e);

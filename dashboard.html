@@ -325,6 +325,7 @@
                     <option value="all">All tasks</option>
                     <option value="today">Due today</option>
                     <option value="overdue">Overdue</option>
+                    <option value="upcoming">Upcoming</option>
                     <option value="open">Open</option>
                     <option value="done">Completed</option>
                   </select>
@@ -483,7 +484,7 @@
                   ></textarea>
                 </div>
                 <p class="micro muted" id="sendHonesty">
-                  Sharing opens your app; delivery is not confirmed.
+                  Opens your app · delivery not confirmed.
                 </p>
                 <div class="btn-row">
                   <button
@@ -715,7 +716,7 @@
                   Upload photo
                 </button>
                 <p class="micro muted">
-                  Uploads remain private until approved for the public gallery.
+                  Workspace photos · public gallery is managed separately.
                 </p>
                 <p id="galleryMsg" role="status" class="micro"></p>
               </aside>
@@ -891,7 +892,7 @@
                       Log out
                     </button>
                   </div>
-                  <p id="profileSaveMsg" class="micro" role="status"></p>
+                  <p id="profileSaveMsg" class="micro" role="status" aria-live="polite"></p>
                   <details class="help-details">
                     <summary>Connection details</summary>
                     <p id="settingsHealth" class="micro muted">Checking…</p>
