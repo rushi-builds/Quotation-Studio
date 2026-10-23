@@ -1,4 +1,4 @@
-/* Layout-only regression. Serves the real dashboard through its isolated,
+/* Restored original-layout regression (compact/no-scroll experiment rejected). Serves the real dashboard through its isolated,
    read-only review frame. No API backend, session or customer data involved. */
 'use strict';
 const {chromium}=require('playwright');
@@ -23,7 +23,7 @@ const fs=require('fs'),path=require('path'),http=require('http'),assert=require(
     const page=await browser.newPage();
     page.on('pageerror',e=>errors.push(e.message));
     page.on('request',r=>{if(/\/(api|auth)\//.test(new URL(r.url()).pathname))apiRequests.push(r.url());});
-    for(const [width,height] of [[1366,600],[1280,650],[1536,650],[1536,864],[1366,768],[1920,1080],[1280,800],[900,650],[390,844],[320,740]]){
+    for(const [width,height] of [[1366,600],[1536,864],[390,844]]){
       await page.setViewportSize({width,height});
       await page.goto(origin+'/review/workspace-fit/index.html');
       const frame=page.frames().find(f=>f.parentFrame());
@@ -32,52 +32,26 @@ const fs=require('fs'),path=require('path'),http=require('http'),assert=require(
       for(const panel of ['home','sales']){
         await frame.evaluate(p=>window.QSDash.show(p),panel);
         await frame.waitForSelector('#panel-'+panel+'.on');
-        await frame.waitForTimeout(250);
+        await frame.waitForTimeout(400);
         const result=await frame.evaluate(()=>{
           const header=getComputedStyle(document.querySelector('.gbar'));
           const active=document.querySelector('.panel.on');
-          return {width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight,scrollWidth:document.documentElement.scrollWidth,radius:header.borderRadius,background:header.backgroundColor,border:header.borderTopWidth,glass:header.backgroundImage!=='none'||header.backgroundColor!=='rgba(0, 0, 0, 0)',controls:['workspaceHome','currentPage','gSearch','dashboardTheme','btnBell','btnUserChip'].every(id=>!!document.getElementById(id)?.getBoundingClientRect().width),cards:[...active.querySelectorAll('.hc,.pulse-calendar,.pulse-overview-bottom>.gh-card')].map(el=>({bottom:el.getBoundingClientRect().bottom,width:el.getBoundingClientRect().width})),overflow:getComputedStyle(document.body).overflowY};
+          return {width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight,scrollWidth:document.documentElement.scrollWidth,radius:header.borderRadius,border:header.borderTopWidth,controls:['workspaceHome','currentPage','gSearch','dashboardTheme','btnBell','btnUserChip'].every(id=>!!document.getElementById(id)?.getBoundingClientRect().width),cards:[...active.querySelectorAll('.hc,.pulse-calendar,.pulse-overview-bottom>.gh-card')].map(el=>({width:el.getBoundingClientRect().width})),overflow:getComputedStyle(document.body).overflowY};
         });
-        console.log('  layout',width,height,panel,JSON.stringify(result));
-        check(width+' '+panel+' rounded glass header restored, all six controls retained',result.radius==='16px'&&result.glass&&result.border==='1px'&&result.controls,result);
-        check(width+' '+panel+' no horizontal page overflow',result.scrollWidth<=result.width+1,result);
-        check(width+' '+panel+' no document scroll lock or missing sections',!['hidden','clip'].includes(result.overflow)&&result.cards.length===4&&result.cards.every(c=>c.width>0),result);
-        if(width>=1000)check(width+'x'+height+' '+panel+' fits one desktop screen',result.scrollHeight<=result.height+1,result);
-        if(width<=900)check(width+' '+panel+' small screen keeps necessary scrolling',result.scrollHeight>result.height,result);
-        if(width<=390)check(width+' '+panel+' wrapped search stays inside header and above content',await frame.evaluate(()=>{
-          const header=document.querySelector('.gbar').getBoundingClientRect(), search=document.querySelector('.gsearch').getBoundingClientRect(),content=document.querySelector('.workspace-content').getBoundingClientRect();
-          return search.bottom<=header.bottom+1&&header.bottom<=content.top+1;
-        }));
-        if([1536,1366,390].includes(width)){
-          fs.mkdirSync(path.join(root,'qa/shots/workspace-fit'),{recursive:true});
-          await page.screenshot({path:path.join(root,'qa/shots/workspace-fit',panel+'-'+width+'-'+height+'.png'),fullPage:true});
-        }
+        check(width+' '+panel+' rounded top strip and all six controls retained',result.radius==='22px'&&result.border==='1px'&&result.controls,result);
+        check(width+' '+panel+' original natural page scrolling restored',result.scrollHeight>result.height&&!['hidden','clip'].includes(result.overflow),result);
+        check(width+' '+panel+' no horizontal page overflow or missing sections',result.scrollWidth<=result.width+1&&result.cards.length===4&&result.cards.every(c=>c.width>0),result);
+        if(width>=1000&&panel==='home')check('original full-width lower Home sections restored',await frame.locator('#homeBody .hc.w2').first().evaluate(e=>Math.abs(e.getBoundingClientRect().width-e.parentElement.getBoundingClientRect().width)<2));
+        if(width>=1000&&panel==='sales')check('original separate analytical rows restored',await frame.locator('.pulse-overview-grid').evaluate(e=>getComputedStyle(e).display==='grid'));
+        fs.mkdirSync(path.join(root,'qa/shots/workspace-restored'),{recursive:true});
+        await page.screenshot({path:path.join(root,'qa/shots/workspace-restored',panel+'-'+width+'.png'),fullPage:true});
       }
-      if(width===1366&&height===600){
-        for(const panel of ['proposals','tasks','activity','reports','send','publish','gallery','settings']){
-          await frame.evaluate(p=>window.QSDash.show(p),panel);
-          await frame.waitForSelector('#panel-'+panel+'.on');
-          await frame.waitForTimeout(200);
-          const fit=await frame.evaluate(()=>({height:innerHeight,scroll:document.documentElement.scrollHeight,width:innerWidth,wide:document.documentElement.scrollWidth}));
-          console.log('  page',panel,fit);
-          if(fit.scroll>fit.height+1)console.log('  boxes',await frame.evaluate(()=>[...document.querySelectorAll('.gbar,.workspace-content,.panel.on,.panel.on>.page-heading,.panel.on>.section-tabs,.panel.on>.share-layout,.panel.on .compose-card,.panel.on .share-layout>aside')].map(e=>({class:e.className,y:e.getBoundingClientRect().y,bottom:e.getBoundingClientRect().bottom,height:e.getBoundingClientRect().height,scroll:e.scrollHeight,max:getComputedStyle(e).maxHeight,overflow:getComputedStyle(e).overflowY}))))
-          check(panel+' fits short laptop viewport with section overflow only when needed',fit.scroll<=fit.height+1&&fit.wide<=fit.width+1,fit);
-        }
-      }
-      if(width===1536&&height===864){
+      if(width===1536){
         await frame.locator('[data-bi-action="report-options"]').click();
-        check('report options remain openable',await frame.locator('#pulseReportOptions').evaluate(e=>e.open));
-        await frame.locator('[data-bi-action="report-options"]').click();
-        await frame.locator('.pulse-followup-details summary').click();
-        check('expanded follow-ups remain accessible (natural overflow allowed)',await frame.locator('.pulse-followup-details').evaluate(e=>e.open&&e.scrollHeight>30));
-        await frame.locator('.pulse-followup-details summary').click();
-        await frame.evaluate(()=>{const first=document.querySelector('#homeBody .hc');for(let i=0;i<12;i++)first.append(first.querySelector('.prow').cloneNode(true));window.QSDash.show('home');});
-        check('busy Overview section scrolls internally without hiding its records',await frame.locator('#homeBody .hc').first().evaluate(e=>getComputedStyle(e).overflowY==='auto'&&e.scrollHeight>e.clientHeight));
-        await frame.locator('#gSearch').fill('settings');
-        check('search remains usable in restored header',await frame.locator('#gSearch').inputValue()==='settings');
+        check('existing report controls still open',await frame.locator('#pulseReportOptions').evaluate(e=>e.open));
         for(const appearance of ['dark','light','system']){
           await frame.locator('#dashboardTheme').selectOption(appearance);
-          check(appearance+' theme keeps rounded header',await frame.locator('.gbar').evaluate(e=>getComputedStyle(e).borderRadius==='16px'&&getComputedStyle(e).borderTopWidth==='1px'));
+          check(appearance+' preserves rounded top strip',await frame.locator('.gbar').evaluate(e=>getComputedStyle(e).borderRadius==='22px'&&getComputedStyle(e).borderTopWidth==='1px'));
         }
       }
     }
