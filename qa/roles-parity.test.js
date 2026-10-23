@@ -23,6 +23,8 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
+const guard = require('./pr-scope-guard.cjs');
+
 const ROOT = path.join(__dirname, '..');
 const WORKER = path.join(ROOT, 'platform/cloudflare/src/worker.js');
 const SERVER = path.join(ROOT, 'platform/local-server/server.js');
@@ -485,14 +487,38 @@ for (const [label, src] of BOTH) {
   t(label + ': parseRoleTitle never mentions admin', !/admin/i.test(pr));
 }
 
-/* ---------- 14. frozen files: this patch must not touch them ---------- */
-let frozen = [];
-try {
-  const out = execFileSync('git', ['diff', '--name-only', 'origin/main'], { cwd: ROOT, encoding: 'utf8' });
-  const changed = out.split('\n').filter(Boolean);
-  const FROZEN = /assets\/js\/(finance|export|render|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$/;
-  frozen = changed.filter((f) => FROZEN.test(f));
-  t('FROZEN calc/pricing/finance/export files untouched', frozen.length === 0, frozen.join(', '));
+/* ---------- 14. patch scope and frozen baselines (correct comparison base) ---------- */
+/* Rebuilt 2026-10-23 after the verification round; sharpened the same day
+   after the exact-head review probes found two false passes in the draft:
+     - rename detection kept only a rename's destination, which could hide a
+       committed `git mv vercel.json qa/…` deletion (guard now diffs with
+       --no-renames, NUL-delimited, so BOTH ends are on the books);
+     - a worktree restoration of a BASE copy could mask a committed
+       violation (the scope is now an explicit BASE→HEAD committed-tree
+       diff; worktree dirt is reported separately and is never an input to
+       the verdict).
+   Semantics here, all unchanged since the rebuild:
+
+     - frozen guarantee: the family is pinned by BLOB HASH to the owner's
+       golden tree 8cc7db1; deletion counts; main's drifting state is
+       irrelevant;
+     - deploy configs are detected with NO broad exception - any
+       wrangler config or vercel.json change, rename or deletion inside the committed
+       patch scope fails, historical allowances included;
+     - allowlist is NOT widened;
+     - negative proof lives in qa/pr-scope.test.cjs (renames, deletions,
+       worktree masks, mutation traps). */
+{
+  const base = guard.resolveBase(ROOT);
+  t('patch-scope comparison base resolves (line-tip or explicit QS_PR_BASE)', !!base && !!base.ref, JSON.stringify(base));
+  const changed = guard.changedFiles(ROOT, base && base.ref) || [];
+  const frozen = guard.frozenTouches(changed);
+  const bl = guard.baselineMatch(ROOT);
+  const blBad = bl.filter((b) => !b.ok);
+  t('FROZEN calc/pricing family byte-identical to golden base ' + guard.GOLDEN_BASE_REF,
+    blBad.length === 0 && bl.length === guard.FROZEN_FILES.length, JSON.stringify(blBad));
+  t('FROZEN calc/pricing/finance/export files untouched (committed BASE→HEAD scope, base ' + (base ? base.ref.slice(0, 10) : '?') + ' [' + (base ? base.from : '?') + '])',
+    frozen.length === 0, frozen.join(', '));
   /* Owner decision (2026-10-10): the Google, Phone and Microsoft buttons were
      removed from index.html, leaving the built-in email/password flow as the
      only sign-in path. What must stay untouched is everything behind them -
@@ -505,34 +531,22 @@ try {
     !changed.some((f) => /firebase/i.test(f) || /phone-auth\.js$/.test(f)) &&
     !changed.some((f) => /phone/i.test(f) && f !== 'platform/cloudflare/src/phone.mjs'),
     changed.filter((f) => /phone|firebase/i.test(f)).join(', '));
-  /* Two deliberate deploy-config exceptions: wrangler.toml's stale D1 id was
-     breaking migration 006 (error 7404) and it must mirror the live
-     dashboard-only vars so a toml deploy does not wipe them; vercel.json's
-     /api/* proxy was deliberately retargeted to the live Worker in eca230f -
-     a proxy destination, not a zone, NS or account change. */
-  t('wrangler config / zone / NS untouched (wrangler.toml D1 fix + vercel.json proxy retarget are the deliberate exceptions)',
-    !changed.some((f) => (/wrangler|vercel\.json/.test(f) && !/^(platform\/cloudflare\/wrangler\.toml|vercel\.json)$/.test(f))));
+  /* No exceptions live here any more: wrangler.toml's old D1 fix (migration
+     006, eca230f's vercel retarget) already landed in the line; from this
+     base onward, ANY deploy-config edit is a violation a review must
+     explicitly re-allow. Negative coverage in qa/pr-scope.test.cjs. */
+  const deployTouched = guard.deployConfigTouches(changed);
+  t('deploy config untouched (committed BASE→HEAD scope; any wrangler*/vercel.json change, rename or deletion fails; no broad exception)',
+    deployTouched.length === 0, deployTouched.join(', '));
   /* Allowlist of files the reconciled line (arena + catalogue-sync merge) may
-     touch. Anything outside it means the patch wandered - notably into the
-     frozen calculation/finance set, the phone/Firebase wiring, or a deploy
-     config. The set covers: the Google sign-in root-cause fix (oauth.mjs,
-     phone.mjs), the team/profile/delete + recovery features (worker.js,
-     server.js, schema.sql, dashboard.js, platform-api.js, dashboard.css,
-     dashboard.html, migrations 005-009), the Excel product-catalogue cache
-     (excel-module-catalog.mjs, migration 010), the equipment selector rounds
-     (app, equipment, catalogue-data, state, quotation.html), the site-data
-     round (site-geo.mjs, render.js tech-spec rows), the three-fixes round
-     (experience.js/css, export.js PDF anchor, cloud-bridge/app sync), the
-     per-MPPT fix (engineering.js), the C5 mirrors under
-     platform/cloudflare/public/**, and this guard's tests under qa/. */
-  const ALLOWED = /^(platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|experience|export|engineering)\.js|assets\/css\/(dashboard|experience|app)\.css|quotation\.html|dashboard\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|vercel\.json|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
-  t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
-    changed.filter((f) => !ALLOWED.test(f)).join(', '));
+     touch - copied verbatim, NOT widened. The base is the patch's own, so
+     previously merged work no longer appears in the diff. */
+  const unintended = guard.scopeOffenders(changed);
+  t('changed files are the intended set (committed BASE→HEAD scope, allowlist unwidened)',
+    unintended.length === 0, unintended.join(', '));
   t('no earlier migration was modified',
     !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-catalogue|006-profile-info|007-site-geo|007-member-links-likes|008-member-custom-link|009-recovery-resend|010-excel-product-catalog/.test(f)),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
-} catch (e) {
-  t('git diff available to check the frozen list', false, e.message);
 }
 
 /* ---------- 15. team profile round: the two backends agree ----------
