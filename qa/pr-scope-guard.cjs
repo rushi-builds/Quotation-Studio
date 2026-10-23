@@ -58,9 +58,11 @@ const DEPLOY_CONFIG_RE = /(^|\/)wrangler[^/]*\.(toml|jsonc?|json)$|(^|\/)vercel\
    extension, not a wildcard for all Pulse assets or provider adapters.
    Frozen-tree and deploy-config checks below remain independent. */
 /* 2026-10-23 owner-requested approved-hero correction and compact workspace
-   preview: four exact presentation/review paths only. No image-directory,
+   preview, plus Action desk wording: exact presentation/review paths only. No image-directory,
    review-directory, backend or deploy-config wildcard is introduced. */
 const WORKSPACE_PRESENTATION_PATHS = new Set([
+  // Exact UI-label file for the owner's Action desk wording correction.
+  'assets/js/pulse/pulse-ui.js',
   'assets/css/workspace-fit.css',
   'assets/images/pulse-solar-horizon.jpg',
   'review/workspace-fit/index.html',
