@@ -30,13 +30,20 @@
       <div class="sc-service-actions"><button type="button" class="sc-details" data-connection-details="${service.id}" aria-label="View ${service.name} connection details">View details ${icon('arrow')}</button><button type="button" class="sc-connect" disabled aria-label="${service.name} connection unavailable: secure adapter required" title="Account linking requires a secure provider adapter">Connect ${icon('plus')}</button></div>
     </article>`;
   }
+  function addCard() {
+    return `<article class="sc-add-card" id="connectionsAdd" aria-label="Add a connection">
+      <span class="sc-add-icon" aria-hidden="true">${icon('plus')}</span>
+      <h3>Add connection</h3>
+      <button type="button" class="btn btn-secondary" disabled aria-label="Add a service or another account: connection backend required" title="Additional accounts require the connection backend">+ Add</button>
+    </article>`;
+  }
   function renderCards() {
     const visible = services.filter(service => (category === 'All services' || category === service.category) &&
       `${service.name} ${service.category} ${service.description}`.toLowerCase().includes(query.trim().toLowerCase()));
     $('connectionsCount').textContent = `${visible.length} ${visible.length === 1 ? 'service' : 'services'}`;
     $('connectionsGrid').innerHTML = visible.map(card).join('') + (visible.length ? '' :
-      '<div class="sc-no-results"><span aria-hidden="true">⌕</span><h3>No matching services</h3><p>Try another name or category.</p><button type="button" class="btn btn-secondary btn-sm" data-connections-reset>Clear filters</button></div>');
-    $('connectionsAdd').hidden = category !== 'All services' || Boolean(query.trim());
+      '<div class="sc-no-results"><span aria-hidden="true">⌕</span><h3>No matching services</h3><p>Try another name or category.</p><button type="button" class="btn btn-secondary btn-sm" data-connections-reset>Clear filters</button></div>') +
+      (category === 'All services' && !query.trim() ? addCard() : '');
   }
   function mount() {
     const root = $('connectionsContent');
@@ -47,7 +54,6 @@
       <div class="sc-toolbar"><label class="sc-search">${icon('globe')}<span class="sc-sr-only">Search connection services</span><input type="search" id="connectionsSearch" placeholder="Find a service…" autocomplete="off" maxlength="100"></label><span id="connectionsCount" role="status" aria-live="polite" aria-atomic="true"></span></div>
       <div class="sc-filters" role="group" aria-label="Service category">${categories.map(name => `<button type="button" data-connection-category="${name}" aria-pressed="${name === category}">${name}</button>`).join('')}</div>
       <div class="sc-grid" id="connectionsGrid"></div>
-      <div class="sc-add-row" id="connectionsAdd"><div><strong>More than one account? There’s room.</strong><p>Additional services and accounts will be managed here when account linking is enabled.</p></div><button type="button" class="btn btn-secondary" disabled title="Additional accounts require the connection backend">${icon('plus')} Add account</button></div>
       <details class="sc-access"><summary>${icon('shield')} Access, privacy & control <span aria-hidden="true">+</span></summary><div class="sc-access-body"><p>These are the requirements for future connections, not permissions already granted by this screen.</p><div class="sc-access-grid"><div><strong>Company-owned tools</strong><p>Only explicitly authorised team members should access a company connection.</p></div><div><strong>Individual business accounts</strong><p>Access stays with the assigned user and explicitly authorised colleagues. Personal chats stay outside Studio.</p></div><div><strong>Separate permissions</strong><p>Viewing, configuring and sending need separate server-enforced permissions. A display title does not grant access.</p></div><div><strong>A clear handover</strong><p>Disconnect, revocation, account handover and changes need a backend audit trail before connections are enabled.</p></div></div></div></details>
       <p class="sc-footnote">Profile social links and system services such as password-recovery email are separate. They do not grant mailbox access or enable channel sync.</p>`;
     const dialog = document.createElement('dialog');

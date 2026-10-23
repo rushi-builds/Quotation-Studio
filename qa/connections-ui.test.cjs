@@ -82,6 +82,11 @@ function check(name, condition, detail = '') {
     check('all services truthfully show Not connected', (await p.locator('.sc-service .sc-status').allTextContents()).every(text => text === 'Not connected'));
     check('all connect buttons disabled', await p.locator('.sc-connect[disabled]').count() === 8);
     check('additional accounts disabled without persistence', await p.locator('#connectionsAdd button').isDisabled());
+    check('blank Add card is inside the grid immediately after Outlook Calendar', await p.locator('#connectionsAdd').evaluate(element => element.parentElement.id === 'connectionsGrid' && element.previousElementSibling.dataset.service === 'outlook-calendar'));
+    const outlookBox = await p.locator('[data-service="outlook-calendar"]').boundingBox();
+    const addBox = await p.locator('#connectionsAdd').boundingBox();
+    check('desktop Add card sits to the right of Outlook Calendar in the same row', Math.abs(addBox.y - outlookBox.y) < 2 && addBox.x > outlookBox.x);
+    check('old full-width account banner is gone', !/More than one account|Additional services and accounts will be managed here/.test(await p.locator('#settingsConnections').textContent()));
     check('no credential or fake preference forms in hub', await p.locator('#settingsConnections input:not([type="search"]),#settingsConnections form').count() === 0);
     check('no provider-management dropdown added to main app sidebar', await p.locator('.side-nav [data-panel="connections"]').count() === 0);
     check('unavailable account-linking note is visible', await p.locator('.sc-availability').isVisible());

@@ -48,12 +48,12 @@
 .sc-service-actions .sc-details { color: var(--blue); }
 .sc-details:hover { text-decoration: underline; text-underline-offset: 3px; }
 .sc-service-actions .sc-connect { background: var(--surface-soft); color: var(--muted); padding: 7px 10px; cursor: not-allowed; opacity: .65; }
-.sc-add-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 19px 21px; margin-top: 14px; border: 1px dashed color-mix(in srgb, var(--blue) 24%, var(--line)); background: color-mix(in srgb, var(--surface) 60%, transparent); border-radius: 15px; }
-.sc-add-row strong { font-size: 11px; font-weight: 500; }
-.sc-add-row p { color: var(--muted); font-size: 10px; line-height: 1.8; max-width: 430px; margin-top: 5px; }
-.sc-add-row .btn { display: inline-flex; align-items: center; flex-shrink: 0; gap: 7px; font-size: 10px; padding: 9px 13px; }
-.sc-add-row svg { width: 13px; height: 13px; }
-.sc-add-row button:disabled { cursor: not-allowed; }
+.sc-add-card { grid-column: -2 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 17px; min-height: 225px; padding: 24px; border: 1px dashed color-mix(in srgb, var(--blue) 28%, var(--line)); background: color-mix(in srgb, var(--surface) 55%, transparent); border-radius: 16px; text-align: center; }
+.sc-add-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: color-mix(in srgb, var(--blue) 7%, var(--surface)); color: var(--blue); }
+.sc-add-icon svg { width: 22px; height: 22px; }
+.sc-add-card h3 { color: var(--text); font-size: 14px; font-weight: 500; letter-spacing: -.02em; }
+.sc-add-card .btn { font-size: 11px; padding: 9px 22px; }
+.sc-add-card button:disabled { cursor: not-allowed; }
 .sc-no-results { grid-column: 1/-1; padding: 36px 20px; text-align: center; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); }
 .sc-no-results > span { color: var(--muted); font-size: 28px; }
 .sc-no-results h3 { margin: 6px 0; font-size: 14px; }
@@ -99,7 +99,7 @@
 .sc-pulse-status .btn svg { width: 15px; height: 15px; }
 .sc-pulse-status > small { display: block; color: var(--muted); font-size: 10px; line-height: 1.8; margin-top: 16px; }
 html[data-appearance="system"] .sc-service { background: linear-gradient(135deg,#ffffffbd,#ffffff80); border-color: #ffffffed; backdrop-filter: blur(12px); box-shadow: inset 0 1px 0 #fff,0 8px 22px #24476e04; }
-@media(min-width:1500px) { .sc-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media(min-width:1280px) { .sc-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 @media(max-width:1150px) { .sc-heading { flex-direction: column; gap: 10px; } .sc-phase { margin-top: 0; } .sc-overview-note { display: none; } .sc-service { padding: 17px 17px 0; } }
-@media(max-width:600px) { .sc-heading { margin-bottom: 20px; } .sc-grid { grid-template-columns: minmax(0,1fr); } .sc-overview { padding: 18px; align-items: flex-start; gap: 12px; } .sc-overview-icon { width: 35px; height: 35px; border-radius: 10px; } .sc-overview h3 { font-size: 13px; } .sc-add-row { align-items: flex-start; flex-direction: column; gap: 12px; padding: 18px; } .sc-add-row .btn { align-self: flex-end; } .sc-access-grid { grid-template-columns: 1fr; } .sc-dialog { padding: 22px; } .sc-dialog-actions { flex-wrap: wrap; } .sc-filters { gap: 3px; } .sc-filters button { padding: 7px 9px; } }
+@media(max-width:600px) { .sc-heading { margin-bottom: 20px; } .sc-grid { grid-template-columns: minmax(0,1fr); } .sc-overview { padding: 18px; align-items: flex-start; gap: 12px; } .sc-overview-icon { width: 35px; height: 35px; border-radius: 10px; } .sc-overview h3 { font-size: 13px; } .sc-access-grid { grid-template-columns: 1fr; } .sc-dialog { padding: 22px; } .sc-dialog-actions { flex-wrap: wrap; } .sc-filters { gap: 3px; } .sc-filters button { padding: 7px 9px; } }
 @media(prefers-reduced-motion:reduce) { .sc-hub *, .sc-dialog * { scroll-behavior: auto; transition: none; } }
