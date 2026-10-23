@@ -56,6 +56,9 @@ const fs=require('fs'),path=require('path'),http=require('http'),assert=require(
           await f.selectOption('#dashboardTheme',theme);
           check(theme+' access tabs remain visible and selected',await f.locator('#wa-panel-accounts').isVisible()&&await f.locator('#wa-tab-accounts').getAttribute('aria-selected')==='true');
           check(theme+' accounts have no horizontal document overflow',await f.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+          if(theme==='system'){
+            check('access section matches the translucent glass of the service cards below',await f.evaluate(()=>{const access=getComputedStyle(document.querySelector('#workspaceAccess')),service=getComputedStyle(document.querySelector('.sc-service'));return access.backgroundImage===service.backgroundImage&&access.backdropFilter===service.backdropFilter;}));
+          }
           if(theme==='dark'){
             check('dark mode applies dark glass and a light foreground to account cards',await f.locator('#workspaceAccess').evaluate(root=>{const css=getComputedStyle(root);return document.documentElement.dataset.theme==='dark'&&!css.backgroundImage.includes('255, 255, 255')&&css.color.match(/[\d.]+/g).slice(0,3).every(n=>Number(n)>100);}));
             await f.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
