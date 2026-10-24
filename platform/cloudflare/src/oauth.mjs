@@ -9,6 +9,10 @@ const names = { google:'Google', microsoft:'Microsoft', apple:'Apple' };
 const response = (body,status=200) => new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
 const redirect = (path,cookies=[]) => {const headers=new Headers({'Location':path,'Cache-Control':'no-store','Referrer-Policy':'no-referrer'});cookies.forEach(c=>headers.append('Set-Cookie',c));return new Response(null,{status:303,headers});};
 const error = code => Object.assign(new Error(code),{oauthCode:code});
+/* DIAGNOSTIC ONLY — redacts values of sensitive keys before server-side logging.
+   Never print client_secret, authorization codes, ID/access tokens, state,
+   binding or verifier values; anything shaped like key=value is masked. */
+const redactLog = value => String(value ?? '').replace(/(client_secret|code|id_token|access_token|refresh_token|state|binding|verifier|password)["']?\s*[:=]\s*["']?[^,;&"'\s}]*/gi,'$1=<redacted>').slice(0,200);
 const keys = new Map();
 /* Granular setup diagnostics. configuration() stays fail-closed: any issue
    means unconfigured. Localhost http is allowed ONLY for local development
@@ -116,15 +120,33 @@ export async function handleOAuth(request,env,store,auth,dependencies={}) {
   const attempt=await store.take(digest(state),digest(binding),provider,Date.now());
   if(!attempt)throw error('SIGNIN_EXPIRED');
   if(params.has('error'))throw error('SIGNIN_CANCELLED');
-  const code=params.get('code');if(!code||code.length>10000)throw error('SIGNIN_FAILED');
+  const code=params.get('code');if(!code||code.length>10000)throw Object.assign(error('SIGNIN_FAILED'),{oauthStage:'callback_params'});
   if(attempt.linkUserId){const user=await auth.userByToken(attempt.linkToken);if(!user||user.id!==attempt.linkUserId)throw error('LINK_SESSION_EXPIRED');}
   const form=new URLSearchParams({client_id:c.clientId,client_secret:c.secret,code,redirect_uri:c.callback,grant_type:'authorization_code'});
   if(provider!=='apple')form.set('code_verifier',attempt.verifier);
-  const tokenResponse=await (dependencies.fetch||fetch)(c.token,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:form,redirect:'error',signal:AbortSignal.timeout(10000)});
-  if(!tokenResponse.ok)throw error('SIGNIN_FAILED');
-  const tokenText=await tokenResponse.text();if(tokenText.length>64000)throw error('SIGNIN_FAILED');
+  // redirect:'manual' — the Workers fetch implementation rejects 'error' with a
+  // TypeError before any request is sent (it only accepts 'follow' | 'manual'),
+  // which silently killed the token exchange on every sign-in. 'manual' keeps the
+  // same security intent: a redirect is never followed, and a 3xx would surface
+  // as !ok below and map to SIGNIN_FAILED. Google's token endpoint replies 200 or
+  // 4xx only, so the normal path is unchanged.
+  const tokenResponse=await (dependencies.fetch||fetch)(c.token,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:form,redirect:'manual',signal:AbortSignal.timeout(10000)});
+  // DIAGNOSTIC ONLY — HTTP status only; never log the request body (it carries
+  // the client secret) or the response body (it carries tokens).
+  console.error('[oauth] token_exchange status='+tokenResponse.status);
+  const tokenText=await tokenResponse.text();
+  if(!tokenResponse.ok){
+   // Server-log diagnostics only: the provider's error code (invalid_client,
+   // invalid_grant, redirect_uri_mismatch, …) — never secrets, codes or tokens.
+   let providerError='';
+   try{providerError=String(JSON.parse(tokenText).error||'').replace(/[^\w-]/g,'').slice(0,64)}catch{}
+   throw Object.assign(error('SIGNIN_FAILED'),{oauthStage:'token_exchange',oauthHttpStatus:tokenResponse.status,oauthProviderError:providerError});
+  }
+  if(tokenText.length>64000)throw Object.assign(error('SIGNIN_FAILED'),{oauthStage:'token_response_size'});
   const tokens=JSON.parse(tokenText);
-  const identity=await verifiedIdentity(c,tokens.id_token,attempt.nonce,dependencies.keyResolver);
+  let identity;
+  try{identity=await verifiedIdentity(c,tokens.id_token,attempt.nonce,dependencies.keyResolver);}
+  catch(e){throw Object.assign(e,{oauthStage:'id_token_verify'});}
   // Apple supplies name only on first consent, outside the signed token. Treat it
   // strictly as untrusted, editable display text; never use it for authorization.
   if(provider==='apple'&&params.get('user')){try{const n=JSON.parse(params.get('user')).name;identity.name=[n?.firstName,n?.lastName].filter(x=>typeof x==='string').join(' ').trim().slice(0,120);}catch{}}
@@ -135,7 +157,35 @@ export async function handleOAuth(request,env,store,auth,dependencies={}) {
   const allowed=['ACCOUNT_EXISTS','IDENTITY_IN_USE','EMAIL_UNAVAILABLE','SIGNIN_EXPIRED','LINK_SESSION_EXPIRED','SIGNIN_CANCELLED'];
   const code=allowed.includes(e.oauthCode)?e.oauthCode:'SIGNIN_FAILED';
   // Never expose provider payloads, authorization codes, secrets or DB errors.
-  if(action==='callback')return redirect('/index.html?oauth_error='+code,[cookie(provider,'',0)]);
+  // DIAGNOSTIC ONLY — server log (local console / wrangler tail). Never print
+  // client_secret, authorization codes, ID/access tokens, state, binding or
+  // verifier values; msg= is redacted and truncated before printing.
+  try{console.error('[oauth]',provider,action,'->',code,
+   'code='+(e.oauthCode||e.name||'UNKNOWN'),
+   e.oauthStage?('stage='+e.oauthStage):'',
+   e.oauthHttpStatus?('http='+e.oauthHttpStatus):'',
+   e.oauthProviderError?('provider_error='+e.oauthProviderError):'',
+   'msg='+redactLog(e.message));}catch{}
+  if(action==='callback'){
+   // GRACEFUL REPLAY. The one-time state can age out on a slow round-trip, in a
+   // storage-blocked browser or on a second tab — and when it does, this visitor
+   // is frequently ALREADY signed in. Telling someone standing in the doorway to
+   // "sign in again" is worse than useless: it sends them to go and do the very
+   // thing they just finished doing. So before showing the error, ask the one
+   // question that settles it — is this browser's Studio session still good? —
+   // and walk them straight in when it is.
+   //
+   // This grants NOTHING. auth.user() is the same check the dashboard itself sits
+   // behind; no session, role or identity is created here, and the only write is
+   // the expiry of this provider's own one-time binding cookie. The worst a
+   // stolen state buys is a redirect to a page these cookies already allow, so
+   // the error survives exactly where it belongs: a visitor with no valid
+   // session at all.
+   if(code==='SIGNIN_EXPIRED'){
+    try{const signedIn=await auth.user(request);if(signedIn)return redirect('/dashboard.html',[cookie(provider,'',0)]);}catch{}
+   }
+   return redirect('/index.html?oauth_error='+code,[cookie(provider,'',0)]);
+  }
   return response({error:'Could not start sign-in. Please try again.',code},400);
  }
 }

@@ -26,7 +26,7 @@ async function finish(store,auth,start,provider='google',extra={},overrides={}){
  const token=await signed(claims(provider,start.nonce,extra));
  const p=new URLSearchParams({state:start.state,code:'provider-code',...(provider==='apple'?{user:JSON.stringify({name:{firstName:'Apple',lastName:'Name'}})}:{})});
  let exchanges=0;
- const deps={keyResolver:pair.publicKey,fetch:async(url,options)=>{exchanges++;assert.equal(options.redirect,'error');const form=options.body;assert.equal(form.get('redirect_uri'),origin+'/api/auth/oauth/'+provider+'/callback');if(provider!=='apple')assert.ok(form.get('code_verifier'));return Response.json({id_token:token,access_token:'discard-this'});},...overrides};
+ const deps={keyResolver:pair.publicKey,fetch:async(url,options)=>{exchanges++;assert.equal(options.redirect,'manual');const form=options.body;assert.equal(form.get('redirect_uri'),origin+'/api/auth/oauth/'+provider+'/callback');if(provider!=='apple')assert.ok(form.get('code_verifier'));return Response.json({id_token:token,access_token:'discard-this'});},...overrides};
  const r=await handleOAuth(request(provider+'/callback'+(provider==='apple'?'':'?'+p),provider==='apple'?'POST':'GET',provider==='apple'?p.toString():undefined,{Cookie:start.cookie}),env,store,auth,deps);
  return {r,exchanges};
 }

@@ -151,7 +151,7 @@ window.QSAssistantInit = function () {
     const currentForm = workspace()?.form?.();
     const contextKeys=Object.keys(window.StateStore?.DEFAULTS||{}).filter(k=>!/^cust[A-Z]|^prop|^prep|Url$|^(company|stat)|^(systemNotes|systemScope|systemExclusions|systemEquipment|systemPurpose)$/.test(k));
     const currentStudio = currentForm ? Object.fromEntries([...contextKeys,'costPerKwp'].filter(k=>currentForm[k]!=null && ['string','number','boolean'].includes(typeof currentForm[k]) && String(currentForm[k]).length<=160).map(k=>[k,currentForm[k]])) : undefined;
-    const catalogueFields=['id','make','model','wp','tech','lengthMm','widthMm','efficiency','voc','isc','vmp','imp','kw','mppt','label','vmaxDc','mpptMin','mpptMax','maxCurrent'];
+    const catalogueFields=['id','make','model','wp','tech','cellType','moduleType','lengthMm','widthMm','efficiency','voc','isc','vmp','imp','tempCoefVoc','kw','mppt','label','vmaxDc','mpptMin','mpptMax','maxCurrent','maxCurrentA','maxIscA','startV','inputsPerMppt','totalDcInputs','maxDcKw','acOutputA','phase','invType','category','size','material','ampacity','core','standard'];
     const catalog=window.EquipmentStore?.cat?.();
     const equipmentCatalog=catalog?Object.fromEntries(['modules','inverters','structures','cables'].filter(k=>Array.isArray(catalog[k])).map(k=>[k,catalog[k].slice(0,10).map(row=>Object.fromEntries(catalogueFields.filter(key=>row&&['string','number'].includes(typeof row[key])).map(key=>[key,String(row[key]).slice(0,100)])))])):undefined;
     message("user", text);

@@ -9,8 +9,11 @@ const assert=require('node:assert/strict'),{chromium}=require('playwright'),pkg=
  const initial=await p.evaluate(()=>({ref:propRef.value,id:Proposals.activeId(),cloud:CloudBridge.cloudIdFor(Proposals.activeId()),count:Proposals.list().length,pending:sessionStorage.getItem('qs.cloudOpenId')}));
  assert.match(initial.ref,/^KTM\/\d{4}\/Solar\/\d+$/);assert.equal(initial.count,1,'cloud opening creates no ghost local draft');assert.equal(initial.pending,null);
  for(let i=0;i<2;i++){await p.evaluate(id=>CloudBridge.openFromCloud(id),initial.cloud);assert.equal(await p.evaluate(()=>Proposals.list().length),1,'reopening a clean cloud quote reuses its local cache');assert.equal(await p.inputValue('#propRef'),initial.ref);}
+ // Typed changes auto-sync to the linked cloud row (the Dashboard must always
+ // show the latest customer name), so a reopen reuses the now-clean cache.
  await p.evaluate(()=>{custName.value='Unsaved local customer';custName.dispatchEvent(new Event('input',{bubbles:true}));__qsSaveNow();});
- await p.evaluate(id=>CloudBridge.openFromCloud(id),initial.cloud);assert.equal(await p.evaluate(()=>Proposals.list().length),2);assert.ok(await p.evaluate(()=>Proposals.list().some(x=>Proposals.get(x.id).form.custName==='Unsaved local customer')),'local unsaved edits preserved');
+ await p.waitForFunction(()=>window.CloudBridge&&!CloudBridge.hasUnsavedChanges());
+ await p.evaluate(id=>CloudBridge.openFromCloud(id),initial.cloud);assert.equal(await p.evaluate(()=>Proposals.list().length),1,'reopening a synced cloud quote reuses its local cache');assert.equal(await p.evaluate(()=>Proposals.get(Proposals.activeId()).form.custName),'Unsaved local customer','typed customer name survives the round trip');
  const previous=await p.evaluate(()=>Proposals.activeId());await p.evaluate(()=>pmNew.click());await p.waitForFunction(id=>Proposals.activeId()!==id,previous);const fresh=await p.inputValue('#propRef');assert.notEqual(fresh,initial.ref);assert.ok(!p.url().includes('cloud='),'new local draft removes stale cloud URL');
  const save=await p.evaluate(()=>CloudBridge.saveToCloud());assert.equal(save.ok,true);const cloudNew=await p.evaluate(()=>CloudBridge.cloudIdFor(Proposals.activeId()));
  await p.reload();await p.waitForFunction(()=>window.CloudBridge&&!CloudBridge.isOpening()&&statusMsg.textContent.includes('Opened from cloud'));assert.equal(await p.inputValue('#propRef'),fresh);

@@ -1,10 +1,16 @@
-/* Original dropdowns with a final Custom option and manual input below; persistence and actual PDF capture. */
+/* Make dropdowns: real Excel makes + equivalents + Custom last; model
+   dropdowns cascade from the make; equivalents/custom makes get a free-type
+   model box where a wattage loads the nearest catalogue model; persistence,
+   proposal lifecycle and actual PDF capture. */
 'use strict';
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),puppeteer=require('puppeteer-core');
 let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓ '+name);};
 (async()=>{
  const {default:chromium}=await import('@sparticuz/chromium');
- const browser=await puppeteer.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(a=>a!=='--single-process'),headless:true});
+ /* @sparticuz/chromium ships a Linux binary (Lambda); on Windows/macOS point
+    PUPPETEER_EXECUTABLE_PATH at an installed Chrome or Edge instead. */
+ const useSparticuz=!process.env.PUPPETEER_EXECUTABLE_PATH;
+ const browser=await puppeteer.launch({executablePath:useSparticuz?await chromium.executablePath():process.env.PUPPETEER_EXECUTABLE_PATH,args:useSparticuz?chromium.args.filter(a=>a!=='--single-process'):['--no-sandbox','--disable-dev-shm-usage'],headless:true});
  const custom={moduleMake:'Custom Solar & Partners',moduleTech:'Custom HJT technology',inverterMake:'Custom Inverter "A"',mountMake:'Custom galvanized structure',cableMake:'Custom cable <series>',roofType:'Custom industrial roof'};
  const out=path.join(__dirname,'shots','equipment-entry');fs.mkdirSync(out,{recursive:true});
  try {
@@ -13,36 +19,90 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.setViewport({width:1440,height:1100});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
   await page.evaluate(()=>{StateStore.applyForm({custName:'Equipment Audit',capacity:'7',costPerWp:'60',gstPercent:'8.9'});Render.renderAll();});
   await page.click('[data-section="moduleMake"] > summary');
+  const settle=(id,value)=>page.waitForFunction((a,b)=>window.Render.lastState[a]===b,{timeout:3000},id,value);
   async function type(id,value){
    await page.focus('#'+id);await page.keyboard.press('End');
    id+='Custom';await page.focus('#'+id);await page.keyboard.down('Control');await page.keyboard.press('A');await page.keyboard.up('Control');await page.keyboard.press('Backspace');await page.type('#'+id,value);await page.keyboard.press('Tab');}
+  async function typeCustom(id,value){
+   await page.focus('#'+id+'Custom');await page.keyboard.down('Control');await page.keyboard.press('A');await page.keyboard.up('Control');await page.keyboard.press('Backspace');await page.type('#'+id+'Custom',value);await page.keyboard.press('Tab');}
   async function matchingForm(){return page.evaluate(values=>Object.entries(values).every(([id,v])=>document.getElementById(id).value===v&&Render.lastState[id]===v),custom);}
   async function matchingSpec(target){return target.$eval('#v_tsTable',(el,values)=>Object.values(values).every(v=>[...el.querySelectorAll('.spec-v')].some(cell=>cell.textContent===v)),custom);}
-  check('all six original dropdowns have Custom last and labelled hidden text boxes below',await page.evaluate(ids=>ids.every(id=>{
+  check('all eight dropdowns have Custom last and labelled hidden text boxes below',await page.evaluate(ids=>ids.every(id=>{
    const el=document.getElementById(id),input=document.getElementById(id+'Custom'),wrap=document.getElementById(id+'CustomWrap');
    return el.tagName==='SELECT'&&el.options.length>1&&el.options[el.options.length-1].text==='Custom…'&&wrap.hidden&&input.disabled&&el.nextElementSibling===wrap&&document.querySelector('label[for="'+id+'"]')&&input.labels.length===1;
-  }),Object.keys(custom)));
-  check('Sungrow / Fronius is available without changing the original inverter default',await page.$eval('#inverterMake',el=>[...el.options].some(o=>o.value==='Sungrow / Fronius or Equivalent')&&el.value==='Deye or Equivalent'));
+  }),['moduleMake','moduleModel','moduleTech','inverterMake','inverterModel','mountMake','cableMake','roofType']));
+  check('template defaults are the Excel makes: Waaree modules, Sungrow inverters, Polycab cables',await page.evaluate(()=>moduleMake.value==='Waaree'&&inverterMake.value==='Sungrow'&&cableMake.value==='Polycab'));
+  check('template defaults pin the Waaree Bi-55-545 and Sungrow SG7.0RT models',await page.evaluate(()=>moduleModel.value==='Bi-55-545'&&inverterModel.value==='SG7.0RT'&&moduleWattage.value==='545'&&moduleVoc.value==='49.76'));
+  check('Sungrow / Growatt or Equivalent is available alongside the real makes',await page.$eval('#inverterMake',el=>[...el.options].some(o=>o.value==='Sungrow / Growatt or Equivalent')&&[...el.options].some(o=>o.value==='Fronius / Sungrow or Equivalent')));
 
+  /* ---- make -> model cascade ---- */
+  check('Waaree shows all 56 catalogue models in the model dropdown',await page.$eval('#moduleModel',el=>el.options.length===57&&el.options[0].text.includes('Bi-55-520')&&el.options[0].value==='Bi-55-520'));
+  await page.select('#moduleMake','Premier Energies');
+  check('switching make cascades the model list to that make',await page.$eval('#moduleModel',el=>[...el.options].every(o=>o.hasAttribute('data-custom')||o.value!=='Bi-55-545')&&el.options.length>2));
+  await page.select('#moduleMake','Waaree');
+  await settle('moduleWattage','545');
+  check('returning to Waaree auto-selects the closest model to the current rating',await page.$eval('#moduleModel',el=>el.value==='Bi-55-545'));
+  await page.select('#moduleModel','BiN-08-580');
+  await settle('moduleWattage','580');
+  check('picking a model fills its own rating, dimensions, technology and datasheet electrics',await page.evaluate(()=>moduleWattage.value==='580'&&moduleTech.value!==''&&moduleVoc.value!==''&&moduleLengthMm.value!==''&&moduleModelCustomWrap.hidden));
+  await page.select('#moduleModel','Bi-55-545');
+  await settle('moduleWattage','545');
+  await page.select('#inverterMake','Growatt');
+  await settle('inverterKw','7');
+  check('Growatt cascades its 35 models and auto-picks the one sized to capacity',await page.$eval('#inverterModel',el=>el.options.length===36&&el.value==='MOD 7000TL3-X'));
+  check('the sized inverter fills its own DC limits',await page.evaluate(()=>inverterKw.value==='7'&&inverterVmaxDc.value==='1100'&&mpptMinV.value==='140'&&mpptMaxV.value==='1000'&&inverterMaxCurrentA.value==='16'));
+  await page.select('#inverterModel','MOD 5000TL3-X');
+  await settle('inverterKw','5');
+  check('choosing another model updates the rating',await page.evaluate(()=>inverterKw.value==='5'));
+
+  /* ---- equivalent makes: free-type wattage box ---- */
+  await page.select('#moduleMake','Waaree / Panasonic or Equivalent');
+  check('an equivalent make turns the model box into a free-type wattage field showing the chosen basis model',await page.evaluate(()=>!moduleModelCustomWrap.hidden&&moduleModelCustom.value==='Bi-55-545'&&moduleModel.selectedOptions[0].hasAttribute('data-custom')));
+  await typeCustom('moduleModel','580');
+  await settle('moduleWattage','580');
+  check('typing a wattage loads the basis make’s model at that rating',await page.evaluate(()=>moduleWattage.value==='580'&&moduleVoc.value!==''&&moduleTech.value==='M10/M10R N-type TOPCon'));
+  await page.select('#inverterMake','Sungrow / Growatt or Equivalent');
+  await page.waitForFunction(()=>!inverterModelCustomWrap.hidden&&inverterModelCustom.value==='SG5.0RT');
+  check('equivalent inverter keeps the sized Sungrow basis model',await page.evaluate(()=>!inverterModelCustomWrap.hidden&&inverterModelCustom.value==='SG5.0RT'));
+  await typeCustom('inverterModel','10');
+  await settle('inverterKw','10');
+  check('typing an inverter kW loads the basis make’s model at that rating',await page.evaluate(()=>inverterKw.value==='10'&&inverterVmaxDc.value==='1100'));
+
+  /* ---- custom make + typed wattage finds any catalogue model ---- */
+  await type('moduleMake','My Custom Modules');
+  await typeCustom('moduleModel','600');
+  await settle('moduleWattage','600');
+  check('custom make with a typed wattage finds the matching catalogue model anywhere',await page.evaluate(()=>moduleWattage.value==='600'&&moduleVoc.value!==''&&moduleMake.value==='My Custom Modules'));
+  await page.select('#moduleMake','Waaree');
+  await settle('moduleWattage','600');
+  check('returning from a custom make keeps the closest Waaree model to the current rating',await page.$eval('#moduleModel',el=>el.value==='BiN-08-600'));
+  await page.select('#inverterMake','Sungrow');
+  await settle('inverterKw','10');
+
+  /* ---- make-level catalogue entries without models still autofill ---- */
   await page.evaluate(()=>{
    EquipmentStore.cat().modules.push({id:'qa-module',make:'Catalog module 620',wp:620,tech:'Catalog HJT custom',lengthMm:2300,widthMm:1134});
    EquipmentStore.cat().inverters.push({id:'qa-inverter',make:'Catalog inverter 8',kw:8});
    EquipmentStore.save();EquipmentStore.refreshSelects();
   });
   await page.select('#moduleMake','Catalog module 620');
+  await settle('moduleWattage','620');
   check('choosing a catalog make still fills real rating, dimensions and custom technology',await page.evaluate(()=>moduleWattage.value==='620'&&moduleLengthMm.value==='2300'&&moduleWidthMm.value==='1134'&&moduleTech.value==='Catalog HJT custom'));
   await page.select('#inverterMake','Catalog inverter 8');
+  await settle('inverterKw','8');
   check('known inverter rating still autofills',await page.$eval('#inverterKw',el=>el.value==='8'));
   for(const [id,value] of Object.entries(custom)){
    await type(id,value);
+   await settle(id,value);
    check(id+' accepts custom keyboard input and updates the preview immediately',await page.evaluate(({id,value})=>Render.lastState[id]===value&&document.getElementById('v_tsTable').textContent.includes(value),{id,value}));
   }
   check('manual text boxes are visible underneath their dropdowns',await page.evaluate(ids=>ids.every(id=>!document.getElementById(id+'CustomWrap').hidden&&!document.getElementById(id+'Custom').disabled&&document.getElementById(id).selectedIndex===document.getElementById(id).options.length-1),Object.keys(custom)));
-  await page.select('#cableMake','Havells or Equivalent');
-  check('choosing a listed make hides manual entry and immediately renders the listed value',await page.evaluate(()=>cableMakeCustomWrap.hidden&&cableMakeCustom.disabled&&Render.lastState.cableMake==='Havells or Equivalent'));
+  await page.select('#cableMake','Havells');
+  await settle('cableMake','Havells');
+  check('choosing a listed make hides manual entry and immediately renders the listed value',await page.evaluate(()=>cableMakeCustomWrap.hidden&&cableMakeCustom.disabled&&Render.lastState.cableMake==='Havells'));
   await page.select('#cableMake',custom.cableMake);
   check('returning to Custom restores this proposal’s typed draft',await page.evaluate(()=>!cableMakeCustomWrap.hidden&&cableMakeCustom.value==='Custom cable <series>'&&Render.lastState.cableMake==='Custom cable <series>'));
-  await type('moduleMake','Panasonic / Waaree / Adani or Equivalent');
+  await type('moduleMake','Waaree');
   check('manual text matching a catalog name does not silently apply its ratings',await page.evaluate(()=>moduleMake.selectedOptions[0].hasAttribute('data-custom')&&moduleWattage.value==='620'));
   await page.evaluate(()=>EquipmentStore.refreshSelects());
   check('catalog refresh preserves explicitly selected Custom mode',await page.evaluate(()=>moduleMake.selectedOptions[0].hasAttribute('data-custom')&&!moduleMakeCustomWrap.hidden));
@@ -55,30 +115,36 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await type('moduleMake','');await page.evaluate(()=>EquipmentStore.refreshSelects());
   check('clearing a make is not silently replaced with a default',await page.$eval('#moduleMake',el=>el.value===''));
   await type('moduleMake',custom.moduleMake);
+  await settle('moduleMake',custom.moduleMake);
   await page.evaluate(()=>window.__qsSaveNow());
   check('helper fields are not saved as a second source of truth',await page.evaluate(()=>!Object.keys(StateStore.collectForm()).some(key=>key.endsWith('Custom'))));
   check('all six custom values persist in the proposal',await page.evaluate(values=>Object.entries(values).every(([id,v])=>Proposals.active().form[id]===v),custom));
   check('proposal-specific names do not silently change the shared catalog',await page.evaluate(values=>!EquipmentStore.cat().modules.some(x=>x.make===values.moduleMake)&&!EquipmentStore.cat().cables.some(x=>x.label===values.cableMake),custom));
   const original=await page.evaluate(()=>Proposals.activeId());
   await page.reload({waitUntil:'networkidle0'});
+  await page.waitForFunction(()=>window.Render&&window.Render.lastState&&Render.lastState.custName==='Equipment Audit',{timeout:10000});
   check('reload preserves custom values and rendered specification',await matchingForm()&&await matchingSpec(page));
   check('reload automatically restores Custom mode with the saved text',await page.evaluate(values=>Object.entries(values).every(([id,value])=>!document.getElementById(id+'CustomWrap').hidden&&document.getElementById(id+'Custom').value===value&&document.getElementById(id).selectedOptions[0].hasAttribute('data-custom')),custom));
   await page.evaluate(()=>document.querySelector('.studio-management').open=true);await page.click('#pmNew');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);
   check('new quotation clears all previous manual drafts and hides the text boxes',await page.evaluate(ids=>ids.every(id=>document.getElementById(id+'Custom').value===''&&document.getElementById(id+'CustomWrap').hidden),Object.keys(custom)));
-  check('new quotation retains original template equipment, not previous custom entries',await page.evaluate(()=>moduleMake.value===StateStore.DEFAULTS.moduleMake&&roofType.value===StateStore.DEFAULTS.roofType));
+  check('new quotation retains original template equipment, not previous custom entries',await page.evaluate(()=>moduleMake.value===StateStore.DEFAULTS.moduleMake&&moduleModel.value==='Bi-55-545'&&roofType.value===StateStore.DEFAULTS.roofType));
   await page.select('#proposalSelect',original);
+  await page.waitForFunction(id=>Proposals.activeId()===id,{},original);
   check('switching back restores all custom entries',await matchingForm());
   await page.click('#pmDup');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);const duplicate=await page.evaluate(()=>Proposals.activeId());
   check('duplicate retains all custom entries',duplicate!==original&&await matchingForm());
   await page.evaluate(()=>document.querySelector('.studio-tools').open=true);
   page.once('dialog',dialog=>dialog.accept());await page.click('#resetBtn');
+  await page.waitForFunction(id=>Proposals.get(id).form.moduleMake===StateStore.DEFAULTS.moduleMake,{},duplicate);
   check('reset restores equipment defaults on only the active duplicate',await page.evaluate(id=>moduleMake.value===StateStore.DEFAULTS.moduleMake&&Proposals.get(id).form.moduleMake==='Custom Solar & Partners',original));
   await page.select('#proposalSelect',original);
+  await page.waitForFunction(id=>Proposals.activeId()===id,{},original);
   // Saved option fields remain plain strings; applying an option must not require a catalog entry.
   await page.click('#modeAll');await page.evaluate(()=>{document.getElementById('advancedWrap').open=true;document.querySelector('[data-section="optName"]').open=true;});
   await page.type('#optName','Custom equipment design');await page.click('#optSave');await page.waitForSelector('#optList button[data-act="apply"]');
   await page.evaluate(()=>{StateStore.applyForm({moduleMake:'Temporary make'});moduleMake.dispatchEvent(new Event('input',{bubbles:true}));});
   await page.click('#optList button[data-act="apply"]');
+  await page.waitForFunction(()=>moduleMake.value==='Custom Solar & Partners',{timeout:5000});
   check('saved system option restores custom module/inverter/technology',await matchingForm());
   await page.evaluate(()=>{window.__realCreate=URL.createObjectURL;URL.createObjectURL=blob=>{window.__equipmentBackup=blob;return window.__realCreate(blob);};StateStore.exportFile();});
   const backup=await page.evaluate(async()=>{const text=await window.__equipmentBackup.text();URL.createObjectURL=window.__realCreate;return text;});
@@ -93,8 +159,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await customer.emulateMediaType('print');check('print view retains literal custom values',await matchingSpec(customer));await customer.close();
   await page.setViewport({width:390,height:844});await page.click('#modeEss');await page.evaluate(()=>document.querySelector('[data-section="moduleMake"]').open=true);
   await type('cableMake','Mobile cable entry');
+  await settle('cableMake','Mobile cable entry');
   check('custom typing works at mobile width',await page.$eval('#v_tsTable',el=>el.textContent.includes('Mobile cable entry')));
   await type('cableMake',custom.cableMake);
+  await settle('cableMake',custom.cableMake);
   check('equipment inputs fit the mobile viewport',await page.evaluate(ids=>document.documentElement.scrollWidth<=innerWidth&&ids.every(id=>document.getElementById(id).getBoundingClientRect().right<=innerWidth),Object.keys(custom)));
   await page.screenshot({path:path.join(out,'mobile.png')});
   await page.setViewport({width:1440,height:1100});await page.evaluate(()=>{document.querySelector('.studio-tools').open=false;document.querySelector('[data-section="custName"]').open=false;document.querySelector('[data-section="moduleMake"]').scrollIntoView({block:'start'});});await page.screenshot({path:path.join(out,'desktop.png')});await page.bringToFront();

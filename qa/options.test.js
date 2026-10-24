@@ -46,8 +46,8 @@ function bootBuilder(seedStorage, url) {
     }
   });
   const { window } = dom;
-  const src = ['content.js', 'engineering.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
+  const src = ['content.js', 'engineering.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'rainwater.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+    'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
   window.document.dispatchEvent(new window.Event('DOMContentLoaded', { bubbles: true }));
@@ -125,10 +125,14 @@ d.getElementById('custName').value = 'QA Customer'; fire(w, d.getElementById('cu
 d.getElementById('shareUrl').value = 'https://example.com/p/KTME-2026-013';
 fire(w, d.getElementById('shareUrl'), 'input');
 d.getElementById('waShare').click();
-const openUrl = decodeURIComponent(w.__lastOpen || '');
-t('wa.me link opened', (w.__lastOpen || '').startsWith('https://wa.me/?text='));
-t('message contains customer name', openUrl.includes('QA Customer'));
-t('message contains proposal link', openUrl.includes('https://example.com/p/KTME-2026-013'));
+/* the share handler awaits the auto-link step (a resolved microtask here,
+   CloudBridge is absent) before it opens wa.me */
+setTimeout(() => {
+  const openUrl = decodeURIComponent(w.__lastOpen || '');
+  t('wa.me link opened', (w.__lastOpen || '').startsWith('https://wa.me/?text='));
+  t('message contains customer name', openUrl.includes('QA Customer'));
+  t('message contains proposal link', openUrl.includes('https://example.com/p/KTME-2026-013'));
+}, 0);
 
 console.log('- persistence with options -');
 setTimeout(async () => {
@@ -191,8 +195,8 @@ setTimeout(async () => {
       addPage() {} addImage() {} setProperties() {} save() {}
     }
   };
-  const src3 = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'export.js', 'share.js']
+  const src3 = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'rainwater.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+    'catalogue-data.js', 'equipment.js', 'render.js', 'export.js', 'share.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   w3.eval(src3);
   w3.document.dispatchEvent(new w3.Event('DOMContentLoaded', { bubbles: true }));
@@ -204,7 +208,7 @@ setTimeout(async () => {
       d3.getElementById('shareCustomer').textContent);
     t('share: capacity line', d3.getElementById('shareCapacity').textContent.includes('kWp'));
     t('share: status chip', d3.getElementById('shareStatus').textContent.length > 0);
-    t('share: pages injected', d3.querySelectorAll('.page-wrap').length === 21, d3.querySelectorAll('.page-wrap').length);
+    t('share: pages injected', d3.querySelectorAll('.page-wrap').length === 22, d3.querySelectorAll('.page-wrap').length);
     t('share: pages visible', [...d3.querySelectorAll('.page-wrap')].filter((x) => x.style.display !== 'none').length === 15);
     t('share: hero matches proposal finance', d3.getElementById('v_inCostNet').textContent === expectedNet,
       d3.getElementById('v_inCostNet').textContent + ' vs ' + expectedNet);

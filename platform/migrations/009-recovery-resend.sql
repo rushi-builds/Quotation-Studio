@@ -1,0 +1,52 @@
+-- Password recovery: resend counter and verify-attempt counter.
+--
+--   resend_count  how many times a NEW code has been issued for the CURRENT
+--                 recovery attempt, capped at 3 by the Worker. Counts from the
+--                 first code, so 1 initial + 3 resends = at most 4 emails per
+--                 recovery attempt. Reset to 0 when a fresh request starts.
+--   attempts      failed verification tries against THIS code. A 6-digit code
+--                 is only 1,000,000 combinations, so without a cap a caller
+--                 could grind through them inside the 10-minute window. Five
+--                 misses invalidate the code and the user must start over.
+--
+-- Neither column is a credential: `code_hash` remains the only thing that
+-- proves anything, and the raw code is never stored. Both are counters with a
+-- constant default, so an old database reads exactly the same to every gate
+-- until this migration runs — the Worker treats a missing value as 0.
+--
+-- ---------------------------------------------------------------------------
+-- BACK UP FIRST (per the standing rule):
+--
+--   cd platform/cloudflare
+--   $env:CLOUDFLARE_API_TOKEN = <ktm-scoped token>
+--   $env:CLOUDFLARE_ACCOUNT_ID = 'e43beb41b3e88e546967398e5767800c'
+--   npx wrangler d1 execute -c wrangler.company.toml --remote quotation-studio-db \
+--     --command "SELECT id, user_id, expires_at, used_at, created_at FROM password_resets"
+--
+-- APPLY:
+--
+--   npx wrangler d1 execute -c wrangler.company.toml --remote quotation-studio-db \
+--     --file=../migrations/009-recovery-resend.sql
+--
+-- VERIFY (see 009-recovery-resend-verify.sql):
+--
+--   npx wrangler d1 execute -c wrangler.company.toml --remote quotation-studio-db \
+--     --file=../migrations/009-recovery-resend-verify.sql
+--
+-- ---------------------------------------------------------------------------
+-- IDEMPOTENCY: SQLite has no `ADD COLUMN IF NOT EXISTS`, so re-running this
+-- file fails with "duplicate column name: resend_count". That error is harmless
+-- and means the columns are already present — run the verify file instead.
+--
+-- ---------------------------------------------------------------------------
+-- ROLLBACK / LEAVING IT IN PLACE: both columns are inert if left. They are NOT
+-- NULL with a constant default, no index, CHECK constraint or foreign key
+-- references them, and nothing outside the recovery routes reads them.
+--
+-- Rolling back the CODE needs no DDL: the pre-migration Worker never selects
+-- these columns, and the fail-closed recovery it ships does not touch the table
+-- at all. The migration is forward- and backward-safe.
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE password_resets ADD COLUMN resend_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE password_resets ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;

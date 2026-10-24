@@ -72,8 +72,8 @@ function bootApp() {
   });
   const { window } = dom;
   /* the order matches quotation.html, so page wiring behaves as it does live */
-  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js',
-    'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js', 'equipment.js',
+  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'rainwater.js', 'additional-systems.js',
+    'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js', 'catalogue-data.js', 'equipment.js',
     'render.js', 'editor.js', 'experience.js', 'salutation.js', 'briefing.js', 'export.js', 'workspace-prefs.js',
     'app.js', 'control-panel.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
@@ -151,14 +151,18 @@ const REVIEWED = {
   capacity: '7', genFactor: '1460', costPerWp: '63.6', gstPercent: '8.9',
   tariff: '10', escalation: '4', degradation: '0.5',
   co2Factor: '0.71', treeFactor: '22', moduleWattage: '545',
-  moduleLengthMm: '2278', moduleWidthMm: '1134',
+  moduleLengthMm: '2272', moduleWidthMm: '1133',
+  /* Waaree Bi-55-545 datasheet figures - the shipped template module */
+  moduleVoc: '49.76', moduleVmp: '41.9', moduleIsc: '13.9', moduleImp: '13.02',
+  moduleVocBetaPct: '-0.25', moduleVmpBetaPct: '-0.36',
+  /* Sungrow SG7.0RT datasheet figures - the shipped template inverter */
+  inverterVmaxDc: '1100', mpptMinV: '160', mpptMaxV: '1000', inverterMaxCurrentA: '54',
   /* engineering design basis - the assumptions the whole engineering section
      stands on, so they are pinned here rather than left to drift */
   tiltDeg: '15', latitudeDeg: '18.52', shadeHalfWindowHours: '3', roofSetbackM: '0.6',
   windSpeed: '39', buildingHeightM: '10', windK1: '1', windK3: '1', windK4: '1',
   netUpliftCp: '1.2', anchorsPerModule: '4',
-  inverterVmaxDc: '1100', mpptMinV: '200', mpptMaxV: '1000', minAmbientC: '0',
-  maxCellC: '65', moduleVocBetaPct: '-0.27', moduleVmpBetaPct: '-0.36',
+  minAmbientC: '0', maxCellC: '65',
   electrodeLengthM: '3', electrodeDiaM: '0.05', electrodeEfficiency: '0.75',
   thunderstormDays: '30', moduleWeightKg: '28', rackKgPerM2: '2.5',
   roofLoadBenchmarkKgM2: '60'

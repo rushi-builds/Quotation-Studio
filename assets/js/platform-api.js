@@ -9,6 +9,19 @@
 
 (function (root) {
   const BASE = ''; /* same-origin */
+  const PRODUCTION_VERCEL_HOST = 'quotation-studio-taupe.vercel.app';
+  function isUnisolatedVercelPreview() {
+    try {
+      const host = String(location.hostname || '').toLowerCase();
+      return host.endsWith('.vercel.app') && host !== PRODUCTION_VERCEL_HOST;
+    } catch (_) { return false; }
+  }
+  function assertPreviewBackendSafe() {
+    if (!isUnisolatedVercelPreview()) return;
+    const err = new Error('Cloud data actions are disabled in Vercel Preview because its API rewrite points at production.');
+    err.code = 'PREVIEW_BACKEND_DISABLED';
+    throw err;
+  }
 
   /* Session token: memory + localStorage + sessionStorage.
      Preview iframes often block cookies; some also restrict sessionStorage.
@@ -35,9 +48,9 @@
       const secure = (typeof location !== 'undefined' && location.protocol === 'https:') ? '; Secure' : '';
       if (token) {
         document.cookie = 'qs_client=' + encodeURIComponent(token) +
-          '; Path=/; SameSite=None' + secure + '; Max-Age=2592000';
+          '; Path=/; SameSite=' + (secure ? 'None' : 'Lax') + secure + '; Max-Age=2592000';
       } else {
-        document.cookie = 'qs_client=; Path=/; SameSite=None' + secure + '; Max-Age=0';
+        document.cookie = 'qs_client=; Path=/; SameSite=' + (secure ? 'None' : 'Lax') + secure + '; Max-Age=0';
       }
     } catch (_) {}
   }
@@ -56,6 +69,7 @@
   function clearToken() { writeToken(''); }
 
   async function request(method, path, body, timeoutMs = 0) {
+    assertPreviewBackendSafe();
     const opts = {
       method,
       credentials: 'same-origin',
@@ -63,6 +77,7 @@
     };
     const token = readToken();
     if (token) {
+      writeClientCookie(token); // Restore cookie auth for protected same-origin image tags.
       opts.headers['Authorization'] = 'Bearer ' + token;
       opts.headers['X-QS-Session'] = token;
     }
@@ -97,6 +112,7 @@
   }
 
   async function requestRaw(method, path, buf, extraHeaders) {
+    assertPreviewBackendSafe();
     const opts = {
       method,
       credentials: 'same-origin',
@@ -104,6 +120,7 @@
     };
     const token = readToken();
     if (token) {
+      writeClientCookie(token); // Restore cookie auth for protected same-origin image tags.
       opts.headers['Authorization'] = 'Bearer ' + token;
       opts.headers['X-QS-Session'] = token;
     }
@@ -149,15 +166,26 @@
         name, email, password, role: role || ''
       });
     },
-    login(email, password) {
-      return request('POST', '/api/auth/login', { email, password });
+    login(email, password, remember) {
+      /* remember === true ticks "Remember me": a 30-day cookie and session row.
+         Left off (the default) the server hands back a session cookie with no
+         Max-Age, so the browser drops it when it closes. */
+      return request('POST', '/api/auth/login', { email, password, remember: !!remember });
     },
     async logout() {
       try { return await request('POST', '/api/auth/logout', {}); }
       finally { clearToken(); }
     },
     forgotPassword(email) {
+      /* Also serves "Resend code": the server tracks how many codes an attempt
+         has already had, so the first send and every resend are the same call.
+         The reply is identical whether or not the address has an account. */
       return request('POST', '/api/auth/forgot-password', { email });
+    },
+    verifyCode(email, code) {
+      /* Confirms the code without consuming it — the code is still needed to
+         actually set the password one step later. */
+      return request('POST', '/api/auth/verify-code', { email, code });
     },
     resetPassword(email, code, password) {
       return request('POST', '/api/auth/reset-password', { email, code, password });
@@ -218,6 +246,11 @@
         note: note || undefined
       });
     },
+    workspaceAccess() { return request('GET','/api/workspace',undefined,15000); },
+    workspaceCommand(command,payload) { return request('POST','/api/workspace/'+encodeURIComponent(command),payload,15000); },
+    workspacePulse() { return request('GET','/api/workspace/pulse',undefined,15000); },
+    workspaceFinance() { return request('GET','/api/workspace/finance',undefined,15000); },
+    workspaceFollowups() { return request('GET','/api/workspace/followups',undefined,15000); },
     listNotifications(unreadOnly) {
       return request('GET', '/api/notifications' + (unreadOnly ? '?unread=1' : ''));
     },
@@ -271,7 +304,23 @@
       if (title) body.roleCustom = title;
       return request('POST', '/api/team/role', body);
     },
+    /** Remove a member and everything they own. Owner/admin only; the server
+     *  refuses your own row, the OWNER_EMAIL row and an elevated row, and
+     *  answers with the counts of what it removed. */
+    deleteTeamMember(userId) {
+      return request('DELETE', '/api/team/members/' + encodeURIComponent(userId));
+    },
+    /** Toggle the heart on the member card. One vote per member per member is
+     *  enforced server-side by the unique pair, so the reply is the truth:
+     *  the new count and whether this member is now counted. */
+    toggleMemberLike(userId) {
+      return request('POST', '/api/team/members/' + encodeURIComponent(userId) + '/like', {});
+    },
     socialProviders() { return request('GET', '/api/auth/oauth/providers'); },
+    productCatalog() { return request('GET', '/api/catalog/products'); },
+    syncProductCatalog() { return request('POST', '/api/catalog/products/sync', {}); },
+    moduleCatalog() { return request('GET', '/api/catalog/products'); },
+    syncModuleCatalog() { return request('POST', '/api/catalog/products/sync', {}); },
     startSocial(provider, link = false, currentPassword = '') { return request('POST', '/api/auth/oauth/' + encodeURIComponent(provider) + '/start', {link, currentPassword}); },
     phoneVerify(idToken) { return request('POST', '/api/auth/phone/verify', {idToken}); },
     /** Persist a session token returned by login/register/reset. */
@@ -291,6 +340,7 @@
     },
     /** True when /api/health answers. */
     async isAvailable() {
+      if (isUnisolatedVercelPreview()) return false;
       const h = await this.health();
       return !!(h && h.ok);
     }

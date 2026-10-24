@@ -83,8 +83,8 @@ function bootApp() {
     }
   });
   const { window } = dom;
-  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'additional-systems.js',
-    'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js', 'equipment.js',
+  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'rainwater.js', 'additional-systems.js',
+    'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js', 'catalogue-data.js', 'equipment.js',
     'render.js', 'editor.js', 'experience.js', 'salutation.js', 'briefing.js', 'export.js', 'workspace-prefs.js',
     'app.js', 'control-panel.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
@@ -223,6 +223,28 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
     const found = issues();
     assert.equal(found.blocking.length, 0, 'an out-of-range number must not block: ' + JSON.stringify(found.blocking));
     assert.ok(found.advisory.some((i) => /degradation/i.test(i.message)), JSON.stringify(found.advisory));
+    reset();
+  });
+  /* A 3 kWp single string against a real 16 A per-MPPT Isc input is a sound
+     design: the input only ever sees the array's own Isc (13.9 A), so the
+     1.25 x Isc cable-sizing margin must NOT be applied a second time here. */
+  const mpptOverload = () => issues().blocking.filter((i) => i.id === 'inverterMaxCurrentA');
+  check('one 13.9 A string sits inside a 16 A per-MPPT Isc input', () => {
+    cleanSheet();
+    [['capacity', '3.27'], ['moduleWattage', '545'], ['moduleVoc', '49.70'], ['moduleVmp', '41.50'],
+      ['moduleIsc', '13.90'], ['moduleImp', '13.00'], ['inverterVmaxDc', '600'], ['mpptMinV', '80'],
+      ['inverterMaxCurrentA', '16']].forEach(([id, v]) => setInput(id, v));
+    assert.equal(mpptOverload().length, 0, 'the DC input limit must be judged on Isc, not 1.25 x Isc: ' + JSON.stringify(mpptOverload()));
+    reset();
+  });
+  check('a genuinely undersized input still blocks', () => {
+    cleanSheet();
+    [['capacity', '3.27'], ['moduleWattage', '545'], ['moduleVoc', '49.70'], ['moduleVmp', '41.50'],
+      ['moduleIsc', '13.90'], ['moduleImp', '13.00'], ['inverterVmaxDc', '600'], ['mpptMinV', '80'],
+      ['inverterMaxCurrentA', '13']].forEach(([id, v]) => setInput(id, v));
+    const found = mpptOverload();
+    assert.equal(found.length, 1, 'a 13 A input cannot carry a 13.9 A string: ' + JSON.stringify(found));
+    assert.ok(/13\.9 A of short-circuit current \(Isc, STC\)/.test(found[0].message), found[0].message);
     reset();
   });
 

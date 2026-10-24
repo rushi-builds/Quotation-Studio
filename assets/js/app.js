@@ -48,6 +48,7 @@
   }
   window.__qsScheduleSave = scheduleSave; /* used by the Advanced Edit panel */
   window.__qsSaveNow = saveNow;           /* used by harnesses / before navigation */
+  window.__qsLoadActive = loadActiveIntoUI; /* cloud bridge: reload the active proposal into the UI (fresh opens included) */
 
   /* ---------- system options (Good / Better / Best) ---------- */
   const OPTION_FIELDS = ['capacity', 'genFactor', 'moduleMake', 'moduleWattage', 'moduleTech',
@@ -142,9 +143,13 @@
   function wireShare() {
     const btn = $('waShare');
     if (!btn) return;
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
+      /* The message carries this proposal's own customer link; make sure one
+         exists before composing it (no-op when not signed in). */
+      let auto = '';
+      try { auto = (await window.CloudBridge?.ensureShareLink?.()) || ''; } catch (_) {}
       const s = window.StateStore.collectForm();
-      const link = (s.shareUrl || '').trim();
+      const link = ((s.shareUrl || '').trim()) || auto;
       let msg = 'Hello ' + (s.custName || '').trim() + ',\n' +
         'Here is your personalised rooftop solar proposal from ' + s.companyName + ' (' +
         s.capacity + ' kWp).\n' +
@@ -373,6 +378,10 @@
       const saved = blob && window.Proposals.get(blob.id);
       const ok = !!saved && JSON.stringify(saved) === JSON.stringify(blob);
       showSaveState(ok ? 'saved' : 'error');
+      /* Keep the cloud row in step with what was typed, so the Dashboard
+         always shows the latest customer name and values. Quiet: it skips
+         itself while another save is in flight or nothing changed. */
+      try { window.CloudBridge?.syncIfLinked?.(); } catch (_) {}
       return ok ? blob : null;
     } catch (error) { showSaveState('error'); return null; }
   }
@@ -540,19 +549,30 @@
   }
 
   /* ---------- form wiring ---------- */
+  /* Rendering the full preview is expensive, so form activity coalesces:
+     keystrokes render on a short trailing debounce, select changes render
+     on the next tick. One burst of equipment updates = one render pass. */
+  let pendingRender = 0;
+  function scheduleRender(delay) {
+    if (pendingRender) clearTimeout(pendingRender);
+    pendingRender = setTimeout(() => {
+      pendingRender = 0;
+      window.Render.renderAll();
+    }, delay);
+  }
   function wireForm() {
     const form = $('quoteForm');
     if (!form) return;
-    form.addEventListener('input', (e) => {
+    /* Real user keystrokes render on a trailing debounce; programmatic
+       events (equipment cascades, tests, harnesses) render at once. */
+    const onActivity = (e, delay) => {
       if (e.target && e.target.type === 'file') return;
-      window.Render.renderAll();
+      if (e.isTrusted) scheduleRender(delay);
+      else window.Render.renderAll();
       scheduleSave();
-    });
-    form.addEventListener('change', (e) => {
-      if (e.target && e.target.type === 'file') return;
-      window.Render.renderAll();
-      scheduleSave();
-    });
+    };
+    form.addEventListener('input', (e) => onActivity(e, 120));
+    form.addEventListener('change', (e) => onActivity(e, 0));
 
     document.querySelectorAll('input[data-photo]').forEach((input) => {
       input.addEventListener('change', function (e) {
@@ -587,6 +607,127 @@
       refreshManager(false);
     }
     if ($('saveNowBtn')) $('saveNowBtn').addEventListener('click', saveNowFromMenu);
+
+    /* ----- Sync Catalogue: on-demand pull of the Excel workbook from Drive ----- */
+    function catalogueStatusText() {
+      const info = window.EquipmentStore && window.EquipmentStore.cloudInfo ? window.EquipmentStore.cloudInfo() : null;
+      if (!info || !info.syncedAt) return '';
+      const when = new Date(info.syncedAt);
+      const stamp = isNaN(when.getTime()) ? '' : new Date(info.syncedAt).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+      return 'Catalogue: ' + (info.modules || 0) + '/' + (info.inverters || 0) + '/' + (info.cables || 0) + (stamp ? ' · synced ' + stamp : '');
+    }
+    async function syncCatalogueFromDrive() {
+      const btn = $('syncCatalogueBtn'), status = $('catalogueSyncStatus');
+      if (!btn || !status) return;
+      btn.disabled = true;
+      status.textContent = 'Syncing catalogue…';
+      try {
+        const res = await fetch('/api/catalogue/sync', { method: 'POST', credentials: 'include' });
+        let data = {};
+        try { data = await res.json(); } catch (e) { /* non-JSON error */ }
+        if (!res.ok || !data.ok) {
+          const err = new Error(data.error || ('Sync failed (' + res.status + ')'));
+          if (data.code) err.code = data.code;
+          throw err;
+        }
+        if (!window.EquipmentStore || !window.EquipmentStore.importCloud) {
+          throw new Error('Equipment store not ready.');
+        }
+        window.EquipmentStore.importCloud(data.catalogue);
+        const counts = data.counts || {};
+        status.textContent = 'Synced · ' + (counts.modules || 0) + ' modules / ' + (counts.inverters || 0) + ' inverters / ' + (counts.cables || 0) + ' cables';
+      } catch (e) {
+        status.textContent = (e && e.code === 'NOT_CONFIGURED')
+          ? 'Sync not set up yet - ' + (e.message || '')
+          : 'Sync failed: ' + (e && e.message ? e.message : e);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    if ($('syncCatalogueBtn')) $('syncCatalogueBtn').addEventListener('click', syncCatalogueFromDrive);
+    if ($('catalogueSyncStatus')) $('catalogueSyncStatus').textContent = catalogueStatusText();
+
+    /* ----- Site location resolve: geocode + NASA resource (Excel-style flow) ----- */
+    const GEO_PR = 0.78; /* system performance ratio used only for the suggestion; shown openly */
+    let lastGeoQuery = '';
+    async function resolveSiteLocation() {
+      const btn = $('siteFetchBtn'), status = $('siteFetchStatus'), qEl = $('custAddress');
+      if (!btn || !status || !qEl) return;
+      const q = qEl.value.trim();
+      if (!q) { status.textContent = 'Type the customer address first - the location is fetched from it.'; return; }
+      btn.disabled = true;
+      status.textContent = 'Resolving location…';
+      try {
+        const res = await fetch('/api/site/resolve?q=' + encodeURIComponent(q), { credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || ('Resolve failed (' + res.status + ')'));
+        const lat = Number(data.lat), lng = Number(data.lng);
+        lastGeoQuery = q;
+        window.StateStore.applyForm({
+          latitudeDeg: String(Math.round(lat * 100) / 100),
+          siteGeoName: String(data.displayName || ''),
+          siteGeoLat: String(lat),
+          siteGeoLng: String(lng)
+        });
+        scheduleSave();
+        status.textContent = data.displayName + ' · ' + Number(lat).toFixed(2) + '°N ' + Number(lng).toFixed(2) + '°E (' + data.source + (data.cached ? ', cached' : '') + '). Latitude set. Fetching NASA data…';
+        const rres = await fetch('/api/site/resource?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng), { credentials: 'include' });
+        const rdata = await rres.json().catch(() => ({}));
+        if (!rres.ok || !rdata.ok) throw new Error(rdata.error || ('NASA fetch failed (' + rres.status + ')'));
+        window.StateStore.applyForm({
+          nasaGhi: String(rdata.ghiAnnualKwhM2),
+          nasaWind: rdata.windMeanMs == null ? '' : String(rdata.windMeanMs),
+          nasaElevation: rdata.elevationM == null ? '' : String(rdata.elevationM),
+          nasaWindowStart: String(rdata.windowStart || ''),
+          nasaWindowEnd: String(rdata.windowEnd || ''),
+          nasaSource: String(rdata.source || '')
+        });
+        scheduleSave();
+        const suggest = Math.round(rdata.ghiAnnualKwhM2 * GEO_PR);
+        status.textContent = '';
+        status.append('NASA POWER: ' + rdata.ghiAnnualKwhM2 + ' kWh/m²/yr GHI · mean wind ' +
+          (rdata.windMeanMs == null ? 'n/a' : rdata.windMeanMs + ' m/s') +
+          ' (window ' + rdata.windowStart + ' → ' + rdata.windowEnd + '). Suggested gen factor ' +
+          suggest + ' = GHI × PR ' + GEO_PR + '. ');
+        const apply = document.createElement('button');
+        apply.type = 'button';
+        apply.className = 'link-btn';
+        apply.textContent = 'Apply ' + suggest;
+        apply.addEventListener('click', () => {
+          window.StateStore.applyForm({ genFactor: String(suggest) });
+          window.Render.renderAll();
+          scheduleSave();
+          status.textContent = 'Generation factor set to ' + suggest + ' from NASA POWER data (' + rdata.source + ').';
+        });
+        status.append(apply);
+      } catch (e) {
+        status.textContent = e && e.message ? e.message : 'Resolve failed';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    if ($('siteFetchBtn')) $('siteFetchBtn').addEventListener('click', resolveSiteLocation);
+    /* Minimum input: leaving the address field with a changed address fetches
+       automatically, so the location never has to be typed twice. */
+    if ($('custAddress')) {
+      $('custAddress').addEventListener('change', () => {
+        const q = ($('custAddress').value || '').trim();
+        if (q && q !== lastGeoQuery) resolveSiteLocation();
+      });
+    }
+    (function restoreSiteStatus() {
+      const status = $('siteFetchStatus');
+      if (!status) return;
+      const ghi = ($('nasaGhi') && $('nasaGhi').value) || '';
+      const name = ($('siteGeoName') && $('siteGeoName').value) || '';
+      if (ghi) {
+        const wind = ($('nasaWind') && $('nasaWind').value) || '';
+        status.textContent = 'Site data on file' + (name ? ': ' + name : '') + ' · NASA POWER ' + ghi +
+          ' kWh/m²/yr GHI' + (wind ? ' · wind ' + wind + ' m/s' : '') + '.';
+      } else if (name) {
+        status.textContent = 'Location on file: ' + name + ' (NASA data not fetched).';
+      }
+    })();
     document.addEventListener('keydown', (event) => {
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && String(event.key).toLowerCase() === 's') {
         event.preventDefault();          /* never open the browser's Save Page dialog */

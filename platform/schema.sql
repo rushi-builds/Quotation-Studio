@@ -17,17 +17,56 @@ CREATE TABLE IF NOT EXISTS users (
      set. Only the designated ADMIN_EMAIL login may set or clear it, and only on
      its own row. Existing databases gain it via migrations/005-is-admin.sql. */
   is_admin      INTEGER NOT NULL DEFAULT 0,
+  /* Contact number for the team panel. Display data only: never read during
+     authentication, never part of a gate. Existing databases gain it via
+     migrations/006-profile-info.sql. */
+  phone         TEXT NOT NULL DEFAULT '',
+  /* 0 until the member has saved their profile once, then 1. Drives the
+     one-time "update your role and info" nudge. Changes no permission. */
+  profile_done  INTEGER NOT NULL DEFAULT 0,
+  /* Social profile links for the member card. Display data only, team-wide on
+     purpose (a social profile is public anyway): never read at sign-in,
+     never part of a gate. Existing databases gain them via
+     migrations/007-member-links-likes.sql. */
+  instagram_url TEXT NOT NULL DEFAULT '',
+  linkedin_url  TEXT NOT NULL DEFAULT '',
+  /* The member's own "any other link" — neither Instagram nor LinkedIn.
+     Same contract as the two above: display data, team-wide, never read at
+     sign-in and never part of a gate. Existing databases gain it via
+     migrations/008-member-custom-link.sql. */
+  custom_url    TEXT NOT NULL DEFAULT '',
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );
 
--- One-time password recovery codes (hash only; raw code shown once, never emailed yet)
+/* The heart on the member card: one row per (liker, target). The composite
+   PRIMARY KEY is what makes it exactly ONE vote per member per member — a
+   second insert for the same pair is rejected by SQLite, so the count cannot
+   be inflated by a double click or a replayed request. Kudos confer NOTHING:
+   they are a count of clicks, read only by the team list. */
+CREATE TABLE IF NOT EXISTS member_likes (
+  liker_id   TEXT NOT NULL,
+  target_id  TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (liker_id, target_id)
+);
+CREATE INDEX IF NOT EXISTS idx_member_likes_target ON member_likes (target_id);
+
+-- One-time password recovery codes (hash only; the raw code leaves the process
+-- in the recovery email and is never stored).
 CREATE TABLE IF NOT EXISTS password_resets (
   id         TEXT PRIMARY KEY,
   user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   code_hash  TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   used_at    TEXT,
+  /* How many times a NEW code replaced the current one. Capped at 3 by the
+     Worker, so one recovery attempt sends at most 4 emails. */
+  resend_count INTEGER NOT NULL DEFAULT 0,
+  /* Failed verification tries against THIS code. A 6-digit code has 1e6
+     combinations, so five misses invalidate it rather than let a caller grind
+     through the 10-minute window. */
+  attempts     INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -236,6 +275,21 @@ CREATE TABLE IF NOT EXISTS assistant_usage (
 );
 CREATE INDEX IF NOT EXISTS idx_assistant_usage_expiry ON assistant_usage(expires_at);
 
+-- Sanitized quotation product rows only from the private Excel workbook.
+-- The binary, VBA, and customer/site/cost/operational worksheets are never stored.
+CREATE TABLE IF NOT EXISTS excel_product_catalog_cache (
+  catalog_key TEXT PRIMARY KEY,
+  file_id TEXT NOT NULL,
+  file_name TEXT NOT NULL DEFAULT '',
+  file_modified_at TEXT NOT NULL DEFAULT '',
+  file_checksum TEXT NOT NULL DEFAULT '',
+  synced_at TEXT NOT NULL,
+  checked_at TEXT NOT NULL,
+  row_count INTEGER NOT NULL DEFAULT 0,
+  rejected_rows INTEGER NOT NULL DEFAULT 0,
+  products_json TEXT NOT NULL
+);
+
 -- Monotonic allocation metadata; deleting a proposal must not recycle its number.
 CREATE TABLE IF NOT EXISTS proposal_reference_counters (
   year INTEGER PRIMARY KEY,
@@ -251,3 +305,50 @@ CREATE TABLE IF NOT EXISTS auth_throttles (
   window_start INTEGER NOT NULL DEFAULT 0,
   window_count INTEGER NOT NULL DEFAULT 0
 );
+
+-- Equipment catalogue synced on-demand from the Excel workbook (Drive).
+-- Built-in catalogue-data.js stays as the client fallback.
+CREATE TABLE IF NOT EXISTS equipment_catalogue (
+  kind     TEXT NOT NULL CHECK (kind IN ('modules', 'inverters', 'cables')),
+  make     TEXT NOT NULL,
+  model    TEXT NOT NULL,
+  row_json TEXT NOT NULL,
+  PRIMARY KEY (kind, make, model)
+);
+
+CREATE TABLE IF NOT EXISTS equipment_catalogue_meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT
+);
+
+-- Site location resolve + NASA POWER resource cache (on-demand, per site).
+CREATE TABLE IF NOT EXISTS site_geo_cache (
+  query_key    TEXT PRIMARY KEY,
+  lat          REAL NOT NULL,
+  lng          REAL NOT NULL,
+  display_name TEXT NOT NULL,
+  source       TEXT NOT NULL,
+  created_at   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS site_resource_cache (
+  grid_key     TEXT PRIMARY KEY,
+  lat          REAL NOT NULL,
+  lng          REAL NOT NULL,
+  ghi_annual   REAL NOT NULL,
+  wind_ms      REAL,
+  days         INTEGER NOT NULL,
+  window_start TEXT NOT NULL,
+  window_end   TEXT NOT NULL,
+  elevation_m  REAL,
+  created_at   TEXT NOT NULL
+);
+-- Additive only. Apply to the intended workspace DB before enabling access APIs.
+-- Never use the reset-schema command. One company per existing Studio DB.
+CREATE TABLE IF NOT EXISTS workspace_access (
+  id TEXT PRIMARY KEY CHECK (id = 'workspace'),
+  revision INTEGER NOT NULL DEFAULT 0,
+  payload TEXT NOT NULL
+);
+INSERT OR IGNORE INTO workspace_access (id,revision,payload)
+VALUES ('workspace',0,'{"revision":0,"connections":[],"grants":[],"requests":[],"audit":[]}');

@@ -379,6 +379,46 @@ check('more strings than the inverter input allows is reported', () => {
   assert.ok(st.designCurrent > 26);
 });
 
+check('the DC input limit is judged per MPPT: 2 strings on a 2-MPPT inverter clear 32 A', () => {
+  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterMaxCurrentA: '32', inverterMppt: '2' };
+  const st = E.string(mod, { moduleCount: 37 });
+  assert.equal(st.strings, 2);
+  assert.equal(st.mpptCount, 2);
+  assert.equal(st.parallelStringsPerMppt, 1);
+  near(st.mpptCurrent, 13.9, 1e-12);
+  assert.equal(st.iscOverload, false, 'one string per MPPT: 13.9 A Isc is inside the 32 A per-MPPT Isc limit');
+});
+
+check('the datasheet Isc limit is judged on Isc, not on 1.25 × Isc', () => {
+  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterMaxCurrentA: '16', inverterMppt: '2' };
+  const st = E.string(mod, { moduleCount: 6 });
+  assert.equal(st.strings, 1);
+  assert.equal(st.parallelStringsPerMppt, 1);
+  near(st.mpptCurrent, 13.9, 1e-12);
+  near(st.iscDesignPerString, 1.25 * 13.9, 1e-12);
+  assert.equal(st.iscOverload, false, 'a 3 kWp single string at 13.9 A Isc sits inside a 16 A per-MPPT Isc limit');
+});
+
+check('a saved proposal with no stored MPPT count still resolves it from the catalogue', () => {
+  const had = globalThis.EquipmentStore;
+  globalThis.EquipmentStore = { datasheetRow: () => ({ mppt: '2' }) };
+  try {
+    const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterMaxCurrentA: '32' };
+    const st = E.string(mod, { moduleCount: 37 });
+    assert.equal(st.mpptCount, 2);
+    assert.equal(st.iscOverload, false);
+  } finally { globalThis.EquipmentStore = had; }
+});
+
+check('2 strings per MPPT still trip the limit: the check is not weakened', () => {
+  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterMaxCurrentA: '26', inverterMppt: '2' };
+  const st = E.string(mod, { moduleCount: 74 });
+  assert.equal(st.strings, 4);
+  assert.equal(st.parallelStringsPerMppt, 2);
+  near(st.mpptCurrent, 13.9 * 2, 1e-12);
+  assert.equal(st.iscOverload, true, '2 × 13.9 A = 27.8 A exceeds a 26 A per-MPPT Isc limit');
+});
+
 check('without datasheet figures the string check is DATA REQUIRED, never a silent pass', () => {
   const st = E.string(SITE, { moduleCount: 13 });
   assert.equal(st.ok, false);
@@ -538,8 +578,8 @@ check('the printed design basis uses the proposal-stage note, not unverified cal
   });
   const w = dom.window;
   const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
-    'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
+    'rainwater.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+    'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   w.eval(src);
   w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
@@ -584,16 +624,19 @@ check('the engineering basis is kept inside its page, and an overflowing page is
   });
   const w = dom.window;
   w.eval(['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
-    'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
+    'rainwater.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+    'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n'));
   w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
   const page = w.document.getElementById('pageTechSpec');
 
-  /* the design basis is the one variable-length group, so it is the one that
-     can be asked to give up a little room */
+  /* the design basis and the (location-fetched) site data are the variable-
+     length groups, so they are the ones that can be asked to give up a little
+     room. At the shipped defaults the site data group is absent: the four
+     design-basis rows (standards, structure life, wind speed, proposal-stage
+     note) are tagged. */
   const engRows = w.document.querySelectorAll('#v_tsTable tr.is-eng').length;
-  assert.ok(engRows === 1, `the design-basis rows are tagged for compaction, found ${engRows}`);
+  assert.ok(engRows === 4, `the design-basis rows are tagged for compaction, found ${engRows}`);
 
   /* jsdom lays nothing out (scrollHeight is always 0), so the fit ladder is
      exercised by handing the element a height, which is exactly the branch a
@@ -661,8 +704,8 @@ check('every engineering input in the form reaches the engine, and no id is a ph
   });
   const w = dom.window;
   w.eval(['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
-    'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
+    'rainwater.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+    'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n'));
   w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
 

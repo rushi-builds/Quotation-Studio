@@ -12,6 +12,11 @@ main = "src/worker.js"
 compatibility_date = "2024-11-12"
 compatibility_flags = ["nodejs_compat"]
 
+# Fresh git clones have no ./public (it is gitignored). Populate it before
+# every wrangler deploy so Workers Builds / CI never fail on missing assets.
+[build]
+command = "node sync-public.js"
+
 # Static HTML/CSS/JS/images — must be under this package so ASSETS binds on deploy.
 # If you only paste worker code in the dashboard, ASSETS is missing → black page error.
 [assets]
@@ -23,8 +28,8 @@ run_worker_first = true
 [[d1_databases]]
 binding = "DB"
 database_name = "quotation-studio-db"
-# quotation-studio-db (personal CF account)
-database_id = "78f2b390-8468-4250-b8fd-c7ec119b56b8"
+# quotation-studio-db (personal CF account; recreated 2026-10-05 after the old id 78f2b390... vanished)
+database_id = "f3c2c763-e497-4617-8392-25605fceeafe"
 
 [vars]
 APP_NAME = "Quotation Studio"
@@ -33,3 +38,11 @@ APP_NAME = "Quotation Studio"
 # Quota table is created idempotently on the first authenticated AI request.
 GEMINI_ENABLED = "true"
 GEMINI_MODEL = "gemini-3.1-flash-lite"
+
+# Mirrors the live version's dashboard vars so wrangler deploys do not wipe them.
+ADMIN_EMAIL = "rushidhumal.04@gmail.com"
+OWNER_EMAIL = "ktmenergyexperts@gmail.com"
+OAUTH_GOOGLE_ENABLED = "false"
+OAUTH_PUBLIC_ORIGIN = "https://qs-studio-rushi.ktmenergyexperts.workers.dev"
+PHONE_ENABLED = "false"
+GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID = "17V9Os-1ZV-_0dpoHQwvTcNwLdAdQz_Gh"

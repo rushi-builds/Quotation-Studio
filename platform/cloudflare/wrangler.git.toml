@@ -1,0 +1,64 @@
+# Quotation Studio — CI / Git-build production config (fresh-clone compatible)
+# =========================================================================
+# Purpose : cloud-text Workers Builds / any fresh clone can run
+#           `npx wrangler deploy -c wrangler.git.toml` without any local
+#           gitignored file. Values mirror wrangler.company.toml exactly.
+# Account : Ktmenergyexperts@gmail.com's Account (production Worker name below)
+# Secrets : NEVER in this file. They are Worker-level secrets (wrangler secret
+#           put) and are preserved by every same-name deploy.
+# Vars    : FULL parity with production plain-text vars — omitting a var from
+#           this list would DELETE it on deploy, so all 9 are listed.
+# =========================================================================
+
+name = "qs-studio-rushi"
+main = "src/worker.js"
+compatibility_date = "2024-11-12"
+compatibility_flags = ["nodejs_compat"]
+
+# Fresh git clones have no ./public (it is gitignored). Populate it before
+# every deploy so Builds / CI never fail on missing assets.
+[build]
+command = "node sync-public.js"
+
+# Workers Logs (account-owner only). Sampling 100% was set while diagnosing
+# SIGNIN_FAILED; lower to 0.1 once sign-in is certified.
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+# Static HTML/CSS/JS/images — ASSETS binding.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+# Worker handles /api/* first; everything else from ./public
+run_worker_first = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "quotation-studio-db"
+database_id = "f3c2c763-e497-4617-8392-25605fceeafe"
+
+[vars]
+APP_NAME = "Quotation Studio"
+
+# Excel module catalogue (PR #19): Drive workbook the catalogue API syncs.
+GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID = "17V9Os-1ZV-_0dpoHQwvTcNwLdAdQz_Gh"
+
+GEMINI_ENABLED = "true"
+GEMINI_MODEL = "gemini-3.1-flash-lite"
+
+# Owner decision 2026-10-10: sign-in is email + password only. The Google
+# button is gone; this flag keeps /api/auth/oauth/providers honest.
+OAUTH_GOOGLE_ENABLED = "false"
+OAUTH_PUBLIC_ORIGIN = "https://qs-studio-rushi.ktmenergyexperts.workers.dev"
+
+# Owner bootstrap — must match the operator's exact login email.
+OWNER_EMAIL = "ktmenergyexperts@gmail.com"
+
+# Hidden backend admin (plan v3): designated ADMIN_EMAIL login. Powers come
+# from the DESIGNATION, not a role value. Deliberately a different mailbox
+# from OWNER_EMAIL: if they ever match, /api/health reports the P1 collision.
+ADMIN_EMAIL = "rushidhumal.04@gmail.com"
+
+# Phone OTP is OFF until the Firebase project exists and Blaze is attached.
+PHONE_ENABLED = "false"

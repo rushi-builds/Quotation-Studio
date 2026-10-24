@@ -214,9 +214,12 @@ details.page-group > summary::-webkit-details-marker{display:none;}
   display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:0 var(--page-pad);
 }
-.pg-foot .pf-left{font-size:8.6px;color:var(--gray);white-space:nowrap;overflow:hidden;}
-.pg-foot .pf-mid{font-size:8.2px;color:#B08850;letter-spacing:.12em;text-transform:uppercase;font-weight:600;white-space:nowrap;}
-.pg-foot .pf-right{font-size:9px;color:var(--navy);font-weight:700;white-space:nowrap;}
+/* Keep standard company contact and website together. A shorter tagline
+   gives the complete domain room without shrinking or clipping the website. */
+.pg-foot .pf-left{font-size:8.6px;color:var(--gray);min-width:0;flex:1;display:flex;align-items:center;flex-wrap:wrap;column-gap:4px;row-gap:1px;line-height:1.2;}
+.pg-foot .pf-contact,.pg-foot .pf-website,.pg-foot .pf-divider{white-space:nowrap;}
+.pg-foot .pf-mid{font-size:7.4px;color:#B08850;letter-spacing:.035em;text-transform:uppercase;font-weight:600;white-space:nowrap;flex-shrink:0;}
+.pg-foot .pf-right{font-size:9px;color:var(--navy);font-weight:700;white-space:nowrap;flex-shrink:0;}
 
 /* corner photo — clean rectangle with orange base accent */
 .photo-top{
@@ -1208,12 +1211,6 @@ details.page-group > summary::-webkit-details-marker{display:none;}
   width:100%;margin:-6px 0 12px;background:#E8F7EE;border-color:#BFE3CC;color:#1E7A46;
 }
 .wa-share:hover{border-color:#2E8B57;color:#1E7A46;}
-.cover-qr{
-  position:absolute;right:22px;top:22px;background:#fff;border-radius:10px;padding:8px;
-  display:flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(10,20,35,.3);
-}
-.cover-qr canvas{display:block;width:92px;height:92px;}
-.cqr-l{font-size:8.5px;font-weight:700;color:var(--navy);line-height:1.4;max-width:64px;}
 .opt-table-wrap{overflow:hidden;border:1px solid var(--line-cool);border-radius:10px;}
 .opt-table{width:100%;border-collapse:collapse;font-size:10.8px;}
 .opt-table th{
@@ -1607,6 +1604,12 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 :is(#pageAbout,#pageWhySolar,#pageSolution,#pageScope,#pageQuality,#pageWhyKtm,#pageWarranty,#pageTerms) .body-para{font-size:12.2px;line-height:1.78;}
 #pageAbout .photo-top{height:340px;}
+/* Preserve the complete approved portrait, including its upper panel corner.
+   Reserve matching text-column space so the taller photo cannot hit stats. */
+#pageAbout.about-full-photo .photo-top{height:460px;background:#f5f6f4;}
+#pageAbout.about-full-photo .photo-top img{object-fit:contain;}
+#pageAbout.about-full-photo .intro-col{min-height:466px;}
+#pageAbout.about-full-photo .intro-col+.spacer{max-height:48px;}
 #pageAbout .spacer{max-height:64px;}
 #pageAbout .stat-card{padding:21px 10px;}
 #pageAbout .stat-card .card-title{font-size:11.2px;}
@@ -1759,3 +1762,67 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 .cloud-chip[data-state="err"]{background:#FDECEA;color:#9B1C1C;}
 .cloud-chip[data-state="off"]{background:#EEF1F5;color:#5B6B80;}
 .studio-cloud-bar .link-btn{flex:0 0 auto;padding:5px 10px;font-size:11px;}
+.cloud-sync-hint{flex:1 0 100%;font-size:10.5px;line-height:1.45;color:var(--navy-soft);}
+.cloud-sync-hint:empty{display:none;}
+
+/* Investment — two calm rows, prominent gross price and a correctly
+   proportioned chart. All amounts still come from the frozen Finance engine. */
+#pageInvestment .pg-sub{font-size:12px;}
+#pageInvestment .pg-sub:empty{display:none;}
+#pageInvestment #v_inDesc{margin:6px 0 12px;line-height:1.55;}
+#pageInvestment .rule-orange{margin:8px 0;flex-shrink:0;}
+#pageInvestment .inv-total{display:flex;align-items:center;justify-content:space-between;gap:22px;flex-shrink:0;background:#1b354a;border-left:3px solid var(--orange);border-radius:10px;padding:14px 20px;color:#fff;margin:0 0 12px;}
+#pageInvestment .inv-total-label{font-size:9px;font-weight:600;letter-spacing:.09em;color:#d2dfe8;}
+#pageInvestment .inv-total-value{font:600 32px/1.2 'Poppins',sans-serif;letter-spacing:-.6px;margin:7px 0 5px;}
+#pageInvestment .inv-total-copy{font-size:10px;line-height:1.5;color:#cedbe4;}
+#pageInvestment .inv-total-checks{border-left:1px solid #ffffff30;padding-left:20px;font-size:10px;line-height:2.1;color:#e0e8ed;}
+#pageInvestment .inv-breakdown-title{font-size:9px;letter-spacing:.1em;font-weight:700;color:#657788;margin:0 0 9px;}
+#pageInvestment .inv-cards{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:0 0 9px;flex-shrink:0;}
+#pageInvestment .inv-card{grid-column:span 2;padding:11px 14px;border:1px solid #dfe6ec;border-radius:9px;min-width:0;background:linear-gradient(145deg,#f5f9fe,#eaf2fa);border-color:#d4e2f0;}
+#pageInvestment .inv-card:nth-child(n+4){grid-column:span 3;}
+#pageInvestment .inv-l{font-size:9.2px;line-height:1.4;min-height:0;letter-spacing:.025em;color:#617387;}
+#pageInvestment .inv-v{font:600 22px/1.2 'Poppins',sans-serif;color:#203b51;letter-spacing:-.45px;white-space:nowrap;margin:7px 0 5px;}
+#pageInvestment .inv-cap{font-size:9.2px;color:#6b7c8d;line-height:1.45;margin:0;}
+#pageInvestment .inv-card:nth-child(2){background:linear-gradient(145deg,#fffbf1,#faf1df);border-color:#ecdfc4;}
+#pageInvestment .inv-card-sub{background:linear-gradient(145deg,#f3fbf6,#e7f3eb);border-color:#cfe4d6;}
+#pageInvestment .inv-card-sub .inv-v{color:#327554;}
+#pageInvestment .inv-card-net{background:linear-gradient(145deg,#f5f5fc,#eaeef9);border-color:#d9deed;}
+#pageInvestment .inv-card-net .inv-v{color:#224d6c;}
+#pageInvestment .inv-card-payback{background:linear-gradient(145deg,#fff8ee,#fcecd9);border-color:#edd7b9;}
+#pageInvestment .inv-card-payback .inv-v{color:#996123;}
+#pageInvestment .inv-payment-note{font-size:9.2px;line-height:1.5;color:#6b7c8d;margin:0 0 8px;}
+#pageInvestment .inv-charts{flex-shrink:0;margin-bottom:8px;}
+#pageInvestment .chart-block{margin:0;}
+#pageInvestment .chart-title{font-size:10px;letter-spacing:.045em;}
+#pageInvestment #chartBridge{width:100%!important;height:300px!important;}
+#pageInvestment .includes-grid{gap:6px 14px;}
+#pageInvestment .includes-grid .inc-item{padding:0;background:none;border:0;border-radius:0;gap:6px;}
+#pageInvestment .includes-grid .inc-img{display:block;width:24px;height:24px;flex:0 0 24px;object-fit:contain;border-radius:5px;}
+#pageInvestment .includes-grid .inc-item>svg{display:block;width:24px;height:24px;flex:0 0 24px;}
+#pageInvestment .includes-grid .inc-t{font-size:10px;line-height:1.4;}
+#pageInvestment .sec-label{font-size:9.5px;line-height:1.4;padding:0;background:none;border-radius:0;margin-bottom:6px;color:#526a7e;}
+#pageInvestment .spacer{min-height:0;max-height:0;}
+#pageInvestment .pay-chip{padding:9px 10px;}
+#pageInvestment .pay-chip .pa{font-size:12px;}
+/* Itemised offers keep their supporting composition alongside the taller
+   bridge, not stacked under it. No financial lines or warnings are removed. */
+#pageInvestment.has-bom .inv-charts{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;align-items:start;}
+#pageInvestment.has-bom .inv-charts>div{min-width:0;}
+#pageInvestment.has-bom #chartBridge{height:270px!important;}
+#pageInvestment.has-bom #chartDonut{width:90px!important;height:90px!important;}
+#pageInvestment.has-bom #v_inBomTitle{margin-top:0;}
+#pageInvestment.has-bom .bom-flex{gap:8px;}
+#pageInvestment.has-bom .bom-row{font-size:9.6px;line-height:1.35;padding:2px 0;gap:4px;}
+#pageInvestment.has-bom .bom-pct{font-size:9px;width:32px;}
+#pageInvestment.has-bom .bom-intro{margin-bottom:5px;}
+#pageInvestment.has-bom .bom-warn{padding:5px 8px;font-size:9px;}
+
+#pageInvestment.has-tax #chartBridge,#pageInvestment.has-upgrades #chartBridge{height:270px!important;}
+/* A narrower itemised chart needs less height for the same natural aspect
+   ratio; retain space for tax notes and payment-percentage warnings. */
+#pageInvestment.has-bom #chartBridge{height:240px!important;}
+#pageInvestment.has-bom .inv-charts{margin-bottom:6px;}
+#pageInvestment.has-bom .inv-cards{gap:9px;}
+#pageInvestment.has-bom .inv-card{padding-top:8px;padding-bottom:8px;}
+#pageInvestment .spacer{flex:0 0 8px;min-height:8px;max-height:8px;}
+#pageInvestment.has-tax .spacer,#pageInvestment.has-bom .spacer{flex-basis:4px;min-height:4px;max-height:4px;}

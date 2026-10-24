@@ -37,7 +37,7 @@ check('missing charging cost still withholds auto financial benefit',B.compute({
 check('standalone battery enabled does not imply inclusion in the solar report',B.enabled({...base,bessInclude:false})&&!B.included({...base,bessInclude:false}));
 check('malformed inclusion flags never become truthy in Customer View',!B.included({...base,bessInclude:'false'})&&!A.included({systemEnabled:true,systemInclude:'false'}));
 check('battery off emits no stored calculations',!calc({bessEnabled:false}).enabled&&calc({bessEnabled:false}).capacity===null);
-check('five additional-system templates plus independent Custom state',Object.keys(A.templates).length===5&&A.DEFAULTS.systemTemplate==='custom');
+check('nine additional-system templates plus independent Custom state',Object.keys(A.templates).length===9&&A.DEFAULTS.systemTemplate==='custom');
 check('all presets include purpose, equipment, scope, notes and exclusions',Object.values(A.templates).every(t=>['name','purpose','equipment','scope','notes','exclusions'].every(k=>t[k])));
 check('Zero Export explicitly acknowledges curtailment and transient export',A.templates.zero.notes.includes('transient')&&A.templates.zero.notes.includes('reduce'));
 check('no automatic additional-system price or savings',A.DEFAULTS.systemPrice===''&&A.price({systemPrice:''})===null&&A.price({systemPrice:' '})===null);

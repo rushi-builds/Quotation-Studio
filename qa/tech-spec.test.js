@@ -142,7 +142,21 @@ const t = (name, condition) => {
       fit.complete.overflow <= 2 && fit.complete.inside);
     t('the design basis fits its A4 page with inputs blank (' + fit.blank.overflow + ' px spare)',
       fit.blank.overflow <= 2 && fit.blank.inside);
-    t('every design-basis row is tagged for compaction', fit.complete.rows >= 5 && fit.blank.rows >= 5);
+    t('every design-basis row is tagged for compaction', fit.complete.rows >= 2 && fit.blank.rows >= 2);
+    /* A fetched location adds the variable-length SITE DATA group; those rows
+       must be tagged too or an overfull page could print them clipped. */
+    t('fetched site-data rows are tagged for compaction', await page.evaluate(() => {
+      const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) { el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); }
+      };
+      set('siteGeoName', 'Phaltan, Satara, Maharashtra, India');
+      set('siteGeoLat', '17.99'); set('siteGeoLng', '74.434');
+      set('nasaGhi', '1862.74'); set('nasaWind', '3.2'); set('nasaElevation', '655');
+      set('nasaWindowStart', '2024-09-01'); set('nasaWindowEnd', '2025-08-31');
+      Render.renderAll();
+      return document.querySelectorAll('#v_tsTable tr.is-eng').length >= 5;
+    }));
     t('fitting the page never shrinks the design basis below 9 px',
       fit.complete.fontPx >= 9 && fit.blank.fontPx >= 9);
     t('no page is reported as overflowing after the fit', fit.reported.length === 0);
@@ -156,18 +170,24 @@ const t = (name, condition) => {
         if (el) { el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); }
       };
       set('availableArea', '120');
+      /* the dense scenario includes a fetched location: roof-area + site-data
+         + references + design basis all shown together */
+      set('siteGeoName', 'Phaltan, Satara, Maharashtra, India');
+      set('siteGeoLat', '17.99'); set('siteGeoLng', '74.434');
+      set('nasaGhi', '1862.74'); set('nasaWind', '3.2'); set('nasaElevation', '655');
+      set('nasaWindowStart', '2024-09-01'); set('nasaWindowEnd', '2025-08-31');
       Render.renderAll();
       const el = document.getElementById('pageTechSpec');
       return {
         reported: (window.__qsPageOverflow || []).includes('pageTechSpec'),
         fits: el.scrollHeight <= 1124 && [...el.querySelector('.pg-body').children].filter(c=>c.checkVisibility()).every(c=>c.getBoundingClientRect().bottom <= el.querySelector('.pg-foot').getBoundingClientRect().top),
         rows: el.querySelectorAll('#v_tsTable tr').length,
-        lastRow: el.querySelector('#v_tsTable tr:last-child td')?.textContent || '',
+        lastRow: el.querySelector('#v_tsTable tr:last-child')?.textContent || '',
         engFont: parseFloat(getComputedStyle(el.querySelector('#v_tsTable tr.is-eng td')).fontSize)
       };
     });
     t('site area, references and design basis now fit above the footer', dense.fits && !dense.reported);
-    t('and it still prints every row it holds, down to the honesty row', dense.rows >= 25 && dense.lastRow.includes('Data still required'));
+    t('and it still prints every row it holds, down to the honesty row', dense.rows >= 28 && dense.lastRow.includes('site verification'));
     t('the design basis never drops below 9 px to achieve that', dense.engFont >= 9);
     await setLinks('', '');
     await page.evaluate(() => {

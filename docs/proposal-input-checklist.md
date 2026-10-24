@@ -98,8 +98,9 @@ not shown. Nothing is invented.
 - **Valid for (days)** — default 15. This becomes the printed "valid until" date.
 - **Avg. monthly bill** — optional. Fill it if you want the bill-offset figure
   (how much of their bill the system covers) instead of a generic savings claim.
-- **Proposal link** — optional, and only if you actually have a hosted URL. The
-  cover QR is generated from this and is hidden when the field is empty.
+- **Proposal link** — use a real hosted customer URL for request actions and
+  WhatsApp sharing. The cover intentionally has no QR overlay; project-gallery
+  QR codes remain on the portfolio and contact pages.
 
 **Proposals strip (top of the panel)**
 
@@ -124,10 +125,21 @@ not shown. Nothing is invented.
   the CO₂ claim. Take it from the actual site study (PVsyst / Arka / your own
   yield history), not from the template. The hint under the field now shows the
   year-one kWh immediately, so you can sanity-check it in one glance.
-- **Module make / rating (Wp) / length & width (mm)** — the rating decides how
-  many modules the array needs, and the dimensions decide the roof area the
-  array occupies. All three must match the datasheet you are quoting.
-- **Module technology** — printed on the specification page.
+- **Module make + exact model** — choose the model, not just the technology
+  family, when the product is known. Manufacturer-reference models fill their
+  nameplate power, module efficiency, dimensions, STC electrical values and
+  published temperature coefficients. The Tech Specs page links the source
+  datasheet. Company-entered and Custom models are labelled unverified; enter
+  only figures you have checked against that exact product's datasheet.
+- **Module rating (Wp) / length & width (mm)** — the rating decides how many
+  modules the array needs, and dimensions decide the roof area it occupies.
+  Confirm any manually entered values against the exact product datasheet.
+- **Module efficiency** — use the named model's front-side STC efficiency; the
+  app does not infer efficiency from labels such as PERC or TOPCon.
+- **Module technology / construction / bifaciality** — technology is the cell
+  architecture; monofacial/bifacial construction and the bifaciality factor are
+  separate. Bifaciality is not rear-side energy gain, and rear-side gain is not
+  added to the STC nameplate power or quotation estimate.
 - **Inverter make & rating (kW)** — blank falls back to 1:1 with the contracted
   capacity. Fill the real figure: the DC:AC ratio is shown as an engineering
   check.
@@ -305,9 +317,9 @@ shown, which is the honest default.
   **not** attach the PDF. You still have to attach the file yourself.
 - **Customer view** opens `share.html?p=<id>`, which reads the proposal out of
   **this browser's storage**. It therefore works only on your own machine: a
-  customer who opens that address sees *"Proposal not found"*. Same for the
-  cover QR — it points at whatever URL you typed, so only point it at something
-  that genuinely resolves for them.
+  customer who opens that address sees *"Proposal not found"*. For sharing
+  across devices, use a published customer portal link that genuinely resolves
+  for them. The cover has no QR overlay.
 
 **Storage warning.** Autosave and *Save now* keep the proposal **in this browser
 only** — there is no server. Use **Save proposal file** to write a single

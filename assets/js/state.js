@@ -44,15 +44,17 @@
     /* ---- System design ---- */
     capacity: '7',
     genFactor: '1460',
-    moduleMake: 'Panasonic / Waaree / Adani or Equivalent',
+    moduleMake: 'Waaree',
+    moduleModel: 'Bi-55-545',
     moduleWattage: '545',
-    moduleTech: 'Mono PERC Half-Cut',
-    moduleLengthMm: '2278',
-    moduleWidthMm: '1134',
-    inverterMake: 'Deye or Equivalent',
+    moduleTech: 'Mono PERC',
+    moduleLengthMm: '2272',
+    moduleWidthMm: '1133',
+    inverterMake: 'Sungrow',
+    inverterModel: 'SG7.0RT',
     inverterKw: '',
     mountMake: 'Hot-Dip GI / Aluminum-ARS Solartech make',
-    cableMake: 'Polycab / KEI or Equivalent',
+    cableMake: 'Polycab',
     roofType: 'RCC Terrace',
     availableArea: '',
     galleryUrl: '',
@@ -114,16 +116,16 @@
     roofZone: 'edge',
     anchorsPerModule: '4',
     moduleLoadClassPa: '2400',
-    moduleVoc: '',
-    moduleVmp: '',
-    moduleIsc: '',
-    moduleImp: '',
-    moduleVocBetaPct: '-0.27',
+    moduleVoc: '49.76',
+    moduleVmp: '41.9',
+    moduleIsc: '13.9',
+    moduleImp: '13.02',
+    moduleVocBetaPct: '-0.25',
     moduleVmpBetaPct: '-0.36',
     inverterVmaxDc: '1100',
-    mpptMinV: '200',
+    mpptMinV: '160',
     mpptMaxV: '1000',
-    inverterMaxCurrentA: '',
+    inverterMaxCurrentA: '54',
     minAmbientC: '0',
     maxCellC: '65',
     dcCableLengthM: '',
@@ -177,7 +179,7 @@
   function collectForm() {
     const out = {};
     document.querySelectorAll('#quoteForm [id]').forEach((el) => {
-      if (el.type === 'file' || el.id === 'logoUpload') return;
+      if (el.type === 'file' || el.id === 'logoUpload'||el.hasAttribute('data-system-picker')) return;
       if (el.disabled || el.hasAttribute('data-equipment-custom')) return;
       /* proposal-manager controls are workflow state, not proposal fields */
       if (el.closest('.prop-manager')) return;
@@ -198,9 +200,9 @@
     }
     Object.keys(vals || {}).forEach((id) => {
       const el = document.getElementById(id);
-      if (!el || el.hasAttribute('data-equipment-custom')) return;
+      if (!el || el.hasAttribute('data-equipment-custom')||el.hasAttribute('data-system-picker')) return;
       if (typeof root.EquipmentStore?.setValue === 'function' && root.EquipmentStore.setValue(id, vals[id])) return;
-      if (el.type === 'checkbox') el.checked = id==='bessEnabled' ? root.Bess.enabled({bessEnabled:vals[id]}) : ['bessInclude','bessAutoEconomics','systemEnabled','systemInclude'].includes(id) ? vals[id]===true : !!vals[id];
+      if (el.type === 'checkbox') el.checked = id==='bessEnabled' ? root.Bess.enabled({bessEnabled:vals[id]}) : ['bessInclude','bessAutoEconomics','systemEnabled','systemInclude','systemBaseReviewed','systemScopeReviewed','bessAdditionsReviewed','systemWaterEnabled','systemWaterPriceReviewed'].includes(id) ? vals[id]===true : !!vals[id];
       else {
         // Presets/imports can contain makes outside this browser's catalog.
         // Preserve them rather than silently saving an empty select value.
@@ -211,6 +213,10 @@
         el.value = vals[id];
       }
     });
+    /* Equipment model selects cascade from the makes just applied; saved
+       models win, otherwise the closest catalogue model fills the datasheet
+       fields exactly like the Excel INPUT sheet. */
+    if (typeof root.EquipmentStore?.syncModels === 'function') root.EquipmentStore.syncModels(vals || {});
   }
 
   /* ---------- proposal file export / import (through Proposals) ---------- */

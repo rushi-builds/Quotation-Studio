@@ -3,6 +3,7 @@
   "private": true,
   "description": "Cloudflare Worker + D1 for Quotation Studio (new project, not solar-epc-relay)",
   "scripts": {
+    "build": "npm run sync",
     "sync": "node sync-public.js",
     "dev": "npm run sync && wrangler dev",
     "deploy": "npm run sync && wrangler deploy",
@@ -14,5 +15,8 @@
   },
   "devDependencies": {
     "wrangler": "^3.99.0"
+  },
+  "dependencies": {
+    "@e965/xlsx": "0.20.3"
   }
 }

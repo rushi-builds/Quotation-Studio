@@ -1,0 +1,177 @@
+/* The compact/no-scroll experiment was rejected. Keep the dashboard's
+   original spacing, cards, copy, responsive layout and natural page scrolling.
+   Keep the rounded top row; the owner-approved control finish below does not
+   restore the rejected compact layout. */
+html .main > .gbar,
+html[data-appearance] .main > .gbar {
+  border-radius: 22px;
+}
+
+/* Workspace visual consistency — shared control grammar, not a layout reset.
+   Scope stops at dashboard/dialog UI; editor and exported proposals do not load this file. */
+:root {
+  --ui-control-radius:9px;
+  --ui-control-gap:8px;
+  --ui-control-height:38px;
+  --ui-control-compact:34px;
+  --ui-control-ink:#253e58;
+  --ui-control-fill:#fffffff0;
+  --ui-control-edge:#acbbcd;
+  --ui-field-edge:#7f90a5;
+  --ui-hover-fill:#e6eef7;
+  --ui-hover-edge:#6686a7;
+  --ui-disabled-ink:#536175;
+  --ui-disabled-fill:#edf1f7f5;
+  --ui-disabled-edge:#a5b3c5;
+  --ui-focus:#365f8b;
+}
+html[data-theme="dark"] {
+  --ui-control-ink:#e3ebf7;
+  --ui-control-fill:#1d3047f5;
+  --ui-control-edge:#5e748e;
+  --ui-field-edge:#71849d;
+  --ui-hover-fill:#2a425e;
+  --ui-hover-edge:#9ab8db;
+  --ui-disabled-ink:#b6c3d6;
+  --ui-disabled-fill:#233248f5;
+  --ui-disabled-edge:#61748d;
+  --ui-focus:#b4d4ff;
+}
+html:not([data-theme="dark"]) .main { --muted:#4c6079; }
+html[data-appearance="system"] .main { --muted:#30445d; }
+html[data-theme="dark"] .main { --muted:#b8c6da; }
+/* Same material/radius for actions of the same kind. Navigation tabs, provider
+   logos and photograph/plot cards deliberately keep their existing shapes. */
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(.btn,.gh-primary,.gh-secondary),
+#workspaceAccess .btn {
+  min-height:var(--ui-control-height);border-radius:var(--ui-control-radius);
+  gap:var(--ui-control-gap);font-size:11px;font-weight:600;line-height:1.4;
+  padding:10px 14px;border-width:1px;border-style:solid;
+  transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease;
+}
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) .btn-sm,
+#workspaceAccess .btn { min-height:var(--ui-control-compact);padding:8px 11px; }
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(.btn-secondary,.gh-secondary) {
+  color:var(--ui-control-ink);background:var(--ui-control-fill);border-color:var(--ui-control-edge);
+}
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(.btn-ghost,.gh-text,.text-link,.record-link,.vall) {
+  color:var(--blue);text-underline-offset:3px;text-decoration-thickness:1px;
+}
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(.btn,.gh-primary,.gh-secondary,.gh-text,.sc-details,.sc-connect) > svg {
+  width:16px;height:16px;flex:0 0 16px;vertical-align:middle;
+}
+#workspaceAccess .wa-icon-button { padding:8px;width:34px; }
+#workspaceAccess .wa-account-top .wa-icon-button { padding:6px;width:30px;min-height:30px; }
+#workspaceAccess .wa-icon-button svg { width:16px;height:16px; }
+.main :is(.topbar-actions,.btn-row,.gh-actions,.dc-actions),
+:is(.sc-dialog,.gh-dialog,.member-dialog) :is(.sc-dialog-actions,.dc-actions) { gap:var(--ui-control-gap); }
+.main :is(.sc-service-actions,.wa-card-actions) { gap:var(--ui-control-gap); }
+.main :is(.sc-details,.sc-connect) { min-height:34px;border-radius:var(--ui-control-radius);font-size:11px;gap:var(--ui-control-gap); }
+.main .sc-service-actions .sc-details { padding-inline:4px; }
+.main :is(.sc-search,.gh-search,.wa-scope-filters) { border-color:var(--ui-control-edge); }
+.main :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea),
+:is(.sc-dialog,.gh-dialog,.member-dialog) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select,textarea) {
+  border-color:var(--ui-field-edge);
+}
+/* No whole-button opacity: that made disabled labels disappear over Pearl glass.
+   A neutral surface, quieter border and not-allowed cursor distinguish state. */
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) button:disabled,
+#workspaceAccess .btn:disabled {
+  opacity:1;color:var(--ui-disabled-ink);background:var(--ui-disabled-fill);
+  border-color:var(--ui-disabled-edge);filter:none;transform:none;box-shadow:none;
+  cursor:not-allowed;text-decoration:none;
+}
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(input,select,textarea):disabled {
+  opacity:1;color:var(--ui-disabled-ink);-webkit-text-fill-color:var(--ui-disabled-ink);
+  background:var(--ui-disabled-fill);border-color:var(--ui-disabled-edge);cursor:not-allowed;
+}
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) [aria-busy="true"] button:disabled { cursor:progress; }
+/* Small status text needs real contrast too; keep the surrounding glass intact. */
+#workspaceAccess :is(.wa-status,.wa-scope,.wa-right,.wa-provider-name,.wa-tab-count) { font-size:10px; }
+html:not([data-theme="dark"]) #workspaceAccess .wa-right.is-allowed { color:#235e4e;background:#f2faf7e6;border-color:#9bbfb1; }
+html:not([data-theme="dark"]) #workspaceAccess .wa-status-pending { color:#754b17;background:#fff4dfe6; }
+html:not([data-theme="dark"]) #workspaceAccess .wa-status-allowed { color:#235e4e;background:#f2faf7e6; }
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(button,a,input,select,textarea,summary,[role="tabpanel"]):focus-visible {
+  outline:2px solid var(--ui-focus);outline-offset:3px;
+}
+@media(hover:hover) and (pointer:fine) {
+  :is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(.btn-secondary,.gh-secondary,.btn-ghost):enabled:hover {
+    background:var(--ui-hover-fill);border-color:var(--ui-hover-edge);color:var(--ui-control-ink);box-shadow:0 2px 5px #1736500b;
+  }
+  :is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(.btn-primary,.gh-primary):enabled:hover { filter:brightness(1.06); }
+  :is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(.gh-text,.text-link,.record-link,.vall,.sc-details):enabled:hover {
+    text-decoration:underline;color:var(--ui-control-ink);
+  }
+  .main :is(.sc-filters button,.wa-scope-filters button,.wa-tabbar button,.pulse-filters button,.pulse-control-tabs button):enabled:hover {
+    background:var(--ui-hover-fill);color:var(--ui-control-ink);
+  }
+  .main .row-menu summary:hover,.main .row-menu-list button:enabled:hover { background:var(--ui-hover-fill);color:var(--ui-control-ink); }
+  .main .row-menu-list .danger:enabled:hover { color:var(--red); }
+}
+/* Older primary/hero hover rules must never brighten unavailable actions. */
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) button:disabled:hover,
+#workspaceAccess .btn:disabled:hover { filter:none;transform:none;background:var(--ui-disabled-fill);color:var(--ui-disabled-ink);box-shadow:none; }
+@media(pointer:coarse) {
+  :is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(.btn,.gh-primary,.gh-secondary,.gh-text,.sc-details,.sc-connect,.row-menu summary),
+  #workspaceAccess .btn,#workspaceAccess .wa-account-top .wa-icon-button { min-height:44px; }
+  #workspaceAccess .wa-icon-button,#workspaceAccess .wa-account-top .wa-icon-button { width:44px;min-width:44px; }
+  .main .row-menu summary { width:44px; }.main .row-menu-list { top:48px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  :is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(button,a,summary) { transition:none; }
+}
+/* Shared primary/danger hierarchy. Hero-specific variants retain their own
+   higher-specificity styling against photography. */
+:root { --ui-primary-fill:#244d6a;--ui-primary-ink:#fff;--ui-danger-fill:#9b3243;--ui-danger-ink:#fff;--ui-danger-soft:#fff3f3eb;--ui-danger-text:#8f2935; }
+html[data-theme="dark"] { --ui-primary-fill:#e5b664;--ui-primary-ink:#152133;--ui-danger-fill:#f2a3ab;--ui-danger-ink:#2c1220;--ui-danger-soft:#3a2534eb;--ui-danger-text:#f3abb2; }
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(.btn-primary,.gh-primary):enabled {
+  background:var(--ui-primary-fill);border-color:var(--ui-primary-fill);color:var(--ui-primary-ink);
+}
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) .btn-danger:enabled {
+  background:var(--ui-danger-fill);border-color:var(--ui-danger-fill);color:var(--ui-danger-ink);
+}
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) .btn-danger-soft:enabled {
+  color:var(--ui-danger-text);background:var(--ui-danger-soft);border-color:color-mix(in srgb,var(--ui-danger-text) 40%,transparent);
+}
+html:not([data-theme="dark"]) .main { --blue:#315c8b; }
+html[data-appearance="system"] .main { --blue:#203f64; }
+html:not([data-theme="dark"]) #panel-sales .gh-tabs button[aria-selected="true"] { color:#875617; }
+html:not([data-theme="dark"]) #workspaceAccess .wa-tab-count.has-pending { color:#754b17;background:#fff4dfe6; }
+:is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(input,textarea)::placeholder { color:var(--muted);opacity:1; }
+/* Dark hero's old 5% white secondary fill let photograph highlights wash out
+   its light label. Only the control gets a readable backplate, not the hero. */
+html[data-theme="dark"] .main .solar-hero .btn-secondary:enabled {
+  color:var(--ui-control-ink);background:var(--ui-control-fill);border-color:var(--ui-control-edge);
+}
+/* Header utilities and menus are compact/navigation controls, not primary CTAs. */
+.main :is(.iconbtn,.nudge-close,.sc-close) { border-radius:var(--ui-control-radius); }
+.main .iconbtn svg { width:16px;height:16px; }
+.main .row-menu summary { border-radius:var(--ui-control-radius);border-color:var(--ui-control-edge); }
+.main :is(.row-menu-list,#pageMenu) button { border-radius:6px;line-height:1.4;min-height:34px; }
+@media(hover:hover) and (pointer:fine) {
+  .main :is(.iconbtn,.userchip,.nudge-close):enabled:hover,
+  .main .settings-nav button:not(.selected):enabled:hover,
+  .main #pageMenu button:enabled:hover { background:var(--ui-hover-fill);color:var(--ui-control-ink); }
+  .main .userchip { border-radius:var(--ui-control-radius); }
+}
+@media(pointer:coarse) {
+  .main .gbar :is(button,select),.main :is(.nudge-close,.row-menu-list button,#pageMenu button) { min-height:44px; }
+  .main :is(.iconbtn,.nudge-close) { min-width:44px; }
+}
+#panel-sales :is(.gh-primary,.gh-secondary,.gh-text) {
+  font-size:11px;border-radius:var(--ui-control-radius);gap:var(--ui-control-gap);
+}
+#panel-sales :is(.pulse-filters,.pulse-control-tabs) button {
+  font-size:11px;border-radius:var(--ui-control-radius);gap:var(--ui-control-gap);
+}
+#panel-sales button:disabled,#panel-sales button[data-gov-action]:disabled {
+  opacity:1;color:var(--ui-disabled-ink);background:var(--ui-disabled-fill);
+  border-color:var(--ui-disabled-edge);filter:none;transform:none;box-shadow:none;cursor:not-allowed;
+}
+
+#workspaceAccess .wa-header [data-wa="prepare"]:enabled {
+  background:var(--ui-primary-fill);border-color:var(--ui-primary-fill);color:var(--ui-primary-ink);
+}
+@media(hover:hover) and (pointer:fine) {
+  :is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(input,select,textarea):enabled:hover { border-color:var(--ui-hover-edge); }
+}

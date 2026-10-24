@@ -7,29 +7,96 @@
    ============================================================================ */
 'use strict';
 
+import * as accessService from '../../workspace-access.mjs';
+import { d1AccessStore, companyMetrics, quotedFinance } from '../../workspace-access-store.mjs';
 import { reserveCloudReference } from '../../reference-numbers.mjs';
 import { handleOAuth } from './oauth.mjs';
 import { handlePhoneAuth } from './phone.mjs';
 import { d1OAuthStore } from '../../oauth-store.mjs';
+import { syncModuleCatalogFromDrive } from './excel-module-catalog.mjs';
 
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
 
+import { syncCatalogue, readCatalogue } from './catalogue.mjs';
+import { resolveLocation, fetchSiteResource } from './site-geo.mjs';
+
 import { scryptSync, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+/* Outbound SMTP for password recovery. Port 25 is blocked by the platform;
+   Gmail submission uses 465 with implicit TLS, which is supported here.
+   The socket module is pulled in LAZILY inside smtpSend() rather than here:
+   `cloudflare:sockets` exists only inside a Worker, and three of the test
+   suites import this file directly under plain Node — a static import would
+   make every one of them throw at load time, before a single assertion ran. */
 
 const SESSION_DAYS = 30;
+/* "Remember me" is OFF by default (owner decision, 2026-10-10): the sign-in
+   then returns a session cookie with NO Max-Age, so the browser drops it when
+   it closes, and the server-side session row is capped at 12 hours as defence
+   in depth. Ticking the box restores the 30-day behaviour. */
+const SESSION_HOURS_SHORT = 12;
+/* --- Password recovery (owner decision, 2026-10-10) -----------------------
+   The fail-closed gate is lifted now that a verified delivery channel exists:
+   outbound SMTP over cloudflare:sockets, sending as the company mailbox so the
+   From address is one Google actually owns (a relay cannot send AS a gmail.com
+   address — SPF would not align and Google would reject or spam it).
+
+   OTP_TTL_MS   how long a code lives.
+   OTP_MAX_RESENDS  resends allowed after the first code (1 + 3 = 4 emails).
+   OTP_RESEND_COOLDOWN_MS  minimum gap the client must wait between resends.
+   OTP_MAX_ATTEMPTS  wrong guesses against ONE code before it is voided.
+                     A 6-digit code is 1e6 combinations; without this a caller
+                     could grind through them inside the window.
+   RECOVERY_*    limits on the endpoints themselves (anti mail-bombing). */
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_RESENDS = 3;
+const OTP_RESEND_COOLDOWN_MS = 45 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const RECOVERY_PER_EMAIL_MAX = 3;
+const RECOVERY_PER_EMAIL_WINDOW_MS = 15 * 60 * 1000;
+const RECOVERY_PER_IP_MAX = 20;
+const RECOVERY_PER_IP_WINDOW_MS = 15 * 60 * 1000;
+/* The company mailbox. SMTP_USER overrides it; this is the default so a
+   deployment that has only set the password still sends from the right place. */
+const RECOVERY_MAIL_FROM = 'ktmenergyexperts@gmail.com';
+/* Subject and brand. The product is wider than the quotation builder, so the
+   email carries the studio name, not just "Quotation Studio". */
+/* A plain hyphen, not an em dash: the em dash is the one reason this subject
+   used to be base64-encoded in the header. */
+const RECOVERY_MAIL_SUBJECT = 'KTM Studio - password reset code';
+/* The client name handed to Gmail in the EHLO. It is echoed verbatim into the
+   "Received: from ..." line the reader eventually sees, and `localhost` reads
+   the way a broken laptop script reads: every filter on earth knows that
+   name, and no mail server in production ever introduces itself with it. This
+   is the host that actually sends this mail. */
+const SMTP_HELO = 'qs-studio-rushi.ktmenergyexperts.workers.dev';
+/* The logo ships WITH the message instead of being pointed at. Two things made
+   that worth doing: the only URL in the mail pointed at an obscure shared host
+   (a link a filter has to weigh before it weighs anything else), and Gmail does
+   not render a remote image until the reader allows it — so the mark the brand
+   requires was simply missing in the one folder a reader actually looks in. */
+const LOGO_PATH = '/assets/images/ktm-logo-light.png';
+const LOGO_CID = 'ktm-logo';
 const COOKIE = 'qs_session';
 const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
 /* Deployed code marker. /api/health reports it so an operator can prove the
    running Worker is actually the build that contains the role changes,
    instead of inferring it from behaviour. Bump on every behaviour change. */
-const CODE_VERSION = 'roles-r1';
+const CODE_VERSION = 'reconcile-r1';
 
 const SEND_CHANNELS = {
-  whatsapp_manual: true,
-  email_manual: true,
-  copy_link: true,
-  other: true
+  whatsapp_manual: { label: 'WhatsApp (manual)', provider: 'manual' },
+  email_manual: { label: 'Email (manual)', provider: 'manual' },
+  copy_link: { label: 'Copy link only', provider: 'manual' },
+  other: { label: 'Other / offline', provider: 'manual' }
+};
+const SEND_STATES = {
+  draft: 'Draft (not shared)',
+  share_clicked: 'Share action started (not delivery-confirmed)',
+  submitted_to_provider: 'Submitted to provider',
+  delivered: 'Delivered (provider-confirmed only)',
+  failed: 'Failed',
+  cancelled: 'Cancelled'
 };
 
 const NOTIFY_KINDS = {
@@ -100,13 +167,18 @@ async function readBody(request) {
    real browsers always send a valid Origin on cross-site POST/PUT/DELETE.
    OAuth callbacks are exempt: Apple POSTs from appleid.apple.com and that
    flow has its own state/binding verification. */
-function crossSiteBlocked(request, url) {
+function allowedAppHost(env) {
+  try { return new URL(env && env.APP_URL).host.toLowerCase(); }
+  catch (_) { return ''; }
+}
+function crossSiteBlocked(request, url, env) {
   const claimed = String(
     request.headers.get('Origin') || request.headers.get('Referer') || ''
   ).trim();
   if (!claimed) return false;
   try {
-    return new URL(claimed).host.toLowerCase() !== url.host.toLowerCase();
+    const host = new URL(claimed).host.toLowerCase();
+    return host !== url.host.toLowerCase() && host !== allowedAppHost(env);
   } catch (_) {
     return false;
   }
@@ -174,14 +246,21 @@ function sessionCookie(token, maxAgeSec, request) {
     COOKIE + '=' + encodeURIComponent(token || ''),
     'Path=/',
     'HttpOnly',
-    'SameSite=' + (isHttps ? 'None' : 'Lax'),
-    'Max-Age=' + String(maxAgeSec)
+    'SameSite=' + (isHttps ? 'None' : 'Lax')
   ];
+  /* maxAgeSec === null means "session cookie": no Max-Age, so the browser
+     discards it when it closes. That is what makes "Remember me" being OFF
+     mean anything. 0 is still emitted — logout relies on it to clear. */
+  if (maxAgeSec !== null && maxAgeSec !== undefined) parts.push('Max-Age=' + String(maxAgeSec));
   if (isHttps) parts.push('Secure');
   return parts.join('; ');
 }
-function authHeaders(token, request) {
-  return { 'Set-Cookie': sessionCookie(token, SESSION_DAYS * 86400, request) };
+function authHeaders(token, request, remember) {
+  /* remember === true → 30-day cookie. Anything else → a session cookie (no
+     Max-Age) that the browser discards when it closes. */
+  return {
+    'Set-Cookie': sessionCookie(token, remember ? SESSION_DAYS * 86400 : null, request)
+  };
 }
 
 function hashPassword(password, salt) {
@@ -218,6 +297,12 @@ function passwordPolicyError(password) {
   if (p.length < 8) return 'Password must be at least 8 characters.';
   if (p.length > 128) return 'Password must be at most 128 characters.';
   if (/\s/.test(p)) return 'Password cannot contain spaces.';
+  /* Mixed characters (owner request, 2026-10-10): at least TWO of lowercase /
+     uppercase / digits / symbols. Two, not three — the policy applies only to
+     passwords being SET (sign-up and change-password), never to sign-in, so no
+     existing account can be locked out by it. */
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((r) => r.test(p)).length;
+  if (classes < 2) return 'Password must mix at least two of: lowercase, uppercase, digits, symbols.';
   return null;
 }
 
@@ -248,7 +333,7 @@ function rolesIssues(env) {
   const o = ownerEmail(env), a = adminEmail(env);
   if (o && !EMAIL_SHAPE.test(o)) issues.push('OWNER_EMAIL is set but is not a valid email address, so the workspace owner bootstrap cannot match any account');
   if (a && !EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address, so the designated admin login cannot match any account');
-  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox, so the ADMIN_EMAIL designation is redundant: the bootstrap already makes that account a visible Owner. Set ADMIN_EMAIL to the personal mailbox and OWNER_EMAIL to the company mailbox.');
+  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox, so the ADMIN_EMAIL designation is redundant: the same mailbox is both designations, and the sign-in lockout backstop restores it to Owner whenever no team manager would remain');
   return issues;
 }
 /* Typed title wins over the power word. Power is decided by permissionRole,
@@ -268,8 +353,13 @@ function parseRoleTitle(raw) {
 }
 function roleDisplay(u) {
   if (!u) return '';
-  if (u.role_custom) return String(u.role_custom);
   const r = String(u.role || '').toLowerCase();
+  /* The typed title is the LABEL only where a title is a real thing: owner and
+     custom. A Sales / Engineer row still keeps its wording in role_custom — so
+     it is shown as the job title and returns the moment the member comes back
+     to a titleable role — but it is labelled by its power, like every other
+     row. */
+  if (u.role_custom && (r === 'owner' || r === 'custom')) return String(u.role_custom);
   if (r === 'owner') return 'Owner';
   if (r === 'sales') return 'Sales';
   if (r === 'viewer') return 'Viewer';
@@ -277,7 +367,11 @@ function roleDisplay(u) {
 }
 function publicUser(u, env) {
   const admin = canManageTeam(u, env);
-  const elevated = isAdminRow(u) || isHiddenAdmin(u, env);
+  /* The red-dot flag is the STORED elevation ONLY. The designated mailbox is
+     not elevated by virtue of its address — the address only decides who MAY
+     type "admin" (canElevate) — so the dot appears once, and only once, admin
+     has actually been set. */
+  const elevated = isAdminRow(u);
   return {
     id: u.id,
     email: u.email,
@@ -298,11 +392,19 @@ function publicUser(u, env) {
        never reaches anyone else, and no name-plate reads it. */
     isAdmin: elevated,
     /* `elevated` is the STORED is_admin flag — the user's own secret toggle
-       (typing "admin"). It drives the small red dot beside their own role and
-       is distinct from isAdmin, which also covers the ADMIN_EMAIL designation.
-       Self-only: publicUser is the /me shape. */
+       (typing "admin"). It drives the small red dot beside their own role.
+       Both fields read the STORED flag; the ADMIN_EMAIL address decides only
+       WHO may type that word, never who holds rank. Self-only: publicUser is
+       the /me shape. */
     elevated: isAdminRow(u),
     canElevate: canElevate(u, env),
+    /* Contact number and the profile-nudge flag. Self-only by construction:
+       publicUser is what GET /api/auth/me returns about the actor. */
+    phone: u.phone || '',
+    instagram: u.instagram_url || '',
+    linkedin: u.linkedin_url || '',
+    custom: u.custom_url || '',
+    profileDone: Number(u.profile_done || 0) === 1,
     createdAt: u.created_at || null
   };
 }
@@ -338,8 +440,20 @@ function memberPayload(u, env, lastLogin, opts) {
     name: u.name,
     /* Contact detail is owner / designated-admin only. Every member can see
        the panel, but a member never receives another member's email — the
-       field is omitted rather than blanked, so there is nothing to unhide. */
+       field is omitted rather than blanked, so there is nothing to unhide.
+       The contact number rides the exact same opt-in, so the two can never
+       drift apart: whoever may see the address may see the number. */
     ...(o.contact ? { email: u.email } : {}),
+    ...(o.contact ? { phone: u.phone || '' } : {}),
+    /* Profile links and kudos are TEAM-visible by design: a social profile is
+       public anyway and the point of the card is being able to reach the
+       person. `likedByMe` is the caller's own vote only, and the pair confers
+       nothing — it is a count of clicks, never a permission. */
+    instagram: u.instagram_url || '',
+    linkedin: u.linkedin_url || '',
+    custom: u.custom_url || '',
+    likes: Number(o.likes || 0),
+    likedByMe: !!o.likedByMe,
     role: u.role,
     roleCustom: u.role_custom || null,
     /* Typed title. Elevation leaves it alone, so this string is identical
@@ -348,9 +462,15 @@ function memberPayload(u, env, lastLogin, opts) {
     power: stored,
     canWrite: roleRank(stored) >= roleRank('sales'),
     canManageTeam: roleRank(stored) >= roleRank('owner'),
-    lastLogin: login,
-    lastLoginLabel: login ? new Date(login).toISOString() : null,
-    createdAt: u.created_at
+    /* Sign-in times answer "when was this person last active", which is an
+       owner/admin question. They are OMITTED for everyone else — the same
+       move as S2, so a row carries no date to unhide. `login` is still
+       computed above so the creation-time fallback stays in one place. The
+       team list passes `signin` from the CALLER's manage flag; the
+       role-change route passes true because its gate is already owner/admin. */
+    ...(o.signin ? { lastLogin: login } : {}),
+    ...(o.signin ? { lastLoginLabel: login ? new Date(login).toISOString() : null } : {}),
+    ...(o.signin ? { createdAt: u.created_at } : {})
   };
 }
 /* The actor's OWN row: the same payload plus what only they may know about
@@ -359,9 +479,12 @@ function memberPayload(u, env, lastLogin, opts) {
    viewer-level elevated account reads canWrite false (badge) and
    effectiveCanWrite true (what it may actually do). */
 function selfMemberPayload(u, env, lastLogin, opts) {
-  /* Own row: always allowed its own contact detail. */
-  return Object.assign(memberPayload(u, env, lastLogin, Object.assign({ contact: true }, opts || {})), {
-    isAdmin: isAdminRow(u) || isHiddenAdmin(u, env),
+  /* Own row: always allowed its own contact detail AND its own sign-in times —
+     an account may always read when IT last signed in. The team list keeps
+     this default for the caller's own row and overrides `signin` with the
+     manage flag for everyone else's. */
+  return Object.assign(memberPayload(u, env, lastLogin, Object.assign({ contact: true, signin: true }, opts || {})), {
+    isAdmin: isAdminRow(u),
     elevated: isAdminRow(u),
     canElevate: canElevate(u, env),
     effectiveCanWrite: requireRole(u, 'sales', env),
@@ -397,15 +520,16 @@ function isHiddenAdmin(user, env) {
   return normalizeEmail(user.email) === designated;
 }
 /* P1 — the case where the two designated emails collide. With
-   ADMIN_EMAIL == OWNER_EMAIL both variables aim at the SAME row: the bootstrap
-   promotes that account to owner (preserving any display title), which makes the
-   ADMIN_EMAIL designation redundant rather than harmful — the account is
-   already a visible Owner, and it may still elevate itself.
+ADMIN_EMAIL == OWNER_EMAIL both variables aim at the SAME row: the lockout
+backstop restores that account to owner (preserving any display title)
+whenever no team manager would remain, which makes the ADMIN_EMAIL
+designation redundant rather than harmful — the account can still elevate
+itself either way.
 
-   Nothing oscillates, because the bootstrap is the only automatic role
-   transition left in the product. This exists purely so /api/health can report
-   what is almost certainly a deploy-time mistake. With two different mailboxes
-   this is false. */
+Saved roles persist exactly as written; the backstop is the only automatic
+role transition left in the product. This exists purely so /api/health can
+report what is almost certainly a deploy-time mistake. With two different
+mailboxes this is false. */
 function adminOwnerConflict(env) {
   const a = adminEmail(env), o = ownerEmail(env);
   return !!a && a === o;
@@ -420,10 +544,12 @@ function isAdminRow(user) {
 }
 /* Single source of truth for permission. Every gate in this worker calls
    requireRole/canManageTeam, so overriding here overrides everywhere.
-   'admin' is returned for an elevated row and for the designated ADMIN_EMAIL
-   login, so both spellings of "the admin" reach the same rank. */
+   POWER follows the ROLE: an elevated row (one that typed "admin") or a stored
+   Owner. The ADMIN_EMAIL address itself grants NOTHING — it only decides who
+   MAY type "admin" (see canElevate), so signing in with that mailbox leaves
+   you at your stored rank until you do. */
 function permissionRole(user, env) {
-  if (isAdminRow(user) || isHiddenAdmin(user, env)) return 'admin';
+  if (isAdminRow(user)) return 'admin';
   const r = String((user && user.role) || '').toLowerCase();
   if (r === 'owner') return 'owner';
   if (r === 'viewer') return 'viewer';
@@ -452,9 +578,11 @@ function canElevate(user, env) {
   return isHiddenAdmin(user, env);
 }
 /* Owner-sees-all: owner, elevated and the designated admin read every row;
-   members stay scoped to their own owner_id exactly as before. */
+   members stay scoped to their own owner_id exactly as before. VISIBILITY IS
+   NOT POWER — the designated mailbox keeps reading this workspace's rows, but
+   team edit/delete comes from permissionRole, i.e. from the ROLE. */
 function seesAll(user, env) {
-  return requireRole(user, 'owner', env);
+  return requireRole(user, 'owner', env) || isHiddenAdmin(user, env);
 }
 /* Owner-sees-all SQL guard. Bound TWICE with the same value (plain `?`, no
    numbered params — D1 binds positionally). When the first bind is NULL the
@@ -510,8 +638,8 @@ function publicVersion(v) {
   return {
     id: v.id,
     proposalId: v.proposal_id,
-    version: v.version_label,
-    sha256: v.snapshot_sha256,
+    versionLabel: v.version_label || '1.0',
+    snapshotSha256: v.snapshot_sha256 || '',
     pdfSha256: v.pdf_sha256 || null,
     note: v.note || '',
     createdAt: v.created_at
@@ -529,6 +657,7 @@ function publicToken(t, rawToken) {
     firstOpenedAt: t.first_opened_at || null,
     lastOpenedAt: t.last_opened_at || null,
     openCount: t.open_count || 0,
+    portalPath: rawToken ? '/portal.html?t=' + encodeURIComponent(rawToken) : '/portal.html?t=',
     token: rawToken || undefined,
     active: !t.revoked_at && (!t.expires_at || Date.parse(t.expires_at) > Date.now())
   };
@@ -540,16 +669,23 @@ function publicSend(s) {
     versionId: s.version_id || null,
     tokenId: s.token_id || null,
     channel: s.channel,
+    channelLabel: (SEND_CHANNELS[s.channel] || {}).label || s.channel,
     state: s.state,
+    stateLabel: SEND_STATES[s.state] || s.state,
     recipientName: s.recipient_name || '',
     recipientTo: s.recipient_to || '',
     messageBody: s.message_body || '',
     portalUrl: s.portal_url || '',
     provider: s.provider || 'manual',
+    providerMessageId: s.provider_message_id || null,
     note: s.note || '',
     createdAt: s.created_at,
     updatedAt: s.updated_at,
-    shareClickedAt: s.share_clicked_at || null
+    shareClickedAt: s.share_clicked_at || null,
+    submittedAt: s.submitted_at || null,
+    deliveredAt: s.delivered_at || null,
+    canConfirmDelivery: s.provider !== 'manual' && s.state === 'submitted_to_provider',
+    deliveryIsVerified: s.state === 'delivered' && !!s.delivered_at && s.provider !== 'manual'
   };
 }
 function publicNotification(n) {
@@ -619,25 +755,62 @@ function customerSnapshotFromProposal(row) {
   };
 }
 function buildDefaultMessage(row, portalUrl) {
-  const form = (() => { try { return JSON.parse(row.form_json || '{}'); } catch (_) { return {}; } })();
+  let form = {};
+  try { form = JSON.parse(row.form_json || '{}'); } catch (_) {}
+  const company = form.companyName || 'KTM Energy Experts';
   const cust = row.customer_name || form.custName || 'there';
   const cap = row.capacity || form.capacity || '';
-  return [
-    'Hello ' + cust + ',',
+  const ref = row.ref || form.propRef || '';
+  const lines = [
+    'Dear ' + cust + ',',
     '',
-    'Please review your solar proposal' + (cap ? (' (' + cap + ' kWp)') : '') + ' here:',
-    portalUrl,
+    'Please find your personalised rooftop solar proposal from ' + company +
+      (cap ? (' for ' + cap + ' kWp') : '') +
+      (ref ? (' (reference ' + ref + ')') : '') + '.',
     '',
-    'This link opens a read-only customer view. Reply if you have questions.',
+    'Secure proposal link (read-only):',
+    portalUrl || '[link will appear after publish]',
     '',
-    '— KTM Solar'
-  ].join('\n');
+    'You can review the system design, savings summary and next steps in your browser.',
+    'A PDF can be downloaded from the same page. This link does not require a password.',
+    '',
+    'If you have questions or would like a site survey, reply on this chat or use the request form inside the proposal.',
+    '',
+    'Kind regards,',
+    company,
+    form.companyPhone ? String(form.companyPhone) : '',
+    form.companyEmail ? String(form.companyEmail) : ''
+  ].filter((line, i, arr) => !(line === '' && arr[i - 1] === ''));
+  return lines.join('\n');
+}
+function messageWithPortalLink(value, row, portalUrl) {
+  const placeholder = '[A secure link will be inserted when you prepare the send]';
+  const linkedUrl = /https?:\/\/[^\s"'<>]*\/portal\.html\?t=[^\s"'<>]*/g;
+  let message = String(value || '').trim() || buildDefaultMessage(row, portalUrl);
+  message = message.replaceAll(placeholder, portalUrl);
+  if (linkedUrl.test(message)) message = message.replace(linkedUrl, portalUrl);
+  if (!message.includes(portalUrl)) {
+    const suffix = '\n\nSecure proposal link (read-only):\n' + portalUrl;
+    message = message.slice(0, Math.max(0, 4000 - suffix.length)).trimEnd() + suffix;
+  }
+  if (message.length > 4000) {
+    const linkAt = message.lastIndexOf(portalUrl);
+    message = linkAt >= 0 && linkAt + portalUrl.length > 4000
+      ? message.slice(0, Math.max(0, 4000 - portalUrl.length - 1)).trimEnd() + '\n' + portalUrl
+      : message.slice(0, 4000);
+  }
+  return message;
 }
 function digitsForWhatsApp(value) {
-  const d = String(value || '').replace(/\D/g, '');
-  if (!d) return '';
-  if (d.length === 10) return '91' + d;
-  return d;
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  let digits = raw.replace(/\D/g, '');
+  if (/^[6-9]\d{9}$/.test(digits)) digits = '91' + digits;
+  return /^[1-9]\d{10,14}$/.test(digits) ? digits : '';
+}
+function publicAppOrigin(env, requestUrl) {
+  try { return new URL((env && env.APP_URL) || requestUrl.origin).origin; }
+  catch (_) { return requestUrl.origin; }
 }
 function parseExpiryDays(body) {
   /* Same defensive defaults as the local server: explicit future dates win,
@@ -678,6 +851,121 @@ async function run(db, sql, ...binds) {
   return db.prepare(sql).bind(...binds).run();
 }
 
+const EXCEL_PRODUCT_CATALOG_DDL = `CREATE TABLE IF NOT EXISTS excel_product_catalog_cache (
+  catalog_key TEXT PRIMARY KEY,
+  file_id TEXT NOT NULL,
+  file_name TEXT NOT NULL DEFAULT '',
+  file_modified_at TEXT NOT NULL DEFAULT '',
+  file_checksum TEXT NOT NULL DEFAULT '',
+  synced_at TEXT NOT NULL,
+  checked_at TEXT NOT NULL,
+  row_count INTEGER NOT NULL DEFAULT 0,
+  rejected_rows INTEGER NOT NULL DEFAULT 0,
+  products_json TEXT NOT NULL
+)`;
+const excelProductCatalogSchemas = new WeakMap();
+async function ensureExcelProductCatalogSchema(db) {
+  let pending = excelProductCatalogSchemas.get(db);
+  if (!pending) {
+    pending = run(db, EXCEL_PRODUCT_CATALOG_DDL).catch(error => {
+      excelProductCatalogSchemas.delete(db);
+      throw error;
+    });
+    excelProductCatalogSchemas.set(db, pending);
+  }
+  await pending;
+}
+function excelProductCatalogBody(cache, stale, warning) {
+  let products = {};
+  try { products = JSON.parse(cache.products_json || '{}'); } catch (_) {}
+  const modules = Array.isArray(products.modules) ? products.modules : [];
+  const inverters = Array.isArray(products.inverters) ? products.inverters : [];
+  const cables = Array.isArray(products.cables) ? products.cables : [];
+  const protection = Array.isArray(products.protection) ? products.protection : [];
+  return {
+    source: 'excel', modules, inverters, cables, protection,
+    rowCount: Number(cache.row_count) || modules.length,
+    rowCounts: products.rowCounts || { modules: modules.length, inverters: inverters.length, cables: cables.length, protection: protection.length },
+    rejectedRows: Number(cache.rejected_rows) || 0,
+    rejectedRowsBySheet: products.rejectedRowsBySheet || {},
+    sheets: products.sheets || {},
+    sourceFileName: cache.file_name || 'Connected Excel workbook',
+    fileModifiedAt: cache.file_modified_at || '',
+    syncedAt: cache.synced_at || '',
+    checkedAt: cache.checked_at || '',
+    stale: stale === true,
+    warning: warning || ''
+  };
+}
+function excelProductCatalogErrorMessage(code) {
+  if (code === 'EXCEL_DRIVE_CONFIG_INVALID') return 'Excel sync needs its private Drive connection configured.';
+  if (code === 'EXCEL_DRIVE_FILE_UNAVAILABLE') return 'The configured workbook is unavailable to the read-only Drive connection.';
+  if (/^EXCEL_(MODULE|INVERTER|CABLE|PROTECTION)_SHEET_(MISSING|INVALID)$/.test(code) ||
+      /^EXCEL_(MODULE|INVERTER|CABLE|PROTECTION)_HEADERS_INVALID$/.test(code)) {
+    return 'A required product tab or its columns changed. The last saved catalogue snapshot was kept.';
+  }
+  if (/^EXCEL_(MODULE|INVERTER|CABLE|PROTECTION)_CATALOG_EMPTY$/.test(code)) {
+    return 'A required product tab has no usable product rows. The last saved catalogue snapshot was kept.';
+  }
+  return 'The Excel catalogue could not be refreshed. The previous saved copy, if any, has been kept.';
+}
+async function getExcelProductCatalog(db, env, force) {
+  await ensureExcelProductCatalogSchema(db);
+  let cached = await one(db, 'SELECT * FROM excel_product_catalog_cache WHERE catalog_key = ?', 'products');
+  const now = Date.now();
+  const configured = !!((env.GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID || env.GOOGLE_DRIVE_MODULE_CATALOG_FILE_ID) && env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON);
+  const configuredTtl = Number(env.EXCEL_CATALOG_SYNC_TTL_SECONDS);
+  const ttlSeconds = Number.isFinite(configuredTtl) ? Math.min(3600, Math.max(30, configuredTtl)) : 300;
+  const checked = cached ? Date.parse(cached.checked_at || '') : NaN;
+  const fresh = cached && Number.isFinite(checked) && now - checked < ttlSeconds * 1000;
+  if (!force && fresh) return { status: 200, body: excelProductCatalogBody(cached, false, '') };
+  if (!configured) {
+    if (cached) return { status: 200, body: excelProductCatalogBody(cached, true, 'Excel sync is not configured; showing the last saved workbook snapshot.') };
+    return { status: 503, body: { error: 'Excel catalogue is not connected yet.', code: 'EXCEL_SYNC_NOT_CONFIGURED' } };
+  }
+  try {
+    const result = await syncModuleCatalogFromDrive(env, {
+      previous: cached ? {
+        fileId: cached.file_id,
+        fileModifiedAt: cached.file_modified_at,
+        fileChecksum: cached.file_checksum
+      } : null
+    });
+    if (result.unchanged && cached) {
+      await run(db, 'UPDATE excel_product_catalog_cache SET checked_at = ? WHERE catalog_key = ?', result.checkedAt || nowISO(), 'products');
+      cached.checked_at = result.checkedAt || nowISO();
+      return { status: 200, body: excelProductCatalogBody(cached, false, '') };
+    }
+    const syncedAt = result.syncedAt || nowISO();
+    const checkedAt = result.checkedAt || syncedAt;
+    const productsJson = JSON.stringify({
+      modules: result.modules || [], inverters: result.inverters || [],
+      cables: result.cables || [], protection: result.protection || [],
+      rowCounts: result.rowCounts || {}, rejectedRowsBySheet: result.rejectedRowsBySheet || {},
+      sheets: result.sheets || {}
+    });
+    await run(db,
+      `INSERT INTO excel_product_catalog_cache
+       (catalog_key,file_id,file_name,file_modified_at,file_checksum,synced_at,checked_at,row_count,rejected_rows,products_json)
+       VALUES (?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(catalog_key) DO UPDATE SET
+       file_id=excluded.file_id,file_name=excluded.file_name,file_modified_at=excluded.file_modified_at,
+       file_checksum=excluded.file_checksum,synced_at=excluded.synced_at,checked_at=excluded.checked_at,
+       row_count=excluded.row_count,rejected_rows=excluded.rejected_rows,products_json=excluded.products_json`,
+      'products', result.fileId, result.fileName || 'Solar_EPC_Software_FINAL_v0.2.xlsm', result.fileModifiedAt || '',
+      result.fileChecksum || '', syncedAt, checkedAt, Number(result.rowCount) || 0,
+      Number(result.rejectedRows) || 0, productsJson
+    );
+    cached = await one(db, 'SELECT * FROM excel_product_catalog_cache WHERE catalog_key = ?', 'products');
+    return { status: 200, body: excelProductCatalogBody(cached, false, '') };
+  } catch (error) {
+    const code = String(error && error.code || 'EXCEL_SYNC_FAILED');
+    if (cached) return { status: 200, body: excelProductCatalogBody(cached, true, excelProductCatalogErrorMessage(code)) };
+    const status = code === 'EXCEL_DRIVE_CONFIG_INVALID' ? 503 : 502;
+    return { status, body: { error: excelProductCatalogErrorMessage(code), code } };
+  }
+}
+
 async function requireUser(request, db, env) {
   const token = sessionTokenFrom(request);
   if (!token) return null;
@@ -692,24 +980,30 @@ async function requireUser(request, db, env) {
   if (user) await applyOwnerBootstrap(db, env, user);
   return user;
 }
-/* Bootstrap owner: the deployed workspace designates one login email via the
-   OWNER_EMAIL variable. That account is promoted to owner (persisted) on any
-   authenticated request. One-way: removing the variable does not demote.
+/* Bootstrap owner LOCKOUT BACKSTOP: the deployed workspace designates one
+login email via the OWNER_EMAIL variable. Roles persist EXACTLY as saved -
+owner direction, 2026-10-22: a demoted or re-titled row is never rewritten
+automatically, so "what an owner saved stays saved" everywhere.
 
-   UNCONDITIONAL — no role_custom / typed-title gate. The company mailbox must
-   become the visible Owner even if that row signed up with a typed title, so
-   nothing here may refuse to promote it.
-
-   This is the ONLY automatic role transition in the product. The ADMIN_EMAIL
-   row is deliberately left exactly as it is stored — see the note above
-   applyOwnerBootstrap. */
+The only automatic role transition left is this: when a sign-in from the
+designated mailbox arrives while the workspace has NO row with
+owner-or-elevated power (no owner role, no is_admin = 1), that sign-in
+restores the mailbox to Owner (persisted, title preserved) so nobody can
+be locked out of team management. One-way: removing the variable does not
+demote. */
 async function ensureBootstrapOwner(db, env, user) {
   const designated = ownerEmail(env);
   if (!designated || !user || user.role === 'owner') return;
   if (normalizeEmail(user.email) !== designated) return;
+  /* LOCKOUT BACKSTOP only: a saved role is never rewritten. Promote
+  solely when NOTHING in the workspace can manage the team any more - no
+  owner role and no elevated (is_admin = 1) row. Otherwise the saved role
+  stands as-is, so an owner-demoted sales row really stays sales. */
+  const capable = await one(db, "SELECT COUNT(*) AS n FROM users WHERE role = 'owner' OR is_admin = 1");
+  if (Number((capable && capable.n) || 0) > 0) return;
   /* Promote the ROLE only. role_custom is deliberately PRESERVED, not wiped:
      an owner may carry a display title (powers = Owner, chip = "Director"), and
-     the unconditional bootstrap must not erase it on the next request. Display
+     the backstop must not erase it on the next request. Display
      is title-first, so the chip reads the title while the power badge reads
      Owner. */
   await run(
@@ -742,9 +1036,13 @@ async function ensureBootstrapOwner(db, env, user) {
 async function applyOwnerBootstrap(db, env, user) {
   await ensureBootstrapOwner(db, env, user);
 }
-async function createSession(db, user) {
+async function createSession(db, user, ttlMs) {
+  /* ttlMs is the server-side life of the session. The sign-in route passes the
+     30-day value when "Remember me" is ticked and SESSION_HOURS_SHORT otherwise;
+     callers with no such control keep the long default. */
+  const ttl = Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : SESSION_DAYS * 864e5;
   const token = randomBytes(24).toString('hex');
-  const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
+  const expires = new Date(Date.now() + ttl).toISOString();
   await run(
     db,
     'INSERT INTO sessions (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)',
@@ -847,9 +1145,460 @@ function authLimited(retryAfterSec) {
     'Retry-After': String(Math.max(1, retryAfterSec || 60))
   });
 }
-async function issuePasswordReset(db, user) {
-  const raw = randomBytes(4).toString('hex'); /* 8 hex chars */
+
+/* Password recovery has its OWN budget. Reusing the sign-in throttle would be
+   wrong on both counts: a recovery REQUEST is not a failure, so counting it in
+   `fails` would lock the address out for legitimate use, and a failed CODE check
+   would be a recovery concern, not a sign-in one. Same table, different scopes
+   (`recovery:*` / `recovery-ip:*`), so the two budgets never contaminate each
+   other and neither can be used to starve the other. */
+async function recoveryThrottleCheck(db, request, email) {
+  await ensureAuthThrottle(db);
+  const now = Date.now();
+  const ip = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', 'recovery-ip:' + clientIp(request));
+  if (ip && ip.window_start && now - ip.window_start <= RECOVERY_PER_IP_WINDOW_MS && ip.window_count >= RECOVERY_PER_IP_MAX) {
+    return Math.max(1, Math.ceil((ip.window_start + RECOVERY_PER_IP_WINDOW_MS - now) / 1000));
+  }
+  const em = String(email || '').trim().toLowerCase();
+  if (em) {
+    const eb = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', 'recovery:' + em);
+    if (eb && eb.window_start && now - eb.window_start <= RECOVERY_PER_EMAIL_WINDOW_MS && eb.window_count >= RECOVERY_PER_EMAIL_MAX) {
+      return Math.max(1, Math.ceil((eb.window_start + RECOVERY_PER_EMAIL_WINDOW_MS - now) / 1000));
+    }
+  }
+  return null;
+}
+async function recoveryThrottleHit(db, request, email) {
+  await ensureAuthThrottle(db);
+  const now = Date.now();
+  const em = String(email || '').trim().toLowerCase();
+  const keys = [['recovery-ip:' + clientIp(request), RECOVERY_PER_IP_WINDOW_MS]];
+  if (em) keys.push(['recovery:' + em, RECOVERY_PER_EMAIL_WINDOW_MS]);
+  for (const [key, windowMs] of keys) {
+    const row = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', key);
+    let ws = (row && row.window_start) || 0;
+    let wc = (row && row.window_count) || 0;
+    if (!ws || now - ws > windowMs) { ws = now; wc = 0; }
+    wc += 1;
+    await run(
+      db,
+      `INSERT INTO auth_throttles (scope, fails, blocked_until, window_start, window_count)
+       VALUES (?, 0, 0, ?, ?)
+       ON CONFLICT(scope) DO UPDATE SET window_start = excluded.window_start, window_count = excluded.window_count`,
+      key, ws, wc
+    );
+  }
+}
+/* Compare two fixed-length hex digests without leaking how far along they are.
+   The throw guards a length mismatch (timingSafeEqual throws on different
+   lengths), which is not a secret: a 6-digit code and its hash are never the
+   same length anyway. */
+function hexEqual(a, b) {
+  const x = Buffer.from(String(a || ''), 'hex');
+  const y = Buffer.from(String(b || ''), 'hex');
+  if (x.length !== y.length || x.length === 0) return false;
+  try { return timingSafeEqual(x, y); } catch (_) { return false; }
+}
+const RECOVERY_429_BODY = 'Too many requests. Please try again in a few minutes.';
+function recoveryLimited(retryAfterSec) {
+  return json({ error: RECOVERY_429_BODY }, 429, {
+    'Retry-After': String(Math.max(1, retryAfterSec || 60))
+  });
+}
+/* Every recovery route starts here, and it runs BEFORE the account lookup and
+   BEFORE the throttle (which itself touches storage). Two consequences that both
+   matter: a deployment with no delivery channel answers the same way for every
+   address, and it does exactly the same amount of work for each — so neither
+   the status nor the effort spent can be used to probe which addresses exist. */
+function recoveryUnavailable() {
+  return json({
+    error: 'Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent.',
+    code: 'RECOVERY_UNAVAILABLE'
+  }, 503);
+}
+function recoveryConfigured(env) {
+  return Boolean(String(env.SMTP_PASSWORD || '').replace(/\s+/g, ''));
+}
+
+/* A rejected code looks the SAME whether the address has no account, or the
+   code is wrong, expired, already used, or out of attempts. One string for all
+   five, so nothing about the reply distinguishes them. */
+const RESET_REJECTED = {
+  error: 'That code is invalid or has expired. Request a new one.',
+  code: 'CODE_INVALID'
+};
+async function findActiveReset(db, userId) {
+  return one(
+    db,
+    'SELECT * FROM password_resets WHERE user_id = ? AND used_at IS NULL AND expires_at > ? ORDER BY created_at DESC LIMIT 1',
+    userId, nowISO()
+  );
+}
+/* Counting a miss against the ACTIVE code (when there is one) is what stops
+   1e6 combinations being ground through inside the 10-minute window. An address
+   with no account has no code to count against, which costs nothing: the reply
+   is identical either way. */
+async function rejectResetCode(db, email) {
+  const em = String(email || '').trim().toLowerCase();
+  const userRow = em ? await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', em) : null;
+  if (userRow) {
+    const active = await findActiveReset(db, userRow.id);
+    if (active) {
+      const tries = (Number(active.attempts) || 0) + 1;
+      await run(
+        db,
+        'UPDATE password_resets SET attempts = ?, used_at = ? WHERE id = ?',
+        tries, tries >= OTP_MAX_ATTEMPTS ? nowISO() : active.used_at, active.id
+      );
+    }
+  }
+  return json(RESET_REJECTED, 400);
+}
+/* One gate behind BOTH verify-code and reset-password, so the two can never
+   drift into accepting different things. On success returns { user, row }; on
+   failure returns { rejected } already counted and ready to send. */
+async function checkResetCode(db, email, code) {
+  const em = String(email || '').trim().toLowerCase();
+  const shaped = String(code || '').replace(/\s+/g, '');
+  if (!em || shaped.length !== 6 || !/^\d{6}$/.test(shaped)) return { rejected: await rejectResetCode(db, em) };
+  const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', em);
+  if (!user) return { rejected: await rejectResetCode(db, em) };
+  const row = await findActiveReset(db, user.id);
+  if (!row) return { rejected: await rejectResetCode(db, em) };
+  if ((Number(row.attempts) || 0) >= OTP_MAX_ATTEMPTS) return { rejected: await rejectResetCode(db, em) };
+  if (!hexEqual(row.code_hash, hashToken(shaped))) return { rejected: await rejectResetCode(db, em) };
+  return { user, row };
+}
+/* --- Outbound mail --------------------------------------------------------
+   Password recovery needs a verified delivery channel. Outbound SMTP runs over
+   cloudflare:sockets to Gmail's submission port (465, implicit TLS — port 25 is
+   blocked by the platform and is not used here).
+
+   The From address is the company mailbox, which Google actually owns. A
+   third-party relay cannot send AS a gmail.com address: SPF would not align and
+   Google would reject or spam it. Sending through Google keeps the whole hop
+   inside Google.
+
+   Returns { ok: true } or { ok: false, reason }. The reason is for /api/health
+   and logs only — it is never echoed to the caller, because telling a caller
+   that a delivery path worked for one address and not another would leak
+   account state. */
+
+function mailEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function b64utf8(s) {
+  const bytes = new TextEncoder().encode(String(s));
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+/* Bytes to base64 — the same btoa trick, applied to raw octets, for the image
+   part of the message. */
+function b64bytes(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+/* RFC 2047 PERMITS an encoded-word, and its §6.2 asks you not to use one where
+   US-ASCII would do the job. Encoding an all-ASCII subject anyway drops a
+   base64 blob into the one header a reader glances at first — the shape a
+   filter associates with a message that is hiding something. So encode only
+   what cannot travel as it stands: a plain subject goes out plain. */
+function encodeSubject(s) {
+  const str = String(s);
+  if (/^[\x20-\x7e]*$/.test(str)) return str;
+  return '=?UTF-8?B?' + b64utf8(str) + '?=';
+}
+
+/* RFC 5322 requires a Date, and most filters treat a message without one —
+   or without a Message-ID — as forged. Both are exactly the kind of omission
+   that sends a legitimate code to Spam. The zone is written +0000 rather than
+   the "GMT" toUTCString emits, because GMT is the obsolete form. */
+function mailDate() {
+  return new Date().toUTCString().replace(/GMT$/, '+0000');
+}
+function mailMessageId() {
+  return randomBytes(12).toString('hex') + '.' + Date.now().toString(36) + '@gmail.com';
+}
+/* The plain-text alternative is DERIVED from the HTML rather than written a
+   second time. Two copies of this copy would drift, and the OTP is the one
+   line that must never be allowed to go stale in one of them. */
+function htmlToText(html) {
+  return String(html)
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<img[^>]*\balt="([^"]*)"[^>]*>/gi, '$1')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|tr|td|h[1-6]|li|table)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&mdash;|&#8212;/g, '\u2014')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+    .split('\n')
+    .map((l) => l.replace(/[ \t\u00a0]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+}
+/* The DATA payload, built and returned rather than sent, so the exact bytes
+   on the wire are something a test can read. */
+function buildMailMessage(user, to, subject, htmlBody, related) {
+  /* Dot-stuffing: a body line starting with "." would otherwise end the
+     message early. Normalise to CRLF, which SMTP requires.
+     multipart/alternative, plain FIRST: an HTML-only message is one of the
+     oldest spam signals there is, and the plain part is what a filter reads
+     to decide what this even is. Date and Message-ID go in the headers for
+     the same reason — a legitimate code should not look forged.
+     When related parts are supplied the alternatives nest INSIDE a
+     multipart/related, which is the only place a cid: image may legally live.
+     With none, this is byte-for-byte the plain alternative it always was. */
+  const outer = '----=_Part_' + randomBytes(12).toString('hex');
+  const alt = '----=_Part_' + randomBytes(12).toString('hex');
+  const onePart = (label, value) => [
+    '--' + alt,
+    'Content-Type: ' + label + '; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    String(value).replace(/\r\n?/g, '\n').replace(/\n+$/, '')
+  ].join('\n');
+  const alternatives = [
+    onePart('text/plain', htmlToText(htmlBody)),
+    '',
+    onePart('text/html', htmlBody),
+    '',
+    '--' + alt + '--'
+  ].join('\n');
+  const hasRelated = Array.isArray(related) && related.length > 0;
+  const data = hasRelated
+    ? [
+        '--' + outer,
+        'Content-Type: multipart/alternative; boundary="' + alt + '"',
+        '',
+        alternatives,
+        related.map((r) => [
+          '--' + outer,
+          'Content-Type: ' + r.type,
+          'Content-ID: <' + r.cid + '>',
+          'Content-Transfer-Encoding: base64',
+          '',
+          /* RFC 2045 stops base64 lines at 76 characters. */
+          String(r.data).replace(/(.{76})/g, '$1\n').replace(/\n$/, '')
+        ].join('\n')).join('\n'),
+        '--' + outer + '--'
+      ].join('\n')
+    : alternatives;
+  const contentType = hasRelated
+    ? 'multipart/related; boundary="' + outer + '"'
+    : 'multipart/alternative; boundary="' + alt + '"';
+  const stuffed = data.split('\n').map((l) => (l.charAt(0) === '.' ? '.' + l : l)).join('\n');
+  return [
+    'From: KTM Studio <' + user + '>',
+    'To: <' + to + '>',
+    'Subject: ' + encodeSubject(subject),
+    'Date: ' + mailDate(),
+    'Message-ID: <' + mailMessageId() + '>',
+    'MIME-Version: 1.0',
+    'Content-Type: ' + contentType,
+    'X-Auto-Response-Suppress: All',
+    'Auto-Submitted: auto-generated',
+    '',
+    stuffed.replace(/\n/g, '\r\n')
+  ].join('\r\n') + '\r\n.\r\n';
+}
+/* Point the logo's src at a cid: reference. Returns null when this message
+   carries no such image, so the caller knows it has nothing to attach. The
+   HTML is deliberately written against a remote URL so that it always stands
+   alone — this is the one place that decides whether it gets to stop. */
+function inlineLogo(html) {
+  const next = String(html).replace(
+    /(<img[^>]*\bsrc=")[^"]*ktm-logo-light\.png(")/,
+    '$1cid:' + LOGO_CID + '$2'
+  );
+  return next === String(html) ? null : next;
+}
+async function smtpSend(env, toAddress, subject, htmlBody, origin) {
+  const user = String(env.SMTP_USER || '').trim() || RECOVERY_MAIL_FROM;
+  /* Every whitespace is removed, not just the ends: Gmail shows an App
+     Password as four groups of four (abcd efgh ijkl mnop) and people paste it
+     exactly as shown, so an inner space would otherwise reach AUTH LOGIN and
+     fail there with an unhelpful 535. The groups are purely visual — the
+     credential is the sixteen characters. */
+  const pass = String(env.SMTP_PASSWORD || '').replace(/\s+/g, '');
+  if (!pass) return { ok: false, reason: 'SMTP_PASSWORD is not configured' };
+  const to = String(toAddress || '').trim();
+  if (!to) return { ok: false, reason: 'no recipient' };
+
+  /* Inline the logo, opportunistically. Only when the bytes are genuinely in
+     hand does the src become a cid: reference and the image ride along as a
+     related part. Every failure path — no ASSETS binding, a missing file, an
+     unrecognised src — leaves the message exactly as it was, because a logo
+     is never worth losing the code over. This runs inside waitUntil, so it
+     adds nothing to the response time an attacker could measure. */
+  let html = htmlBody;
+  let related = null;
+  try {
+    const inlined = inlineLogo(htmlBody);
+    if (inlined) {
+      const assets = getAssets(env);
+      const logoUrl = new URL(LOGO_PATH, String(origin || '').trim() || 'https://assets.local');
+      const res = assets ? await assets.fetch(new Request(logoUrl.toString())) : null;
+      const bytes = res && res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+      if (bytes && bytes.length) {
+        html = inlined;
+        related = [{ cid: LOGO_CID, type: 'image/png', data: b64bytes(bytes) }];
+      }
+    }
+  } catch (_) { /* keep the remote URL */ }
+
+  let socket = null;
+  try {
+    /* Lazy, and deliberately so: `cloudflare:sockets` is a Worker built-in that
+       plain Node cannot resolve. Importing it here — only on a path that runs
+       after the config gate, inside a Worker — keeps this module loadable by the
+       test suites while leaving production behaviour identical. */
+    const { connect } = await import('cloudflare:sockets');
+    socket = connect({ hostname: 'smtp.gmail.com', port: 465 }, { secureTransport: 'on' });
+    await socket.opened;
+
+    const reader = socket.readable.getReader();
+    const decoder = new TextDecoder();
+    const writer = socket.writable.getWriter();
+    const out = new TextEncoder();
+    const deadline = Date.now() + 20000;
+    let buffer = '';
+
+    async function readLine() {
+      for (;;) {
+        const i = buffer.indexOf('\n');
+        if (i >= 0) {
+          const line = buffer.slice(0, i);
+          buffer = buffer.slice(i + 1);
+          return line.replace(/\r$/, '');
+        }
+        const left = deadline - Date.now();
+        if (left <= 0) throw new Error('SMTP read timed out');
+        // Race the read against the remaining deadline. A peer that simply stops
+        // talking would otherwise leave reader.read() pending forever, and the
+        // check above would never run again to break the wait — turning a slow
+        // server into a hung request rather than an error.
+        const read = reader.read();
+        read.catch(() => {}); // also handled on this path, so a timeout cannot strand it
+        const chunk = await Promise.race([
+          read,
+          new Promise((_, rej) => setTimeout(() => rej(new Error('SMTP read timed out')), left))
+        ]);
+        if (chunk.done) throw new Error('SMTP connection closed by peer');
+        buffer += decoder.decode(chunk.value, { stream: true });
+      }
+    }
+    /* SMTP replies can span lines: "250-…" then a final "250 …". */
+    async function readReply() {
+      const lines = [];
+      for (;;) {
+        const line = await readLine();
+        if (line.length < 4) continue;
+        lines.push(line);
+        if (line[3] === ' ') break;
+        if (line[3] !== '-') break;
+        if (lines.length > 40) break;
+      }
+      if (!lines.length) throw new Error('empty SMTP reply');
+      return { code: parseInt(lines[0].slice(0, 3), 10), lines, text: lines.join(' | ') };
+    }
+    async function expect(cmd, want) {
+      await writer.write(out.encode(cmd + '\r\n'));
+      const r = await readReply();
+      if (r.code !== want) {
+        throw new Error(String(cmd).split(' ')[0] + ' refused: ' + r.text.slice(0, 200));
+      }
+      return r;
+    }
+
+    const banner = await readReply();
+    if (banner.code !== 220) throw new Error('no SMTP banner: ' + banner.text.slice(0, 160));
+    /* The client name handed to Gmail in the EHLO. It is echoed verbatim into
+       the "Received: from ..." line the reader eventually sees, and `localhost`
+       reads the way a broken laptop script reads: every filter on earth knows
+       that name, and no mail server in production ever introduces itself with
+       it. This is the host that actually sends this mail. */
+    await expect('EHLO ' + SMTP_HELO, 250);
+    await expect('AUTH LOGIN', 334);
+    await expect(b64utf8(user), 334);
+    await expect(b64utf8(pass), 235);
+    await expect('MAIL FROM:<' + user + '>', 250);
+    await expect('RCPT TO:<' + to + '>', 250);
+    await expect('DATA', 354);
+
+    const message = buildMailMessage(user, to, subject, html, related);
+    await writer.write(out.encode(message));
+    const accepted = await readReply();
+    if (accepted.code !== 250) throw new Error('message rejected: ' + accepted.text.slice(0, 200));
+    try { await writer.write(out.encode('QUIT\r\n')); } catch (_) { /* closing anyway */ }
+    return { ok: true, inlined: !!related, logo: related ? related[0].data.length : 0, wire: message.length };
+  } catch (e) {
+    return { ok: false, reason: String((e && e.message) || e).slice(0, 300) };
+  } finally {
+    try { if (socket) socket.close(); } catch (_) { /* already closed */ }
+  }
+}
+
+/* The recovery email. Table layout and inline styles only: Gmail strips most
+   <style> blocks. The logo is an ABSOLUTE url because email has no origin —
+   Gmail blocks remote images until the reader allows them, which is why the
+   code itself is plain text and never lives inside an image. */
+function recoveryEmailHtml(origin, displayName, otp) {
+  const logoUrl = origin
+    ? origin.replace(/\/+$/, '') + '/assets/images/ktm-logo-light.png'
+    : '';
+  const logo = logoUrl
+    ? '<img src="' + mailEsc(logoUrl) + '" width="150" alt="KTM Energy Experts" ' +
+      'style="display:block;border:0;height:auto;width:150px;max-width:100%">'
+    : '';
+  /* The name is user-typed, so it is clipped before it reaches the line: an
+     unbounded name would push the greeting past the 998-octet cap that RFC
+     5322 places on every line of a message. Eighty characters is already far
+     past any name anyone types. */
+  const nameForMail = Array.from(String(displayName || '')).slice(0, 80).join('');
+  const greeting = nameForMail ? 'Hello ' + mailEsc(nameForMail) + ',' : 'Hello,';
+  /* Joined by a NEWLINE, not by nothing. Concatenating these elements collapsed
+     the whole template into one ~2,600-octet line: past that same 998-octet
+     cap, and the exact shape of a base64 spam blob. Every boundary below falls
+     after a closing tag or between block elements, where HTML collapses the
+     newline back into whitespace that is already there — the reader sees
+     nothing. The body style is written as ONE string so the break can never
+     land inside an attribute value. */
+  return [
+    '<!doctype html><html lang="en"><body style="margin:0;padding:0;background:#f4f6f9;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#17304a">',
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:24px 12px"><tr><td align="center">',
+    '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden">',
+    '<tr><td style="padding:26px 32px 18px;border-bottom:1px solid #eef2f7">' + logo + '</td></tr>',
+    '<tr><td style="padding:26px 32px 8px">',
+    '<h1 style="margin:0 0 16px;font-size:20px;line-height:1.35;font-weight:700;color:#17304a">Reset your KTM Studio password</h1>',
+    '<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#3c4a5e">' + greeting + '</p>',
+    '<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#3c4a5e">We received a request to reset the password for your KTM Studio account. Enter the code below to continue.</p>',
+    '<p style="margin:0 0 20px;text-align:center"><span style="display:inline-block;font-size:30px;letter-spacing:9px;font-weight:700;color:#17304a;background:#f4f6f9;border:1px dashed #c9d3e0;border-radius:10px;padding:15px 10px 15px 19px">' + mailEsc(otp) + '</span></p>',
+    '<p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#3c4a5e">This code expires in <strong>10 minutes</strong> and can be used <strong>only once</strong>.</p>',
+    '<p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#3c4a5e">If you did not request this, simply ignore this email &mdash; your password has not changed.</p>',
+    '<p style="margin:0;font-size:14px;line-height:1.6;color:#3c4a5e">Please do not share this code. KTM Energy Experts will never ask for it.</p>',
+    '</td></tr>',
+    '<tr><td style="padding:18px 32px 26px;border-top:1px solid #eef2f7">',
+    '<p style="margin:0;font-size:12px;line-height:1.7;color:#8494a8">This is an automatically generated email from KTM Energy Experts.<br>Please do not reply to this message.</p>',
+    '</td></tr></table>',
+    '</td></tr></table></body></html>'
+  ].join('\n');
+}
+
+/* Issue a fresh code: voids any previous unused one, stores only its hash.
+   resendCount is how many times this recovery attempt has already been
+   re-issued AFTER the first code (0 on the first). */
+async function issuePasswordReset(db, user, resendCount) {
+  const raw = String(randomBytes(4).readUInt32BE(0) % 1000000).padStart(6, '0');
   const id = uid('pwr');
+  const resend = Number.isFinite(resendCount) && resendCount > 0 ? Math.floor(resendCount) : 0;
   await run(
     db,
     'UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL',
@@ -857,10 +1606,12 @@ async function issuePasswordReset(db, user) {
   );
   await run(
     db,
-    'INSERT INTO password_resets (id, user_id, code_hash, expires_at, used_at, created_at) VALUES (?, ?, ?, ?, NULL, ?)',
+    `INSERT INTO password_resets
+       (id, user_id, code_hash, expires_at, used_at, resend_count, attempts, created_at)
+     VALUES (?, ?, ?, ?, NULL, ?, 0, ?)`,
     id, user.id, hashToken(raw),
-    new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-    nowISO()
+    new Date(Date.now() + OTP_TTL_MS).toISOString(),
+    resend, nowISO()
   );
   return raw;
 }
@@ -986,7 +1737,7 @@ function publicGallery(g) {
 }
 
 /* ---------- API ---------- */
-async function handleApi(request, env, url) {
+async function handleApi(request, env, url, ctx) {
   const db = getDb(env);
   if (!db) {
     return json({
@@ -1001,14 +1752,21 @@ async function handleApi(request, env, url) {
 
   try {
     if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' &&
-        !(parts[0] === 'auth' && parts[1] === 'oauth') && crossSiteBlocked(request, url)) {
+        !(parts[0] === 'auth' && parts[1] === 'oauth') && crossSiteBlocked(request, url, env)) {
       return json({
         error: 'Cross-site request blocked. Open Studio from the application website and try again.',
         code: 'ORIGIN_BLOCKED'
       }, 403);
     }
     if (parts[0] === 'auth' && parts[1] === 'oauth') {
-      return handleOAuth(request, env, d1OAuthStore(db), {
+      /* The `await` is not decoration: `return somePromise` inside a try block
+         does NOT route that promise's rejection through the catch below. An
+         error thrown anywhere in the OAuth flow would have escaped handleApi,
+         rejected the fetch handler itself, and Cloudflare would answer the
+         browser with a bare 502 carrying no JSON — which is exactly what the
+         dashboard renders as "Request failed (502)". Awaited, the rejection
+         lands in the catch and the client gets JSON with a real status. */
+      return await handleOAuth(request, env, d1OAuthStore(db), {
         user: r => requireUser(r, db, env), token: sessionTokenFrom, rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
         userByToken: token => requireUser(new Request(request.url, {headers:{Authorization:'Bearer '+token}}), db, env),
         canLink: async (user, password, r) => {
@@ -1021,7 +1779,10 @@ async function handleApi(request, env, url) {
       });
     }
     if (parts[0] === 'auth' && parts[1] === 'phone') {
-      return handlePhoneAuth(request, env, d1OAuthStore(db), {
+      /* Same reason as the OAuth call above: without the await a rejection in
+         the phone flow bypasses the catch and reaches Cloudflare as a bare
+         502. */
+      return await handlePhoneAuth(request, env, d1OAuthStore(db), {
         rateKey: request.headers.get('CF-Connecting-IP') || 'unknown',
         session: user => createSession(db, user),
         cookie: (token, r) => sessionCookie(token, SESSION_DAYS * 86400, r)
@@ -1078,36 +1839,47 @@ async function handleApi(request, env, url) {
       );
       await applyOwnerBootstrap(db, env, user);
       await authThrottleSuccess(db, email);
-      const sess = await createSession(db, user);
+      /* Create Account offers no "Remember me" control, so a fresh sign-up gets
+         the secure default: a session cookie plus the 12-hour server cap. */
+      const sess = await createSession(db, user, SESSION_HOURS_SHORT * 3600 * 1000);
       return json(
         { user: publicUser(user, env), token: sess.token, expiresAt: sess.expiresAt },
         201,
-        authHeaders(sess.token, request)
+        authHeaders(sess.token, request, false)
       );
     }
 
     if (parts[0] === 'auth' && parts[1] === 'login' && method === 'POST') {
+      /* ONE message for BOTH failure paths, on purpose. Saying "no such
+         account" only for an unknown address would let anyone test which
+         addresses are registered (user enumeration). Attaching the create-account
+         hint to the shared failure keeps the guidance and leaks nothing. */
+      const LOGIN_FAILED = 'Invalid email or password. Don’t have an account yet? Create one.';
       const body = await readBody(request);
       const email = String(body.email || '').trim().toLowerCase();
       const password = String(body.password || '');
+      /* "Remember me" is OFF by default: session cookie (no Max-Age) plus the
+         12-hour server cap. Ticking it restores the 30-day behaviour. */
+      const remember = body.remember === true || body.remember === 'true';
       const loginBlocked = await authThrottleCheck(db, request, email);
       if (loginBlocked != null) return authLimited(loginBlocked);
       if (!email || !password) {
         await authThrottleFail(db, request, email);
-        return json({ error: 'Invalid email or password' }, 401);
+        return json({ error: LOGIN_FAILED }, 401);
       }
       const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
       if (!user || !verifyPassword(password, user.password_hash)) {
         await authThrottleFail(db, request, email);
-        return json({ error: 'Invalid email or password' }, 401);
+        return json({ error: LOGIN_FAILED }, 401);
       }
       await authThrottleSuccess(db, email);
       await applyOwnerBootstrap(db, env, user);
-      const sess = await createSession(db, user);
+      const ttlMs = remember ? SESSION_DAYS * 864e5 : SESSION_HOURS_SHORT * 3600 * 1000;
+      const sess = await createSession(db, user, ttlMs);
       return json(
         { user: publicUser(user, env), token: sess.token, expiresAt: sess.expiresAt },
         200,
-        authHeaders(sess.token, request)
+        authHeaders(sess.token, request, remember)
       );
     }
 
@@ -1123,14 +1895,169 @@ async function handleApi(request, env, url) {
       return json({ user: publicUser(user, env) });
     }
 
-    // Public recovery is fail-closed until a verified delivery channel exists.
-    // Reject reset as well: previously disclosed, unexpired codes must not work.
-    // Identical response for known/unknown accounts; no lookup or code issuance.
-    if (parts[0] === 'auth' && ['forgot-password', 'reset-password'].includes(parts[1]) && method === 'POST') {
-      return json({
-        error: 'Self-service password recovery is unavailable. Contact your company administrator to arrange identity-verified assistance. No recovery email has been sent.',
-        code: 'RECOVERY_UNAVAILABLE'
-      }, 403);
+    // --- Password recovery (owner decision, 2026-10-10) --------------------
+    // The fail-closed gate is lifted: a verified delivery channel now exists
+    // (outbound SMTP over cloudflare:sockets, sending as the company mailbox).
+    //
+    // Uniformity is the load-bearing property here. Whether or not the address
+    // has an account, the caller sees the SAME status and the SAME body at every
+    // step — accepted, cooling down, over the resend limit, throttled. Account
+    // state is only ever revealed by a code the caller already holds.
+    if (parts[0] === 'auth' && parts[1] === 'forgot-password' && method === 'POST') {
+      const body = await readBody(request);
+      const email = String(body.email || '').trim().toLowerCase();
+
+      // Fail closed, before the throttle (which touches storage) and before any
+      // account lookup: a deployment with no delivery channel must answer every
+      // address identically AND do exactly the same work for each, or the
+      // difference in status — or in effort — becomes an oracle.
+      if (!recoveryConfigured(env)) return recoveryUnavailable();
+
+      const blocked = await recoveryThrottleCheck(db, request, email);
+      if (blocked != null) return recoveryLimited(blocked);
+
+      const ACCEPTED = {
+        ok: true,
+        message: 'If that email has an account, a reset code is on its way. Check your inbox and spam folder.'
+      };
+
+      // Empty/malformed input is not a lookup and spends no budget — but it
+      // still returns the same body, so a probe learns nothing either way.
+      if (!email) return json(ACCEPTED, 200);
+
+      // Issuance state is tracked for EVERY address, including ones with no
+      // account. If only real accounts were counted, an over-limit reply would
+      // confirm the account exists; tracking both keeps the reply identical.
+      const issuance = await one(db, 'SELECT * FROM auth_throttles WHERE scope = ?', 'recovery-issued:' + email);
+      const now = Date.now();
+      const windowStart = (issuance && issuance.window_start) || 0;
+      const issuedCount = (issuance && issuance.window_count) || 0;
+      const nextAllowed = (issuance && issuance.blocked_until) || 0;
+      const attemptLive = windowStart && now - windowStart < OTP_TTL_MS;
+
+      if (attemptLive && issuedCount >= 1 + OTP_MAX_RESENDS) {
+        return json({
+          error: 'Too many codes have been requested for this attempt. Please wait a few minutes and start again.',
+          code: 'RESEND_LIMIT'
+        }, 429, { 'Retry-After': String(Math.ceil((windowStart + OTP_TTL_MS - now) / 1000)) });
+      }
+      if (attemptLive && now < nextAllowed) {
+        return json({
+          error: 'Please wait a moment before requesting another code.',
+          code: 'RESEND_COOLDOWN'
+        }, 429, { 'Retry-After': String(Math.max(1, Math.ceil((nextAllowed - now) / 1000))) });
+      }
+
+      // A known account gets a code; an unknown one follows the identical path
+      // minus the send. The response below is the same either way.
+      const user = await one(db, 'SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
+      if (user) {
+        // `issuedCount` is how many codes this attempt has already produced, so
+        // it IS this issuance's resend number: 0 on the first, 1 on the second.
+        const otp = await issuePasswordReset(db, user, attemptLive ? issuedCount : 0);
+        const origin = String(env.PUBLIC_ORIGIN || env.OAUTH_PUBLIC_ORIGIN || '').trim();
+        const html = recoveryEmailHtml(origin, user.name, otp);
+        const to = user.email;
+        // The send runs AFTER the reply. Awaiting it here would make a known
+        // address answer measurably slower than an unknown one, and that timing
+        // gap would become an oracle the body no longer exposes. waitUntil keeps
+        // the isolate alive until it settles, so nothing is dropped either.
+        ctx.waitUntil(smtpSend(env, to, RECOVERY_MAIL_SUBJECT, html, origin).then((sent) => {
+          if (sent.ok) {
+            // Positive evidence for wrangler tail. Without it a successful
+            // send and a send that never ran would look identical in the
+            // stream, and "no error appeared" is not proof that mail left.
+            // The recipient and the code are deliberately absent: the log is
+            // read by the account owner, but neither belongs in one.
+            console.log('recovery.sent', JSON.stringify({ bytes: html.length, inlined: !!sent.inlined, logo: sent.logo || 0, wire: sent.wire || 0 }));
+          } else {
+            // For wrangler tail and /api/health. Never echoed to the caller: a
+            // delivery-specific error only ever fires for real accounts.
+            console.log('recovery.send_failed', JSON.stringify({ reason: sent.reason }));
+          }
+        }));
+      }
+
+      // Record the issuance for BOTH branches so the counters advance in step.
+      if (attemptLive) {
+        await run(
+          db,
+          `UPDATE auth_throttles SET window_count = ?, blocked_until = ? WHERE scope = ?`,
+          issuedCount + 1, now + OTP_RESEND_COOLDOWN_MS, 'recovery-issued:' + email
+        );
+      } else {
+        await run(
+          db,
+          `INSERT INTO auth_throttles (scope, fails, blocked_until, window_start, window_count)
+           VALUES (?, 0, ?, ?, 1)
+           ON CONFLICT(scope) DO UPDATE SET blocked_until = excluded.blocked_until,
+             window_start = excluded.window_start, window_count = excluded.window_count`,
+          'recovery-issued:' + email, now + OTP_RESEND_COOLDOWN_MS, now
+        );
+      }
+      await recoveryThrottleHit(db, request, email);
+      return json(ACCEPTED, 200);
+    }
+
+    // Step 2 of the recovery flow: prove the code BEFORE asking for a new
+    // password, so nobody types a password and only then learns the code was
+    // wrong. The code is deliberately NOT consumed here — the caller still has
+    // to set the password, and burning it now would strand anyone whose chosen
+    // password failed policy. It runs through the same gate as the reset below,
+    // so the two cannot disagree about what counts as valid.
+    if (parts[0] === 'auth' && parts[1] === 'verify-code' && method === 'POST') {
+      const body = await readBody(request);
+      const email = String(body.email || '').trim().toLowerCase();
+      const code = String(body.code || '').replace(/\s+/g, '');
+
+      // Fail closed first, exactly like the other two recovery routes. With no
+      // delivery channel no code can ever exist, and gating AFTER the throttle
+      // would let the difference between "503 here" and "429 there" say whether
+      // an address has storage behind it.
+      if (!recoveryConfigured(env)) return recoveryUnavailable();
+
+      const blocked = await recoveryThrottleCheck(db, request, email);
+      if (blocked != null) return recoveryLimited(blocked);
+      await recoveryThrottleHit(db, request, email);
+
+      const checked = await checkResetCode(db, email, code);
+      if (checked.rejected) return checked.rejected;
+      return json({ ok: true, message: 'Code verified. Choose a new password.' }, 200);
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'reset-password' && method === 'POST') {
+      const body = await readBody(request);
+      const email = String(body.email || '').trim().toLowerCase();
+      const code = String(body.code || '').replace(/\s+/g, '');
+      const password = String(body.password || '');
+
+      // Fail closed first, ahead of both the policy check and the throttle: when
+      // the channel is off no code can be valid, and answering "bad password"
+      // here while forgot-password answers 503 would give one deployment two
+      // different faces.
+      if (!recoveryConfigured(env)) return recoveryUnavailable();
+
+      // Cheap first among the real checks: a malformed password is a client-side
+      // problem and costs no attempt against the code.
+      const policy = passwordPolicyError(password);
+      if (policy) return json({ error: policy }, 400);
+
+      const blocked = await recoveryThrottleCheck(db, request, email);
+      if (blocked != null) return recoveryLimited(blocked);
+      await recoveryThrottleHit(db, request, email);
+
+      const checked = await checkResetCode(db, email, code);
+      if (checked.rejected) return checked.rejected;
+      const { user, row } = checked;
+
+      await run(db, 'UPDATE password_resets SET used_at = ? WHERE id = ?', nowISO(), row.id);
+      await run(db, 'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', hashPassword(password), nowISO(), user.id);
+      // A password change voids every other session: whoever holds the code
+      // has proven control of the mailbox, and stale cookies must not outlive
+      // that decision.
+      await revokeUserSessions(db, user.id, null);
+      await authThrottleSuccess(db, user.email);
+      return json({ ok: true, message: 'Password updated. You can sign in now.' }, 200);
     }
 
     if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
@@ -1164,17 +2091,162 @@ async function handleApi(request, env, url) {
       const sessionUser = await requireUser(request, db, env);
       if (!sessionUser) return json({ error: 'Sign in required' }, 401);
       const body = await readBody(request);
+      /* Display data only, and deliberately so: this route writes `name`,
+         `phone`, `role_custom` and the profile-nudge flag — `role` and
+         `is_admin` never appear in its UPDATE, so a member editing their own
+         profile can no more grant themselves reach than they can reach another
+         member's row. Permission is written in exactly one place,
+         POST /api/team/role, which keeps its own owner gate. */
+      const next = {
+        name: sessionUser.name,
+        phone: sessionUser.phone || '',
+        roleCustom: sessionUser.role_custom || null,
+        instagram: sessionUser.instagram_url || '',
+        linkedin: sessionUser.linkedin_url || '',
+        custom: sessionUser.custom_url || ''
+      };
       if (body.name != null) {
-        const name = String(body.name || '').trim();
+        const name = String(body.name || '').trim().replace(/\s+/g, ' ');
         if (!name) return json({ error: 'Name cannot be empty.' }, 400);
-        await run(
-          db,
-          'UPDATE users SET name = ?, updated_at = ? WHERE id = ?',
-          name.slice(0, 120), nowISO(), sessionUser.id
-        );
-        sessionUser.name = name.slice(0, 120);
+        next.name = name.slice(0, 120);
       }
+      if (body.phone != null) {
+        /* A contact number is display data, so the shape check only rejects
+           what a stray paste would carry. Empty is valid — declining to publish
+           a number is a choice, not an incomplete profile. */
+        const phone = String(body.phone || '').trim().slice(0, 30);
+        if (phone && !/^[0-9+\-().\s]{3,30}$/.test(phone)) {
+          return json({ error: 'A phone number may contain digits and the characters + - ( ) only.' }, 400);
+        }
+        next.phone = phone;
+      }
+      /* Social profile links. Display data only — shown as buttons on the
+         member card, team-wide, because a social profile is public anyway and
+         the point is reaching the person. An empty value simply means "not
+         shared", never an error. A bare handle is completed to that platform's
+         own URL; anything else must already be an http(s) URL, so a stray paste
+         cannot smuggle a javascript: or data: scheme into an <a href>. */
+      const socialLink = (kind, raw) => {
+        const v = String(raw || '').trim().slice(0, 300);
+        if (!v) return { value: '' };
+        const base = kind === 'instagram' ? 'https://instagram.com/' : 'https://www.linkedin.com/in/';
+        const url = v.charAt(0) === '@'
+          ? base + v.replace(/^@+/, '')
+          : (/^https?:\/\//i.test(v) ? v : base + v.replace(/^\/+/, ''));
+        if (!/^https?:\/\/[^\s]+$/i.test(url)) return { error: true };
+        return { value: url };
+      };
+      if (body.instagram != null) {
+        const parsed = socialLink('instagram', body.instagram);
+        if (parsed.error) return json({ error: 'That does not look like an Instagram link.' }, 400);
+        next.instagram = parsed.value;
+      }
+      if (body.linkedin != null) {
+        const parsed = socialLink('linkedin', body.linkedin);
+        if (parsed.error) return json({ error: 'That does not look like a LinkedIn link.' }, 400);
+        next.linkedin = parsed.value;
+      }
+      /* The "any other link" field. Same contract as the two platform links —
+         display data, team-visible, empty means "not shared" rather than an
+         error — but with NO bare-handle completion, because a custom link has
+         no platform to complete to: it must already be an http(s) URL. The
+         scheme check is what stops a stray paste smuggling javascript: or
+         data: into the button's href. */
+      if (body.custom != null) {
+        const v = String(body.custom || '').trim().slice(0, 300);
+        if (v && !/^https?:\/\/[^\s]+$/i.test(v)) {
+          return json({ error: 'That does not look like a link. Start it with https://' }, 400);
+        }
+        next.custom = v;
+      }
+      /* The display title, accepted as `title` or `roleCustom`. Validated by
+         parseRoleTitle, which maps NOTHING: a title is wording and can never
+         decide power, so typing "owner" or "admin" here changes a label. An
+         explicitly empty value clears the title rather than erroring, which is
+         how a member undoes a title they no longer want. */
+      const rawTitle = body.title != null ? body.title : body.roleCustom;
+      if (rawTitle != null) {
+        const typed = String(rawTitle).trim();
+        if (!typed) {
+          next.roleCustom = null;
+        } else {
+          const parsed = parseRoleTitle(typed);
+          if (parsed.error) return json({ error: parsed.error }, 400);
+          next.roleCustom = parsed.roleCustom;
+        }
+      }
+      /* profile_done flips on any successful save. It is what hides the
+         one-time "update your role and info" nudge, and it is a display flag:
+         it appears in no gate and no query that decides permission. */
+      await run(
+        db,
+        `UPDATE users SET name = ?, phone = ?, role_custom = ?, instagram_url = ?, linkedin_url = ?, custom_url = ?, profile_done = 1, updated_at = ? WHERE id = ?`,
+        next.name, next.phone, next.roleCustom, next.instagram, next.linkedin, next.custom, nowISO(), sessionUser.id
+      );
+      sessionUser.name = next.name;
+      sessionUser.phone = next.phone;
+      sessionUser.role_custom = next.roleCustom;
+      sessionUser.instagram_url = next.instagram;
+      sessionUser.linkedin_url = next.linkedin;
+      sessionUser.custom_url = next.custom;
+      sessionUser.profile_done = 1;
       return json({ user: publicUser(sessionUser, env) });
+    }
+
+    /* Catalogue sync — on-demand only, never scheduled. The owner clicks
+       "Sync Catalogue"; the worker reads the Excel workbook from Drive once,
+       extracts the three catalogue tables and stores them in D1. The app's
+       built-in catalogue stays as the fallback when this has never run. */
+    if (parts[0] === 'catalogue' && parts.length === 1) {
+      if (method === 'GET') {
+        const stored = await readCatalogue(db);
+        if (!stored) return json({ error: 'Catalogue has not been synced yet. Open Quotation Studio and click "Sync Catalogue".' }, 404);
+        return json({ ok: true, catalogue: stored });
+      }
+      if (method === 'POST' && parts.length === 1) {
+        const user = await requireUser(request, db, env);
+        if (!user || (user.role !== 'owner' && !isAdminRow(user))) {
+          return json({ error: 'Only the owner (or an elevated admin) can sync the equipment catalogue.' }, 403);
+        }
+        try {
+          const result = await syncCatalogue(env, db);
+          return json({ ok: true, ...result });
+        } catch (e) {
+          if (e && e.code === 'NOT_CONFIGURED') return json({ error: e.message, code: 'NOT_CONFIGURED' }, 503);
+          return json({ error: 'Catalogue sync failed: ' + (e && e.message ? e.message : e) }, 502);
+        }
+      }
+    }
+
+    /* Site location resolve + NASA resource — same flow as the Excel
+       workbook (forward geocode of the location text, then NASA POWER),
+       server-side so no API key or token ever reaches the browser. Any
+       signed-in user may resolve; results are cached in D1. */
+    if (parts[0] === 'site' && parts[1] === 'resolve' && method === 'GET') {
+      const user = await requireUser(request, db, env);
+      if (!user) return json({ error: 'Sign in required' }, 401);
+      const q = String(url.searchParams.get('q') || '');
+      try {
+        const r = await resolveLocation(env, db, q);
+        return json({ ok: true, ...r });
+      } catch (e) {
+        if (e && e.code === 'NOT_FOUND') return json({ error: e.message, code: 'NOT_FOUND' }, 404);
+        if (e && e.code === 'BAD_QUERY') return json({ error: e.message, code: 'BAD_QUERY' }, 400);
+        return json({ error: 'Location resolve failed: ' + (e && e.message ? e.message : e) }, 502);
+      }
+    }
+    if (parts[0] === 'site' && parts[1] === 'resource' && method === 'GET') {
+      const user = await requireUser(request, db, env);
+      if (!user) return json({ error: 'Sign in required' }, 401);
+      const lat = parseFloat(url.searchParams.get('lat') || '');
+      const lng = parseFloat(url.searchParams.get('lng') || '');
+      try {
+        const r = await fetchSiteResource(env, db, lat, lng);
+        return json({ ok: true, ...r });
+      } catch (e) {
+        if (e && e.code === 'BAD_COORDINATES') return json({ error: e.message, code: 'BAD_COORDINATES' }, 400);
+        return json({ error: 'NASA resource fetch failed: ' + (e && e.message ? e.message : e) }, 502);
+      }
     }
 
     if (parts[0] === 'health' && method === 'GET') {
@@ -1217,6 +2289,18 @@ async function handleApi(request, env, url) {
           manualChannels: Object.keys(SEND_CHANNELS),
           providerDelivery: false,
           note: 'Manual WhatsApp/email record share_clicked only. Delivered requires a future provider webhook.'
+        },
+        /* Password recovery. Reports only whether the delivery channel is
+           configured — never the address, never a password — so an operator can
+           tell "secret not set" apart from "mail is not arriving". The same
+           answer goes to every caller. */
+        recovery: {
+          selfService: true,
+          channel: 'smtp',
+          deliveryConfigured: Boolean(String(env.SMTP_PASSWORD || '').replace(/\s+/g, '')),
+          codeTtlMinutes: Math.round(OTP_TTL_MS / 60000),
+          resendLimit: OTP_MAX_RESENDS,
+          verifyAttempts: OTP_MAX_ATTEMPTS
         },
         features: {
           notifications: true,
@@ -1332,6 +2416,38 @@ async function handleApi(request, env, url) {
        `owner_id = ?` arm applies, exactly as before this change). */
     const scope = seesAll(user, env) ? null : user.id;
 
+    const accessActor=u=>u&&({id:u.id,name:u.name,manager:requireRole(u,'owner',env),writer:requireRole(u,'sales',env)});
+    const accessStore=d1AccessStore(db,accessActor,{
+      companyMetrics:async()=>companyMetrics(await all(db,'SELECT status FROM proposals'),await all(db,'SELECT status,due_at FROM tasks')),
+      companyFinance:async()=>quotedFinance(await all(db,'SELECT * FROM proposals'),proposalQuotedValue),
+      companyFollowups:async()=>(await all(db,"SELECT * FROM tasks ORDER BY due_at IS NULL,due_at ASC LIMIT 200")).map(publicTask)
+    });
+    if(parts[0]==='workspace'){
+      if(method==='POST'&&!request.headers.get('Authorization')&&!request.headers.get('X-QS-Session'))return json({error:'Sign in again before changing access.',code:'SESSION_HEADER_REQUIRED'},403);
+      const payload=method==='POST'?await boundedJson(request):{};
+      const current=await requireUser(request,db,env);
+      const result=await accessService.handleWorkspace({store:accessStore,actor:accessActor(current),route:parts.slice(1),method,body:payload});
+      return json(result.body,result.status);
+    }
+    if(accessService.companyRoute(parts)&&!await accessService.membershipAccess(accessStore,accessActor(user))){
+      return json({error:'Company membership requires owner approval. Request access in Settings → Connections.',code:'MEMBERSHIP_REQUIRED'},403);
+    }
+    if(accessService.financialRoute(parts,method)&&!await accessService.pricingAccess(accessStore,accessActor(user))){
+      return json({error:'Quotation pricing and snapshots require access. Request own quotation pricing in Settings → Connections.',code:'PRICING_ACCESS_REQUIRED'},403);
+    }
+
+    /* Excel-backed product catalogue. Only sanitized module/inverter/cable/
+       protection product rows are exposed; operational and cost sheets never leave the workbook. */
+    if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts.length === 2 && method === 'GET') {
+      const result = await getExcelProductCatalog(db, env, false);
+      return json(result.body, result.status);
+    }
+    if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts[2] === 'sync' && parts.length === 3 && method === 'POST') {
+      if (!canAdmin) return json({ error: 'Only the workspace owner can sync the connected Excel catalogue.' }, 403);
+      const result = await getExcelProductCatalog(db, env, true);
+      return json(result.body, result.status);
+    }
+
     /* Gemini: no browser-supplied context or mutation tools. */
     if (parts[0] === 'assistant' && parts.length === 2) {
       if (method === 'POST' && !request.headers.get('Authorization') && !request.headers.get('X-QS-Session')) return json({ error: 'Sign in again to use the assistant.' }, 403);
@@ -1411,7 +2527,7 @@ async function handleApi(request, env, url) {
       return new Response(row.data, {
         headers: {
           'Content-Type': row.mime || 'application/octet-stream',
-          'Cache-Control': 'private, max-age=3600',
+          'Cache-Control': 'private, no-store',
           'X-Content-Type-Options': 'nosniff'
         }
       });
@@ -1533,6 +2649,19 @@ async function handleApi(request, env, url) {
       const body = await readBody(request);
       const badUpdateStatus = proposalStatusError(body.status);
       if (badUpdateStatus) return json({ error: badUpdateStatus }, 400);
+      /* Match the local-server optimistic concurrency contract. A stale Studio
+         tab must not overwrite a newer save or a share-state status change. */
+      if (body.baseRevision != null && body.baseRevision !== '') {
+        const theirs = Number(body.baseRevision);
+        const mine = proposalRevision(row);
+        if (Number.isFinite(theirs) && theirs !== mine) {
+          return json({
+            error: 'This proposal was saved more recently in the cloud. Reload it, then save again so your edits are not overwritten.',
+            code: 'CONFLICT',
+            proposal: proposalFull(row)
+          }, 409);
+        }
+      }
       const meta = metaFromBody(body, row);
       const status = body.status != null ? body.status : row.status;
       const customerId = body.customerId !== undefined ? body.customerId : row.customer_id;
@@ -1562,11 +2691,11 @@ async function handleApi(request, env, url) {
           capacity=?, customer_name=?, form_json=?, content_json=?, project_images_json=?,
           page_images_json=?, options_json=?, local_id=?, sent_at=?, accepted_at=?,
           revision=?, updated_at=?
-         WHERE id=? AND owner_id=?`,
+         WHERE id=? AND ` + OWN_SCOPE,
         customerId, meta.ref, meta.title, status, meta.version, prevId,
         meta.capacity, meta.customer, formJson, contentJson, projectImagesJson,
         pageImagesJson, optionsJson, localId, sentAt, acceptedAt,
-        revision, updated, row.id, user.id
+        revision, updated, row.id, scope, user.id
       );
       const next = await one(db, 'SELECT * FROM proposals WHERE id = ?', row.id);
       return json({ proposal: proposalFull(next) });
@@ -1739,7 +2868,7 @@ async function handleApi(request, env, url) {
         tok.id, tok.token_hash, tok.version_id, tok.proposal_id, tok.owner_id,
         tok.label, tok.expires_at, tok.created_at
       );
-      const origin = url.origin;
+      const origin = publicAppOrigin(env, url);
       const portalUrl = origin + '/portal.html?t=' + encodeURIComponent(raw);
       return json({ link: publicToken(tok, raw), portalUrl, rawToken: raw }, 201);
     }
@@ -1787,14 +2916,23 @@ async function handleApi(request, env, url) {
       );
       const active = links.filter(tokenIsActive);
       return json({
-        proposalId: row.id,
-        title: row.title,
-        customer: row.customer_name,
-        defaultEmail: form.custEmail || form.email || '',
-        defaultWhatsApp: form.custPhone || form.phone || '',
-        versions: versions.map(publicVersion),
-        activeLinks: active.length,
-        hasPublishedVersion: versions.length > 0
+        proposal: proposalSummary(row),
+        hasPublishedVersion: !!versions[0],
+        latestVersion: versions[0] ? publicVersion(versions[0]) : null,
+        hasActiveLink: active.length > 0,
+        needsNewLinkForUrl: true,
+        defaultRecipientName: row.customer_name || form.custName || '',
+        defaultWhatsApp: form.custPhone || form.customerPhone || '',
+        defaultEmail: form.custEmail || form.customerEmail || '',
+        companyWhatsApp: form.companyPhone || '',
+        channels: Object.keys(SEND_CHANNELS).map((id) => ({
+          id,
+          label: SEND_CHANNELS[id].label,
+          provider: SEND_CHANNELS[id].provider,
+          recordsAs: 'draft',
+          deliveryVerified: false
+        })),
+        honestyNote: 'Preparing a message does not mark it shared. A WhatsApp, email or copy action records only that you started sharing; delivery is unconfirmed.'
       });
     }
 
@@ -1823,8 +2961,18 @@ async function handleApi(request, env, url) {
       const row = await one(db, 'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
       if (!row) return json({ error: 'Proposal not found' }, 404);
       const body = await readBody(request);
-      const channel = String(body.channel || 'copy_link');
-      if (!SEND_CHANNELS[channel]) return json({ error: 'Unsupported channel' }, 400);
+      const channel = String(body.channel || 'whatsapp_manual');
+      if (!SEND_CHANNELS[channel]) return json({ error: 'Unsupported send channel' }, 400);
+      const recipientTo = String(body.recipientTo || '').trim().slice(0, 200);
+      const recipientName = String(body.recipientName || row.customer_name || '').trim().slice(0, 200);
+      const waDigits = channel === 'whatsapp_manual' ? digitsForWhatsApp(recipientTo) : '';
+      if (channel === 'whatsapp_manual' && !waDigits) {
+        return json({ error: 'Enter a valid WhatsApp mobile number with country code (for example +91 98765 43210).' }, 400);
+      }
+      if (channel === 'email_manual' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientTo)) {
+        return json({ error: 'Enter a valid email address.' }, 400);
+      }
+
       let version = null;
       if (body.versionId) {
         version = await one(
@@ -1839,63 +2987,87 @@ async function handleApi(request, env, url) {
           row.id, scope, user.id
         );
       }
-      if (!version) return json({ error: 'Publish a version before sending.' }, 400);
-
-      let tok = null;
-      let rawToken = null;
-      const existing = await all(
-        db,
-        'SELECT * FROM access_tokens WHERE proposal_id = ? AND version_id = ? AND ' + OWN_SCOPE + ' AND revoked_at IS NULL',
-        row.id, version.id, scope, user.id
-      );
-      tok = existing.find(tokenIsActive) || null;
-      if (!tok) {
-        rawToken = randomBytes(24).toString('hex');
-        tok = {
-          id: uid('tok'),
-          token_hash: hashToken(rawToken),
-          version_id: version.id,
+      if (!version || body.publishFirst) {
+        const snapshot = customerSnapshotFromProposal(row);
+        const snapshotJson = JSON.stringify(snapshot);
+        version = {
+          id: uid('ver'),
           proposal_id: row.id,
           owner_id: user.id,
-          label: 'Send link',
-          expires_at: new Date(Date.now() + 30 * 864e5).toISOString(),
+          version_label: snapshot.versionLabel || row.version_label || '1.0',
+          snapshot_json: snapshotJson,
+          snapshot_sha256: sha256Hex(snapshotJson),
+          pdf_sha256: null,
+          pdf_path: null,
+          note: String(body.note || 'Published for customer send').slice(0, 500),
           created_at: nowISO()
         };
         await run(
           db,
-          `INSERT INTO access_tokens (
-            id, token_hash, version_id, proposal_id, owner_id, label, expires_at,
-            revoked_at, created_at, first_opened_at, last_opened_at, open_count
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, 0)`,
-          tok.id, tok.token_hash, tok.version_id, tok.proposal_id, tok.owner_id,
-          tok.label, tok.expires_at, tok.created_at
+          `INSERT INTO proposal_versions (
+            id, proposal_id, owner_id, version_label, snapshot_json, snapshot_sha256,
+            pdf_sha256, pdf_path, note, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          version.id, version.proposal_id, version.owner_id, version.version_label,
+          version.snapshot_json, version.snapshot_sha256, version.pdf_sha256,
+          version.pdf_path, version.note, version.created_at
         );
+        await recordEvent(db, {
+          version_id: version.id,
+          proposal_id: row.id,
+          owner_id: user.id,
+          event_type: 'version_published',
+          meta: { snapshotSha256: version.snapshot_sha256, via: 'send' }
+        });
       }
-      const portalUrl = url.origin + '/portal.html?t=' + encodeURIComponent(rawToken || 'USE_EXISTING_LINK');
-      /* If we reused a link we cannot recover raw token — tell client to copy from links list */
-      const finalPortal = rawToken
-        ? portalUrl
-        : (url.origin + '/portal.html?t=OPEN_FROM_LINKS');
-      const message = String(body.message || buildDefaultMessage(row, rawToken ? portalUrl : (url.origin + '/portal.html')));
-      const recipientTo = String(body.recipientTo || body.to || '');
-      const recipientName = String(body.recipientName || body.name || row.customer_name || '');
+
+      const rawToken = randomBytes(24).toString('hex');
+      const tokenRow = {
+        id: uid('tok'),
+        token_hash: hashToken(rawToken),
+        version_id: version.id,
+        proposal_id: row.id,
+        owner_id: user.id,
+        label: String(body.linkLabel || 'Send link').slice(0, 120),
+        expires_at: parseExpiryDays(body),
+        revoked_at: null,
+        created_at: nowISO(),
+        first_opened_at: null,
+        last_opened_at: null,
+        open_count: 0
+      };
+      await run(
+        db,
+        `INSERT INTO access_tokens (
+          id, token_hash, version_id, proposal_id, owner_id, label, expires_at,
+          revoked_at, created_at, first_opened_at, last_opened_at, open_count
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, 0)`,
+        tokenRow.id, tokenRow.token_hash, tokenRow.version_id, tokenRow.proposal_id,
+        tokenRow.owner_id, tokenRow.label, tokenRow.expires_at, tokenRow.created_at
+      );
+
+      const portalUrl = publicAppOrigin(env, url) + '/portal.html?t=' + encodeURIComponent(rawToken);
+      const messageBody = messageWithPortalLink(body.messageBody || body.message, row, portalUrl);
       const sendRow = {
         id: uid('snd'),
         proposal_id: row.id,
         version_id: version.id,
-        token_id: tok.id,
+        token_id: tokenRow.id,
         owner_id: user.id,
         channel,
-        state: 'share_clicked',
-        recipient_name: recipientName.slice(0, 120),
-        recipient_to: recipientTo.slice(0, 200),
-        message_body: message.slice(0, 4000),
-        portal_url: rawToken ? portalUrl : '',
+        state: 'draft',
+        recipient_name: recipientName,
+        recipient_to: recipientTo,
+        message_body: messageBody,
+        portal_url: portalUrl,
         provider: 'manual',
+        provider_message_id: null,
         note: String(body.note || '').slice(0, 500),
         created_at: nowISO(),
         updated_at: nowISO(),
-        share_clicked_at: nowISO()
+        share_clicked_at: null,
+        submitted_at: null,
+        delivered_at: null
       };
       await run(
         db,
@@ -1910,51 +3082,96 @@ async function handleApi(request, env, url) {
         sendRow.message_body, sendRow.portal_url, sendRow.provider, sendRow.note,
         sendRow.created_at, sendRow.updated_at, sendRow.share_clicked_at
       );
-      if (row.status === 'draft' || row.status === 'ready' || row.status === 'internal_review') {
-        await run(
-          db,
-          "UPDATE proposals SET status = 'sent', sent_at = COALESCE(sent_at, ?), updated_at = ? WHERE id = ?",
-          nowISO(), nowISO(), row.id
-        );
-      }
+      await recordEvent(db, {
+        token_id: tokenRow.id,
+        version_id: version.id,
+        proposal_id: row.id,
+        owner_id: user.id,
+        event_type: 'send_drafted',
+        meta: { channel, sendId: sendRow.id }
+      });
       const wa = channel === 'whatsapp_manual'
-        ? 'https://wa.me/' + digitsForWhatsApp(recipientTo) + '?text=' + encodeURIComponent(message)
+        ? 'https://wa.me/' + waDigits + '?text=' + encodeURIComponent(messageBody)
         : null;
       const mailto = channel === 'email_manual'
         ? 'mailto:' + encodeURIComponent(recipientTo) +
-          '?subject=' + encodeURIComponent('Solar proposal') +
-          '&body=' + encodeURIComponent(message)
+          '?subject=' + encodeURIComponent(
+            (row.ref ? row.ref + ' — ' : '') + 'Your solar proposal'
+          ) +
+          '&body=' + encodeURIComponent(messageBody)
         : null;
+      const launch = {
+        whatsappUrl: wa,
+        mailtoUrl: mailto,
+        copyText: channel === 'copy_link' ? portalUrl : messageBody,
+        portalUrl,
+        honesty: 'The share action is not started yet. Launching WhatsApp/email or copying the message records only that action, not delivery.'
+      };
       return json({
         send: publicSend(sendRow),
-        launch: { whatsapp: wa, mailto, portalUrl: sendRow.portal_url || finalPortal, rawToken: rawToken || null },
-        note: 'State is share_clicked only. This is not provider-confirmed delivery.'
+        access: publicToken(tokenRow, rawToken),
+        version: publicVersion(version),
+        launch
       }, 201);
     }
 
     if (parts[0] === 'sends' && parts[1] && parts[2] === 'state' && method === 'POST') {
       if (!canWrite) return json({ error: 'Your role can view data but cannot update sends.' }, 403);
       const sendRow = await one(db, 'SELECT * FROM sends WHERE id = ? AND ' + OWN_SCOPE, parts[1], scope, user.id);
-      if (!sendRow) return json({ error: 'Send not found' }, 404);
+      if (!sendRow) return json({ error: 'Send record not found' }, 404);
       const body = await readBody(request);
       const state = String(body.state || '');
-      /* Manual channels cannot claim delivered / submitted without a provider */
-      if (state === 'delivered' || state === 'submitted_to_provider') {
+      /* Manual channels cannot claim provider delivery. A send remains a draft
+         until the user actually launches a channel or copies the message. */
+      if (sendRow.provider === 'manual' && (state === 'delivered' || state === 'submitted_to_provider')) {
         return json({
-          error: 'Manual channels cannot mark delivered. That requires a future provider webhook.'
+          error: 'Manual channels cannot be marked delivered. That state is reserved for provider-confirmed webhooks (not enabled yet).',
+          code: 'DELIVERY_NOT_AVAILABLE'
         }, 400);
       }
-      if (state !== 'cancelled' && state !== 'failed' && state !== 'share_clicked') {
-        return json({ error: 'Unsupported state transition' }, 400);
+      if (sendRow.provider === 'manual' && !['draft', 'share_clicked', 'cancelled', 'failed'].includes(state)) {
+        return json({ error: 'Unsupported state for this send' }, 400);
       }
+      if (sendRow.provider !== 'manual' && !SEND_STATES[state]) {
+        return json({ error: 'Unknown state' }, 400);
+      }
+      const updatedAt = nowISO();
+      const shareClickedAt = state === 'share_clicked'
+        ? (sendRow.share_clicked_at || updatedAt) : (sendRow.share_clicked_at || null);
+      const submittedAt = state === 'submitted_to_provider'
+        ? (sendRow.submitted_at || updatedAt) : (sendRow.submitted_at || null);
+      const deliveredAt = state === 'delivered'
+        ? (sendRow.delivered_at || updatedAt) : (sendRow.delivered_at || null);
       await run(
         db,
-        'UPDATE sends SET state = ?, note = COALESCE(?, note), updated_at = ? WHERE id = ?',
+        `UPDATE sends SET state=?, note=COALESCE(?, note), updated_at=?,
+          share_clicked_at=?, submitted_at=?, delivered_at=? WHERE id=?`,
         state,
         body.note != null ? String(body.note).slice(0, 500) : null,
-        nowISO(),
-        sendRow.id
+        updatedAt, shareClickedAt, submittedAt, deliveredAt, sendRow.id
       );
+      if (state === 'share_clicked' && !sendRow.share_clicked_at) {
+        const proposal = await one(
+          db,
+          'SELECT * FROM proposals WHERE id = ? AND ' + OWN_SCOPE,
+          sendRow.proposal_id, scope, user.id
+        );
+        if (proposal && ['draft', 'ready', 'internal_review'].includes(proposal.status)) {
+          await run(
+            db,
+            "UPDATE proposals SET status='sent', sent_at=COALESCE(sent_at, ?), updated_at=?, revision=COALESCE(revision, 1)+1 WHERE id=?",
+            updatedAt, updatedAt, proposal.id
+          );
+        }
+      }
+      await recordEvent(db, {
+        token_id: sendRow.token_id,
+        version_id: sendRow.version_id,
+        proposal_id: sendRow.proposal_id,
+        owner_id: user.id,
+        event_type: 'send_state_' + state,
+        meta: { sendId: sendRow.id, channel: sendRow.channel }
+      });
       const next = await one(db, 'SELECT * FROM sends WHERE id = ?', sendRow.id);
       return json({ send: publicSend(next) });
     }
@@ -1980,9 +3197,10 @@ async function handleApi(request, env, url) {
         'SELECT COUNT(*) AS c FROM notifications WHERE ' + OWN_SCOPE + ' AND read_at IS NULL',
         scope, user.id
       );
+      const accessNotes=await accessService.accessNotifications(accessStore,accessActor(user));
       return json({
-        notifications: list.map(publicNotification),
-        unread: Number(unreadRow && unreadRow.c) || 0
+        notifications: [...accessNotes,...list.map(publicNotification)],
+        unread: (Number(unreadRow && unreadRow.c)||0)+accessNotes.length
       });
     }
 
@@ -2091,6 +3309,7 @@ async function handleApi(request, env, url) {
       let title = task.title;
       let notes = task.notes;
       let dueAt = task.due_at;
+      let proposalId = task.proposal_id || null;
       let status = task.status;
       let completedAt = task.completed_at;
       if (body.title != null) {
@@ -2098,6 +3317,16 @@ async function handleApi(request, env, url) {
         if (!title) return json({ error: 'Task title cannot be empty' }, 400);
       }
       if (body.notes != null) notes = String(body.notes).slice(0, 2000);
+      if (body.proposalId !== undefined) {
+        proposalId = body.proposalId == null ? '' : String(body.proposalId).trim();
+        const existingProposalId = task.proposal_id == null ? '' : String(task.proposal_id);
+        if (proposalId && proposalId !== existingProposalId) {
+          const linked = await one(db, 'SELECT id FROM proposals WHERE id = ? AND ' + OWN_SCOPE, proposalId, scope, user.id);
+          if (!linked) return json({ error: 'Proposal not found for this task' }, 404);
+        } else if (!proposalId) {
+          proposalId = null;
+        }
+      }
       if (body.dueAt !== undefined) {
         if (body.dueAt === null || body.dueAt === '') dueAt = null;
         else {
@@ -2116,9 +3345,9 @@ async function handleApi(request, env, url) {
       }
       await run(
         db,
-        `UPDATE tasks SET title=?, notes=?, due_at=?, status=?, completed_at=?, updated_at=?
-         WHERE id=? AND owner_id=?`,
-        title, notes, dueAt, status, completedAt, nowISO(), task.id, user.id
+        `UPDATE tasks SET title=?, notes=?, due_at=?, proposal_id=?, status=?, completed_at=?, updated_at=?
+         WHERE id=? AND ` + OWN_SCOPE,
+        title, notes, dueAt, proposalId, status, completedAt, nowISO(), task.id, scope, user.id
       );
       const next = await one(db, 'SELECT * FROM tasks WHERE id = ?', task.id);
       return json({ task: publicTask(next) });
@@ -2162,6 +3391,7 @@ async function handleApi(request, env, url) {
         scope, user.id
       );
       const overdueTasks = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
+      const pricingAllowed=await accessService.pricingAccess(accessStore,accessActor(user));
       return json({
         generatedAt: nowISO(),
         role: user.role,
@@ -2172,13 +3402,14 @@ async function handleApi(request, env, url) {
           rejected: byStatus.rejected || 0,
           sentOrOut: (byStatus.sent || 0) + (byStatus.viewed || 0) + (byStatus.negotiation || 0)
         },
-        value: {
+        value: pricingAllowed ? {
           currency: 'INR',
           quotedSum,
           proposalsWithValue: quotedKnown,
           proposalsMissingValue: quotedMissing,
           note: 'Quoted value uses explicit investment fields when present, otherwise capacity × rate when both exist. Missing values are counted separately — never invented.'
-        },
+        } : null,
+        pricingRestricted: !pricingAllowed,
         engagement: {
           versionsPublished: Number(published && published.c) || 0,
           activeCustomerLinks: activeLinks,
@@ -2210,11 +3441,29 @@ async function handleApi(request, env, url) {
         `SELECT u.*, (SELECT MAX(s.created_at) FROM sessions s WHERE s.user_id = u.id) AS last_login
          FROM users u ORDER BY u.created_at ASC`
       );
+      /* Kudos: one aggregate for the panel and one set for the caller, rather
+         than a query per row. Both are wrapped because 007 may not have been
+         applied yet — the panel must still open, with empty hearts. */
+      let likeCount = new Map();
+      let mine = new Set();
+      try {
+        const likeRows = await all(db, 'SELECT target_id, COUNT(*) AS n FROM member_likes GROUP BY target_id');
+        likeCount = new Map(likeRows.map((r) => [r.target_id, Number(r.n) || 0]));
+        const mineRows = await all(db, 'SELECT target_id FROM member_likes WHERE liker_id = ?', user.id);
+        mine = new Set(mineRows.map((r) => r.target_id));
+      } catch (e) {
+        likeCount = new Map();
+        mine = new Set();
+      }
+      const kudos = (u) => ({ likes: likeCount.get(u.id) || 0, likedByMe: mine.has(u.id) });
       return json({
-        /* S2: only the actor's own row carries an elevation field. */
+        /* S2: only the actor's own row carries an elevation field. Sign-in
+           times ride the caller's manage flag for everyone ELSE's row, while
+           the caller's own row keeps them unconditionally — an account may
+           always read when it itself last signed in. */
         members: members.map((u) => (u.id === user.id
-          ? selfMemberPayload(u, env, u.last_login)
-          : memberPayload(u, env, u.last_login, { contact: canAdmin }))),
+          ? selfMemberPayload(u, env, u.last_login, kudos(u))
+          : memberPayload(u, env, u.last_login, Object.assign({ contact: true, signin: canAdmin }, kudos(u))))),
         canManageTeam: canAdmin,
         roles: [
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
@@ -2229,10 +3478,24 @@ async function handleApi(request, env, url) {
     }
 
     if (parts[0] === 'team' && parts[1] === 'role' && method === 'POST') {
-      if (!canAdmin) return json({ error: 'Only the workspace owner can change roles.' }, 403);
       const body = await readBody(request);
       const targetId = String(body.userId || '');
       const wanted = String(body.role || '').trim().toLowerCase();
+      /* The typed title, whether it arrived as roleCustom or title. */
+      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
+        ? String(body.roleCustom)
+        : (body.title != null && body.title !== '') ? String(body.title) : null;
+      /* THE SELF-ELEVATION DOOR. Power follows the ROLE now, so the designated
+         mailbox reaches this route at its stored rank with nothing to its name
+         — and the owner gate below would refuse it, which would mean elevation
+         could never be STARTED. So before that gate, exactly one passage is
+         open: the designated address, naming its OWN row, asking for the word
+         "admin". It opens nothing else — every other row and every other
+         command stops at the gate — and once inside, the checks that already
+         exist (ELEVATION_NOT_SELF, self-only elevation) apply unchanged. */
+      const wantsAdminWord = (rawTitle != null && rawTitle.trim().toLowerCase() === 'admin') || wanted === 'admin';
+      const selfElevationDoor = canElevate(user, env) && targetId === user.id && wantsAdminWord;
+      if (!canAdmin && !selfElevationDoor) return json({ error: 'Only the workspace owner can change roles.' }, 403);
       const target = await one(db, 'SELECT * FROM users WHERE id = ?', targetId);
       if (!target) return json({ error: 'User not found' }, 404);
 
@@ -2247,11 +3510,6 @@ async function handleApi(request, env, url) {
         return json({ error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' }, 403);
       }
 
-      /* The typed title, whether it arrived as roleCustom or title. */
-      const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
-        ? String(body.roleCustom)
-        : (body.title != null && body.title !== '') ? String(body.title) : null;
-
       /* ---- ELEVATION by typing "admin" ----
          Self-service for the designated ADMIN_EMAIL login ONLY, and only on its
          own row. There is no "Admin" dropdown and no role value: the actor
@@ -2260,7 +3518,18 @@ async function handleApi(request, env, url) {
          sales power (C6: a title never grants access), so this branch is
          skipped and the word falls through to normal parsing. */
       const typedAdmin = rawTitle != null && rawTitle.trim().toLowerCase() === 'admin';
-      if ((typedAdmin || wanted === 'admin') && actorIsAdmin) {
+      /* A POWER-KEY role (owner / sales / viewer) with the word "admin" riding
+         along in the title on ANOTHER row is a role change via the
+         title-preserve path, not an elevation attempt: the team table sends
+         the stored title with every role change, so a row whose stored title
+         happens to read "Admin" would otherwise be locked out of every role
+         edit with this very refusal. Elevation intent (and the self-only
+         refusal below) stays exactly where it was: the Custom / admin
+         shapes, every actor, every other row. */
+      const powerKeyRole = wanted === 'owner' || wanted === 'sales' || wanted === 'viewer';
+      const elevationAttempt = (typedAdmin || wanted === 'admin') && actorIsAdmin &&
+        !(powerKeyRole && target.id !== user.id);
+      if (elevationAttempt) {
         if (target.id !== user.id) {
           return json({ error: 'Ask admin', code: 'ELEVATION_NOT_SELF' }, 403);
         }
@@ -2286,7 +3555,14 @@ async function handleApi(request, env, url) {
       if (rawTitle != null) {
         const t = parseRoleTitle(rawTitle);
         if (t.error) return json({ error: t.error }, 400);
-        parsed = wantsOwner ? { role: 'owner', roleCustom: t.roleCustom } : t;
+        /* A title rides ALONGSIDE a power key instead of replacing it: owner
+           keeps owner power with the title as its chip, and Sales/Engineer
+           keeps the wording in role_custom — that is the title preserve, so a
+           role change edits ACCESS and never the wording. Only `custom` takes
+           its power from a title arriving with no explicit power key. */
+        parsed = wantsOwner ? { role: 'owner', roleCustom: t.roleCustom }
+          : (wanted === 'sales' || wanted === 'viewer') ? { role: wanted, roleCustom: t.roleCustom }
+          : t;
       } else if (wantsCustom) {
         parsed = { error: 'Choose a power level, or send a title to show.' };
       } else {
@@ -2294,12 +3570,12 @@ async function handleApi(request, env, url) {
       }
       if (parsed.error) return json({ error: parsed.error }, 400);
 
-      /* Self-demotion. Allowed whenever a backstop exists: the OWNER_EMAIL
-         bootstrap always restores the company owner, so the workspace can never
-         be left without one. The designated admin and any elevated row are
-         exempt (their reach is not in this column). Only when there is no
-         OWNER_EMAIL backstop AND no other owner do we refuse, to avoid a genuine
-         lockout. */
+      /* /* Self-demotion. Allowed whenever a backstop exists: the OWNER_EMAIL
+lockout backstop restores the company owner whenever no team manager
+would remain, so the workspace can never be left without one. The
+designated admin and any elevated row are exempt (their reach is not in
+this column). Only when there is no OWNER_EMAIL backstop AND no other
+owner do we refuse, to avoid a genuine lockout. */
       if (target.id === user.id && parsed.role !== 'owner' && !actorIsAdmin && !targetElevated) {
         if (!ownerEmail(env)) {
           const otherOwners = await all(db, "SELECT id FROM users WHERE id != ? AND role = 'owner'", user.id);
@@ -2330,25 +3606,157 @@ async function handleApi(request, env, url) {
       }
       target.role = parsed.role;
       target.role_custom = parsed.roleCustom;
-      /* Honest note, not a block: the OWNER_EMAIL bootstrap is unconditional, so
-         a demotion of that mailbox is restored (role only, title kept) next. */
-      const note = normalizeEmail(target.email) === ownerEmail(env) && parsed.role !== 'owner'
-        ? 'This mailbox is the workspace OWNER_EMAIL, so it is restored to Owner on its next sign-in (its display title is kept). To make the change stick, remove or change OWNER_EMAIL in the Worker variables.'
-        : null;
-      const outMember = (target.id === user.id) ? selfMemberPayload(target, env) : memberPayload(target, env);
+      /* Honest note, not a block: the saved role STICKS everywhere now; the
+  lockout backstop can restore owner only if no team manager would remain. */
+  const note = normalizeEmail(target.email) === ownerEmail(env) && parsed.role !== 'owner'
+    ? 'Saved. The saved role now sticks for every mailbox. One safety exception: if this workspace is ever left with no owner and no elevated account, the OWNER_EMAIL mailbox is restored on its next sign-in so nobody is locked out of team management.'
+    : null;
+      /* This route is owner / designated-admin gated, so the returned row keeps
+         its sign-in times and never drifts from the team list's shape. */
+      const outMember = (target.id === user.id) ? selfMemberPayload(target, env) : memberPayload(target, env, undefined, { signin: true });
       return json({ member: outMember, note });
+    }
+
+    /* Removing a member — owner or designated admin only.
+
+       What goes: the account row, every session it holds, its provider
+       sign-in links and its failed-sign-in throttle, plus everything it owns
+       (customers, proposals and their versions/links/sends, tasks,
+       notifications and gallery uploads) — the schema declares ON DELETE
+       CASCADE on all of them, so one statement removes the set rather than
+       leaving orphaned rows behind. auth_throttles is keyed by scope instead
+       of by user id, and gallery.created_by is SET NULL, so those two are
+       handled explicitly.
+
+       What does NOT go: three rows are unreachable — your own, the
+       OWNER_EMAIL backstop, and an elevated row unless the designated admin
+       is removing it. Each answers with the same shape as its neighbours, so
+       a refusal never discloses which of the three it hit.
+
+       This is irreversible from the product, so the counts are returned and
+       the confirmation dialog reads them out loud BEFORE the request is sent. */
+    /* ---- the heart on the member card: ONE vote per member per member ----
+       Anyone signed in may press it — it is a count of clicks and decides
+       nothing — but the composite PRIMARY KEY is what makes it exactly one:
+       an insert for an already-voted pair is refused by SQLite, so a double
+       click or a replayed request cannot inflate the counter. The route is a
+       TOGGLE, so the front end sends the same POST either way and the reply
+       says which state it landed in. */
+    if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts[3] === 'like' && method === 'POST') {
+      const targetId = String(parts[2]);
+      const target = await one(db, 'SELECT id FROM users WHERE id = ?', targetId);
+      if (!target) return json({ error: 'User not found' }, 404);
+      let liked;
+      try {
+        const existing = await one(
+          db, 'SELECT liker_id FROM member_likes WHERE liker_id = ? AND target_id = ?', user.id, targetId
+        );
+        if (existing) {
+          await run(db, 'DELETE FROM member_likes WHERE liker_id = ? AND target_id = ?', user.id, targetId);
+          liked = false;
+        } else {
+          await run(db, 'INSERT INTO member_likes (liker_id, target_id, created_at) VALUES (?, ?, ?)',
+            user.id, targetId, nowISO());
+          liked = true;
+        }
+      } catch (e) {
+        /* 007 not applied yet: say so plainly rather than pretending it counted. */
+        return json({ error: 'Kudos are not available on this workspace yet.' }, 503);
+      }
+      const c = await one(db, 'SELECT COUNT(*) AS n FROM member_likes WHERE target_id = ?', targetId);
+      return json({ ok: true, likes: Number((c && c.n) || 0), likedByMe: liked });
+    }
+
+    if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts.length === 3 && method === 'DELETE') {
+      if (!canAdmin) return json({ error: 'Only the workspace owner can remove members.' }, 403);
+      const target = await one(db, 'SELECT * FROM users WHERE id = ?', String(parts[2]));
+      if (!target) return json({ error: 'User not found' }, 404);
+      if (target.id === user.id) {
+        return json({ error: 'You cannot remove the account you are signed in with.' }, 403);
+      }
+      if (ownerEmail(env) && normalizeEmail(target.email) === ownerEmail(env)) {
+        return json({
+          error: 'This mailbox is the workspace OWNER_EMAIL, so it cannot be removed. Change or remove that Worker variable first.'
+        }, 403);
+      }
+      if (isAdminRow(target) && !canElevate(user, env)) {
+        return json({ error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' }, 403);
+      }
+      const countOwned = async (table, column) => {
+        const r = await one(db, 'SELECT COUNT(*) AS n FROM ' + table + ' WHERE ' + column + ' = ?', target.id);
+        return Number((r && r.n) || 0);
+      };
+      const owned = {
+        proposals: await countOwned('proposals', 'owner_id'),
+        customers: await countOwned('customers', 'owner_id'),
+        tasks: await countOwned('tasks', 'owner_id'),
+        notifications: await countOwned('notifications', 'owner_id'),
+        galleryUploads: await countOwned('gallery', 'created_by'),
+        sessions: await countOwned('sessions', 'user_id')
+      };
+      await ensureAuthThrottle(db);
+      await run(db, 'DELETE FROM auth_throttles WHERE scope = ?', 'email:' + normalizeEmail(target.email));
+      /* Kudos rows point both ways — the ones this member gave and the ones it
+         received — and only the team list reads them, so they go with the
+         account instead of surviving as a count of a ghost. */
+      try {
+        await run(db, 'DELETE FROM member_likes WHERE liker_id = ? OR target_id = ?', target.id, target.id);
+      } catch (e) {
+        /* 007 not applied: there is nothing to purge. */
+      }
+      await run(db, 'DELETE FROM gallery WHERE created_by = ?', target.id);
+      /* Sessions are auth artefacts, not business records, so they go with the
+         account. The counts above were taken first, so the response still
+         reports how many there were. requireUser already refuses a deleted
+         member (its user lookup returns nothing), so this is hygiene rather
+         than a security fix — but a live session has no business outliving the
+         person it belongs to. */
+      await run(db, 'DELETE FROM sessions WHERE user_id = ?', target.id);
+      /* password_resets too — the local server already drops them (server.js),
+         so the Worker must not be the one that keeps them. */
+      try {
+        await run(db, 'DELETE FROM password_resets WHERE user_id = ?', target.id);
+      } catch (e) {
+        /* Table not present: nothing to purge. */
+      }
+      const removed = await run(db, 'DELETE FROM users WHERE id = ?', target.id);
+      if (!removed.meta || removed.meta.changes === 0) return json({ error: 'User not found' }, 404);
+      return json({ ok: true, removed: Object.assign({ email: target.email, name: target.name }, owned) });
     }
 
     return json({ error: 'Unknown API route' }, 404);
   } catch (err) {
-    const status = err && err.status ? err.status : 500;
-    return json({ error: (err && err.message) || 'Server error' }, status);
+    /* The status is CLAMPED, and the clamp is the whole point. This catch is
+       the last line of defence: if constructing its own Response were to throw,
+       nothing downstream could recover and the browser would get Cloudflare's
+       bare 502 with no JSON body — the "Request failed (502)" the dashboard
+       shows. A thrown error may carry a `.status` that is not a legal HTTP
+       status at all (a string, a float, an out-of-range value), and
+       `new Response()` rejects every one of those with a RangeError. Anything
+       that is not an integer in 400..599 becomes a 500 instead. */
+    const raw = Number(err && err.status);
+    const status = (Number.isInteger(raw) && raw >= 400 && raw <= 599) ? raw : 500;
+    try {
+      return json({ error: (err && err.message) || 'Server error' }, status);
+    } catch (_) {
+      /* Even this response can fail: JSON.stringify refuses a circular
+         structure or a BigInt, so building the error body throws for exactly
+         the payloads most likely to be broken. A body made of literals cannot
+         throw, and 500 beats Cloudflare's bare 502. */
+      return new Response('{"error":"Server error","code":"RESPONSE_FAILED"}', {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store',
+          'X-Content-Type-Options': 'nosniff'
+        }
+      });
+    }
   }
 }
 
 /* ---------- fetch handler ---------- */
-export default {
-  async fetch(request, env, ctx) {
+async function serve(request, env, ctx) {
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') {
@@ -2362,7 +3770,7 @@ export default {
       if (origin) {
         try {
           const o = new URL(origin);
-          if (o.host === url.host) {
+          if (o.host === url.host || o.host.toLowerCase() === allowedAppHost(env)) {
             headers['Access-Control-Allow-Origin'] = origin;
             headers['Access-Control-Allow-Credentials'] = 'true';
           }
@@ -2372,7 +3780,11 @@ export default {
     }
 
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-      return handleApi(request, env, url);
+      /* `ctx` is not decoration: password recovery schedules its SMTP send with
+         ctx.waitUntil so the reply can leave before the network round-trip.
+         Without the parameter that call throws — but only once a mailbox is
+         actually configured, because the config gate sits in front of it. */
+      return handleApi(request, env, url, ctx);
     }
 
     /* Static assets from Workers Assets (./public via wrangler [assets]).
@@ -2427,5 +3839,59 @@ export default {
       '</body></html>',
       { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
     );
+}
+
+/* A response for anything that escaped `serve`.
+   Built from literals and never from the offending object: a body that tried
+   to render the error could throw again and hand the problem straight back to
+   Cloudflare, which is the outcome this whole wrapper exists to prevent. */
+function workerEscape(request, err) {
+  let isApi = false;
+  try {
+    const u = new URL(request.url);
+    isApi = u.pathname === '/api' || u.pathname.startsWith('/api/');
+  } catch (_) { /* the URL itself was the thing that broke */ }
+  const headers = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' };
+  if (isApi) {
+    return new Response('{"error":"Server error","code":"WORKER_ERROR"}', {
+      status: 500,
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
+    });
+  }
+  return new Response(
+    '<!DOCTYPE html><html><body style="font-family:system-ui;padding:2rem;background:#111;color:#eee">' +
+    '<h1>Something went wrong</h1>' +
+    '<p>Reload the page. If this keeps happening, quote the error code <code>WORKER_ERROR</code>.</p>' +
+    '</body></html>',
+    { status: 500, headers }
+  );
+}
+
+/* THE GUARD AGAINST 502.
+   An exception that escapes this handler does not become a 500 — Cloudflare
+   catches it at the edge and answers with their bare 502 ("Error 1101:
+   Worker threw exception"), which the dashboard renders as "Request failed
+   (502)" with no status, no body and nothing to act on. Every earlier defence
+   closes one specific hole: the awaited OAuth and phone calls route their
+   rejections into handleApi's catch, the status clamp keeps a bad err.status
+   from turning that catch into a RangeError, and the literal-body fallback
+   keeps JSON.stringify from doing the same. Those are all fixes for known
+   paths. This is the property that covers the paths nobody has hit yet —
+   `getDb` and `bindingNames` sit outside handleApi's own try, the assets
+   block has no handler of its own, and any future line can throw. Nothing
+   below is allowed to reject; a bug degrades to a readable 500. */
+export default {
+  async fetch(request, env, ctx) {
+    try {
+      return await serve(request, env, ctx);
+    } catch (err) {
+      return workerEscape(request, err);
+    }
   }
 };
+
+/* Named exports for the mail test. The recovery message has to be inspectable
+   without opening a socket: "it is on the wire somewhere" is not proof that
+   the Date and Message-ID are in it, and those two are what put the code in
+   Spam when they are missing. */
+export { buildMailMessage, htmlToText, recoveryEmailHtml, inlineLogo };

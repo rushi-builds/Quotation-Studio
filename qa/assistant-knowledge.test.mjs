@@ -46,7 +46,7 @@ test('history is bounded untrusted text; no server system messages or private ar
 test('full repo coverage: brands, battery sources, add-ons, warranty/scope and subsidy code',()=>{
  const modules=JSON.stringify(knowledge.equipment.modules),inverters=JSON.stringify(knowledge.equipment.inverters);
  for(const brand of ['Waaree','Panasonic','Adani','Premier','Vikram'])assert.ok(modules.includes(brand));
- for(const brand of ['Sungrow','Fronius','Deye','Growatt','Luminous'])assert.ok(inverters.includes(brand));
+ for(const brand of ['Sungrow','Fronius','Huawei','Growatt'])assert.ok(inverters.includes(brand));
  assert.equal(knowledge.storage.models.length,5);assert.equal(knowledge.storage.models[0].rated,4.8);assert.ok(knowledge.storage.models.every(m=>m.source&&m.edition));
  for(const key of ['zero','monitoring','ev','pfc','dg'])assert.ok(knowledge.additionalSystems[key]);
  assert.match(knowledge.methods.subsidy,/78000/);assert.match(knowledge.methods.engineeringBasis,/IS 875/);
@@ -55,7 +55,10 @@ test('full repo coverage: brands, battery sources, add-ons, warranty/scope and s
 test('equipment details and GST follow chosen preset, not a universal brand recommendation',()=>{
  const a=inspectStudio({basis:'auto',capacityKwp:3,topics:['equipment','tax']},empty);
  assert.equal(a.equipment.selected.moduleMake,'Premier Energies');assert.equal(a.equipment.selected.inverterMake,'Growatt');assert.equal(a.equipment.moduleCount,6);assert.equal(a.equipment.installedKwp,3.27);assert.equal(a.tax.gstPercent,'8.9');
- assert.equal(a.equipment.selected.moduleVoc,'');assert.match(a.equipment.limits,/not specified/);
+ assert.equal(a.equipment.selected.moduleVoc,'49.76');
+ assert.ok(knowledge.equipment.modules.some((m)=>m.make==='Premier Energies'&&m.wp===545&&String(m.voc)==='49.76'),
+  'reported Voc comes from the real catalogue row, not an invented value');
+ assert.match(a.equipment.limits,/not specified/);
  const b=inspectStudio({basis:'auto',capacityKwp:5,topics:['equipment']},empty);assert.equal(b.equipment.selected.inverterMake,'Deye');
 });
 test('subsidy is installed-capacity based, customer-type aware and works without pricing',()=>{
@@ -78,7 +81,11 @@ test('current/saved equipment and browser catalogue are used without leaking unr
 test('battery, engineering and commercial details use actual engines and preserve unknowns',()=>{
  const currentStudio={...knowledge.defaults,bessEnabled:true,bessSpecMode:'manual',bessCapacity:'10',bessDod:'90',bessDischargeEff:'90',bessPower:'5',bessLoad:'2',bessCoupling:'ac',bessInverter:'Confirmed interface',bessBackupReady:'yes',bessCost:''};
  const r=inspectStudio({basis:'current',topics:['battery','engineering','financial','scope','warranty']},{...empty,currentStudio});
- assert.equal(r.battery.assessment.backupHours,4.05);assert.equal(r.battery.assessment.cost,null);assert.ok(!r.engineering.report.string.ok);assert.match(r.document.warning,/templates/);assert.equal(r.solar.payments.sumPct,100);
+ assert.equal(r.battery.assessment.backupHours,4.05);assert.equal(r.battery.assessment.cost,null);
+ assert.equal(r.engineering.report.string.ok,true);
+ assert.equal(r.engineering.report.cable.ok,false);assert.equal(r.engineering.report.earthing.ok,false);
+ assert.equal(r.engineering.report.blocking.length,0);
+ assert.match(r.document.warning,/templates/);assert.equal(r.solar.payments.sumPct,100);
  const missing=inspectStudio({basis:'current',topics:['battery']},{...empty,currentStudio:{...currentStudio,bessDischargeEff:'',costPerWp:'',bessCost:'60000'}});
  assert.equal(missing.battery.assessment.backupHours,null);assert.equal(missing.battery.assessment.combined,null);assert.ok(missing.battery.assessment.missing.length>0);
 });

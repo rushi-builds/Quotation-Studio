@@ -16,24 +16,29 @@
      - the migration file and schema.sql agree on the column
      - the frozen calculation / pricing / finance / export files are untouched
 
-   Run: node roles-parity.test.js */
+   Run: node roles-parity.test.js
+   C5 builds fresh public assets in an isolated temp workspace using the real
+   sync-public.js. No prerequisite build, cached public/ or tracked mirrors. */
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
+const guard = require('./pr-scope-guard.cjs');
+const { buildPublic, publicParity } = require('./public-package.cjs');
+
 const ROOT = path.join(__dirname, '..');
 const WORKER = path.join(ROOT, 'platform/cloudflare/src/worker.js');
 const SERVER = path.join(ROOT, 'platform/local-server/server.js');
 const DASH = path.join(ROOT, 'assets/js/dashboard.js');
-const DASH_PUB = path.join(ROOT, 'platform/cloudflare/public/assets/js/dashboard.js');
 const DASH_HOME = path.join(ROOT, 'assets/js/dashboard-home.js');
 const CSS = path.join(ROOT, 'assets/css/dashboard.css');
 const HTML = path.join(ROOT, 'dashboard.html');
 const MIGRATION = path.join(ROOT, 'platform/migrations/005-is-admin.sql');
 const VERIFY_SQL = path.join(ROOT, 'platform/migrations/005-is-admin-verify.sql');
 const SCHEMA = path.join(ROOT, 'platform/schema.sql');
+const OAUTH = path.join(ROOT, 'platform/cloudflare/src/oauth.mjs');
 
 let pass = 0, fail = 0;
 const t = (name, cond, extra) => {
@@ -132,9 +137,16 @@ for (const [label, src] of BOTH) {
 /* ---------- 2. elevation overrides at exactly ONE place per backend ---------- */
 for (const [label, src] of BOTH) {
   const env = label === 'worker' ? ', env' : '';
-  t(label + ': permissionRole returns \'admin\' for an elevated OR designated row',
-    new RegExp("function permissionRole\\(user" + env + "\\) \\{\\s*\\n\\s*if \\(isAdminRow\\(user\\) \\|\\| isHiddenAdmin\\(user" + env + "\\)\\) return 'admin';").test(src),
+  /* POWER follows the ROLE: only a row that has actually been elevated ranks
+     above the rest. The ADMIN_EMAIL address returns NO rank here at all — it
+     only decides who MAY type "admin" (canElevate) — so this assertion is the
+     machine-checked form of "the mailbox is not power". */
+  t(label + ': permissionRole returns \'admin\' for an elevated row ONLY (the address grants no rank)',
+    new RegExp("function permissionRole\\(user" + env + "\\) \\{\\s*\\n\\s*if \\(isAdminRow\\(user\\)\\) return 'admin';").test(src),
     fn(src, 'permissionRole', ['roleRank', 'canManageTeam']).slice(0, 160));
+  t(label + ': the mailbox still only decides who MAY type admin (canElevate keeps isHiddenAdmin)',
+    new RegExp("function canElevate\\(user" + env + "\\) \\{\\s*\\n\\s*return isHiddenAdmin\\(user" + env + "\\);").test(src),
+    fn(src, 'canElevate', ['permissionRole', 'seesAll']).slice(0, 160));
   t(label + ': isAdminRow is the single stored-flag reader',
     /function isAdminRow\(user\) \{\s*\n\s*return Number\(\(user && user\.is_admin\) \|\| 0\) === 1;/.test(src));
   t(label + ': roleRank puts admin ABOVE owner',
@@ -183,7 +195,7 @@ for (const [label, src] of BOTH) {
     !/role_custom = 'Founder'/.test(src) && !/role_custom = ''/.test(src));
   const boot = fn(src, 'applyOwnerBootstrap', ['createSession', 'requireUser', 'revokeUserSessions']);
   t(label + ': applyOwnerBootstrap only promotes the OWNER_EMAIL row',
-    /ensureBootstrapOwner\(db, env, user\);|return applyBootstrapOwner\(user\);/.test(boot) && boot.split('\n').length < 12,
+    /ensureBootstrapOwner\(db, env, user\);|return applyBootstrapOwner\(user(, db)?\);/.test(boot) && boot.split('\n').length < 12,
     boot.slice(0, 220));
   t(label + ': the removal is documented in the source so it is not "fixed" back in',
     /deliberately NO automatic demotion/.test(src));
@@ -193,7 +205,7 @@ for (const [label, src] of BOTH) {
   t(label + ': adminOwnerConflict survives as a config diagnostic', /function adminOwnerConflict/.test(src));
 }
 
-/* ---------- 4. C2: the owner bootstrap is unconditional ---------- */
+/* ---------- 4. C2: the owner bootstrap is a lockout backstop ---------- */
 const bootW = fn(worker, 'ensureBootstrapOwner', ['healAdminRow']);
 const bootS = fn(server, 'applyBootstrapOwner', ['healAdminRow']);
 t('C2 worker: bootstrap matches on OWNER_EMAIL', /ownerEmail\(env\)/.test(bootW));
@@ -202,10 +214,14 @@ t('C2 worker: bootstrap PRESERVES the title on promotion (no role_custom = NULL)
   !/role_custom = NULL/.test(bootW) && /SET role = \?, updated_at = \?/.test(bootW));
 t('C2 server: bootstrap has NO typed-title gate', !/if \(user\.role_custom\)/.test(bootS) && !/role_custom\) return/.test(bootS));
 t('C2 server: bootstrap PRESERVES the title (no role_custom = null)', !/role_custom = null/.test(bootS));
+  t('C2b worker: the bootstrap promotes ONLY as a lockout backstop (fires only when zero owner/elevated rows remain)',
+    /WHERE role = 'owner' OR is_admin = 1/.test(bootW));
+  t('C2b server: the bootstrap promotes ONLY as a lockout backstop',
+    /Number\(u\.is_admin\) === 1/.test(bootS) && /u\.role === 'owner' \|\| Number\(u\.is_admin\) === 1/.test(bootS));
 t('worker: the bootstrap is the only transition applyOwnerBootstrap performs',
   /async function applyOwnerBootstrap\(db, env, user\) \{\s*\n\s*await ensureBootstrapOwner\(db, env, user\);\s*\n\s*\}/.test(worker));
 t('server: the bootstrap is the only transition applyOwnerBootstrap performs',
-  /function applyOwnerBootstrap\(user\) \{\s*\n\s*return applyBootstrapOwner\(user\);\s*\n\s*\}/.test(server));
+  /function applyOwnerBootstrap\(user, db\) \{\s*\n\s*return applyBootstrapOwner\(user, db\);\s*\n\s*\}/.test(server));
 
 /* ---------- 5. setTeamRole: the elevation path, identical in both ---------- */
 for (const [label, src] of BOTH) {
@@ -262,8 +278,8 @@ for (const [label, src] of BOTH) {
     /Object\.assign\(memberPayload\(/.test(smp));
   t('S1 ' + label + ': roleDisplay never produces the literal "Admin"',
     !/return\s+'Admin'|roleLabel:\s*'Admin'|=\s*'Admin'/.test(src));
-  t('S1 ' + label + ': roleDisplay still prefers the typed title',
-    /if \(u\.role_custom\) return String\(u\.role_custom\);/.test(src));
+  t('S1 ' + label + ': roleDisplay still prefers the typed title, for owner/custom only',
+    /if \(u\.role_custom && \(r === 'owner' \|\| r === 'custom'\)\) return String\(u\.role_custom\);/.test(src));
 }
 /* The team routes must actually use the split. */
 for (const [label, src] of BOTH) {
@@ -271,8 +287,8 @@ for (const [label, src] of BOTH) {
   const listBody = list.slice(0, list.indexOf("'team' && parts[1] === 'role'"));
   t('S2 ' + label + ': the team list picks selfMemberPayload only for the actor',
     /u\.id === user\.id/.test(listBody) && /selfMemberPayload\(/.test(listBody) && /memberPayload\(/.test(listBody));
-  t('S2 ' + label + ': other rows get contact detail only for a manager',
-    /contact: canAdmin/.test(listBody));
+  t('team ' + label + ': every member\'s row carries contact detail (the eye opens the same card for all)',
+    /contact: true/.test(listBody) && !/contact: canAdmin/.test(listBody));
   t('item 5 ' + label + ': every member may READ the team panel (no canAdmin gate on GET)',
     !/if \(!canAdmin\)/.test(listBody), (listBody.match(/.{0,60}canAdmin.{0,60}/) || [''])[0]);
   t('item 5 ' + label + ': the response tells the actor whether it manages the team',
@@ -331,6 +347,33 @@ t('schema.sql declares the same column with the same shape',
   (schema.match(/[^\n]*is_admin[^\n]*/) || [''])[0]);
 t('schema.sql does not add "admin" as a role value', !/role[^\n]*admin/i.test(schema.replace(/--[^\n]*/g, '')));
 
+/* ---------- 8b. migration 006: two additive display columns ---------- */
+const mig6 = fs.readFileSync(path.join(ROOT, 'platform/migrations/006-profile-info.sql'), 'utf8');
+/* Comments first, then split: a sentence in the header legitimately contains a
+   semicolon, and splitting before stripping would tear an ALTER in half. */
+const mig6Statements = mig6.replace(/--[^\n]*/g, '').split(';').map((x) => x.trim()).filter(Boolean);
+t('migration 006 contains exactly TWO statements', mig6Statements.length === 2,
+  mig6Statements.length + ': ' + JSON.stringify(mig6Statements));
+t('migration 006 is the expected additive ALTER TABLE pair',
+  mig6Statements[0] === "ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT ''" &&
+  mig6Statements[1] === 'ALTER TABLE users ADD COLUMN profile_done INTEGER NOT NULL DEFAULT 0',
+  JSON.stringify(mig6Statements));
+t('migration 006 adds columns only — no elevation, no role write, no other table',
+  !/DROP|CREATE TABLE|UPDATE|DELETE|INSERT|is_admin/i.test(mig6Statements.join(' ')),
+  mig6Statements.join(' | '));
+t('migration 006 tells the operator to back up first', /back\s*up|backup/i.test(mig6));
+t('migration 006 documents the harmless re-run (SQLite has no IF NOT EXISTS for columns)',
+  /duplicate column name/i.test(mig6));
+t('migration 006 documents rollback', /rollback|roll back/i.test(mig6));
+const usersBlock = schema.slice(
+  schema.indexOf('CREATE TABLE IF NOT EXISTS users'),
+  schema.indexOf('CREATE TABLE IF NOT EXISTS password_resets')
+);
+t('schema.sql declares both new columns inside the users table',
+  /phone\s+TEXT NOT NULL DEFAULT ''/.test(usersBlock) &&
+  /profile_done\s+INTEGER NOT NULL DEFAULT 0/.test(usersBlock),
+  (usersBlock.match(/[^\n]*(?:phone|profile_done)[^\n]*/) || [''])[0]);
+
 /* ---------- 9. front-end stealth ---------- */
 const adminLiterals = (dash.match(/textContent = 'Admin'|>\s*Admin\s*</g) || []).length;
 t('dashboard.js never renders "Admin" as a role option (elevation is a typed title)',
@@ -367,12 +410,22 @@ t('dashboard.js: no name-plate reader consults elevation',
 t('css: the elevation hint and read-only rows are styled',
   /#roleEditor \.role-hint/.test(fs.readFileSync(CSS, 'utf8')) && /team-readonly/.test(fs.readFileSync(CSS, 'utf8')));
 
-/* ---------- 10. C5: the deployed copy matches the repo root ---------- */
-t('C5: platform/cloudflare/public exists', fs.existsSync(path.join(ROOT, 'platform/cloudflare/public')));
-for (const [rel, rootFile] of [['assets/js/dashboard.js', DASH], ['assets/css/dashboard.css', CSS], ['dashboard.html', HTML]]) {
-  const pub = path.join(ROOT, 'platform/cloudflare/public', rel);
-  t('C5: public/' + rel + ' is byte-identical to the root copy',
-    fs.existsSync(pub) && fs.readFileSync(pub, 'utf8') === fs.readFileSync(rootFile, 'utf8'));
+/* ---------- 10. C5: freshly built assets match the source checkout ---------- */
+/* A cached public/ folder is neither source nor evidence of deployed bytes.
+   Do not silently repair that cache or force generated files into Git. Build
+   through the actual packager, then retain strict byte comparisons; a broken
+   copy/missing asset still fails. Production deployment is NOT tested here. */
+let packaged;
+try {
+  packaged = buildPublic(ROOT);
+  t('C5: production packager creates a fresh isolated public artifact', fs.existsSync(packaged.publicRoot));
+  for (const entry of publicParity(ROOT, packaged.publicRoot)) {
+    t('C5: built public/' + entry.file + ' is byte-identical to the source copy', entry.ok);
+  }
+} catch (error) {
+  t('C5: isolated production packaging succeeds', false, error.message);
+} finally {
+  if (packaged) packaged.cleanup();
 }
 
 /* ---------- 11. C4 + item 5: every owner-scoped SQL site is rewritten and bound right ---------- */
@@ -407,7 +460,7 @@ t('worker: per-request scope is declared at the staff gate',
 /* Exactly ONE raw filter may remain: the token-based portal query, which has no
    user context and is deliberately excluded (C4). */
 t('worker: only the excluded portal query keeps a raw owner_id filter', rawLeft === 1, rawLeft + ' raw owner_id = ? remain');
-t('worker: 52 owner-scoped queries rewritten', scopeSites === 52, scopeSites);
+t('worker: 55 owner-scoped queries rewritten', scopeSites === 55, scopeSites);
 t('worker: all rewritten queries bind scope + user.id correctly', badBinds.length === 0, JSON.stringify(badBinds.slice(0, 5)));
 
 const portalFn = worker.slice(worker.indexOf('async function notifyFromPortalEvent'));
@@ -417,10 +470,10 @@ t('C4: portal query has NO scope guard', !portalBody.includes('OWN_SCOPE'));
 t('C4: portal function has no user/env in scope', !/\(db, ev, (user|env)/.test(portalBody) && /function notifyFromPortalEvent\(db, ev\)/.test(portalBody));
 
 /* ---------- 12. server.js in-memory parity ---------- */
-/* 47 call sites, plus the one occurrence inside the inScope() definition
+/* 49 call sites, plus the one occurrence inside the inScope() definition
    itself (`row.owner_id === scope`), which is not a call site. */
 const inScopeCount = (server.match(/inScope\(scope, /g) || []).length - 1;
-t('server: 47 staff ownership tests routed through inScope', inScopeCount === 47, inScopeCount);
+t('server: 49 staff ownership tests routed through inScope', inScopeCount === 49, inScopeCount);
 t('server: no raw `owner_id === user.id` staff filter left', !/owner_id === user\.id/.test(server));
 t('server: per-request scope declared at the staff gate', /const scope = scopeOf\(user\);/.test(server));
 t('server: token-context owner_id untouched', (server.match(/owner_id: tok\.owner_id/g) || []).length === 3);
@@ -446,28 +499,302 @@ for (const [label, src] of BOTH) {
   t(label + ': parseRoleTitle never mentions admin', !/admin/i.test(pr));
 }
 
-/* ---------- 14. frozen files: this patch must not touch them ---------- */
-let frozen = [];
-try {
-  const out = execFileSync('git', ['diff', '--name-only', 'origin/main'], { cwd: ROOT, encoding: 'utf8' });
-  const changed = out.split('\n').filter(Boolean);
-  const FROZEN = /assets\/js\/(finance|export|render|bess|additional-systems|storage-catalog|model|salutation|supplement-design)\.js$|^quotation\.html$/;
-  frozen = changed.filter((f) => FROZEN.test(f));
-  t('FROZEN calc/pricing/finance/export files untouched', frozen.length === 0, frozen.join(', '));
-  t('phone button + Firebase untouched', !changed.some((f) => /phone/i.test(f)));
-  t('wrangler config / zone / NS untouched', !changed.some((f) => /wrangler|vercel\.json/.test(f)));
-  /* Allowlist of files this round may touch. Anything outside it means the
-     patch wandered - notably into the frozen calculation/finance/export set,
-     the phone/Firebase code, or a deploy config. platform/migrations is
-     included because the elevation flag is a deliberate, single-column
-     migration and nothing else in that directory may change. */
-  const ALLOWED = /^(platform\/cloudflare\/src\/worker\.js|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/005-is-admin(-verify)?\.sql|assets\/js\/(dashboard|dashboard-home|platform-api|cloud-bridge)\.js|assets\/css\/dashboard\.css|dashboard\.html|qa\/[^/]+|docs\/[^/]+\.md)$/;
-  t('changed files are the intended set', changed.every((f) => ALLOWED.test(f)),
-    changed.filter((f) => !ALLOWED.test(f)).join(', '));
-  t('no earlier migration was modified', !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin/.test(f)),
+/* ---------- 14. patch scope and frozen baselines (correct comparison base) ---------- */
+/* Rebuilt 2026-10-23 after the verification round; sharpened the same day
+   after the exact-head review probes found two false passes in the draft:
+     - rename detection kept only a rename's destination, which could hide a
+       committed `git mv vercel.json qa/…` deletion (guard now diffs with
+       --no-renames, NUL-delimited, so BOTH ends are on the books);
+     - a worktree restoration of a BASE copy could mask a committed
+       violation (the scope is now an explicit BASE→HEAD committed-tree
+       diff; worktree dirt is reported separately and is never an input to
+       the verdict).
+   Semantics here, all unchanged since the rebuild:
+
+     - frozen guarantee: the family is pinned by BLOB HASH to the owner's
+       golden tree 8cc7db1; deletion counts; main's drifting state is
+       irrelevant;
+     - deploy configs are detected with NO broad exception - any
+       wrangler config or vercel.json change, rename or deletion inside the committed
+       patch scope fails, historical allowances included;
+     - allowlist is NOT widened;
+     - negative proof lives in qa/pr-scope.test.cjs (renames, deletions,
+       worktree masks, mutation traps). */
+{
+  const base = guard.resolveBase(ROOT);
+  t('patch-scope comparison base resolves (line-tip or explicit QS_PR_BASE)', !!base && !!base.ref, JSON.stringify(base));
+  const changed = guard.changedFiles(ROOT, base && base.ref) || [];
+  const frozen = guard.frozenTouches(changed);
+  const bl = guard.baselineMatch(ROOT);
+  const blBad = bl.filter((b) => !b.ok);
+  t('FROZEN calc/pricing family byte-identical to golden base ' + guard.GOLDEN_BASE_REF,
+    blBad.length === 0 && bl.length === guard.FROZEN_FILES.length, JSON.stringify(blBad));
+  t('FROZEN calc/pricing/finance/export files untouched (committed BASE→HEAD scope, base ' + (base ? base.ref.slice(0, 10) : '?') + ' [' + (base ? base.from : '?') + '])',
+    frozen.length === 0, frozen.join(', '));
+  /* Owner decision (2026-10-10): the Google, Phone and Microsoft buttons were
+     removed from index.html, leaving the built-in email/password flow as the
+     only sign-in path. What must stay untouched is everything behind them -
+     phone-auth.js, the Firebase wiring and src/phone.mjs - so phone sign-in
+     can be restored without a rewrite. src/phone.mjs carries the same
+     one-line Workers-fetch fix as src/oauth.mjs: redirect:'error' is not a
+     legal value on Workers, so the token exchange threw before sending a
+     single byte (the dormant copy of the bug that broke Google sign-in). */
+  t('phone-auth.js + Firebase untouched (buttons removed by owner)',
+    !changed.some((f) => /firebase/i.test(f) || /phone-auth\.js$/.test(f)) &&
+    !changed.some((f) => /phone/i.test(f) && f !== 'platform/cloudflare/src/phone.mjs'),
+    changed.filter((f) => /phone|firebase/i.test(f)).join(', '));
+  /* No exceptions live here any more: wrangler.toml's old D1 fix (migration
+     006, eca230f's vercel retarget) already landed in the line; from this
+     base onward, ANY deploy-config edit is a violation a review must
+     explicitly re-allow. Negative coverage in qa/pr-scope.test.cjs. */
+  const deployTouched = guard.deployConfigTouches(changed);
+  t('deploy config untouched (committed BASE→HEAD scope; any wrangler*/vercel.json change, rename or deletion fails; no broad exception)',
+    deployTouched.length === 0, deployTouched.join(', '));
+  /* Allowlist of files the reconciled line (arena + catalogue-sync merge) may
+     touch - with four exact owner-requested Connections UI paths. The base
+     is the patch's own, so previously merged work is not a patch violation. */
+  const unintended = guard.scopeOffenders(changed);
+  t('changed files are the intended set (committed BASE→HEAD scope, allowlist unwidened)',
+    unintended.length === 0, unintended.join(', '));
+  const migrationStatus=new Map(guard.git(ROOT,['diff','--no-renames','--name-status',base.ref,'HEAD']).trim().split('\n').filter(Boolean).map(line=>{const [status,file]=line.split('\t');return [file,status];}));
+  t('no earlier migration was modified',
+    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-catalogue|006-profile-info|007-site-geo|007-member-links-likes|008-member-custom-link|009-recovery-resend|010-excel-product-catalog/.test(f) && !guard.newAccessMigration(f,migrationStatus.get(f))),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
-} catch (e) {
-  t('git diff available to check the frozen list', false, e.message);
+}
+
+/* ---------- 15. team profile round: the two backends agree ----------
+   qa/team-profile.test.js proves the behaviour end to end on the local
+   server; this proves the Worker ships the same contract, since running a
+   Worker here needs wrangler. */
+{
+  const both = (needle, label) =>
+    t(label, worker.includes(needle) && server.includes(needle), needle);
+
+  both("phone: u.phone || ''", 'parity: /me emits the contact number in both backends');
+  both('profileDone: Number(u.profile_done || 0) === 1', 'parity: /me emits the profile-nudge flag in both backends');
+  both("...(o.contact ? { phone: u.phone || '' } : {}),",
+    'parity: the contact number rides the same per-row opt-in as the address, in both backends');
+  both("parts[2] && parts.length === 3 && method === 'DELETE'",
+    'parity: both expose DELETE /api/team/members/:id');
+  both('Only the workspace owner can remove members.', 'parity: both gate removal behind the owner gate');
+  both('You cannot remove the account you are signed in with.', 'parity: both refuse your own row');
+  both('This mailbox is the workspace OWNER_EMAIL, so it cannot be removed.',
+    'parity: both refuse the OWNER_EMAIL backstop row');
+  both('ELEVATION_FORBIDDEN', 'parity: both refuse an elevated row with the uniform refusal');
+  both("'auth' && parts[1] === 'profile' && method === 'POST'",
+    'parity: both expose the profile save route');
+  both("custom: u.custom_url || ''",
+    'parity: both publish the custom link on the same payload shape');
+  both('That does not look like a link. Start it with https://',
+    'parity: both refuse a custom link that is not an http(s) URL');
+  both('.custom_url = next.custom',
+    'parity: both persist the custom link');
+
+  /* The one SQL statement that decides what a self-service profile edit can
+     ever write, asserted as a whole string so a future column cannot slip
+     into it without failing here first. */
+  const profileSql = ((worker.match(/UPDATE users SET name = \?[^\n`]*/) || [''])[0] || '').trim();
+  t('worker: the profile UPDATE is exactly the seven display columns',
+    profileSql === 'UPDATE users SET name = ?, phone = ?, role_custom = ?, instagram_url = ?, linkedin_url = ?, custom_url = ?, profile_done = 1, updated_at = ? WHERE id = ?',
+    profileSql);
+  t('worker: the profile UPDATE carries no permission column',
+    !/(?:^|,)\s*(?:role|is_admin)\s*=/.test(profileSql), profileSql);
+  /* The kudos toggle is a click counter and must never look like a write to
+     permission. Asserted on both backends so neither can drift into using it. */
+  t('both: the member kudos toggle route exists in worker and server',
+    /parts\[3\] === 'like'/.test(worker) && /parts\[3\] === 'like'/.test(server),
+    (/parts\[3\] === 'like'/.test(worker) ? 'worker:found' : 'worker:MISSING') + ' ' +
+    (/parts\[3\] === 'like'/.test(server) ? 'server:found' : 'server:MISSING'));
+  t('neither backend grants anything from member_likes',
+    !/(?:role|is_admin|canManageTeam|permissionRole)[^\n]{0,80}member_likes/.test(worker) &&
+    !/(?:role|is_admin|canManageTeam|permissionRole)[^\n]{0,80}member_likes/.test(server),
+    'kudos must stay out of every permission expression');
+
+  const profileStart = server.indexOf("'auth' && parts[1] === 'profile' && method === 'POST'");
+  const profileEnd = server.indexOf("'health' && method === 'GET'", profileStart);
+  const serverProfile = profileStart > 0 && profileEnd > profileStart
+    ? server.slice(profileStart, profileEnd) : '';
+  t('server: the profile save assigns no permission field',
+    !!serverProfile && !/user\.(?:role|is_admin)\s*=/.test(serverProfile),
+    serverProfile ? 'found' : 'profile handler slice not located');
+}
+
+/* ---------- 16. team panel layout + the role vocabulary ----------
+   Two things this round had to get exactly right, both presentation:
+
+   (a) The team table must fit ONE panel. There is no left/right scrolling:
+       fixed columns keep it at the panel's width, and once the team outgrows
+       the panel the ROWS scroll vertically under a pinned header. Scoped to
+       .team-wrap so every other data table keeps its own horizontal scroll.
+
+   (b) `viewer` reads "Engineer" on screen — in the badge, the dropdown, the
+       Settings chip and the top chip — and nowhere else. It is a label
+       rename: no server source may contain the word, so the stored role, its
+       rank and every gate are untouched. */
+{
+  const css = fs.readFileSync(CSS, 'utf8');
+  const html = fs.readFileSync(HTML, 'utf8');
+  const powerMap = (/const POWER_LABEL = \{[^}]*\}/.exec(dash) || [''])[0];
+  const roleMap = (/const ROLE_LABEL = \{[^}]*\}/.exec(dash) || [''])[0];
+  const adminDot = (/\.admin-dot \{[^}]*\}/.exec(css) || [''])[0];
+  const teamFn = fn(dash, 'refreshTeamPanel', ['fillSendSelect']);
+
+  t('ui: ROLE_LABEL calls the stored viewer role Engineer', /viewer: 'Engineer'/.test(roleMap), roleMap);
+  t('ui: POWER_LABEL (the badge) calls it Engineer too', /viewer: 'Engineer'/.test(powerMap), powerMap);
+  t('ui: the server word Viewer is mapped once, for display only', /Viewer: 'Engineer'/.test(dash));
+  t('ui: a typed title passes through that map untouched',
+    /SERVER_ROLE_LABEL\[roleOrUser\.roleLabel\] \|\| roleOrUser\.roleLabel/.test(dash));
+  t('ui: dashboard-home maps the same word on the top chip',
+    /CHIP_ROLE\[u\.roleLabel\] \|\| u\.roleLabel \|\| u\.role/.test(dashHome));
+  t('backend: no backend role word was renamed — the Engineer label is display-only',
+    /if \(r === 'viewer'\) return 'Viewer';/.test(worker) &&
+    /if \(r === 'viewer'\) return 'Viewer';/.test(server) &&
+    !/['"]engineer['"]/i.test(worker + server));
+
+  const buildIdx = teamFn.indexOf("['owner', 'sales', 'viewer']");
+  const customIdx = teamFn.indexOf('opts += \'<option value="custom"\'');
+  t('ui: the team role dropdown puts Custom LAST', buildIdx > -1 && customIdx > buildIdx,
+    buildIdx + ' vs ' + customIdx);
+  t('ui: a Sales / Engineer row renders no typed-title box at all',
+    /\(titleable \? '' : ' hidden'\)/.test(dash) && !/\(titleable \? '' : ' disabled'\)/.test(dash));
+  t('ui: choosing Custom or Owner opens the box; the other roles remove it',
+    /input\.hidden = !wantsTitle/.test(dash) && /const wantsTitle = sel\.value === 'custom' \|\| sel\.value === 'owner'/.test(dash));
+
+  t('html: the team table is the one wrapped for single-panel layout',
+    /table-wrap team-wrap/.test(html));
+  t('css: the team panel never scrolls sideways and scrolls its rows instead',
+    /\.table-wrap\.team-wrap \{[\s\S]{0,200}?overflow-x: hidden;[\s\S]{0,80}?overflow-y: auto;/.test(css));
+  t('css: the team header stays pinned while the rows scroll',
+    /\.table-wrap\.team-wrap table\.data th \{[\s\S]{0,160}?position: sticky;/.test(css));
+  t('css: the team columns are fixed, so six of them always fit the panel',
+    /\.table-wrap\.team-wrap table\.data \{ table-layout: fixed; \}/.test(css));
+  t('css: every OTHER data table keeps its own horizontal scroll',
+    /\.table-wrap \{\s+overflow-x: auto;/.test(css));
+  t('css: the elevation dot is the smaller, lower-contrast one',
+    /width: 5px/.test(adminDot) && /60%/.test(adminDot), adminDot);
+  t('css: the elevation dot is HOVER-ONLY, so a glance at the screen shows nothing',
+    /opacity: 0;/.test(adminDot) &&
+    /#chipRole:hover \.admin-dot,\s*#settingsRole:hover \.admin-dot/.test(css));
+
+  /* This round: a wider panel so addresses do not wrap, softer corners on the
+     little white boxes, and the honest words in a read-only Edit cell. */
+  t('css: the settings panel is wide enough for an address to read on one line',
+    /grid-template-columns: 190px minmax\(0, 900px\)/.test(css));
+  t('css: the role box, title box and eye button share the softer 12px corners',
+    /\.team-edit-cell \.team-role-select \{[^}]*border-radius: 12px/.test(css) &&
+    /\.team-title-input \{[^}]*border-radius: 12px/.test(css) &&
+    /\.team-info-btn \{[^}]*border-radius: 12px/.test(css));
+  t('ui: a read-only Edit cell says "Only owner access", not a dead control',
+    /muted micro">Only owner access</.test(dash) && !/Owner only</.test(dash));
+  t('ui: the read-only row shows the same contact detail as every other row',
+    /'<td class="muted">' \+ contact \+ '<\/td>'/.test(teamFn));
+
+  /* Regression — THE EYE MUST OPEN FOR EVERYONE. The button is rendered on
+     BOTH sides of the manager check, so its listener has to be bound on both
+     sides too. An early `if (!manage) return` sat between the two: the row
+     drew a perfectly good eye for every role and email, and then the binding
+     never ran, so the click went nowhere and only a manager could open a
+     card. Comments are stripped first so the fix's own explanation cannot
+     answer this test. */
+  t('ui: the eye listener is bound for every role, not only for managers',
+    !/if \(!manage\) return/.test(noComments(teamFn)) &&
+    /body\.querySelectorAll\('\.team-info-btn'\)\.forEach/.test(noComments(teamFn)));
+
+  /* Sign-in times answer "when was this person last active", which is an
+     owner/admin question. The status line and both sign-in rows are removed
+     from the card — hidden, not greyed — for anyone the server does not
+     report as managing the team. The gate reads teamCanManage, which starts
+     false and is only set once the team list returns, so it fails closed. */
+  const cardFn = fn(dash, 'openMemberInfo', ['askRemoveMember']);
+  t('ui: the card exposes its status line and both sign-in dates as rows',
+    ['id="miStatusRow"', 'id="miFirstRow"', 'id="miLastRow"'].every((s) => html.includes(s)));
+  t('ui: sign-in times render only for whoever the server says manages the team',
+    /seeSignIn = !!teamCanManage/.test(noComments(cardFn)) &&
+    /\['miStatusRow', 'miFirstRow', 'miLastRow'\]/.test(noComments(cardFn)));
+  t('ui: the gate removes those rows outright rather than styling them away',
+    /el\.hidden = !seeSignIn/.test(noComments(cardFn)));
+  t('ui: an account always keeps its own sign-in time on its own card',
+    /seeSignIn = !!teamCanManage \|\| !!\(user && m && m\.id === user\.id\)/.test(noComments(cardFn)));
+  t('parity: both backends omit sign-in times unless a route opts in',
+    BOTH.every(([, src]) => /\.\.\.\(o\.signin \? \{ lastLogin: login \}/.test(src) &&
+      /\.\.\.\(o\.signin \? \{ createdAt: u\.created_at \}/.test(src)));
+  t('parity: both backends key the team list on the CALLER\'s manage flag',
+    BOTH.every(([, src]) => /signin: canAdmin/.test(src)) &&
+    BOTH.every(([, src]) => {
+      /* The caller's own row must NOT be re-gated: it keeps its sign-in times
+         by default, so the self branch of the ternary carries no `signin`. */
+      const selfCall = (/\? selfMemberPayload\(u, [^)]*\)/.exec(src) || [''])[0];
+      return !!selfCall && !/signin/.test(selfCall);
+    }));
+
+  /* The card's facts read as chips and the three platform marks keep their
+     brand colour, because at 16px a recognisable colour IS the label. The two
+     utility glyphs are not brands and must stay on the theme colour. */
+  t('css: the card facts are tinted 12px chips, not loose label/value pairs',
+    /\.mi-facts > div \{[^}]*border-radius: 12px/.test(css));
+  t('css: the platform marks carry brand colour while the utilities do not',
+    /\.mi-link--wa \{ color: #25d366/.test(css) &&
+    /\.mi-link--li \{ color: #0a66c2/.test(css) &&
+    /linearGradient id="miIgGrad"/.test(html) &&
+    /class="mi-link" id="miContact"/.test(html) &&
+    /class="mi-link" id="miCustom"/.test(html));
+
+  /* Title preserve: a role change edits ACCESS, never the wording. The title
+     rides beside the power key in BOTH backends, and the client sends it for
+     every role instead of blanking it. */
+  const ridesBeside = "(wanted === 'sales' || wanted === 'viewer') ? { role: wanted, roleCustom: t.roleCustom }";
+  t('parity: both backends let a title ride beside a Sales/Engineer power key',
+    worker.includes(ridesBeside) && server.includes(ridesBeside), ridesBeside);
+  t('ui: applyRole sends the title with every role, not just custom/owner',
+    /api\.setTeamRole\(memberId, role, titleVal\)/.test(dash) &&
+    !/role === 'custom' \|\| role === 'owner'\) \? titleVal/.test(dash));
+  t('ui: the team row sends whatever the (possibly hidden) box still holds',
+    /applyRole\(id, sel\.value, input \? input\.value\.trim\(\) : ''\)/.test(dash));
+  const pencil = fn(dash, 'wireRoleEditor', ['refreshTeamPanel']);
+  t('ui: the own-role editor never blanks the title box when a role hides it',
+    !/title\.value = ''/.test(pencil) && /title\.value = user\.roleCustom \|\| ''/.test(pencil));
+
+  /* SIGNIN_EXPIRED graceful replay: the callback asks ONE question before it
+     scares a visitor — is this browser already signed in? — and walks a valid
+     session straight to the dashboard. The error itself is untouched. */
+  const oauth = fs.readFileSync(OAUTH, 'utf8');
+  const replay = oauth.indexOf("if(code==='SIGNIN_EXPIRED')");
+  t('oauth: the callback has a graceful-replay branch on SIGNIN_EXPIRED',
+    replay > 0, replay);
+  t('oauth: the branch reads the EXISTING session with the dashboard\'s own check',
+    replay > 0 && /const signedIn=await auth\.user\(request\);/.test(oauth.slice(replay, replay + 400)),
+    oauth.slice(replay, replay + 400));
+  t('oauth: a still-signed-in visitor is taken to the dashboard, not an error page',
+    /if\(signedIn\)return redirect\('\/dashboard\.html',\[cookie\(provider,'',0\)\]\);/.test(oauth));
+  t('oauth: the honest error survives for a visitor with no session at all',
+    /return redirect\('\/index\.html\?oauth_error='\+code,\[cookie\(provider,'',0\)\]\);/.test(oauth));
+  t('oauth: the replay grants nothing — it reads, and writes only the expired binding cookie',
+    !/auth\.session\(|await store\.resolve\(|setSession|is_admin/.test(oauth.slice(replay, replay + 700)));
+
+  /* The panel intro is ONE fixed theme line now: the gate speaks for itself
+     through the access pill and the "Only owner access" cell. */
+  t('ui: the team intro is a fixed theme line, not a paragraph of rules',
+    /Your members, their roles, everything that matters — in one place\./.test(html));
+  t('ui: refreshTeamPanel no longer writes the intro — the copy lives in the page',
+    !/teamPanelSub/.test(dash), 'dashboard.js still writes teamPanelSub');
+  t('ui: the old rules paragraph is gone from both the page and the script',
+    !/Removing a member is owner and admin only/.test(dash + html) &&
+    !/Under Edit it reads/.test(dash + html));
+
+  /* The EDIT dropdown selects on the POWER KEY. Since a title now survives a
+     role change, a Sales row can carry role_custom — and that must never
+     re-label it: the bug this guards is a badge reading "Sales" while the
+     dropdown read "Custom title" and the typed-title box sat open underneath. */
+  t('ui: the EDIT dropdown selects on the power key, never on whether a title exists',
+    /const isCustom = m\.role === 'custom';/.test(dash) &&
+    !/m\.role === 'custom' \|\| !!m\.roleCustom/.test(dash));
+  t('ui: the typed-title box therefore opens for owner and custom only',
+    /const titleable = isCustom \|\| m\.role === 'owner';/.test(dash));
+  t('ui: the last option reads as an instruction, not a stored value',
+    />Custom — type here<\/option>/.test(dash) && !/>Custom title<\/option>/.test(dash));
+  t('ui: the own-role pencil follows the power key too',
+    /if \(user\.role === 'custom'\)/.test(dash) &&
+    !/user\.roleCustom && user\.role !== 'owner'/.test(dash));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

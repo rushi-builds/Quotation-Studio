@@ -39,6 +39,25 @@
     } catch (e) { return ''; }
   }
 
+  /* Where the closing page's "Open request form" call-to-action should lead:
+     the live acceptance form on the shared proposal, or this page's own form
+     anchor when the customer is already viewing the shared copy. */
+  function requestFormUrl() {
+    try {
+      if (document.body.classList.contains('share-mode')) {
+        return new URL(location.href.split('#')[0] + '#shareAcceptWrap').href;
+      }
+      /* The proposal's own customer link (auto-filled portal token) wins over
+         the same-browser share view, which a customer can never open. */
+      const s = root.StateStore && typeof root.StateStore.collectForm === 'function'
+        ? root.StateStore.collectForm() : null;
+      const shared = s ? safeHttpUrl(s.shareUrl) : '';
+      if (shared) return new URL(shared.split('#')[0] + '#shareAcceptWrap').href;
+      const id = root.Proposals && typeof root.Proposals.activeId === 'function' ? root.Proposals.activeId() : '';
+      return id ? new URL('share.html?p=' + encodeURIComponent(id) + '#shareAcceptWrap', document.baseURI).href : '';
+    } catch (e) { return ''; }
+  }
+
   const TYPE_LABEL = { residential: 'Residential', rwa: 'RWA / Housing Society', commercial: 'Commercial', industrial: 'Industrial' };
 
   /* Merge state + finance into the template variable pool. */
@@ -123,21 +142,8 @@
       });
     }
 
-    /* cover QR - generated only from a real link provided by the user */
-    const qrWrap = $('coverQrWrap');
-    if (qrWrap) {
-      const url = (s.shareUrl || '').trim();
-      if (url && /^https?:\/\//i.test(url) && root.QRCode && $('qrCover')) {
-        qrWrap.style.display = '';
-        try {
-          root.QRCode.toCanvas($('qrCover'), url,
-            { width: 92, margin: 1, color: { dark: '#1C2B3F', light: '#FFFFFF' } },
-            function () { /* drawn */ });
-        } catch (e) { qrWrap.style.display = 'none'; }
-      } else {
-        qrWrap.style.display = 'none';
-      }
-    }
+    // Keep the cover artwork unobstructed. Customer links still serve request
+    // actions and WhatsApp sharing; portfolio QR codes remain on later pages.
   }
 
   /* ================================================================== */
@@ -317,7 +323,36 @@
   /* ================================================================== */
   /* PAGE 3 - ABOUT                                                      */
   /* ================================================================== */
+  const ABOUT_PHOTOS = {
+    residential: ['assets/images/about-residential-solar.jpg', 'Illustrative residential solar pergola with outdoor dining terrace', 'assets/images/masters/about-residential-solar-4k.webp'],
+    commercial: ['assets/images/about-commercial-solar.jpg', 'Illustrative commercial rooftop solar', 'assets/images/masters/about-commercial-solar-4k.webp'],
+    industrial: ['assets/images/page-about.jpg', 'Industrial rooftop solar facility', 'assets/images/masters/about-industrial-solar-4k.webp'],
+    rwa: ['assets/images/about-rwa-solar.jpg', 'Illustrative housing society rooftop solar', 'assets/images/masters/about-rwa-solar-4k.webp']
+  };
+  function renderAboutPhoto(s) {
+    const img = $('img_about');
+    if (!img) return;
+    const override = root.__qsPageImages && root.__qsPageImages.img_about;
+    // Uploaded images remain proposal-specific. Customer View applies saved
+    // uploads before rendering, so recognise those non-default sources too.
+    const isDefault = Object.values(ABOUT_PHOTOS).some(([src]) => new URL(src, document.baseURI).href === img.src);
+    // This tall pergola image needs its full frame, not a centre-cropped slot.
+    // Uploaded photos and other categories retain their existing treatment.
+    $('pageAbout')?.classList.toggle('about-full-photo', !override && isDefault && (!ABOUT_PHOTOS[s.customerType] || s.customerType === 'residential'));
+    if (override || !isDefault) {
+      if (override && img.getAttribute('src') !== override) img.setAttribute('src', override);
+      img.removeAttribute('data-print-src');
+      img.alt = 'About KTM Energy Experts — proposal image';
+      return;
+    }
+    const choice = ABOUT_PHOTOS[s.customerType];
+    const [src, alt, printSrc] = Array.isArray(choice) ? choice : ABOUT_PHOTOS.residential;
+    if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+    img.alt = alt;
+    img.setAttribute('data-print-src', printSrc);
+  }
   function renderAbout(s, f, v) {
+    renderAboutPhoto(s);
     const P = CONTENT.pageAbout;
     set('v_abEyebrow', tpl(P.eyebrow, v));
     setHTML('v_abHeading', esc(P.heading1) + '<br>' + esc(P.heading2));
@@ -403,7 +438,7 @@
        longest group on the page and the only one whose length varies with what
        the engine could actually calculate. */
     const addRows = (group, list) => {
-      const eng = group.indexOf('ENGINEERING') === 0;
+      const eng = group.indexOf('ENGINEERING') === 0 || group === 'SITE DATA';
       rows.push('<tr class="spec-group"><td colspan="2">' + esc(group) + '</td></tr>');
       list.forEach(([k, val]) => {
         rows.push('<tr' + (eng ? ' class="is-eng"' : '') +
@@ -414,6 +449,8 @@
       ['Make', s.moduleMake],
       ['Technology', s.moduleTech || '-'],
       ['Rated Power', f.moduleWattage + ' Wp per module'],
+      ['Module Efficiency', (f.arrayArea > 0 && f.moduleCount > 0)
+        ? (f.moduleWattage * f.moduleCount / (f.arrayArea * 1000) * 100).toFixed(1) + ' % (STC, from datasheet dimensions)' : '-'],
       ['Quantity', f.moduleCount + ' modules'],
       // Keep engineering values numeric until final formatting. fmtNum returns
       // grouped text (e.g. "1,036"), which cannot be used in arithmetic.
@@ -427,31 +464,82 @@
       ['Total Module Area', f.arrayArea ? Math.round(f.arrayArea) + ' m² (≈ ' + Math.round(f.arrayArea * 10.764) + ' sq.ft)' : '-'],
       ['Performance Warranty', CONTENT.shared.warrantyLine]
     ]);
-    addRows('INVERTER', [
+    /* Selected inverter's own datasheet row from the merged catalogue -
+       datasheet figures only, never invented. A legacy save without a model
+       falls back to the same closest-by-kW row the equipment selector's
+       auto-pick would have chosen (within its 1 kW tolerance). Equivalent
+       and Custom makes resolve through the selector's own logic, so the
+       table shows the same datasheet model the selector picked. */
+    const invRow = (() => {
+      try {
+        const cat = root.EquipmentStore && root.EquipmentStore.cat ? root.EquipmentStore.cat() : (root.CATALOGUE_DATA || {});
+        const rows = (cat.inverters || []).filter((r) => r && String(r.make || '') === String(s.inverterMake || ''));
+        const exact = rows.find((r) => String(r.model || '') === String(s.inverterModel || '')) || null;
+        if (exact || !s.inverterMake || !(f.inverterKw > 0)) return exact;
+        if (s.inverterModel || !rows.length) {
+          return (root.EquipmentStore && root.EquipmentStore.datasheetRow)
+            ? root.EquipmentStore.datasheetRow('inverters', s.inverterMake, s.inverterModel, f.inverterKw) : null;
+        }
+        let best = null, bestD = Infinity;
+        rows.forEach((r) => { const k = Number(r.kw); if (isFinite(k)) { const d = Math.abs(k - f.inverterKw); if (d < bestD) { bestD = d; best = r; } } });
+        return (best && bestD <= 1) ? best : null;
+      } catch (e) { return null; }
+    })();
+    const dcEff = [];
+    if (invRow && invRow.vmaxDc) dcEff.push(invRow.vmaxDc + ' V');
+    if (invRow && invRow.efficiency) dcEff.push(invRow.efficiency + ' %');
+    const mpptRatio = [];
+    if (invRow && invRow.mppt) mpptRatio.push(invRow.mppt + ' × MPPT');
+    if (Number.isFinite(f.dcAcRatio) && f.dcAcRatio > 0) mpptRatio.push(
+      f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1');
+    const invRows = [
       ['Make', s.inverterMake],
-      ['Rated Output', f.inverterKw + ' kW' + (s.inverterKw ? '' : ' (auto - equal to capacity)')],
-      ['DC/AC Ratio', Number.isFinite(f.dcAcRatio) && f.dcAcRatio > 0
-        ? f.dcAcRatio.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' : 1' : '-'],
+      ['Model', (invRow && invRow.model) || s.inverterModel || '-'],
+      ['Type', invRow ? (invRow.invType === 'String' ? 'Grid-tied string inverter · ' : '') +
+        (invRow.phase === 3 ? 'Three-phase' : invRow.phase === 1 ? 'Single-phase' : (invRow.phase || '-')) : '-'],
+      ['Rated Output', f.inverterKw + ' kW'],
+      ['Max. DC Input & Efficiency', dcEff.length ? dcEff.join(' · ') + ' (per datasheet)' : '-'],
+      ['MPPT / DC-AC Ratio', mpptRatio.length ? mpptRatio.join(' · ') : '-'],
+      ['Protection', invRow && invRow.ip ? invRow.ip + ' (per datasheet)' : '-'],
       ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
-    ]);
+    ];
+    addRows('INVERTER', invRows);
     // Proposal-stage presentation. Engineering calculations and checks remain
     // in the staff panel; unverified design outputs do not become customer claims.
     addRows('MOUNTING & CABLING', [
-      ['Structure Make', s.mountMake],
-      ['Roof Type', s.roofType || '-'],
+      ['Structure', [s.mountMake, s.roofType].filter(Boolean).join(' · ') || '-'],
       ['Cabling & Protection', s.cableMake],
-      ['Earthing', 'Electrode design will follow site testing and electrical design verification.'],
-      ['Lightning Protection', 'Protection requirements will be confirmed through the site risk assessment.']
+      ['Earthing', 'Copper-bonded earth electrodes & GI strips, per IS 3043 (verified by site soil testing).'],
+      ['Lightning Protection', 'Copper air-termination & down conductors, per IS/IEC 62305 (per site risk assessment).']
     ]);
     if (s.availableArea) addRows('SITE', [
-      ['Available Roof Area', s.availableArea + ' m²'],
-      ['Indicative Roof Requirement', Math.ceil(f.requiredArea || 0) + ' m² — final layout and clearances subject to site verification.' + (Number(s.availableArea) < Math.ceil(f.requiredArea || 0) ? ' Estimated requirement exceeds available area.' : '')]
+      ['Roof Area', 'Available ' + s.availableArea + ' m² · requirement ≈ ' + Math.ceil(f.requiredArea || 0) + ' m² — final layout subject to site verification' +
+        (Number(s.availableArea) < Math.ceil(f.requiredArea || 0) ? '. Estimated requirement exceeds available area.' : '.')]
     ]);
-    addRows('ENGINEERING DESIGN BASIS', [['Proposal-stage design', root.StateStore.engineeringNote(s)]]);
+    /* Measured site data from the address fetch - shown only when it was
+       actually resolved, so the page never invents a site resource. */
+    const siteGeoRows = [];
+    if (s.siteGeoName) {
+      siteGeoRows.push(['Site Location', s.siteGeoName +
+        (Number(s.siteGeoLat) ? ' (' + Number(s.siteGeoLat).toFixed(2) + '°N, ' + Number(s.siteGeoLng).toFixed(2) + '°E)' : '')]);
+    }
+    if (s.nasaGhi) {
+      siteGeoRows.push(['Solar Resource (NASA POWER)', Number(s.nasaGhi).toLocaleString('en-IN', { maximumFractionDigits: 2 }) + ' kWh/m²/yr GHI' +
+        (s.nasaWindowStart ? ' · ' + s.nasaWindowStart + ' → ' + s.nasaWindowEnd : '') +
+        (s.nasaElevation ? ' · elevation ' + Number(s.nasaElevation).toFixed(0) + ' m' : '') +
+        (s.nasaWind ? ' · mean wind ' + Number(s.nasaWind).toFixed(1) + ' m/s' : '')]);
+    }
+    if (siteGeoRows.length) addRows('SITE DATA', siteGeoRows);
+    addRows('ENGINEERING DESIGN BASIS', [
+      ['Design standards', 'IEC 62548 · IEC 62109 · IEC 61730 · IS 732 · IS 875 (Part 3):2015 · IS 3043 · IS/IEC 62305'],
+      ['Structure life', '10 years (galvanized steel mounting structure)'],
+      ['Basic wind speed', (s.windSpeed ? s.windSpeed + ' m/s' : '-') + ' (per IS 875 (Part 3):2015)'],
+      ['Proposal-stage design', root.StateStore.engineeringNote(s)]
+    ]);
     $('pageTechSpec').classList.toggle('has-site-area', !!s.availableArea);
     setHTML('v_tsTable', rows.join(''));
     set('v_tsNoteLabel', P.noteLabel);
-    set('v_tsNote', P.note);
+    set('v_tsNote', P.note + ' All listed values are sourced from manufacturer datasheets and applicable Indian standards and verified at the time of quotation.');
     const refs = [
       [s.pvsystUrl, P.refsPvsyst, 'chart'],
       [s.arkaUrl, P.refsArka, 'sun']
@@ -730,6 +818,13 @@
     set('v_inSub', root.Bess.included(s) ? 'Solar-only pricing • see Storage Assessment for the separate battery upgrade.' : P.sub);
     set('v_inDesc', tpl(P.desc, v));
 
+    set('v_inGrossTotal', F.fmtINR(f.grossTotal));
+    const separateUpgrades = root.Bess.included(s) || root.AdditionalSystems.included(s);
+    show('v_inGrossScope', separateUpgrades);
+    if ($('pageInvestment')) {
+      $('pageInvestment').classList.toggle('has-tax', !!(f.isCommercialOrInd && f.taxShield > 0));
+      $('pageInvestment').classList.toggle('has-upgrades', !!separateUpgrades);
+    }
     set('v_inCostBase', F.fmtINR(f.projectCost));
     set('v_inCostBaseL', P.cards.projectCost);
     set('v_inCostGst', '+ ' + F.fmtINR(f.gstAmount));
@@ -737,7 +832,7 @@
     set('v_inCostSub', '− ' + F.fmtINR(f.subsidy));
     set('v_inCostSubL', P.cards.subsidy);
     set('v_inCostNet', F.fmtINR(f.netInvestment));
-    set('v_inCostNetL', root.Bess.included(s) ? 'Solar-only net investment' : P.cards.netInvestment);
+    set('v_inCostNetL', separateUpgrades ? 'Solar-only effective cost' : P.cards.netInvestment);
     /* subsidy caption reflects exactly how the number was derived */
     if ($('rwaEligibilityField')) $('rwaEligibilityField').hidden = s.customerType !== 'rwa';
     const subCap = f.subsidyAuto && s.customerType === 'rwa' ? (f.rwaEligibilityConfirmed ? 'RWA · entered eligible capacity' : 'RWA provisional · verify eligibility') : f.subsidyAuto ? (f.stateTopUp > 0 ? P.cards.subsidyCaptionTopUp : P.cards.subsidyCaptionAuto)
@@ -794,7 +889,7 @@
       '<div class="inc-item">' + (it.img ? '<img class="inc-img" src="assets/images/' + it.img + '" alt="">' : I.get(it.icon || 'check', 16, '#D96A0E')) +
       '<div class="inc-t">' + esc(it.title) + '</div></div>').join(''));
     set('v_inPayLabel', P.paymentLabel);
-    set('v_inPayNote', (root.Bess.included(s) ? 'Solar-only milestones. ' : '') + P.paymentNote);
+    set('v_inPayNote', (separateUpgrades ? 'Solar-only milestones. ' : '') + P.paymentNote);
     const pay = [
       ['v_inPayA', f.pay.advance, 'Advance - on signing'],
       ['v_inPayD', f.pay.dispatch, 'Before material dispatch'],
@@ -920,6 +1015,7 @@
     const P = CONTENT.pageWarranty;
     set('v_wrHeading', P.heading);
     set('v_wrSub', P.sub);
+    set('v_wrIntro', P.intro);
     set('v_wrWarrLabel', P.warrLabel);
     setHTML('v_wrWarranties', P.warranties.map((it) =>
       '<div class="card warr-card">' + I.chip(it.icon, 28) +
@@ -999,6 +1095,7 @@
     { id: 'pageBessAssessment', nav: 'Storage Value', title: 'Storage Assessment', render: (s,f)=>root.Bess.assessment(s,f), visible: s=>root.Bess.included(s) },
     { id: 'pageSystemOverview', nav: 'Additional System', title: 'Additional System', render: (s,f)=>root.SupplementDesign.systemOverview(s,f), visible:s=>root.AdditionalSystems.included(s) },
     { id: 'pageSystemDetail', nav: 'System Scope', title: 'Additional System Scope', render: (s,f)=>root.SupplementDesign.systemDetail(s,f), visible:s=>root.AdditionalSystems.included(s) },
+    { id:'pageRainwater',nav:'Rainwater',title:'Rainwater Collection',render:s=>root.SupplementDesign.rainwater(s),visible:s=>root.Rainwater.included(s) },
     { id: 'pageScope', nav: 'EPC Scope', title: 'EPC Scope', render: renderScope },
     { id: 'pageQuality', nav: 'Quality', title: 'Installation Quality', render: renderQuality },
     { id: 'pageSavings', nav: 'Savings', title: 'Generation & Savings', render: renderSavings },
@@ -1045,8 +1142,18 @@
     });
     const meta = s.propRef + '  •  v' + s.propVersion + '  •  ' + (F.fmtDate(s.propDate) || '-');
     document.querySelectorAll('[data-head-ref]').forEach((el) => { el.textContent = meta; });
-    const footLeft = s.companyName + '  •  ' + s.companyPhone + '  •  ' + s.companyWebsite;
-    document.querySelectorAll('[data-foot-company]').forEach((el) => { el.textContent = footLeft; });
+    document.querySelectorAll('[data-foot-company]').forEach((el) => {
+      const contact = document.createElement('span');
+      contact.className = 'pf-contact';
+      contact.textContent = s.companyName + '  •  ' + s.companyPhone;
+      const website = document.createElement('span');
+      website.className = 'pf-website';
+      website.textContent = s.companyWebsite;
+      const divider = document.createElement('span');
+      divider.className = 'pf-divider';
+      divider.textContent = '•';
+      el.replaceChildren(contact, divider, website);
+    });
     const tagline = String(CONTENT.shared.footerTagline || '').replace(/&nbsp;/g, ' ').replace(/<[^>]*>/g, '');
     document.querySelectorAll('[data-foot-tagline]').forEach((el) => { el.textContent = tagline; });
     /* Same cover-derived mark, with transparent ink suited to its surface. */
@@ -1147,9 +1254,59 @@
 
   /* ================================================================== */
   let lastState = null;
+  // Project context is derived from the selected supplement, never written
+  // back into saved CONTENT, engineering inputs or financial calculations.
+  function renderSystemContext(s, f) {
+    const A = root.AdditionalSystems, active = A.included(s);
+    $('pageInvestment')?.classList.toggle('has-system-context', active);
+    const name = A.name(s), short = name.length > 44 ? name.slice(0, 43) + '…' : name;
+    const label = $('v_coverSystem');
+    const water=root.Rainwater.enabled(s),batteryIncluded=root.Bess.included(s);
+    if(label){label.hidden=!(active||batteryIncluded);const text=[active?short:'',active&&water?'Rainwater harvesting':'',batteryIncluded?'Battery Energy Storage':''].filter(Boolean).join(' · ');set('v_coverSystemName',text);label.title=[active?name:'',active&&water?'Rainwater harvesting':'',batteryIncluded?'Battery Energy Storage':''].filter(Boolean).join(' · ');}
+    const defaults = {
+      img_solution: ['assets/images/page-solution.jpg', 'Modern building with solar roof'],
+      img_exec: ['assets/images/summary-carport-ev.jpg', 'Concept render of a house with rooftop solar and an optional EV charging point']
+    };
+    $('pageExec')?.classList.remove('has-system-image');
+    for (const [id, [original, alt]] of Object.entries(defaults)) {
+      const img = $(id); if (!img) continue;
+      const custom = root.__qsPageImages?.[id];
+      const known = [original, ...Object.values(A.presentations).map(it => 'assets/images/' + it.image)];
+      const managed = known.some(src => new URL(src, document.baseURI).href === img.src);
+      if (!custom && managed) {
+        const src = original;
+        if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+        img.alt = alt;
+      }
+    }
+    $('pageSolution')?.classList.remove('has-system-image');
+    // Reset the static scope note every time, so disabling/switching cannot
+    // leave a prior system's detail in an otherwise ordinary solar proposal.
+    const basicNote = 'The exact equipment ratings are listed in Technical Specification. Detailed inclusions and exclusions are listed in EPC Scope; review those sections before ordering.';
+    set('v_soScopeNote', basicNote);
+    if (!(active || batteryIncluded)) return;
+    const scopeName = [active ? short : '', active && water ? 'Rainwater collection' : '', batteryIncluded ? 'Battery Energy Storage' : ''].filter(Boolean).join(' + ');
+    const references = [active ? 'Additional System Scope' : '', active && water ? 'Rainwater Collection' : '', batteryIncluded ? 'Storage Assessment' : ''].filter(Boolean).join(' / ');
+    const basis = active ? (A.inBase(s) ? 'system scope in quoted rate' : 'system separately quoted') + (batteryIncluded ? '; battery separately quoted' : '') : 'battery separately quoted';
+    set('v_exSub', 'Solar PV + ' + scopeName + ' · ' + basis);
+    set('v_soScopeNote', 'Solar equipment is specified in Technical Specification and EPC Scope. Additional scope: ' + scopeName + '. See ' + references + ' for details and exclusions.');
+    set('v_scClosing', CONTENT.pageScope.closing + ' Additional scope: ' + scopeName + '; see ' + references + '.');
+    if (!active) return;
+    set('v_inSub', short + ' · ' + A.priceText(s));
+    set('v_inGrossScope', A.inBase(s) ? 'System scope included in base quote; no second charge.' : 'System upgrade excluded; agree its price and payments separately.');
+    if (batteryIncluded) set('v_inGrossScope', $('v_inGrossScope').textContent + ' Battery priced separately.');
+    if (water) set('v_inGrossScope', $('v_inGrossScope').textContent + ' Harvesting: ' + root.Rainwater.priceText(s) + (s.systemWaterPriceMode === 'included' ? '; no second charge.' : ', separately quoted.'));
+    if (A.inBase(s)) {
+      set('v_inCostNetL', CONTENT.pageInvestment.cards.netInvestment);
+      set('v_inPayNote', 'System scope included. ' + CONTENT.pageInvestment.paymentNote);
+      set('v_finSub', 'Cash-flow illustration uses the entered solar quote, including scope priced in its base rate; system operating effects are not modelled.');
+      set('v_opSub', 'Solar options; verify included system scope and rates for each option. No upgrade price is added automatically.');
+    }
+  }
+
   function renderAll(stateOverride) {
     const raw = stateOverride || readState();
-    const s = root.Bess.resolve(raw,F.compute(raw));
+    const s = root.Bess.resolve(root.AdditionalSystems.resolve(raw),F.compute(raw));
     if(!stateOverride) root.Bess.applyDerived(s);
     lastState = s;
     const f = F.compute(s);
@@ -1169,7 +1326,9 @@
       set('v_exHeroNetLabel','Estimated Monthly Generation');
       set('v_tmSub','Solar EPC terms • additional system scope, price and payment terms require separate agreement.');
     }
+    renderSystemContext(s, f);
     updateLiveChip(s, f);
+    root.SupplementDesign.fit();
     fitPages();
     drawCharts(f);
     if (typeof document !== 'undefined' && document.dispatchEvent) {
@@ -1207,6 +1366,9 @@
       statYears: g('statYears'), statProjects: g('statProjects'), statCapacity: g('statCapacity'),
       prepName: g('prepName'),
       customerType: g('customerType'), custName: g('custName'), custSalutation: g('custSalutation'), custSalutationCustom: g('custSalutationCustom'), custSpokenName: g('custSpokenName'), custAddress: g('custAddress'),
+      siteGeoName: g('siteGeoName'), siteGeoLat: g('siteGeoLat'), siteGeoLng: g('siteGeoLng'),
+      nasaGhi: g('nasaGhi'), nasaWind: g('nasaWind'), nasaElevation: g('nasaElevation'),
+      nasaWindowStart: g('nasaWindowStart'), nasaWindowEnd: g('nasaWindowEnd'), nasaSource: g('nasaSource'),
       propDate: g('propDate'), propRef: g('propRef'), propVersion: g('propVersion'),
       validityDays: g('validityDays'), monthlyBill: g('monthlyBill'),
       capacity: g('capacity'), genFactor: g('genFactor'),
@@ -1243,7 +1405,7 @@
     if (svg) svg.replaceWith(svg.cloneNode(true));
   }
 
-  root.Render = { safeHttpUrl, renderAll, fitPages, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
+  root.Render = { safeHttpUrl, requestFormUrl, renderAll, fitPages, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
     get lastState() { return lastState; },
     get lastVisible() { return lastVisible; } };
 })(typeof self !== 'undefined' ? self : this);
