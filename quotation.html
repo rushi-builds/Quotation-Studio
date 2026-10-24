@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="assets/css/app.css?v=finance-fixes1">
 <link rel="stylesheet" href="assets/css/bess.css">
 <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1">
-<link rel="stylesheet" href="assets/css/control-panel.css?v=editor-discovery1">
+<link rel="stylesheet" href="assets/css/control-panel.css?v=editor-groups2">
 <link rel="stylesheet" href="assets/css/studio-assistant.css?v=knowledge3">
 </head>
 <body>
@@ -86,7 +86,7 @@
         <div class="field"><label for="custAddress">Customer address</label><input type="text" id="custAddress" value="" placeholder="Enter site address"></div>
         <div class="field"><label>Site data</label>
           <button type="button" class="link-btn" id="siteFetchBtn">Fetch location</button>
-          <div class="hint" id="siteFetchStatus">Optional one click: resolves this address to coordinates (Google when a key is set, otherwise OpenStreetMap) and pulls measured NASA POWER solar and wind data. Fills the design latitude automatically and suggests the generation factor - typed values are never overwritten until you Apply.</div></div>
+          <div class="hint" id="siteFetchStatus">Optional site data. Review suggestions before applying; entered values are kept.</div></div>
         <input type="hidden" id="siteGeoName">
         <input type="hidden" id="siteGeoLat">
         <input type="hidden" id="siteGeoLng">
@@ -652,7 +652,7 @@
       </fieldset>
 <fieldset data-adv>
         <legend>Photos (optional)</legend>
-        <div class="hint" style="margin-bottom:8px;">Professional photos are included. Upload your own - each applies to that page only.</div>
+        <div class="hint" style="margin-bottom:8px;">Optional replacements — each upload applies to its page only.</div>
         <div class="row2">
           <div class="field"><label>Cover</label><label class="upload-btn" for="up_cover">Upload photo</label><input type="file" id="up_cover" data-photo="img_cover" accept="image/*"></div>
           <div class="field"><label>Closing banner</label><label class="upload-btn" for="up_closing">Upload photo</label><input type="file" id="up_closing" data-photo="img_closing" accept="image/*"></div>
@@ -672,7 +672,7 @@
         <div class="row2">
           <div class="field"><label>Warranty</label><label class="upload-btn" for="up_warranty">Upload photo</label><input type="file" id="up_warranty" data-photo="img_warranty" accept="image/*"></div>
         </div>
-        <div class="hint">Tip: individual project thumbnails can be replaced in Advanced Edit → Projects Portfolio.</div>
+        <div class="hint">Project thumbnails: Advanced Edit → Projects Portfolio.</div>
       </fieldset>
 <fieldset data-adv>
         <legend>Cost Breakdown - BOM (optional)</legend>
@@ -1495,7 +1495,7 @@
 <script src="assets/js/platform-api.js?v=knowledge3"></script>
 <script src="assets/js/cloud-bridge.js?v=knowledge3"></script>
 <script src="assets/js/app.js?v=rwa1"></script>
-<script src="assets/js/control-panel.js?v=editor-discovery1"></script>
+<script src="assets/js/control-panel.js?v=editor-groups2"></script>
 <script src="assets/js/assistant-actions.js?v=knowledge3"></script>
 <script src="assets/js/assistant-chat.js?v=knowledge3"></script>
 <script src="assets/js/studio-assistant.js?v=knowledge3"></script>

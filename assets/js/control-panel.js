@@ -211,6 +211,114 @@
       equipment.insertBefore(group, equipment.querySelector('.studio-view-page'));
     });
     if (mixedRow && !mixedRow.children.length) mixedRow.remove();
+    // The same inner-card treatment throughout the editor. Keep actual .field
+    // wrappers intact (including hidden/conditional state); never copy inputs.
+    let clusterNumber = 0;
+    function cluster(sectionId, title, tone, specs) {
+      const host = form.querySelector('.studio-section[data-section="' + sectionId + '"] > fieldset');
+      const box = element('section', 'studio-input-cluster studio-arranged-cluster');
+      box.dataset.tone = tone;
+      const heading = element('h3', '', title); heading.id = 'studioGroup' + (++clusterNumber);
+      box.setAttribute('aria-labelledby', heading.id);
+      const grid = element('div', 'studio-field-grid'); box.append(heading, grid);
+      specs.forEach(spec => {
+        const [id, full] = Array.isArray(spec) ? spec : [spec, false];
+        const input = $(id), field = input?.closest('.field');
+        if (!field || grid.contains(field)) return;
+        const label = field.querySelector(':scope > label');
+        if (label && input.matches('input:not([type=file]),select,textarea') && field.querySelectorAll('input,select,textarea').length === 1) label.htmlFor = input.id;
+        if (full) field.classList.add('studio-field-wide');
+        grid.append(field);
+      });
+      host.insertBefore(box, host.querySelector(':scope > .studio-view-page'));
+      return box;
+    }
+    const full = id => [id, true];
+    cluster('custName', 'Customer details', 'blue', [full('custName'), full('custAddress'), full('customerType')]);
+    cluster('custName', 'Site & system', 'mint', ['capacity', 'monthlyBill', full('siteFetchBtn')]);
+    cluster('custName', 'Proposal details', 'slate', [full('propRef'), 'propDate', 'propVersion', 'validityDays', 'prepName']);
+    const sharing = cluster('custName', 'Sharing & audio', 'lavender', [full('shareUrl')]);
+    if (audioAdv) sharing.append(audioAdv);
+    cluster('costPerWp', 'Project pricing', 'sand', ['costPerWp', 'gstPercent']);
+    cluster('costPerWp', 'Savings assumptions', 'blue', [full('tariff'), 'escalation', 'degradation']);
+    cluster('costPerWp', 'Subsidy & support', 'mint', ['subsidyOverride', 'stateTopUp', full('rwaEligibleKwp')]);
+    cluster('costPerWp', 'Environmental assumptions', 'slate', ['co2Factor', 'treeFactor']);
+    const milestones = cluster('payAdvance', 'Payment milestones', 'sand', [full('payAdvance')]);
+    milestones.querySelector('.field > label')?.remove(); // each % input already has its own associated label
+    const lending = cluster('payAdvance', 'Loan (optional)', 'blue', [full('loanAmt'), 'loanRate', 'loanYears']);
+    loanHint.textContent = 'Complete all three fields to include the EMI analysis.';
+    lending.append(loanHint);
+    if (taxBox) { taxBox.dataset.tone = 'lavender'; taxBox.classList.add('studio-tinted-disclosure'); lending.after(taxBox); }
+    const comparisons = cluster('optName', 'Save a comparison', 'lavender', [full('optName'), full('optSave')]);
+    comparisons.append($('optList'));
+    cluster('bomModules', 'Equipment costs · before GST', 'mint', ['bomModules', 'bomInverter']);
+    cluster('bomModules', 'Structure & balance of system', 'sand', ['bomStructure', 'bomBos']);
+    const installation = cluster('bomModules', 'Installation & approvals', 'blue', [full('bomInstall'), full('bomLiaison')]);
+    installation.append($('bomFormTotal'));
+    cluster('pvsystUrl', 'Engineering documents', 'blue', [full('pvsystUrl'), full('arkaUrl')]);
+    cluster('durationText', 'Delivery & survey', 'sand', [full('durationText'), full('surveyWindow')]);
+    cluster('durationText', 'Legal', 'slate', [full('jurisdiction')]);
+    cluster('companyName', 'Company identity', 'rose', [full('companyName'), full('companyTagline')]);
+    cluster('companyName', 'Contact & office', 'blue', [full('companyPhone'), full('companyEmail'), full('companyAddress'), full('companyWebsite')]);
+    const companyStats = cluster('companyName', 'Company figures', 'slate', ['statYears', 'statProjects', full('statCapacity')]);
+    const companyHost = $('companyName').closest('fieldset');
+    const companyDefaults = element('div', 'studio-company-defaults');
+    companyDefaults.append($('companyDefaultsHint'), companyHost.querySelector('.form-links'), $('companyDefaultStatus'));
+    companyStats.append(companyDefaults);
+    cluster('up_cover', 'Cover & closing', 'rose', ['up_cover', 'up_closing']);
+    cluster('up_cover', 'Company & solution', 'blue', ['up_about', 'up_whysolar', 'up_solution', 'up_scope']);
+    cluster('up_cover', 'Quality & assurance', 'mint', ['up_quality', 'up_whyktm', full('up_warranty')]);
+    cluster('galleryUrl', 'QR destination', 'blue', [full('qrDestinationType'), full('galleryUrl')]);
+    const systemChoice = cluster('systemEnabled', 'Additional system', 'mint', [full('advancedSystemSelect')]);
+    systemChoice.append($('selectedSystemCard'));
+    $('advancedSystemSelect').closest('fieldset').querySelector('legend').after(systemChoice);
+    const engineeringNote = cluster('tiltDeg', 'Proposal note', 'slate', [full('engineeringDesignNote')]);
+    engFs.querySelector('legend').after(engineeringNote);
+
+    // Existing technical/additional disclosures already own their conditional
+    // controls. Tint their bodies in place; do not pull fields out of them.
+    form.querySelectorAll('.eng-basis > .eng-group').forEach((group, i) => {
+      group.dataset.tone = ['blue', 'sand', 'lavender', 'mint', 'slate', 'blue'][i % 6];
+      group.classList.add('studio-tinted-disclosure');
+    });
+    form.querySelectorAll('#advContainer > .page-group').forEach(group => {
+      group.dataset.tone = 'blue'; group.classList.add('studio-tinted-disclosure');
+    });
+    library.dataset.tone = 'slate'; library.classList.add('studio-tinted-disclosure');
+    // Remove only now-empty row shells left by moving original fields.
+    form.querySelectorAll('.studio-section .row2,.studio-section .row3').forEach(row => {
+      if (!row.children.length) row.remove();
+    });
+    // Concise, authored helper copy only. Live statuses, assumptions and warnings
+    // keep their elements and their existing renderer/validation ownership.
+    $('equipmentEntryHint').textContent = 'Choose a make/model, or select Custom…';
+    const shortLabels = {shareUrl:'Customer link (auto-created on save)', statYears:'Years in business', statProjects:'Completed projects', statCapacity:'Installed capacity', surveyWindow:'Survey wording'};
+    Object.entries(shortLabels).forEach(([id, text]) => {
+      const label = $(id)?.closest('.field')?.querySelector('label');
+      if (label) label.textContent = text;
+    });
+    const subsidyNote = $('degradation').closest('.field').querySelector('.hint');
+    function settingHelp(inputId, title, note) {
+      if (!note) return;
+      const help = element('details', 'studio-setting-help');
+      help.dataset.settingHelp = inputId; help.id = inputId + 'Help';
+      help.append(element('summary', '', title), note);
+      $(inputId).closest('.studio-input-cluster').append(help);
+      const input = $(inputId);
+      input.setAttribute('aria-describedby', [input.getAttribute('aria-describedby'), help.id].filter(Boolean).join(' '));
+    }
+    settingHelp('subsidyOverride', 'Subsidy basis & eligibility', subsidyNote);
+    settingHelp('stateTopUp', 'State top-up eligibility', $('stateTopUp').closest('.field').querySelector('.hint'));
+    const subsidyReminder = element('p', 'hint', 'Auto estimate — verify eligibility before sharing.');
+    $('subsidyOverride').closest('.studio-input-cluster').querySelector('.studio-field-grid').after(subsidyReminder);
+    companyHost.querySelector(':scope > .hint:not([id])')?.remove();
+    const compareHint = $('optName').closest('fieldset').querySelector(':scope > .hint');
+    if (compareHint) compareHint.textContent = 'Save 2+ designs to add a comparison page.';
+    const bomHint = $('bomModules').closest('fieldset').querySelector(':scope > .hint');
+    if (bomHint) bomHint.textContent = 'Optional itemised costs, before GST. Leave blank to omit the breakdown.';
+    const reportsHint = $('pvsystUrl').closest('fieldset').querySelector(':scope > .hint');
+    if (reportsHint) reportsHint.textContent = 'Links to externally prepared reports; no report content is generated.';
+
     const sectionTones = {
       custName: 'blue', moduleMake: 'mint', costPerWp: 'sand', payAdvance: 'sand',
       optName: 'lavender', bomModules: 'sand', pvsystUrl: 'blue', durationText: 'slate',
@@ -514,7 +622,7 @@
       };
       const aliases = (fieldAliases[input.id] || '') + (input.closest('[data-section="systemEnabled"]') ? ' additional systems additionals additions add-ons addons battery storage' : '');
       const keywords = [aliases, input.id, input.id.replace(/([a-z])([A-Z])/g, '$1 $2'), input.name, input.title, input.placeholder,
-        input.dataset.page, input.dataset.key, hint, ...options].join(' ');
+        input.dataset.page, input.dataset.key, hint, input.id ? form.querySelector('[data-setting-help="' + input.id + '"]')?.textContent : '', ...options].join(' ');
       return {input, label, section, options, text: normalize(label + ' ' + section + ' ' + keywords), primary: normalize(label)};
     }
     function searchEntries() {

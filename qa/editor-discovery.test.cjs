@@ -20,7 +20,7 @@ const {chromium} = require('playwright');
     async function jump(q,id) { await search(q); await (await result(id)).click(); }
     const layout = await page.evaluate(() => ({
       sections:[...document.querySelectorAll('.studio-section')].map(e => ({tone:e.dataset.tone,bg:getComputedStyle(e.querySelector(':scope>summary')).backgroundColor})),
-      groups:[...document.querySelectorAll('.studio-input-cluster')].map(e=>e.querySelector('h3').textContent),
+      groups:[...document.querySelectorAll('[data-section="moduleMake"] .studio-input-cluster')].map(e=>e.querySelector('h3').textContent),
       inverter:document.querySelector('#inverterKw').closest('.studio-input-cluster').querySelector('h3').textContent,
       module:document.querySelector('#moduleTech').closest('.studio-input-cluster').querySelector('h3').textContent,
       unique:[...document.querySelectorAll('#quoteForm input[id],#quoteForm select[id],#quoteForm textarea[id]')].every(e=>document.querySelectorAll('#'+CSS.escape(e.id)).length===1)
@@ -44,6 +44,7 @@ const {chromium} = require('playwright');
     await search('GST %'); await result('gstPercent');
     await search('price'); await result('costPerWp');
     await search('wiring'); await result('cableMake');
+    await search('SMART'); await result('stateTopUp');
     await search('projects portfolio heading'); await page.locator('#studioSearchResults button').first().click();
     assert(await page.evaluate(()=>!!document.activeElement.closest('#advancedPanel')));
     console.log('PASS: dropdown option brands, tiny engineering fields, QR and nested content editor search');

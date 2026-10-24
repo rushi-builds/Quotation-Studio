@@ -64,3 +64,40 @@ Ignored screenshots: `qa/shots/editor-discovery/`. Tests use an isolated static
 server with no live backend. No main merge, provider/config, D1 or live sync change.
 
 Scope/parity base: `1ae392d5e875fc6888e9c7e7d0b67e2af4db9219`.
+
+
+## Follow-up: inner cards throughout, not just coloured headers
+
+The owner liked the Equipment cards and requested the same treatment inside all
+other sections, less prose and a deliberate field layout. This now includes:
+
+- Customer details / Site & system / Proposal details / Sharing & audio.
+- Project pricing / Savings / Subsidy & support / Environmental assumptions.
+- Payment milestones / Optional loan / Commercial tax (still folded).
+- Comparison setup, three cost-breakdown groups, engineering links and terms.
+- Company identity / Contact & office / Company figures; three photo groups.
+- QR destination, the additional-system selector and engineering proposal note.
+- Existing technical/BESS/scope disclosures are tinted in place, retaining their
+  conditional containers. Advanced content groups and the library also receive
+  full-body tinting.
+
+Original field wrappers are moved, never cloned. Long references, addresses,
+URLs and clauses have full-width rows; related short values use aligned pairs.
+The payment split stays a labelled three-column row. Empty former row shells
+are removed. Single-control labels are associated with their original inputs.
+
+Redundant help is shortened. Subsidy and state-top-up eligibility text remains
+fully available in named expandable disclosures, beside an always-visible
+eligibility reminder. This help remains searchable. Validation/status nodes,
+tax cautions, units, conditional/disabled states and the 1460 default are kept.
+
+New `qa/editor-groups.test.cjs` covers all thirteen sections at 1440, 390 and
+360px, tinted inner cards, control/card membership, width/alignment, unchanged
+form/Finance/all A4 page HTML, conditional system setup and saved edits after
+reload. The existing discovery suite still finds every one of the 210 controls,
+including the extracted eligibility help. Engineering, input-hierarchy,
+minimal-input and full-image regressions pass, including saved Customer View
+and actual PDFs. Finance 82, packaging 35, scope 43 and frozen/build parity 313.
+
+`npm run test:editor-discovery` in `qa/` now runs both editor suites. Screenshots
+for the follow-up remain ignored under `qa/shots/editor-groups/`.
