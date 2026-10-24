@@ -61,6 +61,9 @@ const DEPLOY_CONFIG_RE = /(^|\/)wrangler[^/]*\.(toml|jsonc?|json)$|(^|\/)vercel\
    preview, plus Action desk wording: exact presentation/review paths only. No image-directory,
    review-directory, backend or deploy-config wildcard is introduced. */
 const WORKSPACE_PRESENTATION_PATHS = new Set([
+  // Owner-requested builder colour wayfinding and comprehensive setting search.
+  'assets/js/control-panel.js',
+  'assets/css/control-panel.css',
   // Owner requested full, uncropped Additional Systems hero framing (24 Oct).
   'assets/css/bess.css',
   // Read-only, source-ratio photo framing for the owner's subtle edge fade.

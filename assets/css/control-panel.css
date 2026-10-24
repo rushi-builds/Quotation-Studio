@@ -200,3 +200,28 @@ form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
 .studio-ready .eng-basis #engineeringReview>[data-severity=blocking]{border-color:#ecd1ce;background:#fff8f6;}
 .studio-ready .eng-basis [data-severity=blocking] .eng-review-tag{color:#a2493e;}
 @media(max-width:560px){.studio-ready .eng-basis .eng-group>summary{padding:13px 11px;}.studio-ready .eng-basis #engineeringReview{max-height:300px;}}
+
+/* Builder-only wayfinding: quiet semantic colours, always paired with labels.
+   Scoped outside A4 pages so the customer/PDF design is unchanged. */
+.form-panel [data-tone="blue"]{--way-bg:#f2f7fd;--way-line:#d7e4f3;--way-ink:#365b83;}
+.form-panel [data-tone="mint"]{--way-bg:#f0f8f5;--way-line:#d2e8df;--way-ink:#346755;}
+.form-panel [data-tone="sand"]{--way-bg:#fcf7ee;--way-line:#eddfc5;--way-ink:#795d30;}
+.form-panel [data-tone="lavender"]{--way-bg:#f6f3fc;--way-line:#e2d9f1;--way-ink:#695287;}
+.form-panel [data-tone="rose"]{--way-bg:#fcf3f5;--way-line:#efdce2;--way-ink:#845265;}
+.form-panel [data-tone="slate"]{--way-bg:#f3f6f9;--way-line:#dfe5ec;--way-ink:#52677c;}
+.form-panel .studio-section[data-tone]{border-color:var(--way-line);}
+.form-panel .studio-section[data-tone]>summary{background:var(--way-bg);border-bottom-color:var(--way-line);}
+.form-panel .studio-section[data-tone]>summary:hover{filter:brightness(.99);}
+.form-panel .studio-section[data-tone]>summary .studio-section-icon{background:#ffffffb3;border-color:var(--way-line);color:var(--way-ink);}
+.form-panel .studio-section[data-tone]>summary svg{stroke:currentColor;}
+.form-panel .studio-section[data-tone]>summary strong{color:var(--way-ink);}
+.form-panel .studio-input-cluster{background:var(--way-bg);border:1px solid var(--way-line);border-radius:9px;padding:12px;margin:0 0 12px;min-width:0;}
+.form-panel .studio-input-cluster>h3{font:650 10px/1.5 'Inter',sans-serif;color:var(--way-ink);margin:0 0 12px;letter-spacing:.03em;}
+.form-panel .studio-input-cluster>.field:last-child,.form-panel .studio-input-cluster>.row2:last-child,.form-panel .studio-input-cluster>.row3:last-child{margin-bottom:0;}
+.form-panel .studio-input-cluster .field:has(> #roofClearanceFactor){grid-column:1/-1;}
+.form-panel .studio-input-cluster label{color:#4c6075;}
+.form-panel .studio-search-notice{font:11px/1.65 'Inter',sans-serif;color:#52677c;background:#f0f5fb;border:1px solid #d7e4f3;border-radius:8px;padding:10px 12px;margin:-7px 0 14px;}
+.form-panel .studio-search-target{outline:2px solid #5789b5!important;outline-offset:3px;}
+#studioSearchResults button:focus-visible{outline:2px solid #5789b5;outline-offset:-2px;background:#f0f5fb;}
+#studioSearchResults .studio-search-option{color:#365b83;}
+@media print{.form-panel .studio-search-notice{display:none!important;}}
