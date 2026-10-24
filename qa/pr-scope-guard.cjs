@@ -61,6 +61,8 @@ const DEPLOY_CONFIG_RE = /(^|\/)wrangler[^/]*\.(toml|jsonc?|json)$|(^|\/)vercel\
    preview, plus Action desk wording: exact presentation/review paths only. No image-directory,
    review-directory, backend or deploy-config wildcard is introduced. */
 const WORKSPACE_PRESENTATION_PATHS = new Set([
+  // Owner requested full, uncropped Additional Systems hero framing (24 Oct).
+  'assets/css/bess.css',
   // Exact UI-label file for the owner's Action desk wording correction.
   'assets/js/pulse/pulse-ui.js',
   'assets/css/workspace-fit.css',
