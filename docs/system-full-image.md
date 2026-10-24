@@ -19,8 +19,8 @@ The system-specific CSS in `assets/css/bess.css` now:
   html2canvas export path does not reliably paint `object-fit` on a mismatched
   image box. Equal source/element proportions keep the real PDF undistorted.
 - Retains the owner-preferred navy hero, white/cream text and rounded frame.
-  Only a thin photo perimeter is faded into that same navy: 12px left/right
-  and 10px top/bottom, with the centre fully transparent and the photo sharp.
+  Source edge colours now extend OUTSIDE the untouched photograph: 12px left/right
+  and 10px top/bottom, fading into navy. The entire original photo stays sharp.
   No whole-photo opacity, blur, border or shadow is applied.
 - Leaves quiet background space where a portrait/landscape source does not fill
   its frame. A differently shaped photograph cannot fill every pixel without
@@ -38,7 +38,7 @@ New suite: `qa/system-full-image.test.cjs`.
 - All ten Additional Systems presets plus BESS: Leak Proof, Carport, Monitoring,
   DG, Zero Export, EV, PFC, Canopy, Pergola, Custom and battery storage.
 - Desktop, 390px mobile, print and export-clone geometry: full image element
-  within the frame, native aspect ratio, no text overlap, fade bounded to the actual image edges,
+  within the frame, native aspect ratio, no text overlap, fade outside the actual image bounds,
   no photo border/shadow, copy contrast at least 4.5:1 on navy,
   title and A4 footer fit, no horizontal overflow, unchanged Finance output.
 - Additional portrait-source probe for future uploads.
@@ -69,11 +69,12 @@ QS_PR_BASE=1ae392d5e875fc6888e9c7e7d0b67e2af4db9219 node qa/roles-parity.test.js
 No production deploy, main merge or D1/provider operation is implied by local
 verification.
 
-## Aesthetic follow-up — navy retained, edges softened
+## Aesthetic follow-up — navy retained, outward edge blend
 
 A white-backed alternative was previewed. The owner clarified that the navy
 version was preferred and requested a slight image-edge fade instead. Navy is
-restored; the photo is still complete and undistorted, without a uniform tint.
+restored. The owner then requested the fade outside the image, on navy, instead
+of darkening its inside edges. The photo remains complete and undistorted.
 
 `assets/js/system-image-frame.js` is a small presentation-only enhancement loaded
 by the editor and Customer View. It wraps only these two hero types and derives
@@ -81,11 +82,18 @@ the frame ratio from each image's natural dimensions, including replacement
 images. No saved form, image URL, file pixels, pricing, account state, network or
 frozen renderer/exporter code is changed. Export clones retain the frame ratio.
 
-The existing shade element now supplies four narrowly sized, non-repeating
-edge gradients. Separate background layers avoid both unsupported CSS masks and
-`calc()` gradient-stop differences in html2canvas. This is tested in real PDF
-exports, not only in the live browser. Source-vs-capture centre-pixel averages
-also reject accidental full-photo darkening (maximum mean channel delta <8).
+The existing shade element now sits behind the source photograph and extends
+12px horizontally / 10px vertically beyond it. A small presentation canvas
+extrudes only the outermost source pixels into these outside bands, feathers
+their alpha and supplies a PNG background. This avoids CSS blur/mask and gradient
+export incompatibilities. The photo is inset slightly to leave navy breathing
+room for the outside fade within the unchanged 303px hero. No original image
+file is modified. Same-origin sources work normally; future non-CORS sources
+fall back to the original sharp image without the decorative halo.
+
+Real PDF exports and saved Customer View assert that the fade lies outside the
+image bounds. Source-vs-capture centre-pixel averages reject accidental full-photo
+darkening (maximum mean channel delta <8).
 
 Intrinsic source proportions are retained: resizing width/height independently
 would distort the equipment and structure, not reveal more scene content.

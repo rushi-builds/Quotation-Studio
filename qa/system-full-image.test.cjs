@@ -34,7 +34,7 @@ const {chromium}=require('playwright');
     noPhotoFrame:s.borderTopWidth==='0px'&&s.boxShadow==='none',readableCopy:readable,
     imageInside:i.left>=h.left-1&&i.top>=h.top-1&&i.right<=h.right+1&&i.bottom<=h.bottom+1,
     copySeparate:c.right<=i.left+1,copyInside:c.top>=h.top&&c.bottom<=h.bottom-9*h.height/303,
-    edgeFade:(()=>{const e=hero.querySelector('.sp-photo-frame>.sp-hero-shade'),f=hero.querySelector('.sp-photo-frame');if(!e||!f)return false;const style=getComputedStyle(e),r=f.getBoundingClientRect();return style.display==='block'&&style.backgroundImage.includes('linear-gradient')&&style.getPropertyValue('--photo-edge-x').trim()==='12px'&&style.getPropertyValue('--photo-edge-y').trim()==='10px'&&Math.abs(r.width-i.width)<1&&Math.abs(r.height-i.height)<1&&s.opacity==='1'&&s.filter==='none';})(),
+    edgeFade:(()=>{const e=hero.querySelector('.sp-photo-frame>.sp-hero-shade'),f=hero.querySelector('.sp-photo-frame');if(!e||!f)return false;const style=getComputedStyle(e),r=f.getBoundingClientRect(),er=e.getBoundingClientRect();return style.display==='block'&&style.backgroundImage.includes('data:image/png')&&parseFloat(style.left)===-12&&parseFloat(style.top)===-10&&er.left<i.left&&er.right>i.right&&er.top<i.top&&er.bottom>i.bottom&&Math.abs(r.width-i.width)<1&&Math.abs(r.height-i.height)<1&&s.opacity==='1'&&s.filter==='none';})(),
     nativeAspect:Math.abs(i.width/i.height-img.naturalWidth/img.naturalHeight)<.01,
     noSourceCrop:rendered.width<=i.width+.1&&rendered.height<=i.height+.1,
     pageFits:[...host.querySelector('.pg-body').children].every(e=>e.getBoundingClientRect().bottom<footer-2)};
