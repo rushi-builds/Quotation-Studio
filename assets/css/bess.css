@@ -187,12 +187,10 @@
 :is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy h2{color:#fff;}
 :is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy p{color:#e3ebf3;}
 :is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy>span{color:#f2c386;border-color:#c9ad7a;}
-/* Leave navy breathing room for a feather OUTSIDE the actual source bounds.
-   The original photo has no tint, blur, mask or inner gradient. The PNG halo
-   contains edge pixels only and exports identically through html2canvas. */
-:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-photo-frame{position:relative;grid-column:2;grid-row:1;place-self:center;width:min(calc(100% - 24px),calc(279px * var(--system-photo-ratio,1)));aspect-ratio:var(--system-photo-ratio,1);max-width:100%;max-height:279px;min-width:0;min-height:0;border-radius:0;overflow:visible;}
-:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-photo-frame>img{position:relative;z-index:1;inset:auto;display:block;width:100%;height:auto;max-width:100%;max-height:279px;object-fit:contain;transform:none;border:0;border-radius:0;box-shadow:none;}
-:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-photo-frame>.sp-hero-shade{display:block;position:absolute;z-index:0;inset:-10px -12px;pointer-events:none;background-size:100% 100%;background-position:center;background-repeat:no-repeat;}
+/* Owner-preferred simple finish: navy, a complete sharp photo and rounded
+   corners only. Keep quiet breathing room; no fade, halo, tint or shadow. */
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-photo-frame{position:relative;grid-column:2;grid-row:1;place-self:center;width:min(calc(100% - 24px),calc(279px * var(--system-photo-ratio,1)));aspect-ratio:var(--system-photo-ratio,1);max-width:100%;max-height:279px;min-width:0;min-height:0;border-radius:8px;overflow:hidden;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-photo-frame>img{position:static;inset:auto;display:block;width:100%;height:auto;max-width:100%;max-height:279px;object-fit:contain;transform:none;border:0;border-radius:8px;box-shadow:none;}
 .bess-page .bess-hero h2{font-size:30px;line-height:1.18;}
 .system-page .sp-system-hero .sp-hero-copy>small{display:block;font-size:8px;line-height:1.5;letter-spacing:.13em;color:#ffedcf;text-transform:uppercase;font-weight:600;}
 .system-page .sp-system-hero h2{font-size:34px;line-height:1.17;letter-spacing:-.8px;margin:12px 0 10px;overflow-wrap:anywhere;text-shadow:inherit;}

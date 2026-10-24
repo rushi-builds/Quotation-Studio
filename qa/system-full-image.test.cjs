@@ -34,14 +34,14 @@ const {chromium}=require('playwright');
     noPhotoFrame:s.borderTopWidth==='0px'&&s.boxShadow==='none',readableCopy:readable,
     imageInside:i.left>=h.left-1&&i.top>=h.top-1&&i.right<=h.right+1&&i.bottom<=h.bottom+1,
     copySeparate:c.right<=i.left+1,copyInside:c.top>=h.top&&c.bottom<=h.bottom-9*h.height/303,
-    edgeFade:(()=>{const e=hero.querySelector('.sp-photo-frame>.sp-hero-shade'),f=hero.querySelector('.sp-photo-frame');if(!e||!f)return false;const style=getComputedStyle(e),r=f.getBoundingClientRect(),er=e.getBoundingClientRect();return style.display==='block'&&style.backgroundImage.includes('data:image/png')&&parseFloat(style.left)===-12&&parseFloat(style.top)===-10&&er.left<i.left&&er.right>i.right&&er.top<i.top&&er.bottom>i.bottom&&Math.abs(r.width-i.width)<1&&Math.abs(r.height-i.height)<1&&s.opacity==='1'&&s.filter==='none';})(),
+    roundedOnly:(()=>{const e=hero.querySelector('.sp-hero-shade'),f=hero.querySelector('.sp-photo-frame');if(!e||!f)return false;const r=f.getBoundingClientRect();return getComputedStyle(e).display==='none'&&getComputedStyle(f).borderRadius==='8px'&&s.borderRadius==='8px'&&Math.abs(r.width-i.width)<1&&Math.abs(r.height-i.height)<1&&s.opacity==='1'&&s.filter==='none'&&!f.style.backgroundImage&&!f.querySelector('canvas');})(),
     nativeAspect:Math.abs(i.width/i.height-img.naturalWidth/img.naturalHeight)<.01,
     noSourceCrop:rendered.width<=i.width+.1&&rendered.height<=i.height+.1,
     pageFits:[...host.querySelector('.pg-body').children].every(e=>e.getBoundingClientRect().bottom<footer-2)};
   }
   function verify(r,label){
    assert.equal(r.fit,'contain',label);assert.equal(r.frame,'303px',label);
-   for(const key of ['loaded','blended','noPhotoFrame','readableCopy','imageInside','copySeparate','copyInside','edgeFade','nativeAspect','noSourceCrop','pageFits'])assert(r[key],label+' '+key+' '+JSON.stringify(r));
+   for(const key of ['loaded','blended','noPhotoFrame','readableCopy','imageInside','copySeparate','copyInside','roundedOnly','nativeAspect','noSourceCrop','pageFits'])assert(r[key],label+' '+key+' '+JSON.stringify(r));
   }
   const inspect=async()=>page.evaluate(fn=>{const measure=eval('('+fn+')');return measure(Render.lastState.bessEnabled?pageBessOverview:pageSystemOverview);},geometry.toString());
   const kinds=['bess','weatherproof','carport','monitoring','dg','zero','ev','pfc','canopy','pergola','custom'];
@@ -87,7 +87,7 @@ const {chromium}=require('playwright');
    }finally{await page.evaluate(()=>{window.html2canvas=__fullImageCapture;});}
    console.log('PASS:',kind,'— actual two-page PDF with uncropped geometry');
   }
-  // Saved Customer View uses the same source-ratio frame and edge treatment.
+  // Saved Customer View uses the same source-ratio frame and rounded corners.
   await page.selectOption('#advancedSystemSelect','canopy');
   await page.waitForFunction(()=>Render.lastState.systemTemplate==='canopy'&&Render.lastState.systemEnabled);
   const id=await page.evaluate(()=>{__qsSaveNow();return Proposals.activeId();});
@@ -95,7 +95,7 @@ const {chromium}=require('playwright');
   await customer.goto((process.env.QA_BASE||'http://127.0.0.1:8080')+'/share.html?p='+encodeURIComponent(id));
   await customer.waitForFunction(()=>Render.lastState?.systemEnabled&&document.querySelector('#systemOverviewBody .sp-photo-frame img')?.naturalWidth>0);
   verify(await customer.evaluate(fn=>eval('('+fn+')')(pageSystemOverview),geometry.toString()),'saved Customer View');
-  await customer.close();console.log('PASS: saved Customer View retains full photo and bounded fade');
+  await customer.close();console.log('PASS: saved Customer View retains full photo and rounded corners without fade');
   assert.deepEqual(errors,[]);console.log('PASS: zero browser errors; original image files and frozen logic unchanged');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

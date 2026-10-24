@@ -1,99 +1,39 @@
-# Full Additional Systems images — 24 October 2026
+# Full Additional Systems images — final rounded finish
 
-## Request and fix
+## Owner's latest decision
 
-The owner reported that selecting Advanced Systems correctly changes the image,
-but the Additional Systems overview crops its top/bottom/sides. The previous
-full-width, auto-height photo was centred inside an overflowing-hidden 303px
-frame. This was a framing problem, not missing source resolution.
+Keep the navy hero and complete, sharp photograph with rounded corners only.
+Both the earlier inward fade and outward edge-colour halo are removed. No blur,
+fade, tint, gradient, shadow or decorative image generation remains.
 
-The system-specific CSS in `assets/css/bess.css` now:
+## Implementation
 
-- Retains the existing 303px A4 hero height and surrounding page budget.
-- Gives the existing title/breathline and photo separate 42%/58% columns, so
-  text and a gradient no longer obscure the photo.
-- Centres the **complete** photo using intrinsic width/height and max bounds;
-  no stretch, source crop, new/generated image or source-file replacement.
-- Uses `object-fit: contain` as well, but does not rely on it alone: the actual
-  image element retains the source aspect ratio. This matters because the
-  html2canvas export path does not reliably paint `object-fit` on a mismatched
-  image box. Equal source/element proportions keep the real PDF undistorted.
-- Retains the owner-preferred navy hero, white/cream text and rounded frame.
-  Source edge colours now extend OUTSIDE the untouched photograph: 12px left/right
-  and 10px top/bottom, fading into navy. The entire original photo stays sharp.
-  No whole-photo opacity, blur, border or shadow is applied.
-- Leaves quiet background space where a portrait/landscape source does not fill
-  its frame. A differently shaped photograph cannot fill every pixel without
-  cropping or stretching; full source visibility takes priority.
-
-Scope is the Additional Systems hero plus the BESS hero reached from the same
-Advanced Systems selector. Image selection, page ordering, source image bytes,
-names, pricing, Finance and every frozen JS file are unchanged. This supersedes
-the earlier intentional cover-crop choice.
+- `assets/css/bess.css`: existing 303px hero, 42%/58% copy/photo columns,
+  navy `#13283e`, white/cream copy and 8px photo corners.
+- A small inset leaves breathing room around the photo. The original photograph
+  retains its native aspect ratio; no stretching or scene crop.
+- `assets/js/system-image-frame.js` only wraps the photo and reads its natural
+  dimensions into a CSS ratio. Canvas/PNG generation and resize painting removed.
+- Existing renderer shade elements are hidden. The original image files, URLs,
+  selection state, Finance, pricing and all frozen renderer/exporter code remain
+  unchanged. Editor and Customer View load the same presentation helper.
+- Native-ratio image elements avoid html2canvas's mismatched-box object-fit issue.
+  Cloned frames retain their ratio; ordinary rounded clipping works in exports.
 
 ## Verification
 
-New suite: `qa/system-full-image.test.cjs`.
+`qa/system-full-image.test.cjs` checks all eleven choices including BESS, plus a
+portrait probe, desktop/mobile/print/export geometry, 8px corners, hidden shade,
+no generated halo, sharp untinted capture centre, no scene crop or distortion,
+copy contrast, A4 fit and unchanged Finance. Actual two-page BESS, Canopy and
+Monitoring PDFs and saved Customer View are covered. Screenshots/PDFs are ignored
+under `qa/shots/system-full-image/`.
 
-- All ten Additional Systems presets plus BESS: Leak Proof, Carport, Monitoring,
-  DG, Zero Export, EV, PFC, Canopy, Pergola, Custom and battery storage.
-- Desktop, 390px mobile, print and export-clone geometry: full image element
-  within the frame, native aspect ratio, no text overlap, fade outside the actual image bounds,
-  no photo border/shadow, copy contrast at least 4.5:1 on navy,
-  title and A4 footer fit, no horizontal overflow, unchanged Finance output.
-- Additional portrait-source probe for future uploads.
-- Real two-page BESS, Canopy and Monitoring PDFs using the unchanged exporter, with
-  actual export snapshot geometry checked before real canvas capture.
-- Hero screenshots inspected for BESS, Canopy, DG and Leak Proof. Generated screenshots
-  and PDFs remain ignored under `qa/shots/system-full-image/`.
-- Existing hero-polish, minimal-input, input-hierarchy and text/context browser
-  suites pass, including long custom names, BESS, saved/reloaded Customer View,
-  40 category/system cases and three additional real PDF formats.
-- Previous cover-fit assertions now explicitly expect the owner-requested
-  containment; no Finance, source-image or page-overflow checks were removed.
-- Finance: 82 pass; public packaging: 31 pass; role/build/frozen parity: 311 pass;
-  scope guard and negative controls: 43 pass.
-- Packaging now independently byte-checks `bess.css`, with negative tamper
-  coverage for the CSS and framing helper. Scope guard adds only the exact
-  owner-authorised CSS and helper paths; no directory wildcard.
+Regression suites: system-hero-polish, system-minimal, system-input-hierarchy,
+system-text-context. Guards: Finance 82, public packaging 31, scope 43,
+role/build/frozen parity 311.
 
-Run browser suites against an isolated static `QA_BASE`, not production. In the
-sandbox, Playwright/Chromium and its shared libraries must be installed first.
-For scope/parity, use this new branch's real comparison base:
-
-```sh
-QS_PR_BASE=1ae392d5e875fc6888e9c7e7d0b67e2af4db9219 node qa/pr-scope.test.cjs
-QS_PR_BASE=1ae392d5e875fc6888e9c7e7d0b67e2af4db9219 node qa/roles-parity.test.js
-```
-
-No production deploy, main merge or D1/provider operation is implied by local
-verification.
-
-## Aesthetic follow-up — navy retained, outward edge blend
-
-A white-backed alternative was previewed. The owner clarified that the navy
-version was preferred and requested a slight image-edge fade instead. Navy is
-restored. The owner then requested the fade outside the image, on navy, instead
-of darkening its inside edges. The photo remains complete and undistorted.
-
-`assets/js/system-image-frame.js` is a small presentation-only enhancement loaded
-by the editor and Customer View. It wraps only these two hero types and derives
-the frame ratio from each image's natural dimensions, including replacement
-images. No saved form, image URL, file pixels, pricing, account state, network or
-frozen renderer/exporter code is changed. Export clones retain the frame ratio.
-
-The existing shade element now sits behind the source photograph and extends
-12px horizontally / 10px vertically beyond it. A small presentation canvas
-extrudes only the outermost source pixels into these outside bands, feathers
-their alpha and supplies a PNG background. This avoids CSS blur/mask and gradient
-export incompatibilities. The photo is inset slightly to leave navy breathing
-room for the outside fade within the unchanged 303px hero. No original image
-file is modified. Same-origin sources work normally; future non-CORS sources
-fall back to the original sharp image without the decorative halo.
-
-Real PDF exports and saved Customer View assert that the fade lies outside the
-image bounds. Source-vs-capture centre-pixel averages reject accidental full-photo
-darkening (maximum mean channel delta <8).
-
-Intrinsic source proportions are retained: resizing width/height independently
-would distort the equipment and structure, not reveal more scene content.
+Scope/parity comparison base:
+`QS_PR_BASE=1ae392d5e875fc6888e9c7e7d0b67e2af4db9219`.
+Run browser tests against isolated static QA, never live customer sessions.
+No main merge or production/D1/provider operation is implied.
