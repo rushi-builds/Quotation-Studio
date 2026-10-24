@@ -626,10 +626,12 @@
       return {input, label, section, options, text: normalize(label + ' ' + section + ' ' + keywords), primary: normalize(label)};
     }
     function searchEntries() {
-      return [...panel.querySelectorAll('input,select,textarea,button,a[href],summary')].filter(input =>
+      const native = [...panel.querySelectorAll('input,select,textarea,button,a[href],summary')].filter(input =>
         !input.closest('.studio-search,.studio-overview,.studio-feedback') &&
         !input.matches('[type="hidden"],#systemEnabled,#bessEnabled,#systemTemplate,[data-bess-choice],[data-system-choice]')
       ).map(entryFor).filter(Boolean);
+      const documentText = (window.DocumentStudio?.searchEntries?.() || []).map(item=>({...item,options:[],text:normalize(item.label+' '+item.section),primary:normalize(item.label)}));
+      return [...native,...documentText];
     }
     function visible(input) {
       return input && !input.disabled && input.getClientRects().length > 0 && !input.closest('[hidden]');
@@ -681,13 +683,13 @@
       results.querySelector('p').textContent = matches.length ? matches.length + ' matching settings & tools · all results below' : 'No matching settings. Try “tariff”, “module” or “QR”.';
       matches.forEach(item => {
         const li = element('li'), button = element('button'); button.type = 'button';
-        if (item.input.id) button.dataset.searchTarget = item.input.id;
+        if (item.input?.id) button.dataset.searchTarget = item.input.id;
         button.append(element('strong', '', item.label), element('small', '', item.section));
         const option = item.options.find(text => words.some(word => normalize(text).includes(word)));
         if (option && !words.every(word => item.primary.includes(word))) button.append(element('small', 'studio-search-option', 'Option: ' + option + ' · choose in dropdown'));
-        if (item.input.closest('[hidden]') || item.input.disabled) button.append(element('small', '', 'Conditional setting · opens setup, does not enable it'));
-        if (item.input.matches('button,a,input[type="file"]')) button.append(element('small', '', 'Locate only · does not run this action'));
-        button.addEventListener('click', () => navigate(item)); li.append(button); list.append(li);
+        if (item.input && (item.input.closest('[hidden]') || item.input.disabled)) button.append(element('small', '', 'Conditional setting · opens setup, does not enable it'));
+        if (item.input?.matches('button,a,input[type="file"]')) button.append(element('small', '', 'Locate only · does not run this action'));
+        button.addEventListener('click', () => {if(item.activate){clearSearch();item.activate();}else navigate(item);}); li.append(button); list.append(li);
       });
     }
     searchInput.addEventListener('input', find);

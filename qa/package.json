@@ -25,7 +25,8 @@
     "test:oauth": "node --test oauth.test.mjs oauth-attacks.test.mjs phone-auth.test.mjs && node oauth-browser.test.cjs",
  "test:pulse": "node pulse-integration.test.js && node pulse-browser.test.cjs",
     "test:connections": "node connections-ui.test.cjs",
-    "test:roles-parity": "node public-package.test.cjs && node roles-parity.test.js"
+    "test:roles-parity": "node public-package.test.cjs && node roles-parity.test.js",
+    "test:document-studio": "node document-studio.test.cjs && node document-lifecycle.test.cjs && node document-reports.test.cjs"
   },
   "keywords": [],
   "author": "",

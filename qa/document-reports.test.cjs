@@ -1,0 +1,29 @@
+'use strict';
+const assert=require('node:assert/strict'),{chromium}=require('playwright');
+(async()=>{const {default:chrome}=await import('@sparticuz/chromium'),b=await chromium.launch({executablePath:await chrome.executablePath(),args:chrome.args.filter(a=>a!=='--single-process'),headless:true});try{
+const p=await b.newPage({viewport:{width:1440,height:1100}}),errors=[];p.on('pageerror',e=>errors.push(e.message));p.on('dialog',d=>d.accept());await p.goto((process.env.QA_BASE||'http://127.0.0.1:8080')+'/quotation.html');await p.waitForFunction(()=>window.DocumentStudio&&Render.lastState&&document.querySelector('#documentStudio'));await p.evaluate(()=>document.fonts.ready);
+// Audit independently traversed visible real text, including the conditional variants.
+for(const kind of ['weatherproof','carport','bess','monitoring','dg','zero','ev','pfc','canopy','pergola','custom']){
+ await p.selectOption('#advancedSystemSelect',kind,{force:true});
+ const audit=await p.evaluate(()=>Render.lastVisible.map(record=>{const page=document.getElementById(record.id),inventory=new Set(DocumentStudio.inventory(record.id).texts.map(t=>t.node)),missing=[];const walker=document.createTreeWalker(page,NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode()){if(!node.nodeValue.trim()||node.parentElement.closest('script,style,noscript'))continue;const range=document.createRange();range.selectNodeContents(node);if([...range.getClientRects()].some(r=>r.width&&r.height)&&!inventory.has(node))missing.push(node.nodeValue);}return{id:record.id,missing};}));
+ assert(audit.every(p=>!p.missing.length),kind+JSON.stringify(audit.filter(p=>p.missing.length)));
+}
+console.log('PASS: independent visible-text audit across all 11 system selections; every real word has an editable/protected entry');
+await p.selectOption('#advancedSystemSelect','dg',{force:true});await p.locator('#advancedPanel>summary').click();await p.locator('[aria-label="Page to edit"]').selectOption('pageSystemOverview');await p.getByRole('button',{name:'Add a page after this',exact:true}).click();
+const systemCustom=await p.locator('[aria-label="Page to edit"]').inputValue();await p.evaluate(id=>{DocumentStudio.addTextBlock(id,'Extra system page','System-only custom page content.');DocumentStudio.addTextBlock('pageSystemOverview','Additional system notes','Additional system requirements preserve all words. '.repeat(100));},systemCustom);
+assert.deepEqual(await p.evaluate(()=>DocumentStudio.errors()),[]);
+// Contract capture: real selection/cloning/numbering/PDF API, cheap raster for this matrix.
+await p.evaluate(()=>{window.__captures=[];window.html2canvas=async page=>{__captures.push({id:page.id,text:page.textContent,number:page.querySelector('.pf-right')?.textContent});const c=document.createElement('canvas');c.width=100;c.height=140;return c;};});
+async function exportReport(format){await p.evaluate(()=>window.__captures=[]);const waiting=p.waitForEvent('download',{timeout:30000});waiting.catch(()=>{});await p.evaluate(format=>Exporter.exportPdf(()=>{},{format}),format);await waiting;const captured=await p.evaluate(()=>__captures);assert(captured.length>0);assert(captured.every((p,i)=>p.number==='Page '+(i+1)+' of '+captured.length));return captured;}
+const system=await exportReport('system');assert(system.some(p=>p.id===systemCustom));assert(system.some(p=>p.id.startsWith('pageSystemOverview-continuation')));assert(system.some(p=>p.id==='pageSystemDetail'));assert(system.every(p=>p.id===systemCustom||p.id.startsWith('pageSystem')));
+const power=await exportReport('system-power');assert(power.some(p=>p.id===systemCustom));assert(!power.some(p=>p.id==='pageSystemDetail'));
+await p.selectOption('#advancedSystemSelect','none',{force:true});assert(!await p.evaluate(id=>Render.lastVisible.some(p=>p.id===id),systemCustom));
+await p.selectOption('#advancedSystemSelect','bess',{force:true});await p.locator('[aria-label="Page to edit"]').selectOption('pageBessAssessment');await p.getByRole('button',{name:'Add a page after this',exact:true}).click();const bessCustom=await p.locator('[aria-label="Page to edit"]').inputValue();await p.evaluate(id=>DocumentStudio.addTextBlock(id,'Battery-specific notes','BESS-only custom page content.'),bessCustom);
+const bess=await exportReport('bess');assert(bess.some(p=>p.id===bessCustom));assert(!bess.some(p=>p.id===systemCustom));
+const reference=await p.evaluate(()=>({sub:v_exSub.textContent,numbers:Render.lastVisible.map((p,i)=>({id:p.id,n:i+1})).filter(p=>p.id.startsWith('pageBess')||p.id===document.querySelector('[aria-label="Page to edit"]').value)}));assert(reference.sub.includes(reference.numbers[0].n+'–'+reference.numbers.at(-1).n),JSON.stringify(reference));
+await p.selectOption('#advancedSystemSelect','dg',{force:true});assert(!await p.evaluate(id=>Render.lastVisible.some(p=>p.id===id),bessCustom));assert(await p.evaluate(id=>Render.lastVisible.some(p=>p.id===id),systemCustom));
+console.log('PASS: system/system-power/BESS include their own added pages and continuations, local numbering, live cross-references and original conditional visibility');
+// Imported malformed editing metadata must not break the ordinary renderer/editor.
+await p.evaluate(()=>{const saved=JSON.stringify(CONTENT.documentStudio);CONTENT.documentStudio={version:1,pages:{pageAbout:{variants:'not an object'},pageExec:{variants:{default:{texts:{bad:{from:12,value:null}},hidden:'bad',blocks:[null,{kind:'text'}]}}}},customPages:[null,{id:'<img>',title:'bad'}]};Render.renderAll();const t=DocumentStudio.inventory('pageAbout').texts.find(t=>!t.locked);DocumentStudio.setText('pageAbout',t.key,'Safe after malformed metadata.');CONTENT.documentStudio=JSON.parse(saved);Render.renderAll();});
+assert.deepEqual(errors,[]);console.log('PASS: malformed optional editing metadata is ignored/normalised without browser errors');
+}finally{await b.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
