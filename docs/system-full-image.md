@@ -18,7 +18,10 @@ The system-specific CSS in `assets/css/bess.css` now:
   image element retains the source aspect ratio. This matters because the
   html2canvas export path does not reliably paint `object-fit` on a mismatched
   image box. Equal source/element proportions keep the real PDF undistorted.
-- Leaves quiet background space where a portrait/landscape source does not fill
+- Uses a transparent, borderless hero canvas that blends into the white report
+  paper, dark readable text and softly rounded photographs, not a navy backing
+  panel. No image border or shadow is added.
+- Leaves quiet white space where a portrait/landscape source does not fill
   its frame. A differently shaped photograph cannot fill every pixel without
   cropping or stretching; full source visibility takes priority.
 
@@ -35,6 +38,7 @@ New suite: `qa/system-full-image.test.cjs`.
   DG, Zero Export, EV, PFC, Canopy, Pergola, Custom and battery storage.
 - Desktop, 390px mobile, print and export-clone geometry: full image element
   within the frame, native aspect ratio, no text overlap, no shade on the image,
+  no navy backplate/border/shadow, copy contrast at least 4.5:1 on white paper,
   title and A4 footer fit, no horizontal overflow, unchanged Finance output.
 - Additional portrait-source probe for future uploads.
 - Real two-page BESS, Canopy and Monitoring PDFs using the unchanged exporter, with
@@ -62,3 +66,13 @@ QS_PR_BASE=1ae392d5e875fc6888e9c7e7d0b67e2af4db9219 node qa/roles-parity.test.js
 
 No production deploy, main merge or D1/provider operation is implied by local
 verification.
+
+## Aesthetic follow-up
+
+The first uncropped preview still had a solid navy container behind the smaller
+photo. The owner correctly noted that this looked pasted-on. The follow-up
+removes that container treatment without changing or stretching source pixels.
+Text now aligns with the report body and the photograph sits directly on the
+page; differently proportioned images keep natural white breathing room.
+Resizing width/height independently is deliberately avoided because it distorts
+the equipment and structure rather than revealing missing scene content.

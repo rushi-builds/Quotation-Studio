@@ -22,7 +22,14 @@ const {chromium}=require('playwright');
    const scale=Math.min(i.width/img.naturalWidth,i.height/img.naturalHeight);
    const rendered={width:img.naturalWidth*scale,height:img.naturalHeight*scale};
    const footer=host.querySelector('footer').getBoundingClientRect().top;
+   const luminance=values=>values.map(v=>{const n=v/255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((sum,n,index)=>sum+n*[.2126,.7152,.0722][index],0);
+   const readable=[...copy.querySelectorAll('h2,p,small,span')].every(el=>{
+    const values=getComputedStyle(el).color.match(/[\d.]+/g).slice(0,3).map(Number);
+    return 1.05/(luminance(values)+.05)>=4.5;
+   });
    return {fit:s.objectFit,loaded:img.complete&&img.naturalWidth>0,frame:getComputedStyle(hero).height,
+    blended:getComputedStyle(hero).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(hero).borderRadius==='0px',
+    noPhotoFrame:s.borderTopWidth==='0px'&&s.boxShadow==='none',readableCopy:readable,
     imageInside:i.left>=h.left-1&&i.top>=h.top-1&&i.right<=h.right+1&&i.bottom<=h.bottom+1,
     copySeparate:c.right<=i.left+1,copyInside:c.top>=h.top&&c.bottom<=h.bottom-9*h.height/303,
     noShade:getComputedStyle(hero.querySelector('.sp-hero-shade')).display==='none',
@@ -32,7 +39,7 @@ const {chromium}=require('playwright');
   }
   function verify(r,label){
    assert.equal(r.fit,'contain',label);assert.equal(r.frame,'303px',label);
-   for(const key of ['loaded','imageInside','copySeparate','copyInside','noShade','nativeAspect','noSourceCrop','pageFits'])assert(r[key],label+' '+key+' '+JSON.stringify(r));
+   for(const key of ['loaded','blended','noPhotoFrame','readableCopy','imageInside','copySeparate','copyInside','noShade','nativeAspect','noSourceCrop','pageFits'])assert(r[key],label+' '+key+' '+JSON.stringify(r));
   }
   const inspect=async()=>page.evaluate(fn=>{const measure=eval('('+fn+')');return measure(Render.lastState.bessEnabled?pageBessOverview:pageSystemOverview);},geometry.toString());
   const kinds=['bess','weatherproof','carport','monitoring','dg','zero','ev','pfc','canopy','pergola','custom'];
@@ -46,7 +53,7 @@ const {chromium}=require('playwright');
     const clone=(Render.lastState.bessEnabled?pageBessOverview:pageSystemOverview).cloneNode(true);clone.style.transform='none';
     const host=document.createElement('div');host.className='pdf-snapshot';host.append(clone);document.body.append(host);
     try{await Promise.all([...clone.querySelectorAll('img')].map(i=>i.decode()));SupplementDesign.fit(host);
-     return {geometry:eval('('+fn+')')(clone),png:(await html2canvas(clone.querySelector('.sp-system-hero,.bess-hero'),{scale:1.5,logging:false,backgroundColor:'#13283e'})).toDataURL()};
+     return {geometry:eval('('+fn+')')(clone),png:(await html2canvas(clone.querySelector('.sp-system-hero,.bess-hero'),{scale:1.5,logging:false,backgroundColor:'#fff'})).toDataURL()};
     }finally{host.remove();}
    },geometry.toString());
    verify(capture.geometry,kind+' export clone');fs.writeFileSync(path.join(folder,kind+'.png'),Buffer.from(capture.png.split(',')[1],'base64'));

@@ -180,14 +180,17 @@
 /* Owner-requested full-image framing: keep the A4/BESS-matched height,
    but give copy its own column so neither cropping nor text hides the photo.
    contain preserves every source edge at its native aspect ratio, including PDF. */
-:is(.system-page .sp-system-hero,.bess-page .bess-hero){height:303px;display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);grid-template-rows:303px;background:#13283e;}
-:is(.system-page .sp-system-hero,.bess-page .bess-hero)>img{position:static;inset:auto;grid-column:2;grid-row:1;min-width:0;min-height:0;width:auto;height:auto;max-width:100%;max-height:100%;justify-self:center;align-self:center;transform:none;object-fit:contain;object-position:center;display:block;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero){height:303px;display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);grid-template-rows:303px;background:transparent;border-radius:0;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero)>img{position:static;inset:auto;grid-column:2;grid-row:1;min-width:0;min-height:0;width:auto;height:auto;max-width:100%;max-height:100%;justify-self:center;align-self:center;transform:none;object-fit:contain;object-position:center;display:block;border:0;border-radius:8px;box-shadow:none;}
 :is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-shade{display:none;}
-:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy{text-shadow:none;position:relative;inset:auto;grid-column:1;grid-row:1;align-self:center;width:auto;max-width:none;min-width:0;padding:22px;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy{text-shadow:none;position:relative;inset:auto;grid-column:1;grid-row:1;align-self:center;width:auto;max-width:none;min-width:0;padding:20px 24px 20px 0;color:#20384d;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy h2{color:#20384d;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy p{color:#536779;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy>span{color:#8b652f;border-color:#c9ad7a;}
 .bess-page .bess-hero h2{font-size:30px;line-height:1.18;}
-.system-page .sp-system-hero .sp-hero-copy>small{display:block;font-size:8px;line-height:1.5;letter-spacing:.13em;color:#ffedcf;text-transform:uppercase;font-weight:600;}
+.system-page .sp-system-hero .sp-hero-copy>small{display:block;font-size:8px;line-height:1.5;letter-spacing:.13em;color:#8b652f;text-transform:uppercase;font-weight:600;}
 .system-page .sp-system-hero h2{font-size:34px;line-height:1.17;letter-spacing:-.8px;margin:12px 0 10px;overflow-wrap:anywhere;text-shadow:inherit;}
-.system-page .sp-system-hero .sp-hero-breathline{font-size:11px;line-height:1.65;font-weight:400;color:#fff;max-width:350px;margin:0;text-shadow:inherit;}
+.system-page .sp-system-hero .sp-hero-breathline{font-size:11px;line-height:1.65;font-weight:400;color:#536779;max-width:350px;margin:0;text-shadow:inherit;}
 .system-page .sp-system-intro{padding:12px 0;}
 .system-page .sp-section-label{margin-top:12px;margin-bottom:7px;}
 .system-page .sp-system-flow{padding:12px 16px;}
