@@ -13,6 +13,7 @@ const PARITY_FILES = Object.freeze([
   'assets/css/dashboard.css',
   'assets/css/workspace-fit.css',
   'assets/css/bess.css',
+  'assets/js/system-image-frame.js',
   'dashboard.html',
   'assets/js/settings-connections.js',
   'assets/js/workspace-access.js',

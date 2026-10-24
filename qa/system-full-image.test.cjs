@@ -7,7 +7,8 @@ const {chromium}=require('playwright');
  const {default:chrome}=await import('@sparticuz/chromium');
  const browser=await chromium.launch({executablePath:await chrome.executablePath(),args:chrome.args.filter(x=>x!=='--single-process'),headless:true});
  try{
-  const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[];
+  const context=await browser.newContext({viewport:{width:1440,height:1100}});
+  const page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   page.on('dialog',dialog=>dialog.accept()); // Accept fixture-only preset replacement confirmation.
   await page.goto((process.env.QA_BASE||'http://127.0.0.1:8080')+'/quotation.html');
@@ -22,41 +23,48 @@ const {chromium}=require('playwright');
    const scale=Math.min(i.width/img.naturalWidth,i.height/img.naturalHeight);
    const rendered={width:img.naturalWidth*scale,height:img.naturalHeight*scale};
    const footer=host.querySelector('footer').getBoundingClientRect().top;
+   const bg=getComputedStyle(hero).backgroundColor.match(/[\d.]+/g).slice(0,3).map(Number);
    const luminance=values=>values.map(v=>{const n=v/255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((sum,n,index)=>sum+n*[.2126,.7152,.0722][index],0);
    const readable=[...copy.querySelectorAll('h2,p,small,span')].every(el=>{
     const values=getComputedStyle(el).color.match(/[\d.]+/g).slice(0,3).map(Number);
-    return 1.05/(luminance(values)+.05)>=4.5;
+    const a=luminance(values),b=luminance(bg);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05)>=4.5;
    });
    return {fit:s.objectFit,loaded:img.complete&&img.naturalWidth>0,frame:getComputedStyle(hero).height,
-    blended:getComputedStyle(hero).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(hero).borderRadius==='0px',
+    blended:getComputedStyle(hero).backgroundColor==='rgb(19, 40, 62)'&&getComputedStyle(hero).borderRadius==='11px',
     noPhotoFrame:s.borderTopWidth==='0px'&&s.boxShadow==='none',readableCopy:readable,
     imageInside:i.left>=h.left-1&&i.top>=h.top-1&&i.right<=h.right+1&&i.bottom<=h.bottom+1,
     copySeparate:c.right<=i.left+1,copyInside:c.top>=h.top&&c.bottom<=h.bottom-9*h.height/303,
-    noShade:getComputedStyle(hero.querySelector('.sp-hero-shade')).display==='none',
+    edgeFade:(()=>{const e=hero.querySelector('.sp-photo-frame>.sp-hero-shade'),f=hero.querySelector('.sp-photo-frame');if(!e||!f)return false;const style=getComputedStyle(e),r=f.getBoundingClientRect();return style.display==='block'&&style.backgroundImage.includes('linear-gradient')&&style.getPropertyValue('--photo-edge-x').trim()==='12px'&&style.getPropertyValue('--photo-edge-y').trim()==='10px'&&Math.abs(r.width-i.width)<1&&Math.abs(r.height-i.height)<1&&s.opacity==='1'&&s.filter==='none';})(),
     nativeAspect:Math.abs(i.width/i.height-img.naturalWidth/img.naturalHeight)<.01,
     noSourceCrop:rendered.width<=i.width+.1&&rendered.height<=i.height+.1,
     pageFits:[...host.querySelector('.pg-body').children].every(e=>e.getBoundingClientRect().bottom<footer-2)};
   }
   function verify(r,label){
    assert.equal(r.fit,'contain',label);assert.equal(r.frame,'303px',label);
-   for(const key of ['loaded','blended','noPhotoFrame','readableCopy','imageInside','copySeparate','copyInside','noShade','nativeAspect','noSourceCrop','pageFits'])assert(r[key],label+' '+key+' '+JSON.stringify(r));
+   for(const key of ['loaded','blended','noPhotoFrame','readableCopy','imageInside','copySeparate','copyInside','edgeFade','nativeAspect','noSourceCrop','pageFits'])assert(r[key],label+' '+key+' '+JSON.stringify(r));
   }
   const inspect=async()=>page.evaluate(fn=>{const measure=eval('('+fn+')');return measure(Render.lastState.bessEnabled?pageBessOverview:pageSystemOverview);},geometry.toString());
   const kinds=['bess','weatherproof','carport','monitoring','dg','zero','ev','pfc','canopy','pergola','custom'];
   for(const kind of kinds){
    await page.selectOption('#advancedSystemSelect',kind);
    await page.waitForFunction(key=>key==='bess'?Render.lastState.bessEnabled:Render.lastState.systemEnabled&&Render.lastState.systemTemplate===key,kind);
-   await page.evaluate(async()=>{await document.fonts.ready;await document.querySelector(Render.lastState.bessEnabled?'#bessOverviewBody .sp-hero>img':'#systemOverviewBody .sp-hero>img').decode();SupplementDesign.fit();});
+   await page.evaluate(async()=>{await document.fonts.ready;await document.querySelector(Render.lastState.bessEnabled?'#bessOverviewBody .sp-hero img':'#systemOverviewBody .sp-hero img').decode();SupplementDesign.fit();});
    verify(await inspect(),kind+' desktop');
    assert.equal(await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState))),original);
    const capture=await page.evaluate(async fn=>{
     const clone=(Render.lastState.bessEnabled?pageBessOverview:pageSystemOverview).cloneNode(true);clone.style.transform='none';
     const host=document.createElement('div');host.className='pdf-snapshot';host.append(clone);document.body.append(host);
     try{await Promise.all([...clone.querySelectorAll('img')].map(i=>i.decode()));SupplementDesign.fit(host);
-     return {geometry:eval('('+fn+')')(clone),png:(await html2canvas(clone.querySelector('.sp-system-hero,.bess-hero'),{scale:1.5,logging:false,backgroundColor:'#fff'})).toDataURL()};
+     const hero=clone.querySelector('.sp-system-hero,.bess-hero'),img=hero.querySelector('img'),h=hero.getBoundingClientRect(),i=img.getBoundingClientRect(),scale=1.5;
+     const canvas=await html2canvas(hero,{scale,logging:false,backgroundColor:'#13283e'});
+     const expected=document.createElement('canvas');expected.width=canvas.width;expected.height=canvas.height;const ec=expected.getContext('2d');ec.fillStyle='#13283e';ec.fillRect(0,0,expected.width,expected.height);ec.drawImage(img,(i.left-h.left)*scale,(i.top-h.top)*scale,i.width*scale,i.height*scale);
+     const x=Math.round((i.left-h.left+i.width/2)*scale)-16,y=Math.round((i.top-h.top+i.height/2)*scale)-16;
+     const mean=c=>{const d=c.getContext('2d').getImageData(x,y,32,32).data,r=[0,0,0];for(let n=0;n<d.length;n+=4)for(let k=0;k<3;k++)r[k]+=d[n+k]/1024;return r;};
+     const a=mean(canvas),b=mean(expected),centerDelta=Math.max(...a.map((v,n)=>Math.abs(v-b[n])));
+     return {geometry:eval('('+fn+')')(clone),centerDelta,png:canvas.toDataURL()};
     }finally{host.remove();}
    },geometry.toString());
-   verify(capture.geometry,kind+' export clone');fs.writeFileSync(path.join(folder,kind+'.png'),Buffer.from(capture.png.split(',')[1],'base64'));
+   verify(capture.geometry,kind+' export clone');assert(capture.centerDelta<8,kind+' photo centre must not be tinted: '+capture.centerDelta);fs.writeFileSync(path.join(folder,kind+'.png'),Buffer.from(capture.png.split(',')[1],'base64'));
    await page.emulateMedia({media:'print'});verify(await inspect(),kind+' print');await page.emulateMedia({media:'screen'});
    await page.setViewportSize({width:390,height:844});await page.evaluate(()=>Render.fitPages());verify(await inspect(),kind+' mobile');
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
@@ -79,6 +87,15 @@ const {chromium}=require('playwright');
    }finally{await page.evaluate(()=>{window.html2canvas=__fullImageCapture;});}
    console.log('PASS:',kind,'— actual two-page PDF with uncropped geometry');
   }
+  // Saved Customer View uses the same source-ratio frame and edge treatment.
+  await page.selectOption('#advancedSystemSelect','canopy');
+  await page.waitForFunction(()=>Render.lastState.systemTemplate==='canopy'&&Render.lastState.systemEnabled);
+  const id=await page.evaluate(()=>{__qsSaveNow();return Proposals.activeId();});
+  const customer=await page.context().newPage();customer.on('pageerror',e=>errors.push(e.message));
+  await customer.goto((process.env.QA_BASE||'http://127.0.0.1:8080')+'/share.html?p='+encodeURIComponent(id));
+  await customer.waitForFunction(()=>Render.lastState?.systemEnabled&&document.querySelector('#systemOverviewBody .sp-photo-frame img')?.naturalWidth>0);
+  verify(await customer.evaluate(fn=>eval('('+fn+')')(pageSystemOverview),geometry.toString()),'saved Customer View');
+  await customer.close();console.log('PASS: saved Customer View retains full photo and bounded fade');
   assert.deepEqual(errors,[]);console.log('PASS: zero browser errors; original image files and frozen logic unchanged');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

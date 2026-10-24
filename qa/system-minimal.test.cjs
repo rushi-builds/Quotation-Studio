@@ -22,7 +22,7 @@ const {chromium}=require('playwright');
   for(const kind of ['weatherproof','carport','canopy','pergola']){
    await page.selectOption('#advancedSystemSelect',kind);await page.waitForFunction(key=>Render.lastState.systemTemplate===key,kind);
    const check=await page.evaluate(async()=>{
-    await document.fonts.ready;const img=document.querySelector('#systemOverviewBody .sp-hero>img');await img.decode();
+    await document.fonts.ready;const img=document.querySelector('#systemOverviewBody .sp-hero img');await img.decode();
     const s=Render.lastState,title=document.querySelector('#systemOverviewBody .sp-hero-copy'),body=systemOverviewBody;
     const ir=img.closest('.sp-hero').getBoundingClientRect(),tr=title.getBoundingClientRect(),footer=pageSystemOverview.querySelector('footer').getBoundingClientRect().top;
     return {name:AdditionalSystems.name(s),fit:getComputedStyle(img).objectFit,clear:tr.left>=ir.left&&tr.bottom<=ir.bottom+1&&tr.right<=img.getBoundingClientRect().left+1,blankFacts:!s.systemAreaM2&&!s.systemHeightM&&!s.systemBays&&!s.systemPrice,filled:['systemPurpose','systemEquipment','systemScope','systemExclusions','systemNotes','systemRoofing','systemDrainage','systemAcceptance'].every(id=>!!s[id]),fits:[...body.children].every(el=>el.getBoundingClientRect().bottom<footer-2),detailFits:[...systemDetailBody.children].every(el=>el.getBoundingClientRect().bottom<pageSystemDetail.querySelector('footer').getBoundingClientRect().top-2),noOldName:!body.textContent.includes('Weatherproof Solar Roof')};

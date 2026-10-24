@@ -63,6 +63,8 @@ const DEPLOY_CONFIG_RE = /(^|\/)wrangler[^/]*\.(toml|jsonc?|json)$|(^|\/)vercel\
 const WORKSPACE_PRESENTATION_PATHS = new Set([
   // Owner requested full, uncropped Additional Systems hero framing (24 Oct).
   'assets/css/bess.css',
+  // Read-only, source-ratio photo framing for the owner's subtle edge fade.
+  'assets/js/system-image-frame.js',
   // Exact UI-label file for the owner's Action desk wording correction.
   'assets/js/pulse/pulse-ui.js',
   'assets/css/workspace-fit.css',

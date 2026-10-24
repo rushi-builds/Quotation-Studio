@@ -18,10 +18,11 @@ The system-specific CSS in `assets/css/bess.css` now:
   image element retains the source aspect ratio. This matters because the
   html2canvas export path does not reliably paint `object-fit` on a mismatched
   image box. Equal source/element proportions keep the real PDF undistorted.
-- Uses a transparent, borderless hero canvas that blends into the white report
-  paper, dark readable text and softly rounded photographs, not a navy backing
-  panel. No image border or shadow is added.
-- Leaves quiet white space where a portrait/landscape source does not fill
+- Retains the owner-preferred navy hero, white/cream text and rounded frame.
+  Only a thin photo perimeter is faded into that same navy: 12px left/right
+  and 10px top/bottom, with the centre fully transparent and the photo sharp.
+  No whole-photo opacity, blur, border or shadow is applied.
+- Leaves quiet background space where a portrait/landscape source does not fill
   its frame. A differently shaped photograph cannot fill every pixel without
   cropping or stretching; full source visibility takes priority.
 
@@ -37,8 +38,8 @@ New suite: `qa/system-full-image.test.cjs`.
 - All ten Additional Systems presets plus BESS: Leak Proof, Carport, Monitoring,
   DG, Zero Export, EV, PFC, Canopy, Pergola, Custom and battery storage.
 - Desktop, 390px mobile, print and export-clone geometry: full image element
-  within the frame, native aspect ratio, no text overlap, no shade on the image,
-  no navy backplate/border/shadow, copy contrast at least 4.5:1 on white paper,
+  within the frame, native aspect ratio, no text overlap, fade bounded to the actual image edges,
+  no photo border/shadow, copy contrast at least 4.5:1 on navy,
   title and A4 footer fit, no horizontal overflow, unchanged Finance output.
 - Additional portrait-source probe for future uploads.
 - Real two-page BESS, Canopy and Monitoring PDFs using the unchanged exporter, with
@@ -50,10 +51,11 @@ New suite: `qa/system-full-image.test.cjs`.
   40 category/system cases and three additional real PDF formats.
 - Previous cover-fit assertions now explicitly expect the owner-requested
   containment; no Finance, source-image or page-overflow checks were removed.
-- Finance: 82 pass; public packaging: 29 pass; role/build/frozen parity: 310 pass;
+- Finance: 82 pass; public packaging: 31 pass; role/build/frozen parity: 311 pass;
   scope guard and negative controls: 43 pass.
 - Packaging now independently byte-checks `bess.css`, with negative tamper
-  coverage. Scope guard adds only this exact owner-authorised CSS path.
+  coverage for the CSS and framing helper. Scope guard adds only the exact
+  owner-authorised CSS and helper paths; no directory wildcard.
 
 Run browser suites against an isolated static `QA_BASE`, not production. In the
 sandbox, Playwright/Chromium and its shared libraries must be installed first.
@@ -67,12 +69,23 @@ QS_PR_BASE=1ae392d5e875fc6888e9c7e7d0b67e2af4db9219 node qa/roles-parity.test.js
 No production deploy, main merge or D1/provider operation is implied by local
 verification.
 
-## Aesthetic follow-up
+## Aesthetic follow-up — navy retained, edges softened
 
-The first uncropped preview still had a solid navy container behind the smaller
-photo. The owner correctly noted that this looked pasted-on. The follow-up
-removes that container treatment without changing or stretching source pixels.
-Text now aligns with the report body and the photograph sits directly on the
-page; differently proportioned images keep natural white breathing room.
-Resizing width/height independently is deliberately avoided because it distorts
-the equipment and structure rather than revealing missing scene content.
+A white-backed alternative was previewed. The owner clarified that the navy
+version was preferred and requested a slight image-edge fade instead. Navy is
+restored; the photo is still complete and undistorted, without a uniform tint.
+
+`assets/js/system-image-frame.js` is a small presentation-only enhancement loaded
+by the editor and Customer View. It wraps only these two hero types and derives
+the frame ratio from each image's natural dimensions, including replacement
+images. No saved form, image URL, file pixels, pricing, account state, network or
+frozen renderer/exporter code is changed. Export clones retain the frame ratio.
+
+The existing shade element now supplies four narrowly sized, non-repeating
+edge gradients. Separate background layers avoid both unsupported CSS masks and
+`calc()` gradient-stop differences in html2canvas. This is tested in real PDF
+exports, not only in the live browser. Source-vs-capture centre-pixel averages
+also reject accidental full-photo darkening (maximum mean channel delta <8).
+
+Intrinsic source proportions are retained: resizing width/height independently
+would distort the equipment and structure, not reveal more scene content.

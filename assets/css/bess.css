@@ -180,17 +180,23 @@
 /* Owner-requested full-image framing: keep the A4/BESS-matched height,
    but give copy its own column so neither cropping nor text hides the photo.
    contain preserves every source edge at its native aspect ratio, including PDF. */
-:is(.system-page .sp-system-hero,.bess-page .bess-hero){height:303px;display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);grid-template-rows:303px;background:transparent;border-radius:0;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero){height:303px;display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);grid-template-rows:303px;background:#13283e;border-radius:11px;}
 :is(.system-page .sp-system-hero,.bess-page .bess-hero)>img{position:static;inset:auto;grid-column:2;grid-row:1;min-width:0;min-height:0;width:auto;height:auto;max-width:100%;max-height:100%;justify-self:center;align-self:center;transform:none;object-fit:contain;object-position:center;display:block;border:0;border-radius:8px;box-shadow:none;}
 :is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-shade{display:none;}
-:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy{text-shadow:none;position:relative;inset:auto;grid-column:1;grid-row:1;align-self:center;width:auto;max-width:none;min-width:0;padding:20px 24px 20px 0;color:#20384d;}
-:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy h2{color:#20384d;}
-:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy p{color:#536779;}
-:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy>span{color:#8b652f;border-color:#c9ad7a;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy{text-shadow:none;position:relative;inset:auto;grid-column:1;grid-row:1;align-self:center;width:auto;max-width:none;min-width:0;padding:22px;color:#fff;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy h2{color:#fff;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy p{color:#e3ebf3;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-hero-copy>span{color:#f2c386;border-color:#c9ad7a;}
+/* The frame matches the actual source bounds, not the letterboxed grid cell.
+   Only a thin perimeter is blended; no mask/filter or whole-photo opacity.
+   Ordinary gradients also paint correctly in html2canvas export snapshots. */
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-photo-frame{position:relative;grid-column:2;grid-row:1;place-self:center;width:min(100%,calc(303px * var(--system-photo-ratio,1)));aspect-ratio:var(--system-photo-ratio,1);max-width:100%;max-height:303px;min-width:0;min-height:0;border-radius:8px;overflow:hidden;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-photo-frame>img{position:static;inset:auto;display:block;width:100%;height:auto;max-width:100%;max-height:303px;object-fit:contain;transform:none;border:0;border-radius:0;box-shadow:none;}
+:is(.system-page .sp-system-hero,.bess-page .bess-hero) .sp-photo-frame>.sp-hero-shade{display:block;position:absolute;inset:0;pointer-events:none;--photo-edge-x:12px;--photo-edge-y:10px;background-image:linear-gradient(90deg,rgba(19,40,62,.75),rgba(19,40,62,0)),linear-gradient(270deg,rgba(19,40,62,.75),rgba(19,40,62,0)),linear-gradient(180deg,rgba(19,40,62,.5),rgba(19,40,62,0)),linear-gradient(0deg,rgba(19,40,62,.5),rgba(19,40,62,0));background-size:var(--photo-edge-x) 100%,var(--photo-edge-x) 100%,100% var(--photo-edge-y),100% var(--photo-edge-y);background-position:left top,right top,left top,left bottom;background-repeat:no-repeat;}
 .bess-page .bess-hero h2{font-size:30px;line-height:1.18;}
-.system-page .sp-system-hero .sp-hero-copy>small{display:block;font-size:8px;line-height:1.5;letter-spacing:.13em;color:#8b652f;text-transform:uppercase;font-weight:600;}
+.system-page .sp-system-hero .sp-hero-copy>small{display:block;font-size:8px;line-height:1.5;letter-spacing:.13em;color:#ffedcf;text-transform:uppercase;font-weight:600;}
 .system-page .sp-system-hero h2{font-size:34px;line-height:1.17;letter-spacing:-.8px;margin:12px 0 10px;overflow-wrap:anywhere;text-shadow:inherit;}
-.system-page .sp-system-hero .sp-hero-breathline{font-size:11px;line-height:1.65;font-weight:400;color:#536779;max-width:350px;margin:0;text-shadow:inherit;}
+.system-page .sp-system-hero .sp-hero-breathline{font-size:11px;line-height:1.65;font-weight:400;color:#e3ebf3;max-width:350px;margin:0;text-shadow:inherit;}
 .system-page .sp-system-intro{padding:12px 0;}
 .system-page .sp-section-label{margin-top:12px;margin-bottom:7px;}
 .system-page .sp-system-flow{padding:12px 16px;}
