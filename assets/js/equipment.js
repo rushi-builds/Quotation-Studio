@@ -170,13 +170,12 @@
   function mix(base, overlay) {
     const out = base.slice(), index = new Map();
     base.forEach((r, i) => index.set(keyOf(r), i));
-    const extras = [];
     overlay.forEach((r) => {
       const k = keyOf(r);
       if (index.has(k)) out[index.get(k)] = r;
-      else { index.set(k, out.length + extras.length); extras.push(r); }
+      else { index.set(k, out.length); out.push(r); }
     });
-    return out.concat(extras);
+    return out;
   }
 
   function cat() {
@@ -190,6 +189,17 @@
       };
     }
     return merged;
+  }
+
+  // The manager edits the authoritative user arrays, not the merged catalogue.
+  // Re-deriving them from a warm merged cache discarded additions/restored deletes.
+  function persistUser() {
+    merged = null;
+    try {
+      const u = userRows();
+      root.localStorage.setItem(KEY, JSON.stringify({ ...u, _v: 2 }));
+      return true;
+    } catch (e) { return false; }
   }
 
   function save() {
@@ -208,9 +218,8 @@
       u.structures = c.structures.filter((r) => !bs.has(String(r.label || r.make || '')));
       u.cables = c.cables.filter((r) => !bc.has(keyOf(r)) && !cc.has(keyOf(r)));
       u._v = 2;
-      root.localStorage.setItem(KEY, JSON.stringify(u));
-      merged = null;
-    } catch (e) { /* quota */ }
+      return persistUser();
+    } catch (e) { return false; }
   }
   function uid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
 
@@ -541,10 +550,19 @@
   /* Catalog manager UI (user-added rows only - the Excel extract is the */
   /* built-in master and cannot be edited here)                          */
   /* ------------------------------------------------------------------ */
+  let managerMessage = '';
   function renderManager(container, onChange) {
     if (!container) return;
     const u = userRows();
-    const notify = () => { save(); refreshSelects(); if (onChange) onChange(); };
+    const notify = () => {
+      const saved = persistUser();
+      managerMessage = saved ? 'Saved in this browser.' : 'Not saved: browser storage is full or unavailable. Keep this tab open and retry after freeing storage.';
+      refreshSelects();
+      const status = container.querySelector('.eq-save-status');
+      if (status) { status.textContent = managerMessage; status.dataset.saved = String(saved); }
+      if (onChange) onChange();
+      return saved;
+    };
     const esc = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     const inp = (val, attrs, cls) => '<input type="text" value="' + esc(val) + '" ' + (attrs || '') + ' class="' + (cls || '') + '">';
 
@@ -558,7 +576,7 @@
     u.modules.forEach((m, idx) => {
       html += '<div class="eq-row" data-kind="module" data-idx="' + idx + '">' +
         inp(m.make, 'data-f="make" placeholder="Make / equivalent"', 'eq-grow') +
-        inp(m.wp, 'data-f="wp" placeholder="Wp" class="num"', 'eq-sm') +
+        inp(m.wp, 'data-f="wp" placeholder="Wp" inputmode="decimal"', 'eq-sm') +
         inp(m.lengthMm, 'data-f="lengthMm" placeholder="L mm"', 'eq-sm') +
         inp(m.widthMm, 'data-f="widthMm" placeholder="W mm"', 'eq-sm') +
         inp(m.tech, 'data-f="tech" placeholder="Technology"', 'eq-md') +
@@ -591,9 +609,15 @@
     });
     html += '<button type="button" class="link-btn eq-add" data-kind="cable">+ Add cable</button>';
 
+    html += '<button type="button" class="link-btn eq-save">Save library</button>';
+    html += '<p class="eq-save-status" data-saved="' + String(!managerMessage.startsWith('Not saved:')) + '" role="status" aria-live="polite">' + esc(managerMessage) + '</p>';
     container.innerHTML = html;
+    container.querySelector('.eq-save').addEventListener('click', notify);
 
     container.querySelectorAll('.eq-row input').forEach((input) => {
+      const kind = input.closest('.eq-row').dataset.kind;
+      const names = {make:'make', wp:'rating Wp', kw:'rating kW', lengthMm:'length mm', widthMm:'width mm', tech:'technology', label:'name'};
+      input.setAttribute('aria-label', kind + ' ' + names[input.dataset.f]);
       input.addEventListener('input', () => {
         const row = input.closest('.eq-row');
         const listKey = row.dataset.kind === 'module' ? 'modules'
@@ -614,6 +638,9 @@
         if (k === 'cable') u.cables.push({ id: uid('c'), label: 'New cable' });
         notify();
         renderManager(container, onChange);
+        const rows = container.querySelectorAll('.eq-row[data-kind="' + k + '"]');
+        const first = rows[rows.length - 1]?.querySelector('input');
+        first?.focus(); first?.select();
       });
     });
     container.querySelectorAll('.eq-del').forEach((btn) => {

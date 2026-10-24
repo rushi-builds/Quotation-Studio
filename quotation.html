@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="assets/css/app.css?v=finance-fixes1">
 <link rel="stylesheet" href="assets/css/bess.css">
 <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1">
-<link rel="stylesheet" href="assets/css/control-panel.css?v=preparer-review1">
+<link rel="stylesheet" href="assets/css/control-panel.css?v=equipment-library1">
 <link rel="stylesheet" href="assets/css/studio-assistant.css?v=knowledge3">
 <link rel="stylesheet" href="assets/css/document-studio.css?v=document-studio2">
 </head>
@@ -295,7 +295,7 @@
         <summary><span class="wrap-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg></span><span class="wrap-copy"><strong>Advanced settings</strong><small>Engineering basis · compare options · branding · photos · library - set once, folded away</small></span><span class="wrap-chev" aria-hidden="true">⌄</span></summary>
 <fieldset data-adv>
         <legend>System Design &amp; Equipment</legend>
-        <p class="hint" id="equipmentEntryHint">Choose from the list, or select Custom… to type your own. Reusable makes can be added in All settings → Equipment library.</p>
+        <p class="hint" id="equipmentEntryHint">Choose from the list, or select Custom… to type your own. Reusable makes can be added in Advanced settings → Equipment library.</p>
         <div class="field">
           <label>Generation (kWh/kWp/yr)</label>
           <input type="number" id="genFactor" value="1460" step="10" min="0">
@@ -594,7 +594,7 @@
       </fieldset>
 <details class="advanced eq-panel" data-adv>
         <summary>Equipment Catalog - modules, inverters, structures, cables</summary>
-        <div class="hint" style="margin:4px 14px 0;">Company-level master data used across all proposals. Electrical datasheet fields stay blank until you enter them - nothing is auto-invented.</div>
+        <div class="hint" style="margin:4px 14px 0;">The built-in Excel catalogue is read-only here. Add reusable makes below; your library is saved in this browser across proposals. Choose a make in Equipment &amp; design to apply its values. Missing datasheet values are not supplied by this library.</div>
         <div id="eqCatalog" style="padding:8px 14px 12px;"></div>
       </details>
 <fieldset class="opt-manager" data-adv>
@@ -1488,7 +1488,7 @@
 <script src="assets/js/model.js"></script>
 <script src="assets/js/state.js?v=proposal-stage1"></script>
 <script src="assets/js/catalogue-data.js?v=excel-v37"></script>
-<script src="assets/js/equipment.js"></script>
+<script src="assets/js/equipment.js?v=library-save1"></script>
 <script src="assets/js/render.js?v=proposal-stage1"></script>
 <script src="assets/js/editor.js?v=remote-monitoring1"></script>
 <script src="assets/js/experience.js?v=proposal-stage1"></script>
