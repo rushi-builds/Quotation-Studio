@@ -109,3 +109,25 @@ npm run test:editor-discovery
   hierarchy/full-image browser suites.
 
 Generated screenshots/PDFs stay in ignored `qa/shots/document-studio/`, not Git.
+
+## Prepared by and internal review follow-up
+
+The optional preparer is rendered from the existing `prepName` input in a quiet
+navy footer row on the cover, above the company line. Blank/whitespace input
+hides the entire row (including the label). The original renderer-compatible
+IDs are retained, but moved out of hidden compatibility markup. The presentation
+adapter trims the displayed value and fits the name on each render; no artwork
+is edited and the additional-scope badge keeps its own space. This is shared by
+builder, Customer View and both pristine/edited PDF paths.
+
+Internal engineering findings are generated check results, not proposal copy.
+Each finding now has an **Edit inputs** action linking to the existing source
+controls; DC/AC findings additionally link to string data/inverter rating. This
+opens the correct advanced groups and focuses the real input without inserting
+assumptions or changing values. Measured/site/datasheet inputs recalculate the
+findings. Warning text, safety severity and export blockers are not overridden.
+The findings and their edit actions remain outside customer pages/PDFs.
+
+`npm run test:preparer-review` checks the four cover categories, whitespace, long
+names, scope separation, mobile, saving/reload/Customer View, pristine export
+contract, actual edited cover PDF, source navigation and genuine recalculation.

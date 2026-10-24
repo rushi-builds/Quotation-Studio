@@ -73,7 +73,7 @@
    const source=sources.find(([key,value])=>!['propVersion','validityDays'].includes(key)&&(value.trim()===text||!authored&&text.includes(value.trim())));
    const numeric=/[0-9₹%]/.test(text)&&!strings.has(text)&&staticText.get(staticKey)!==text;
    const graphic=!!parent.closest('svg,canvas');
-   const live=chrome||!!source||numeric||!!parent.closest('[data-head-ref],[data-foot-company],.ht-v,.kpi-v,.sp-metric>strong,.sp-row>b,.sp-price,.metric-value,.inv-total-value');
+   const live=chrome||!!source||numeric||!!parent.closest('[data-head-ref],[data-foot-company],.ht-v,.kpi-v,.sp-metric>strong,.sp-row>b,.sp-price,.metric-value,.inv-total-value,.ktm-cover__preparer');
    const key=path(parent,page)+'::'+[...parent.childNodes].indexOf(node);
    texts.push({key,node,from:node.nodeValue,label:text,locked:live||graphic,reason:graphic?'Diagram / chart output':chrome?'Live page furniture':source?'Linked quotation input':numeric?'Live / derived value':'Calculated value',source:source?.[0]});
   }
@@ -207,7 +207,23 @@
    paginate(page,id,continuation);
   }
  }
+ // Renderer-compatible optional cover metadata. Keep the original artwork
+ // and calculation/render files unchanged; blank/whitespace names show nothing.
+ function syncCoverPreparer(){
+  const row=$('v_coverPrepRow'),name=$('v_coverPrepBy'),artwork=$('coverArtwork')?.parentElement;
+  if(!row||!name||!artwork)return;
+  const value=String(root.Render.lastState?.prepName||'').trim();
+  row.hidden=!value;row.style.display=value?'flex':'none';name.textContent=value;
+  if(!value){name.removeAttribute('title');return;}
+  const start=14*artwork.clientWidth/1060;
+  let size=start;name.style.fontSize=size+'px';
+  while(size>7.5&&(name.scrollHeight>name.clientHeight+1||name.scrollWidth>name.clientWidth+1)){
+   size=Math.max(7.5,size-.25);name.style.fontSize=size+'px';
+  }
+  name.title=value;
+ }
  function applyDetailed(){
+  syncCoverPreparer();
   layoutErrors.length=0;status='';
   const originals=root.Render.PAGES.slice();
   originals.forEach(p=>{

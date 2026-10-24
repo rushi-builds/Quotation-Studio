@@ -48,3 +48,8 @@
 .page.doc-flow .pg-body p,.page.doc-flow .pg-body li{overflow-wrap:anywhere;}
 .doc-protected-text{margin-top:12px;padding-top:10px;border-top:1px solid #d6e1eb;}
 .doc-protected-text>summary{font:600 10px/1.6 Inter,sans-serif;color:#61758b;cursor:pointer;}
+/* Optional preparer identity, in the navy footer, above the company line (clear of additional scope). */
+.ktm-cover__preparer{position:absolute;left:6.604%;top:93%;width:86.8%;height:1.65%;align-items:center;gap:7px;color:#f9fafb;font-family:Inter,Arial,sans-serif;}
+.ktm-cover__preparer[hidden]{display:none!important;}
+.ktm-cover__preparer-label{flex:none;font-size:8px;font-weight:500;letter-spacing:.035em;opacity:.8;}
+.ktm-cover__preparer-name{flex:1;min-width:0;max-height:100%;line-height:1.15;font-weight:600;overflow-wrap:anywhere;overflow:hidden;white-space:normal;}

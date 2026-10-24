@@ -19,9 +19,9 @@
 <link rel="stylesheet" href="assets/css/app.css?v=finance-fixes1">
 <link rel="stylesheet" href="assets/css/bess.css">
 <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1">
-<link rel="stylesheet" href="assets/css/control-panel.css?v=editor-groups2">
+<link rel="stylesheet" href="assets/css/control-panel.css?v=preparer-review1">
 <link rel="stylesheet" href="assets/css/studio-assistant.css?v=knowledge3">
-<link rel="stylesheet" href="assets/css/document-studio.css?v=document-studio1">
+<link rel="stylesheet" href="assets/css/document-studio.css?v=document-studio2">
 </head>
 <body>
 <div class="app">
@@ -439,7 +439,7 @@
           <textarea id="engineeringDesignNote" rows="4" maxlength="800" aria-describedby="engineeringExcelHint">Proposal-stage design: Equipment and commercial details are presented in this quotation. Detailed engineering will be completed after site verification and before installation.</textarea>
           <div class="hint" id="engineeringExcelHint">Internal only - the note above appears in the Technical Specification and Power Proposal. Leaving it blank restores the standard proposal-stage note.</div>
         </div>
-        <details class="eng-group"><summary><span>Internal engineering review</span><small>Staff only · excluded from customer PDFs</small></summary><ul id="engineeringReview"></ul></details>
+        <details class="eng-group"><summary><span>Internal engineering review</span><small>Staff only · excluded from customer PDFs</small></summary><p class="hint eng-review-help">These findings come from the engineering inputs, not fixed proposal text. Use Edit inputs on a finding to enter the measured or datasheet values; the review updates automatically.</p><ul id="engineeringReview"></ul></details>
         <div class="hint">The inputs below remain available for internal engineering checks. Missing inputs stay in the internal review; confirmed safety issues still appear before download.</div>
 
         <details class="eng-group">
@@ -774,6 +774,10 @@
             <span class="ktm-cover__value ktm-cover__capacity" id="v_coverCapacity" data-cover-font="16" aria-label="System size"></span>
             <span class="ktm-cover__value ktm-cover__reference" id="v_coverRef" data-cover-font="16" aria-label="Proposal number"></span>
             <span class="ktm-cover__value ktm-cover__date" id="v_coverDate" data-cover-font="16" aria-label="Proposal date"></span>
+            <div id="v_coverPrepRow" class="ktm-cover__preparer" hidden style="display:none">
+              <span id="v_coverPrepLabel" class="ktm-cover__preparer-label"></span>
+              <span id="v_coverPrepBy" class="ktm-cover__preparer-name"></span>
+            </div>
             <div id="v_coverSystem" class="cover-system-label" hidden><small>ADDITIONAL SCOPE</small><span id="v_coverSystemName"></span></div>
             <span class="ktm-cover__value ktm-cover__capacity-kpi" id="v_coverBadgeKwp" data-cover-font="49" aria-label="Project capacity"></span>
             <span class="ktm-cover__cost-icon" aria-hidden="true">☀</span>
@@ -786,7 +790,6 @@
           <span id="v_coverEyebrow"></span><span id="v_coverTitle1">YOUR ROOF</span><span id="v_coverTitle2">POWER</span>
           <span id="v_coverPreparedLabel">A DEDICATED PROPOSAL FOR</span><span id="v_coverVersion"></span><span id="v_coverValid"></span>
           <span id="v_coverCapacityLabel"></span><span id="v_coverDateLabel"></span><span id="v_coverValidLabel"></span><span id="v_coverRefLabel"></span>
-          <span id="v_coverPrepRow"></span><span id="v_coverPrepLabel"></span><span id="v_coverPrepBy"></span>
           <span id="v_coverStatYears">11+</span><span id="v_coverStatProjects">200+</span><span id="v_coverStatCapacity">20+ MW</span><span id="v_coverStat4"></span>
           <img id="img_cover" src="assets/ktm-cover-page-1.png?v=0d8e226e919f" alt="AI-generated tall architectural concept - villa with solar roof (placeholder, not a real site photo)" style="display:none;">
         </div>
@@ -1496,10 +1499,10 @@
 <script src="assets/js/platform-api.js?v=knowledge3"></script>
 <script src="assets/js/cloud-bridge.js?v=knowledge3"></script>
 <script src="assets/js/app.js?v=rwa1"></script>
-<script src="assets/js/control-panel.js?v=document-studio1"></script>
+<script src="assets/js/control-panel.js?v=document-studio2"></script>
 <script src="assets/js/assistant-actions.js?v=knowledge3"></script>
 <script src="assets/js/assistant-chat.js?v=knowledge3"></script>
 <script src="assets/js/studio-assistant.js?v=knowledge3"></script>
-<script src="assets/js/document-studio.js?v=document-studio1"></script>
+<script src="assets/js/document-studio.js?v=document-studio2"></script>
 </body>
 </html>

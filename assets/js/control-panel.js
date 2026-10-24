@@ -542,6 +542,22 @@
           const item = element('li', 'eng-review-item'); item.dataset.severity = kind;
           item.append(element('span', 'eng-review-tag', missing ? 'DATA REQUIRED' : kind === 'blocking' ? 'ACTION REQUIRED' : kind === 'advisory' ? 'REVIEW' : 'NOTE'),
             element('p', 'eng-review-copy', issue.message.replace(/^DATA REQUIRED\s*[-–—]?\s*/, '')));
+          // Findings remain engine-owned. Navigate to the actual editable
+          // controls, never spoof a pass by editing a generated warning.
+          const sources = issue.id === 'dcCableLengthM'
+            ? [['dcCableLengthM','Edit DC inputs'],['moduleVoc','String / datasheet inputs']]
+            : issue.id === 'acCableLengthM'
+              ? [['acCableLengthM','Edit AC inputs'],['inverterKw','Inverter rating']]
+              : [[issue.id, issue.id === 'soilResistivity' ? 'Edit soil / earthing inputs' : 'Edit inputs']];
+          const actions = element('div', 'eng-review-actions');
+          sources.forEach(([id, label]) => {
+            if (!$(id)) return;
+            const action = element('button', 'link-btn', label);
+            action.type = 'button'; action.dataset.reviewInput = id;
+            action.addEventListener('click', () => reveal($(id)));
+            actions.append(action);
+          });
+          if (actions.children.length) item.append(actions);
           review.append(item);
         });
         if (!review.children.length) review.append(element('li', '', 'No issues reported for the supplied inputs. Site verification is still required.'));

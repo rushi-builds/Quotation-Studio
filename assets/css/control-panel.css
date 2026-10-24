@@ -257,3 +257,7 @@ form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
 .form-panel .studio-tinted-disclosure>summary::-webkit-details-marker,.form-panel .studio-arranged-cluster>details.studio-advanced>summary::-webkit-details-marker{display:none;}
 .form-panel .studio-arranged-cluster>details.studio-advanced{background:#ffffff80;border:1px solid var(--way-line);}
 .form-panel .studio-arranged-cluster>details.studio-advanced>summary{color:var(--way-ink);}
+/* Generated engineering findings link to the existing editable source fields. */
+.studio-ready .eng-basis .eng-review-help{padding:10px 12px 0;margin:0;}
+.studio-ready .eng-basis .eng-review-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.studio-ready .eng-basis .eng-review-actions button{font-size:10px;padding:6px 9px;text-align:left;}
