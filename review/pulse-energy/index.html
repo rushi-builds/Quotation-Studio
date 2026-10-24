@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+  <meta name="theme-color" content="#edf2f8">
+  <title>Studio Pulse — A brighter perspective</title>
+  <link rel="stylesheet" href="./energy.css"><script src="./energy.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to Studio Pulse</a>
+  <aside class="sidebar" aria-label="Studio navigation">
+    <a class="brand" href="./index.html" aria-label="Studio Pulse preview"><img src="/assets/images/ktm-logo-dark.png" alt="KTM Energy Experts"><span>QUOTATION STUDIO</span></a>
+    <span class="nav-caption">WORKSPACE</span>
+    <button class="side-link" data-shell="Overview"><i data-icon="home"></i><span>Overview</span></button>
+    <button class="side-link" data-shell="Quotations"><i data-icon="file"></i><span>Quotations</span></button>
+    <button class="side-link" data-shell="Follow-ups"><i data-icon="check"></i><span>Follow-ups</span></button>
+    <button class="side-link" data-shell="Customer activity"><i data-icon="activity"></i><span>Customer activity</span></button>
+    <span class="nav-caption manage-caption">MANAGE</span>
+    <button class="side-link" data-shell="Sharing"><i data-icon="send"></i><span>Sharing</span></button>
+    <button class="side-link" data-shell="Project gallery"><i data-icon="image"></i><span>Project gallery</span></button>
+    <button class="side-link active" aria-current="page" data-view="overview"><i data-icon="pulse"></i><span>Studio Pulse</span><b></b></button>
+    <button class="side-link" data-shell="Settings"><i data-icon="settings"></i><span>Settings</span></button>
+    <div class="sidebar-bottom"><div class="energy-note"><span class="sun-symbol" aria-hidden="true"></span><span>Better energy.<br><strong>Brighter possibilities.</strong></span></div><span class="company-name">KTM Energy Experts</span><span class="sidebar-sub">Your business, in perspective.</span><div class="sidebar-foot"><span class="outline-dot"></span>Workspace design exploration</div></div>
+  </aside>
+  <div class="app">
+    <header class="topbar">
+      <div class="breadcrumb"><span>Workspace</span><i data-icon="chevron"></i><strong>Studio Pulse</strong></div>
+      <div class="search-wrap"><label class="search" for="globalSearch"><i data-icon="search"></i><input type="search" id="globalSearch" placeholder="Find an action or view…" autocomplete="off" aria-controls="searchResults" aria-expanded="false"><kbd>Ctrl K</kbd></label><div class="search-results" id="searchResults" hidden></div></div>
+      <div class="top-actions"><button class="demo-badge" id="aboutPreview"><span></span><b>Demo data</b><i data-icon="info"></i></button><button class="icon-button notifications" id="notificationButton" aria-label="View demo activity" aria-expanded="false"><i data-icon="bell"></i><b></b></button><button class="avatar" id="workspaceInfo" aria-label="About this design preview">K</button></div>
+    </header>
+    <main id="workspace" tabindex="-1">
+      <section class="hero" aria-labelledby="pageTitle">
+        <div class="hero-light"></div><div class="hero-copy"><span class="eyebrow"><span></span>YOUR BUSINESS, IN PERSPECTIVE</span><h1 id="pageTitle">Studio Pulse<span>.</span></h1><p>Clear insights. Brighter next moves.</p></div>
+        <div class="hero-date"><i data-icon="calendar"></i><label class="sr-only" for="monthSelect">Dashboard month</label><select id="monthSelect"></select><i data-icon="chevronDown"></i></div>
+        <div class="hero-tag"><span></span>A little clarity goes a long way.</div>
+        <nav class="pulse-tabs" aria-label="Studio Pulse views" role="tablist"></nav>
+      </section>
+      <div class="section-label"><div><span class="small-sun" aria-hidden="true"></span><h2 id="viewHeading">Your business at a glance</h2></div><span class="period-label" id="periodLabel">October 2026</span></div>
+      <section class="metrics" aria-label="Demo monthly summary" id="metricCards"></section>
+      <section id="viewContent" role="tabpanel" tabindex="0"></section>
+      <footer class="page-footer"><span><i data-icon="shield"></i>Design preview <span class="footer-separator">/</span> Sample data only. No accounts connected.</span><span>Made for a brighter business.</span></footer>
+    </main>
+  </div>
+  <div class="notification-popover" id="notificationPopover" hidden></div>
+  <dialog id="detailDialog" aria-labelledby="dialogTitle"><button class="dialog-close icon-button" aria-label="Close dialog"><i data-icon="close"></i></button><div id="dialogContent"></div></dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>

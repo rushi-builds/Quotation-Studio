@@ -169,14 +169,27 @@ const PASSWORD = "ReviewPass!123";
     ok("no invented 12:00 due anywhere in the follow-up table", !/12:00/.test(followups), "found invented noon");
     ok("real overdue task still surfaces with honest time label", /Site survey call/.test(followups), followups.slice(0, 240));
 
-    /* overview charts: absent-CRM history/sources are unavailable, not zero charts */
-    const overviewText = await p.evaluate(() => document.getElementById("biBody").textContent);
-    ok("activity history explicitly unavailable without CRM (never zero buckets)", /no measured lead\/quotation-issue\/win history exists to chart/.test(overviewText), overviewText.slice(0, 240));
-    ok("lead sources explicitly unavailable without CRM (empty split is not a zero)", /An empty source split is unavailable, not a recorded zero/.test(overviewText), overviewText.slice(0, 240));
+    /* Concise states replace the removed explanatory paragraphs. Unknown CRM
+       still has neither a measured zero nor fabricated source/history rows. */
+    ok("missing CRM keeps an unavailable lead count, not zero",await p.locator('.pulse-visual-metric').first().locator('strong').textContent()==='—' && /Lead CRM not connected/.test(await p.locator('.pulse-visual-metric').first().textContent()),'');
+    await p.click('#ghTabs [data-bi-tab="leads"]');
+    ok("missing CRM has no invented source records",await p.locator('#biLeadRows tbody tr').count()===0 && /Lead CRM not connected/.test(await p.locator('#biBody').textContent()),'');
+    await p.click('#ghTabs [data-bi-tab="overview"]');
+    ok("removed explanatory block is absent from the DOM",await p.locator('.pulse-definitions').count()===0,'');
 
     /* Approved visual integration: actual authenticated dashboard, never prototype data. */
     await p.waitForFunction(() => window.__businessPulseReady === true);
     ok('solar hero contains the real seven-tab router', await p.locator('.pulse-solar-hero #ghTabs [data-bi-tab]').count() === 7, '');
+    ok('production hero uses the exact approved preview photo',fs.readFileSync(path.join(root,'assets/images/pulse-solar-horizon.jpg')).equals(fs.readFileSync(path.join(root,'review/pulse-energy/solar-horizon.jpg'))),'');
+    ok('rendered hero no longer reuses old workspace photograph',await p.locator('.pulse-solar-hero').evaluate(el=>getComputedStyle(el).backgroundImage.includes('pulse-solar-horizon.jpg')),'');
+    ok('technical report controls are collapsed by default',!await p.locator('.bi-datebar').isVisible() && await p.locator('.pulse-solar-hero .gh-mode').count()===0,'');
+    await p.locator('[data-bi-action="report-options"]').click();
+    ok('hero date button opens original report controls',await p.locator('.bi-datebar').isVisible() && await p.locator('[data-bi-action="report-options"]').getAttribute('aria-expanded')==='true','');
+    await p.locator('#biGrain').selectOption('month');
+    await p.locator('#biGrain').selectOption('day');
+    ok('report grouping remains functional and disclosure stays open',await p.locator('#biGrain').inputValue()==='day' && await p.locator('#pulseReportOptions').evaluate(el=>el.open),'');
+    await p.locator('[data-bi-action="report-options"]').click();
+    ok('report options close without hiding summary data',!await p.locator('.bi-datebar').isVisible() && await p.locator('.pulse-visual-metric').count()===4,'');
     const surfaces = await p.evaluate(() => ({base:getComputedStyle(document.getElementById('panel-sales')).backgroundColor,card:getComputedStyle(document.querySelector('.pulse-visual-metric')).backgroundColor,image:getComputedStyle(document.querySelector('.pulse-visual-metric')).backgroundImage}));
     ok('Pulse base is transparent, not an independent blue canvas', /rgba\(0, 0, 0, 0\)/.test(surfaces.base), JSON.stringify(surfaces));
     ok('light Pulse card is white translucent glass', /linear-gradient/.test(surfaces.image) && /255, 255, 255, 0\./.test(surfaces.image), JSON.stringify(surfaces));
@@ -201,10 +214,11 @@ const PASSWORD = "ReviewPass!123";
     await p.locator('.pulse-calendar-day.selected').focus(); await p.keyboard.press('ArrowLeft');
     ok('calendar keyboard moves selection one day', await p.locator('.pulse-calendar-day.selected').getAttribute('data-pulse-date')!==selectedDay, '');
     await p.locator('[data-pulse-today]').click();
-    await p.locator('.pulse-followup-details summary').click();
+    await p.locator('.pulse-followup-details').evaluate(el=>{el.open=false;});
     await p.evaluate(()=>{document.activeElement?.blur();window.scrollTo({top:0,behavior:'instant'});});
     await p.waitForFunction(()=>window.scrollY===0);
-    await p.screenshot({path:path.join(root,'qa/shots/pulse/overview-integrated-light.png'),fullPage:true,animations:'disabled'});
+    await p.screenshot({path:path.join(root,'qa/shots/pulse/overview-integrated-light.png'),fullPage:true,animations:'disabled',timeout:90000});
+    await p.locator('.pulse-solar-hero').screenshot({path:path.join(root,'qa/shots/pulse/corrected-approved-hero.png'),animations:'disabled',timeout:90000});
 
     /* Connection management has ONE home in Settings. Pulse is read-only. */
     await p.click('#ghTabs [data-bi-tab="connections"]');
@@ -215,7 +229,8 @@ const PASSWORD = "ReviewPass!123";
     await p.waitForSelector('#settingsConnections:not([hidden])');
     ok("Pulse shortcut opens the single Settings Connections hub", await p.locator('#panel-settings.on').count() === 1, "");
     ok("all service Connect controls remain hard-disabled", await p.locator('.sc-connect[disabled]').count() === 8, "");
-    ok("additional-account action is unavailable without backend", await p.locator('#connectionsAdd button').isDisabled(), "");
+    await p.waitForSelector('#workspaceAccess [data-wa="prepare"]');
+    ok("additional-account preparation uses the ACL backend, not provider OAuth", await p.locator('#connectionsAdd button').isEnabled() && await p.locator('#connectionsAdd button').getAttribute('data-wa')==='prepare', "");
     await p.click('.side-nav [data-panel="sales"]');
     await p.click('#ghTabs [data-bi-tab="desk"]');
     await p.waitForSelector(".pulse-action-table tbody tr", { timeout: 10000 });
@@ -308,7 +323,7 @@ const PASSWORD = "ReviewPass!123";
     await mp.locator('#ghTabs [data-bi-tab="overview"]').click();
     await mp.emulateMedia({reducedMotion:'reduce'});
     ok('reduced motion disables solar and plot animations',await mp.locator('.pulse-trend-line').evaluateAll(nodes=>nodes.every(node=>getComputedStyle(node).animationName==='none')), '');
-    await mp.screenshot({ path: path.join(root, "qa/shots/pulse/mobile-light.png"), fullPage: true, animations: "disabled" });
+    await mp.screenshot({ path: path.join(root, "qa/shots/pulse/mobile-light.png"), fullPage: true, animations: "disabled", timeout: 90000 });
     await mob.close();
     const dark = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "dark" });
     const dkp = await dark.newPage();
@@ -320,7 +335,7 @@ const PASSWORD = "ReviewPass!123";
     const darkCard=await dkp.locator('.pulse-visual-metric').first().evaluate(el=>getComputedStyle(el).backgroundColor);
     ok('existing dark theme uses dark translucent Pulse glass', /rgba\(23, 39, 58, 0\./.test(darkCard), darkCard);
     ok('dark overview has no horizontal document overflow',await dkp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), '');
-    await dkp.screenshot({ path: path.join(root, "qa/shots/pulse/desktop-dark.png"), fullPage: false, animations: "disabled" });
+    await dkp.screenshot({ path: path.join(root, "qa/shots/pulse/desktop-dark.png"), fullPage: false, animations: "disabled", timeout: 90000 });
     await dark.close();
 
     /* asset graph: nothing from concept-preview / fixtures; packaged assets 200 */
@@ -330,7 +345,7 @@ const PASSWORD = "ReviewPass!123";
 
     /* zero page errors across the whole run */
     ok("zero page/console errors across the whole run", errors.length === 0, errors.join(" | ").slice(0, 400));
-    await p.screenshot({ path: path.join(root, "qa/shots/pulse/overview-live-report.png"), fullPage: false, animations: "disabled" });
+    await p.screenshot({ path: path.join(root, "qa/shots/pulse/overview-live-report.png"), fullPage: false, animations: "disabled", timeout: 90000 });
   } catch (e) {
     fails.push("exception: " + e.message);
     console.error("EXCEPTION:", e);

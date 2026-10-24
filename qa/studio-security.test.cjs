@@ -26,12 +26,8 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   fs.writeFileSync(dbPath,JSON.stringify(db));
   const second=await api('auth/register',{email:'new-'+randomUUID()+'@example.test',name:'New signup',password:randomUUID()+'Cc3!',role:'Owner',roleCustom:'owner',permissionRole:'owner'});
   assert.equal(second.body.user.role,'viewer');assert.equal(second.body.user.roleCustom,'Owner');
-  /* Read is open to every signed-in member (see worker.js on GET /team/members,
-     and platform-api / team-profile asserting 200 view-only) — so this signup
-     that asked for permissionRole:'owner' proves least privilege by being able
-     to READ below while the three WRITES after it stay 403. This asserted 403
-     before viewer read-only shipped, and has been stale since. */
-  assert.equal((await api('team/members',undefined,second.body.token)).status,200);
+  // Company membership now requires owner approval, even for read-only team data.
+  assert.equal((await api('team/members',undefined,second.body.token)).status,403);
   assert.equal((await api('team/role',{userId:first.body.user.id,role:'viewer'},second.body.token)).status,403);
   assert.equal((await api('proposals',{title:'Unauthorized draft'},second.body.token)).status,403);
   assert.equal((await api('auth/profile',{role:'owner'},second.body.token)).body.user.role,'viewer');
@@ -74,6 +70,9 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   assert.equal(recoveryCalls,0,'UI must not issue or expose reset secrets');
   await page.setViewportSize({width:390,height:844});
   assert.ok(await page.locator('#f-rp').evaluate(e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;}));
+  await page.locator('#f-rp .rpback').click();
+  assert.ok(await page.locator('#f-in').isVisible(),'mobile recovery back arrow remains reachable without a forced click');
+  assert.equal(recoveryCalls,0,'mobile navigation must not request recovery secrets');
   console.log('PASS: recovery deep link opens the reset panel with its resend counter, no secret request, mobile fit.');
 
  }finally{

@@ -25,6 +25,7 @@
       <link rel="stylesheet" href="assets/css/pulse-polish.css" />
       <link rel="stylesheet" href="assets/css/pulse-governance.css" />
       <link rel="stylesheet" href="assets/css/settings-connections.css?v=connections1" />
+      <link rel="stylesheet" href="assets/css/workspace-fit.css?v=1" />
 </head>
   <body>
     <div id="authScreen" class="splash">
@@ -324,6 +325,7 @@
                     <option value="all">All tasks</option>
                     <option value="today">Due today</option>
                     <option value="overdue">Overdue</option>
+                    <option value="upcoming">Upcoming</option>
                     <option value="open">Open</option>
                     <option value="done">Completed</option>
                   </select>
@@ -482,7 +484,7 @@
                   ></textarea>
                 </div>
                 <p class="micro muted" id="sendHonesty">
-                  Sharing opens your app; delivery is not confirmed.
+                  Opens your app · delivery not confirmed.
                 </p>
                 <div class="btn-row">
                   <button
@@ -714,7 +716,7 @@
                   Upload photo
                 </button>
                 <p class="micro muted">
-                  Uploads remain private until approved for the public gallery.
+                  Workspace photos · public gallery is managed separately.
                 </p>
                 <p id="galleryMsg" role="status" class="micro"></p>
               </aside>
@@ -722,7 +724,7 @@
           </section>
           <section id="panel-sales" class="panel growth-hub bi-workspace" aria-labelledby="growthHeading">
             <header class="pulse-solar-hero">
-              <div class="page-heading"><div><span class="eyebrow">YOUR BUSINESS, IN PERSPECTIVE</span><h1 id="growthHeading">Studio Pulse<span>.</span></h1><p class="sub">Clear insights. Brighter next moves.</p></div><div class="topbar-actions"><span class="gh-mode">Studio records · no provider sync</span></div></div>
+              <div class="page-heading"><div><span class="eyebrow">YOUR BUSINESS, IN PERSPECTIVE</span><h1 id="growthHeading">Studio Pulse<span>.</span></h1><p class="sub">Clear insights. Brighter next moves.</p></div><div class="topbar-actions"><button type="button" class="pulse-report-toggle" data-bi-action="report-options" aria-controls="pulseReportOptions" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18"/></svg><span id="pulsePeriodLabel">Report options</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div></div>
               <div id="ghTabs" class="gh-tabs" role="tablist" aria-label="Business workspace"></div>
             </header>
             <div id="biControls"></div>
@@ -890,7 +892,7 @@
                       Log out
                     </button>
                   </div>
-                  <p id="profileSaveMsg" class="micro" role="status"></p>
+                  <p id="profileSaveMsg" class="micro" role="status" aria-live="polite"></p>
                   <details class="help-details">
                     <summary>Connection details</summary>
                     <p id="settingsHealth" class="micro muted">Checking…</p>
@@ -1215,6 +1217,7 @@
       <script src="assets/js/pulse/pulse-governance.js"></script>
       <script src="assets/js/pulse/pulse-brand.js"></script>
       <script src="assets/js/settings-connections.js?v=connections1"></script>
+      <script src="assets/js/workspace-access.js?v=access1"></script>
       <script src="assets/js/pulse/pulse-customer.js"></script>
       <script src="assets/js/pulse/pulse-ui.js"></script>
       <script src="assets/js/pulse/pulse-governance-ui.js"></script>

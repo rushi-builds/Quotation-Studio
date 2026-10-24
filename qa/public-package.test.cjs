@@ -45,7 +45,7 @@ try {
   check('stale source cache cannot poison freshly built artifact', publicParity(fixture.workspace, fresh.publicRoot).every(item => item.ok));
   check('packaging fixture does not silently repair the stale source cache', JSON.stringify(staleBefore) === JSON.stringify(fingerprint(fixture.publicRoot)));
 
-  for (const file of ['assets/js/dashboard.js', 'dashboard.html', 'assets/js/settings-connections.js', 'assets/css/settings-connections.css']) {
+  for (const file of ['assets/js/dashboard.js', 'dashboard.html', 'assets/js/settings-connections.js', 'assets/css/settings-connections.css', 'assets/css/workspace-fit.css']) {
     const output = path.join(fresh.publicRoot, file);
     fs.appendFileSync(output, '\n/* deliberately wrong built bytes */\n');
     const verdict = publicParity(fixture.workspace, fresh.publicRoot);

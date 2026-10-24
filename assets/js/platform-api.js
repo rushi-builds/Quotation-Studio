@@ -48,9 +48,9 @@
       const secure = (typeof location !== 'undefined' && location.protocol === 'https:') ? '; Secure' : '';
       if (token) {
         document.cookie = 'qs_client=' + encodeURIComponent(token) +
-          '; Path=/; SameSite=None' + secure + '; Max-Age=2592000';
+          '; Path=/; SameSite=' + (secure ? 'None' : 'Lax') + secure + '; Max-Age=2592000';
       } else {
-        document.cookie = 'qs_client=; Path=/; SameSite=None' + secure + '; Max-Age=0';
+        document.cookie = 'qs_client=; Path=/; SameSite=' + (secure ? 'None' : 'Lax') + secure + '; Max-Age=0';
       }
     } catch (_) {}
   }
@@ -77,6 +77,7 @@
     };
     const token = readToken();
     if (token) {
+      writeClientCookie(token); // Restore cookie auth for protected same-origin image tags.
       opts.headers['Authorization'] = 'Bearer ' + token;
       opts.headers['X-QS-Session'] = token;
     }
@@ -119,6 +120,7 @@
     };
     const token = readToken();
     if (token) {
+      writeClientCookie(token); // Restore cookie auth for protected same-origin image tags.
       opts.headers['Authorization'] = 'Bearer ' + token;
       opts.headers['X-QS-Session'] = token;
     }
@@ -244,6 +246,11 @@
         note: note || undefined
       });
     },
+    workspaceAccess() { return request('GET','/api/workspace',undefined,15000); },
+    workspaceCommand(command,payload) { return request('POST','/api/workspace/'+encodeURIComponent(command),payload,15000); },
+    workspacePulse() { return request('GET','/api/workspace/pulse',undefined,15000); },
+    workspaceFinance() { return request('GET','/api/workspace/finance',undefined,15000); },
+    workspaceFollowups() { return request('GET','/api/workspace/followups',undefined,15000); },
     listNotifications(unreadOnly) {
       return request('GET', '/api/notifications' + (unreadOnly ? '?unread=1' : ''));
     },

@@ -23,20 +23,25 @@
   // No per-quotation downloads or persistent financial cache on Home.
   // Reported quoted total is not opportunity pipeline value or collected revenue.
   let X = { tasks: [], activity: [], notes: [], unread: 0, report: null };
-  let failures = new Set(), pending = null, again = false;
+  let failures = new Set(), pending = null, again = false, homeGeneration = 0;
+  const homeIdentity = () => D.user()?.id;
+  const resetHomeData = () => { X = { tasks: [], activity: [], notes: [], unread: 0, report: null }; failures.clear(); };
   function load() {
     again = true;
     if (pending) return pending;
+    $('homeBody')?.setAttribute('aria-busy','true');
     pending = (async () => {
       while (again) {
         again = false;
+        const generation=homeGeneration, uid=homeIdentity();
         const keys = ['tasks', 'activity', 'notes', 'report'];
         const results = await Promise.allSettled([
           api.listTasks(), api.listActivity(), api.listNotifications(), api.reportSummary()
         ]);
+        if(generation!==homeGeneration||uid!==homeIdentity())continue;
         results.forEach((r, i) => {
           const key = keys[i];
-          if (r.status === 'rejected') { failures.add(key); return; }
+          if (r.status === 'rejected') { failures.add(key); if(key==='report')X.report=null;else if(key==='notes'){X.notes=[];X.unread=0;}else X[key]=[]; return; }
           failures.delete(key);
           if (key === 'notes') { X.notes = r.value.notifications || []; X.unread = r.value.unread || 0; }
           else if (key === 'report') X.report = r.value;
@@ -44,7 +49,7 @@
         });
         render();
       }
-    })().finally(() => { pending = null; });
+    })().finally(() => { pending = null; $('homeBody')?.setAttribute('aria-busy','false'); });
     return pending;
   }
   window.QSDashHome = { refresh: load };
@@ -70,7 +75,7 @@
     const priced = reportValue && reportValue.proposalsWithValue || 0;
     const kpis =
       kpi(ICON.proposals, 'c-blue', 'Active quotations', active.length, P.length + ' saved in total', go('status', 'active')) +
-      kpi(ICON.reports, 'c-violet', 'Quoted value', failures.has('report') ? '—' : priced && Number.isFinite(Number(quoted)) ? inr(Number(quoted)) : '—', failures.has('report') ? 'Unable to load' : priced + ' priced · all quotations, not revenue', go('go', 'reports')) +
+      kpi(ICON.reports, 'c-violet', 'Quoted value', failures.has('report') ? '—' : priced && Number.isFinite(Number(quoted)) ? inr(Number(quoted)) : '—', failures.has('report') ? 'Unable to load' : X.report?.pricingRestricted ? 'Restricted · request pricing access' : priced + ' priced · all quotations, not revenue', go('go', 'reports')) +
       kpi(ICON.proposals, 'c-teal', 'Created this month', thisM, 'Based on creation date', go('status', 'this_month')) +
       kpi(ICON.tasks, 'c-amber', 'Follow-ups due today', failures.has('tasks') ? '—' : dueToday.length, failures.has('tasks') ? 'Unable to load' : overdue.length + ' overdue overall', go('tasks', 'today'));
     const prow = (n, t, s, act, c) => '<button type="button" class="prow" ' + act + '><b class="pn ' + c + '">' + n + '</b><span><strong>' + t + '</strong><i>' + s + '</i></span><u>›</u></button>';
@@ -78,10 +83,10 @@
       prow(failures.has('tasks') ? '—' : dueToday.length, 'Follow-ups due today', 'All open tasks scheduled for today', go('tasks', 'today'), 'a') +
       prow(waiting.length, 'Sent or viewed quotations', 'Staff-marked status', go('status', 'waiting'), 'v') +
       prow(failures.has('notes') ? '—' : unread, 'Unread notifications', failures.has('notes') ? 'Unable to load' : 'Recorded workspace alerts', go('go', 'activity'), 'b');
-    const acts = X.activity.filter((e) => ['link_opened', 'pdf_download_requested', 'survey_requested', 'interest_recorded', 'section_view'].includes(e.type)).slice().sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 5);
+    const acts = D.orderedActivity(X.activity).filter((e) => ['link_opened', 'pdf_download_requested', 'survey_requested', 'interest_recorded', 'section_view'].includes(e.type)).slice().sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 5);
     const actHtml = acts.length ? acts.map((e) => '<button type="button" class="arow" ' + (e.proposalId ? go('open', e.proposalId) : go('go', 'activity')) + '><span class="av sm">' + esc((e.proposalTitle || '?').trim().charAt(0).toUpperCase()) + '</span><span><strong>' + esc(String(e.proposalTitle || 'Quotation').replace(/\s[—-]\s[\d.]+ kWp$/, '')) + '</strong><i>' + EVT[e.type] + '</i></span><em>' + ago(e.createdAt) + '</em></button>').join('') : empty('No customer activity yet.');
     const byId = (id) => P.find((p) => p.id === id);
-    const fu = open.slice().sort((a,b) => (Date.parse(a.dueAt) || Infinity) - (Date.parse(b.dueAt) || Infinity)).slice(0, 5), fuHtml = fu.length ? '<table class="data tight"><thead><tr><th>Customer</th><th>Task</th><th>Due</th><th>Quotation</th><th></th></tr></thead><tbody>' + fu.map((t) => { const p = byId(t.proposalId); return '<tr><td><button type="button" class="record-link" ' + (p ? go('open', p.id) : go('go', 'tasks')) + '>' + esc(p ? cust(p) : '—') + '</button></td><td>' + esc(t.title) + '</td><td class="' + (t.overdue ? 'late' : '') + '">' + esc(dueLabel(t.dueAt)) + '</td><td class="mono">' + esc(p ? p.ref || '—' : '—') + '</td><td>' + ((D.canEdit && D.canEdit()) ? '<button type="button" class="btn btn-secondary btn-sm" data-done="' + esc(t.id) + '">Complete</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table>' : empty('No open follow-ups.');
+    const fu = open.slice().sort((a,b) => (Date.parse(a.dueAt) || Infinity) - (Date.parse(b.dueAt) || Infinity)).slice(0, 5), fuHtml = fu.length ? '<table class="data tight"><thead><tr><th>Customer</th><th>Task</th><th>Due</th><th>Quotation</th><th></th></tr></thead><tbody>' + fu.map((t) => { const p = byId(t.proposalId); return '<tr><td><button type="button" class="record-link" ' + (p ? go('open', p.id) : go('go', 'tasks')) + '>' + esc(p ? cust(p) : '—') + '</button></td><td><button type="button" class="record-link" data-task-focus="' + esc(t.id) + '">' + esc(t.title) + '</button></td><td class="' + (t.overdue ? 'late' : '') + '">' + esc(dueLabel(t.dueAt)) + '</td><td class="mono">' + esc(p ? p.ref || '—' : '—') + '</td><td>' + ((D.canEdit && D.canEdit()) ? '<button type="button" class="btn btn-secondary btn-sm" data-done="' + esc(t.id) + '">Complete</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table>' : empty('No open follow-ups.');
     const rq = P.slice().sort((a,b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 6);
     const rqHtml = rq.length ? '<div class="table-wrap"><table class="data tight"><thead><tr><th>Customer / reference</th><th>System</th><th>Status</th><th>Last updated</th></tr></thead><tbody>' + rq.map(p =>
       '<tr><td><div class="quote-client"><span class="client-icon" aria-hidden="true">' + esc(cust(p).slice(0,2).toUpperCase()) + '</span><div><button type="button" class="record-link" ' + go('open',p.id) + '>' + esc(cust(p)) + '</button><small>' + esc(p.ref || 'No reference') + '</small></div></div></td><td>' + esc(p.capacity ? p.capacity + ' kWp' : '—') + '</td><td><span class="badge ' + esc(p.status || 'draft') + '">' + esc(LABEL[p.status || 'draft'] || p.status) + '</span></td><td>' + esc(p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '—') + '</td></tr>'
@@ -97,20 +102,23 @@
     if (root.__h === html) return; root.__h = html; root.innerHTML = html;
   }
   document.addEventListener('click', async (e) => {
+    const path=e.composedPath();
+    if(!path.some(el=>el.classList?.contains('gsearch')))closeSearch();
+    if(!path.some(el=>el.classList?.contains('bellwrap'))||e.target.closest('[data-workspace-access],#bellDrop [data-open]'))closeBell();
     if (e.target.closest('[data-retry]')) { await load(); return; }
+    const record = e.target.closest('#homeBody [data-task-focus]'); if (record) { D.showTasks('all', record.dataset.taskFocus); return; }
     const task = e.target.closest('#homeBody [data-tasks]'); if (task) { D.showTasks(task.dataset.tasks); return; }
     const done = e.target.closest('#homeBody [data-done]');
     if (done) { e.stopPropagation(); done.disabled = true; try { await api.updateTask(done.getAttribute('data-done'), { status: 'done' }); D.toast('Follow-up completed'); await D.refresh(); } catch (err) { D.toast(err.message || 'Could not complete task'); done.disabled = false; } return; }
     const t = e.target.closest('#homeBody [data-open],#bellDrop [data-open]'); if (t) { D.open(t.getAttribute('data-open')); return; }
     const s = e.target.closest('#homeBody [data-status]'); if (s) { D.filterStatus(s.getAttribute('data-status')); return; }
     const g = e.target.closest('#homeBody [data-go]'); if (g) { D.show(g.getAttribute('data-go')); return; }
-    if (!e.target.closest('.gsearch')) closeSearch(); if (!e.target.closest('.bellwrap')) $('bellDrop').classList.remove('on');
   });
   $('btnNewFollowup').addEventListener('click', () => { D.showTasks('all'); setTimeout(() => $('taskTitle') && $('taskTitle').focus(), 50); });
   $('btnUserChip').addEventListener('click', () => D.show('settings'));
   const gs = $('gSearch'), searchBox = $('gResults');
   let results = [], activeResult = -1;
-  const pages = [['home','Overview'],['proposals','Quotations'],['tasks','Follow-ups'],['activity','Customer activity'],['send','Sharing'],['gallery','Project gallery'],['reports','Analytics'],['settings','Settings']];
+  const pages = [['home','Overview'],['proposals','Quotations'],['tasks','Follow-ups'],['activity','Customer activity'],['send','Sharing'],['gallery','Project gallery'],['reports','Analytics'],['sales','Studio Pulse'],['settings','Settings']];
   function settings(tab) { D.show('settings'); document.querySelector('[data-settings="'+tab+'"]').click(); }
   function closeSearch() { searchBox.classList.remove('on'); gs.setAttribute('aria-expanded','false'); gs.removeAttribute('aria-activedescendant'); activeResult=-1; }
   function commands() {
@@ -141,7 +149,7 @@
     const actionRows=commands();
     const recordRows=[
       ...D.proposals().map(p=>({label:p.customer||p.title||'Untitled quotation',detail:'Quotation · '+(p.ref||'No reference')+' · '+(p.capacity?p.capacity+' kWp':'No size'),keywords:[p.title,p.ref,p.capacity,p.status,'quotation proposal customer'].join(' '),run:()=>D.open(p.id)})),
-      ...X.tasks.map(t=>({label:t.title,detail:'Follow-up · '+(t.status||'open'),keywords:[t.notes,t.status,'task followup reminder'].join(' '),run:()=>D.showTasks(t.status==='done'?'done':'all')})),
+      ...X.tasks.map(t=>({label:t.title,detail:'Follow-up · '+(t.status||'open'),keywords:[t.notes,t.status,'task followup reminder'].join(' '),run:()=>D.showTasks(t.status==='done'?'done':'all', t.id)})),
       ...X.notes.map(n=>({label:n.title,detail:'Notification',keywords:[n.body,'notification activity'].join(' '),run:()=>D.show('activity')}))
     ];
     const match=r=>words.every(w=>normalise(r.label+' '+r.detail+' '+r.keywords).includes(w));
@@ -176,6 +184,27 @@
   document.addEventListener('click',e=>{if(!e.target.closest('.gbar-left'))closePages();});
   document.addEventListener('focusin',e=>{if(!e.target.closest('.gbar-left'))closePages();});
   $('btnBell').innerHTML = bellSvg + '<span id="bellCount" class="dot" hidden></span>';
-  $('btnBell').addEventListener('click', async () => { const box = $('bellDrop'); if (box.classList.toggle('on') === false) return; box.innerHTML = '<div class="hempty">Loading…</div>'; try { const r = await api.listNotifications(), rows = (r && r.notifications || []).slice(0, 6); box.innerHTML = '<div class="dhead"><strong>Notifications</strong><button type="button" id="bellAll">Mark all read</button></div>' + (rows.length ? rows.map((n) => '<button type="button" class="nrow' + (n.unread ? ' un' : '') + '" ' + (n.proposalId ? go('open', n.proposalId) : '') + '><strong>' + esc(n.title) + '</strong><i>' + esc(n.body || '') + '</i><em>' + ago(n.createdAt) + '</em></button>').join('') : '<div class="hempty">No notifications yet.</div>') + '<button type="button" class="dfoot" id="bellView">View all activity →</button>'; $('bellAll').onclick = async () => { try { await api.markAllNotificationsRead(); D.toast('Notifications marked read'); box.classList.remove('on'); D.refresh(); } catch (err) { D.toast(err.message || 'Failed'); } }; $('bellView').onclick = () => { box.classList.remove('on'); D.show('activity'); }; } catch (err) { box.innerHTML = '<div class="hempty">' + esc(err.message || 'Could not load') + '</div>'; } });
+  let bellVersion=0;
+  function closeBell(){bellVersion++;$('bellDrop').classList.remove('on');$('bellDrop').setAttribute('aria-busy','false');$('btnBell').setAttribute('aria-expanded','false');}
+  async function loadBell(){
+    const box=$('bellDrop'),ticket=++bellVersion,uid=homeIdentity();
+    box.setAttribute('aria-busy','true');box.innerHTML='<div class="hempty" role="status">Loading notifications…</div>';
+    try{
+      const r=await api.listNotifications();if(ticket!==bellVersion||uid!==homeIdentity())return;
+      const rows=(r?.notifications||[]).slice(0,6);
+      box.innerHTML='<div class="dhead"><strong>Notifications</strong><button type="button" id="bellAll" '+(!r?.unread?'disabled':'')+'>Mark all read</button></div>'+(rows.length?rows.map(n=>'<button type="button" class="nrow'+(n.unread?' un':'')+'" '+(n.kind==='access_request'?'data-workspace-access':n.proposalId?go('open',n.proposalId):'')+'><strong>'+esc(n.title)+'</strong><i>'+esc(n.body||'')+'</i><em>'+ago(n.createdAt)+'</em></button>').join(''):'<div class="hempty">You’re all caught up.</div>')+'<button type="button" class="dfoot" id="bellView">View all activity →</button>';
+      $('bellAll').onclick=async event=>{event.currentTarget.disabled=true;try{await api.markAllNotificationsRead();if(uid!==homeIdentity())return;D.toast('Notifications marked read');closeBell();D.refresh();}catch(err){if(uid!==homeIdentity())return;D.toast(err.message||'Could not mark notifications read');if($('bellAll'))$('bellAll').disabled=false;}};
+      $('bellView').onclick=()=>{closeBell();D.show('activity');};
+    }catch(err){if(ticket!==bellVersion||uid!==homeIdentity())return;box.innerHTML='<div class="hempty" role="status">Notifications unavailable. <button type="button" class="text-link" data-bell-retry>Retry</button></div>';box.querySelector('[data-bell-retry]').onclick=loadBell;}
+    finally{if(ticket===bellVersion)box.setAttribute('aria-busy','false');}
+  }
+  $('btnBell').setAttribute('aria-controls','bellDrop');$('btnBell').setAttribute('aria-expanded','false');
+  $('bellDrop').setAttribute('aria-label','Notifications');
+  $('btnBell').addEventListener('click',()=>{if($('bellDrop').classList.contains('on')){closeBell();return;}$('bellDrop').classList.add('on');$('btnBell').setAttribute('aria-expanded','true');loadBell();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('bellDrop').classList.contains('on')){closeBell();$('btnBell').focus();}});
+  document.addEventListener('qs:session',()=>{
+    homeGeneration++;resetHomeData();closeBell();$('bellDrop').replaceChildren();$('bellCount').hidden=true;$('bellCount').textContent='';closeSearch();results=[];searchBox.replaceChildren();
+    const root=$('homeBody');if(root){root.__h=null;root.innerHTML='<div class="workspace-loading" role="status"><span>Opening your workspace…</span><div class="workspace-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></div>';}
+  });
   document.addEventListener('qs:home', load);
 })();

@@ -11,8 +11,10 @@ const PARITY_FILES = Object.freeze([
   'assets/js/dashboard.js',
   'assets/js/dashboard-home.js',
   'assets/css/dashboard.css',
+  'assets/css/workspace-fit.css',
   'dashboard.html',
   'assets/js/settings-connections.js',
+  'assets/js/workspace-access.js',
   'assets/css/settings-connections.css',
   'assets/js/pulse/business-pulse.js',
   'assets/js/pulse/pulse-governance-ui.js'

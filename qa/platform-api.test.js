@@ -600,12 +600,14 @@ async function main() {
     r = await req('GET', '/api/proposals', null, viewerCookie);
     t('viewer can list own proposals', r.status === 200);
 
-    /* CHANGED by the elevation round (item 5): the team panel is readable by
-       every member, and only the ability to CHANGE a role plus the Remove
-       button stay owner/designated-admin only. Contact detail now rides every
-       row too, because the eye opens the same card for everyone. This
-       assertion used to be `r.status === 403`. The write gate is still proven
-       below and in qa/roles-access.test.js. */
+    // Company membership is now separate from a read-only role. A signup has
+    // no company directory access until the owner explicitly approves it.
+    r = await req('GET','/api/team/members',null,viewerCookie);
+    t('unapproved viewer cannot read company contact data',r.status===403);
+    const accessBefore=await req('GET','/api/workspace',null,cookie2);
+    const ownerToken=decodeURIComponent(cookie2.match(/qs_session=([^;]+)/)[1]);
+    r=await req('POST','/api/workspace/grant',{revision:accessBefore.json.revision,userId:viewerId,resource:'workspace',permission:'member',decision:'allow',days:30,reason:'Approved read-only company member'},{cookie:cookie2,token:ownerToken});
+    t('owner explicitly approves read-only company membership',r.status===200,r.status);
     r = await req('GET', '/api/team/members', null, viewerCookie);
     t('viewer may READ the team panel (view-only)', r.status === 200 && Array.isArray(r.json.members), r.status);
     t('viewer is told it does not manage the team', r.json.canManageTeam === false, JSON.stringify(r.json.canManageTeam));

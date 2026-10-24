@@ -3463,8 +3463,8 @@ html[data-theme="dark"] .main{--studio-glass:#17273aeb;--studio-glass-border:#c8
 }
 #panel-sales{--gh-card:var(--studio-glass);--gh-ink:var(--text);--gh-muted:var(--muted);--gh-line:var(--line);--gh-soft:var(--surface-soft);--pulse-accent:var(--primary);--pulse-accent-hover:var(--primary);background:transparent;min-width:0}
 #panel-sales .gh-card{background:var(--studio-glass);border-color:var(--studio-glass-border);box-shadow:var(--studio-glass-shadow);border-radius:var(--studio-glass-radius)}
-#panel-sales .pulse-solar-hero{position:relative;isolation:isolate;min-height:220px;border-radius:21px;background:#f5e7d2 url('../images/dash-hero-bg.jpg') center 63%/cover;border:1px solid #ffffffa0;overflow:hidden;margin-bottom:17px;box-shadow:0 6px 25px #283c5010}
-#panel-sales .pulse-solar-hero:before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#fff6e8f0,#fff1dcb3 38%,#ffffff00 78%);z-index:-1}
+#panel-sales .pulse-solar-hero{position:relative;isolation:isolate;min-height:220px;border-radius:21px;background:#f5e7d2 url('../images/pulse-solar-horizon.jpg') center 53%/cover;border:1px solid #ffffffa0;overflow:hidden;margin-bottom:17px;box-shadow:0 6px 25px #283c5010}
+#panel-sales .pulse-solar-hero:before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#fff4e5db,#fff1dc77 38%,#ffffff00 67%);z-index:-1}
 #panel-sales .pulse-solar-hero:after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 35% 20%,#fff6df60,transparent 58%);pointer-events:none;z-index:-1;animation:pulse-daylight 12s ease-in-out infinite alternate}
 #panel-sales .pulse-solar-hero .page-heading{padding:29px 29px 23px;min-height:159px;margin:0;gap:18px;align-items:flex-start}
 #panel-sales .pulse-solar-hero .eyebrow{font-size:9px;letter-spacing:1.8px;color:#81755f}
@@ -3619,3 +3619,45 @@ html[data-appearance="system"] .main{--studio-glass:linear-gradient(130deg,#ffff
 html[data-appearance="system"] #panel-sales .gh-card,html[data-appearance="system"] .main #panel-settings .sc-service{-webkit-backdrop-filter:blur(14px) saturate(110%);backdrop-filter:blur(14px) saturate(110%)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){html[data-appearance="system"] .main{--studio-glass:#fffffff5}}
 @media print{html[data-appearance="system"] .main{--studio-glass:#fff}}
+
+/* Restore the approved Energy preview, rather than reusing the old workspace photograph. */
+#panel-sales .pulse-solar-hero{min-height:223px;margin-bottom:0}
+#panel-sales .pulse-solar-hero .page-heading{min-height:167px;padding:32px 30px 25px}
+#panel-sales .pulse-report-toggle{display:flex;align-items:center;gap:9px;background:#ffffffd9;color:#26374f;border:1px solid #ffffffa8;border-radius:11px;padding:11px 12px;box-shadow:0 6px 18px #37577312;-webkit-backdrop-filter:blur(15px);backdrop-filter:blur(15px);font:600 10px Inter,Arial,sans-serif;white-space:nowrap;cursor:pointer}
+#panel-sales .pulse-report-toggle svg{width:15px;height:15px;flex-shrink:0}
+#panel-sales .pulse-report-toggle svg:last-child{width:12px;height:12px;color:#718097}
+#panel-sales .pulse-report-options{margin:15px 0 0;padding:14px 18px;background:var(--studio-glass);border:1px solid var(--studio-glass-border);border-radius:13px;box-shadow:var(--studio-glass-shadow)}
+#panel-sales .pulse-report-options:not([open]){display:none}
+#panel-sales .pulse-report-options summary{font-size:10px;font-weight:500;color:var(--muted);cursor:pointer;margin-bottom:12px}
+#panel-sales .pulse-report-options .bi-range-caption{margin-bottom:0}
+#panel-sales .pulse-section-label{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:23px 2px 15px}
+#panel-sales .pulse-section-label h2{font-size:12px;font-weight:500;color:var(--muted);margin:0;display:flex;align-items:center;gap:8px}
+#panel-sales .pulse-section-label h2:before{content:'';width:6px;height:6px;border-radius:50%;background:#dfb66f;box-shadow:0 0 0 3px #dfb66f19;flex-shrink:0}
+#panel-sales .pulse-section-label>span{font-size:9px;color:var(--muted)}
+/* Keep the shared glass material; quieten the old full-bleed photo only while Pulse is active. */
+html:not([data-theme="dark"]) .main:has(#panel-sales.on)::before{background:linear-gradient(125deg,#f6f8fbf5,#f6f8fbee 60%,#fffaf2f0),url('../images/dash-hero-bg.jpg') right bottom/cover no-repeat}
+html:not([data-theme="dark"]) .main:has(#panel-sales.on)::after{background:radial-gradient(ellipse at 88% 0%,#dce9fb45,transparent 45%),radial-gradient(ellipse at 10% 18%,#fff3df35,transparent 35%)}
+html[data-theme="dark"] .main:has(#panel-sales.on)::before{background:linear-gradient(125deg,#0d1623f5,#102035f0),url('../images/dash-hero-bg.jpg') right bottom/cover no-repeat}
+html[data-theme="dark"] #panel-sales .pulse-report-toggle{background:#1b2e43d9;color:#d5e0ed;border-color:#ffffff21}
+@media(min-width:1650px){#panel-sales .pulse-solar-hero{min-height:255px}#panel-sales .pulse-solar-hero .page-heading{min-height:199px;padding:42px 37px 25px}}
+@media(max-width:800px){#panel-sales .pulse-solar-hero{min-height:220px}#panel-sales .pulse-solar-hero .page-heading{padding:30px 23px 23px;min-height:165px}#panel-sales .pulse-report-toggle{font-size:9px;padding:10px 9px;gap:7px}}
+@media(max-width:600px){#panel-sales .pulse-solar-hero{background-position:59% center;border-radius:16px}#panel-sales .pulse-solar-hero .page-heading{position:relative;padding:36px 21px 22px;min-height:167px}#panel-sales .pulse-solar-hero .topbar-actions{display:flex;position:absolute;right:15px;top:17px;margin:0;width:auto}#panel-sales .pulse-solar-hero h1{font-size:32px;letter-spacing:-1.4px}#panel-sales .pulse-solar-hero .eyebrow{font-size:6px;letter-spacing:1.1px;max-width:180px}#panel-sales .pulse-solar-hero .sub{font-size:10px;max-width:175px}#panel-sales .pulse-report-toggle{padding:8px;font-size:8px;border-radius:8px;gap:5px}#panel-sales .pulse-report-toggle svg{width:12px;height:12px}#panel-sales .pulse-report-toggle svg:last-child{display:none}#panel-sales .pulse-section-label{padding-top:21px;padding-bottom:13px}#panel-sales .pulse-section-label h2{font-size:11px}#panel-sales .pulse-section-label>span{font-size:8px}#panel-sales .pulse-report-options{padding:14px}#panel-sales .pulse-report-options .bi-date-controls{gap:9px}}
+
+/* Selected controls need a solid text colour: --gh-card can be a glass
+   gradient, which is valid as a background but invalid as a text colour. */
+#panel-sales :is(.pulse-filters,.pulse-control-tabs) button[aria-pressed="true"]{color:#fff;background:#203047;border-color:#203047}
+html[data-theme="dark"] #panel-sales :is(.pulse-filters,.pulse-control-tabs) button[aria-pressed="true"]{color:#142235;background:#edc787;border-color:#edc787}
+
+/* Quiet finishing: shared async states and keyboard/touch affordances.
+   No changes to the spacious layout, glass tokens or quotation/export styles. */
+.main .workspace-loading { padding:22px 0;min-width:0;color:var(--muted);font-size:12px;line-height:1.7; }
+.main .workspace-skeleton { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px; }
+.main .workspace-skeleton i { display:block;height:110px;border:1px solid var(--studio-glass-border);border-radius:14px;background:var(--studio-glass);animation:workspace-breathe 1.6s ease-in-out infinite alternate; }
+.main #galleryGrid>.workspace-loading { grid-column:1/-1; }
+.main button:disabled { cursor:not-allowed; }
+.main :is(button,a,input,select,textarea,summary,[role="tabpanel"]):focus-visible { outline:2px solid var(--blue);outline-offset:3px; }
+.main .text-link:focus-visible,.main .record-link:focus-visible { border-radius:4px; }
+@keyframes workspace-breathe { to { opacity:.5; } }
+@media(max-width:600px) { .main .workspace-skeleton { grid-template-columns:1fr; }.main .workspace-skeleton i { height:74px; }.main .workspace-skeleton i:last-child { display:none; } }
+@media(pointer:coarse) { .main :is(.btn,.text-link,.record-link,.vall,.sc-details,.wa-tabbar>button,.wa-scope-filters>button) { min-height:44px; } }
+@media(prefers-reduced-motion:reduce) { .main .workspace-skeleton i { animation:none; } }

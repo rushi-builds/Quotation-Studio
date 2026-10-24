@@ -1,6 +1,6 @@
-/* Settings → Connections. Presentation only: no OAuth, token storage, sends or
-   provider API calls. The service catalogue is NOT a list of connected accounts.
-   Live connection records, ACLs and sync controls require a server-side adapter. */
+/* Settings → Connections service catalogue. Account preparations and real ACLs
+   are managed separately by workspace-access.js. Neither enables provider
+   consent, sync or sends; the service catalogue is not a connected-account list. */
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
@@ -34,7 +34,7 @@
     return `<article class="sc-add-card" id="connectionsAdd" aria-label="Add a connection">
       <span class="sc-add-icon" aria-hidden="true">${icon('plus')}</span>
       <h3>Add connection</h3>
-      <button type="button" class="btn btn-secondary" disabled aria-label="Add a service or another account: connection backend required" title="Additional accounts require the connection backend">+ Add</button>
+      <button type="button" class="btn btn-secondary" data-wa="prepare" disabled aria-label="Prepare another account" title="Prepare account and access; provider linking is separate">+ Add</button>
     </article>`;
   }
   function renderCards() {

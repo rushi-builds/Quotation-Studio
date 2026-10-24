@@ -95,8 +95,10 @@ ok('write paths are hard-gated + storage/timer deps removed (Arena P1-3/P2-3)', 
   assert.ok(bp.includes('state.proposalsTotal==null'), 'proposal-list fallback count must be wired from the adapter');
   assert.ok((bp.match(/not date-filtered/g)||[]).length >= 3, 'server summary must be labelled all-records (period picker does not filter it)');
   assert.ok(!bp.includes('Sample mode: synthetic'), 'sample-mode footer must not render in production');
-  assert.ok(bp.includes('Missing history is unavailable, not zero'), 'activity history must be unavailable when CRM is absent');
-  assert.ok(bp.includes('An empty source split is unavailable, not a recorded zero'), 'lead sources must be unavailable when CRM is absent');
+  assert.ok(bp.includes("return empty('Lead CRM not connected.')"), 'activity history must be unavailable when CRM is absent');
+  assert.ok(bp.includes("live()&&leads().length?r.leads:'—'"), 'CRM history cells must not turn missing CRM into recorded zeroes');
+  assert.ok(bp.includes('Lead CRM not connected.'), 'missing CRM must retain a concise unavailable state');
+  assert.ok(!bp.includes('Summary cards show all recorded quotations') && !bp.includes('Data & measurement definitions'), 'removed explanatory block must not render');
   const qs = read('assets/js/pulse/quote-summary.js');
   assert.ok(qs.includes('get:()=>null'), 'quote-summary details() reader must be null-safe');
   const pd = read('assets/js/pulse/pulse-data.js');

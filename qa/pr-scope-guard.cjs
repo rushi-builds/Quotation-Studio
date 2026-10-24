@@ -57,6 +57,25 @@ const DEPLOY_CONFIG_RE = /(^|\/)wrangler[^/]*\.(toml|jsonc?|json)$|(^|\/)vercel\
    Settings Connections UI (PR #24). This is a narrow, reviewable feature-scope
    extension, not a wildcard for all Pulse assets or provider adapters.
    Frozen-tree and deploy-config checks below remain independent. */
+/* 2026-10-23 owner-requested approved-hero correction and compact workspace
+   preview, plus Action desk wording: exact presentation/review paths only. No image-directory,
+   review-directory, backend or deploy-config wildcard is introduced. */
+const WORKSPACE_PRESENTATION_PATHS = new Set([
+  // Exact UI-label file for the owner's Action desk wording correction.
+  'assets/js/pulse/pulse-ui.js',
+  'assets/css/workspace-fit.css',
+  'assets/images/pulse-solar-horizon.jpg',
+  'review/workspace-fit/index.html',
+  'review/workspace-fit/fixtures.js'
+]);
+// Owner-approved access service. Separate from presentation allowances; no
+// platform-directory, provider-adapter or migration wildcard is introduced.
+const WORKSPACE_ACCESS_PATHS=new Set([
+  'assets/js/workspace-access.js',
+  'platform/workspace-access.mjs',
+  'platform/workspace-access-store.mjs',
+  'platform/migrations/011-workspace-access.sql'
+]);
 const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|experience|export|engineering)\.js|assets\/css\/(dashboard|experience|app)\.css|quotation\.html|dashboard\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|vercel\.json|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
 
 function git(repoRoot, args) {
@@ -134,8 +153,11 @@ function deployConfigTouches(files) {
   return files.filter((f) => DEPLOY_CONFIG_RE.test(f));
 }
 
+// The new ACL migration may be added, never edited/deleted as an old migration.
+function newAccessMigration(file,status){return file==='platform/migrations/011-workspace-access.sql'&&status==='A';}
+
 function scopeOffenders(files) {
-  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f));
+  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f));
 }
 
 /* The explicit golden baseline: HEAD's blob for every frozen file must
@@ -179,5 +201,5 @@ function verify(repoRoot, opts) {
 module.exports = {
   GOLDEN_BASE_REF, FROZEN_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
   resolveBase, changedFiles, worktreeStatus,
-  frozenTouches, deployConfigTouches, scopeOffenders, baselineMatch, verify, git
+  frozenTouches, deployConfigTouches, scopeOffenders, newAccessMigration, baselineMatch, verify, git
 };

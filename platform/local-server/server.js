@@ -28,6 +28,8 @@ const DB_PATH = path.join(DATA_DIR, 'db.json');
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '0.0.0.0';
 const assistantModule = import('../gemini.mjs');
+const workspaceModule = import('../workspace-access.mjs');
+const workspaceStoreModule = import('../workspace-access-store.mjs');
 let assistantLimiter;
 const SESSION_DAYS = 30;
 /* "Remember me" is OFF by default (owner decision, 2026-10-10): the sign-in
@@ -1604,8 +1606,8 @@ function safePath(urlPath) {
 
 /* Public static surface. Everything else under ROOT — platform source,
    platform/data (the JSON database), .git, docs, qa, scripts, tmp, .env —
-   is never served over HTTP. Gallery files keep random unguessable names and
-   act as capability URLs for <img> tags, which cannot send Bearer tokens. */
+   is never served over HTTP. Staff photo bytes use authenticated API routes;
+   random filenames are not an authorisation mechanism. */
 const PUBLIC_HTML = new Set([
   'index.html', 'dashboard.html', 'quotation.html', 'portal.html',
   'share.html', 'gallery.html', 'oauth-complete.html'
@@ -1621,7 +1623,7 @@ function isPublicPath(urlPath) {
   const clean = String(urlPath || '').split('?')[0];
   if (clean === '/' || clean === '/dashboard') return true;
   if (clean.startsWith('/assets/')) return true;
-  if (clean.startsWith('/platform/data/gallery/')) return true;
+  if (clean.startsWith('/platform/data/gallery/')) return false;
   if (clean.startsWith('/tmp/bag-reference/')) return devRoutesEnabled();
   if (clean.startsWith('/') && !clean.slice(1).includes('/')) {
     const name = clean.slice(1);
@@ -2325,6 +2327,29 @@ async function handleApi(req, res, url) {
        for members, whose reads stay exactly as narrowly scoped as before. */
     const scope = scopeOf(user);
 
+    // Access identities derive only from fresh server-side users, never body roles.
+    const accessActor = u => u && ({id:u.id,name:u.name,manager:requireRole(u,'owner'),writer:requireRole(u,'sales')});
+    const accessService = await workspaceModule;
+    const accessStorage = await workspaceStoreModule;
+    const accessStore = accessStorage.localAccessStore(loadDb,saveDb,accessActor,{
+      companyMetrics:async()=>{const d=loadDb();return accessStorage.companyMetrics(d.proposals,d.tasks);},
+      companyFinance:async()=>accessStorage.quotedFinance(loadDb().proposals,proposalQuotedValue),
+      companyFollowups:async()=>loadDb().tasks.map(publicTask).sort((a,b)=>String(a.dueAt||'9999').localeCompare(String(b.dueAt||'9999'))).slice(0,200)
+    });
+    if(parts[0]==='workspace'){
+      if(method==='POST'&&!req.headers.authorization&&!req.headers['x-qs-session'])return sendJson(res,403,{error:'Sign in again before changing access.',code:'SESSION_HEADER_REQUIRED'});
+      const payload=method==='POST'?await readBody(req):{};
+      const current=requireUser(req,loadDb());
+      const result=await accessService.handleWorkspace({store:accessStore,actor:accessActor(current),route:parts.slice(1),method,body:payload});
+      return sendJson(res,result.status,result.body);
+    }
+    if(accessService.companyRoute(parts)&&!await accessService.membershipAccess(accessStore,accessActor(user))){
+      return sendJson(res,403,{error:'Company membership requires owner approval. Request access in Settings → Connections.',code:'MEMBERSHIP_REQUIRED'});
+    }
+    if(accessService.financialRoute(parts,method)&&!await accessService.pricingAccess(accessStore,accessActor(user))){
+      return sendJson(res,403,{error:'Quotation pricing and snapshots require access. Request own quotation pricing in Settings → Connections.',code:'PRICING_ACCESS_REQUIRED'});
+    }
+
     /* Only sanitized module/inverter/cable/protection rows reach proposals;
        workbook macros and operational/cost/customer tabs never leave the file. */
     if (parts[0] === 'catalog' && ['products', 'modules'].includes(parts[1]) && parts.length === 2 && method === 'GET') {
@@ -2371,11 +2396,18 @@ async function handleApi(req, res, url) {
       return sendJson(res, result.status, result.body);
     }
 
+    if(parts[0]==='gallery'&&['file','legacy'].includes(parts[1])&&parts.length===3&&method==='GET'){
+      const item=(loadDb().gallery||[]).find(g=>parts[1]==='file'?g.id===parts[2]:g.file===parts[2]);
+      if(!item||path.basename(item.file)!==item.file)return sendJson(res,404,{error:'Photo not found.'});
+      const file=path.join(GALLERY_DIR,item.file);
+      if(!fs.existsSync(file))return sendJson(res,404,{error:'Photo not found.'});
+      return send(res,200,fs.readFileSync(file),{'Content-Type':MIME[path.extname(file).toLowerCase()]||'application/octet-stream','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});
+    }
     /* PROJECT GALLERY (staff uploads; writes need sales+) */
     if (parts[0] === 'gallery' && parts.length === 1 && method === 'GET') {
       const items = (db.gallery || []).slice().sort((a, b) =>
         String(b.created_at || '').localeCompare(String(a.created_at || '')));
-      return sendJson(res, 200, { gallery: items });
+      return sendJson(res, 200, { gallery: items.map(g=>({...g,url:'/api/gallery/file/'+encodeURIComponent(g.id)})) });
     }
     if (parts[0] === 'gallery' && parts.length === 1 && method === 'POST') {
       if (!canWrite) return sendJson(res, 403, { error: 'Your role can view data but cannot upload photos.' });
@@ -2399,13 +2431,14 @@ async function handleApi(req, res, url) {
       const item = {
         id: uid('gal'),
         file: finalName,
-        url: '/platform/data/gallery/' + encodeURIComponent(finalName),
+        url: '',
         caption: caption.slice(0, 140),
         category: GALLERY_CAT.has(cat) ? cat : 'site',
         size: buf.length,
         created_by: user.id,
         created_at: nowISO()
       };
+      item.url='/api/gallery/file/'+encodeURIComponent(item.id);
       db.gallery.push(item);
       saveDb(db);
       return sendJson(res, 201, { gallery: item });
@@ -3036,9 +3069,10 @@ async function handleApi(req, res, url) {
       if (unreadOnly) list = list.filter((n) => !n.read_at);
       list = list.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 100);
       const unread = (db.notifications || []).filter((n) => inScope(scope, n) && !n.read_at).length;
+      const accessNotes=await accessService.accessNotifications(accessStore,accessActor(user));
       return sendJson(res, 200, {
-        notifications: list.map(publicNotification),
-        unread
+        notifications: [...accessNotes,...list.map(publicNotification)],
+        unread: unread+accessNotes.length
       });
     }
 
@@ -3208,8 +3242,8 @@ async function handleApi(req, res, url) {
       const openTasks = (db.tasks || []).filter((t) => inScope(scope, t) && t.status === 'open');
       const overdueTasks = openTasks.filter((t) => t.due_at && Date.parse(t.due_at) < Date.now()).length;
 
-      /* Pipeline by salesperson is single-owner local accounts for now; multi-user
-         shared org reporting arrives with company multi-tenant auth. */
+      // Own-scope report; company aggregates have a separate explicit ACL.
+      const pricingAllowed=await accessService.pricingAccess(accessStore,accessActor(user));
       return sendJson(res, 200, {
         generatedAt: nowISO(),
         role: user.role,
@@ -3220,13 +3254,14 @@ async function handleApi(req, res, url) {
           rejected: byStatus.rejected || 0,
           sentOrOut: (byStatus.sent || 0) + (byStatus.viewed || 0) + (byStatus.negotiation || 0)
         },
-        value: {
+        value: pricingAllowed ? {
           currency: 'INR',
           quotedSum,
           proposalsWithValue: quotedKnown,
           proposalsMissingValue: quotedMissing,
           note: 'Quoted value uses explicit investment fields when present, otherwise capacity × rate when both exist. Missing values are counted separately — never invented.'
-        },
+        } : null,
+        pricingRestricted: !pricingAllowed,
         engagement: {
           versionsPublished: published,
           activeCustomerLinks: activeLinks,
@@ -3573,6 +3608,13 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
     return handleApi(req, res, url);
+  }
+  // Preserve old photo links, but require the same session and membership as
+  // the new byte endpoint. Never pass workspace files to the public server.
+  if(url.pathname.startsWith('/platform/data/gallery/')){
+    let name;try{name=decodeURIComponent(url.pathname.slice('/platform/data/gallery/'.length));}catch{return sendJson(res,400,{error:'Invalid photo path'});}
+    if(!name||name.includes('/')||name.includes('\\'))return sendJson(res,404,{error:'Not found'});
+    return handleApi(req,res,new URL('/api/gallery/legacy/'+encodeURIComponent(name),url));
   }
   return serveStatic(req, res, url.pathname);
 });

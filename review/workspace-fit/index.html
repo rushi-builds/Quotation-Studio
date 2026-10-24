@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Workspace fit · visual review</title>
+<style>*{box-sizing:border-box}html,body{margin:0;height:100%;background:#edf2f7;font:11px Arial,sans-serif}iframe{display:block;border:0;width:100%;height:100dvh}.review-note{position:fixed;left:14px;bottom:5px;z-index:100;color:#d6e1ee;font-size:9px;pointer-events:none}#error{padding:24px;color:#182b40}@media(max-width:760px){.review-note{left:18px;bottom:2px;color:#52687e}}</style></head>
+<body><small class="review-note">Sample preview · read only</small><iframe title="Actual Studio layout with isolated sample records" sandbox="allow-scripts allow-same-origin"></iframe>
+<script>
+(async()=>{
+  try {
+    const base=new URL('../../',location.href).href;
+    const response=await fetch(new URL('dashboard.html',base));
+    if(!response.ok)throw Error('Dashboard could not be loaded');
+    let html=await response.text();
+    html=html.replace('<head>','<head><base href="'+base+'">');
+    // Actual dashboard markup, CSS and controllers; only the API client is
+    // replaced inside this review frame. Production never loads this fixture.
+    html=html.replace(/assets\/js\/platform-api\.js[^"']*/, 'review/workspace-fit/fixtures.js');
+    document.querySelector('iframe').srcdoc=html;
+  } catch(e) {document.querySelector('iframe').replaceWith(Object.assign(document.createElement('p'),{id:'error',textContent:e.message}));}
+})();
+</script></body></html>

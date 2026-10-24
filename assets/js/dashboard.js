@@ -166,6 +166,7 @@
     if (loginAuth) loginAuth.hide();
     else $('authScreen').style.display = 'none';
     $('dash').classList.add('on');
+    document.dispatchEvent(new CustomEvent('qs:session'));
     $('userName').textContent = user.name || 'User';
     $('userEmail').textContent = user.email || '';
     $('settingsName').textContent = user.name || '—';
@@ -241,7 +242,11 @@
       set('cfBody', o.body || '');
       set('cfOk', o.confirm || 'Confirm');
       set('cfCancel', o.cancel || 'Cancel');
+      let settled = false;
       const done = (val) => {
+        if (settled) return;
+        settled = true;
+        dlg.onclose = null;
         closeDialog('confirmBox');
         resolve(val);
       };
@@ -307,6 +312,7 @@
     });
     document.querySelectorAll('[data-settings-section]').forEach(n => { n.hidden = n.dataset.settingsSection !== section; });
     if (focus) document.querySelector('[data-settings-section="' + section + '"] h2')?.focus();
+    document.dispatchEvent(new CustomEvent('qs:settings',{detail:section}));
   }
 
   const EVENT_LABELS = {
@@ -325,25 +331,34 @@
     send_state_share_clicked: 'Share opened'
   };
 
+  function orderedActivity(rows) {
+    const seen = new Set();
+    return (Array.isArray(rows) ? rows : []).filter(Boolean).slice()
+      .sort((a,b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0))
+      .filter(row => { if (!row.id) return true; if (seen.has(row.id)) return false; seen.add(row.id); return true; });
+  }
+  let activityLoad = 0;
   async function refreshActivityPanel() {
-    try {
-      const [notes, act] = await Promise.all([
-        api.listNotifications(),
-        api.listActivity()
-      ]);
-      const unread = (notes && notes.unread) || 0;
+    const requestId = ++activityLoad;
+    const [notes, act] = await Promise.allSettled([api.listNotifications(), api.listActivity()]);
+    if (requestId !== activityLoad) return;
+    if (notes.status === 'fulfilled') {
+      const unread = notes.value?.unread || 0;
       if ($('notifUnreadLabel')) $('notifUnreadLabel').textContent = unread + ' unread';
       if ($('kpiUnread')) $('kpiUnread').textContent = String(unread);
-      renderNotifications((notes && notes.notifications) || []);
-      renderActivity((act && act.activity) || []);
-    } catch (err) {
-      banner('err', err.message || 'Could not load activity');
+      renderNotifications(orderedActivity(notes.value?.notifications));
+    } else {
+      if ($('notifUnreadLabel')) $('notifUnreadLabel').textContent = 'Unavailable';
+      $('notifBody').innerHTML = '<div class="hempty" role="status">Notifications unavailable. <button type="button" class="text-link" data-activity-retry>Retry</button></div>';
     }
+    if (act.status === 'fulfilled') renderActivity(orderedActivity(act.value?.activity));
+    else $('activityBody').innerHTML = '<div class="hempty" role="status">Activity unavailable. <button type="button" class="text-link" data-activity-retry>Retry</button></div>';
+    document.querySelectorAll('[data-activity-retry]').forEach(button => button.addEventListener('click', refreshActivityPanel));
   }
 
   function renderNotifications(rows) {
     const body = $('notifBody'); if (!body) return;
-    body.innerHTML = rows.length ? rows.map(n => '<article class="notification-item ' + (n.unread ? 'unread' : '') + '"><span class="activity-dot" aria-hidden="true"></span><div class="notification-copy"><h3>' + escapeHtml(n.title) + '</h3><p>' + escapeHtml(n.body || '') + '</p><small>' + escapeHtml(fmtDate(n.createdAt)) + '</small></div>' + (n.unread ? '<button type="button" class="text-link" data-read="' + escapeHtml(n.id) + '">Mark read</button>' : '') + '</article>').join('') : emptyState('You’re all caught up.','New notifications will appear here.','✓');
+    body.innerHTML = rows.length ? rows.map(n => '<article class="notification-item ' + (n.unread ? 'unread' : '') + '"><span class="activity-dot" aria-hidden="true"></span><div class="notification-copy"><h3>' + escapeHtml(n.title) + '</h3><p>' + escapeHtml(n.body || '') + '</p><small>' + escapeHtml(fmtDate(n.createdAt)) + '</small></div>' + (n.kind==='access_request' ? '<button type="button" class="text-link" data-workspace-access>Review access</button>' : n.unread ? '<button type="button" class="text-link" data-read="' + escapeHtml(n.id) + '">Mark read</button>' : '') + '</article>').join('') : emptyState('You’re all caught up.','New notifications will appear here.','✓');
     body.querySelectorAll('[data-read]').forEach(btn => btn.addEventListener('click',async()=>{
       btn.disabled=true;try { await api.markNotificationRead(btn.dataset.read); await refreshActivityPanel(); await refreshAll(); } catch(err) { toast(err.message || 'Could not mark read'); btn.disabled=false; }
     }));
@@ -355,7 +370,7 @@
     body.querySelectorAll('[data-open-activity]').forEach(b=>b.addEventListener('click',()=>openInStudio(b.dataset.openActivity)));
   }
 
-  let taskLoad = 0, taskRows = [], editingTaskId = null;
+  let taskLoad = 0, taskRows = [], editingTaskId = null, focusedTaskId = null;
   function localDateInput(value) {
     const date = value ? new Date(value) : null;
     if (!date || Number.isNaN(date.getTime())) return '';
@@ -395,7 +410,12 @@
       const r = await api.listTasks();
       if (requestId === taskLoad) renderTasks((r && r.tasks) || []);
     } catch (err) {
-      banner('err', err.message || 'Could not load tasks');
+      if(requestId!==taskLoad)return;
+      taskRows=[];
+      if($('taskCount'))$('taskCount').textContent='Unavailable';
+      if($('taskReminderSummary'))$('taskReminderSummary').hidden=true;
+      $('tasksBody').innerHTML='<div class="hempty" role="status">Follow-ups unavailable. <button type="button" class="text-link" id="retryTasks">Retry</button></div>';
+      $('retryTasks').addEventListener('click',refreshTasksPanel);
     }
   }
 
@@ -430,7 +450,7 @@
       if (dueToday.length) parts.push(dueToday.length + ' due today');
       reminder.hidden = !parts.length;
       reminder.className = 'task-reminder' + (overdue.length ? ' overdue' : '');
-      reminder.textContent = parts.length ? parts.join(' · ') + '. In-app only; no automatic WhatsApp or email reminders are sent.' : '';
+      reminder.textContent = parts.length ? parts.join(' · ') + ' · In-app reminders' : '';
     }
     const filter = $('taskFilter')?.value || 'all';
     const visibleRows = taskRows.filter(t => {
@@ -439,17 +459,24 @@
       if (t.status !== 'open') return false;
       if (filter === 'open') return true;
       if (filter === 'overdue') return !!t.overdue;
+      if (filter === 'upcoming') return !!t.dueAt && localDateKey(t.dueAt) > todayKey && !t.overdue;
       return !!t.dueAt && localDateKey(t.dueAt) === todayKey;
     }).sort((a,b)=> (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || (Date.parse(a.dueAt) || Infinity) - (Date.parse(b.dueAt) || Infinity));
     if ($('taskCount')) $('taskCount').textContent = String(visibleRows.length);
-    if (!visibleRows.length) { body.innerHTML = emptyState('A clear list. A fresh start.','No follow-ups in this view. Plan your next step on the right.','✓'); return; }
+    if (!visibleRows.length) { body.innerHTML = emptyState('No follow-ups in this view.','','✓'); return; }
     body.innerHTML = visibleRows.map(t => {
       const prop = allProposals.find(p=>p.id===t.proposalId);
       const action = (act,label,cls='') => '<button type="button" class="' + cls + '" data-act="' + act + '" data-id="' + escapeHtml(t.id) + '">' + label + '</button>';
       const checkLabel = t.status === 'open' ? 'Complete task' : 'Reopen task';
       const check = canEdit() ? action(t.status === 'open' ? 'task-done' : 'task-reopen', '<span class="sr-only">' + checkLabel + '</span>', 'task-check') : '<span class="task-check" aria-label="' + escapeHtml(t.status) + '">' + (t.status === 'done' ? '✓' : '') + '</span>';
-      return '<article class="task-item ' + escapeHtml(t.status) + '">' + check + '<div class="task-copy"><h3>' + escapeHtml(t.title) + '</h3><div class="task-meta"><span class="' + (t.overdue ? 'late' : '') + '">' + escapeHtml(t.dueAt ? fmtDate(t.dueAt) : 'No due date') + '</span>' + (prop ? '<button type="button" class="text-link" data-task-quote="' + escapeHtml(prop.id) + '">' + escapeHtml(prop.customer || prop.ref || 'Quotation') + '</button>' : (t.proposalId ? '<span>Linked quotation unavailable</span>' : '')) + (t.status === 'cancelled' ? '<span>Cancelled</span>' : '') + '</div>' + (t.notes ? '<p>' + escapeHtml(t.notes) + '</p>' : '') + '</div>' + (canEdit() ? '<details class="row-menu"><summary aria-label="Task actions">⋯</summary><div class="row-menu-list">' + action('task-edit','Edit details') + (t.status === 'open' ? action('task-cancel','Cancel task') : action('task-reopen','Reopen task')) + action('task-del','Delete task','danger') + '</div></details>' : '') + '</article>';
+      const dueState = t.status !== 'open' ? '' : t.overdue ? 'Overdue' : !localDateKey(t.dueAt || '') ? 'No due date' : localDateKey(t.dueAt) === todayKey ? 'Today' : localDateKey(t.dueAt) > todayKey ? 'Upcoming' : '';
+      return '<article tabindex="-1" data-task-id="' + escapeHtml(t.id) + '" class="task-item ' + escapeHtml(t.status) + '">' + check + '<div class="task-copy"><h3>' + escapeHtml(t.title) + '</h3><div class="task-meta">' + (dueState ? '<span class="badge">' + dueState + '</span>' : '') + '<span class="' + (t.overdue ? 'late' : '') + '">' + escapeHtml(t.dueAt ? fmtDate(t.dueAt) : 'No due date') + '</span>' + (prop ? '<button type="button" class="text-link" data-task-quote="' + escapeHtml(prop.id) + '">' + escapeHtml(prop.customer || prop.ref || 'Quotation') + '</button>' : (t.proposalId ? '<span>Linked quotation unavailable</span>' : '')) + (t.status === 'cancelled' ? '<span>Cancelled</span>' : '') + '</div>' + (t.notes ? '<p>' + escapeHtml(t.notes) + '</p>' : '') + '</div>' + (canEdit() ? '<details class="row-menu"><summary aria-label="Task actions">⋯</summary><div class="row-menu-list">' + action('task-edit','Edit details') + (t.status === 'open' ? action('task-cancel','Cancel task') : action('task-reopen','Reopen task')) + action('task-del','Delete task','danger') + '</div></details>' : '') + '</article>';
     }).join('');
+    if (focusedTaskId && $('panel-tasks').classList.contains('on')) {
+      const row = [...body.querySelectorAll('[data-task-id]')].find(el => el.dataset.taskId === focusedTaskId);
+      if (row) { row.focus({preventScroll:true}); row.scrollIntoView({block:'center',behavior:'instant'}); }
+      focusedTaskId = null;
+    }
     body.querySelectorAll('[data-act]').forEach(btn=>btn.addEventListener('click',onTaskAction));
     body.querySelectorAll('[data-task-quote]').forEach(btn=>btn.addEventListener('click',()=>openInStudio(btn.dataset.taskQuote)));
   }
@@ -469,6 +496,7 @@
       else if (act === 'task-cancel') await api.updateTask(id, { status: 'cancelled' });
       else if (act === 'task-reopen') await api.updateTask(id, { status: 'open' });
       else if (act === 'task-del') await api.deleteTask(id);
+      toast(({ 'task-done':'Follow-up completed', 'task-cancel':'Follow-up cancelled', 'task-reopen':'Follow-up reopened', 'task-del':'Follow-up deleted' })[act] || 'Follow-up updated');
       await refreshTasksPanel();
       await refreshAll();
     } catch (err) {
@@ -534,7 +562,7 @@
       if ($('repValueHint')) {
         const known = (r.value && r.value.proposalsWithValue) || 0;
         const miss = (r.value && r.value.proposalsMissingValue) || 0;
-        $('repValueHint').textContent = known + ' priced · ' + miss + ' missing · not revenue';
+        $('repValueHint').textContent = r.pricingRestricted ? 'Restricted · request own quotation pricing in Settings → Connections' : known + ' priced · ' + miss + ' missing · not revenue';
       }
       const eng = r.engagement || {};
       const metrics = [['Published versions',eng.versionsPublished],['Active customer links',eng.activeCustomerLinks],['Share starts',eng.shareClicksRecorded],['PDF requests',eng.pdfDownloadRequests],['Survey requests',eng.surveyRequests],['Suspected previews',eng.suspectedPrefetches]];
@@ -1069,7 +1097,8 @@
         btn.addEventListener('click', () => openMemberInfo(btn.getAttribute('data-info')));
       });
     } catch (err) {
-      body.innerHTML = '<tr><td colspan="' + COLS + '" class="empty">' + escapeHtml(err.message || 'Could not load team') + '</td></tr>';
+      teamMembers=[];teamCanManage=false;
+      body.innerHTML = '<tr><td colspan="' + COLS + '" class="empty">' + escapeHtml(err.message || 'Could not load team') + (err.data?.code==='MEMBERSHIP_REQUIRED'?' <button type="button" class="text-link" data-workspace-access>Request company access</button>':'') + '</td></tr>';
     }
   }
 
@@ -1141,10 +1170,11 @@
           'Kind regards';
       }
       if ($('sendHonesty') && preview.honestyNote) {
-        $('sendHonesty').textContent = 'Preparing does not share the message. Launching WhatsApp/email or copying records only that action; delivery is not confirmed.';
+        $('sendHonesty').textContent = 'Prepared ≠ sent · delivery not confirmed.';
       }
       renderSends((sends && sends.sends) || []);
     } catch (err) {
+      if (requestId !== sendLoad || $('sendSelect').value !== id) return;
       banner('err', err.message || 'Could not load send centre');
     }
   }
@@ -1222,11 +1252,11 @@
         box.style.display = 'block';
         box.className = 'banner on ok';
         box.innerHTML =
-          '<strong>Message prepared — not shared yet.</strong> State is <em>Draft</em> until you launch WhatsApp/email or copy the message.<br />' +
+          '<strong>Prepared · not sent.</strong><br />' +
           'Customer link: <code style="word-break:break-all;font-size:12px">' +
           escapeHtml((r.launch && r.launch.portalUrl) || '') + '</code>' +
           '<div class="muted" style="margin-top:6px;font-size:12px">' +
-          escapeHtml((r.launch && r.launch.honesty) || 'Delivery is not confirmed.') + '</div>';
+          'Delivery not confirmed.' + '</div>';
       }
       if ($('btnSendLaunch')) {
         const canLaunch = !!(lastLaunch && (lastLaunch.whatsappUrl || lastLaunch.mailtoUrl));
@@ -1241,6 +1271,7 @@
       }
       toast('Message prepared — not shared yet');
       await refreshAll();
+      if ($('sendSelect')?.value !== id) return;
       fillSendSelect(id);
       await refreshSendPanelKeepMessage();
     } catch (err) {
@@ -1251,19 +1282,15 @@
   }
 
   async function refreshSendPanelKeepMessage() {
-    const msg = $('sendMessage') && $('sendMessage').value;
-    const name = $('sendRecipientName') && $('sendRecipientName').value;
-    const to = $('sendRecipientTo') && $('sendRecipientTo').value;
     const id = $('sendSelect') && $('sendSelect').value;
     fillSendSelect(id);
     if (!id) return;
     try {
       const sends = await api.listSends(id);
+      if ($('sendSelect')?.value !== id) return;
       renderSends((sends && sends.sends) || []);
     } catch (_) {}
-    if ($('sendMessage') && msg) $('sendMessage').value = msg;
-    if ($('sendRecipientName') && name) $('sendRecipientName').value = name;
-    if ($('sendRecipientTo') && to) $('sendRecipientTo').value = to;
+    if ($('sendSelect')?.value !== id) return;
     if (lastLaunch) {
       if ($('btnSendCopy')) {
         $('btnSendCopy').textContent = lastSendChannel === 'copy_link' ? 'Copy link' : 'Copy message';
@@ -1569,7 +1596,10 @@
     if (!body) return;
     const rows = filteredProposals();
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="5" class="empty"><span class="empty-icon" aria-hidden="true">▤</span><strong>No quotations here yet.</strong>Create your first quotation, or try another filter.</td></tr>';
+      body.innerHTML = allProposals.length
+        ? '<tr><td colspan="5" class="empty"><strong>No matching quotations.</strong><button type="button" class="text-link" id="clearQuoteFilters">Clear filters</button></td></tr>'
+        : '<tr><td colspan="5" class="empty"><strong>No quotations yet.</strong></td></tr>';
+      $('clearQuoteFilters')?.addEventListener('click', () => { $('filterQ').value = ''; $('filterStatus').value = ''; renderPropTable(); renderPropStats(); $('filterQ').focus(); });
       return;
     }
     body.innerHTML = rows.map((p) => rowHtml(p, false)).join('');
@@ -1705,23 +1735,29 @@
   /* ---------- project gallery (staff uploads) ---------- */
   const GALLERY_LABEL = { site: 'Site', industrial: 'Industrial', commercial: 'Commercial', residential: 'Residential' };
 
+  let galleryLoad = 0;
   async function refreshGalleryPanel() {
     const grid = $('galleryGrid');
     const count = $('galleryCount');
     if (!grid) return;
+    const requestId = ++galleryLoad;
+    grid.setAttribute('aria-busy', 'true');
+    grid.innerHTML='<div class="workspace-loading" role="status"><span>Loading project photos…</span><div class="workspace-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></div>';
+    if(count)count.textContent='Loading…';
     try {
       const r = await api.listGallery();
+      if (requestId !== galleryLoad) return;
       const allItems = (r && r.gallery) || [];
       const category = $('galleryFilter')?.value || '';
       const items = allItems.filter(g=>!category || g.category===category);
       if (count) count.textContent = items.length + (items.length === 1 ? ' photo' : ' photos');
       if (!items.length) {
-        grid.innerHTML = '<div class="empty-pad">Your projects deserve a place here. Upload a photo, or choose another category.</div>';
+        grid.innerHTML = '<div class="empty-pad">No photos in this category.</div>';
         return;
       }
       grid.innerHTML = items.map((g) => (
         '<figure class="gcard">' +
-          '<button type="button" class="gimg" data-view="' + escapeHtml(g.url) + '" data-cap="' + escapeHtml(g.caption || 'Site photo') + '" aria-label="Enlarge photo">' +
+          '<button type="button" class="gimg" data-view="' + escapeHtml(g.url) + '" data-cap="' + escapeHtml(g.caption || 'Site photo') + '" aria-label="Enlarge ' + escapeHtml(g.caption || 'site photo') + '">' +
             '<img src="' + escapeHtml(g.url) + '" alt="' + escapeHtml(g.caption || 'Site photo') + '" loading="lazy" />' +
           '</button>' +
           '<figcaption><span>' + escapeHtml(g.caption || 'Site photo') + '</span>' +
@@ -1736,7 +1772,16 @@
         deleteGalleryItem(b.getAttribute('data-del'), b);
       }));
     } catch (err) {
-      grid.innerHTML = '<div class="empty-pad">Could not load gallery: ' + escapeHtml(err.message || 'error') + '</div>';
+      if (requestId !== galleryLoad) return;
+      if(err.data?.code==='MEMBERSHIP_REQUIRED'){
+        if(count)count.textContent='Restricted';
+        grid.innerHTML='<div class="empty-pad">Company gallery requires membership. <button type="button" class="text-link" data-workspace-access>Request access</button></div>';return;
+      }
+      if (count) count.textContent = 'Unavailable';
+      grid.innerHTML = '<div class="empty-pad" role="status">Gallery unavailable. <button type="button" class="text-link" id="retryGallery">Retry</button></div>';
+      $('retryGallery')?.addEventListener('click', refreshGalleryPanel);
+    } finally {
+      if (requestId === galleryLoad) grid.setAttribute('aria-busy', 'false');
     }
   }
 
@@ -1831,8 +1876,8 @@
     }
   }
 
-  window.QSDash = { proposals: () => allProposals, setProposals: rows => { allProposals = rows; renderPropTable(); renderPropStats(); }, user: () => user, canEdit, canManage, powerLabel, refresh: () => refreshAll(), show: (name, id) => showPanel(name, id), showSettings, open: (id) => openInStudio(id), toast,
-    showTasks(filter) { if ($('taskFilter')) $('taskFilter').value = filter || 'all'; showPanel('tasks'); },
+  window.QSDash = { orderedActivity, proposals: () => allProposals, setProposals: rows => { allProposals = rows; renderPropTable(); renderPropStats(); }, user: () => user, canEdit, canManage, powerLabel, refresh: () => refreshAll(), show: (name, id) => showPanel(name, id), showSettings, open: (id) => openInStudio(id), toast,
+    showTasks(filter, id) { focusedTaskId = id || null; if ($('taskFilter')) $('taskFilter').value = filter || 'all'; showPanel('tasks'); },
     filterStatus(status) { if ($('filterStatus')) $('filterStatus').value = status || ''; if ($('filterQ')) $('filterQ').value = ''; showPanel('proposals'); }
   };
   /* ---------- boot ---------- */
@@ -1894,13 +1939,13 @@
         }
         /* Read back in English before anything is written. This updates
            display details only — the job title never decides access. */
+        $('btnSaveProfile').disabled = true;
         const ok = await confirmDialog({
           title: 'Save your profile?',
           body: 'Your display name, contact number, job title and social links will be updated across the workspace. Your access does not change.',
           confirm: 'Save changes'
         });
-        if (!ok) return;
-        $('btnSaveProfile').disabled = true;
+        if (!ok) { $('btnSaveProfile').disabled = false; return; }
         try {
           const r = await api.updateProfile({ name, phone, title, instagram, linkedin, custom });
           user = r.user;
