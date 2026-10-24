@@ -180,7 +180,7 @@ const PASSWORD = "ReviewPass!123";
     /* Approved visual integration: actual authenticated dashboard, never prototype data. */
     await p.waitForFunction(() => window.__businessPulseReady === true);
     ok('solar hero contains the real seven-tab router', await p.locator('.pulse-solar-hero #ghTabs [data-bi-tab]').count() === 7, '');
-    ok('production hero uses the exact approved preview photo',fs.readFileSync(path.join(root,'assets/images/pulse-solar-horizon.jpg')).equals(fs.readFileSync(path.join(root,'review/pulse-energy/solar-horizon.jpg'))),'');
+    ok('production hero uses the exact approved preview photo',require('crypto').createHash('sha256').update(fs.readFileSync(path.join(root,'assets/images/pulse-solar-horizon.jpg'))).digest('hex')==='d8b8ab3df6a95722096ff9d5b2f97ddb0aa2b7d2661d743f708b410f8b299d13','');
     ok('rendered hero no longer reuses old workspace photograph',await p.locator('.pulse-solar-hero').evaluate(el=>getComputedStyle(el).backgroundImage.includes('pulse-solar-horizon.jpg')),'');
     ok('technical report controls are collapsed by default',!await p.locator('.bi-datebar').isVisible() && await p.locator('.pulse-solar-hero .gh-mode').count()===0,'');
     await p.locator('[data-bi-action="report-options"]').click();
