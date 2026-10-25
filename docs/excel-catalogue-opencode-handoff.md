@@ -46,7 +46,7 @@ obtain the owner's normal release approval for those steps.
   `GET /api/catalogue/status` must return 401. Signed-in status must show the
   exact source filename/URL, checked time and truthful state. Inspect locally;
   do not share auth headers or session values in chat.
-- **Edit Excel ↗** must open that original file, not a folder,
+- **Add / edit ↗** must open that original file, not a folder,
   duplicate or converted sheet. Human edit permission is independent of the
   service account. For `.xlsm`, verify the owner's Excel/Drive save-back flow;
   Drive's preview does not mean browser/desktop Excel was automatically launched.
@@ -57,8 +57,8 @@ obtain the owner's normal release approval for those steps.
   with the owner's approval. Verify all category counts/rows, not just the API's
   success flag. Same-model rating-bin rows must not disappear.
 - After an **owner-approved legitimate Excel update**, verify soft-red
-  “Please sync”; arrow only navigates; manual sync then verifies
-  “Up to date”. Do not add/delete fake QA products in the production
+  “Excel updated · Sync now”; arrow only navigates; manual sync then verifies
+  “System up to date”. Do not add/delete fake QA products in the production
   workbook. If there is no approved real edit, report changed-file detection as
   fixture-tested but not live-smoked instead of manufacturing production changes.
 - A connection failure must retain the last valid snapshot and never show a
@@ -85,3 +85,26 @@ must retain their approved byte identity. The pre-existing legacy manual
 Custom-entry reload/spec edge-case was not part of this Excel-first repair;
 see the earlier equipment-library history. Do not claim an all-suite or live
 production pass based solely on the new isolated fixtures.
+
+## Additional live checks after the workbook-status correction
+
+- Deploy the matching frontend and reviewed Worker change together: returning
+  from **Add / edit ↗** uses owner/admin `GET /api/catalogue/status?fresh=1` to
+  bypass only the metadata cache. An older Worker will ignore this parameter,
+  so ordinary TTL delay remains until the matched backend is released.
+- Verify the owner's actual Excel/Drive save-back arrangement. Establish that
+  a legitimate approved save reaches the same configured Drive file ID; do
+  not assume desktop Excel saves automatically upload, enable a new uploader,
+  change folder/file selection or edit the workbook solely for testing.
+- Inspect any live-only scheduled automation before making changes. The repo
+  contains an older GET-triggered product-reference TTL cache, not a continuous
+  scheduler; it is separate from the equipment snapshot. Its exposed browser
+  refresh function has no runtime call found in the repo. Do not remove it or
+  claim it already keeps the new equipment snapshot current.
+- Verify **Excel workbook · System up to date** only when the Drive revision,
+  stored snapshot and browser copy match; an approved changed Drive revision
+  must show **Excel updated · Sync now** in header and card. Both pulse briefly;
+  reduced-motion users get static red. Manual **Sync** restores verified green
+  without changing quote inputs. An unverified connection stays neutral
+  **Not verified**; do not bypass the production-preview isolation guard to
+  make a demonstration green.

@@ -268,7 +268,7 @@ form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
 .catalogue-status-link .catalogue-go{font-size:15px;line-height:1;color:#3475be}
 .catalogue-status-link[data-state="up-to-date"]{color:#417961}
 .catalogue-status-link[data-state="outdated"],.catalogue-status-link[data-state="not-synced"],.catalogue-status-link[data-state="error"]{color:#b85b64}
-.catalogue-status-link[data-state="outdated"] #catalogueHeaderStatus,.catalogue-status-link[data-state="not-synced"] #catalogueHeaderStatus{animation:catalogue-attention 1.4s ease-in-out 3}
+.catalogue-status-link[data-state="outdated"] #catalogueHeaderStatus,.catalogue-status-link[data-state="not-synced"] #catalogueHeaderStatus,.catalogue-result[data-state="outdated"],.catalogue-result[data-state="not-synced"]{animation:catalogue-attention 1.4s ease-in-out 3}
 @keyframes catalogue-attention{0%,100%{color:#b85b64}50%{color:#d99197}}
 .catalogue-status-link:focus-visible,.excel-catalogue a:focus-visible{outline:2px solid #3475be;outline-offset:4px}
 /* A distinct, softly tinted interior — no gradients, halos or white filler. */
@@ -293,4 +293,7 @@ form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
 .catalogue-actions .link-btn:hover:not(:disabled):not([aria-disabled="true"]){filter:brightness(.97);}
 .catalogue-actions a[aria-disabled="true"]{color:#8c96aa;cursor:default;pointer-events:none;background:#e9edf7;border-color:#dbe1ef;}
 .catalogue-actions #syncCatalogueBtn:disabled{background:#d8deed;border-color:#d8deed;color:#8a96ad;opacity:1;cursor:default;}
-@media(prefers-reduced-motion:reduce){.catalogue-status-link #catalogueHeaderStatus{animation:none!important}}
+@media(prefers-reduced-motion:reduce){.catalogue-status-link #catalogueHeaderStatus,.catalogue-result{animation:none!important}}
+
+.catalogue-label{color:#68768d;font-weight:550;}
+#catalogueHeaderStatus::before{content:"·";margin-right:5px;color:#a5adba;}

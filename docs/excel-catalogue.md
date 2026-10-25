@@ -7,18 +7,19 @@ live workbook mutation has been performed by Arena.**
 ## Compact presentation update
 
 The panel now has a subtle periwinkle interior, one instruction line, a short
-status, the actual filename when verified, and **Edit Excel ↗ / Sync** actions.
+status, the actual filename when verified, and **Add / edit ↗ / Sync** actions.
 Verbose explanations, timestamps/counts and archive notes no longer fill the
 card; diagnostic details remain in status tooltips/hidden metadata. Header
-labels are **Up to date / Please sync**, with short neutral/error states when
-verification is unavailable. Source/auth/sync behavior is unchanged.
+labels are **System up to date / Excel updated · Sync now**, with short neutral/error states when
+verification is unavailable. Source/auth/manual-sync boundaries are preserved;
+the later correction adds a fresh metadata check after returning from Excel.
 
 ## Workflow
 
 1. Open **Advanced settings → Excel catalogue**, or use the small blue arrow
    next to the workspace tagline. This opens/scrolls to the section; it never
    executes sync or changes an input.
-2. **Edit Excel ↗** opens the exact configured Drive workbook in a
+2. **Add / edit ↗** opens the exact configured Drive workbook in a
    new tab. This is the original file, not a generated spreadsheet, folder,
    upload or converted Google Sheet. Human edit rights remain Drive-controlled.
    A `.xlsm` may open in Drive's file preview: use Excel to edit the original
@@ -41,12 +42,12 @@ not a second reusable catalogue editor.
 
 | State | Header | Meaning |
 |---|---|---|
-| Never synced | Please sync | Connected source known, no saved shared catalogue |
-| Source revision differs | Please sync | File ID/revision no longer matches last sync |
-| Verified match | Up to date | Workbook revision, shared snapshot SHA and browser row counts match at last check |
+| Never synced | Sync needed | Connected source known, no saved shared catalogue |
+| Source revision differs | Excel updated · Sync now | File ID/revision no longer matches last sync |
+| Verified match | System up to date | Workbook revision, shared snapshot SHA and browser row counts match at last check |
 | Checking | Checking… | A read-only verification is in progress |
 | Sync failure | Retry sync | Last browser copy stays usable; failed transactions roll back |
-| Unavailable/unverified | Not checked | No claim of freshness; reason in the section |
+| Unavailable/unverified | Not verified | No claim of freshness; reason in the status tooltip |
 
 A small soft-red colour pulse runs three cycles for attention; no opacity,
 halo or page artwork animation. Reduced-motion disables it. Up-to-date is
@@ -143,4 +144,50 @@ write path to model-backed Excel rows; preceding selection/manual-input checks
 pass. The same reload assertion failed on the earlier released baseline, as
 recorded in the equipment-library history. This is not an all-suite-green claim.
 
+**Additional baseline failure found during the auto-refresh audit:**
+`node --test qa/excel-module-catalog.test.mjs` passes five cases but its old
+proposal-picker case expects `Deye or Equivalent`/retired workbook-picker IDs;
+the current Excel-master picker defaults to `Sungrow`. The identical first
+assertion failure was reproduced from clean parent commit `6d7bbc0` in an
+isolated temporary source tree. This older UI contract was not rewritten in
+this status-only correction; parser/read-only Drive cases pass. The current
+`test:excel-catalogue` suite covers the supported UI and passes.
+
 See [operator handoff](excel-catalogue-opencode-handoff.md) for live boundaries.
+
+## Workbook-status correction and existing auto-refresh audit
+
+- Header explicitly identifies **Excel workbook**. Green **System up to date**
+  requires verified source revision and a complete matching browser catalogue.
+  A changed source shows **Excel updated · Sync now** in both places, with three
+  short soft-red colour pulses (disabled for reduced motion). First sync is
+  **Sync needed**; an unavailable/unverified check is never green. There is no
+  user-facing “Preview only” label. The existing production-preview API guard
+  remains in force: an isolated preview cannot prove live workbook freshness.
+- The card's single instruction is “Add or update equipment in Excel. Save,
+  then sync.” **Add / edit ↗** opens the exact configured original workbook.
+  It does not grant Drive/Excel editing rights or upload local Excel changes.
+- On return from opening that workbook, the owner/admin requests
+  `GET /api/catalogue/status?fresh=1`: a metadata-only cache bypass, so a saved
+  Drive revision can be detected without waiting for the ordinary 60-second
+  cache. Viewers retain the ordinary read-only cached check. This does not
+  download workbook bytes, write D1 or POST sync. The recurring/focus checks
+  remain, and a later Drive upload is detected on a subsequent check.
+- Audit: legacy `worker.js:getExcelProductCatalog()` checks Drive on
+  `/api/catalog/products` GET after its TTL (default 300 seconds). It writes
+  a **separate** `excel_product_catalog_cache`, not `equipment_catalogue`.
+  `module-catalog.js:refreshFromExcel()` exposes this reader, but repository
+  search found no runtime call to it. `share.html` loads the module script;
+  the current `quotation.html` does not. Do not present this dormant/request-
+  driven path as an always-on quotation catalogue sync. It was not removed.
+- No continuous scheduler/cron or desktop-to-Drive uploader was found in this
+  repository. An externally configured Drive Desktop/save-back process may
+  exist, but its operation is **not verified** by this code audit or fixtures.
+  Only changes that have actually reached the configured Drive workbook are
+  observable here; unsaved/offline/local-only edits cannot be detected.
+- Isolated tests cover fresh owner metadata inside the normal cache TTL,
+  viewer cache protection, zero writes/downloads from status checks, return
+  from workbook editing, real change → explicit sync → verified green,
+  preserved quote values and unchanged production-preview guard. Live Worker
+  deployment and original Excel save → Drive arrival → status → sync still
+  require the owner-approved operator verification below/in the handoff.

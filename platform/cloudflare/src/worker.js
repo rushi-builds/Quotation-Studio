@@ -2200,8 +2200,11 @@ async function handleApi(request, env, url, ctx) {
         const current = await requireUser(request, db, env);
         if (!current) return json({ error: 'Sign in to check the connected Excel workbook.' }, 401);
         try {
-          const status = await catalogueStatus(env, db);
-          return json({ ok: true, ...status, canSync: current.role === 'owner' || !!isAdminRow(current) });
+          const canSync = current.role === 'owner' || !!isAdminRow(current);
+          // Returning from an explicit Excel edit can bypass metadata cache,
+          // never the existing sync permission or the manual data-sync step.
+          const status = await catalogueStatus(env, db, canSync && url.searchParams.get('fresh') === '1');
+          return json({ ok: true, ...status, canSync });
         } catch (e) {
           return json({ error: e && e.code === 'NOT_CONFIGURED' ? 'The Excel catalogue connection is not configured.' : 'Workbook status could not be checked. The last saved catalogue is unchanged.',
             code: e && e.code === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'CATALOGUE_STATUS_UNAVAILABLE' }, e && e.code === 'NOT_CONFIGURED' ? 503 : 502);

@@ -3,13 +3,13 @@
 'use strict';
 (function (root) {
   const $ = id => document.getElementById(id);
-  const labels = { 'up-to-date': 'Up to date', outdated: 'Please sync',
-    'not-synced': 'Please sync', unknown: 'Not checked', checking: 'Checking…', syncing: 'Syncing…', error: 'Retry sync' };
-  let started = false, checking = false, busy = false, canSync = false, current = null, timer = null;
+  const labels = { 'up-to-date': 'System up to date', outdated: 'Excel updated · Sync now',
+    'not-synced': 'Sync needed', unknown: 'Not verified', checking: 'Checking…', syncing: 'Syncing…', error: 'Retry sync' };
+  let started = false, checking = false, busy = false, canSync = false, current = null, timer = null, workbookReturnPending = false;
   function display(state, message, compact) {
     const label = compact || labels[state] || labels.unknown;
     $('catalogueStatusLink').dataset.state = state;
-    $('catalogueStatusLink').setAttribute('aria-label', label + '. Open Excel catalogue sync');
+    $('catalogueStatusLink').setAttribute('aria-label', 'Excel workbook. ' + label + '. Open catalogue sync');
     $('catalogueStatusLink').title = message;
     $('catalogueHeaderStatus').textContent = label;
     $('catalogueSyncStatus').textContent = label;
@@ -40,15 +40,17 @@
     if (!root.PlatformAPI || !root.PlatformAPI.catalogueStatus) throw new Error('Catalogue connection is unavailable.');
     return root.PlatformAPI;
   }
-  async function refresh() {
+  async function refresh(fresh = false) {
     if (!started || checking || busy) return;
     checking = true;
     let verifiedMetadata = false;
     display('checking', 'Checking the connected workbook…'); controls();
     try {
-      const data = await api().catalogueStatus();
+      const needsFresh = fresh === true || workbookReturnPending;
+      const data = await api().catalogueStatus(needsFresh);
       if (!data || !data.ok || !['up-to-date','outdated','not-synced','unknown'].includes(data.status)) throw new Error('Catalogue status is unavailable.');
       verifiedMetadata = true;
+      if (needsFresh) workbookReturnPending = false;
       current = data; canSync = data.canSync === true;
       $('catalogueWorkbook').textContent = data.fileName || 'Excel workbook';
       $('catalogueWorkbook').hidden = false;
@@ -88,11 +90,11 @@
     } catch (error) {
       if (!verifiedMetadata) current = null;
       const code = error && error.code;
-      let compact = 'Not checked';
+      let compact = 'Not verified';
       let message = verifiedMetadata
         ? 'The saved catalogue could not be loaded or verified. Your previous browser copy is still available. Sync the catalogue to refresh it.'
         : 'Workbook status could not be checked. The last saved catalogue is still available. Checks retry when you return to this tab.';
-      if (code === 'PREVIEW_BACKEND_DISABLED') { canSync = false; compact = 'Preview only'; message = 'Preview only · the live Excel connection is not checked here.'; }
+      if (code === 'PREVIEW_BACKEND_DISABLED') { canSync = false; compact = 'Not verified'; message = 'Workbook status cannot be verified here. Open the connected workspace to check it.'; }
       else if (error && error.status === 401) { canSync = false; compact = 'Sign in'; message = 'Sign in to check your connected Excel workbook.'; }
       else if (code === 'NOT_CONFIGURED') { canSync = false; compact = 'Not connected'; message = 'The Excel catalogue connection is not configured. Ask the workspace owner to connect the workbook.'; }
       display('unknown', message, compact);
@@ -127,6 +129,7 @@
     $('syncCatalogueBtn').addEventListener('click', sync);
     $('openCatalogueExcel').addEventListener('click', event => {
       if (event.currentTarget.getAttribute('aria-disabled') === 'true') { event.preventDefault(); return; }
+      workbookReturnPending = true;
       display('unknown', 'Save your updates in Excel, then return here to sync. Workbook status is checked when this tab regains focus.');
     });
     root.addEventListener('focus', refresh);

@@ -6,14 +6,14 @@ const makeCloud=(sha,wp)=>({sha,syncedAt:'2026-10-25T10:00:00Z',source:'Original
 (async()=>{
  const{default:chrome}=await import('@sparticuz/chromium'),browser=await chromium.launch({executablePath:await chrome.executablePath(),args:chrome.args.filter(a=>a!=='--single-process'),headless:true});
  try{
-  const context=await browser.newContext({viewport:{width:1440,height:1100}}),errors=[],posts=[];
+  const context=await browser.newContext({viewport:{width:1440,height:1100}}),errors=[],posts=[],statusRequests=[];
   let saved=null,next=makeCloud('revision-a',620),syncFail=false;
   let meta={ok:true,status:'not-synced',canSync:true,fileName:'Original workbook.xlsm',workbookUrl:'https://drive.google.com/file/d/exact-fixture-workbook/view',syncedAt:'',sha:'',counts:{},checkedAt:'2026-10-25T10:05:00Z'};
   await context.addInitScript(archive=>{if(!localStorage.getItem('qstudio.equipment'))localStorage.setItem('qstudio.equipment',JSON.stringify(archive));},archived);
   await context.route('https://drive.google.com/file/d/exact-fixture-workbook/view',route=>route.fulfill({contentType:'text/html',body:'<title>Original workbook fixture</title>Original workbook; disposable QA tab.'}));
   await context.route('**/api/**',async route=>{
    const request=route.request(),pathname=new URL(request.url()).pathname;let body,status=200;
-   if(pathname==='/api/catalogue/status')body=meta;
+   if(pathname==='/api/catalogue/status'){statusRequests.push(request.url());body=meta;}
    else if(pathname==='/api/catalogue'&&request.method()==='GET')body={ok:true,catalogue:saved};
    else if(pathname==='/api/catalogue/sync'&&request.method()==='POST'){
     posts.push(pathname);if(syncFail){status=502;body={error:'Simulated connection failure',code:'CATALOGUE_SYNC_FAILED'};}
@@ -24,10 +24,10 @@ const makeCloud=(sha,wp)=>({sha,syncedAt:'2026-10-25T10:00:00Z',source:'Original
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
   await page.goto(base+'/quotation.html');await page.waitForFunction(()=>Render.lastState&&document.querySelector('.studio-ready')&&catalogueStatusLink.dataset.state==='not-synced');await page.evaluate(()=>document.fonts.ready);
   assert.equal(await page.locator('.eq-add,.eq-del,.eq-save,#eqCatalog input').count(),0);assert.equal(await page.locator('#moduleWattage').inputValue(),'545','archived override must not replace Excel defaults');assert.equal(posts.length,0);
-  assert.equal(await page.locator('#catalogueHeaderStatus').textContent(),'Please sync');
+  assert.equal(await page.locator('#catalogueHeaderStatus').textContent(),'Sync needed');
   assert.equal(await page.locator('#eqCatalog p:not([hidden])').count(),2);
   assert.equal(await page.locator('#syncCatalogueBtn').textContent(),'Sync');
-  assert.equal((await page.locator('#openCatalogueExcel').textContent()).replace(/\s+/g,' ').trim(),'Edit Excel ↗');
+  assert.equal((await page.locator('#openCatalogueExcel').textContent()).replace(/\s+/g,' ').trim(),'Add / edit ↗');
   assert.equal(await page.locator('#catalogueLegacyNotice').isVisible(),false);
   // A previously saved custom/local proposal must remain a stable snapshot.
   await page.evaluate(()=>{StateStore.applyForm({custName:'Excel Catalogue QA',moduleMake:'Legacy solar',moduleModel:'Legacy-625',moduleWattage:'625',moduleTech:'Legacy HJT',moduleLengthMm:'2280',moduleWidthMm:'1130',inverterMake:'Legacy inverter',inverterModel:'Legacy-9',inverterKw:'9',cableMake:'Legacy cable',mountMake:'Legacy structure'});Render.renderAll();__qsSaveNow();});
@@ -35,15 +35,18 @@ const makeCloud=(sha,wp)=>({sha,syncedAt:'2026-10-25T10:00:00Z',source:'Original
   const before=await snapshot();
   await page.click('#catalogueStatusLink');assert(await page.evaluate(()=>advancedWrap.open&&excelCataloguePanel.open&&document.activeElement.id==='eqCatalog'));assert.equal(posts.length,0);assert.deepEqual(await snapshot(),before);
   assert.equal(await page.locator('#openCatalogueExcel').getAttribute('href'),meta.workbookUrl);
-  const tabOpened=context.waitForEvent('page');await page.click('#openCatalogueExcel');const workbook=await tabOpened;await workbook.waitForLoadState();assert.equal(workbook.url(),meta.workbookUrl);assert.equal(await workbook.evaluate(()=>window.opener),null);await workbook.close();await page.bringToFront();await page.evaluate(()=>ExcelCatalogue.refresh());await page.waitForFunction(()=>!syncCatalogueBtn.disabled);
+  const tabOpened=context.waitForEvent('page');await page.click('#openCatalogueExcel');const workbook=await tabOpened;await workbook.waitForLoadState();assert.equal(workbook.url(),meta.workbookUrl);assert.equal(await workbook.evaluate(()=>window.opener),null);await workbook.close();await page.bringToFront();await page.evaluate(()=>ExcelCatalogue.refresh());await page.waitForFunction(()=>!syncCatalogueBtn.disabled);assert(statusRequests.some(url=>url.endsWith('?fresh=1')),'return from Excel must check fresh metadata, not the previous minute cache');
   await page.click('#syncCatalogueBtn');await page.waitForFunction(()=>catalogueStatusLink.dataset.state==='up-to-date');assert.equal(posts.length,1);assert.deepEqual(await snapshot(),before,'sync must not rewrite the current quotation, Finance, archive or built-in source');
   assert.equal(await page.evaluate(()=>EquipmentStore.cat().modules.length),1);assert.equal(await page.evaluate(()=>EquipmentStore.cat().modules[0].wp),620);
   // Another browser's completed sync refreshes the local catalogue using GET only.
   saved=makeCloud('revision-b',650);meta={...meta,sha:saved.sha,syncedAt:saved.syncedAt};await page.evaluate(()=>ExcelCatalogue.refresh());await page.waitForFunction(()=>EquipmentStore.cloudInfo().sha==='revision-b');assert.equal(posts.length,1);assert.deepEqual(await snapshot(),before);
-  meta.status='outdated';await page.evaluate(()=>ExcelCatalogue.refresh());assert.equal(await page.locator('#catalogueHeaderStatus').textContent(),'Please sync');assert.equal(posts.length,1);
+  meta.status='outdated';await page.evaluate(()=>ExcelCatalogue.refresh());assert.equal(await page.locator('#catalogueHeaderStatus').textContent(),'Excel updated · Sync now');assert.equal(await page.locator('#catalogueSyncStatus').textContent(),'Excel updated · Sync now');assert.equal(await page.locator('#catalogueSyncStatus').evaluate(el=>getComputedStyle(el).animationIterationCount),'3');assert.equal(posts.length,1);
   const folder=path.join(__dirname,'shots','excel-catalogue');fs.mkdirSync(folder,{recursive:true});
   await page.locator('.studio-heading').screenshot({path:path.join(folder,'header-sync-needed.png')});
-  await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('#catalogueHeaderStatus').evaluate(el=>getComputedStyle(el).animationName),'none');
+  for(const width of [390,360]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&eqCatalog.scrollWidth<=eqCatalog.clientWidth+2),'changed-file message must fit the mobile header and card');}
+  await page.locator('#excelCataloguePanel').screenshot({path:path.join(folder,'catalogue-mobile-updated.png')});
+  await page.setViewportSize({width:1440,height:1100});
+  await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('#catalogueHeaderStatus').evaluate(el=>getComputedStyle(el).animationName),'none');assert.equal(await page.locator('#catalogueSyncStatus').evaluate(el=>getComputedStyle(el).animationName),'none');
   syncFail=true;const previous=await page.evaluate(()=>localStorage.getItem('qsCloudCatalogue'));await page.click('#syncCatalogueBtn');await page.waitForFunction(()=>catalogueStatusLink.dataset.state==='error');assert.equal(await page.evaluate(()=>localStorage.getItem('qsCloudCatalogue')),previous);assert.deepEqual(await snapshot(),before);
   syncFail=false;next=makeCloud('revision-c',630);await page.click('#syncCatalogueBtn');await page.waitForFunction(()=>catalogueStatusLink.dataset.state==='up-to-date');assert.equal(posts.length,3);assert.deepEqual(await snapshot(),before);
   // Apply a product only through the original source controls.

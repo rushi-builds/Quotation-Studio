@@ -30,7 +30,7 @@ function create(url='http://catalogue.test/quotation.html',preview=false){
  a.setMeta({counts:{modules:2,inverters:1,cables:1}});await w.ExcelCatalogue.refresh();
  assert.equal(w.EquipmentStore.cloudInfo().modules,2);assert.equal(calls.filter(x=>x==='GET catalogue').length,gets+1);
  a.setPayload(cloud);a.setMeta({counts:{modules:1,inverters:1,cables:1}});await w.ExcelCatalogue.refresh();
- a.setMeta({status:'outdated'});await w.ExcelCatalogue.refresh();assert.equal(d.getElementById('catalogueHeaderStatus').textContent,'Please sync');assert.equal(calls.filter(x=>x==='POST sync').length,1,'metadata check never syncs');
+ a.setMeta({status:'outdated'});await w.ExcelCatalogue.refresh();assert.equal(d.getElementById('catalogueHeaderStatus').textContent,'Excel updated · Sync now');assert.equal(calls.filter(x=>x==='POST sync').length,1,'metadata check never syncs');
  const stored=w.localStorage.getItem('qsCloudCatalogue');a.setSyncFailure(true);await w.ExcelCatalogue.sync();assert.equal(d.getElementById('catalogueStatusLink').dataset.state,'error');assert.equal(w.localStorage.getItem('qsCloudCatalogue'),stored);assert(!d.getElementById('syncCatalogueBtn').disabled);a.setSyncFailure(false);
  a.setMeta({status:'unknown',reason:'Change checks unavailable.'});await w.ExcelCatalogue.refresh();assert.equal(d.getElementById('catalogueStatusLink').dataset.state,'unknown');assert(d.getElementById('catalogueSyncStatus').title.includes('Change checks unavailable'));
  a.setMeta({canSync:false});await w.ExcelCatalogue.refresh();const denied=calls.filter(x=>x==='POST sync').length;await w.ExcelCatalogue.sync();assert(d.getElementById('syncCatalogueBtn').disabled);assert.equal(calls.filter(x=>x==='POST sync').length,denied);
@@ -43,12 +43,12 @@ function create(url='http://catalogue.test/quotation.html',preview=false){
  await w.ExcelCatalogue.refresh();assert.equal(d.getElementById('catalogueStatusLink').dataset.state,'up-to-date');assert.equal(JSON.parse(w.localStorage.getItem('qsCloudCatalogue')).sha,'new-sha');
  console.log('PASS: Excel-only UI/source, archived local data, exact safe link, navigation-only arrow, truthful states, explicit sync, cache failure, permission and malformed-payload safety');
  }finally{a.dom.window.close();}
- const preview=create('https://quotation-studio-isolated-fixture.vercel.app/quotation.html',true);try{await until(()=>preview.d.getElementById('catalogueSyncStatus').textContent.includes('Preview only'));assert.deepEqual(preview.calls,[]);assert(preview.d.getElementById('syncCatalogueBtn').disabled);assert(!preview.d.getElementById('openCatalogueExcel').hasAttribute('href'));console.log('PASS: actual PlatformAPI preview guard blocks all production catalogue requests');}finally{preview.dom.window.close();}
+ const preview=create('https://quotation-studio-isolated-fixture.vercel.app/quotation.html',true);try{await until(()=>preview.d.getElementById('catalogueSyncStatus').textContent==='Not verified');assert(!preview.d.body.textContent.includes('Preview only'));assert.equal(preview.d.querySelector('.catalogue-label').textContent,'Excel workbook');await assert.rejects(preview.w.PlatformAPI.catalogueStatus(true),error=>error.code==='PREVIEW_BACKEND_DISABLED');assert.deepEqual(preview.calls,[]);assert(preview.d.getElementById('syncCatalogueBtn').disabled);assert(!preview.d.getElementById('openCatalogueExcel').hasAttribute('href'));console.log('PASS: actual PlatformAPI preview guard blocks all production catalogue requests');}finally{preview.dom.window.close();}
  const auth=new JSDOM('',{url:'https://studio.example.test',runScripts:'outside-only'});try{
  const w=auth.window,requests=[];w.fetch=async(url,options)=>{requests.push({url,options});return{ok:true,text:async()=>JSON.stringify({ok:true})};};
  w.eval(fs.readFileSync(path.join(root,'assets/js/platform-api.js'),'utf8'));w.PlatformAPI.setSessionToken('disposable-fixture-session');
- await w.PlatformAPI.catalogueStatus();await w.PlatformAPI.equipmentCatalogue();await w.PlatformAPI.syncEquipmentCatalogue();
- assert.deepEqual(requests.map(r=>[r.url,r.options.method]),[['/api/catalogue/status','GET'],['/api/catalogue','GET'],['/api/catalogue/sync','POST']]);
+ await w.PlatformAPI.catalogueStatus();await w.PlatformAPI.equipmentCatalogue();await w.PlatformAPI.syncEquipmentCatalogue();await w.PlatformAPI.catalogueStatus(true);
+ assert.deepEqual(requests.map(r=>[r.url,r.options.method]),[['/api/catalogue/status','GET'],['/api/catalogue','GET'],['/api/catalogue/sync','POST'],['/api/catalogue/status?fresh=1','GET']]);
  assert(requests.every(r=>r.options.headers['X-QS-Session']==='disposable-fixture-session'&&r.options.credentials==='same-origin'));
  console.log('PASS: all catalogue calls use the existing authenticated same-origin API client');
  }finally{auth.window.close();}

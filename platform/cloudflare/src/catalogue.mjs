@@ -358,11 +358,11 @@ async function boundedBytes(response) {
   return bytes;
 }
 /* A metadata check never downloads the workbook or mutates the saved catalogue. */
-export async function catalogueStatus(env, db) {
+export async function catalogueStatus(env, db, fresh = false) {
   const meta = await readCatalogueMeta(db);
   const cacheKey = JSON.stringify([configuredFileId(env), env.GDRIVE_FOLDER_ID || '', env.GDRIVE_MODE || 'service']);
   let checked = sourceChecks.get(cacheKey);
-  if (!checked || Date.now() - checked.at >= 60000) {
+  if (fresh || !checked || Date.now() - checked.at >= 60000) {
     const source = await resolveSource(env);
     const current = await sourceMetadata(source);
     checked = { at: Date.now(), current };
