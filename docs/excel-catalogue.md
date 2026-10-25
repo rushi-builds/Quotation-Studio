@@ -4,12 +4,21 @@ Owner-approved replacement for the local equipment Add/Edit/Delete manager,
 25 October 2026. **Code/isolated tests only: no production Worker deployment or
 live workbook mutation has been performed by Arena.**
 
+## Compact presentation update
+
+The panel now has a subtle periwinkle interior, one instruction line, a short
+status, the actual filename when verified, and **Edit Excel ↗ / Sync** actions.
+Verbose explanations, timestamps/counts and archive notes no longer fill the
+card; diagnostic details remain in status tooltips/hidden metadata. Header
+labels are **Up to date / Please sync**, with short neutral/error states when
+verification is unavailable. Source/auth/sync behavior is unchanged.
+
 ## Workflow
 
 1. Open **Advanced settings → Excel catalogue**, or use the small blue arrow
    next to the workspace tagline. This opens/scrolls to the section; it never
    executes sync or changes an input.
-2. **Add / Update in Excel ↗** opens the exact configured Drive workbook in a
+2. **Edit Excel ↗** opens the exact configured Drive workbook in a
    new tab. This is the original file, not a generated spreadsheet, folder,
    upload or converted Google Sheet. Human edit rights remain Drive-controlled.
    A `.xlsm` may open in Drive's file preview: use Excel to edit the original
@@ -17,7 +26,7 @@ live workbook mutation has been performed by Arena.**
    control desktop Excel, grant edit permissions, or write to the workbook.
 3. Add/edit rows inside the existing catalogue tables, preserving their columns
    and original Excel format. Wait for the file to finish saving/uploading.
-4. Click **Sync catalogue**. Only the existing owner/elevated-admin permission
+4. Click **Sync**. Only the existing owner/elevated-admin permission
    can perform this action. Other signed-in staff can check status/open the
    original file subject to their independent Drive permissions.
 5. Select/reselect the product under **Equipment & design** to apply its latest
@@ -32,12 +41,12 @@ not a second reusable catalogue editor.
 
 | State | Header | Meaning |
 |---|---|---|
-| Never synced | Sync catalogue once | Connected source known, no saved shared catalogue |
-| Source revision differs | Excel updated · Sync needed | File ID/revision no longer matches last sync |
-| Verified match | Catalogue up to date | Workbook revision, shared snapshot SHA and browser row counts match at last check |
-| Checking | Checking catalogue… | A read-only verification is in progress |
-| Sync failure | Sync failed · Retry | Last browser copy stays usable; failed transactions roll back |
-| Unavailable/unverified | Check catalogue status | No claim of freshness; reason in the section |
+| Never synced | Please sync | Connected source known, no saved shared catalogue |
+| Source revision differs | Please sync | File ID/revision no longer matches last sync |
+| Verified match | Up to date | Workbook revision, shared snapshot SHA and browser row counts match at last check |
+| Checking | Checking… | A read-only verification is in progress |
+| Sync failure | Retry sync | Last browser copy stays usable; failed transactions roll back |
+| Unavailable/unverified | Not checked | No claim of freshness; reason in the section |
 
 A small soft-red colour pulse runs three cycles for attention; no opacity,
 halo or page artwork animation. Reduced-motion disables it. Up-to-date is

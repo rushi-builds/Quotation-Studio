@@ -3,14 +3,18 @@
 'use strict';
 (function (root) {
   const $ = id => document.getElementById(id);
-  const labels = { 'up-to-date': 'Catalogue up to date', outdated: 'Excel updated · Sync needed',
-    'not-synced': 'Sync catalogue once', unknown: 'Check catalogue status', checking: 'Checking catalogue…', syncing: 'Syncing catalogue…', error: 'Sync failed · Retry' };
+  const labels = { 'up-to-date': 'Up to date', outdated: 'Please sync',
+    'not-synced': 'Please sync', unknown: 'Not checked', checking: 'Checking…', syncing: 'Syncing…', error: 'Retry sync' };
   let started = false, checking = false, busy = false, canSync = false, current = null, timer = null;
-  function display(state, message) {
+  function display(state, message, compact) {
+    const label = compact || labels[state] || labels.unknown;
     $('catalogueStatusLink').dataset.state = state;
-    $('catalogueStatusLink').setAttribute('aria-label', (labels[state] || labels.unknown) + '. Open Excel catalogue sync');
-    $('catalogueHeaderStatus').textContent = labels[state] || labels.unknown;
-    $('catalogueSyncStatus').textContent = message;
+    $('catalogueStatusLink').setAttribute('aria-label', label + '. Open Excel catalogue sync');
+    $('catalogueStatusLink').title = message;
+    $('catalogueHeaderStatus').textContent = label;
+    $('catalogueSyncStatus').textContent = label;
+    $('catalogueSyncStatus').dataset.state = state;
+    $('catalogueSyncStatus').title = [message, $('catalogueLastSync').textContent].filter(Boolean).join('\n');
   }
   function date(value) {
     const stamp = new Date(value);
@@ -18,7 +22,7 @@
   }
   function controls() {
     $('syncCatalogueBtn').disabled = busy || checking || !canSync;
-    $('syncCatalogueBtn').textContent = busy ? 'Syncing…' : 'Sync catalogue';
+    $('syncCatalogueBtn').textContent = busy ? 'Syncing…' : 'Sync';
     const link = $('openCatalogueExcel'), url = current && current.workbookUrl;
     const valid = !busy && typeof url === 'string' && /^https:\/\/drive\.google\.com\/file\/d\/[A-Za-z0-9_-]+\/view$/.test(url);
     if (valid) link.href = url; else link.removeAttribute('href');
@@ -46,7 +50,8 @@
       if (!data || !data.ok || !['up-to-date','outdated','not-synced','unknown'].includes(data.status)) throw new Error('Catalogue status is unavailable.');
       verifiedMetadata = true;
       current = data; canSync = data.canSync === true;
-      $('catalogueWorkbook').textContent = data.fileName || 'Connected Excel workbook';
+      $('catalogueWorkbook').textContent = data.fileName || 'Excel workbook';
+      $('catalogueWorkbook').hidden = false;
       const local = root.EquipmentStore.cloudInfo();
       // Another owner/browser may have synced the shared catalogue. Download
       // only that saved JSON copy; this GET does not fetch/sync the workbook.
@@ -68,7 +73,7 @@
       if (data.syncedAt) parts.push((Number(count.modules) || 0) + ' modules · ' + (Number(count.inverters) || 0) + ' inverters · ' + (Number(count.cables) || 0) + ' cables');
       $('catalogueLastSync').textContent = parts.join(' · ');
       if (info.persisted === false) {
-        display('unknown', 'Catalogue loaded for this tab, but browser storage is unavailable. Your saved quotations have not been changed.');
+        display('unknown', 'Catalogue loaded for this tab, but browser storage is unavailable. Your saved quotations have not been changed.', 'Storage unavailable');
       } else if (data.status === 'up-to-date' && (!data.sha || info.sha !== data.sha)) {
         display('unknown', 'The catalogue could not be verified in this browser. Sync or check again.');
       } else {
@@ -83,14 +88,15 @@
     } catch (error) {
       if (!verifiedMetadata) current = null;
       const code = error && error.code;
+      let compact = 'Not checked';
       let message = verifiedMetadata
         ? 'The saved catalogue could not be loaded or verified. Your previous browser copy is still available. Sync the catalogue to refresh it.'
         : 'Workbook status could not be checked. The last saved catalogue is still available. Checks retry when you return to this tab.';
-      if (code === 'PREVIEW_BACKEND_DISABLED') { canSync = false; message = 'Preview only · the live Excel connection is not checked here.'; }
-      else if (error && error.status === 401) { canSync = false; message = 'Sign in to check your connected Excel workbook.'; }
-      else if (code === 'NOT_CONFIGURED') { canSync = false; message = 'The Excel catalogue connection is not configured. Ask the workspace owner to connect the workbook.'; }
-      display('unknown', message);
-      if (!verifiedMetadata) $('catalogueWorkbook').textContent = 'Workbook connection unavailable';
+      if (code === 'PREVIEW_BACKEND_DISABLED') { canSync = false; compact = 'Preview only'; message = 'Preview only · the live Excel connection is not checked here.'; }
+      else if (error && error.status === 401) { canSync = false; compact = 'Sign in'; message = 'Sign in to check your connected Excel workbook.'; }
+      else if (code === 'NOT_CONFIGURED') { canSync = false; compact = 'Not connected'; message = 'The Excel catalogue connection is not configured. Ask the workspace owner to connect the workbook.'; }
+      display('unknown', message, compact);
+      if (!verifiedMetadata) $('catalogueWorkbook').hidden = true;
     } finally { checking = false; controls(); }
   }
   async function sync() {
@@ -114,7 +120,7 @@
     started = true;
     const old = root.EquipmentStore.legacyInfo();
     if (old.count) {
-      $('catalogueLegacyNotice').hidden = false;
+      // Keep archive details available for diagnostics without panel clutter.
       $('catalogueLegacyNotice').textContent = old.count + ' legacy browser ' + (old.count === 1 ? 'entry is' : 'entries are') + ' preserved, but no longer override the Excel catalogue. Saved quotation values are unchanged.';
     }
     $('catalogueStatusLink').addEventListener('click', navigate);

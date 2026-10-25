@@ -24,6 +24,11 @@ const makeCloud=(sha,wp)=>({sha,syncedAt:'2026-10-25T10:00:00Z',source:'Original
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
   await page.goto(base+'/quotation.html');await page.waitForFunction(()=>Render.lastState&&document.querySelector('.studio-ready')&&catalogueStatusLink.dataset.state==='not-synced');await page.evaluate(()=>document.fonts.ready);
   assert.equal(await page.locator('.eq-add,.eq-del,.eq-save,#eqCatalog input').count(),0);assert.equal(await page.locator('#moduleWattage').inputValue(),'545','archived override must not replace Excel defaults');assert.equal(posts.length,0);
+  assert.equal(await page.locator('#catalogueHeaderStatus').textContent(),'Please sync');
+  assert.equal(await page.locator('#eqCatalog p:not([hidden])').count(),2);
+  assert.equal(await page.locator('#syncCatalogueBtn').textContent(),'Sync');
+  assert.equal((await page.locator('#openCatalogueExcel').textContent()).replace(/\s+/g,' ').trim(),'Edit Excel ↗');
+  assert.equal(await page.locator('#catalogueLegacyNotice').isVisible(),false);
   // A previously saved custom/local proposal must remain a stable snapshot.
   await page.evaluate(()=>{StateStore.applyForm({custName:'Excel Catalogue QA',moduleMake:'Legacy solar',moduleModel:'Legacy-625',moduleWattage:'625',moduleTech:'Legacy HJT',moduleLengthMm:'2280',moduleWidthMm:'1130',inverterMake:'Legacy inverter',inverterModel:'Legacy-9',inverterKw:'9',cableMake:'Legacy cable',mountMake:'Legacy structure'});Render.renderAll();__qsSaveNow();});
   const snapshot=()=>page.evaluate(()=>({form:JSON.stringify(Object.fromEntries(Object.entries(StateStore.collectForm()).filter(([key])=>!key.startsWith('docEdit-')&&key!=='docTextSearch'))),finance:JSON.stringify(Finance.compute(Render.lastState)),archive:localStorage.getItem('qstudio.equipment'),builtin:JSON.stringify(CATALOGUE_DATA)}));
@@ -35,7 +40,7 @@ const makeCloud=(sha,wp)=>({sha,syncedAt:'2026-10-25T10:00:00Z',source:'Original
   assert.equal(await page.evaluate(()=>EquipmentStore.cat().modules.length),1);assert.equal(await page.evaluate(()=>EquipmentStore.cat().modules[0].wp),620);
   // Another browser's completed sync refreshes the local catalogue using GET only.
   saved=makeCloud('revision-b',650);meta={...meta,sha:saved.sha,syncedAt:saved.syncedAt};await page.evaluate(()=>ExcelCatalogue.refresh());await page.waitForFunction(()=>EquipmentStore.cloudInfo().sha==='revision-b');assert.equal(posts.length,1);assert.deepEqual(await snapshot(),before);
-  meta.status='outdated';await page.evaluate(()=>ExcelCatalogue.refresh());assert.equal(await page.locator('#catalogueHeaderStatus').textContent(),'Excel updated · Sync needed');assert.equal(posts.length,1);
+  meta.status='outdated';await page.evaluate(()=>ExcelCatalogue.refresh());assert.equal(await page.locator('#catalogueHeaderStatus').textContent(),'Please sync');assert.equal(posts.length,1);
   const folder=path.join(__dirname,'shots','excel-catalogue');fs.mkdirSync(folder,{recursive:true});
   await page.locator('.studio-heading').screenshot({path:path.join(folder,'header-sync-needed.png')});
   await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('#catalogueHeaderStatus').evaluate(el=>getComputedStyle(el).animationName),'none');
@@ -46,7 +51,7 @@ const makeCloud=(sha,wp)=>({sha,syncedAt:'2026-10-25T10:00:00Z',source:'Original
   assert.equal(await page.locator('#moduleLengthMm').inputValue(),'2300');assert.equal(await page.locator('#moduleTech').inputValue(),'Fixture HJT');assert(!await page.evaluate(()=>EquipmentStore.cat().modules.some(r=>r.make==='Waaree')),'deleted/missing Excel rows must not resurrect from bundled or local catalogues');
   const original=await page.evaluate(()=>{__qsSaveNow();return Proposals.activeId();});await page.reload();await page.waitForFunction(()=>Render.lastState?.moduleMake==='Workbook Solar'&&catalogueStatusLink.dataset.state==='up-to-date');assert.equal(await page.locator('#moduleWattage').inputValue(),'630');assert.equal(await page.evaluate(()=>localStorage.getItem('qstudio.equipment')),JSON.stringify(archived));
   await page.evaluate(()=>document.querySelector('.studio-management').open=true);await page.click('#pmNew');await page.waitForFunction(id=>Proposals.activeId()!==id,original);await page.selectOption('#proposalSelect',original);await page.waitForFunction(()=>Render.lastState?.moduleMake==='Workbook Solar');assert.equal(await page.locator('#moduleWattage').inputValue(),'630');
-  for(const width of [390,360]){await page.setViewportSize({width,height:900});await page.click('#catalogueStatusLink');assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&eqCatalog.scrollWidth<=eqCatalog.clientWidth+2));}
+  for(const width of [390,360]){await page.setViewportSize({width,height:900});await page.click('#catalogueStatusLink');assert((await page.locator('#excelCataloguePanel').boundingBox()).height<240,'compact card must not become a text-heavy panel');assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&eqCatalog.scrollWidth<=eqCatalog.clientWidth+2));}
   await page.locator('#excelCataloguePanel').screenshot({path:path.join(folder,'catalogue-mobile.png')});
   await page.setViewportSize({width:1440,height:1100});await page.locator('#excelCataloguePanel').screenshot({path:path.join(folder,'catalogue-desktop.png')});
   const customer=await context.newPage();customer.on('pageerror',e=>errors.push(e.message));await customer.goto(base+'/share.html?p='+original);await customer.waitForFunction(()=>Render.lastState?.moduleMake==='Workbook Solar');assert(await customer.evaluate(()=>v_tsTable.textContent.includes('Workbook Solar')&&v_tsTable.textContent.includes('Workbook Inverter')));assert.equal(await customer.locator('#catalogueStatusLink').count(),0);

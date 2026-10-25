@@ -46,7 +46,7 @@ obtain the owner's normal release approval for those steps.
   `GET /api/catalogue/status` must return 401. Signed-in status must show the
   exact source filename/URL, checked time and truthful state. Inspect locally;
   do not share auth headers or session values in chat.
-- **Add / Update in Excel ↗** must open that original file, not a folder,
+- **Edit Excel ↗** must open that original file, not a folder,
   duplicate or converted sheet. Human edit permission is independent of the
   service account. For `.xlsm`, verify the owner's Excel/Drive save-back flow;
   Drive's preview does not mean browser/desktop Excel was automatically launched.
@@ -57,8 +57,8 @@ obtain the owner's normal release approval for those steps.
   with the owner's approval. Verify all category counts/rows, not just the API's
   success flag. Same-model rating-bin rows must not disappear.
 - After an **owner-approved legitimate Excel update**, verify soft-red
-  “Excel updated · Sync needed”; arrow only navigates; manual sync then verifies
-  “Catalogue up to date”. Do not add/delete fake QA products in the production
+  “Please sync”; arrow only navigates; manual sync then verifies
+  “Up to date”. Do not add/delete fake QA products in the production
   workbook. If there is no approved real edit, report changed-file detection as
   fixture-tested but not live-smoked instead of manufacturing production changes.
 - A connection failure must retain the last valid snapshot and never show a
