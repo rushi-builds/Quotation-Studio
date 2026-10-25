@@ -317,6 +317,9 @@
       return request('POST', '/api/team/members/' + encodeURIComponent(userId) + '/like', {});
     },
     socialProviders() { return request('GET', '/api/auth/oauth/providers'); },
+    catalogueStatus() { return request('GET', '/api/catalogue/status', undefined, 15000); },
+    equipmentCatalogue() { return request('GET', '/api/catalogue', undefined, 15000); },
+    syncEquipmentCatalogue() { return request('POST', '/api/catalogue/sync', {}, 60000); },
     productCatalog() { return request('GET', '/api/catalog/products'); },
     syncProductCatalog() { return request('POST', '/api/catalog/products/sync', {}); },
     moduleCatalog() { return request('GET', '/api/catalog/products'); },

@@ -20,6 +20,7 @@
     "test:editor-discovery": "node editor-discovery.test.cjs && node editor-groups.test.cjs",
     "test:engineering-panel": "node engineering-panel.test.cjs",
     "test:preparer-review": "node preparer-review.test.cjs",
+    "test:excel-catalogue": "node excel-catalogue.test.cjs && node excel-catalogue-worker.test.mjs && node excel-catalogue-browser.test.cjs",
     "test:equipment-library": "node equipment-library.test.cjs && node equipment-library-browser.test.cjs",
     "test:reverification": "node --test reverification.test.cjs calculation-verification.test.cjs rwa-subsidy.test.cjs && node quotation-transitions.test.cjs",
     "test:security": "node studio-security-worker.test.mjs && node studio-security.test.cjs && node platform-api.test.js",

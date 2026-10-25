@@ -66,6 +66,8 @@ const WORKSPACE_PRESENTATION_PATHS = new Set([
   'assets/css/document-studio.css',
   // Owner-requested builder colour wayfinding and comprehensive setting search.
   'assets/js/control-panel.js',
+  // Owner-approved Excel-first catalogue UI (25 Oct); no provider/config wildcard.
+  'assets/js/excel-catalogue.js',
   'assets/css/control-panel.css',
   // Owner requested full, uncropped Additional Systems hero framing (24 Oct).
   'assets/css/bess.css',

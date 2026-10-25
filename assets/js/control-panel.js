@@ -166,7 +166,7 @@
       fieldset.append(view); sections.push({field, details, text, description});
     });
     // Keep content and equipment libraries out of routine quotation inputs.
-    const library = form.querySelector('.eq-panel'); library.querySelector('summary').textContent = 'Equipment library';
+    const library = form.querySelector('.eq-panel'); library.querySelector('summary').textContent = 'Excel catalogue';
     form.append(library, $('advancedPanel'));
     $('advancedPanel').classList.add('studio-content');
 
@@ -634,7 +634,10 @@
         custAddress: 'location site address', capacity: 'system size kilowatt',
         moduleMake: 'solar panel manufacturer brand', moduleWattage: 'panel wattage watts rating',
         inverterMake: 'inverter manufacturer brand', cableMake: 'cables wiring cable brand',
-        galleryUrl: 'QR code qrcode link', tariff: 'electricity unit rate'
+        galleryUrl: 'QR code qrcode link', tariff: 'electricity unit rate',
+        syncCatalogueBtn: 'equipment library Excel workbook catalogue sync refresh',
+        openCatalogueExcel: 'equipment library add update module inverter cable Excel workbook',
+        catalogueStatusLink: 'equipment library Excel workbook catalogue status sync'
       };
       const aliases = (fieldAliases[input.id] || '') + (input.closest('[data-section="systemEnabled"]') ? ' additional systems additionals additions add-ons addons battery storage' : '');
       const keywords = [aliases, input.id, input.id.replace(/([a-z])([A-Z])/g, '$1 $2'), input.name, input.title, input.placeholder,
@@ -642,7 +645,7 @@
       return {input, label, section, options, text: normalize(label + ' ' + section + ' ' + keywords), primary: normalize(label)};
     }
     function searchEntries() {
-      const native = [...panel.querySelectorAll('input,select,textarea,button,a[href],summary')].filter(input =>
+      const native = [...panel.querySelectorAll('input,select,textarea,button,a[href],a[aria-disabled],summary')].filter(input =>
         !input.closest('.studio-search,.studio-overview,.studio-feedback') &&
         !input.matches('[type="hidden"],#systemEnabled,#bessEnabled,#systemTemplate,[data-bess-choice],[data-system-choice]')
       ).map(entryFor).filter(Boolean);
@@ -650,7 +653,7 @@
       return [...native,...documentText];
     }
     function visible(input) {
-      return input && !input.disabled && input.getClientRects().length > 0 && !input.closest('[hidden]');
+      return input && !input.disabled && input.getAttribute('aria-disabled') !== 'true' && input.getClientRects().length > 0 && !input.closest('[hidden]');
     }
     function navigate(item) {
       clearSearch(); notice.hidden = true;

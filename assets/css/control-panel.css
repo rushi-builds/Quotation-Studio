@@ -261,5 +261,24 @@ form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
 .studio-ready .eng-basis .eng-review-help{padding:10px 12px 0;margin:0;}
 .studio-ready .eng-basis .eng-review-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
 .studio-ready .eng-basis .eng-review-actions button{font-size:10px;padding:6px 9px;text-align:left;}
-.form-panel .eq-save-status{font-size:10px;line-height:1.5;color:#426953;margin:8px 0 0;}
-.form-panel .eq-save-status[data-saved="false"]{color:#a2493e;}
+
+/* Excel-first catalogue: compact status beside the unchanged workspace tagline. */
+.studio-heading .app-sub{display:flex;align-items:center;flex-wrap:wrap;gap:5px 9px}
+.catalogue-status-link{display:inline-flex;align-items:center;gap:5px;border:0;border-radius:6px;padding:2px 0;background:transparent;color:#748196;font:inherit;font-size:10px;line-height:1.5;text-align:left;cursor:pointer}
+.catalogue-status-link .catalogue-go{font-size:15px;line-height:1;color:#3475be}
+.catalogue-status-link[data-state="up-to-date"]{color:#417961}
+.catalogue-status-link[data-state="outdated"],.catalogue-status-link[data-state="not-synced"],.catalogue-status-link[data-state="error"]{color:#b85b64}
+.catalogue-status-link[data-state="outdated"] #catalogueHeaderStatus,.catalogue-status-link[data-state="not-synced"] #catalogueHeaderStatus{animation:catalogue-attention 1.4s ease-in-out 3}
+@keyframes catalogue-attention{0%,100%{color:#b85b64}50%{color:#d99197}}
+.catalogue-status-link:focus-visible,.excel-catalogue a:focus-visible{outline:2px solid #3475be;outline-offset:4px}
+.excel-catalogue{padding:8px 14px 14px;scroll-margin-block:18px}
+.excel-catalogue:focus{outline:none}
+.excel-catalogue p{margin:0 0 10px}
+.excel-catalogue .catalogue-workbook{font-size:12px;font-weight:650;color:#35465c;overflow-wrap:anywhere}
+.catalogue-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
+.catalogue-actions .link-btn{display:inline-flex;align-items:center;gap:5px;font-size:11px;white-space:normal;text-decoration:none}
+.catalogue-actions a[aria-disabled="true"]{color:#8793a3;cursor:default;pointer-events:none}
+.catalogue-result{font-size:11px;line-height:1.6;color:#596b80;overflow-wrap:anywhere}
+#catalogueLastSync{font-size:10px;line-height:1.6}
+#catalogueLegacyNotice{border-left:2px solid #c3cfdf;padding-left:8px}
+@media(prefers-reduced-motion:reduce){.catalogue-status-link #catalogueHeaderStatus{animation:none!important}}

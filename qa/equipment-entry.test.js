@@ -79,11 +79,12 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.select('#inverterMake','Sungrow');
   await settle('inverterKw','10');
 
-  /* ---- make-level catalogue entries without models still autofill ---- */
+  /* ---- model-backed Excel rows replace the retired local make-only editor ---- */
   await page.evaluate(()=>{
-   EquipmentStore.cat().modules.push({id:'qa-module',make:'Catalog module 620',wp:620,tech:'Catalog HJT custom',lengthMm:2300,widthMm:1134});
-   EquipmentStore.cat().inverters.push({id:'qa-inverter',make:'Catalog inverter 8',kw:8});
-   EquipmentStore.save();EquipmentStore.refreshSelects();
+   const current=EquipmentStore.cat();
+   EquipmentStore.importCloud({sha:'equipment-entry-fixture',syncedAt:'2026-10-25T10:00:00Z',source:'Disposable Excel fixture',
+    modules:[...current.modules,{make:'Catalog module 620',model:'Catalog-620',wp:620,cellType:'Catalog HJT custom',lengthMm:2300,widthMm:1134}],
+    inverters:[...current.inverters,{make:'Catalog inverter 8',model:'Catalog-8',kw:8}],cables:current.cables.slice()});
   });
   await page.select('#moduleMake','Catalog module 620');
   await settle('moduleWattage','620');

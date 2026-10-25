@@ -1,11 +1,12 @@
 /* ============================================================================
    Quotation Studio — equipment catalogue sync (Google Drive .xlsm -> D1)
    ----------------------------------------------------------------------------
-   On-demand sync, never polling: POST /api/catalogue/sync reads the Excel
-   workbook once from Drive, extracts the three catalogue tables and stores
+   Explicit data sync: POST /api/catalogue/sync reads the Excel
+   workbook from Drive, extracts the three catalogue tables and stores
    them in D1. The app's built-in catalogue-data.js stays as the fallback.
 
-   Extraction mirrors patch_work/qs_studio/extract_catalogue.ps1 exactly:
+   Column mappings retain extract_catalogue.ps1; named tables expand these
+   legacy baseline row ranges:
      MODULE_DB   tblModule  rows 5..316,   cols 1..22
      INVERTER_DB tblInv     rows 6..145,   cols 1..23
      CABLE_DB    tblCable   rows 6..113,   cols 1..11
@@ -170,8 +171,8 @@ function numOf(v) {
 }
 function txtOf(v) { return v == null ? '' : String(v).replace(CLEAN_RE, '?').trim(); }
 
-function extractTable(rowsByRow, kind) {
-  const spec = KIND_SPECS[kind];
+function extractTable(rowsByRow, kind, bounds) {
+  const spec = bounds || KIND_SPECS[kind];
   const out = [];
   for (let r = spec.from; r <= spec.to; r++) {
     const row = rowsByRow.get(r);
@@ -229,9 +230,27 @@ export async function extractCatalogue(buffer, fileName) {
     if (!path || !entries.has(path)) throw new Error(KIND_SPECS[kind].sheet + ' sheet not found in ' + (fileName || 'workbook'));
     return parseSheetXml(decodeXml(entries.get(path)), shared);
   };
-  const modules = extractTable(read('modules'), 'modules');
-  const inverters = extractTable(read('inverters'), 'inverters');
-  const cables = extractTable(read('cables'), 'cables');
+  // Follow expanded Excel tables, not historical row ceilings. Do not scan
+  // unrelated factor/operational tables below the whitelisted product tables.
+  const tableNames = { modules: 'tblModule', inverters: 'tblInv', cables: 'tblCable' };
+  const bounds = (kind) => {
+    for (const [path, bytes] of entries) {
+      if (!/^xl\/tables\/[^/]+\.xml$/.test(path)) continue;
+      const tag = /<table\b([^>]+)>/.exec(decodeXml(bytes));
+      if (!tag) continue;
+      const a = attrsOf(tag[1]);
+      if (a.name !== tableNames[kind] && a.displayName !== tableNames[kind]) continue;
+      const range = /^\$?[A-Z]+\$?(\d+):\$?[A-Z]+\$?(\d+)$/.exec(a.ref || '');
+      if (!range) throw new Error('Invalid catalogue table range.');
+      const from = Number(range[1]) + 1, to = Number(range[2]) - Number(a.totalsRowCount || 0);
+      if (to < from || to - from + 1 > 5000) throw new Error('Catalogue table must contain 1–5000 product rows.');
+      return { from, to };
+    }
+    return KIND_SPECS[kind]; // Older workbooks without named-table XML.
+  };
+  const modules = extractTable(read('modules'), 'modules', bounds('modules'));
+  const inverters = extractTable(read('inverters'), 'inverters', bounds('inverters'));
+  const cables = extractTable(read('cables'), 'cables', bounds('cables'));
   if (!modules.length || !inverters.length || !cables.length) {
     throw new Error('Catalogue extraction came back empty (modules=' + modules.length + ', inverters=' + inverters.length + ', cables=' + cables.length + '). Wrong workbook?');
   }
@@ -264,7 +283,7 @@ async function serviceAccountToken(email, pem) {
   sign.update(header + '.' + claims);
   const assertion = header + '.' + claims + '.' + sign.sign(pem, 'base64url');
   const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
+    method: 'POST', signal: AbortSignal.timeout(10000),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion })
   });
@@ -277,7 +296,7 @@ async function findInFolder(folderId, token) {
   const q = "name contains 'Solar_EPC' and '" + folderId + "' in parents and mimeType != 'application/vnd.google-apps.folder'";
   const url = 'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) +
     '&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime%20desc&pageSize=10';
-  const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(10000) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error('Google Drive search failed (' + res.status + '): ' + (data.error && data.error.message || 'unknown'));
   const hit = (data.files || []).find((f) => /\.xlsm$/i.test(f.name));
@@ -285,75 +304,141 @@ async function findInFolder(folderId, token) {
   return hit.id;
 }
 
-/* Returns the raw workbook bytes; throws NOT_CONFIGURED when secrets are unset. */
-export async function fetchCatalogueWorkbook(env) {
+const MAX_WORKBOOK_BYTES = 10 * 1024 * 1024;
+const sourceChecks = new Map(); // Isolate-local metadata cache only; no workbook polling/writes.
+function configuredFileId(env) {
+  return [env.GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID, env.GOOGLE_DRIVE_MODULE_CATALOG_FILE_ID, env.GDRIVE_FILE_ID]
+    .map(value => String(value || '').trim()).find(Boolean) || '';
+}
+async function resolveSource(env) {
   const mode = String(env.GDRIVE_MODE || 'service').toLowerCase();
+  let id = configuredFileId(env);
   if (mode === 'public') {
-    const id = env.GDRIVE_FILE_ID;
-    if (!id) throw notConfigured('GDRIVE_FILE_ID missing (public mode)');
-    const res = await fetch('https://drive.google.com/uc?export=download&id=' + encodeURIComponent(id));
-    if (!res.ok) throw new Error('Drive download failed (' + res.status + '). Is the file shared as "Anyone with the link"?');
-    return { bytes: new Uint8Array(await res.arrayBuffer()), name: 'Solar_EPC (Drive public link)' };
+    if (!id) throw notConfigured('catalogue file ID missing');
+    return { id, mode, headers: {} };
   }
-  let email = '', key = '';
-  const raw = env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON;
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      email = String(parsed.client_email || '');
-      key = String(parsed.private_key || '');
-    } catch (e) {
-      throw notConfigured('GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON is not valid JSON');
+  let account;
+  try { account = JSON.parse(env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON || '{}'); }
+  catch (_) { throw notConfigured('service account configuration invalid'); }
+  if (!account.client_email || !account.private_key) throw notConfigured('service account configuration missing');
+  const token = await serviceAccountToken(account.client_email, account.private_key);
+  if (!id && env.GDRIVE_FOLDER_ID) id = await findInFolder(env.GDRIVE_FOLDER_ID, token);
+  if (!id) throw notConfigured('catalogue file ID missing');
+  return { id, mode, headers: { Authorization: 'Bearer ' + token } };
+}
+async function sourceMetadata(source) {
+  const { id, mode, headers } = source;
+  const base = { fileId: id, workbookUrl: 'https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view',
+    fileName: 'Connected Excel workbook', revision: '', modifiedAt: '', checkedAt: new Date().toISOString() };
+  if (mode === 'public') return { ...base, reason: 'Public-link mode cannot verify workbook changes. Sync manually.' };
+  const url = 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(id) +
+    '?supportsAllDrives=true&fields=id,name,mimeType,modifiedTime,md5Checksum,version,size,trashed';
+  const response = await fetch(url, { headers, redirect: 'error', signal: AbortSignal.timeout(10000) });
+  if (!response.ok) throw new Error('The connected workbook is unavailable. Check its file-scoped Viewer access.');
+  const meta = await response.json();
+  if (meta.id !== id || meta.trashed || !/\.xls[mx]$/i.test(meta.name || '') || Number(meta.size) > MAX_WORKBOOK_BYTES) {
+    throw new Error('The connected file must be an available Excel workbook of at most 10 MB.');
+  }
+  return { ...base, fileName: meta.name, modifiedAt: meta.modifiedTime || '', checksum: meta.md5Checksum || '',
+    revision: String(meta.md5Checksum || meta.version || meta.modifiedTime || '') };
+}
+async function boundedBytes(response) {
+  if (Number(response.headers.get('content-length')) > MAX_WORKBOOK_BYTES) throw new Error('Excel workbook exceeds 10 MB.');
+  const reader = response.body.getReader(), chunks = []; let total = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read(); if (done) break;
+      total += value.byteLength;
+      if (total > MAX_WORKBOOK_BYTES) { await reader.cancel(); throw new Error('Excel workbook exceeds 10 MB.'); }
+      chunks.push(value);
     }
+  } finally { reader.releaseLock(); }
+  const bytes = new Uint8Array(total); let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  return bytes;
+}
+/* A metadata check never downloads the workbook or mutates the saved catalogue. */
+export async function catalogueStatus(env, db) {
+  const meta = await readCatalogueMeta(db);
+  const cacheKey = JSON.stringify([configuredFileId(env), env.GDRIVE_FOLDER_ID || '', env.GDRIVE_MODE || 'service']);
+  let checked = sourceChecks.get(cacheKey);
+  if (!checked || Date.now() - checked.at >= 60000) {
+    const source = await resolveSource(env);
+    const current = await sourceMetadata(source);
+    checked = { at: Date.now(), current };
+    if (sourceChecks.size >= 8) sourceChecks.clear();
+    sourceChecks.set(cacheKey, checked);
   }
-  if (!email || !key) throw notConfigured('GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON secret missing');
-  const token = await serviceAccountToken(email, key);
-  let id = env.GDRIVE_FILE_ID;
-  let name = 'Solar_EPC (Drive file ' + String(id).slice(0, 8) + ')';
-  if (!id && env.GDRIVE_FOLDER_ID) {
-    id = await findInFolder(env.GDRIVE_FOLDER_ID, token);
-    name = 'Solar_EPC (Drive folder search)';
+  const current = checked.current;
+  const unverified = !current.revision || !meta.fileId || !meta.sourceRevision;
+  const status = !meta.syncedAt ? 'not-synced' : unverified ? 'unknown'
+    : meta.fileId !== current.fileId || meta.sourceRevision !== current.revision ? 'outdated' : 'up-to-date';
+  return { ...current, status, syncedAt: meta.syncedAt || '', sha: meta.sha || '', counts: meta.counts || {},
+    reason: current.reason || (meta.syncedAt && unverified ? 'Sync once to verify the existing catalogue against the connected Excel workbook.' : ''), sourceSelection: configuredFileId(env) ? 'file' : 'folder-latest' };
+}
+/* Returns verified bytes from the same exact file exposed by the metadata route.
+   Never mark bytes current if the file changes while being downloaded. */
+export async function fetchCatalogueWorkbook(env) {
+  const source = await resolveSource(env);
+  const before = await sourceMetadata(source);
+  const url = source.mode === 'public'
+    ? 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(source.id)
+    : 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(source.id) + '?alt=media&supportsAllDrives=true';
+  const response = await fetch(url, { headers: source.headers, signal: AbortSignal.timeout(20000) });
+  if (!response.ok) throw new Error('The connected Excel workbook could not be downloaded.');
+  const bytes = await boundedBytes(response);
+  const after = source.mode === 'public' ? before : await sourceMetadata(source);
+  if (before.revision !== after.revision || (before.checksum && createHash('md5').update(bytes).digest('hex') !== before.checksum)) {
+    throw new Error('Excel changed during sync. Save the workbook and sync again. The previous catalogue has been kept.');
   }
-  if (!id) throw notConfigured('neither GDRIVE_FILE_ID nor GDRIVE_FOLDER_ID set');
-  const res = await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(id) + '?alt=media', {
-    headers: { Authorization: 'Bearer ' + token }
-  });
-  if (!res.ok) throw new Error('Drive download failed (' + res.status + '). Share the workbook with the service account email.');
-  return { bytes: new Uint8Array(await res.arrayBuffer()), name };
+  return { bytes, name: before.fileName, sourceMeta: before };
 }
 
 /* ---------------- D1 storage ---------------- */
 
 export async function storeCatalogue(db, catalogue, meta) {
   const rows = [];
-  const add = (kind, list) => list.forEach((r) => rows.push([kind, String(r.make || r.label || ''), String(r.model || r.make || ''), JSON.stringify(r)]));
+  // Excel can legitimately repeat a model name across rating bins, or even
+  // repeat an identical row. Keep every row using a snapshot-local row key;
+  // the original make/model/ratings remain untouched in row_json.
+  const add = (kind, list) => list.forEach((r, index) => rows.push([kind, String(r.make || r.label || ''), String(index).padStart(5, '0') + '|' + String(r.model || r.make || ''), JSON.stringify(r)]));
   add('modules', catalogue.modules);
   add('inverters', catalogue.inverters);
   add('cables', catalogue.cables);
-  await db.prepare('DELETE FROM equipment_catalogue').run();
-  const stmts = [];
-  for (let i = 0; i < rows.length; i += 100) {
-    const chunk = rows.slice(i, i + 100);
-    const stmt = db.prepare('INSERT INTO equipment_catalogue (kind, make, model, row_json) VALUES (?, ?, ?, ?)');
-    chunk.forEach((r) => stmt.bind(...r));
-    stmts.push(stmt);
+  // D1 bind() returns a NEW statement: retain every row, not just one per chunk.
+  // One batch transaction replaces rows + metadata atomically; failed writes roll back.
+  const stmts = [db.prepare('DELETE FROM equipment_catalogue')];
+  // 25 rows = 100 bind parameters, within D1's per-statement bound. A typical
+  // 500-row catalogue takes about 20 queries rather than 500 per request.
+  for (let i = 0; i < rows.length; i += 25) {
+    const chunk = rows.slice(i, i + 25);
+    const sql = 'INSERT INTO equipment_catalogue (kind, make, model, row_json) VALUES ' + chunk.map(() => '(?, ?, ?, ?)').join(', ');
+    stmts.push(db.prepare(sql).bind(...chunk.flat()));
   }
-  if (stmts.length) await db.batch(stmts);
-  const put = db.prepare('INSERT OR REPLACE INTO equipment_catalogue_meta (key, value) VALUES (?, ?)');
   const metaRows = [
     ['sha', String(catalogue.sha || '')],
     ['syncedAt', String(meta.syncedAt || new Date().toISOString())],
     ['source', String(meta.source || catalogue.fileName || '')],
+    ['fileId', String(meta.fileId || '')],
+    ['sourceRevision', String(meta.revision || '')],
+    ['sourceModifiedAt', String(meta.modifiedAt || '')],
     ['counts', JSON.stringify({ modules: catalogue.modules.length, inverters: catalogue.inverters.length, cables: catalogue.cables.length })]
   ];
-  await db.batch(metaRows.map(([k, v]) => put.bind(k, v)));
+  stmts.push(...metaRows.map(([k, v]) => db.prepare('INSERT OR REPLACE INTO equipment_catalogue_meta (key, value) VALUES (?, ?)').bind(k, v)));
+  await db.batch(stmts);
   return { modules: catalogue.modules.length, inverters: catalogue.inverters.length, cables: catalogue.cables.length };
 }
 
-export async function readCatalogue(db) {
+export async function readCatalogueMeta(db) {
   const metaRes = await db.prepare("SELECT key, value FROM equipment_catalogue_meta").all();
   const meta = {};
   for (const r of metaRes.results || []) meta[r.key] = r.value;
+  try { meta.counts = JSON.parse(meta.counts || '{}'); } catch (_) { meta.counts = {}; }
+  return meta;
+}
+
+export async function readCatalogue(db) {
+  const meta = await readCatalogueMeta(db);
   if (!meta.syncedAt) return null;
   const rowsRes = await db.prepare('SELECT kind, row_json FROM equipment_catalogue ORDER BY kind, make, model').all();
   const out = { modules: [], inverters: [], cables: [], syncedAt: meta.syncedAt, source: meta.source || '', sha: meta.sha || '', counts: {} };
@@ -364,22 +449,24 @@ export async function readCatalogue(db) {
       else if (r.kind === 'cables') out.cables.push(JSON.parse(r.row_json));
     } catch { /* skip corrupt row */ }
   }
-  try { out.counts = JSON.parse(meta.counts || '{}'); } catch { out.counts = {}; }
+  out.counts = meta.counts;
   return out;
 }
 
 /* Convenience: full sync pipeline used by the POST route. */
 export async function syncCatalogue(env, db) {
-  const { bytes, name } = await fetchCatalogueWorkbook(env);
+  const { bytes, name, sourceMeta } = await fetchCatalogueWorkbook(env);
   const catalogue = await extractCatalogue(bytes, name);
-  const counts = await storeCatalogue(db, catalogue, { source: name });
+  const syncedAt = new Date().toISOString();
+  const counts = await storeCatalogue(db, catalogue, { ...sourceMeta, source: name, syncedAt });
+  sourceChecks.clear();
   return {
-    syncedAt: new Date().toISOString(),
+    syncedAt,
     source: name,
     sha: catalogue.sha,
     counts,
     catalogue: {
-      syncedAt: new Date().toISOString(),
+      syncedAt,
       source: name,
       sha: catalogue.sha,
       modules: catalogue.modules,

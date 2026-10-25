@@ -1,3 +1,8 @@
+> **Superseded by the owner-approved Excel-first workflow (2026-10-25).**
+> Local Add/Edit/Delete is now retired. Existing browser rows are preserved,
+> but no longer override Excel. See [Excel catalogue](excel-catalogue.md).
+> The previous cache-repair implementation and QA below are historical.
+
 # Equipment library persistence repair
 
 Use **Advanced settings → Equipment library** to manage reusable module,

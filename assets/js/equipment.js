@@ -3,9 +3,9 @@
    --------------------------------------------------------------------------
    Built-in master data (modules / inverters / cables) ships in
    catalogue-data.js, generated from the company Excel workbook's
-   MODULE_DB / INVERTER_DB / CABLE_DB tables. User-added rows live in
-   localStorage under the same key as before; legacy seed rows are
-   migrated out (superseded by the Excel extract).
+   MODULE_DB / INVERTER_DB / CABLE_DB tables as an offline fallback. A
+   complete synced Excel snapshot replaces it. Legacy browser rows remain
+   archived in their original key, without overriding the catalogue.
 
    Make dropdowns: the real makes first, combined "X / Y or Equivalent"
    entries next (their calculation basis is the first named make), then
@@ -117,7 +117,7 @@
     } catch (e) { return empty; }
   }
 
-  let userCache = null, cloudCache = null, merged = null;
+  let userCache = null, cloudCache = null, merged = null, cacheSaved = true;
   function userRows() { if (!userCache) userCache = loadUser(); return userCache; }
 
   /* Cloud-synced catalogue rows (from the Sync Catalogue button). They live in
@@ -144,6 +144,9 @@
   function cloudRows() { if (!cloudCache) cloudCache = loadCloud(); return cloudCache; }
 
   function importCloud(data) {
+    if (!data || !['modules','inverters','cables'].every(kind => Array.isArray(data[kind]) && data[kind].length && data[kind].every(row => row && typeof row === 'object' && (kind === 'cables' ? row.make : row.make && row.model)))) {
+      throw new Error('The Excel catalogue is incomplete. The previous catalogue has been kept.');
+    }
     const clean = (arr) => (Array.isArray(arr) ? arr.filter((r) => r && typeof r === 'object') : []);
     cloudCache = {
       syncedAt: String((data && data.syncedAt) || new Date().toISOString()),
@@ -155,44 +158,34 @@
       structures: [],
       cables: clean(data && data.cables)
     };
-    try { root.localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudCache)); } catch (e) { /* quota */ }
+    cacheSaved = true;
+    try { root.localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudCache)); } catch (e) { cacheSaved = false; }
     merged = null;
     refreshSelects();
     return cloudInfo();
   }
   function cloudInfo() {
     const c = cloudRows();
-    return { syncedAt: c.syncedAt, source: c.source, sha: c.sha, counts: c.counts, modules: c.modules.length, inverters: c.inverters.length, cables: c.cables.length };
+    return { persisted: cacheSaved, syncedAt: c.syncedAt, source: c.source, sha: c.sha, counts: c.counts, modules: c.modules.length, inverters: c.inverters.length, cables: c.cables.length };
   }
 
-  const keyOf = (r) => String(r && (r.make || r.label || '') + '\u0001' + (r.model || ''));
-  /* Later layers win: built-in < cloud (newer Excel) < user rows (manual). */
-  function mix(base, overlay) {
-    const out = base.slice(), index = new Map();
-    base.forEach((r, i) => index.set(keyOf(r), i));
-    overlay.forEach((r) => {
-      const k = keyOf(r);
-      if (index.has(k)) out[index.get(k)] = r;
-      else { index.set(k, out.length); out.push(r); }
-    });
-    return out;
-  }
-
+  /* Excel is the single catalogue source, including its rating-bin rows.
+     Legacy browser rows stay archived; saved proposal fields are untouched. */
   function cat() {
     if (!merged) {
-      const b = builtin(), c = cloudRows(), u = userRows();
+      const b = builtin(), c = cloudRows();
+      const synced = c.syncedAt && c.modules.length && c.inverters.length && c.cables.length;
       merged = {
-        modules: mix(mix(b.modules, c.modules), u.modules),
-        inverters: mix(mix(b.inverters, c.inverters), u.inverters),
-        structures: mix(mix(b.structures, c.structures), u.structures),
-        cables: mix(mix(b.cables, c.cables), u.cables)
+        modules: (synced ? c.modules : b.modules).slice(),
+        inverters: (synced ? c.inverters : b.inverters).slice(),
+        structures: b.structures.slice(), // Not imported: no structure table in this sync.
+        cables: (synced ? c.cables : b.cables).slice()
       };
     }
     return merged;
   }
 
-  // The manager edits the authoritative user arrays, not the merged catalogue.
-  // Re-deriving them from a warm merged cache discarded additions/restored deletes.
+  // Compatibility persistence for archived user rows only; no UI calls this.
   function persistUser() {
     merged = null;
     try {
@@ -202,26 +195,8 @@
     } catch (e) { return false; }
   }
 
-  function save() {
-    try {
-      const b = builtin(), cl = cloudRows();
-      const bm = new Set(b.modules.map(keyOf));
-      const bi = new Set(b.inverters.map(keyOf));
-      const bs = new Set(b.structures.map((r) => String(r.label || r.make || '')));
-      const bc = new Set(b.cables.map(keyOf));
-      const cm = new Set(cl.modules.map(keyOf));
-      const ci = new Set(cl.inverters.map(keyOf));
-      const cc = new Set(cl.cables.map(keyOf));
-      const c = cat(), u = userRows();
-      u.modules = c.modules.filter((r) => !bm.has(keyOf(r)) && !cm.has(keyOf(r)));
-      u.inverters = c.inverters.filter((r) => !bi.has(keyOf(r)) && !ci.has(keyOf(r)));
-      u.structures = c.structures.filter((r) => !bs.has(String(r.label || r.make || '')));
-      u.cables = c.cables.filter((r) => !bc.has(keyOf(r)) && !cc.has(keyOf(r)));
-      u._v = 2;
-      return persistUser();
-    } catch (e) { return false; }
-  }
-  function uid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+  // Compatibility only: preserve archived local rows; never rebuild them from Excel.
+  function save() { return persistUser(); }
 
   /* ------------------------------------------------------------------ */
   /* Select wiring                                                       */
@@ -547,115 +522,14 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Catalog manager UI (user-added rows only - the Excel extract is the */
-  /* built-in master and cannot be edited here)                          */
-  /* ------------------------------------------------------------------ */
-  let managerMessage = '';
-  function renderManager(container, onChange) {
-    if (!container) return;
+  /* Retained for older embedders: no local CRUD, no destructive migration. */
+  function renderManager(container) {
+    if (container) container.textContent = 'Equipment is managed in the connected Excel workbook. Save your changes there, then sync the catalogue.';
+  }
+  function legacyInfo() {
     const u = userRows();
-    const notify = () => {
-      const saved = persistUser();
-      managerMessage = saved ? 'Saved in this browser.' : 'Not saved: browser storage is full or unavailable. Keep this tab open and retry after freeing storage.';
-      refreshSelects();
-      const status = container.querySelector('.eq-save-status');
-      if (status) { status.textContent = managerMessage; status.dataset.saved = String(saved); }
-      if (onChange) onChange();
-      return saved;
-    };
-    const esc = (v) => String(v === undefined || v === null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    const inp = (val, attrs, cls) => '<input type="text" value="' + esc(val) + '" ' + (attrs || '') + ' class="' + (cls || '') + '">';
-
-    const b = builtin();
-    let html = '<div class="eq-head">Built-in catalogue from the Excel workbook: ' +
-      b.modules.length + ' modules · ' + b.inverters.length + ' inverters · ' +
-      b.cables.length + ' cables' + (b.version ? ' (' + b.version + ')' : '') +
-      '. Add company-specific rows below.</div>';
-
-    html += '<div class="eq-head">Solar modules (yours)</div>';
-    u.modules.forEach((m, idx) => {
-      html += '<div class="eq-row" data-kind="module" data-idx="' + idx + '">' +
-        inp(m.make, 'data-f="make" placeholder="Make / equivalent"', 'eq-grow') +
-        inp(m.wp, 'data-f="wp" placeholder="Wp" inputmode="decimal"', 'eq-sm') +
-        inp(m.lengthMm, 'data-f="lengthMm" placeholder="L mm"', 'eq-sm') +
-        inp(m.widthMm, 'data-f="widthMm" placeholder="W mm"', 'eq-sm') +
-        inp(m.tech, 'data-f="tech" placeholder="Technology"', 'eq-md') +
-        '<button type="button" class="eq-del" data-kind="module" data-idx="' + idx + '" title="Remove">×</button></div>';
-    });
-    html += '<button type="button" class="link-btn eq-add" data-kind="module">+ Add module</button>';
-
-    html += '<div class="eq-head">Inverters (yours)</div>';
-    u.inverters.forEach((iv, idx) => {
-      html += '<div class="eq-row" data-kind="inverter" data-idx="' + idx + '">' +
-        inp(iv.make, 'data-f="make" placeholder="Make / equivalent"', 'eq-grow') +
-        inp(iv.kw, 'data-f="kw" placeholder="Rated kW (blank = sized to project)"', 'eq-sm') +
-        '<button type="button" class="eq-del" data-kind="inverter" data-idx="' + idx + '" title="Remove">×</button></div>';
-    });
-    html += '<button type="button" class="link-btn eq-add" data-kind="inverter">+ Add inverter</button>';
-
-    html += '<div class="eq-head">Mounting structures (yours)</div>';
-    u.structures.forEach((s, idx) => {
-      html += '<div class="eq-row" data-kind="structure" data-idx="' + idx + '">' +
-        inp(s.label, 'data-f="label"', 'eq-grow') +
-        '<button type="button" class="eq-del" data-kind="structure" data-idx="' + idx + '" title="Remove">×</button></div>';
-    });
-    html += '<button type="button" class="link-btn eq-add" data-kind="structure">+ Add structure</button>';
-
-    html += '<div class="eq-head">Cabling &amp; protection (yours)</div>';
-    u.cables.forEach((s, idx) => {
-      html += '<div class="eq-row" data-kind="cable" data-idx="' + idx + '">' +
-        inp(s.label, 'data-f="label"', 'eq-grow') +
-        '<button type="button" class="eq-del" data-kind="cable" data-idx="' + idx + '" title="Remove">×</button></div>';
-    });
-    html += '<button type="button" class="link-btn eq-add" data-kind="cable">+ Add cable</button>';
-
-    html += '<button type="button" class="link-btn eq-save">Save library</button>';
-    html += '<p class="eq-save-status" data-saved="' + String(!managerMessage.startsWith('Not saved:')) + '" role="status" aria-live="polite">' + esc(managerMessage) + '</p>';
-    container.innerHTML = html;
-    container.querySelector('.eq-save').addEventListener('click', notify);
-
-    container.querySelectorAll('.eq-row input').forEach((input) => {
-      const kind = input.closest('.eq-row').dataset.kind;
-      const names = {make:'make', wp:'rating Wp', kw:'rating kW', lengthMm:'length mm', widthMm:'width mm', tech:'technology', label:'name'};
-      input.setAttribute('aria-label', kind + ' ' + names[input.dataset.f]);
-      input.addEventListener('input', () => {
-        const row = input.closest('.eq-row');
-        const listKey = row.dataset.kind === 'module' ? 'modules'
-          : row.dataset.kind === 'inverter' ? 'inverters'
-          : row.dataset.kind === 'structure' ? 'structures' : 'cables';
-        const entry = u[listKey][parseInt(row.dataset.idx, 10)];
-        if (!entry) return;
-        entry[input.dataset.f] = input.value;
-        notify();
-      });
-    });
-    container.querySelectorAll('.eq-add').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const k = btn.dataset.kind;
-        if (k === 'module') u.modules.push({ id: uid('m'), make: 'New module', model: '', wp: '', tech: '', lengthMm: '', widthMm: '', efficiency: '', voc: '', isc: '', vmp: '', imp: '' });
-        if (k === 'inverter') u.inverters.push({ id: uid('i'), make: 'New inverter', model: '', kw: '', mppt: '', efficiency: '' });
-        if (k === 'structure') u.structures.push({ id: uid('s'), label: 'New structure' });
-        if (k === 'cable') u.cables.push({ id: uid('c'), label: 'New cable' });
-        notify();
-        renderManager(container, onChange);
-        const rows = container.querySelectorAll('.eq-row[data-kind="' + k + '"]');
-        const first = rows[rows.length - 1]?.querySelector('input');
-        first?.focus(); first?.select();
-      });
-    });
-    container.querySelectorAll('.eq-del').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const k = btn.dataset.kind;
-        const idx = parseInt(btn.dataset.idx, 10);
-        if (k === 'module') u.modules.splice(idx, 1);
-        if (k === 'inverter') u.inverters.splice(idx, 1);
-        if (k === 'structure') u.structures.splice(idx, 1);
-        if (k === 'cable') u.cables.splice(idx, 1);
-        notify();
-        renderManager(container, onChange);
-      });
-    });
+    return { count: ['modules','inverters','structures','cables'].reduce((n, kind) => n + u[kind].length, 0) };
   }
 
-  root.EquipmentStore = { cat, datasheetRow, save, refreshSelects, setValue, syncModels, wire, renderManager, importCloud, cloudInfo, KEY, CLOUD_KEY };
+  root.EquipmentStore = { cat, datasheetRow, save, refreshSelects, setValue, syncModels, wire, renderManager, legacyInfo, importCloud, cloudInfo, KEY, CLOUD_KEY };
 })(typeof self !== 'undefined' ? self : this);

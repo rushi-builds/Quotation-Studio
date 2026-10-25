@@ -93,14 +93,13 @@ const {chromium} = require('playwright');
     assert.equal(await page.evaluate(()=>JSON.stringify({form:StateStore.collectForm(),finance:Finance.compute(Render.lastState)})),original);
     assert.deepEqual(await page.evaluate(()=>[...document.querySelectorAll('.page')].map(p=>p.innerHTML)),originalPdf);
     console.log('PASS: keyboard navigation, Escape/no-result states, no customer-value indexing, unchanged quotation & Finance');
-    // Even unlabeled, ID-less library row controls have a metadata label.
-    await page.evaluate(()=>{
-      EquipmentStore.cat().modules.push({id:'discovery-library-probe',make:'QA library probe',wp:600,lengthMm:2300,widthMm:1134,tech:'QA tech'});
-      EquipmentStore.save();
-      EquipmentStore.renderManager(document.getElementById('eqCatalog'));
-    });
-    await search('module library row rating');
-    assert(await page.locator('#studioSearchResults button').count()>0);
+    // Local CRUD was retired by the owner; Excel actions remain discoverable
+    // even when the connection is unavailable. Search only navigates.
+    await page.evaluate(()=>{window.__catalogueActionClicks=0;syncCatalogueBtn.addEventListener('click',()=>__catalogueActionClicks++);openCatalogueExcel.addEventListener('click',()=>__catalogueActionClicks++);});
+    await jump('equipment library sync','syncCatalogueBtn');
+    await jump('add update Excel','openCatalogueExcel');
+    assert.equal(await page.evaluate(()=>__catalogueActionClicks),0);
+    assert.equal(await page.locator('#eqCatalog input,.eq-add').count(),0);
     // Late-added options are indexed on the next query, not a stale startup cache.
     await page.evaluate(()=>cableMake.add(new Option('QA late option','qa-late')));
     await search('QA late option'); await result('cableMake');
