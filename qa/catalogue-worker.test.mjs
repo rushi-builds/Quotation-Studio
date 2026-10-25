@@ -1,9 +1,10 @@
+import { memDb } from './catalogue-db-fixture.mjs';
 /* Catalogue sync route contract (worker level).
    Run: node qa/catalogue-worker.test.mjs
    Asserts: GET 404 until synced, POST owner-only (403 otherwise), owner POST
    pulls the Drive workbook once and lands rows in D1, GET then serves them,
    NOT_CONFIGURED -> 503, broken workbook -> 502. D1 is an in-memory adapter
-   with the same bind/batch accumulation contract as real D1. */
+   with immutable bindings and atomic batches, like real D1. */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -13,49 +14,6 @@ import worker from '../platform/cloudflare/src/worker.js';
 const FIXTURE = readFileSync(new URL('./fixtures/catalogue-fixture.xlsm', import.meta.url));
 const FIXTURE_SHA = createHash('sha256').update(FIXTURE).digest('hex');
 
-function memDb() {
-  const users = {
-    'owner-id': { id: 'owner-id', email: 'rushi@example.test', name: 'Rushi', role: 'owner' },
-    'viewer-id': { id: 'viewer-id', email: 'v@example.test', name: 'Viewer', role: 'viewer' }
-  };
-  const sessions = { 'owner-token': { user_id: 'owner-id' }, 'viewer-token': { user_id: 'viewer-id' } };
-  const rows = [];
-  const meta = new Map();
-  const statements = [];
-  return {
-    rows, meta, statements,
-    prepare(sql) {
-      const stmt = {
-        sql, bindings: [],
-        bind(...params) { stmt.bindings.push(params); return stmt; },
-        async first() {
-          statements.push({ sql, params: stmt.bindings });
-          const p = stmt.bindings[0] || [];
-          if (sql.includes('FROM sessions')) return sessions[p[0]] || null;
-          if (sql.includes('FROM users')) return users[p[0]] || null;
-          return null;
-        },
-        async all() {
-          statements.push({ sql, params: stmt.bindings });
-          if (sql.includes('equipment_catalogue_meta')) return { results: [...meta.entries()].map(([key, value]) => ({ key, value })) };
-          if (sql.includes('FROM equipment_catalogue')) return { results: [...rows].sort((a, b) => a.kind.localeCompare(b.kind) || a.make.localeCompare(b.make) || a.model.localeCompare(b.model)) };
-          return { results: [] };
-        },
-        async run() {
-          statements.push({ sql, params: stmt.bindings });
-          for (const p of stmt.bindings) {
-            if (sql.includes('DELETE FROM equipment_catalogue')) rows.length = 0;
-            else if (sql.includes('INSERT INTO equipment_catalogue')) rows.push({ kind: p[0], make: p[1], model: p[2], row_json: p[3] });
-            else if (sql.includes('INSERT OR REPLACE INTO equipment_catalogue_meta')) meta.set(p[0], p[1]);
-          }
-          return { success: true };
-        }
-      };
-      return stmt;
-    },
-    async batch(stmts) { for (const s of stmts) await s.run(); }
-  };
-}
 
 const baseEnv = (db) => ({ DB: db, GDRIVE_MODE: 'public', GDRIVE_FILE_ID: 'fixture-file-id' });
 const call = (env, route, method = 'GET', token) => worker.fetch(
@@ -117,7 +75,7 @@ await withFetchStub(async () => {
 
   const insertBinds = db.statements
     .filter((s) => s.sql.includes('INSERT INTO equipment_catalogue'))
-    .reduce((n, s) => n + (s.params || []).length, 0);
+    .reduce((n, s) => n + (s.params || []).length / 4, 0);
   assert.equal(insertBinds, 5, 'one bound row per catalogue row');
 });
 

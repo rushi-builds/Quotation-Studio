@@ -1,3 +1,7 @@
+> **24 October update:** Advanced Systems now uses full-image containment and
+> separate text/photo columns, superseding the older cover-cropped geometry
+> described below. See [system-full-image.md](system-full-image.md). BESS imagery uses the same full-image treatment; business logic is unchanged.
+
 # Lighter system photographs and editorial hero copy
 
 Status: owner authorised feature-branch push and a fresh Vercel Preview on

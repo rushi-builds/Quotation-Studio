@@ -1,0 +1,61 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{chromium}=require('playwright');
+(async()=>{
+ const {default:chrome}=await import('@sparticuz/chromium');
+ const b=await chromium.launch({executablePath:await chrome.executablePath(),args:chrome.args.filter(a=>a!=='--single-process'),headless:true});
+ try{
+  const c=await b.newContext({viewport:{width:1440,height:1200}}),p=await c.newPage(),errors=[];
+  p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error'&&m.text().startsWith('render '))errors.push(m.text());});
+  await p.goto((process.env.QA_BASE||'http://127.0.0.1:8080')+'/quotation.html');await p.waitForFunction(()=>window.DocumentStudio&&Render.lastState&&document.querySelector('#documentStudio'));
+  const original=await p.evaluate(()=>({finance:JSON.stringify(Finance.compute(Render.lastState)),count:Render.lastVisible.length,pages:Render.PAGES.length,cover:document.querySelector('#pageCover img').src}));
+  assert.equal(original.pages,22);assert.equal(original.count,15);
+  await p.evaluate(()=>{const entry=DocumentStudio.scan(pageAbout,'pageAbout').texts.find(t=>t.node.parentElement.id==='v_abHeading');if(!entry)throw new Error('heading absent');DocumentStudio.setText('pageAbout',entry.key,'A genuinely editable heading.');});
+  assert((await p.locator('#v_abHeading').textContent()).startsWith('A genuinely editable heading.'));
+  assert.equal(await p.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState))),original.finance);
+  assert(await p.evaluate(()=>{const t=DocumentStudio.scan(pageInvestment,'pageInvestment').texts.find(t=>t.locked&&/₹/.test(t.from));if(!t)return false;try{DocumentStudio.setText('pageInvestment',t.key,'₹1');return false;}catch{return true;}}));
+  const discovery=await p.evaluate(()=>({query:DocumentStudio.inventory('pageAbout').texts.find(t=>t.node.parentElement.id==='v_abHeading').label,section:Render.PAGES.find(p=>p.id==='pageAbout').title}));
+  await p.fill('#studioSearch',discovery.query);await p.locator('#studioSearchResults button').filter({hasText:discovery.section+' › Page text'}).first().click();
+  assert.equal(await p.locator('[aria-label="Page to edit"]').inputValue(),'pageAbout');assert.equal(await p.evaluate(()=>document.activeElement.value),'A genuinely editable heading.');
+  console.log('PASS: global search navigates to native page text without changing any source input');
+  console.log('PASS: native headings editable, derived financial text locked, artwork and Finance unchanged');
+  // Every rendered text node has an editable or explicitly protected entry.
+  const coverage=await p.evaluate(()=>Render.PAGES.filter(p=>!p.id.includes('continuation')).map(r=>{const page=document.getElementById(r.id),count=DocumentStudio.scan(page,r.id).texts.length;return {id:r.id,count};}));
+  assert.equal(coverage.length,22);assert(coverage.reduce((s,n)=>s+n.count,0)>500);
+  const hiddenKey=await p.evaluate(()=>{const block=DocumentStudio.inventory('pageWhySolar').blocks.find(b=>b.node.textContent.trim());DocumentStudio.hideBlock('pageWhySolar',block.key);return block.key;});
+  assert.equal(await p.evaluate(key=>getComputedStyle(DocumentStudio.inventory('pageWhySolar').blocks.find(b=>b.key===key).node).display,hiddenKey),'none');
+  await p.evaluate(()=>DocumentStudio.restorePage('pageWhySolar'));
+  assert.notEqual(await p.evaluate(key=>getComputedStyle(DocumentStudio.inventory('pageWhySolar').blocks.find(b=>b.key===key).node).display,hiddenKey),'none');
+  await p.evaluate(()=>DocumentStudio.excludePage('pageQuality',true));assert.equal(await p.evaluate(()=>Render.lastVisible.some(p=>p.id==='pageQuality')),false);
+  await p.evaluate(()=>DocumentStudio.excludePage('pageQuality',false));assert.equal(await p.evaluate(()=>Render.lastVisible.some(p=>p.id==='pageQuality')),true);
+  console.log('PASS: all 22 page entries inventoried; remove/restore sections and pages updates page selection');
+  await p.evaluate(()=>DocumentStudio.addTextBlock('pageAbout','A longer customer-specific note',('Additional project requirements are recorded here, without changing the quotation calculations. ').repeat(190)));
+  const flow=await p.evaluate(()=>({pages:Render.lastVisible.filter(p=>p.id.startsWith('pageAbout')).map(p=>p.id),errors:DocumentStudio.errors(),total:Render.lastVisible.length}));
+  console.log('FLOW',JSON.stringify(flow));assert(flow.pages.length>1);assert.deepEqual(flow.errors,[]);
+  assert.equal(await p.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState))),original.finance);
+  assert.equal(await p.evaluate(()=>[...document.querySelectorAll('[id^=pageAbout] .doc-user-block p')].map(p=>p.textContent).join('')),('Additional project requirements are recorded here, without changing the quotation calculations. ').repeat(190));
+  const fit=await p.evaluate(()=>Render.lastVisible.filter(p=>p.id.startsWith('pageAbout')).map(p=>{const e=document.getElementById(p.id),f=e.querySelector('footer').getBoundingClientRect();return {id:p.id,scroll:e.scrollHeight,height:e.clientHeight,bottom:Math.max(...[...e.querySelector('.pg-body').children].map(c=>c.getBoundingClientRect().bottom)),limit:f.top};}));
+  assert(fit.every(p=>p.scroll<=p.height+2&&p.bottom<p.limit-2),JSON.stringify(fit));
+  const id=await p.evaluate(()=>{__qsSaveNow();return Proposals.activeId();});await p.reload();await p.waitForFunction(()=>Render.lastVisible.some(p=>p.id.includes('continuation')));
+  assert((await p.locator('#v_abHeading').textContent()).startsWith('A genuinely editable heading.'));
+  const customer=await c.newPage();customer.on('pageerror',e=>errors.push(e.message));await customer.goto((process.env.QA_BASE||'http://127.0.0.1:8080')+'/share.html?p='+id);
+  await customer.waitForFunction(()=>Render.lastVisible.some(p=>p.id.includes('continuation')));
+  assert((await customer.locator('#v_abHeading').textContent()).startsWith('A genuinely editable heading.'));
+  assert.deepEqual(await customer.evaluate(()=>Render.lastVisible.map(p=>p.id)),await p.evaluate(()=>Render.lastVisible.map(p=>p.id)));
+  await customer.evaluate(()=>{window.__customerCaptures=[];window.html2canvas=async page=>{__customerCaptures.push(page.textContent);const canvas=document.createElement('canvas');canvas.width=100;canvas.height=140;return canvas;};});
+  const customerDownload=customer.waitForEvent('download',{timeout:30000});customerDownload.catch(()=>{});await customer.click('#sharePrint');await customerDownload;
+  assert((await customer.evaluate(()=>__customerCaptures.join('\n'))).includes('Additional project requirements are recorded here'));
+  assert.equal(await customer.evaluate(()=>__customerCaptures.length),flow.total);
+  console.log('PASS: Customer View PDF button uses the edited-document snapshot adapter');
+  console.log('PASS: long text flows onto readable A4 continuation pages; reload and Customer View agree');
+  const folder=path.join(__dirname,'shots','document-studio');fs.mkdirSync(folder,{recursive:true});
+  await p.evaluate(()=>{advancedPanel.open=true;document.querySelector('.form-panel').scrollTop=advancedPanel.offsetTop;});await p.screenshot({path:path.join(folder,'editor.png')});
+  // An actual PDF with continuation content, exported through the new adapter.
+  await p.evaluate(()=>{for(const r of Render.PAGES.filter(p=>!p.id.includes('continuation')&&!p.id.startsWith('studioPage')))DocumentStudio.excludePage(r.id,r.id!=='pageAbout');});
+  const downloadPromise=p.waitForEvent('download',{timeout:180000});downloadPromise.catch(()=>{});
+  await p.evaluate(()=>DocumentStudio.exportPdf('full'));const download=await downloadPromise;const file=path.join(folder,'continuations.pdf');await download.saveAs(file);
+  const pageCount=(fs.readFileSync(file,'latin1').match(/\/Type \/Page\b/g)||[]).length;assert(pageCount>1);
+  await p.locator('[aria-label="Document format to edit"]').selectOption('power');
+  assert.equal(await p.locator('[aria-label="Page to edit"] option').count(),6);
+  assert.deepEqual(errors,[]);console.log('PASS: actual multi-page PDF, Power page inventory and zero browser errors');
+ }finally{await b.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

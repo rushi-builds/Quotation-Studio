@@ -22,6 +22,8 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    window.__qsSaveNow();return Proposals.activeId();
   });
   await page.$eval('.studio-management',e=>e.open=true);await page.click('#pmNew');
+  // New reserves a reference asynchronously; wait for the actual new proposal.
+  await page.waitForFunction(id=>Proposals.activeId()!==id,{},old);
   check('New starts all three identity fields empty',await page.evaluate(()=>['custName','custAddress','prepName'].every(id=>document.getElementById(id).value==='')));
   check('New keeps earlier saved customer and preparer details intact',await page.evaluate(id=>{const f=Proposals.get(id).form;return f.custName==='Existing Customer'&&f.custAddress==='Existing Site'&&f.prepName==='Existing Engineer';},old));
   await page.$eval('#prepName',e=>{e.value='Temporary draft';e.dispatchEvent(new Event('input',{bubbles:true}));});

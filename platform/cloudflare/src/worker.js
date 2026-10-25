@@ -17,7 +17,7 @@ import { syncModuleCatalogFromDrive } from './excel-module-catalog.mjs';
 
 import { handleAssistant, boundedJson, quotaWindows } from '../../gemini.mjs';
 
-import { syncCatalogue, readCatalogue } from './catalogue.mjs';
+import { syncCatalogue, readCatalogue, catalogueStatus } from './catalogue.mjs';
 import { resolveLocation, fetchSiteResource } from './site-geo.mjs';
 
 import { scryptSync, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
@@ -2193,27 +2193,39 @@ async function handleApi(request, env, url, ctx) {
       return json({ user: publicUser(sessionUser, env) });
     }
 
-    /* Catalogue sync — on-demand only, never scheduled. The owner clicks
-       "Sync Catalogue"; the worker reads the Excel workbook from Drive once,
-       extracts the three catalogue tables and stores them in D1. The app's
-       built-in catalogue stays as the fallback when this has never run. */
-    if (parts[0] === 'catalogue' && parts.length === 1) {
-      if (method === 'GET') {
+    /* Excel-first equipment catalogue: status checks are read-only; data sync
+       remains an explicit owner/admin action. Preserve the legacy POST alias. */
+    if (parts[0] === 'catalogue') {
+      if (parts.length === 2 && parts[1] === 'status' && method === 'GET') {
+        const current = await requireUser(request, db, env);
+        if (!current) return json({ error: 'Sign in to check the connected Excel workbook.' }, 401);
+        try {
+          const canSync = current.role === 'owner' || !!isAdminRow(current);
+          // Returning from an explicit Excel edit can bypass metadata cache,
+          // never the existing sync permission or the manual data-sync step.
+          const status = await catalogueStatus(env, db, canSync && url.searchParams.get('fresh') === '1');
+          return json({ ok: true, ...status, canSync });
+        } catch (e) {
+          return json({ error: e && e.code === 'NOT_CONFIGURED' ? 'The Excel catalogue connection is not configured.' : 'Workbook status could not be checked. The last saved catalogue is unchanged.',
+            code: e && e.code === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'CATALOGUE_STATUS_UNAVAILABLE' }, e && e.code === 'NOT_CONFIGURED' ? 503 : 502);
+        }
+      }
+      if (parts.length === 1 && method === 'GET') {
         const stored = await readCatalogue(db);
         if (!stored) return json({ error: 'Catalogue has not been synced yet. Open Quotation Studio and click "Sync Catalogue".' }, 404);
         return json({ ok: true, catalogue: stored });
       }
-      if (method === 'POST' && parts.length === 1) {
-        const user = await requireUser(request, db, env);
-        if (!user || (user.role !== 'owner' && !isAdminRow(user))) {
+      if (method === 'POST' && (parts.length === 1 || (parts.length === 2 && parts[1] === 'sync'))) {
+        const current = await requireUser(request, db, env);
+        if (!current || (current.role !== 'owner' && !isAdminRow(current))) {
           return json({ error: 'Only the owner (or an elevated admin) can sync the equipment catalogue.' }, 403);
         }
         try {
           const result = await syncCatalogue(env, db);
           return json({ ok: true, ...result });
         } catch (e) {
-          if (e && e.code === 'NOT_CONFIGURED') return json({ error: e.message, code: 'NOT_CONFIGURED' }, 503);
-          return json({ error: 'Catalogue sync failed: ' + (e && e.message ? e.message : e) }, 502);
+          if (e && e.code === 'NOT_CONFIGURED') return json({ error: 'The Excel catalogue connection is not configured.', code: 'NOT_CONFIGURED' }, 503);
+          return json({ error: 'Catalogue sync failed. Save the workbook and retry; the last saved catalogue is unchanged.', code: 'CATALOGUE_SYNC_FAILED' }, 502);
         }
       }
     }

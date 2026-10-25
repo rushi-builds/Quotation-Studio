@@ -166,7 +166,7 @@
       fieldset.append(view); sections.push({field, details, text, description});
     });
     // Keep content and equipment libraries out of routine quotation inputs.
-    const library = form.querySelector('.eq-panel'); library.querySelector('summary').textContent = 'Equipment library';
+    const library = form.querySelector('.eq-panel'); library.querySelector('summary').textContent = 'Excel catalogue';
     form.append(library, $('advancedPanel'));
     $('advancedPanel').classList.add('studio-content');
 
@@ -192,6 +192,141 @@
     /* Panel order: the working list, then QR & links, Advanced Systems, the drawer, and
        Advanced Edit last. */
     form.insertBefore(wrap, $('advancedPanel'));
+
+    // Presentation-only grouping: move the original controls, never clone values.
+    const equipment = $('moduleMake').closest('fieldset');
+    const mixedRow = $('moduleTech').closest('.row2');
+    const equipmentGroups = [
+      ['Modules', 'mint', [$('moduleMake').closest('.field'), $('moduleModel').closest('.field'), $('moduleWattage').closest('.row3'), $('moduleTech').closest('.field')]],
+      ['Inverter', 'blue', [$('inverterKw').closest('.field'), $('inverterMake').closest('.field'), $('inverterModel').closest('.field')]],
+      ['Mounting & roof', 'sand', [$('mountMake').closest('.field'), $('roofType').closest('.row2')]],
+      ['Cables & protection', 'lavender', [$('cableMake').closest('.field')]],
+      ['Generation assumption', 'slate', [$('genFactor').closest('.field')]]
+    ];
+    equipmentGroups.forEach(([title, tone, nodes], i) => {
+      const group = element('section', 'studio-input-cluster');
+      group.dataset.tone = tone;
+      const heading = element('h3', '', title); heading.id = 'equipmentGroup' + i;
+      group.setAttribute('aria-labelledby', heading.id); group.append(heading, ...nodes);
+      equipment.insertBefore(group, equipment.querySelector('.studio-view-page'));
+    });
+    if (mixedRow && !mixedRow.children.length) mixedRow.remove();
+    // The same inner-card treatment throughout the editor. Keep actual .field
+    // wrappers intact (including hidden/conditional state); never copy inputs.
+    let clusterNumber = 0;
+    function cluster(sectionId, title, tone, specs) {
+      const host = form.querySelector('.studio-section[data-section="' + sectionId + '"] > fieldset');
+      const box = element('section', 'studio-input-cluster studio-arranged-cluster');
+      box.dataset.tone = tone;
+      const heading = element('h3', '', title); heading.id = 'studioGroup' + (++clusterNumber);
+      box.setAttribute('aria-labelledby', heading.id);
+      const grid = element('div', 'studio-field-grid'); box.append(heading, grid);
+      specs.forEach(spec => {
+        const [id, full] = Array.isArray(spec) ? spec : [spec, false];
+        const input = $(id), field = input?.closest('.field');
+        if (!field || grid.contains(field)) return;
+        const label = field.querySelector(':scope > label');
+        if (label && input.matches('input:not([type=file]),select,textarea') && field.querySelectorAll('input,select,textarea').length === 1) label.htmlFor = input.id;
+        if (full) field.classList.add('studio-field-wide');
+        grid.append(field);
+      });
+      host.insertBefore(box, host.querySelector(':scope > .studio-view-page'));
+      return box;
+    }
+    const full = id => [id, true];
+    cluster('custName', 'Customer details', 'blue', [full('custName'), full('custAddress'), full('customerType')]);
+    cluster('custName', 'Site & system', 'mint', ['capacity', 'monthlyBill', full('siteFetchBtn')]);
+    cluster('custName', 'Proposal details', 'slate', [full('propRef'), 'propDate', 'propVersion', 'validityDays', 'prepName']);
+    const sharing = cluster('custName', 'Sharing & audio', 'lavender', [full('shareUrl')]);
+    if (audioAdv) sharing.append(audioAdv);
+    cluster('costPerWp', 'Project pricing', 'sand', ['costPerWp', 'gstPercent']);
+    cluster('costPerWp', 'Savings assumptions', 'blue', [full('tariff'), 'escalation', 'degradation']);
+    cluster('costPerWp', 'Subsidy & support', 'mint', ['subsidyOverride', 'stateTopUp', full('rwaEligibleKwp')]);
+    cluster('costPerWp', 'Environmental assumptions', 'slate', ['co2Factor', 'treeFactor']);
+    const milestones = cluster('payAdvance', 'Payment milestones', 'sand', [full('payAdvance')]);
+    milestones.querySelector('.field > label')?.remove(); // each % input already has its own associated label
+    const lending = cluster('payAdvance', 'Loan (optional)', 'blue', [full('loanAmt'), 'loanRate', 'loanYears']);
+    loanHint.textContent = 'Complete all three fields to include the EMI analysis.';
+    lending.append(loanHint);
+    if (taxBox) { taxBox.dataset.tone = 'lavender'; taxBox.classList.add('studio-tinted-disclosure'); lending.after(taxBox); }
+    const comparisons = cluster('optName', 'Save a comparison', 'lavender', [full('optName'), full('optSave')]);
+    comparisons.append($('optList'));
+    cluster('bomModules', 'Equipment costs · before GST', 'mint', ['bomModules', 'bomInverter']);
+    cluster('bomModules', 'Structure & balance of system', 'sand', ['bomStructure', 'bomBos']);
+    const installation = cluster('bomModules', 'Installation & approvals', 'blue', [full('bomInstall'), full('bomLiaison')]);
+    installation.append($('bomFormTotal'));
+    cluster('pvsystUrl', 'Engineering documents', 'blue', [full('pvsystUrl'), full('arkaUrl')]);
+    cluster('durationText', 'Delivery & survey', 'sand', [full('durationText'), full('surveyWindow')]);
+    cluster('durationText', 'Legal', 'slate', [full('jurisdiction')]);
+    cluster('companyName', 'Company identity', 'rose', [full('companyName'), full('companyTagline')]);
+    cluster('companyName', 'Contact & office', 'blue', [full('companyPhone'), full('companyEmail'), full('companyAddress'), full('companyWebsite')]);
+    const companyStats = cluster('companyName', 'Company figures', 'slate', ['statYears', 'statProjects', full('statCapacity')]);
+    const companyHost = $('companyName').closest('fieldset');
+    const companyDefaults = element('div', 'studio-company-defaults');
+    companyDefaults.append($('companyDefaultsHint'), companyHost.querySelector('.form-links'), $('companyDefaultStatus'));
+    companyStats.append(companyDefaults);
+    cluster('up_cover', 'Cover & closing', 'rose', ['up_cover', 'up_closing']);
+    cluster('up_cover', 'Company & solution', 'blue', ['up_about', 'up_whysolar', 'up_solution', 'up_scope']);
+    cluster('up_cover', 'Quality & assurance', 'mint', ['up_quality', 'up_whyktm', full('up_warranty')]);
+    cluster('galleryUrl', 'QR destination', 'blue', [full('qrDestinationType'), full('galleryUrl')]);
+    const systemChoice = cluster('systemEnabled', 'Additional system', 'mint', [full('advancedSystemSelect')]);
+    systemChoice.append($('selectedSystemCard'));
+    $('advancedSystemSelect').closest('fieldset').querySelector('legend').after(systemChoice);
+    const engineeringNote = cluster('tiltDeg', 'Proposal note', 'slate', [full('engineeringDesignNote')]);
+    engFs.querySelector('legend').after(engineeringNote);
+
+    // Existing technical/additional disclosures already own their conditional
+    // controls. Tint their bodies in place; do not pull fields out of them.
+    form.querySelectorAll('.eng-basis > .eng-group').forEach((group, i) => {
+      group.dataset.tone = ['blue', 'sand', 'lavender', 'mint', 'slate', 'blue'][i % 6];
+      group.classList.add('studio-tinted-disclosure');
+    });
+    form.querySelectorAll('#advContainer > .page-group').forEach(group => {
+      group.dataset.tone = 'blue'; group.classList.add('studio-tinted-disclosure');
+    });
+    library.dataset.tone = 'slate'; library.classList.add('studio-tinted-disclosure');
+    // Remove only now-empty row shells left by moving original fields.
+    form.querySelectorAll('.studio-section .row2,.studio-section .row3').forEach(row => {
+      if (!row.children.length) row.remove();
+    });
+    // Concise, authored helper copy only. Live statuses, assumptions and warnings
+    // keep their elements and their existing renderer/validation ownership.
+    $('equipmentEntryHint').textContent = 'Choose a make/model, or select Custom…';
+    const shortLabels = {shareUrl:'Customer link (auto-created on save)', statYears:'Years in business', statProjects:'Completed projects', statCapacity:'Installed capacity', surveyWindow:'Survey wording'};
+    Object.entries(shortLabels).forEach(([id, text]) => {
+      const label = $(id)?.closest('.field')?.querySelector('label');
+      if (label) label.textContent = text;
+    });
+    const subsidyNote = $('degradation').closest('.field').querySelector('.hint');
+    function settingHelp(inputId, title, note) {
+      if (!note) return;
+      const help = element('details', 'studio-setting-help');
+      help.dataset.settingHelp = inputId; help.id = inputId + 'Help';
+      help.append(element('summary', '', title), note);
+      $(inputId).closest('.studio-input-cluster').append(help);
+      const input = $(inputId);
+      input.setAttribute('aria-describedby', [input.getAttribute('aria-describedby'), help.id].filter(Boolean).join(' '));
+    }
+    settingHelp('subsidyOverride', 'Subsidy basis & eligibility', subsidyNote);
+    settingHelp('stateTopUp', 'State top-up eligibility', $('stateTopUp').closest('.field').querySelector('.hint'));
+    const subsidyReminder = element('p', 'hint', 'Auto estimate — verify eligibility before sharing.');
+    $('subsidyOverride').closest('.studio-input-cluster').querySelector('.studio-field-grid').after(subsidyReminder);
+    companyHost.querySelector(':scope > .hint:not([id])')?.remove();
+    const compareHint = $('optName').closest('fieldset').querySelector(':scope > .hint');
+    if (compareHint) compareHint.textContent = 'Save 2+ designs to add a comparison page.';
+    const bomHint = $('bomModules').closest('fieldset').querySelector(':scope > .hint');
+    if (bomHint) bomHint.textContent = 'Optional itemised costs, before GST. Leave blank to omit the breakdown.';
+    const reportsHint = $('pvsystUrl').closest('fieldset').querySelector(':scope > .hint');
+    if (reportsHint) reportsHint.textContent = 'Links to externally prepared reports; no report content is generated.';
+
+    const sectionTones = {
+      custName: 'blue', moduleMake: 'mint', costPerWp: 'sand', payAdvance: 'sand',
+      optName: 'lavender', bomModules: 'sand', pvsystUrl: 'blue', durationText: 'slate',
+      companyName: 'rose', up_cover: 'rose', galleryUrl: 'blue', systemEnabled: 'mint', tiltDeg: 'slate'
+    };
+    form.querySelectorAll('.studio-section').forEach(section => {
+      section.dataset.tone = sectionTones[section.dataset.section] || 'slate';
+    });
 
     /* Reference-number guard. The template ships with a sample reference, and
        two proposals can end up sharing one number without anything noticing -
@@ -407,6 +542,22 @@
           const item = element('li', 'eng-review-item'); item.dataset.severity = kind;
           item.append(element('span', 'eng-review-tag', missing ? 'DATA REQUIRED' : kind === 'blocking' ? 'ACTION REQUIRED' : kind === 'advisory' ? 'REVIEW' : 'NOTE'),
             element('p', 'eng-review-copy', issue.message.replace(/^DATA REQUIRED\s*[-–—]?\s*/, '')));
+          // Findings remain engine-owned. Navigate to the actual editable
+          // controls, never spoof a pass by editing a generated warning.
+          const sources = issue.id === 'dcCableLengthM'
+            ? [['dcCableLengthM','Edit DC inputs'],['moduleVoc','String / datasheet inputs']]
+            : issue.id === 'acCableLengthM'
+              ? [['acCableLengthM','Edit AC inputs'],['inverterKw','Inverter rating']]
+              : [[issue.id, issue.id === 'soilResistivity' ? 'Edit soil / earthing inputs' : 'Edit inputs']];
+          const actions = element('div', 'eng-review-actions');
+          sources.forEach(([id, label]) => {
+            if (!$(id)) return;
+            const action = element('button', 'link-btn', label);
+            action.type = 'button'; action.dataset.reviewInput = id;
+            action.addEventListener('click', () => reveal($(id)));
+            actions.append(action);
+          });
+          if (actions.children.length) item.append(actions);
           review.append(item);
         });
         if (!review.children.length) review.append(element('li', '', 'No issues reported for the supplied inputs. Site verification is still required.'));
@@ -437,30 +588,144 @@
     }
     form.addEventListener('click',event=>{const button=event.target.closest('[data-system-review-target]');if(button)reveal($(button.dataset.systemReviewTarget));});
     const searchInput = $('studioSearch'), results = $('studioSearchResults'), clear = search.querySelector('button');
-    function clearSearch() { searchInput.value = ''; results.hidden = true; clear.hidden = true; }
+    const notice = element('p', 'studio-search-notice');
+    notice.setAttribute('role', 'status'); notice.hidden = true; search.after(notice);
+    searchInput.placeholder = 'Search any field, option, upload or action…';
+    searchInput.setAttribute('aria-expanded', 'false');
+    results.querySelector('p').setAttribute('aria-live', 'polite');
+    function clearSearch() {
+      searchInput.value = ''; results.hidden = true; clear.hidden = true;
+      searchInput.setAttribute('aria-expanded', 'false');
+    }
+    const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
+    const normalize = value => clean(value).replace(/₹/g, ' rupees ').replace(/%/g, ' percent ').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    function titleOf(details) {
+      const summary = details.querySelector(':scope > summary');
+      return clean(summary?.querySelector('strong')?.textContent || summary?.textContent);
+    }
+    function entryFor(input) {
+      const field = input.closest('.field');
+      const isAction = input.matches('button,a');
+      const libraryRow = input.closest('.eq-row');
+      const libraryFields = {make:'Make', wp:'Rating Wp', kw:'Rating kW', lengthMm:'Length mm', widthMm:'Width mm', tech:'Technology', label:'Name'};
+      const libraryLabel = libraryRow ? libraryRow.dataset.kind + ' ' + (libraryFields[input.dataset.f] || input.dataset.f || '') : '';
+      const actionLabel = clean(input.textContent) === '×' ? input.title || 'Remove' : input.textContent;
+      const label = clean(input.getAttribute('aria-label') || (input.tagName === 'SUMMARY' ? titleOf(input.parentElement) :
+        isAction ? actionLabel : input.labels?.[0]?.textContent || field?.querySelector('label')?.textContent || libraryLabel || input.placeholder || input.id || input.name));
+      if (!label) return null;
+      const path = [];
+      for (let parent = input.parentElement; parent && parent !== panel; parent = parent.parentElement) {
+        if (parent.tagName === 'DETAILS' && input !== parent.querySelector(':scope > summary')) path.unshift(titleOf(parent));
+      }
+      const group = input.closest('.studio-input-cluster,.system-input-group');
+      const groupTitle = clean(group?.querySelector(':scope > h3')?.textContent);
+      if (groupTitle) path.push(groupTitle);
+      const itemTitle = clean(input.closest('.item-block')?.querySelector(':scope > .item-title')?.textContent);
+      if (itemTitle) path.push(itemTitle);
+      if (libraryRow) path.push(libraryRow.dataset.kind + ' library row ' + (Number(libraryRow.dataset.idx) + 1));
+      const section = path.filter(Boolean).join(' › ') || 'Proposal tools';
+      // Index authored metadata, never customer text, URLs, prices or file names.
+      const hint = clean(field?.querySelector('.hint:not([id])')?.textContent);
+      const options = input.tagName === 'SELECT' ? [...input.options].filter(o => !o.hidden && !o.disabled).map(o => clean(o.textContent)) : [];
+      // Proposal names are customer data, not static setting choices.
+      if (input.id === 'proposalSelect') options.length = 0;
+      const fieldAliases = {
+        costPerWp: 'price pricing rate cost per watt', custName: 'client consumer name',
+        custAddress: 'location site address', capacity: 'system size kilowatt',
+        moduleMake: 'solar panel manufacturer brand', moduleWattage: 'panel wattage watts rating',
+        inverterMake: 'inverter manufacturer brand', cableMake: 'cables wiring cable brand',
+        galleryUrl: 'QR code qrcode link', tariff: 'electricity unit rate',
+        syncCatalogueBtn: 'equipment library Excel workbook catalogue sync refresh',
+        openCatalogueExcel: 'equipment library add update module inverter cable Excel workbook',
+        catalogueStatusLink: 'equipment library Excel workbook catalogue status sync'
+      };
+      const aliases = (fieldAliases[input.id] || '') + (input.closest('[data-section="systemEnabled"]') ? ' additional systems additionals additions add-ons addons battery storage' : '');
+      const keywords = [aliases, input.id, input.id.replace(/([a-z])([A-Z])/g, '$1 $2'), input.name, input.title, input.placeholder,
+        input.dataset.page, input.dataset.key, hint, input.id ? form.querySelector('[data-setting-help="' + input.id + '"]')?.textContent : '', ...options].join(' ');
+      return {input, label, section, options, text: normalize(label + ' ' + section + ' ' + keywords), primary: normalize(label)};
+    }
+    function searchEntries() {
+      const native = [...panel.querySelectorAll('input,select,textarea,button,a[href],a[aria-disabled],summary')].filter(input =>
+        !input.closest('.studio-search,.studio-overview,.studio-feedback') &&
+        !input.matches('[type="hidden"],#systemEnabled,#bessEnabled,#systemTemplate,[data-bess-choice],[data-system-choice]')
+      ).map(entryFor).filter(Boolean);
+      const documentText = (window.DocumentStudio?.searchEntries?.() || []).map(item=>({...item,options:[],text:normalize(item.label+' '+item.section),primary:normalize(item.label)}));
+      return [...native,...documentText];
+    }
+    function visible(input) {
+      return input && !input.disabled && input.getAttribute('aria-disabled') !== 'true' && input.getClientRects().length > 0 && !input.closest('[hidden]');
+    }
+    function navigate(item) {
+      clearSearch(); notice.hidden = true;
+      let target = item.input;
+      if (target.matches('input[type="file"]')) target = target.labels?.[0] || target;
+      reveal(target);
+      if (!visible(target)) {
+        const custom = item.input.closest('.equipment-custom');
+        let controller = custom ? $(custom.id.replace(/CustomWrap$/, '')) : null;
+        const routes = [
+          ['bessEconomics', 'bessUseCase'], ['bessBackupInputs', 'bessSizing'],
+          ['bessCustomIdentity', 'bessModel'], ['bessAutoSetup', 'bessModel'],
+          ['systemWaterTankField', 'systemWaterRoute'], ['systemWaterFields', 'systemWaterEnabled'],
+          ['rwaEligibilityField', 'customerType']
+        ];
+        for (const [container, id] of routes) {
+          if (!controller && $(container)?.contains(item.input) && visible($(id))) controller = $(id);
+        }
+        if (!controller && /^(bess|system)/.test(item.input.id)) controller = $('advancedSystemSelect');
+        // Fall back to a visible owning disclosure, never force hidden fields on.
+        if (!visible(controller)) controller = item.input.closest('.studio-section')?.querySelector(':scope > summary');
+        if (!controller) controller = item.input.closest('details')?.querySelector(':scope > summary');
+        if (controller) { reveal(controller); target = controller; }
+        notice.textContent = item.label + ' is conditional or unavailable. ' +
+          (custom ? 'Choose Custom… in the highlighted dropdown first.' : 'Use the highlighted section’s setup controls first; search has not enabled or changed anything.');
+        const anchor = target?.closest('.field') || target?.closest('.studio-section')?.querySelector(':scope > fieldset');
+        if (anchor) anchor.before(notice);
+        notice.hidden = false;
+      }
+      panel.querySelectorAll('.studio-search-target').forEach(el => el.classList.remove('studio-search-target'));
+      if (target) {
+        target.classList.add('studio-search-target');
+        setTimeout(() => target.classList.remove('studio-search-target'), 3000);
+      }
+    }
     function find() {
-      const query = searchInput.value.trim().toLowerCase();
-      clear.hidden = !query; results.hidden = !query;
+      const query = normalize(searchInput.value), words = query.split(/\s+/).filter(Boolean);
+      clear.hidden = !searchInput.value; results.hidden = !query; notice.hidden = true;
+      searchInput.setAttribute('aria-expanded', String(!!query));
       const list = results.querySelector('ul'); list.replaceChildren();
       if (!query) return;
-      const matches = [...form.querySelectorAll('input:not([type=file]),select,textarea')].filter(el => !el.disabled && (!el.closest('[hidden]') || ['bessEnabled','systemEnabled'].includes(el.id))).map(input => {
-        const label = input.labels?.[0]?.textContent || input.getAttribute('aria-label') || input.closest('.field')?.querySelector('label')?.textContent || input.id;
-        const path = [];
-        for (let parent = input.parentElement; parent && parent !== form; parent = parent.parentElement) {
-          if (parent.tagName === 'DETAILS') path.unshift(parent.querySelector(':scope > summary')?.textContent || '');
-        }
-        const section = input.closest('.studio-section')?.querySelector('summary strong')?.textContent || path.join(' / ') || 'Proposal management';
-        return {input, label, section};
-      }).filter(item => query.split(/\s+/).every(word => (item.label + ' ' + item.section).toLowerCase().includes(word)));
-      results.querySelector('p').textContent = matches.length ? 'Showing ' + Math.min(matches.length, 8) + ' of ' + matches.length + ' matching settings' : 'No matching settings. Try “tariff”, “module” or “QR”.';
-      matches.slice(0, 8).forEach(({input, label, section}) => {
+      const matches = searchEntries().filter(item => words.every(word => item.text.includes(word)));
+      // Exact field labels win over hints, options and section matches.
+      const score = item => item.primary === query ? 0 : words.every(w => item.primary.includes(w)) ? 1 : 2;
+      matches.sort((a, b) => score(a) - score(b));
+      results.querySelector('p').textContent = matches.length ? matches.length + ' matching settings & tools · all results below' : 'No matching settings. Try “tariff”, “module” or “QR”.';
+      matches.forEach(item => {
         const li = element('li'), button = element('button'); button.type = 'button';
-        button.append(element('strong', '', label), element('small', '', section));
-        button.addEventListener('click', () => { clearSearch(); reveal(input); }); li.append(button); list.append(li);
+        if (item.input?.id) button.dataset.searchTarget = item.input.id;
+        button.append(element('strong', '', item.label), element('small', '', item.section));
+        const option = item.options.find(text => words.some(word => normalize(text).includes(word)));
+        if (option && !words.every(word => item.primary.includes(word))) button.append(element('small', 'studio-search-option', 'Option: ' + option + ' · choose in dropdown'));
+        if (item.input && (item.input.closest('[hidden]') || item.input.disabled)) button.append(element('small', '', 'Conditional setting · opens setup, does not enable it'));
+        if (item.input?.matches('button,a,input[type="file"]')) button.append(element('small', '', 'Locate only · does not run this action'));
+        button.addEventListener('click', () => {if(item.activate){clearSearch();item.activate();}else navigate(item);}); li.append(button); list.append(li);
       });
     }
-    searchInput.addEventListener('input', find); clear.addEventListener('click', () => { clearSearch(); searchInput.focus(); });
-    searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') { clearSearch(); e.stopPropagation(); } });
+    searchInput.addEventListener('input', find);
+    clear.addEventListener('click', () => { clearSearch(); notice.hidden = true; searchInput.focus(); });
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { clearSearch(); notice.hidden = true; e.stopPropagation(); }
+      if (e.key === 'ArrowDown') { const first = results.querySelector('button'); if (first && !results.hidden) { e.preventDefault(); first.focus(); } }
+      if (e.key === 'Enter') { const first = results.querySelector('button'); if (first && !results.hidden) { e.preventDefault(); first.click(); } }
+    });
+    results.addEventListener('keydown', e => {
+      const buttons = [...results.querySelectorAll('button')], index = buttons.indexOf(document.activeElement);
+      if (e.key === 'Escape') { clearSearch(); searchInput.focus(); e.stopPropagation(); }
+      if (['ArrowDown', 'ArrowUp'].includes(e.key)) {
+        e.preventDefault(); const next = index + (e.key === 'ArrowDown' ? 1 : -1);
+        (next < 0 ? searchInput : buttons[Math.min(next, buttons.length - 1)])?.focus();
+      }
+    });
     document.addEventListener('qs:rendered', update);window.AdditionalSystems.sync(window.Render.lastState||window.Render.readState());update();
   }
   document.addEventListener('DOMContentLoaded', boot);

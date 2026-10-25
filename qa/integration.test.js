@@ -146,24 +146,17 @@ t('module dropdown lists makes, equivalents and Custom', d.getElementById('modul
 t('inverter dropdown lists makes, equivalents and Custom', d.getElementById('inverterMake').options.length === 7,
   d.getElementById('inverterMake').options.length);
 t('structure dropdown includes catalog and Custom', d.getElementById('mountMake').options.length === 3);
-t('catalog manager offers one add button per kind', d.querySelectorAll('#eqCatalog .eq-add').length === 4,
-  d.querySelectorAll('#eqCatalog .eq-add').length);
-/* adding a catalog entry propagates to the form select and component fields */
-w.EquipmentStore.cat().modules.push({ id: 'mx', make: 'TestModule 550', model: '', wp: 550, tech: 'TOPCon', lengthMm: '2333', widthMm: '1134', efficiency: '', voc: '', isc: '', vmp: '', imp: '' });
-w.EquipmentStore.save();
+t('Excel-first catalogue has no local add/edit/delete controls', d.querySelectorAll('#eqCatalog .eq-add, #eqCatalog input, #eqCatalog .eq-del').length === 0);
+t('Excel catalogue owns the sync controls', d.getElementById('eqCatalog').contains(d.getElementById('syncCatalogueBtn')) && !!d.getElementById('openCatalogueExcel'));
+const archive = w.localStorage.getItem('qstudio.equipment');
 w.EquipmentStore.refreshSelects();
-t('catalog add appears above Custom', d.getElementById('moduleMake').options.length === 15);
-d.getElementById('moduleMake').value = 'TestModule 550';
-fire(w, d.getElementById('moduleMake'), 'change');
-t('selecting module syncs wattage', d.getElementById('moduleWattage').value === '550', d.getElementById('moduleWattage').value);
-t('selecting module syncs length', d.getElementById('moduleLengthMm').value === '2333');
-t('selecting module syncs technology', d.getElementById('moduleTech').value === 'TOPCon');
-/* restore original selection (cascade auto-picks the closest model to the
-   current 550 Wp, so pin the template model back explicitly) */
+t('read-only catalogue does not create or erase local legacy rows', w.localStorage.getItem('qstudio.equipment') === archive);
+// Explicit source selection still uses the same shipped Excel figures.
 d.getElementById('moduleMake').value = 'Waaree';
 fire(w, d.getElementById('moduleMake'), 'change');
 d.getElementById('moduleModel').value = 'Bi-55-545';
 fire(w, d.getElementById('moduleModel'), 'change');
+t('module selection retains Excel rating and dimensions', d.getElementById('moduleWattage').value === '545' && d.getElementById('moduleLengthMm').value === '2272');
 
 /* ---------- interactions ---------- */
 console.log('- interactions -');
@@ -341,10 +334,7 @@ setTimeout(() => {
     const blob = JSON.parse(dump['qstudio.proposal.' + dump['qstudio.activeId']]);
     return blob.content && blob.content.pageWhySolar.heading === 'Why Go Solar?';
   })());
-  t('equipment catalog persisted', (() => {
-    const eq = JSON.parse(dump['qstudio.equipment']);
-    return eq._v === 2 && eq.modules.length === 1 && eq.modules.some((m) => m.make === 'TestModule 550');
-  })());
+  t('read-only catalogue creates no local override storage', dump['qstudio.equipment'] === undefined);
 
   /* run 2 - restore from full storage dump */
   console.log('- restore -');
@@ -355,10 +345,7 @@ setTimeout(() => {
   t('restored BOM shows donut', d2.getElementById('v_inBomSection').style.display !== 'none');
   t('restored proposal count', w2.Proposals.list().length === 3, w2.Proposals.list().length);
   t('restored active is same proposal', w2.Proposals.activeId() === dump['qstudio.activeId']);
-  t('restored equipment catalog', (() => {
-    const mods = w2.EquipmentStore.cat().modules;
-    return mods.length > 295 && mods.some((m) => m.make === 'TestModule 550');
-  })());
+  t('restored catalogue uses the complete bundled Excel snapshot', w2.EquipmentStore.cat().modules.length === w2.CATALOGUE_DATA.modules.length);
   t('no errors in run 2', errors.length === 0, errors.join(' | '));
 
   /* run 3 - legacy migration */

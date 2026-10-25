@@ -1,3 +1,4 @@
+import { memDb } from './catalogue-db-fixture.mjs';
 /* Catalogue sync pipeline tests (worker side).
    Run: node qa/catalogue-parse.test.mjs
    Covers: xlsm zip/XML parsing, PS-exact extraction mapping, D1 store/read
@@ -15,37 +16,7 @@ const FIXTURE = readFileSync(new URL('./fixtures/catalogue-fixture.xlsm', import
 const FIXTURE_SHA = createHash('sha256').update(FIXTURE).digest('hex');
 
 /* In-memory stand-in for the D1 binding contract used by storeCatalogue.
-   Like real D1, one prepared statement accumulates bind() sets and run()
-   applies every set. */
-function memDb() {
-  const rows = [];
-  const meta = new Map();
-  return {
-    rows, meta,
-    prepare(sql) {
-      const stmt = {
-        sql, bindings: [],
-        bind(...params) { stmt.bindings.push(params); return stmt; },
-        async run() {
-          for (const p of stmt.bindings) {
-            if (sql.includes('DELETE FROM equipment_catalogue')) rows.length = 0;
-            else if (sql.includes('INSERT INTO equipment_catalogue')) rows.push({ kind: p[0], make: p[1], model: p[2], row_json: p[3] });
-            else if (sql.includes('INSERT OR REPLACE INTO equipment_catalogue_meta')) meta.set(p[0], p[1]);
-          }
-          return { success: true };
-        },
-        async all() {
-          if (sql.includes('equipment_catalogue_meta')) return { results: [...meta.entries()].map(([key, value]) => ({ key, value })) };
-          if (sql.includes('FROM equipment_catalogue')) return { results: [...rows].sort((a, b) => a.kind.localeCompare(b.kind) || a.make.localeCompare(b.make) || a.model.localeCompare(b.model)) };
-          return { results: [] };
-        },
-        async first() { return (await stmt.all()).results[0] || null; }
-      };
-      return stmt;
-    },
-    async batch(stmts) { for (const s of stmts) await s.run(); }
-  };
-}
+   D1 bind() returns immutable statements; the fixture also rolls back failed batches. */
 
 test('extractCatalogue mirrors the PowerShell mapping on the fixture workbook', async () => {
   const cat = await extractCatalogue(FIXTURE, 'catalogue-fixture.xlsm');
@@ -166,7 +137,8 @@ test('service-account mode parses GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON and signs th
     }
     if (String(url).includes('drive/v3/files/fixture-file-id')) {
       driveAuth = String((options.headers || {}).Authorization || '');
-      return new Response(FIXTURE, { status: 200 });
+      if (String(url).includes('alt=media')) return new Response(FIXTURE, { status: 200 });
+      return Response.json({id:'fixture-file-id',name:'fixture.xlsm',modifiedTime:'2026-10-25T10:00:00Z',md5Checksum:createHash('md5').update(FIXTURE).digest('hex')});
     }
     throw new Error('unexpected fetch ' + url);
   };
@@ -183,10 +155,10 @@ test('service-account mode parses GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON and signs th
 });
 
 test('fetchCatalogueWorkbook fails closed without configuration', async () => {
-  await assert.rejects(() => fetchCatalogueWorkbook({}), (e) => e.code === 'NOT_CONFIGURED' && /GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON secret missing/.test(e.message));
-  await assert.rejects(() => fetchCatalogueWorkbook({ GDRIVE_MODE: 'public' }), (e) => e.code === 'NOT_CONFIGURED' && /GDRIVE_FILE_ID missing/.test(e.message));
-  await assert.rejects(() => fetchCatalogueWorkbook({ GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: 'not json' }), (e) => e.code === 'NOT_CONFIGURED' && /not valid JSON/.test(e.message));
-  await assert.rejects(() => fetchCatalogueWorkbook({ GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: '{}', GDRIVE_FILE_ID: 'x' }), (e) => e.code === 'NOT_CONFIGURED' && /secret missing/.test(e.message));
+  await assert.rejects(() => fetchCatalogueWorkbook({}), (e) => e.code === 'NOT_CONFIGURED' && /service account configuration missing/.test(e.message));
+  await assert.rejects(() => fetchCatalogueWorkbook({ GDRIVE_MODE: 'public' }), (e) => e.code === 'NOT_CONFIGURED' && /catalogue file ID missing/.test(e.message));
+  await assert.rejects(() => fetchCatalogueWorkbook({ GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: 'not json' }), (e) => e.code === 'NOT_CONFIGURED' && /configuration invalid/.test(e.message));
+  await assert.rejects(() => fetchCatalogueWorkbook({ GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: '{}', GDRIVE_FILE_ID: 'x' }), (e) => e.code === 'NOT_CONFIGURED' && /configuration missing/.test(e.message));
 });
 
 test('corrupt input and missing sheets are rejected with clear errors', async () => {

@@ -61,6 +61,18 @@ const DEPLOY_CONFIG_RE = /(^|\/)wrangler[^/]*\.(toml|jsonc?|json)$|(^|\/)vercel\
    preview, plus Action desk wording: exact presentation/review paths only. No image-directory,
    review-directory, backend or deploy-config wildcard is introduced. */
 const WORKSPACE_PRESENTATION_PATHS = new Set([
+  // Owner-approved document text/block editing and continuation pages; artwork/calc frozen.
+  'assets/js/document-studio.js',
+  'assets/css/document-studio.css',
+  // Owner-requested builder colour wayfinding and comprehensive setting search.
+  'assets/js/control-panel.js',
+  // Owner-approved Excel-first catalogue UI (25 Oct); no provider/config wildcard.
+  'assets/js/excel-catalogue.js',
+  'assets/css/control-panel.css',
+  // Owner requested full, uncropped Additional Systems hero framing (24 Oct).
+  'assets/css/bess.css',
+  // Read-only, source-ratio photo framing for the owner's subtle edge fade.
+  'assets/js/system-image-frame.js',
   // Exact UI-label file for the owner's Action desk wording correction.
   'assets/js/pulse/pulse-ui.js',
   'assets/css/workspace-fit.css',
