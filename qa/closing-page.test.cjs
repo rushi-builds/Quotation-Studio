@@ -18,8 +18,13 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#v_clNext .next-item').count(),4);
   assert((await page.locator('#v_clThankNote').textContent()).includes('For considering us for your solar journey.'));
   assert.equal(await page.locator('#v_clNext .closing-input-icon svg').count(),4);
-  assert.equal(await page.locator('#closingWaveNavy stop').first().getAttribute('stop-color'),'#243e54');
+  assert.equal(await page.locator('#closingWaveNavy stop').first().getAttribute('stop-color'),'#18495a');
   assert.equal(await page.locator('#v_clFooterValues li svg').count(),4);
+  assert.equal(await page.locator('.closing-wave-leaf path').count(),4,'restore the original flowing footer with leaf line-art');
+  assert(await page.locator('#v_clFooterValues').evaluate(e=>{
+   const s=getComputedStyle(e);return s.backgroundImage==='none'&&s.backgroundColor==='rgba(0, 0, 0, 0)'&&s.borderTopWidth==='0px'&&s.borderRadius==='0px'&&s.boxShadow==='none'&&getComputedStyle(e.firstElementChild).borderRightWidth==='0px';
+  }),'icons must be free-standing: no square/card background, border, rounded panel or shadow');
+
   assert(await page.locator('#v_clThankHeading').evaluate(e=>{const s=getComputedStyle(e);return s.fontStyle==='normal'&&parseFloat(s.fontSize)>=32&&s.fontFamily.includes('Inter');}),'thank-you is larger and uses the readable body typeface, not a third italic style');
   assert(await page.locator('#v_clThankNote').evaluate(e=>parseFloat(getComputedStyle(e).fontSize)>=12));
   const footerFallback=await page.evaluate(()=>{
@@ -76,10 +81,10 @@ const {chromium}=require('playwright');
   assert(await proof.locator('#v_clFooterValues').evaluate(strip=>{
    const box=strip.getBoundingClientRect(),wave=strip.closest('.closing-wave').getBoundingClientRect();
    return box.top>=wave.top&&box.bottom<=wave.bottom&&[...strip.querySelectorAll('li svg')].every(icon=>{const r=icon.getBoundingClientRect();return r.width===25&&r.height===25&&r.left>=box.left&&r.right<=box.right&&r.top>=box.top&&r.bottom<=box.bottom;});
-  }),'the glass strip fits the wave and its SVG icons retain their own geometry');
+  }),'the free-standing icons fit the restored wave and retain their own SVG geometry');
   const shots=path.join(__dirname,'shots','closing-page');fs.mkdirSync(shots,{recursive:true});
   await proof.locator('#pageClosing').screenshot({path:path.join(shots,'closing-a4.png')});await proof.close();
-  console.log('PASS: larger readable thank-you, editable four-icon glass strip, ivory/navy reference, original logo/photo, live contact + engineering blocks and A4 fit');
+  console.log('PASS: larger readable thank-you, editable free-standing icons on the original wave, ivory/navy reference, original logo/photo, live contact + engineering blocks and A4 fit');
 
   // Actual html2canvas + jsPDF, with only the save-to-disk replaced. Limit the
   // fixture to this page; do not claim to have re-exported the entire report.

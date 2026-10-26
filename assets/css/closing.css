@@ -59,14 +59,14 @@
 #pageClosing .closing-confidentiality{margin:0;font:400 6.7px/1.6 'Inter',sans-serif;color:#87909a;}
 #pageClosing .closing-wave{position:relative;min-height:124px;margin:auto 0 42px;background:none;overflow:hidden;flex-shrink:0;}
 #pageClosing .closing-wave>.closing-wave-art{position:absolute;inset:0;width:100%;height:100%;}
-/* A single restrained glass strip; the gradient remains visible in PDF even
-   where backdrop-filter is unavailable. Icons keep their own SVG geometry. */
-#pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:33px 48px 0;padding:9px 0;list-style:none;border:1px solid #ffffff30;border-radius:13px;background:linear-gradient(125deg,rgba(255,255,255,.13),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 #ffffff12;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
-#pageClosing .closing-footer-values li{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 8px;border-right:1px solid #ffffff25;text-align:center;}
-#pageClosing .closing-footer-values li:last-child{border-right:0;}
+/* Preserve the original wave artwork. Values are free-standing additions,
+   not another panel: no card, tint, border, blur or shadow behind the icons. */
+#pageClosing .closing-wave-caption{position:absolute;left:50px;top:54px;font:500 8px/1.9 'Inter',sans-serif;letter-spacing:2px;text-transform:uppercase;color:#f0eee5;}
+#pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:90px 110px 0 48px;padding:0;list-style:none;border:0;border-radius:0;background:none;box-shadow:none;}
+#pageClosing .closing-footer-values li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 6px;text-align:left;}
 #pageClosing .closing-footer-value-icon{display:block;flex:none;}
 #pageClosing .closing-footer-value-icon svg{display:block;width:25px;height:25px;}
-#pageClosing .closing-footer-value-text{font:500 9.5px/1.4 'Inter',sans-serif;letter-spacing:.1px;color:#f1eef8;white-space:pre-line;overflow-wrap:anywhere;}
+#pageClosing .closing-footer-value-text{font:500 10px/1.25 'Inter',sans-serif;letter-spacing:.1px;color:#f1eef8;white-space:pre-line;overflow-wrap:anywhere;}
 #pageClosing .pg-foot{background:#fcfaf6;border-top:1px solid #d8dfdf;}
 #pageClosing .pg-foot .pf-mid{display:none;}
 #pageClosing .pg-foot .pf-left,#pageClosing .pg-foot .pf-right{color:#647384;}
