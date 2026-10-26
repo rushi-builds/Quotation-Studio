@@ -5,6 +5,7 @@ export function memDb() {
   const users = {
     'owner-id': { id:'owner-id', email:'owner@example.test', name:'Owner', role:'owner' },
     'viewer-id': { id:'viewer-id', email:'viewer@example.test', name:'Viewer', role:'viewer' },
+    'sales-id': { id:'sales-id', email:'sales@example.test', name:'Sales', role:'sales' },
     'admin-id': { id:'admin-id', email:'elevated@example.test', name:'Elevated', role:'sales', is_admin:1 }
   };
   const sessions = Object.fromEntries(Object.keys(users).map(id=>[id.replace('-id','-token'),{user_id:id}]));

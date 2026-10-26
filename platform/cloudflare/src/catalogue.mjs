@@ -13,7 +13,7 @@
    ============================================================================ */
 'use strict';
 
-import { createSign, createHash } from 'node:crypto';
+import { createHash } from 'node:crypto';
 
 export const KIND_SPECS = {
   modules:   { sheet: 'MODULE_DB',   from: 5,   to: 316 },
@@ -269,6 +269,16 @@ function notConfigured(what) {
 
 function b64url(s) { return Buffer.from(s).toString('base64url'); }
 
+/* Workers' node:crypto has no createSign; sign the Drive JWT with WebCrypto. */
+function pemToDer(pem) {
+  const body = String(pem || '').replace(/\\n/g, '\n')
+    .replace(/-----BEGIN [^-]+-----|-----END [^-]+-----/g, '')
+    .replace(/\s/g, '');
+  if (!body) throw new Error('Google Drive service account private key is missing.');
+  const binary = atob(body);
+  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+}
+
 async function serviceAccountToken(email, pem) {
   const now = Math.floor(Date.now() / 1000);
   const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
@@ -279,9 +289,14 @@ async function serviceAccountToken(email, pem) {
     iat: now,
     exp: now + 3600
   }));
-  const sign = createSign('RSA-SHA256');
-  sign.update(header + '.' + claims);
-  const assertion = header + '.' + claims + '.' + sign.sign(pem, 'base64url');
+  const unsigned = header + '.' + claims;
+  let key;
+  try {
+    key = await crypto.subtle.importKey('pkcs8', pemToDer(pem),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  } catch (_) { throw new Error('Google Drive service account private key is unusable.'); }
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned));
+  const assertion = unsigned + '.' + Buffer.from(new Uint8Array(signature)).toString('base64url');
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST', signal: AbortSignal.timeout(10000),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -333,7 +348,7 @@ async function sourceMetadata(source) {
   if (mode === 'public') return { ...base, reason: 'Public-link mode cannot verify workbook changes. Sync manually.' };
   const url = 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(id) +
     '?supportsAllDrives=true&fields=id,name,mimeType,modifiedTime,md5Checksum,version,size,trashed';
-  const response = await fetch(url, { headers, redirect: 'error', signal: AbortSignal.timeout(10000) });
+  const response = await fetch(url, { headers, redirect: 'manual', signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error('The connected workbook is unavailable. Check its file-scoped Viewer access.');
   const meta = await response.json();
   if (meta.id !== id || meta.trashed || !/\.xls[mx]$/i.test(meta.name || '') || Number(meta.size) > MAX_WORKBOOK_BYTES) {

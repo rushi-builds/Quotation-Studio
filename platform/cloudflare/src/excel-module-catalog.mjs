@@ -470,7 +470,7 @@ async function serviceAccountToken(serviceAccount, fetchImpl) {
         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion
       }),
       signal: AbortSignal.timeout(10000),
-      redirect: 'error'
+      redirect: 'manual'
     });
   } catch (_) { throw catalogError('EXCEL_DRIVE_UNAVAILABLE'); }
   if (!response.ok) throw catalogError('EXCEL_DRIVE_AUTH_FAILED');
@@ -508,7 +508,7 @@ export async function syncModuleCatalogFromDrive(env, options = {}) {
   let metaResponse;
   try {
     metaResponse = await fetchImpl(metaUrl.toString(), {
-      headers, signal: AbortSignal.timeout(10000), redirect: 'error'
+      headers, signal: AbortSignal.timeout(10000), redirect: 'manual'
     });
   } catch (_) { throw catalogError('EXCEL_DRIVE_UNAVAILABLE'); }
   if (metaResponse.status === 404 || metaResponse.status === 403) throw catalogError('EXCEL_DRIVE_FILE_UNAVAILABLE');
@@ -531,7 +531,7 @@ export async function syncModuleCatalogFromDrive(env, options = {}) {
   let fileResponse;
   try {
     fileResponse = await fetchImpl(fileUrl.toString(), {
-      headers, signal: AbortSignal.timeout(20000), redirect: 'error'
+      headers, signal: AbortSignal.timeout(20000), redirect: 'manual'
     });
   } catch (_) { throw catalogError('EXCEL_DRIVE_UNAVAILABLE'); }
   if (fileResponse.status === 404 || fileResponse.status === 403) throw catalogError('EXCEL_DRIVE_FILE_UNAVAILABLE');

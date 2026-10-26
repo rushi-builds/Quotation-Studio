@@ -42,7 +42,7 @@ database_id = "f3c2c763-e497-4617-8392-25605fceeafe"
 APP_NAME = "Quotation Studio"
 
 # Excel module catalogue (PR #19): Drive workbook the catalogue API syncs.
-GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID = "17V9Os-1ZV-_0dpoHQwvTcNwLdAdQz_Gh"
+GOOGLE_DRIVE_PRODUCT_CATALOG_FILE_ID = "1BaCB5Lwslopl1P4sHahtkw-8Fltk3pyc"
 
 GEMINI_ENABLED = "true"
 GEMINI_MODEL = "gemini-3.1-flash-lite"
