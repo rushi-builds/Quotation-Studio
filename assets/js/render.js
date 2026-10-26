@@ -1058,8 +1058,15 @@
     // a stretched <img> is not. Use the exact current/default uploaded source.
     const closingPhoto = $('img_closing');
     if (closingPhoto?.parentElement) closingPhoto.parentElement.style.backgroundImage = 'url(' + JSON.stringify(closingPhoto.src) + ')';
-    set('v_clHeading', P.bannerHeading);
-    set('v_clSub', P.bannerSub);
+    const closingHeading = String(P.bannerHeading || '');
+    setHTML('v_clHeading', closingHeading === 'Together for a Greener Tomorrow.'
+      ? 'Together for a <br><em>Greener</em> Tomorrow<span class="closing-dot">.</span>'
+      : esc(closingHeading).replace(/\bGreener\b/g, '<em>Greener</em>'));
+    setHTML('v_clSub', esc(String(P.bannerSub || '').replace(/\.\s*$/, '')).replace(/\.\s+/g, '<br>'));
+    const closingWave = document.querySelector('#pageClosing .closing-wave');
+    if (closingWave && closingPhoto) closingWave.style.backgroundImage = 'url(' + JSON.stringify(closingPhoto.src) + ')';
+    const closingIcons = {v_clIcoCompany:'building', v_clIcoPin:'pin', v_clIcoPhone:'phone', v_clIcoMail:'mail', v_clIcoWeb:'globe', v_clValueLeaf:'leaf', v_clValueCost:'rupee', v_clValueSun:'sun'};
+    Object.entries(closingIcons).forEach(([id, icon]) => setHTML(id, I.get(icon, 22, id === 'v_clValueLeaf' ? '#19364c' : '#d77a24')));
     set('v_clNextLabel', P.nextLabel);
     setHTML('v_clNext', P.next.map((it, index) =>
       '<div class="next-item"><span class="closing-input-number" aria-hidden="true">' + String(index + 1).padStart(2, '0') + '</span>' +
@@ -1072,8 +1079,8 @@
     set('v_clPhone', s.companyPhone);
     set('v_clEmail', s.companyEmail);
     set('v_clWebsite', s.companyWebsite);
-    set('v_clThankHeading', P.thankHeading ?? 'Thank you.');
-    set('v_clThankMessage', tpl(P.thankMessage ?? 'For considering {company}. Let’s turn your solar plans into a well-designed project.', v));
+    set('v_clThankHeading', P.thankHeading ?? 'THANK YOU');
+    set('v_clThankMessage', tpl(P.thankMessage ?? 'We appreciate the opportunity to be part of your solar journey. At {company}, we look forward to planning a reliable, efficient solution for your property.', v));
     // Contact URLs are presentation only. Never treat arbitrary user text as a
     // URL, and never substitute a browser-only draft for a public customer link.
     const phone = String(s.companyPhone || '').trim();
@@ -1196,7 +1203,7 @@
     document.querySelectorAll('[data-foot-tagline]').forEach((el) => { el.textContent = tagline; });
     /* Same cover-derived mark, with transparent ink suited to its surface. */
     document.querySelectorAll('#formLogo, #shareLogo, .pg-logo img, .closing-brand img').forEach((img) => {
-      const src = img.closest('.closing-brand') ? 'assets/images/ktm-logo-dark.png' : 'assets/images/ktm-logo-light.png';
+      const src = img.closest('.closing-brand:not([data-logo-surface="light"])') ? 'assets/images/ktm-logo-dark.png' : 'assets/images/ktm-logo-light.png';
       if (img.getAttribute('src') !== src) img.setAttribute('src', src);
     });
   }

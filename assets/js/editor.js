@@ -356,8 +356,8 @@
       mkField(b, 'Title', it.title, (v) => { it.title = v; });
       mkField(b, 'Description (supports {surveyWindow})', it.desc, (v) => { it.desc = v; }, true);
     });
-    mkField(g, 'Thank-you heading', CONTENT.pageClosing.thankHeading ?? 'Thank you.', (v) => { CONTENT.pageClosing.thankHeading = v; });
-    mkField(g, 'Thank-you message (uses {company})', CONTENT.pageClosing.thankMessage ?? 'For considering {company}. Let’s turn your solar plans into a well-designed project.', (v) => { CONTENT.pageClosing.thankMessage = v; }, true);
+    mkField(g, 'Thank-you heading', CONTENT.pageClosing.thankHeading ?? 'THANK YOU', (v) => { CONTENT.pageClosing.thankHeading = v; });
+    mkField(g, 'Thank-you message (uses {company})', CONTENT.pageClosing.thankMessage ?? 'We appreciate the opportunity to be part of your solar journey. At {company}, we look forward to planning a reliable, efficient solution for your property.', (v) => { CONTENT.pageClosing.thankMessage = v; }, true);
     mkField(g, 'Disclaimer (uses {company})', CONTENT.pageClosing.disclaimer, (v) => { CONTENT.pageClosing.disclaimer = v; }, true);
   }
 

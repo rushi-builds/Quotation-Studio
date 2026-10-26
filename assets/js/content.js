@@ -413,11 +413,11 @@ const CONTENT = {
   /* PAGE 15 - Acceptance, Next Steps & Contact                          */
   /* ------------------------------------------------------------------ */
   pageClosing: {
-    bannerHeading: "Let's Build a Greener Future Together",
-    bannerSub: 'Your Journey Towards Clean & Affordable Energy Starts Here.',
+    bannerHeading: 'Together for a Greener Tomorrow.',
+    bannerSub: 'Clean energy. Affordable today. Brighter tomorrow.',
     nextLabel: 'ENGINEERING INPUTS',
-    thankHeading: 'Thank you.',
-    thankMessage: 'For considering {company}. Let’s turn your solar plans into a well-designed project.',
+    thankHeading: 'THANK YOU',
+    thankMessage: 'We appreciate the opportunity to be part of your solar journey. At {company}, we look forward to planning a reliable, efficient solution for your property.',
     next: [
       { icon: 'doc', title: 'Electricity information', desc: 'Latest bill, tariff category & sanctioned load.' },
       { icon: 'drone', title: 'Roof & site information', desc: 'Roof dimensions, photos, shading & site access.' },

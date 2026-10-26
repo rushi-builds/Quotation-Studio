@@ -22,7 +22,7 @@
 <link rel="stylesheet" href="assets/css/control-panel.css?v=settings-modes1">
 <link rel="stylesheet" href="assets/css/studio-assistant.css?v=knowledge3">
 <link rel="stylesheet" href="assets/css/document-studio.css?v=document-studio2">
-<link rel="stylesheet" href="assets/css/closing.css?v=closing-fullbleed3">
+<link rel="stylesheet" href="assets/css/closing.css?v=closing-ivory4">
 </head>
 <body>
 <div class="app">
@@ -1413,18 +1413,35 @@
         <div class="closing-banner">
           <img id="img_closing" src="assets/images/page-contact.jpg" alt="Solar installation at sunset">
           <div class="closing-banner-overlay"></div>
-          <div class="closing-brand"><img src="assets/images/ktm-logo-dark.png" alt="KTM Energy Experts"></div>
-          <a class="gallery-card" id="closingGallery" hidden target="_blank" rel="noopener noreferrer" aria-label="Open the public project gallery">
-            <span>EXPLORE OUR PROJECTS</span><canvas width="320" height="320" aria-label="Project gallery QR code"></canvas><strong>Scan or tap to explore ↗</strong><small>Project photographs &amp; available media</small>
-          </a>
+        <a class="gallery-card" id="closingGallery" hidden target="_blank" rel="noopener noreferrer" aria-label="Open the public project gallery">
+          <span>EXPLORE OUR PROJECTS</span><canvas width="320" height="320" aria-label="Project gallery QR code"></canvas><strong>Scan or tap to explore ↗</strong><small>Project photographs &amp; available media</small>
+        </a>
         </div>
-        <section class="closing-farewell" aria-labelledby="v_clThankHeading">
-          <h3 id="v_clThankHeading"></h3>
-          <p id="v_clThankMessage"></p>
-        </section>
-        <div class="closing-hero">
+        <div class="closing-brand" data-logo-surface="light"><img src="assets/images/ktm-logo-light.png" alt="KTM Energy Experts"></div>
+        <div class="closing-promise" id="v_clSub"></div>
+        <section class="closing-hero" aria-labelledby="v_clHeading">
+          <div class="closing-kicker" id="v_clThankHeading"></div>
           <h2 id="v_clHeading"></h2>
-          <div class="sub" id="v_clSub"></div>
+          <p id="v_clThankMessage"></p>
+          <div class="closing-values" aria-label="Our solar vision">
+            <div><span id="v_clValueLeaf" aria-hidden="true"></span><strong>Clean<br>energy</strong></div>
+            <div><span id="v_clValueCost" aria-hidden="true"></span><strong>Affordable<br>today</strong></div>
+            <div><span id="v_clValueSun" aria-hidden="true"></span><strong>Brighter<br>tomorrow</strong></div>
+          </div>
+        </section>
+        <div class="closing-card">
+          <div>
+            <div class="sec-label" id="v_clTouchLabel">GET IN TOUCH</div>
+            <div class="contact-item"><span class="closing-contact-icon" id="v_clIcoCompany" aria-hidden="true"></span><div><div class="rt" id="v_clCompanyName"></div><div class="rd" id="v_clCompanyTagline"></div></div></div>
+            <div class="contact-item"><span class="closing-contact-icon" id="v_clIcoPin" aria-hidden="true"></span><div><div class="rt">Office Address</div><div class="rd" id="v_clAddress"></div></div></div>
+            <div class="contact-item"><span class="closing-contact-icon" id="v_clIcoPhone" aria-hidden="true"></span><div><div class="rt">Phone</div><a class="rd closing-contact-link" id="v_clPhone"></a></div></div>
+            <div class="contact-item"><span class="closing-contact-icon" id="v_clIcoMail" aria-hidden="true"></span><div><div class="rt">Email</div><a class="rd closing-contact-link" id="v_clEmail"></a></div></div>
+            <div class="contact-item"><span class="closing-contact-icon" id="v_clIcoWeb" aria-hidden="true"></span><div><div class="rt">Website</div><a class="rd closing-contact-link" id="v_clWebsite"></a></div></div>
+          </div>
+          <div>
+            <div class="sec-label" id="v_clNextLabel"></div>
+            <div id="v_clNext"></div>
+          </div>
         </div>
         <section class="closing-invitation" aria-label="Discuss your solar project">
           <div class="closing-actions">
@@ -1433,23 +1450,18 @@
           </div>
           <p class="closing-scope-note">Discussion or a site visit does not authorise supply or installation.</p>
         </section>
-        <div class="closing-card">
-          <div>
-            <div class="sec-label" id="v_clTouchLabel">GET IN TOUCH</div>
-            <div class="contact-item"><div><div class="rt" id="v_clCompanyName"></div><div class="rd" id="v_clCompanyTagline"></div></div></div>
-            <div class="contact-item"><div><div class="rt">Office Address</div><div class="rd" id="v_clAddress"></div></div></div>
-            <div class="contact-item"><div><div class="rt">Phone</div><a class="rd closing-contact-link" id="v_clPhone"></a></div></div>
-            <div class="contact-item"><div><div class="rt">Email</div><a class="rd closing-contact-link" id="v_clEmail"></a></div></div>
-            <div class="contact-item"><div><div class="rt">Website</div><a class="rd closing-contact-link" id="v_clWebsite"></a></div></div>
-          </div>
-          <div>
-            <div class="sec-label" id="v_clNextLabel"></div>
-            <div id="v_clNext"></div>
-          </div>
-        </div>
         <div class="closing-bottom">
           <div class="closing-rule"></div>
           <p class="closing-confidentiality" id="v_clDisclaimer"></p>
+        </div>
+        <div class="closing-wave" aria-hidden="true">
+          <svg viewBox="0 0 794 142" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 0H794V8C610 72 494 130 353 86C192 28 115 7 0 24Z" fill="#fcfaf6"/>
+            <path d="M0 23C173 -2 289 135 486 111C622 95 710 48 794 47V142H0Z" fill="#12374c" fill-opacity=".93"/>
+            <path d="M0 32C230 4 336 153 603 114C687 102 743 83 794 72" fill="none" stroke="#e8b775" stroke-width="2" opacity=".75"/>
+            <g fill="none" stroke="#e5b275" stroke-width="1.5" opacity=".8"><path d="M737 136Q748 94 765 44Q790 101 737 136Z"/><path d="M737 136Q700 116 692 83Q736 89 737 136Z"/><path d="M737 136L765 44M737 136L692 83"/></g>
+          </svg>
+          <div class="closing-wave-caption">Sustainable solutions<br>for generations</div>
         </div>
         <footer class="pg-foot">
           <div class="pf-left" data-foot-company></div>
@@ -1467,7 +1479,7 @@
 <script src="assets/vendor/html2canvas.min.js"></script>
 <script src="assets/vendor/jspdf.umd.min.js"></script>
 <script src="assets/vendor/qrcode.min.js"></script>
-<script src="assets/js/content.js?v=closing-fullbleed3"></script>
+<script src="assets/js/content.js?v=closing-ivory4"></script>
 <script src="assets/js/engineering.js?v=reverify1"></script>
 <script src="assets/js/finance.js?v=finance-fixes1"></script>
 <script src="assets/js/storage-catalog.js"></script>
@@ -1482,8 +1494,8 @@
 <script src="assets/js/state.js?v=proposal-stage1"></script>
 <script src="assets/js/catalogue-data.js?v=excel-v37"></script>
 <script src="assets/js/equipment.js?v=excel-catalogue1"></script>
-<script src="assets/js/render.js?v=closing-fullbleed3"></script>
-<script src="assets/js/editor.js?v=closing-fullbleed3"></script>
+<script src="assets/js/render.js?v=closing-ivory4"></script>
+<script src="assets/js/editor.js?v=closing-ivory4"></script>
 <script src="assets/js/experience.js?v=proposal-stage1"></script>
 <script src="assets/js/salutation.js"></script>
 <script src="assets/js/briefing.js"></script>

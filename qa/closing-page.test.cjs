@@ -13,14 +13,14 @@ const {chromium}=require('playwright');
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';
   await page.goto(base+'/quotation.html');await page.waitForFunction(()=>window.Render?.lastState&&document.querySelector('.studio-ready'));await page.evaluate(()=>document.fonts.ready);
   assert.equal(await page.locator('#pageClosing .accept-block,#pageClosing .sign-box,#pageClosing .engineering-steps').count(),0);
-  assert.equal(await page.locator('#v_clHeading').textContent(),"Let's Build a Greener Future Together");
-  assert.equal(await page.locator('#v_clThankHeading').textContent(),'Thank you.');
+  assert.equal(await page.locator('#v_clHeading').textContent(),'Together for a Greener Tomorrow.');
+  assert.equal(await page.locator('#v_clThankHeading').textContent(),'THANK YOU');
   assert.equal(await page.locator('#v_clNext .next-item').count(),4);
   assert.equal(await page.locator('#pageClosing .closing-steps li,#pageClosing .icon-chip').count(),0);
   assert(await page.locator('#pageClosing').evaluate(p=>{
-   const sheet=p.querySelector('.closing-card'),thanks=p.querySelector('.closing-farewell'),photo=p.querySelector('.closing-banner'),style=getComputedStyle(sheet);
-   return getComputedStyle(photo).position==='absolute' && photo.offsetHeight===p.clientHeight && getComputedStyle(thanks.querySelector('h3')).fontFamily.includes('Georgia') && style.boxShadow==='none' && !!(thanks.compareDocumentPosition(sheet)&Node.DOCUMENT_POSITION_FOLLOWING);
-  }),'full-page photographic closer must not restore white paper, stacked cards or the step strip');
+   const title=p.querySelector('#v_clHeading'),style=getComputedStyle(p);
+   return style.backgroundColor==='rgb(252, 250, 246)' && getComputedStyle(title).fontFamily.includes('Georgia') && title.querySelector('em')?.textContent==='Greener' && p.querySelector('.closing-brand img').getAttribute('src')==='assets/images/ktm-logo-light.png' && p.querySelectorAll('.closing-values>div').length===3 && !!p.querySelector('.closing-wave svg');
+  }),'approved reference direction: ivory, navy serif, orange emphasis, original light-surface logo and quiet wave');
   assert(await page.locator('.closing-banner').evaluate(b=>getComputedStyle(b).backgroundSize==='cover' && b.style.backgroundImage.includes(document.getElementById('img_closing').src)),'PDF and browser must use an undistorted cover background from the original photo');
   assert((await page.locator('#v_clPhone').getAttribute('href')).startsWith('tel:+91'));
   assert((await page.locator('#v_clEmail').getAttribute('href')).startsWith('mailto:enquiry@'));
@@ -39,7 +39,7 @@ const {chromium}=require('playwright');
   assert(await proof.locator('#pageClosing').evaluate(p=>{const foot=p.querySelector('footer').getBoundingClientRect(),children=[...p.children].filter(n=>!n.matches('footer,.closing-banner'));return p.scrollHeight<=1124&&p.scrollWidth<=p.clientWidth&&children.every(n=>n.getBoundingClientRect().bottom<=foot.top-2);}));
   const shots=path.join(__dirname,'shots','closing-page');fs.mkdirSync(shots,{recursive:true});
   await proof.locator('#pageClosing').screenshot({path:path.join(shots,'closing-a4.png')});await proof.close();
-  console.log('PASS: full-page original photography, serif thank-you, dark contact + engineering band, thank-you, no signatures, working contact URLs and A4 fit');
+  console.log('PASS: ivory reference layout, navy/orange serif heading, original logo/photo, live contact + engineering blocks, no signatures, working contact URLs and A4 fit');
 
   // Actual html2canvas + jsPDF, with only the save-to-disk replaced. Limit the
   // fixture to this page; do not claim to have re-exported the entire report.

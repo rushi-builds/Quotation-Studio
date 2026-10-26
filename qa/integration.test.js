@@ -120,7 +120,7 @@ t('warranty 4 cards', d.querySelectorAll('#v_wrWarranties .warr-card').length ==
 t('journey 6 steps', d.querySelectorAll('#v_wrJourney .journey-card').length === 6);
 t('terms 12 items', d.querySelectorAll('#v_tmItems .term-item').length === 12);
 t('terms validity templated (15 days)', d.getElementById('v_tmItems').textContent.includes('15 days'));
-t('closing is a thank-you page without signatures', d.querySelectorAll('#pageClosing .sign-box,#pageClosing .accept-block').length === 0 && d.getElementById('v_clThankHeading').textContent === 'Thank you.');
+t('closing is a thank-you page without signatures', d.querySelectorAll('#pageClosing .sign-box,#pageClosing .accept-block').length === 0 && d.getElementById('v_clThankHeading').textContent === 'THANK YOU');
 t('footer page numbers', d.getElementById('v_pgnum_pageTerms').textContent === 'Page 14 of 15',
   d.getElementById('v_pgnum_pageTerms').textContent);
 t('footer company filled', d.querySelector('[data-foot-company]').textContent.includes('KTM'));
