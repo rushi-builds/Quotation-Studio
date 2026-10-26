@@ -18,9 +18,10 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#v_clNext .next-item').count(),4);
   assert.equal(await page.locator('#pageClosing .closing-steps li,#pageClosing .icon-chip').count(),0);
   assert(await page.locator('#pageClosing').evaluate(p=>{
-   const sheet=p.querySelector('.closing-card'),thanks=p.querySelector('.closing-farewell'),style=getComputedStyle(sheet);
-   return style.borderTopWidth==='0px' && style.boxShadow==='none' && style.backgroundColor==='rgba(0, 0, 0, 0)' && !!(thanks.compareDocumentPosition(sheet)&Node.DOCUMENT_POSITION_FOLLOWING);
-  }),'editorial closer must not restore stacked cards, icon bubbles or the step strip');
+   const sheet=p.querySelector('.closing-card'),thanks=p.querySelector('.closing-farewell'),photo=p.querySelector('.closing-banner'),style=getComputedStyle(sheet);
+   return getComputedStyle(photo).position==='absolute' && photo.offsetHeight===p.clientHeight && getComputedStyle(thanks.querySelector('h3')).fontFamily.includes('Georgia') && style.boxShadow==='none' && !!(thanks.compareDocumentPosition(sheet)&Node.DOCUMENT_POSITION_FOLLOWING);
+  }),'full-page photographic closer must not restore white paper, stacked cards or the step strip');
+  assert(await page.locator('.closing-banner').evaluate(b=>getComputedStyle(b).backgroundSize==='cover' && b.style.backgroundImage.includes(document.getElementById('img_closing').src)),'PDF and browser must use an undistorted cover background from the original photo');
   assert((await page.locator('#v_clPhone').getAttribute('href')).startsWith('tel:+91'));
   assert((await page.locator('#v_clEmail').getAttribute('href')).startsWith('mailto:enquiry@'));
   assert.equal(await page.locator('#v_clWebsite').getAttribute('href'),'https://www.ktmenergyexperts.com/');
@@ -35,19 +36,22 @@ const {chromium}=require('playwright');
   const markup=await page.locator('#pageClosing').evaluate(e=>e.outerHTML),proof=await context.newPage({viewport:{width:794,height:1123}});
   await proof.setContent('<base href="'+base+'/"><link rel="stylesheet" href="assets/css/app.css"><link rel="stylesheet" href="assets/css/experience.css"><link rel="stylesheet" href="assets/css/document-studio.css"><link rel="stylesheet" href="assets/css/closing.css">'+markup);
   await proof.evaluate(()=>document.fonts.ready);await proof.waitForFunction(()=>[...document.images].every(i=>i.complete));await proof.locator('.page').evaluate(e=>e.style.transform='none');
-  assert(await proof.locator('#pageClosing').evaluate(p=>{const foot=p.querySelector('footer').getBoundingClientRect(),children=[...p.children].filter(n=>n!==p.querySelector('footer'));return p.scrollHeight<=1124&&p.scrollWidth<=p.clientWidth&&children.every(n=>n.getBoundingClientRect().bottom<=foot.top-2);}));
+  assert(await proof.locator('#pageClosing').evaluate(p=>{const foot=p.querySelector('footer').getBoundingClientRect(),children=[...p.children].filter(n=>!n.matches('footer,.closing-banner'));return p.scrollHeight<=1124&&p.scrollWidth<=p.clientWidth&&children.every(n=>n.getBoundingClientRect().bottom<=foot.top-2);}));
   const shots=path.join(__dirname,'shots','closing-page');fs.mkdirSync(shots,{recursive:true});
   await proof.locator('#pageClosing').screenshot({path:path.join(shots,'closing-a4.png')});await proof.close();
-  console.log('PASS: retained hero/artwork, unboxed contact + engineering sheet, thank-you, no signatures, working contact URLs and A4 fit');
+  console.log('PASS: full-page original photography, serif thank-you, dark contact + engineering band, thank-you, no signatures, working contact URLs and A4 fit');
 
   // Actual html2canvas + jsPDF, with only the save-to-disk replaced. Limit the
   // fixture to this page; do not claim to have re-exported the entire report.
-  const pdf=await page.evaluate(async()=>{
-   const Native=jspdf.jsPDF,visible=Render.lastVisible.slice();
+  const captured=await page.evaluate(async()=>{
+   const Native=jspdf.jsPDF,visible=Render.lastVisible.slice(),capture=html2canvas;
+   let raster='';window.html2canvas=async(...args)=>{const canvas=await capture(...args);raster=canvas.toDataURL('image/png');return canvas;};
    let output='';jspdf.jsPDF=function(...args){const pdf=new Native(...args);pdf.save=()=>{output=pdf.output();};return pdf;};
-   try{Render.lastVisible.splice(0,Render.lastVisible.length,...visible.filter(p=>p.id==='pageClosing'));await Exporter.exportPdf(()=>{},{format:'full'});return output;}
-   finally{jspdf.jsPDF=Native;Render.lastVisible.splice(0,Render.lastVisible.length,...visible);}
+   try{Render.lastVisible.splice(0,Render.lastVisible.length,...visible.filter(p=>p.id==='pageClosing'));await Exporter.exportPdf(()=>{},{format:'full'});return {pdf:output,raster};}
+   finally{jspdf.jsPDF=Native;window.html2canvas=capture;Render.lastVisible.splice(0,Render.lastVisible.length,...visible);}
   });
+  const pdf=captured.pdf;
+  fs.writeFileSync(path.join(shots,'closing-pdf-raster.png'),Buffer.from(captured.raster.split(',')[1],'base64'));
   assert.equal((pdf.match(/\/Type \/Page\b/g)||[]).length,1);
   for(const url of [publicUrl+'#shareAcceptWrap','https://wa.me/','https://www.ktmenergyexperts.com/'])assert(pdf.includes(url),'real PDF link annotation missing: '+url);
   assert(pdf.includes('/Subtype /Link'));

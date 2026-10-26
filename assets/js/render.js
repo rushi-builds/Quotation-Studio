@@ -1054,6 +1054,10 @@
   /* ================================================================== */
   function renderClosing(s, f, v) {
     const P = CONTENT.pageClosing;
+    // Native CSS cover is also supported by PDF rasterisation; object-fit on
+    // a stretched <img> is not. Use the exact current/default uploaded source.
+    const closingPhoto = $('img_closing');
+    if (closingPhoto?.parentElement) closingPhoto.parentElement.style.backgroundImage = 'url(' + JSON.stringify(closingPhoto.src) + ')';
     set('v_clHeading', P.bannerHeading);
     set('v_clSub', P.bannerSub);
     set('v_clNextLabel', P.nextLabel);
