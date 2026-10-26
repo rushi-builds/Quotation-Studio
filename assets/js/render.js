@@ -1063,10 +1063,8 @@
       ? 'Together for a <br><em>Greener</em> Tomorrow<span class="closing-dot">.</span>'
       : esc(closingHeading).replace(/\bGreener\b/g, '<em>Greener</em>'));
     setHTML('v_clSub', esc(String(P.bannerSub || '').replace(/\.\s*$/, '')).replace(/\.\s+/g, '<br>'));
-    const closingWave = document.querySelector('#pageClosing .closing-wave');
-    if (closingWave && closingPhoto) closingWave.style.backgroundImage = 'url(' + JSON.stringify(closingPhoto.src) + ')';
     const closingIcons = {v_clIcoCompany:'building', v_clIcoPin:'pin', v_clIcoPhone:'phone', v_clIcoMail:'mail', v_clIcoWeb:'globe', v_clValueLeaf:'leaf', v_clValueCost:'rupee', v_clValueSun:'sun'};
-    Object.entries(closingIcons).forEach(([id, icon]) => setHTML(id, I.get(icon, 22, id === 'v_clValueLeaf' ? '#19364c' : '#d77a24')));
+    Object.entries(closingIcons).forEach(([id, icon]) => setHTML(id, I.get(icon, 22, /^v_clIco(Company|Pin|Mail|Web)$/.test(id) || id === 'v_clValueLeaf' ? '#19364c' : '#d77a24')));
     set('v_clNextLabel', P.nextLabel);
     setHTML('v_clNext', P.next.map((it, index) =>
       '<div class="next-item"><span class="closing-input-number" aria-hidden="true">' + String(index + 1).padStart(2, '0') + '</span>' +

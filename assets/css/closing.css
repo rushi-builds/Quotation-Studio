@@ -1,9 +1,9 @@
 /* Ivory / navy / orange closing, following the approved visual reference.
    All wording and contact links remain live HTML, not part of the artwork. */
 #pageClosing.closing-redesigned{display:flex;flex-direction:column;background:#fcfaf6;color:#143248;isolation:isolate;}
-#pageClosing>.closing-banner{position:absolute;top:0;right:0;width:100%;height:562px;z-index:-1;border-radius:0 0 0 62%;background-color:#f5f3ed;background-size:cover;background-position:70% 44%;background-repeat:no-repeat;overflow:hidden;}
+#pageClosing>.closing-banner{position:absolute;top:0;right:0;width:100%;height:562px;z-index:-1;border-radius:0;background-color:#f5f3ed;background-size:cover;background-position:70% 44%;background-repeat:no-repeat;overflow:hidden;}
 #pageClosing .closing-banner>img{width:100%;height:100%;opacity:0;pointer-events:none;}
-#pageClosing .closing-banner-overlay{position:absolute;inset:0;background:linear-gradient(90deg,#fcfaf6 0%,#fcfaf6 22%,rgba(252,250,246,.96) 37%,rgba(252,250,246,.8) 48%,rgba(252,250,246,.1) 72%,rgba(252,250,246,0) 100%);}
+#pageClosing .closing-banner-overlay{position:absolute;inset:0;background:linear-gradient(0deg,#fcfaf6 0%,rgba(252,250,246,0) 23%),linear-gradient(90deg,#fcfaf6 0%,#fcfaf6 22%,rgba(252,250,246,.96) 37%,rgba(252,250,246,.8) 48%,rgba(252,250,246,.1) 72%,rgba(252,250,246,0) 100%);}
 #pageClosing .closing-brand{position:absolute;left:48px;top:29px;z-index:2;}
 #pageClosing .closing-brand img{height:76px;}
 #pageClosing .closing-promise{position:absolute;right:40px;top:44px;width:165px;padding-left:18px;border-left:2px solid #e98c28;font:500 8px/2 'Inter',sans-serif;letter-spacing:2px;text-transform:uppercase;color:#163248;}
@@ -20,15 +20,15 @@
 #pageClosing .closing-values{display:grid;grid-template-columns:repeat(3,1fr);width:380px;margin:25px 0 0;}
 #pageClosing .closing-values>div{display:flex;flex-direction:column;align-items:center;gap:9px;border-right:1px solid #dcdedb;}
 #pageClosing .closing-values>div:last-child{border:0;}
-#pageClosing .closing-values span{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#faf0df;}
+#pageClosing .closing-values span{display:grid;place-items:center;width:34px;height:34px;border:1px solid #ffffff;border-radius:11px;background:linear-gradient(145deg,#ffffffeb,#f7e9d8b8);box-shadow:inset 0 1px 0 #fff,0 3px 8px #18384c08;}
 #pageClosing .closing-values strong{font:500 8px/1.55 'Inter',sans-serif;text-transform:uppercase;text-align:center;letter-spacing:1.7px;color:#526171;}
-#pageClosing .closing-card{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:38px;margin:27px 30px 0;padding:23px 20px 18px;border:0;border-radius:18px;background:rgba(252,250,246,.98);box-shadow:none;flex-shrink:0;}
+#pageClosing .closing-card{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:38px;margin:27px 30px 0;padding:23px 20px 18px;border:1px solid #ffffffed;border-radius:20px;background:linear-gradient(130deg,rgba(255,255,255,.88),rgba(237,243,248,.79));box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 #d5e1e65c,0 8px 24px #18384c07;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);flex-shrink:0;}
 #pageClosing .closing-card>div{min-width:0;}
 #pageClosing .closing-card .sec-label{display:block;margin:0 0 18px;padding:0;background:none;border:0;border-radius:0;font:600 9px/1.5 'Inter',sans-serif;letter-spacing:2.4px;color:#173449;}
 #pageClosing .closing-card .sec-label::after{content:'';display:block;width:26px;height:1.5px;margin-top:9px;background:#e8a15d;}
 #pageClosing .contact-item{display:flex;gap:12px;margin:0 0 12px;align-items:flex-start;}
 #pageClosing .contact-item:last-child{margin-bottom:0;}
-#pageClosing .closing-contact-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#fbedd7;flex:none;}
+#pageClosing .closing-contact-icon{display:grid;place-items:center;width:32px;height:32px;border:1px solid #fff;border-radius:11px;background:linear-gradient(145deg,#fffdf9,#f6e8d5b8);box-shadow:inset 0 1px 0 #fff,0 2px 6px #233f5206;flex:none;}
 #pageClosing .closing-contact-icon svg{width:19px;height:19px;}
 #pageClosing .contact-item .rt{font:600 10px/1.5 'Inter',sans-serif;color:#143248;}
 #pageClosing #v_clCompanyName{font-size:11px;}
@@ -37,7 +37,7 @@
 #pageClosing .closing-contact-link[href]{text-decoration:underline;text-decoration-color:#c6cdd0;text-underline-offset:2px;}
 #pageClosing .next-item{display:flex;gap:14px;align-items:flex-start;margin:0 0 14px;padding-bottom:14px;border-bottom:1px solid #e4e4de;}
 #pageClosing .next-item:last-child{margin:0;padding-bottom:0;border:0;}
-#pageClosing .closing-input-number{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:50%;background:#faecd6;font:500 14px/1 'Inter',sans-serif;color:#df8628;}
+#pageClosing .closing-input-number{display:grid;place-items:center;flex:none;width:34px;height:34px;border:1px solid #fff;border-radius:12px;background:linear-gradient(145deg,#fffcf5,#f6e7d0b8);box-shadow:inset 0 1px 0 #fff;font:500 14px/1 'Inter',sans-serif;color:#df8628;}
 #pageClosing .next-t{font:600 11px/1.4 'Inter',sans-serif;color:#153247;}
 #pageClosing .next-d{margin-top:4px;font:400 10px/1.5 'Inter',sans-serif;color:#647080;overflow-wrap:anywhere;}
 #pageClosing .closing-invitation{position:relative;margin:10px 50px 0;padding:0;flex-shrink:0;}
@@ -53,9 +53,9 @@
 #pageClosing .closing-bottom{position:relative;margin:8px 50px 0;padding:0;flex-shrink:0;}
 #pageClosing .closing-rule{display:none;}
 #pageClosing .closing-confidentiality{margin:0;font:400 6.7px/1.6 'Inter',sans-serif;color:#87909a;}
-#pageClosing .closing-wave{position:relative;min-height:124px;margin:auto 0 42px;background-size:cover;background-position:50% 65%;flex-shrink:0;}
+#pageClosing .closing-wave{position:relative;min-height:124px;margin:auto 0 42px;background:none;overflow:hidden;flex-shrink:0;}
 #pageClosing .closing-wave svg{position:absolute;inset:0;width:100%;height:100%;}
-#pageClosing .closing-wave-caption{position:relative;padding:53px 0 0 50px;font:500 8px/1.9 'Inter',sans-serif;letter-spacing:2px;text-transform:uppercase;color:#f7eee0;}
+#pageClosing .closing-wave-caption{position:relative;padding:49px 0 0 50px;font:500 8px/1.9 'Inter',sans-serif;letter-spacing:2px;text-transform:uppercase;color:#f7eee0;}
 #pageClosing .pg-foot{background:#fcfaf6;border-top-color:#aeb7bd;}
 #pageClosing .pg-foot .pf-mid{display:none;}
 #pageClosing .pg-foot .pf-left,#pageClosing .pg-foot .pf-right{color:#647384;}

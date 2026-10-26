@@ -22,6 +22,10 @@ const {chromium}=require('playwright');
    return style.backgroundColor==='rgb(252, 250, 246)' && getComputedStyle(title).fontFamily.includes('Georgia') && title.querySelector('em')?.textContent==='Greener' && p.querySelector('.closing-brand img').getAttribute('src')==='assets/images/ktm-logo-light.png' && p.querySelectorAll('.closing-values>div').length===3 && !!p.querySelector('.closing-wave svg');
   }),'approved reference direction: ivory, navy serif, orange emphasis, original light-surface logo and quiet wave');
   assert(await page.locator('.closing-banner').evaluate(b=>getComputedStyle(b).backgroundSize==='cover' && b.style.backgroundImage.includes(document.getElementById('img_closing').src)),'PDF and browser must use an undistorted cover background from the original photo');
+  assert.equal(await page.locator('.closing-banner').evaluate(b=>getComputedStyle(b).borderBottomLeftRadius),'0px','remove the unwanted circular photo edge');
+  assert(await page.locator('.closing-wave').evaluate(w=>getComputedStyle(w).backgroundImage==='none' && !w.querySelector('image,img') && !w.style.backgroundImage),'abstract footer must not repeat the panel photograph');
+  assert(await page.locator('.closing-card').evaluate(c=>getComputedStyle(c).backgroundImage.includes('linear-gradient') && getComputedStyle(c).borderTopWidth==='1px'),'glass panel must retain a PDF-safe surface, not depend on backdrop blur');
+
   assert((await page.locator('#v_clPhone').getAttribute('href')).startsWith('tel:+91'));
   assert((await page.locator('#v_clEmail').getAttribute('href')).startsWith('mailto:enquiry@'));
   assert.equal(await page.locator('#v_clWebsite').getAttribute('href'),'https://www.ktmenergyexperts.com/');
