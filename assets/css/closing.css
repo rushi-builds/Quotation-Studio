@@ -1,0 +1,50 @@
+/* Closing-page presentation only. Original photography, logos and source
+   company details are retained; no acceptance or signature UI is rendered. */
+#pageClosing.closing-redesigned{display:flex;flex-direction:column;background:#fcfcfd;}
+#pageClosing .closing-banner{height:350px;flex-shrink:0;}
+#pageClosing .closing-banner>img{object-position:50% 55%;}
+#pageClosing .closing-banner-overlay{background:linear-gradient(180deg,#10233540 0%,#10233555 38%,#102335dc 100%);}
+#pageClosing .closing-brand{top:26px;}
+#pageClosing .closing-brand img{height:58px;}
+#pageClosing .closing-hero{padding:58px 52px 48px;}
+#pageClosing .closing-hero h2{max-width:650px;font-size:30px;line-height:1.25;letter-spacing:-.5px;text-wrap:balance;}
+#pageClosing .closing-hero .sub{max-width:600px;font-size:12px;font-weight:500;line-height:1.6;}
+#pageClosing .closing-banner.has-gallery .closing-hero{padding:64px 222px 48px 38px;align-items:flex-start;text-align:left;}
+#pageClosing .closing-banner.has-gallery .closing-hero h2{font-size:27px;}
+#pageClosing .closing-card{margin:-32px var(--page-pad) 0;padding:24px;gap:25px;border-color:#e0e5ec;border-radius:15px;box-shadow:0 8px 24px #1c2b3f0a;flex-shrink:0;}
+#pageClosing .closing-card>div+div{border-left:1px solid #e6eaf0;padding-left:24px;}
+#pageClosing .closing-card .sec-label{margin-bottom:18px;}
+#pageClosing .contact-item,#pageClosing .next-item{gap:10px;margin-bottom:14px;}
+#pageClosing .contact-item:last-child,#pageClosing .next-item:last-child{margin-bottom:0;}
+#pageClosing .contact-item .rt,#pageClosing .next-t{font-size:11px;line-height:1.45;}
+#pageClosing .contact-item .rd,#pageClosing .next-d{font-size:10px;line-height:1.6;overflow-wrap:anywhere;}
+#pageClosing .closing-contact-link{display:block;text-decoration:none;color:#3b5872;}
+#pageClosing .closing-contact-link[href]{text-decoration:underline;text-decoration-color:#c6d2de;text-underline-offset:3px;}
+#pageClosing .closing-contact-link[href]:hover{color:#bf5e0e;}
+#pageClosing .closing-farewell{margin:26px var(--page-pad) 0;padding:24px 26px;border:1px solid #e3e7ee;border-radius:14px;background:linear-gradient(125deg,#f1f4fa,#f9f7f3);flex-shrink:0;}
+#pageClosing .closing-kicker{font:700 9px/1.5 'Inter',sans-serif;letter-spacing:1.4px;color:#9f571c;}
+#pageClosing .closing-farewell h3{margin:5px 0 7px;font:700 33px/1.2 'Poppins',sans-serif;letter-spacing:-.8px;color:#20384e;}
+#pageClosing .closing-farewell-copy>p{max-width:570px;margin:0;font:400 12px/1.7 'Inter',sans-serif;color:#53677a;}
+#pageClosing .closing-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;list-style:none;padding:18px 0;margin:18px 0;border-top:1px solid #dce3ed;border-bottom:1px solid #dce3ed;}
+#pageClosing .closing-steps li{display:flex;align-items:flex-start;gap:9px;}
+#pageClosing .closing-steps li>span{font:600 11px/1.6 'Inter',sans-serif;color:#b56125;}
+#pageClosing .closing-steps strong{display:block;font:600 11px/1.6 'Inter',sans-serif;color:#294158;}
+#pageClosing .closing-steps small{display:block;font:400 9px/1.6 'Inter',sans-serif;color:#64758a;}
+#pageClosing .closing-actions{display:flex;align-items:center;gap:12px;}
+#pageClosing .closing-action{display:inline-flex;align-items:center;justify-content:center;gap:16px;border-radius:7px;padding:11px 16px;font:600 11px/1.5 'Inter',sans-serif;text-decoration:none;cursor:pointer;}
+#pageClosing .closing-action-primary{border:1px solid #233e57;background:#233e57;color:white;}
+#pageClosing .closing-action-secondary{border:1px solid #cbd5e2;background:#ffffffb8;color:#294158;}
+#pageClosing .closing-action:hover{filter:brightness(.95);}
+#pageClosing a:focus-visible,#pageClosing button:focus-visible{outline:2px solid #d47830;outline-offset:4px;}
+#pageClosing .closing-scope-note{margin:12px 0 0;font:400 9px/1.6 'Inter',sans-serif;color:#68788b;}
+#pageClosing .closing-bottom{margin:auto var(--page-pad) 67px;padding-top:22px;flex-shrink:0;}
+#pageClosing .closing-rule{width:34px;height:2px;background:#cf7b38;margin-bottom:10px;}
+#pageClosing .closing-confidentiality{margin:0;font:400 8px/1.65 'Inter',sans-serif;color:#7a8797;}
+/* Advanced Edit must retain its automatic A4 continuation behavior. */
+#pageClosing.doc-flow{display:block;}
+#pageClosing.doc-flow .pg-body{height:auto;padding:0 var(--page-pad) 0;}
+#pageClosing.doc-flow .pg-body>.closing-banner{margin:0 calc(-1 * var(--page-pad));width:calc(100% + 2 * var(--page-pad));}
+#pageClosing.doc-flow .pg-body>.closing-hero{padding:18px 0;}
+#pageClosing.doc-flow .closing-card,#pageClosing.doc-flow .closing-farewell{margin:20px 0 0;}
+#pageClosing.doc-flow .closing-bottom{margin:20px 0 0;padding-top:0;}
+#pageClosing .closing-action[hidden],#pageClosing .contact-item[hidden]{display:none!important;}

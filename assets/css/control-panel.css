@@ -108,6 +108,11 @@
 .studio-advanced-wrap[open]{padding:0 10px 10px;}
 .studio-advanced-wrap[open]>summary{margin:0 -10px 10px;}
 form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
+/* All settings is a full section list, not the same closed expert drawer.
+   Keep the original inputs and individual disclosure states in both modes. */
+.studio-ready form:not(.qs-mode-essentials) #advancedWrap{margin:0;border:0;padding:0;background:transparent;box-shadow:none;overflow:visible;}
+.studio-ready form:not(.qs-mode-essentials) #advancedWrap>summary{display:none;}
+
 .studio-ready details.advanced{background:#f1f4f8;border:1px solid #dce4ed;border-radius:10px;margin-bottom:10px;}
 .studio-ready details.advanced>summary{padding:14px;font:600 11px 'Inter',sans-serif;color:#52677e;}
 .studio-ready .form-actions{flex-shrink:0;margin:18px -22px 0;padding:14px 22px 12px;background:#fffffffa;border-top:1px solid #dfe5ed;box-shadow:0 -8px 22px #263a5106;backdrop-filter:blur(12px);z-index:50;}

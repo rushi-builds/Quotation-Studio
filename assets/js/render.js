@@ -1050,7 +1050,7 @@
   }
 
   /* ================================================================== */
-  /* PAGE 15 - CLOSING / ACCEPTANCE / CONTACT                            */
+  /* PAGE 15 - THANK YOU / CONTACT                            */
   /* ================================================================== */
   function renderClosing(s, f, v) {
     const P = CONTENT.pageClosing;
@@ -1070,12 +1070,48 @@
     set('v_clPhone', s.companyPhone);
     set('v_clEmail', s.companyEmail);
     set('v_clWebsite', s.companyWebsite);
-    set('v_clAcceptLabel', P.acceptLabel);
-    set('v_clAcceptIntro', root.Bess.included(s)||root.AdditionalSystems.included(s) ? 'Signing confirms only the scope separately agreed in writing. Inclusion of a recommended or alternative battery / additional system does not authorise its supply or installation.' : tpl(P.acceptIntro, v));
-    set('v_clSignCustomer', P.signCustomer);
-    set('v_clSignCompany', tpl(P.signCompany, v));
-    set('v_clSignCustomerSub', P.signCustomerSub);
-    set('v_clSignCompanySub', P.signCompanySub);
+    set('v_clThankHeading', P.thankHeading ?? 'Thank you.');
+    set('v_clThankMessage', tpl(P.thankMessage ?? 'Thank you for considering {company}. Let’s plan the right solar solution for your property.', v));
+    // Contact URLs are presentation only. Never treat arbitrary user text as a
+    // URL, and never substitute a browser-only draft for a public customer link.
+    const phone = String(s.companyPhone || '').trim();
+    const digits = phone.replace(/\D/g, '');
+    const email = String(s.companyEmail || '').trim();
+    const website = String(s.companyWebsite || '').trim();
+    const contactLink = (id, href) => {
+      const a = $(id); if (!a) return;
+      if (href) { a.href = href; a.removeAttribute('aria-disabled'); }
+      else { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); }
+      const row = a.closest('.contact-item'); if (row) row.hidden = !a.textContent.trim();
+    };
+    contactLink('v_clPhone', /^[+\d\s().-]+$/.test(phone) && digits.length >= 7 && digits.length <= 15 ? 'tel:' + (phone.startsWith('+') ? '+' : '') + digits : '');
+    contactLink('v_clEmail', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'mailto:' + encodeURIComponent(email).replace(/%40/g, '@') : '');
+    contactLink('v_clWebsite', safeHttpUrl(/^[a-z][a-z\d+.-]*:/i.test(website) ? website : website ? 'https://' + website : ''));
+    const web = $('v_clWebsite'); if (web) { web.target = '_blank'; web.rel = 'noopener noreferrer'; }
+    const wa = $('v_clWhatsApp');
+    const canMessage = phone.startsWith('+') && digits.length >= 8 && digits.length <= 15;
+    const whatsappUrl = canMessage ? 'https://wa.me/' + digits + '?text=' + encodeURIComponent('Hello, I would like to discuss proposal ' + (s.propRef || '') + ' from ' + (s.companyName || '') + '.') : '';
+    if (wa) { wa.hidden = !canMessage; contactLink('v_clWhatsApp', whatsappUrl); }
+    const sharedView = document.body.classList.contains('share-mode');
+    // A downloaded draft must not point customers at browser-only local data.
+    // The public proposal/form wins; unpublished drafts offer a manual chat.
+    const localViewer = sharedView && /(?:^|\/)share\.html$/.test(location.pathname);
+    const publicLink = safeHttpUrl(s.shareUrl);
+    const discussionUrl = sharedView && !localViewer ? requestFormUrl()
+      : publicLink ? publicLink.split('#')[0] + '#shareAcceptWrap' : whatsappUrl;
+    contactLink('v_clDiscuss', discussionUrl);
+    const discuss = $('v_clDiscuss');
+    if (discuss) {
+      if (sharedView) { discuss.removeAttribute('target'); discuss.removeAttribute('rel'); }
+      else { discuss.target = '_blank'; discuss.rel = 'noopener noreferrer'; }
+      // Local preview can jump to its existing hub, but cloned PDF anchors
+      // carry only a transferable public URL (or WhatsApp), never local data.
+      discuss.onclick = localViewer ? event => {
+        const jump = $('requestJump');
+        if (event.ctrlKey || event.metaKey || event.shiftKey || !jump || jump.disabled) return;
+        event.preventDefault(); location.hash = 'shareAcceptWrap'; jump.click();
+      } : null;
+    }
     set('v_clDisclaimer', tpl(P.disclaimer, v));
   }
 
@@ -1106,7 +1142,7 @@
     { id: 'pageProjects', nav: 'Projects', title: 'Projects Portfolio', render: renderProjects },
     { id: 'pageWarranty', nav: 'Warranty', title: 'Warranty & Journey', render: renderWarranty },
     { id: 'pageTerms', nav: 'Terms', title: 'Terms & Conditions', render: renderTerms },
-    { id: 'pageClosing', nav: 'Contact', title: 'Acceptance & Contact', render: renderClosing }
+    { id: 'pageClosing', nav: 'Contact', title: 'Thank You & Contact', render: renderClosing }
   ];
 
   function pageNum(id) {

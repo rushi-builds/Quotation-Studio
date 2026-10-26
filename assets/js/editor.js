@@ -347,22 +347,17 @@
     mkField(g, 'Note', CONTENT.pageTerms.note, (v) => { CONTENT.pageTerms.note = v; }, true);
 
     /* ---------- closing ---------- */
-    g = mkGroup(rootEl, 'Page 15 - Acceptance & Contact');
+    g = mkGroup(rootEl, 'Page 15 - Thank You & Contact');
     mkField(g, 'Banner heading', CONTENT.pageClosing.bannerHeading, (v) => { CONTENT.pageClosing.bannerHeading = v; });
     mkField(g, 'Banner subheading', CONTENT.pageClosing.bannerSub, (v) => { CONTENT.pageClosing.bannerSub = v; });
-    mkField(g, 'Next steps label', CONTENT.pageClosing.nextLabel, (v) => { CONTENT.pageClosing.nextLabel = v; });
+    mkField(g, 'Engineering inputs label', CONTENT.pageClosing.nextLabel, (v) => { CONTENT.pageClosing.nextLabel = v; });
     CONTENT.pageClosing.next.forEach((it, i) => {
-      const b = mkItemBlock(g, 'Next step ' + (i + 1));
+      const b = mkItemBlock(g, 'Engineering input ' + (i + 1));
       mkField(b, 'Title', it.title, (v) => { it.title = v; });
       mkField(b, 'Description (supports {surveyWindow})', it.desc, (v) => { it.desc = v; }, true);
     });
-    mkField(g, 'CTA text', CONTENT.pageClosing.cta, (v) => { CONTENT.pageClosing.cta = v; });
-    mkField(g, 'Acceptance label', CONTENT.pageClosing.acceptLabel, (v) => { CONTENT.pageClosing.acceptLabel = v; });
-    mkField(g, 'Acceptance intro (uses {company})', CONTENT.pageClosing.acceptIntro, (v) => { CONTENT.pageClosing.acceptIntro = v; }, true);
-    mkField(g, 'Customer signature caption', CONTENT.pageClosing.signCustomer, (v) => { CONTENT.pageClosing.signCustomer = v; });
-    mkField(g, 'Company signature caption (uses {company})', CONTENT.pageClosing.signCompany, (v) => { CONTENT.pageClosing.signCompany = v; });
-    mkField(g, 'Customer signature sub-caption', CONTENT.pageClosing.signCustomerSub, (v) => { CONTENT.pageClosing.signCustomerSub = v; });
-    mkField(g, 'Company signature sub-caption', CONTENT.pageClosing.signCompanySub, (v) => { CONTENT.pageClosing.signCompanySub = v; });
+    mkField(g, 'Thank-you heading', CONTENT.pageClosing.thankHeading ?? 'Thank you.', (v) => { CONTENT.pageClosing.thankHeading = v; });
+    mkField(g, 'Thank-you message (uses {company})', CONTENT.pageClosing.thankMessage ?? 'Thank you for considering {company}. Let’s plan the right solar solution for your property.', (v) => { CONTENT.pageClosing.thankMessage = v; }, true);
     mkField(g, 'Disclaimer (uses {company})', CONTENT.pageClosing.disclaimer, (v) => { CONTENT.pageClosing.disclaimer = v; }, true);
   }
 

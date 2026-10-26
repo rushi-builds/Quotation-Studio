@@ -416,11 +416,13 @@ const CONTENT = {
     bannerHeading: "Let's Build a Greener Future Together",
     bannerSub: 'Your Journey Towards Clean & Affordable Energy Starts Here.',
     nextLabel: 'ENGINEERING INPUTS',
+    thankHeading: 'Thank you.',
+    thankMessage: 'Thank you for considering {company}. Let’s plan the right solar solution for your property.',
     next: [
-      { icon: 'doc', title: 'Electricity information', desc: 'The latest bill, tariff category and sanctioned load help establish the design basis.' },
-      { icon: 'drone', title: 'Roof & site information', desc: 'Roof dimensions, photos, shading and access constraints support the feasibility review.' },
-      { icon: 'sun', title: 'Scope confirmation', desc: 'Design assumptions, deliverables, any fees and dates are agreed before engineering proceeds.' },
-      { icon: 'calendar', title: 'Preferred visit window', desc: 'A convenient date and window for the site visit, if required.' }
+      { icon: 'doc', title: 'Electricity information', desc: 'Latest bill, tariff category & sanctioned load.' },
+      { icon: 'drone', title: 'Roof & site information', desc: 'Roof dimensions, photos, shading & site access.' },
+      { icon: 'sun', title: 'Scope confirmation', desc: 'Agree design assumptions, deliverables, fees & dates before engineering.' },
+      { icon: 'calendar', title: 'Preferred visit window', desc: 'Preferred date and time, if a visit is needed.' }
     ],
     readyLabel: 'WHY ACT NOW',
     ready: [

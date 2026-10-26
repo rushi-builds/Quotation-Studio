@@ -24,6 +24,10 @@
     const mode = $('formMode');
     panel.insertBefore(mode, form);
     mode.setAttribute('role', 'group'); mode.setAttribute('aria-label', 'Control detail level');
+    const modeHint = element('p', 'fm-hint'); modeHint.id = 'studioModeHint';
+    modeHint.setAttribute('role', 'status'); modeHint.setAttribute('aria-live', 'polite');
+    mode.append(modeHint); mode.setAttribute('aria-describedby', modeHint.id);
+    [$('modeEss'), $('modeAll')].forEach(button => button.setAttribute('aria-controls', form.id));
     const presets = element('details', 'studio-presets');
     presets.append(element('summary', '', 'Start from a preset'));
     presets.append(mode.querySelector('.quick-presets-bar'));
@@ -33,14 +37,10 @@
     search.innerHTML = '<label for="studioSearch">Find a setting</label><div class="studio-search-box"><span aria-hidden="true">⌕</span><input id="studioSearch" type="search" placeholder="Search customer, inverter, QR…" autocomplete="off" aria-controls="studioSearchResults"><button type="button" aria-label="Clear search" hidden>×</button></div><div id="studioSearchResults" hidden><p role="status"></p><ul></ul></div>';
     panel.insertBefore(search, form);
 
-    // Keep proposal selection immediately available, with infrequent actions tucked away.
+    // Studio owns proposal management. Keep only the active browser-proposal
+    // selector here; hidden/inert legacy hooks preserve autosave compatibility.
     const manager = form.querySelector('.prop-manager');
-    manager.querySelector('legend').textContent = 'Current proposal';
-    const management = element('details', 'studio-management');
-    management.append(element('summary', '', 'Manage proposals & versions'));
-    [...manager.children].filter(el => el.tagName !== 'LEGEND' && !el.contains($('proposalSelect'))).forEach(el => management.append(el));
-    manager.append(management); form.prepend(manager);
-    $('waShare').textContent = 'Share via WhatsApp';
+    form.prepend(manager);
     const footer = panel.querySelector('.form-actions');
     const tools = element('details', 'studio-tools'); tools.append(element('summary', '', 'Save, backup & reset'));
     tools.append(footer.querySelector('.form-links'));
@@ -161,7 +161,7 @@
         const review=element('details','system-review');review.id='systemReview';review.hidden=true;
         const reviewSummary=element('summary');reviewSummary.id='systemReviewSummary';
         const reviewItems=element('ul');reviewItems.id='systemReviewItems';
-        review.append(reviewSummary,reviewItems,element('p','system-review-note','Proposal review only. Final site design and installation approval are separate.'));details.append(review);
+        review.append(reviewSummary,reviewItems,element('p','system-review-note','Proposal review only—not final design or installation approval.'));details.append(review);
       }
       fieldset.append(view); sections.push({field, details, text, description});
     });
@@ -170,8 +170,8 @@
     form.append(library, $('advancedPanel'));
     $('advancedPanel').classList.add('studio-content');
 
-    /* Fold the once-per-company and expert sections into the advanced drawer
-       so the working panel stays a short list; the drawer opens in both modes. */
+    /* Essentials keeps expert setup folded but reachable; All settings exposes
+       those same controls inline. The app's mode remains the source of truth. */
     const wrap = $('advancedWrap');
     sections.filter((sec) => ADVANCED_SECTIONS.includes(sec.field)).forEach((sec) => wrap.append(sec.details));
     wrap.append(library);
@@ -183,7 +183,7 @@
       symbol.innerHTML = window.Icons.get('panel', 19, '#6D7B8C');
       const copy = element('span', 'studio-section-copy');
       copy.append(element('strong', '', 'Engineering design basis'),
-        element('small', '', 'Proposal-stage PDF note · Excel integration pending · internal design checks'));
+        element('small', '', 'PDF note & internal design checks'));
       summary.append(symbol, copy, element('span', 'studio-chevron', '⌄'));
       d.append(summary);
       engFs.querySelector('legend').classList.add('studio-sr-only');
@@ -192,6 +192,16 @@
     /* Panel order: the working list, then QR & links, Advanced Systems, the drawer, and
        Advanced Edit last. */
     form.insertBefore(wrap, $('advancedPanel'));
+
+    function syncDetailMode() {
+      const all = !form.classList.contains('qs-mode-essentials');
+      wrap.open = all;
+      modeHint.textContent = all
+        ? 'Every settings section is listed below, including advanced setup.'
+        : 'Daily quotation controls. Advanced setup stays in the folded drawer.';
+    }
+    document.addEventListener('qs:mode', syncDetailMode);
+    syncDetailMode();
 
     // Presentation-only grouping: move the original controls, never clone values.
     const equipment = $('moduleMake').closest('fieldset');
@@ -315,9 +325,9 @@
     const compareHint = $('optName').closest('fieldset').querySelector(':scope > .hint');
     if (compareHint) compareHint.textContent = 'Save 2+ designs to add a comparison page.';
     const bomHint = $('bomModules').closest('fieldset').querySelector(':scope > .hint');
-    if (bomHint) bomHint.textContent = 'Optional itemised costs, before GST. Leave blank to omit the breakdown.';
+    if (bomHint) bomHint.textContent = 'Optional costs before GST. Blank omits the breakdown.';
     const reportsHint = $('pvsystUrl').closest('fieldset').querySelector(':scope > .hint');
-    if (reportsHint) reportsHint.textContent = 'Links to externally prepared reports; no report content is generated.';
+    if (reportsHint) reportsHint.textContent = 'Link external reports; content is not generated.';
 
     const sectionTones = {
       custName: 'blue', moduleMake: 'mint', costPerWp: 'sand', payAdvance: 'sand',
@@ -577,7 +587,7 @@
     };
 
     function reveal(input) {
-      if (!input) return;
+      if (!input || input.closest('#legacyProposalManagement')) return;
       if(input.id==='systemEnabled'){input.closest('.studio-section').open=true;input=$('advancedSystemSelect');}
       if(input.id==='bessEnabled'){input.closest('.studio-section').open=true;input=$('advancedSystemSelect');}
       if (input.closest('[data-adv]')) $('modeAll').click();
@@ -646,7 +656,7 @@
     }
     function searchEntries() {
       const native = [...panel.querySelectorAll('input,select,textarea,button,a[href],a[aria-disabled],summary')].filter(input =>
-        !input.closest('.studio-search,.studio-overview,.studio-feedback') &&
+        !input.closest('.studio-search,.studio-overview,.studio-feedback,#legacyProposalManagement') &&
         !input.matches('[type="hidden"],#systemEnabled,#bessEnabled,#systemTemplate,[data-bess-choice],[data-system-choice]')
       ).map(entryFor).filter(Boolean);
       const documentText = (window.DocumentStudio?.searchEntries?.() || []).map(item=>({...item,options:[],text:normalize(item.label+' '+item.section),primary:normalize(item.label)}));
@@ -677,8 +687,9 @@
         if (!visible(controller)) controller = item.input.closest('.studio-section')?.querySelector(':scope > summary');
         if (!controller) controller = item.input.closest('details')?.querySelector(':scope > summary');
         if (controller) { reveal(controller); target = controller; }
-        notice.textContent = item.label + ' is conditional or unavailable. ' +
-          (custom ? 'Choose Custom… in the highlighted dropdown first.' : 'Use the highlighted section’s setup controls first; search has not enabled or changed anything.');
+        notice.textContent = item.label + ': setup required. ' +
+          (custom ? 'Choose Custom… in the highlighted dropdown.' : 'Use the highlighted setup controls.') +
+          ' Nothing was enabled or changed.';
         const anchor = target?.closest('.field') || target?.closest('.studio-section')?.querySelector(':scope > fieldset');
         if (anchor) anchor.before(notice);
         notice.hidden = false;

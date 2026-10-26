@@ -52,8 +52,8 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.evaluate(()=>document.querySelector('[data-section="moduleMake"]').open=true);
   await page.click('[data-section="moduleMake"] .studio-view-page');
   check('related-page action navigates to Technical Specification',await page.$eval('#pageTechSpec',e=>e.getBoundingClientRect().top<innerHeight&&e.getBoundingClientRect().bottom>0));
-  // Save current inputs, then duplicate through the actual manager action.
-  await page.evaluate(()=>document.querySelector('.studio-management').open=true);await page.click('#pmDup');
+  // Seed a local duplicate through the retained engine (not the retired UI).
+  await require('./legacy-proposal-fixture.cjs')(page, 'pmDup');
   const duplicate=await page.evaluate(()=>Proposals.activeId());check('duplicate creates another proposal',duplicate!==original);
   await edit('custName','Separate Proposal');await page.waitForFunction(()=>Proposals.active().form.custName==='Separate Proposal');
   await page.select('#proposalSelect',original);
