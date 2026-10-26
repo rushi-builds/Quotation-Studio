@@ -416,8 +416,9 @@ const CONTENT = {
     bannerHeading: 'Together for a Greener Tomorrow.',
     bannerSub: 'Clean energy. Affordable today. Brighter tomorrow.',
     nextLabel: 'ENGINEERING INPUTS',
-    thankHeading: 'THANK YOU',
-    thankMessage: 'We appreciate the opportunity to be part of your solar journey. At {company}, we look forward to planning a reliable, efficient solution for your property.',
+    thankHeading: 'Thank you.',
+    thankNote: 'For considering us for your solar journey.\nLet’s create a brighter future, together.',
+    thankMessage: 'Thoughtful design. Reliable energy. A solar solution planned around your property.',
     next: [
       { icon: 'doc', title: 'Electricity information', desc: 'Latest bill, tariff category & sanctioned load.' },
       { icon: 'drone', title: 'Roof & site information', desc: 'Roof dimensions, photos, shading & site access.' },

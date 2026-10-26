@@ -14,8 +14,12 @@ const {chromium}=require('playwright');
   await page.goto(base+'/quotation.html');await page.waitForFunction(()=>window.Render?.lastState&&document.querySelector('.studio-ready'));await page.evaluate(()=>document.fonts.ready);
   assert.equal(await page.locator('#pageClosing .accept-block,#pageClosing .sign-box,#pageClosing .engineering-steps').count(),0);
   assert.equal(await page.locator('#v_clHeading').textContent(),'Together for a Greener Tomorrow.');
-  assert.equal(await page.locator('#v_clThankHeading').textContent(),'THANK YOU');
+  assert.equal(await page.locator('#v_clThankHeading').textContent(),'Thank you.');
   assert.equal(await page.locator('#v_clNext .next-item').count(),4);
+  assert((await page.locator('#v_clThankNote').textContent()).includes('For considering us for your solar journey.'));
+  assert.equal(await page.locator('#v_clNext .closing-input-icon svg').count(),4);
+  assert.equal(await page.locator('#closingGlassPlum stop').first().getAttribute('stop-color'),'#54456f');
+
   assert.equal(await page.locator('#pageClosing .closing-steps li,#pageClosing .icon-chip').count(),0);
   assert(await page.locator('#pageClosing').evaluate(p=>{
    const title=p.querySelector('#v_clHeading'),style=getComputedStyle(p);
@@ -35,6 +39,16 @@ const {chromium}=require('playwright');
   await page.evaluate(url=>{shareUrl.value=url;Render.renderAll();__qsSaveNow();},publicUrl);
   assert.equal(await page.locator('#v_clDiscuss').getAttribute('href'),publicUrl+'#shareAcceptWrap');
   assert.equal(await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState))),finance);
+
+  // Existing saved paragraphs remain authored, not migrated or silently cut.
+  const legacyFit=await page.evaluate(()=>{
+   const current=CONTENT.pageClosing.thankMessage;
+   const old='We appreciate the opportunity to be part of your solar journey. At {company}, we look forward to planning a reliable, efficient solution for your property.';
+   CONTENT.pageClosing.thankMessage=old;Render.renderAll();
+   const p=pageClosing,foot=p.querySelector('footer').getBoundingClientRect(),fits=p.scrollHeight<=1124&&[...p.children].filter(n=>!n.matches('footer,.closing-banner')).every(n=>n.getBoundingClientRect().bottom<=foot.top-2);
+   CONTENT.pageClosing.thankMessage=current;Render.renderAll();return fits;
+  });
+  assert(legacyFit,'the larger thank-you note must still fit with the older saved paragraph');
 
   // Check intrinsic A4 geometry, not just a scaled browser screenshot.
   const markup=await page.locator('#pageClosing').evaluate(e=>e.outerHTML),proof=await context.newPage({viewport:{width:794,height:1123}});

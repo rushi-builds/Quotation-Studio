@@ -1068,7 +1068,7 @@
     set('v_clNextLabel', P.nextLabel);
     setHTML('v_clNext', P.next.map((it, index) =>
       '<div class="next-item"><span class="closing-input-number" aria-hidden="true">' + String(index + 1).padStart(2, '0') + '</span>' +
-      '<div><div class="next-t">' + esc(tpl(it.title, v)) + '</div>' +
+      '<div><div class="next-t"><span class="closing-input-icon" aria-hidden="true">' + I.get(it.icon, 15, '#77628f') + '</span>' + esc(tpl(it.title, v)) + '</div>' +
       '<div class="next-d">' + esc(tpl(it.desc, v)) + '</div></div></div>').join(''));
 
     set('v_clCompanyName', s.companyName + (s.companyName.match(/Pvt\.?\s*Ltd\.?/i) ? '' : ' Pvt. Ltd.'));
@@ -1077,8 +1077,9 @@
     set('v_clPhone', s.companyPhone);
     set('v_clEmail', s.companyEmail);
     set('v_clWebsite', s.companyWebsite);
-    set('v_clThankHeading', P.thankHeading ?? 'THANK YOU');
-    set('v_clThankMessage', tpl(P.thankMessage ?? 'We appreciate the opportunity to be part of your solar journey. At {company}, we look forward to planning a reliable, efficient solution for your property.', v));
+    set('v_clThankHeading', P.thankHeading ?? 'Thank you.');
+    set('v_clThankNote', P.thankNote ?? 'For considering us for your solar journey.\nLet’s create a brighter future, together.');
+    set('v_clThankMessage', tpl(P.thankMessage ?? 'Thoughtful design. Reliable energy. A solar solution planned around your property.', v));
     // Contact URLs are presentation only. Never treat arbitrary user text as a
     // URL, and never substitute a browser-only draft for a public customer link.
     const phone = String(s.companyPhone || '').trim();
