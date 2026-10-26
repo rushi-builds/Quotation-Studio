@@ -89,7 +89,7 @@
       }
     } catch (error) {
       if (!verifiedMetadata) current = null;
-      const code = error && error.code;
+      const code = error && (error.code || error.data?.code) || 'UNKNOWN';
       let compact = 'Not verified';
       let message = verifiedMetadata
         ? 'The saved catalogue could not be loaded or verified. Your previous browser copy is still available. Sync the catalogue to refresh it.'
