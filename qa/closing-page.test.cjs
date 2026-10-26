@@ -18,8 +18,25 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#v_clNext .next-item').count(),4);
   assert((await page.locator('#v_clThankNote').textContent()).includes('For considering us for your solar journey.'));
   assert.equal(await page.locator('#v_clNext .closing-input-icon svg').count(),4);
-  assert.equal(await page.locator('#closingWaveNavy stop').first().getAttribute('stop-color'),'#18495a');
-  assert.equal(await page.locator('.closing-wave-leaf path').count(),4,'footer keeps the delicate three-leaf line-art and veins');
+  assert.equal(await page.locator('#closingWaveNavy stop').first().getAttribute('stop-color'),'#243e54');
+  assert.equal(await page.locator('#v_clFooterValues li svg').count(),4);
+  assert(await page.locator('#v_clThankHeading').evaluate(e=>{const s=getComputedStyle(e);return s.fontStyle==='normal'&&parseFloat(s.fontSize)>=32&&s.fontFamily.includes('Inter');}),'thank-you is larger and uses the readable body typeface, not a third italic style');
+  assert(await page.locator('#v_clThankNote').evaluate(e=>parseFloat(getComputedStyle(e).fontSize)>=12));
+  const footerFallback=await page.evaluate(()=>{
+   const keys=['footerReliable','footerTeam','footerQuality','footerValue'],saved=keys.map(k=>CONTENT.pageClosing[k]);
+   keys.forEach(k=>delete CONTENT.pageClosing[k]);Render.renderAll();
+   const labels=[...document.querySelectorAll('.closing-footer-value-text')].map(e=>e.textContent);
+   keys.forEach((k,i)=>CONTENT.pageClosing[k]=saved[i]);Render.renderAll();return labels;
+  });
+  assert.deepEqual(footerFallback,['Reliable\nSolutions','Experienced\nTeam','Quality\nExecution','Long-Term\nValue'],'older saved quotations receive safe defaults');
+  assert(await page.evaluate(()=>{
+   Editor.build();
+   const field=[...document.querySelectorAll('#advContainer .field')].find(e=>e.querySelector('label')?.textContent==='Footer value 1').querySelector('textarea');
+   const original=field.value;field.value='<b>Carefully</b>\nPlanned';field.dispatchEvent(new Event('input',{bubbles:true}));
+   const rendered=document.querySelector('.closing-footer-value-text');
+   const safe=CONTENT.pageClosing.footerReliable===field.value&&rendered.textContent===field.value&&!rendered.querySelector('b');
+   field.value=original;field.dispatchEvent(new Event('input',{bubbles:true}));return safe;
+  }),'footer labels stay live-editable and user text is escaped');
 
   assert.equal(await page.locator('#pageClosing .closing-steps li,#pageClosing .icon-chip').count(),0);
   assert(await page.locator('#pageClosing').evaluate(p=>{
@@ -56,9 +73,13 @@ const {chromium}=require('playwright');
   await proof.setContent('<base href="'+base+'/"><link rel="stylesheet" href="assets/css/app.css"><link rel="stylesheet" href="assets/css/experience.css"><link rel="stylesheet" href="assets/css/document-studio.css"><link rel="stylesheet" href="assets/css/closing.css">'+markup);
   await proof.evaluate(()=>document.fonts.ready);await proof.waitForFunction(()=>[...document.images].every(i=>i.complete));await proof.locator('.page').evaluate(e=>e.style.transform='none');
   assert(await proof.locator('#pageClosing').evaluate(p=>{const foot=p.querySelector('footer').getBoundingClientRect(),children=[...p.children].filter(n=>!n.matches('footer,.closing-banner'));return p.scrollHeight<=1124&&p.scrollWidth<=p.clientWidth&&children.every(n=>n.getBoundingClientRect().bottom<=foot.top-2);}));
+  assert(await proof.locator('#v_clFooterValues').evaluate(strip=>{
+   const box=strip.getBoundingClientRect(),wave=strip.closest('.closing-wave').getBoundingClientRect();
+   return box.top>=wave.top&&box.bottom<=wave.bottom&&[...strip.querySelectorAll('li svg')].every(icon=>{const r=icon.getBoundingClientRect();return r.width===25&&r.height===25&&r.left>=box.left&&r.right<=box.right&&r.top>=box.top&&r.bottom<=box.bottom;});
+  }),'the glass strip fits the wave and its SVG icons retain their own geometry');
   const shots=path.join(__dirname,'shots','closing-page');fs.mkdirSync(shots,{recursive:true});
   await proof.locator('#pageClosing').screenshot({path:path.join(shots,'closing-a4.png')});await proof.close();
-  console.log('PASS: ivory reference layout, navy/orange serif heading, original logo/photo, live contact + engineering blocks, no signatures, working contact URLs and A4 fit');
+  console.log('PASS: larger readable thank-you, editable four-icon glass strip, ivory/navy reference, original logo/photo, live contact + engineering blocks and A4 fit');
 
   // Actual html2canvas + jsPDF, with only the save-to-disk replaced. Limit the
   // fixture to this page; do not claim to have re-exported the entire report.

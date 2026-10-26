@@ -417,6 +417,10 @@ const CONTENT = {
     bannerSub: 'Clean energy. Affordable today. Brighter tomorrow.',
     nextLabel: 'ENGINEERING INPUTS',
     thankHeading: 'Thank you.',
+    footerReliable: 'Reliable\nSolutions',
+    footerTeam: 'Experienced\nTeam',
+    footerQuality: 'Quality\nExecution',
+    footerValue: 'Long-Term\nValue',
     thankNote: 'For considering us for your solar journey.\nLet’s create a brighter future, together.',
     thankMessage: 'Thoughtful design. Reliable energy. A solar solution planned around your property.',
     next: [

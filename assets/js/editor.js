@@ -359,6 +359,12 @@
     mkField(g, 'Thank-you heading', CONTENT.pageClosing.thankHeading ?? 'Thank you.', (v) => { CONTENT.pageClosing.thankHeading = v; });
     mkField(g, 'Thank-you note', CONTENT.pageClosing.thankNote ?? 'For considering us for your solar journey.\nLet’s create a brighter future, together.', (v) => { CONTENT.pageClosing.thankNote = v; }, true);
     mkField(g, 'Thank-you message (uses {company})', CONTENT.pageClosing.thankMessage ?? 'Thoughtful design. Reliable energy. A solar solution planned around your property.', (v) => { CONTENT.pageClosing.thankMessage = v; }, true);
+    [
+      ['footerReliable', 'Reliable\nSolutions'], ['footerTeam', 'Experienced\nTeam'],
+      ['footerQuality', 'Quality\nExecution'], ['footerValue', 'Long-Term\nValue']
+    ].forEach(([key, fallback], i) => {
+      mkField(g, 'Footer value ' + (i + 1), CONTENT.pageClosing[key] ?? fallback, (v) => { CONTENT.pageClosing[key] = v; }, true);
+    });
     mkField(g, 'Disclaimer (uses {company})', CONTENT.pageClosing.disclaimer, (v) => { CONTENT.pageClosing.disclaimer = v; }, true);
   }
 
