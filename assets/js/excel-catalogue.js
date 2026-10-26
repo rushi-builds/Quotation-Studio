@@ -24,8 +24,18 @@
     $('syncCatalogueBtn').disabled = busy || checking || !canSync;
     $('syncCatalogueBtn').textContent = busy ? 'Syncing…' : 'Sync';
     const link = $('openCatalogueExcel'), url = current && current.workbookUrl;
-    const valid = !busy && typeof url === 'string' && /^https:\/\/drive\.google\.com\/file\/d\/[A-Za-z0-9_-]+\/view$/.test(url);
-    if (valid) link.href = url; else link.removeAttribute('href');
+    // Add/edit opens the workbook for management, so it uses the same
+    // server-derived permission as Sync — never a client-side role guess.
+    const ready = typeof url === 'string' && /^https:\/\/drive\.google\.com\/file\/d\/[A-Za-z0-9_-]+\/view$/.test(url);
+    const valid = !busy && canSync && ready;
+    if (valid) { link.href = url; link.removeAttribute('title'); }
+    else {
+      link.removeAttribute('href');
+      link.title = !current ? 'Catalogue status is not verified yet.'
+        : !canSync ? 'Only the owner or an elevated admin can edit the catalogue workbook.'
+        : busy ? 'Wait for the current catalogue sync to finish.'
+        : 'The workbook link is not available yet.';
+    }
     link.setAttribute('aria-disabled', String(!valid));
     link.tabIndex = valid ? 0 : -1;
   }
