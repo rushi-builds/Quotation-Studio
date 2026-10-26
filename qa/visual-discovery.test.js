@@ -40,7 +40,7 @@ const check = (name, ok) => {assert(ok, name);passed++;console.log('  ✓ '+name
     check('request shortcut is visible above the fold',await page.$eval('#engineeringViewBtn',e=>e.checkVisibility() && e.getBoundingClientRect().bottom<innerHeight));
     check('all white page headers use transparent light lockup',await page.$$eval('.pg-logo img',els=>els.every(e=>e.getAttribute('src')==='assets/images/ktm-logo-light.png' && getComputedStyle(e).backgroundColor==='rgba(0, 0, 0, 0)')));
     check('dark closing photograph uses transparent white lockup',await page.$eval('.closing-brand img',e=>e.getAttribute('src')==='assets/images/ktm-logo-dark.png'));
-    check('closing page has three concise next steps without signature boxes',await page.$$eval('#pageClosing .closing-steps li',els=>els.length===3 && els.every(e=>e.checkVisibility())) && !await page.$('#pageClosing .sign-box'));
+    check('editorial closing has four engineering inputs without signature boxes or repeated steps',await page.$$eval('#v_clNext .next-item',els=>els.length===4 && els.every(e=>e.checkVisibility())) && !await page.$('#pageClosing .sign-box,#pageClosing .closing-steps'));
     async function layout(label){
       const result=await page.evaluate(()=>[...document.querySelectorAll('.page')].filter(p=>p.checkVisibility()).flatMap(p=>{
         const issues=[];const foot=p.querySelector('.pg-foot');const body=p.querySelector('.pg-body');

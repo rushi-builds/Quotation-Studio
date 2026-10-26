@@ -16,7 +16,11 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#v_clHeading').textContent(),"Let's Build a Greener Future Together");
   assert.equal(await page.locator('#v_clThankHeading').textContent(),'Thank you.');
   assert.equal(await page.locator('#v_clNext .next-item').count(),4);
-  assert.equal(await page.locator('#pageClosing .closing-steps li').count(),3);
+  assert.equal(await page.locator('#pageClosing .closing-steps li,#pageClosing .icon-chip').count(),0);
+  assert(await page.locator('#pageClosing').evaluate(p=>{
+   const sheet=p.querySelector('.closing-card'),thanks=p.querySelector('.closing-farewell'),style=getComputedStyle(sheet);
+   return style.borderTopWidth==='0px' && style.boxShadow==='none' && style.backgroundColor==='rgba(0, 0, 0, 0)' && !!(thanks.compareDocumentPosition(sheet)&Node.DOCUMENT_POSITION_FOLLOWING);
+  }),'editorial closer must not restore stacked cards, icon bubbles or the step strip');
   assert((await page.locator('#v_clPhone').getAttribute('href')).startsWith('tel:+91'));
   assert((await page.locator('#v_clEmail').getAttribute('href')).startsWith('mailto:enquiry@'));
   assert.equal(await page.locator('#v_clWebsite').getAttribute('href'),'https://www.ktmenergyexperts.com/');
@@ -34,7 +38,7 @@ const {chromium}=require('playwright');
   assert(await proof.locator('#pageClosing').evaluate(p=>{const foot=p.querySelector('footer').getBoundingClientRect(),children=[...p.children].filter(n=>n!==p.querySelector('footer'));return p.scrollHeight<=1124&&p.scrollWidth<=p.clientWidth&&children.every(n=>n.getBoundingClientRect().bottom<=foot.top-2);}));
   const shots=path.join(__dirname,'shots','closing-page');fs.mkdirSync(shots,{recursive:true});
   await proof.locator('#pageClosing').screenshot({path:path.join(shots,'closing-a4.png')});await proof.close();
-  console.log('PASS: retained hero/artwork, concise contact + engineering card, thank-you, no signatures, working contact URLs and A4 fit');
+  console.log('PASS: retained hero/artwork, unboxed contact + engineering sheet, thank-you, no signatures, working contact URLs and A4 fit');
 
   // Actual html2canvas + jsPDF, with only the save-to-disk replaced. Limit the
   // fixture to this page; do not claim to have re-exported the entire report.

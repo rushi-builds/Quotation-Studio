@@ -1,50 +1,55 @@
-/* Closing-page presentation only. Original photography, logos and source
-   company details are retained; no acceptance or signature UI is rendered. */
-#pageClosing.closing-redesigned{display:flex;flex-direction:column;background:#fcfcfd;}
-#pageClosing .closing-banner{height:350px;flex-shrink:0;}
-#pageClosing .closing-banner>img{object-position:50% 55%;}
-#pageClosing .closing-banner-overlay{background:linear-gradient(180deg,#10233540 0%,#10233555 38%,#102335dc 100%);}
-#pageClosing .closing-brand{top:26px;}
+/* Editorial A4 closer. Photography + an unboxed warm-paper information sheet.
+   No change to financial, request, sharing or export behavior. */
+#pageClosing.closing-redesigned{display:flex;flex-direction:column;background:#f8f6f1;color:#203547;}
+#pageClosing .closing-banner{height:420px;flex-shrink:0;}
+#pageClosing .closing-banner>img{object-position:50% 50%;}
+#pageClosing .closing-banner-overlay{background:rgba(10,27,40,.43);}
+#pageClosing .closing-brand{left:54px;top:34px;}
 #pageClosing .closing-brand img{height:58px;}
-#pageClosing .closing-hero{padding:58px 52px 48px;}
-#pageClosing .closing-hero h2{max-width:650px;font-size:30px;line-height:1.25;letter-spacing:-.5px;text-wrap:balance;}
-#pageClosing .closing-hero .sub{max-width:600px;font-size:12px;font-weight:500;line-height:1.6;}
-#pageClosing .closing-banner.has-gallery .closing-hero{padding:64px 222px 48px 38px;align-items:flex-start;text-align:left;}
-#pageClosing .closing-banner.has-gallery .closing-hero h2{font-size:27px;}
-#pageClosing .closing-card{margin:-32px var(--page-pad) 0;padding:24px;gap:25px;border-color:#e0e5ec;border-radius:15px;box-shadow:0 8px 24px #1c2b3f0a;flex-shrink:0;}
-#pageClosing .closing-card>div+div{border-left:1px solid #e6eaf0;padding-left:24px;}
-#pageClosing .closing-card .sec-label{margin-bottom:18px;}
-#pageClosing .contact-item,#pageClosing .next-item{gap:10px;margin-bottom:14px;}
-#pageClosing .contact-item:last-child,#pageClosing .next-item:last-child{margin-bottom:0;}
-#pageClosing .contact-item .rt,#pageClosing .next-t{font-size:11px;line-height:1.45;}
-#pageClosing .contact-item .rd,#pageClosing .next-d{font-size:10px;line-height:1.6;overflow-wrap:anywhere;}
-#pageClosing .closing-contact-link{display:block;text-decoration:none;color:#3b5872;}
-#pageClosing .closing-contact-link[href]{text-decoration:underline;text-decoration-color:#c6d2de;text-underline-offset:3px;}
-#pageClosing .closing-contact-link[href]:hover{color:#bf5e0e;}
-#pageClosing .closing-farewell{margin:26px var(--page-pad) 0;padding:24px 26px;border:1px solid #e3e7ee;border-radius:14px;background:linear-gradient(125deg,#f1f4fa,#f9f7f3);flex-shrink:0;}
-#pageClosing .closing-kicker{font:700 9px/1.5 'Inter',sans-serif;letter-spacing:1.4px;color:#9f571c;}
-#pageClosing .closing-farewell h3{margin:5px 0 7px;font:700 33px/1.2 'Poppins',sans-serif;letter-spacing:-.8px;color:#20384e;}
-#pageClosing .closing-farewell-copy>p{max-width:570px;margin:0;font:400 12px/1.7 'Inter',sans-serif;color:#53677a;}
-#pageClosing .closing-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;list-style:none;padding:18px 0;margin:18px 0;border-top:1px solid #dce3ed;border-bottom:1px solid #dce3ed;}
-#pageClosing .closing-steps li{display:flex;align-items:flex-start;gap:9px;}
-#pageClosing .closing-steps li>span{font:600 11px/1.6 'Inter',sans-serif;color:#b56125;}
-#pageClosing .closing-steps strong{display:block;font:600 11px/1.6 'Inter',sans-serif;color:#294158;}
-#pageClosing .closing-steps small{display:block;font:400 9px/1.6 'Inter',sans-serif;color:#64758a;}
-#pageClosing .closing-actions{display:flex;align-items:center;gap:12px;}
-#pageClosing .closing-action{display:inline-flex;align-items:center;justify-content:center;gap:16px;border-radius:7px;padding:11px 16px;font:600 11px/1.5 'Inter',sans-serif;text-decoration:none;cursor:pointer;}
-#pageClosing .closing-action-primary{border:1px solid #233e57;background:#233e57;color:white;}
-#pageClosing .closing-action-secondary{border:1px solid #cbd5e2;background:#ffffffb8;color:#294158;}
-#pageClosing .closing-action:hover{filter:brightness(.95);}
-#pageClosing a:focus-visible,#pageClosing button:focus-visible{outline:2px solid #d47830;outline-offset:4px;}
-#pageClosing .closing-scope-note{margin:12px 0 0;font:400 9px/1.6 'Inter',sans-serif;color:#68788b;}
-#pageClosing .closing-bottom{margin:auto var(--page-pad) 67px;padding-top:22px;flex-shrink:0;}
-#pageClosing .closing-rule{width:34px;height:2px;background:#cf7b38;margin-bottom:10px;}
-#pageClosing .closing-confidentiality{margin:0;font:400 8px/1.65 'Inter',sans-serif;color:#7a8797;}
-/* Advanced Edit must retain its automatic A4 continuation behavior. */
+#pageClosing .closing-hero{align-items:flex-start;justify-content:flex-end;padding:130px 54px 48px;text-align:left;}
+#pageClosing .closing-hero h2{max-width:640px;font:600 40px/1.15 'Poppins',sans-serif;letter-spacing:-1.3px;text-wrap:balance;color:#fff;}
+#pageClosing .closing-hero .sub{max-width:480px;margin-top:17px;font:400 12px/1.7 'Inter',sans-serif;color:#f0eadd;}
+#pageClosing .closing-banner.has-gallery .closing-hero{padding-right:238px;}
+#pageClosing .closing-banner.has-gallery .closing-hero h2{font-size:35px;}
+#pageClosing .gallery-card{top:34px;right:42px;box-shadow:none;border-radius:8px;}
+#pageClosing .closing-farewell{display:grid;grid-template-columns:230px 1fr;align-items:center;gap:32px;margin:30px 54px 0;padding:0;border:0;background:none;flex-shrink:0;}
+#pageClosing .closing-farewell h3{margin:0;font:500 42px/1.15 'Poppins',sans-serif;letter-spacing:-1.8px;color:#203547;}
+#pageClosing .closing-farewell>p{margin:0;font:400 12px/1.8 'Inter',sans-serif;color:#607078;text-wrap:pretty;}
+#pageClosing .closing-card{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:50px;margin:28px 54px 0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;flex-shrink:0;}
+#pageClosing .closing-card>div{min-width:0;}
+#pageClosing .closing-card .sec-label{display:block;margin:0 0 19px;padding:0 0 12px;border-bottom:1px solid #d8d9d1;border-radius:0;background:none;color:#687565;font:600 9px/1.5 'Inter',sans-serif;letter-spacing:1.8px;}
+#pageClosing .contact-item{display:block;margin:0 0 11px;}
+#pageClosing .contact-item:last-child{margin-bottom:0;}
+#pageClosing .contact-item .rt{font:600 9px/1.5 'Inter',sans-serif;color:#6c797c;}
+#pageClosing #v_clCompanyName{font-size:12px;color:#203547;}
+#pageClosing .contact-item .rd{margin-top:3px;font:400 11px/1.65 'Inter',sans-serif;color:#455a66;overflow-wrap:anywhere;}
+#pageClosing .closing-contact-link{display:block;text-decoration:none;}
+#pageClosing .closing-contact-link[href]{text-decoration:underline;text-decoration-color:#c0c9c7;text-underline-offset:3px;}
+#pageClosing .next-item{display:flex;gap:12px;align-items:flex-start;margin:0 0 17px;}
+#pageClosing .next-item:last-child{margin-bottom:0;}
+#pageClosing .closing-input-number{flex:none;padding-top:1px;font:500 9px/1.5 'Inter',sans-serif;color:#ab744b;}
+#pageClosing .next-t{font:600 11px/1.5 'Inter',sans-serif;color:#203547;}
+#pageClosing .next-d{margin-top:4px;font:400 10.5px/1.65 'Inter',sans-serif;color:#627176;overflow-wrap:anywhere;}
+#pageClosing .closing-invitation{margin:25px 54px 0;padding-top:20px;border-top:1px solid #d8d9d1;flex-shrink:0;}
+#pageClosing .closing-actions{display:flex;align-items:center;gap:26px;}
+#pageClosing .closing-action{display:inline-flex;align-items:center;justify-content:space-between;gap:34px;font:500 11px/1.6 'Inter',sans-serif;text-decoration:none;cursor:pointer;}
+#pageClosing .closing-action-primary{padding:13px 18px;border:1px solid #233e43;border-radius:5px;background:#233e43;color:#fff;}
+#pageClosing .closing-action-secondary{padding:10px 0;border:0;border-bottom:1px solid #a7b6b3;border-radius:0;background:none;color:#2c4d50;}
+#pageClosing .closing-action span{font-size:15px;line-height:1;}
+#pageClosing a[href]:hover{color:#aa601f;}
+#pageClosing .closing-action-primary[href]:hover{background:#344f51;color:#fff;}
+#pageClosing a:focus-visible{outline:2px solid #c37b40;outline-offset:4px;}
+#pageClosing .closing-scope-note{margin:13px 0 0;font:400 8px/1.65 'Inter',sans-serif;color:#7c8686;}
+#pageClosing .closing-bottom{margin:auto 54px 58px;padding-top:20px;flex-shrink:0;}
+#pageClosing .closing-rule{display:none;}
+#pageClosing .closing-confidentiality{margin:0;font:400 7.5px/1.7 'Inter',sans-serif;color:#87908c;}
+#pageClosing .pg-foot{background:transparent;border-top-color:#d8d9d1;}
+/* Advanced Edit still reflows through the existing continuation engine. */
 #pageClosing.doc-flow{display:block;}
-#pageClosing.doc-flow .pg-body{height:auto;padding:0 var(--page-pad) 0;}
+#pageClosing.doc-flow .pg-body{height:auto;padding:0 var(--page-pad);}
 #pageClosing.doc-flow .pg-body>.closing-banner{margin:0 calc(-1 * var(--page-pad));width:calc(100% + 2 * var(--page-pad));}
-#pageClosing.doc-flow .pg-body>.closing-hero{padding:18px 0;}
-#pageClosing.doc-flow .closing-card,#pageClosing.doc-flow .closing-farewell{margin:20px 0 0;}
-#pageClosing.doc-flow .closing-bottom{margin:20px 0 0;padding-top:0;}
+#pageClosing.doc-flow .pg-body>.closing-hero{position:relative;inset:auto;min-height:0;padding:24px 0 0;}
+#pageClosing.doc-flow .pg-body>.closing-hero h2{color:#203547;font-size:30px;}
+#pageClosing.doc-flow .pg-body>.closing-hero .sub{color:#607078;}
+#pageClosing.doc-flow .closing-card,#pageClosing.doc-flow .closing-farewell,#pageClosing.doc-flow .closing-invitation,#pageClosing.doc-flow .closing-bottom{margin:24px 0 0;}
 #pageClosing .closing-action[hidden],#pageClosing .contact-item[hidden]{display:none!important;}

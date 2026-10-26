@@ -417,7 +417,7 @@ const CONTENT = {
     bannerSub: 'Your Journey Towards Clean & Affordable Energy Starts Here.',
     nextLabel: 'ENGINEERING INPUTS',
     thankHeading: 'Thank you.',
-    thankMessage: 'Thank you for considering {company}. Let’s plan the right solar solution for your property.',
+    thankMessage: 'For considering {company}. Let’s turn your solar plans into a well-designed project.',
     next: [
       { icon: 'doc', title: 'Electricity information', desc: 'Latest bill, tariff category & sanctioned load.' },
       { icon: 'drone', title: 'Roof & site information', desc: 'Roof dimensions, photos, shading & site access.' },

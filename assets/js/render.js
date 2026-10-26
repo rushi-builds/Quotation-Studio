@@ -1057,13 +1057,11 @@
     set('v_clHeading', P.bannerHeading);
     set('v_clSub', P.bannerSub);
     set('v_clNextLabel', P.nextLabel);
-    setHTML('v_clNext', P.next.map((it) =>
-      '<div class="next-item">' + I.chip(it.icon, 30) +
+    setHTML('v_clNext', P.next.map((it, index) =>
+      '<div class="next-item"><span class="closing-input-number" aria-hidden="true">' + String(index + 1).padStart(2, '0') + '</span>' +
       '<div><div class="next-t">' + esc(tpl(it.title, v)) + '</div>' +
       '<div class="next-d">' + esc(tpl(it.desc, v)) + '</div></div></div>').join(''));
 
-    const icoMap = { v_clIcoCompany: 'building', v_clIcoPin: 'pin', v_clIcoPhone: 'phone', v_clIcoMail: 'mail', v_clIcoWeb: 'globe' };
-    Object.keys(icoMap).forEach((id) => setHTML(id, I.chip(icoMap[id], 26)));
     set('v_clCompanyName', s.companyName + (s.companyName.match(/Pvt\.?\s*Ltd\.?/i) ? '' : ' Pvt. Ltd.'));
     set('v_clCompanyTagline', s.companyTagline);
     set('v_clAddress', s.companyAddress);
@@ -1071,7 +1069,7 @@
     set('v_clEmail', s.companyEmail);
     set('v_clWebsite', s.companyWebsite);
     set('v_clThankHeading', P.thankHeading ?? 'Thank you.');
-    set('v_clThankMessage', tpl(P.thankMessage ?? 'Thank you for considering {company}. Let’s plan the right solar solution for your property.', v));
+    set('v_clThankMessage', tpl(P.thankMessage ?? 'For considering {company}. Let’s turn your solar plans into a well-designed project.', v));
     // Contact URLs are presentation only. Never treat arbitrary user text as a
     // URL, and never substitute a browser-only draft for a public customer link.
     const phone = String(s.companyPhone || '').trim();
