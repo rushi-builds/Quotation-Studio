@@ -46,13 +46,16 @@ function create(url='http://catalogue.test/quotation.html',preview=false){
  // neither management action may become actionable.
  a.setMeta({canSync:false});await w.ExcelCatalogue.refresh();const denied=calls.filter(x=>x==='POST sync').length;
  const addLink=d.getElementById('openCatalogueExcel');
- assert.equal(addLink.getAttribute('aria-disabled'),'true');assert(!addLink.hasAttribute('href'));assert.equal(addLink.tabIndex,-1);assert.match(addLink.title,/owner or an elevated admin/i);
+ assert.equal(addLink.getAttribute('aria-disabled'),'true');assert(!addLink.hasAttribute('href'));assert.equal(addLink.tabIndex,0);assert.match(addLink.title,/owner or an elevated admin/i);
  let opened=0;w.open=()=>{opened++;return{};};
  const blockedClick=new w.MouseEvent('click',{bubbles:true,cancelable:true});addLink.dispatchEvent(blockedClick);
  assert(blockedClick.defaultPrevented,'Add/edit click must be cancelled without permission');assert.equal(opened,0);
  d.getElementById('catalogueStatusLink').click();assert(d.getElementById('excelCataloguePanel').open);assert.equal(d.activeElement.id,'eqCatalog','staff can still view catalogue status');
  assert(w.EquipmentStore.cat().modules.length>0&&w.EquipmentStore.cloudInfo().modules>0,'staff still have the Excel catalogue for product selection');assert(!d.getElementById('openCatalogueExcel').hasAttribute('href'));
- await w.ExcelCatalogue.sync();assert(d.getElementById('syncCatalogueBtn').disabled);assert.equal(calls.filter(x=>x==='POST sync').length,denied);
+ await w.ExcelCatalogue.sync();assert.equal(d.getElementById('syncCatalogueBtn').getAttribute('aria-disabled'),'true');assert(!d.getElementById('syncCatalogueBtn').disabled,'staff can activate the explanation, never Sync');assert.equal(calls.filter(x=>x==='POST sync').length,denied);
+ const notice=d.getElementById('cataloguePermissionNotice');assert(!notice.hidden);assert.equal(notice.textContent,'Only the Owner or an elevated Admin can add/edit or sync the catalogue.');assert.equal(d.activeElement,notice);
+ for(const key of ['Enter',' ']){addLink.dispatchEvent(new w.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));assert.equal(d.activeElement,notice);}
+ d.getElementById('syncCatalogueBtn').click();assert.equal(calls.filter(x=>x==='POST sync').length,denied);assert.equal(opened,0);
  const staffCatalogue=w.localStorage.getItem('qsCloudCatalogue');
  a.setMeta({workbookUrl:'javascript:alert(1)',fileName:'<img src=x onerror=alert(1)>'});await w.ExcelCatalogue.refresh();assert(!d.getElementById('openCatalogueExcel').hasAttribute('href'));assert(!d.querySelector('#catalogueWorkbook img'));
  a.setFailure('NOT_CONFIGURED');await w.ExcelCatalogue.refresh();assert.equal(d.getElementById('catalogueStatusLink').dataset.state,'unknown');assert.match(d.getElementById('catalogueSyncStatus').title,/not configured/);assert.equal(w.localStorage.getItem('qsCloudCatalogue'),staffCatalogue);a.setFailure('');

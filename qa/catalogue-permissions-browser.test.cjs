@@ -89,11 +89,13 @@ async function routeApi(context, base) {
 (async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = 'http://127.0.0.1:' + server.address().port;
-  const browser = await chromium.launch({ channel: process.env.QA_CHANNEL || 'chrome', headless: true });
+  const browser = await chromium.launch(process.env.QA_EXECUTABLE_PATH
+    ? { executablePath: process.env.QA_EXECUTABLE_PATH, args: ['--no-sandbox', '--disable-dev-shm-usage'], headless: true }
+    : { channel: process.env.QA_CHANNEL || 'chrome', headless: true });
   try {
     /* ---------- staff / sales: catalogue + status usable, management inert ---------- */
     mode = 'staff'; posts = 0;
-    const staff = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+    const staff = await browser.newContext({ viewport: { width: 1440, height: 1100 }, hasTouch: true });
     await routeApi(staff, base);
     const page = await staff.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -106,23 +108,29 @@ async function routeApi(context, base) {
     check('staff can still open catalogue status', await page.click('#catalogueStatusLink').then(() => page.evaluate(() => advancedWrap.open && excelCataloguePanel.open && document.activeElement.id === 'eqCatalog')));
     check('staff Add/edit has no destination', await page.locator('#openCatalogueExcel').getAttribute('href') === null);
     check('staff Add/edit is marked disabled', await page.locator('#openCatalogueExcel').getAttribute('aria-disabled') === 'true');
-    check('staff Add/edit is not tabbable', await page.locator('#openCatalogueExcel').evaluate(el => el.tabIndex) === -1);
+    check('staff Add/edit explanation is keyboard accessible', await page.locator('#openCatalogueExcel').evaluate(el => el.tabIndex) === 0);
     check('staff Add/edit explains why', /owner or an elevated admin/i.test(await page.locator('#openCatalogueExcel').getAttribute('title') || ''));
     // control-panel.css already styles aria-disabled catalogue links; app.css
     // adds nothing, so opacity must stay at its default 1 here.
     check('staff Add/edit looks disabled', await page.locator('#openCatalogueExcel').evaluate(el => {
       const style = getComputedStyle(el);
-      return style.pointerEvents === 'none' && style.color === 'rgb(140, 150, 170)' && Number(style.opacity) === 1;
+      return style.pointerEvents === 'auto' && style.cursor === 'not-allowed' && style.color === 'rgb(140, 150, 170)' && Number(style.opacity) === 1;
     }));
     const before = posts;
     const cancelled = await page.evaluate(() => { const link = document.getElementById('openCatalogueExcel'); const event = new MouseEvent('click', { bubbles: true, cancelable: true }); link.dispatchEvent(event); return event.defaultPrevented; });
     check('staff Add/edit click is cancelled', cancelled === true);
-    await page.evaluate(() => document.getElementById('openCatalogueExcel').click());
+    await page.click('#openCatalogueExcel', { force: true });
+    check('fixed staff policy is visible inside the card', await page.locator('#cataloguePermissionNotice').isVisible() && await page.locator('#cataloguePermissionNotice').textContent() === 'Only the Owner or an elevated Admin can add/edit or sync the catalogue.');
+    check('blocked Add/edit focuses its explanation', await page.locator('#cataloguePermissionNotice').evaluate(el => document.activeElement === el));
+    await page.locator('#openCatalogueExcel').press('Enter');
+    await page.locator('#openCatalogueExcel').press('Space');
     await page.waitForTimeout(600);
     check('staff Add/edit opens no tab', staffTabs === 0, staffTabs);
     check('staff Add/edit never syncs', posts === before, posts);
-    check('staff Sync button is disabled', await page.locator('#syncCatalogueBtn').isDisabled());
-    await page.evaluate(() => syncCatalogueBtn.click());
+    check('staff Sync is soft-disabled for explanation only', await page.locator('#syncCatalogueBtn').getAttribute('aria-disabled') === 'true' && await page.locator('#syncCatalogueBtn').evaluate(el => !el.disabled));
+    await page.click('#syncCatalogueBtn', { force: true });
+    await page.locator('#syncCatalogueBtn').press('Enter');
+    check('blocked Sync focuses its explanation', await page.locator('#cataloguePermissionNotice').evaluate(el => document.activeElement === el));
     await page.waitForTimeout(300);
     check('staff Sync click does nothing', posts === before, posts);
     const denied = await page.evaluate(async () => { try { await PlatformAPI.syncEquipmentCatalogue(); return 'allowed'; } catch (error) { return error.status; } });
@@ -139,12 +147,26 @@ async function routeApi(context, base) {
     await page.waitForFunction(() => Render.lastState && Render.lastState.moduleMake === 'Workbook Solar');
     check('staff quotation survives reload', await page.locator('#moduleMake').inputValue() === 'Workbook Solar');
 
+    const postsBeforeTouch = posts;
+    for (const width of [390, 360]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.click('#catalogueStatusLink');
+      await page.tap('#syncCatalogueBtn', { force: true });
+      check('staff card fits mobile ' + width, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && eqCatalog.scrollWidth <= eqCatalog.clientWidth + 2));
+    }
+    check('mobile taps open no workbook and perform no Sync', staffTabs === 0 && posts === postsBeforeTouch);
+    const shots = path.join(__dirname, 'shots', 'catalogue-permissions');
+    fs.mkdirSync(shots, { recursive: true });
+    await page.locator('#excelCataloguePanel').screenshot({ path: path.join(shots, 'staff-mobile.png') });
+    await page.setViewportSize({ width: 1440, height: 1100 });
+
     mode = 'signin';
     await page.evaluate(() => ExcelCatalogue.refresh());
     await page.waitForFunction(() => catalogueHeaderStatus.textContent === 'Sign in');
     check('auth failure says sign in', await page.locator('#catalogueHeaderStatus').textContent() === 'Sign in');
     check('auth failure leaves Add/edit disabled', await page.locator('#openCatalogueExcel').getAttribute('aria-disabled') === 'true' && await page.locator('#openCatalogueExcel').getAttribute('href') === null);
     check('auth failure leaves Sync disabled', await page.locator('#syncCatalogueBtn').isDisabled());
+    check('auth failure hides staff-only policy', !(await page.locator('#cataloguePermissionNotice').isVisible()));
     check('auth failure makes no permission claim', await page.locator('#openCatalogueExcel').getAttribute('title') === 'Catalogue status is not verified yet.');
     check('no uncaught page errors (staff)', errors.length === 0, errors.join(' | '));
     await staff.close();
@@ -158,6 +180,7 @@ async function routeApi(context, base) {
     await owner.waitForFunction(() => window.ExcelCatalogue && catalogueStatusLink.dataset.state === 'up-to-date');
     check('admin Add/edit has a destination', await owner.locator('#openCatalogueExcel').getAttribute('href') === 'https://drive.google.com/file/d/admin-fixture/view');
     check('admin Add/edit is enabled', await owner.locator('#openCatalogueExcel').getAttribute('aria-disabled') === 'false');
+    check('admin has no staff restriction note', !(await owner.locator('#cataloguePermissionNotice').isVisible()));
     check('admin Sync is enabled', !(await owner.locator('#syncCatalogueBtn').isDisabled()));
     await owner.click('#catalogueStatusLink');
     await owner.locator('#openCatalogueExcel').scrollIntoViewIfNeeded();

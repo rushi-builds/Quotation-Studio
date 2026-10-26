@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="assets/css/app.css?v=finance-fixes1">
 <link rel="stylesheet" href="assets/css/bess.css">
 <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1">
-<link rel="stylesheet" href="assets/css/control-panel.css?v=excel-workbook2">
+<link rel="stylesheet" href="assets/css/control-panel.css?v=excel-lock-info1">
 <link rel="stylesheet" href="assets/css/studio-assistant.css?v=knowledge3">
 <link rel="stylesheet" href="assets/css/document-studio.css?v=document-studio2">
 </head>
@@ -605,6 +605,7 @@
             <a class="link-btn" id="openCatalogueExcel" target="_blank" rel="noopener noreferrer" aria-disabled="true">Add / edit <span aria-hidden="true">↗</span></a>
             <button type="button" class="link-btn" id="syncCatalogueBtn" disabled>Sync</button>
           </div>
+          <p id="cataloguePermissionNotice" class="catalogue-permission-notice" tabindex="-1" role="status" hidden>Only the Owner or an elevated Admin can add/edit or sync the catalogue.</p>
           <span id="catalogueLastSync" hidden></span>
           <span id="catalogueLegacyNotice" hidden></span>
         </div>
@@ -1510,7 +1511,7 @@
 <script src="assets/js/cloud-bridge.js?v=knowledge3"></script>
 <script src="assets/js/app.js?v=excel-catalogue1"></script>
 <script src="assets/js/control-panel.js?v=excel-catalogue1"></script>
-<script src="assets/js/excel-catalogue.js?v=excel-workbook2"></script>
+<script src="assets/js/excel-catalogue.js?v=excel-lock-info1"></script>
 <script src="assets/js/assistant-actions.js?v=knowledge3"></script>
 <script src="assets/js/assistant-chat.js?v=knowledge3"></script>
 <script src="assets/js/studio-assistant.js?v=knowledge3"></script>

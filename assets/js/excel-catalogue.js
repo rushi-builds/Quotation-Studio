@@ -20,8 +20,23 @@
     const stamp = new Date(value);
     return value && !isNaN(stamp) ? stamp.toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
   }
+  const permissionMessage = 'Only the Owner or an elevated Admin can add/edit or sync the catalogue.';
+  function explainPermission() {
+    if (!current || canSync) return;
+    const notice = $('cataloguePermissionNotice');
+    notice.hidden = false;
+    notice.focus({ preventScroll: true });
+  }
   function controls() {
-    $('syncCatalogueBtn').disabled = busy || checking || !canSync;
+    const restricted = !!current && !canSync;
+    const syncButton = $('syncCatalogueBtn');
+    // Staff may activate the explanation, never the underlying action.
+    syncButton.disabled = busy || checking || (!canSync && !restricted);
+    syncButton.setAttribute('aria-disabled', String(busy || checking || !canSync));
+    syncButton.dataset.permissionLocked = String(restricted);
+    if (restricted) { syncButton.title = permissionMessage; syncButton.setAttribute('aria-describedby', 'cataloguePermissionNotice'); }
+    else { syncButton.removeAttribute('title'); syncButton.removeAttribute('aria-describedby'); }
+    $('cataloguePermissionNotice').hidden = !restricted;
     $('syncCatalogueBtn').textContent = busy ? 'Syncing…' : 'Sync';
     const link = $('openCatalogueExcel'), url = current && current.workbookUrl;
     // Add/edit opens the workbook for management, so it uses the same
@@ -32,12 +47,15 @@
     else {
       link.removeAttribute('href');
       link.title = !current ? 'Catalogue status is not verified yet.'
-        : !canSync ? 'Only the owner or an elevated admin can edit the catalogue workbook.'
+        : !canSync ? permissionMessage
         : busy ? 'Wait for the current catalogue sync to finish.'
         : 'The workbook link is not available yet.';
     }
     link.setAttribute('aria-disabled', String(!valid));
-    link.tabIndex = valid ? 0 : -1;
+    link.dataset.permissionLocked = String(restricted);
+    link.tabIndex = valid || restricted ? 0 : -1;
+    if (restricted) { link.setAttribute('role', 'button'); link.setAttribute('aria-describedby', 'cataloguePermissionNotice'); }
+    else { link.removeAttribute('role'); link.removeAttribute('aria-describedby'); }
   }
   function navigate() {
     // Navigation only: never sync, enable an option, or edit quotation values.
@@ -112,7 +130,8 @@
     } finally { checking = false; controls(); }
   }
   async function sync() {
-    if (busy || checking || !canSync) return;
+    if (!canSync) { explainPermission(); return; }
+    if (busy || checking) return;
     busy = true; display('syncing', 'Syncing the connected Excel catalogue. Saved quotation values will not be changed.'); controls();
     let success = false;
     try {
@@ -138,9 +157,15 @@
     $('catalogueStatusLink').addEventListener('click', navigate);
     $('syncCatalogueBtn').addEventListener('click', sync);
     $('openCatalogueExcel').addEventListener('click', event => {
-      if (event.currentTarget.getAttribute('aria-disabled') === 'true') { event.preventDefault(); return; }
+      if (event.currentTarget.getAttribute('aria-disabled') === 'true') { event.preventDefault(); explainPermission(); return; }
       workbookReturnPending = true;
       display('unknown', 'Save your updates in Excel, then return here to sync. Workbook status is checked when this tab regains focus.');
+    });
+    $('openCatalogueExcel').addEventListener('keydown', event => {
+      if (event.currentTarget.dataset.permissionLocked === 'true' && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        event.currentTarget.click();
+      }
     });
     root.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });

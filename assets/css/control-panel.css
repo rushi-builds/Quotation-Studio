@@ -297,3 +297,11 @@ form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
 
 .catalogue-label{color:#68768d;font-weight:550;}
 #catalogueHeaderStatus::before{content:"·";margin-right:5px;color:#a5adba;}
+
+/* Locked staff controls explain the policy without activating management. */
+.catalogue-actions a[data-permission-locked="true"]{pointer-events:auto;cursor:not-allowed;}
+.catalogue-actions #syncCatalogueBtn[data-permission-locked="true"]{background:#d8deed;border-color:#d8deed;color:#8a96ad;cursor:not-allowed;}
+.catalogue-actions #syncCatalogueBtn[data-permission-locked="true"]:hover{filter:none;}
+.excel-catalogue .catalogue-permission-notice{margin:9px 0 0;color:#727d94;font-size:10px;line-height:1.5;}
+.catalogue-permission-notice::before{content:'⊘';margin-right:5px;color:#9a6874;}
+.catalogue-permission-notice:focus{outline:1px solid #b8c3dc;outline-offset:3px;border-radius:3px;}
