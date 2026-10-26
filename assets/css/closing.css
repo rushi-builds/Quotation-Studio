@@ -59,10 +59,11 @@
 #pageClosing .closing-confidentiality{margin:0;font:400 6.7px/1.6 'Inter',sans-serif;color:#87909a;}
 #pageClosing .closing-wave{position:relative;min-height:124px;margin:auto 0 42px;background:none;overflow:hidden;flex-shrink:0;}
 #pageClosing .closing-wave svg{position:absolute;inset:0;width:100%;height:100%;}
-#pageClosing .closing-wave-caption{position:relative;padding:49px 0 0 50px;font:500 8px/1.9 'Inter',sans-serif;letter-spacing:2px;text-transform:uppercase;color:#f8f2ff;}
-#pageClosing .pg-foot{background:#fcfaf6;border-top-color:#aeb7bd;}
+#pageClosing .closing-wave-caption{position:relative;padding:54px 0 0 50px;font:500 8px/1.9 'Inter',sans-serif;letter-spacing:2px;text-transform:uppercase;color:#f0eee5;}
+#pageClosing .pg-foot{background:#fcfaf6;border-top:1px solid #d8dfdf;}
 #pageClosing .pg-foot .pf-mid{display:none;}
 #pageClosing .pg-foot .pf-left,#pageClosing .pg-foot .pf-right{color:#647384;}
+#pageClosing .pg-foot .pf-right::before{content:'';display:inline-block;width:22px;height:1px;margin-right:12px;vertical-align:middle;background:#d6a371;}
 #pageClosing .closing-action[hidden],#pageClosing .contact-item[hidden]{display:none!important;}
 /* Keep the existing Advanced Edit / automatic continuation mechanism. */
 #pageClosing.doc-flow{display:block;}

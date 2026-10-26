@@ -18,7 +18,8 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#v_clNext .next-item').count(),4);
   assert((await page.locator('#v_clThankNote').textContent()).includes('For considering us for your solar journey.'));
   assert.equal(await page.locator('#v_clNext .closing-input-icon svg').count(),4);
-  assert.equal(await page.locator('#closingGlassPlum stop').first().getAttribute('stop-color'),'#54456f');
+  assert.equal(await page.locator('#closingWaveNavy stop').first().getAttribute('stop-color'),'#18495a');
+  assert.equal(await page.locator('.closing-wave-leaf path').count(),4,'footer keeps the delicate three-leaf line-art and veins');
 
   assert.equal(await page.locator('#pageClosing .closing-steps li,#pageClosing .icon-chip').count(),0);
   assert(await page.locator('#pageClosing').evaluate(p=>{
