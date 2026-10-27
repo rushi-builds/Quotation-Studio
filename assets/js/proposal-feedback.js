@@ -28,6 +28,14 @@
       nextStep: $('feedbackNext').value,
       contactRequested: $('feedbackContact').checked
     });
+    const ratingResponses = [
+      ['A LITTLE PERSPECTIVE', 'Your view makes a difference.', 'A quick rating or a thoughtful note. Both are welcome.'],
+      ['LET’S REFINE IT', 'Let’s make it better.', 'Tell us what didn’t work for you, and what you’d change.'],
+      ['ROOM TO IMPROVE', 'A little more clarity?', 'Which part needs a clearer explanation or a rethink?'],
+      ['A HELPFUL START', 'Getting closer.', 'What would make this proposal more useful for you?'],
+      ['LOOKING GOOD', 'That’s lovely to hear.', 'Tell us what worked well, or anything we could refine.'],
+      ['THAT’S A FIVE!', 'Hurray! Glad you liked it.', 'We’d love to know what stood out for you.']
+    ];
     const nextChoices = [...form.querySelectorAll('[name="feedbackNextChoice"]')];
     nextChoices.forEach(input => input.addEventListener('change', () => { $('feedbackNext').value = input.value; }));
     $('feedbackClearNext')?.addEventListener('click', () => { $('feedbackNext').value = ''; paint(); saveDraft(); });
@@ -39,6 +47,15 @@
         label.classList.toggle('is-selected', Number(input.value) === selected);
       });
       $('feedbackRatingText').textContent = selected ? selected + ' out of 5' : 'Optional — you can leave just a message';
+      const response = ratingResponses[selected];
+      const panel = host.querySelector('.feedback-rating');
+      const responseChanged = panel && panel.dataset.rating !== String(selected);
+      if (responseChanged) panel.dataset.rating = String(selected);
+      if (responseChanged && $('feedbackResponseTitle')) {
+        $('feedbackResponseKicker').textContent = response[0];
+        $('feedbackResponseTitle').textContent = response[1];
+        $('feedbackResponseCopy').textContent = response[2];
+      }
       nextChoices.forEach(input => { input.checked = input.value === $('feedbackNext').value; });
       $('feedbackCount').textContent = $('feedbackComment').value.length + ' / 1500';
     }

@@ -80,6 +80,7 @@ const {chromium}=require('playwright');
   const publicUrl='https://example.com/portal.html?t=abababababababababababababababababababababababab';
   await page.evaluate(url=>{shareUrl.value=url;Render.renderAll();__qsSaveNow();},publicUrl);
   assert.equal(await page.locator('#v_clDiscuss').getAttribute('href'),publicUrl+'#proposalFeedback');
+  assert((await page.locator('#v_clActionHint').textContent()).includes('Clickable in your PDF'));
   await page.locator('#engineeringViewBtn').click();
   assert.equal(await page.evaluate(()=>window.__feedbackOpened),publicUrl+'#proposalFeedback','builder shortcut uses the same real portal, not the retired local request');
   assert.equal(await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState))),finance);

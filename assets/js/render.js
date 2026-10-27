@@ -1103,6 +1103,9 @@
     const sharedView = document.body.classList.contains('share-mode');
     const inPortal = sharedView && /(?:^|\/)portal\.html$/.test(location.pathname);
     const feedbackLink = feedbackUrl(inPortal ? location.href : s.shareUrl);
+    set('v_clActionHint', feedbackLink ? 'Clickable in your PDF · tap or click to open' : !sharedView ? 'Tap or click to open · feedback is a form preview' : 'Tap or click to open WhatsApp');
+    const actionHint = $('closingLinkHint');
+    if (actionHint) actionHint.hidden = !canMessage && !feedbackLink && sharedView;
     const discuss = $('v_clDiscuss');
     if (discuss) {
       const previewOnly = !sharedView && !feedbackLink;
