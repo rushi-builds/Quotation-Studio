@@ -33,6 +33,7 @@ const {chromium}=require('playwright');
   const responseTitles=new Set();
   for(const rating of [1,2,3,4,5]){await preview.locator('[name=proposalRating][value="'+rating+'"]').check({force:true});assert.equal(await preview.locator('.feedback-stars .is-selected input').inputValue(),String(rating));assert.equal(await preview.locator('.feedback-stars .is-filled').count(),rating);responseTitles.add(await preview.locator('#feedbackResponseTitle').textContent());commentHints.add(await preview.locator('#feedbackComment').getAttribute('placeholder'));assert.equal(await preview.locator('#feedbackComment').inputValue(),'Keep this note while I try the stars.');}
   assert.equal(responseTitles.size,5);assert.equal(commentHints.size,5);
+  assert.equal(await preview.locator('#feedbackComment').getAttribute('placeholder'),"What would you like to do next? Share your plans, questions, or anything you'd like us to help with.");
   assert((await preview.locator('#feedbackResponseTitle').textContent()).includes('Hurray!'));
   assert.equal(await preview.locator('#feedbackSuccess').isVisible(),false,'celebration is not a saved receipt');
   assert.equal(await preview.locator('.is-selected .rating-face').evaluate(el=>getComputedStyle(el).animationName),'feedback-reaction-pop');

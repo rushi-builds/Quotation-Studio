@@ -42,7 +42,7 @@
       'What could we improve or explain more clearly?',
       'What would make this proposal more useful for you?',
       "What worked well? Anything you'd like us to refine?",
-      "What stood out for you? We'd love to hear your favourite part."
+      "What would you like to do next? Share your plans, questions, or anything you'd like us to help with."
     ];
     function paint() {
       const selected = current().rating || 0;
