@@ -26,6 +26,12 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#closingWaveNavy stop').first().getAttribute('stop-color'),'#18495a');
   assert.equal(await page.locator('#v_clFooterValues li svg').count(),4);
   assert.equal(await page.locator('.closing-wave-leaf path').count(),4,'restore the original flowing footer with leaf line-art');
+  assert.equal(await page.locator('.closing-wave-sun circle').count(),1);
+  assert(await page.locator('.closing-wave-sun').evaluate(sun=>{
+   const box=sun.getBBox(),leaf=document.querySelector('.closing-wave-leaf');
+   return box.x>=8&&box.x+box.width<90&&box.y>=30&&box.y+box.height<124&&getComputedStyle(sun).fill==='none'&&getComputedStyle(sun).stroke===getComputedStyle(leaf).stroke;
+  }),'left solar line-art balances the existing leaf, without covering the free-standing icons or adding a filled badge');
+
   assert(await page.locator('#v_clFooterValues').evaluate(e=>{
    const s=getComputedStyle(e);return s.backgroundImage==='none'&&s.backgroundColor==='rgba(0, 0, 0, 0)'&&s.borderTopWidth==='0px'&&s.borderRadius==='0px'&&s.boxShadow==='none'&&getComputedStyle(e.firstElementChild).borderRightWidth==='0px';
   }),'icons must be free-standing: no square/card background, border, rounded panel or shadow');
@@ -88,7 +94,7 @@ const {chromium}=require('playwright');
    return box.top>=wave.top&&box.bottom<=wave.bottom&&[...strip.querySelectorAll('li svg')].every(icon=>{const r=icon.getBoundingClientRect();return r.width===25&&r.height===25&&r.left>=box.left&&r.right<=box.right&&r.top>=box.top&&r.bottom<=box.bottom;});
   }),'the free-standing icons fit the restored wave and retain their own SVG geometry');
   const shots=path.join(__dirname,'shots','closing-page');fs.mkdirSync(shots,{recursive:true});
-  await proof.locator('#pageClosing').screenshot({path:path.join(shots,'closing-a4.png')});await proof.close();
+  await proof.locator('#pageClosing').screenshot({path:path.join(shots,'closing-a4.png')});await proof.screenshot({path:path.join(shots,'closing-footer.png'),clip:{x:0,y:945,width:794,height:178}});await proof.close();
   console.log('PASS: larger readable thank-you, editable free-standing icons on the original wave, ivory/navy reference, original logo/photo, live contact + engineering blocks and A4 fit');
 
   // Actual html2canvas + jsPDF, with only the save-to-disk replaced. Limit the
