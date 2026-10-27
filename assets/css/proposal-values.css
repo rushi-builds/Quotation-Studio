@@ -1,5 +1,5 @@
 /* Quiet running chrome for business pages. The expressive full wave belongs
-   to the closing page only. No repeated value rows, inset panels or artwork. */
+   to the closing page only. Light values touch the running footer; no inset panels or artwork. */
 .page:not(#pageCover):not(#pageClosing)>.pg-foot,
 .power-page>.power-foot{
   position:absolute;left:0;right:0;bottom:0;height:34px;min-height:34px;
@@ -30,7 +30,6 @@
 .proposal-value-footer .pv-mark svg{display:block;}
 .proposal-value-footer .pv-label{font:500 9px/1.5 'Inter',sans-serif;white-space:pre-line;overflow-wrap:anywhere;color:#4d667b;}
 .proposal-value-footer .pv-kicker{width:108px;flex:none;color:#82909d;font:600 7.3px/1.7 'Inter',sans-serif;letter-spacing:1.5px;}
-.proposal-value-footer.pv-editorial .pv-kicker::before{content:'';display:block;width:22px;height:2px;border-radius:2px;background:#c49a68;margin-bottom:6px;}
 .proposal-value-footer.pv-editorial .pv-values li{justify-content:flex-start;}
 .proposal-value-footer.pv-horizon{min-height:58px;}
 .proposal-value-footer.pv-horizon .pv-values{gap:40px;}
@@ -47,9 +46,16 @@
 .proposal-value-footer.pv-quiet .pv-values li{justify-content:flex-start;gap:11px;}
 .proposal-value-footer.pv-quiet .pv-values li+li{padding-left:15px;}
 
-/* Decorations are confined to the optional icon row, never page content. */
-.proposal-value-footer{isolation:isolate;}
-.proposal-value-footer .pv-petals{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;}
+/* Closing copy belongs above the icons, in source order after its content.
+   No large footer reservation and no upward shift of images/cards. */
+.page:not(#pageCover):not(#pageClosing)>.pg-body>.footer-note{
+ position:static;left:auto;right:auto;bottom:auto;margin-top:14px;flex-shrink:0;
+}
+/* Restrained segmented brand rule replaces the rejected petal artwork. */
+.proposal-value-footer .pv-kicker::before{
+ content:'';display:block;width:46px;height:2px;border-radius:0;margin-bottom:6px;
+ background:linear-gradient(to right,#bd9467 0 18px,transparent 18px 22px,#dce5e5 22px 46px);
+}
 .proposal-value-footer .pv-values li{position:relative;}
 .proposal-value-footer .pv-values li+li::before{content:'';position:absolute;left:-9px;top:50%;width:1px;height:18px;background:#c5ccdb;opacity:.5;transform:translateY(-50%);pointer-events:none;}
 .proposal-value-footer.pv-horizon .pv-values li+li::before{left:-20px;}

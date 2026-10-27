@@ -11,9 +11,9 @@
   pageFinance:{style:'continuity',kicker:'ILLUSTRATIVE BASIS',items:[['chart','Stated assumptions'],['coins','Finance illustration'],['doc','Informed decisions']]},
   pageProjects:{style:'assurance',items:[['target','Site context'],['doc','Project scope'],['leaf','Practical application']]},
   pageAbout:{style:'editorial',kicker:'BUILT ON TRUST',items:[['users','People first'],['target','Thoughtful planning'],['leaf','Responsible energy']]},
-  pageWhySolar:{style:'horizon',items:[['sun','Clean generation'],['rupee','Energy value'],['leaf','Lower emissions']]},
+  pageWhySolar:{style:'editorial',kicker:'THE SOLAR ADVANTAGE',items:[['sun','Clean generation'],['rupee','Energy value'],['leaf','Lower emissions']]},
   pageScope:{style:'precise',kicker:'SCOPE TO HANDOVER',items:[['doc','Defined scope'],['gear','Careful installation'],['check','Clear handover']]},
-  pageQuality:{style:'assurance',items:[['shield','Safe practices'],['wrench','Neat workmanship'],['check','Careful checks']]},
+  pageQuality:{style:'editorial',kicker:'BUILT WITH CARE',items:[['shield','Safe practices'],['wrench','Neat workmanship'],['check','Careful checks']]},
   pageWhyKtm:{style:'editorial',kicker:'DISTINCTLY KTM',items:[['users','Personal attention'],['target','Practical expertise'],['leaf','Long-term thinking']]},
   pageWarranty:{style:'continuity',kicker:'CARE & COVERAGE',items:[['shield','OEM warranties'],['wrench','Workmanship terms'],['doc','Clear support scope']]},
   pageTerms:{style:'quiet',items:[['leaf','Reliable\nSolutions'],['users','Experienced\nTeam'],['shield','Quality\nExecution'],['chart','Long-Term\nValue']]}
@@ -31,12 +31,6 @@
    const body=page.querySelector(':scope>.pg-body'),foot=page.querySelector(':scope>.pg-foot'),rect=page.getBoundingClientRect();
    if(!body||!foot||rect.width<=0||!visible(page)||page.scrollHeight>page.clientHeight+2)continue;
    band.replaceChildren();
-   // Two faint outer petals make one coherent row; no individual icon backplates.
-   const petals=document.createElementNS('http://www.w3.org/2000/svg','svg');
-   petals.classList.add('pv-petals');petals.setAttribute('viewBox','0 0 718 58');petals.setAttribute('preserveAspectRatio','none');petals.setAttribute('aria-hidden','true');petals.setAttribute('focusable','false');
-   [['M4 48C0 30 8 15 28 7C43 31 33 49 4 48Z','#bca8dd','.12'],['M714 53C687 56 666 43 657 21C686 17 710 29 714 53Z','#edb48e','.14']].forEach(([d,color,opacity])=>{const path=document.createElementNS(petals.namespaceURI,'path');path.setAttribute('d',d);path.setAttribute('fill',color);path.setAttribute('fill-opacity',opacity);petals.append(path);});
-   band.append(petals);
-
    if(def.kicker){const kicker=document.createElement('span');kicker.className='pv-kicker';kicker.textContent=def.kicker;band.append(kicker);}
    const list=document.createElement('ul');list.className='pv-values';list.style.gridTemplateColumns='repeat('+def.items.length+',minmax(0,1fr))';if(id==='pageTerms')list.id='v_tmFooterValues';
    const content=CONTENT[def.contentKey||id];
@@ -49,17 +43,17 @@
    if(!list.children.length)continue;
    band.append(list);band.hidden=false;
    const scale=rect.width/page.offsetWidth;
-   let limit=(foot.getBoundingClientRect().top-rect.top)/scale-12;
-   const notes=[...body.querySelectorAll('.footer-note')].filter(visible);
-   notes.forEach(n=>limit=Math.min(limit,(n.getBoundingClientRect().top-rect.top)/scale-12));
+   // Attach every fitting icon row directly to the contact footer. Closing copy
+   // stays in ordinary body flow above the icons, never underneath them.
+   const limit=(foot.getBoundingClientRect().top-rect.top)/scale;
    const top=limit-band.offsetHeight;
    const furniture=[...page.children].filter(n=>!n.matches('.pg-body,.pg-head,.pg-foot,.proposal-value-footer,script,style'));
-   const roots=[...body.children,...furniture].filter(n=>visible(n)&&!n.matches('.spacer,.footer-note'));
+   const roots=[...body.children,...furniture].filter(n=>visible(n)&&!n.matches('.spacer'));
    // Measure actual descendants too: floated/absolute content must be protected.
    const contentNodes=roots.flatMap(n=>[n,...n.querySelectorAll('*')]).filter(visible);
    const bottom=Math.max(0,...contentNodes.map(n=>(n.getBoundingClientRect().bottom-rect.top)/scale));
    band.style.top=top+'px';
-   if(top-bottom<16||top<70||band.scrollWidth>band.clientWidth+1||list.scrollHeight>list.clientHeight+1||[...list.querySelectorAll('.pv-label')].some(n=>n.scrollWidth>n.clientWidth+1||n.getBoundingClientRect().bottom>band.getBoundingClientRect().bottom+1))band.hidden=true;
+   if(top-bottom<24||top<70||band.scrollWidth>band.clientWidth+1||list.scrollHeight>list.clientHeight+1||[...list.querySelectorAll('.pv-label')].some(n=>n.scrollWidth>n.clientWidth+1||n.getBoundingClientRect().bottom>band.getBoundingClientRect().bottom+1))band.hidden=true;
   }
  }
  const previous=root.Render.renderAll;
