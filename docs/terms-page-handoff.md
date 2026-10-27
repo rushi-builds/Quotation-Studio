@@ -6,7 +6,7 @@ The references are inspiration, not two banners to stack. The previous Terms-onl
 
 ### Terms
 
-- Twelve terms in a two-column, row-major list, with **one integrated icon-and-number badge** per term. No disconnected orange corner flags or separate icon tiles.
+- Twelve terms in a two-column, row-major list, with **one integrated square icon-and-number badge, with a small superscript-style number inside its upper-right corner** per term. No disconnected orange corner flags or separate icon tiles.
 - Original two-tone vector marks, navy ink and restrained warm/sage/lavender/blue pastels; explicit SVG colours for PDF export. No emoji/system-glyph dependency or replacement company logos.
 - Existing authored titles, legal descriptions, substitutions, validity, duration, jurisdiction and note stay unchanged. Numeric day/week/month phrases are highlighted only after HTML escaping.
 - Icon metadata stays with default term objects if reordered. Older saved objects retain positional defaults. Unknown/prototype icon names fall back safely.

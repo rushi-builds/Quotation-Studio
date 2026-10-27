@@ -14,6 +14,7 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#v_tmItems>li').count(),12);
   assert.deepEqual(await page.locator('#v_tmItems .term-num').allTextContents(),Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')));
   assert.equal(await page.locator('#v_tmItems .term-mark>svg').count(),12);
+  assert(await page.locator('#v_tmItems .term-mark').evaluateAll(marks=>marks.every(mark=>{const tile=mark.getBoundingClientRect(),icon=mark.querySelector('svg').getBoundingClientRect(),number=mark.querySelector('.term-num').getBoundingClientRect();return Math.abs(tile.width-tile.height)<1&&number.left>icon.left&&number.bottom<=icon.top+1&&number.top>=tile.top&&number.right<=tile.right&&icon.bottom<=tile.bottom;})),'numbers sit superscript-style inside the upper-right corner of square icon tiles');
   assert.equal(await page.locator('#v_tmFooterValues li svg').count(),4);
   assert(await page.locator('#v_tmFooterValues').evaluate(e=>getComputedStyle(e).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(e).boxShadow==='none'));
   assert.equal(await page.locator('#pageTerms .terms-footer-artwork,#pageTerms .terms-brand-footer').count(),0);
