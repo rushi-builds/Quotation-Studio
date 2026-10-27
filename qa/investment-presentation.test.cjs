@@ -47,6 +47,7 @@ const battery = require('./bess-fixture.js');
           chartAspectCorrect: Math.abs(page.querySelector('#chartBridge').width / page.querySelector('#chartBridge').clientWidth - page.querySelector('#chartBridge').height / page.querySelector('#chartBridge').clientHeight) < .03,
           header: page.querySelector('.inv-total-label').textContent,
           summary: document.querySelector('[data-metric="investment"]')?.textContent,
+          liveChip: document.getElementById('liveChipText')?.textContent, liveAmount: Finance.fmtINRshort(f.grossTotal),
           summaryLabel: document.querySelector('[data-metric="investment"]')?.previousElementSibling.textContent,
           energyLabel: document.querySelector('[data-metric="energy"]')?.previousElementSibling.textContent,
           energy: document.querySelector('[data-metric="energy"]')?.textContent, expectedEnergy: Finance.fmtNum(f.annualGen) + ' kWh',
@@ -77,6 +78,7 @@ const battery = require('./bess-fixture.js');
       if (builder) {
         assert.equal(result.summary, result.expected.gross, 'builder uses gross total, not renamed net investment');
         assert.equal(result.summaryLabel, result.scopeLabel);
+        assert(result.liveChip.includes((result.scopeLabel==='Solar Project Cost'?'Solar project ':'Project ')+result.liveAmount),'live chip shares the sidebar gross cost and scope label');
         assert.equal(result.energyLabel, 'Annual Energy');
         assert.equal(result.energy, result.expectedEnergy);
       }

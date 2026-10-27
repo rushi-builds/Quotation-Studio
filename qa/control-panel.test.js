@@ -13,7 +13,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.setViewport({width:1440,height:1050});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
   check('workspace loads with thirteen collapsible input sections with BESS inside Advanced Systems',await page.$$eval('.studio-section',e=>e.length===13));
   check('only the customer section starts open',await page.$$eval('.studio-section',els=>els.filter(e=>e.open).length===1&&els[0].open));
-  check('original quotation controls remain unique',await page.evaluate(()=>Object.keys(StateStore.DEFAULTS).every(id=>document.querySelectorAll('#'+id).length===1)));
+  check('current quotation controls remain unique and retired audio controls stay retired',await page.evaluate(()=>{const retired=['custSalutation','custSalutationCustom','custSpokenName'];return Object.keys(StateStore.DEFAULTS).every(id=>document.querySelectorAll('#'+id).length===(retired.includes(id)?0:1));}));
   check('search is not a quotation input',await page.evaluate(()=>!('studioSearch' in StateStore.collectForm())));
   check('Essentials mode has accessible state and equipment access',await page.evaluate(()=>document.getElementById('modeEss').getAttribute('aria-pressed')==='true'&&document.querySelector('[data-section="moduleMake"]').checkVisibility()&&!document.querySelector('[data-section="companyName"]').checkVisibility()));
   check('live summary matches the existing Finance engine',await page.evaluate(()=>{const f=Finance.compute(Render.lastState);return document.querySelector('[data-metric="investment"]').textContent===Finance.fmtINR(f.grossTotal)&&document.querySelector('[data-metric="energy"]').textContent===Finance.fmtNum(f.annualGen)+' kWh';}));
@@ -30,8 +30,8 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await search('module make');check('search finds collapsed fields',await page.$eval('#studioSearchResults',e=>!e.hidden&&e.textContent.includes('Module make')));
   await page.click('#studioSearchResults button');
   check('search result opens its section and focuses the existing input',await page.evaluate(()=>document.activeElement.id==='moduleMake'&&document.querySelector('[data-section="moduleMake"]').open&&document.getElementById('studioSearchResults').hidden));
-  await search('public destination');await page.click('#studioSearchResults button');
-  check('search reveals advanced settings and switches modes without changing values',await page.evaluate(()=>document.activeElement.id==='galleryUrl'&&document.getElementById('modeAll').getAttribute('aria-pressed')==='true'&&document.getElementById('capacity').value==='10'));
+  await search('public destination');await page.click('#studioSearchResults [data-search-target="galleryUrl"]');
+  check('search reveals the Essentials QR destination without changing quote values or mode',await page.evaluate(()=>document.activeElement.id==='galleryUrl'&&document.getElementById('galleryUrl').checkVisibility()&&document.getElementById('modeEss').getAttribute('aria-pressed')==='true'&&document.getElementById('capacity').value==='10'));
   await edit('galleryUrl','https://example.com/gallery');await page.waitForFunction(()=>document.getElementById('galleryStatus').textContent.length>0);
   check('QR controls still feed the existing experience renderer',await page.evaluate(()=>Render.lastState.galleryUrl==='https://example.com/gallery'&&document.querySelector('[data-section="galleryUrl"] summary small').textContent.includes('Link entered')));
   await search('zzzzdoesnotexist');check('empty search provides useful feedback',await page.$eval('#studioSearchResults',e=>e.textContent.includes('No matching settings')));
@@ -50,7 +50,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await edit('loanAmt','');await edit('loanRate','');await edit('loanYears','');
   check('flags clear after corrections',await page.evaluate(()=>document.getElementById('loanAmt').getAttribute('aria-invalid')==='false'&&document.querySelector('.studio-feedback').hidden));
   await page.evaluate(()=>document.querySelector('[data-section="moduleMake"]').open=true);
+  // Click the visible button, not the pinned overview covering a scrolled row.
+  await page.$eval('[data-section="moduleMake"] .studio-view-page',e=>e.scrollIntoView({block:'center',behavior:'instant'}));
   await page.click('[data-section="moduleMake"] .studio-view-page');
+  await page.waitForFunction(()=>{const r=document.getElementById('pageTechSpec').getBoundingClientRect();return r.top<innerHeight&&r.bottom>0;});
   check('related-page action navigates to Technical Specification',await page.$eval('#pageTechSpec',e=>e.getBoundingClientRect().top<innerHeight&&e.getBoundingClientRect().bottom>0));
   // Seed a local duplicate through the retained engine (not the retired UI).
   await require('./legacy-proposal-fixture.cjs')(page, 'pmDup');
@@ -62,6 +65,8 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.evaluate(()=>{document.activeElement.value='Portfolio edited in current proposal';document.activeElement.dispatchEvent(new Event('input',{bubbles:true}));});
   await page.waitForFunction(()=>Proposals.active().content.pageProjects.heading==='Portfolio edited in current proposal');
   check('content edits after proposal switching remain isolated',await page.evaluate(id=>Proposals.get(id).content.pageProjects.heading!=='Portfolio edited in current proposal',duplicate));
+  await page.$eval('#modeAll',e=>e.scrollIntoView({block:'center',behavior:'instant'}));
+  await page.click('#modeAll'); // Explicit user preference, independent of search ranking.
   await page.reload({waitUntil:'networkidle0'});
   check('reload restores saved data and saved mode preference',await page.evaluate(()=>document.getElementById('capacity').value==='10'&&document.getElementById('custName').value==='Workspace Test Customer'&&document.getElementById('modeAll').getAttribute('aria-pressed')==='true'));
   await page.evaluate(()=>document.querySelectorAll('.studio-section').forEach(e=>e.open=false));

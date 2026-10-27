@@ -380,6 +380,7 @@
     /* No invented bill or fixed-charge floor. This is an energy-offset
        illustration, not a DISCOM bill/settlement or guaranteed cash saving. */
     show('v_wsBillSlashCard', f.monthlyBill > 0);
+    $('pageWhySolar')?.classList.toggle('has-bill', f.monthlyBill > 0);
     set('v_bscBeforeVal', F.fmtINR(f.monthlyBill) + ' / mo');
     set('v_bscAfterVal', F.fmtINR(f.monthlyBillAfter) + ' / mo');
     set('v_bscSavedVal', F.fmtINR(f.monthlyBillSaving) + ' / mo');
@@ -1224,16 +1225,17 @@
     C.emi($('chartFinEmi'), f);
   }
 
-  /* Live quote chip - shows capacity + customer + net investment live */
+  /* Builder chrome uses the same total-project-cost basis as the sidebar.
+     Savings/net-investment illustrations remain unchanged in the proposal. */
   function updateLiveChip(s, f) {
     const el = $('liveChipText');
     if (!el) return;
     const cap = (s.capacity || '-') + ' kWp';
-    const cust = (s.custName || '').trim().split(' ')[0] || 'Live';
-    const net = F.fmtINRshort(f.netInvestment);
-    el.textContent = 'Live • ' + cap + ' • ' + cust + ' • ' + net;
+    const cust = (s.custName || '').trim().split(/\s+/)[0];
+    const solarOnly = root.Bess.included(s) || root.AdditionalSystems.included(s);
+    el.textContent = ['Live', cap, cust, (solarOnly ? 'Solar project ' : 'Project ') + F.fmtINRshort(f.grossTotal)].filter(Boolean).join(' • ');
     const chip = $('liveChip');
-    if (chip) chip.title = 'Live quote - ' + cap + ' for ' + (s.custName || 'customer') + (root.Bess.included(s)||root.AdditionalSystems.included(s) ? ' - solar-only net ' : ' - net ') + F.fmtINR(f.netInvestment);
+    if (chip) chip.title = 'Live quote - ' + cap + (s.custName ? ' for ' + s.custName : '') + (solarOnly ? ' - solar project cost including GST ' : ' - total project cost including GST ') + F.fmtINR(f.grossTotal);
   }
 
   /* A page is a fixed A4 box with overflow hidden, so content that runs past

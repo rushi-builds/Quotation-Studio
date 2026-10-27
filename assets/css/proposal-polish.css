@@ -1,0 +1,20 @@
+/* Final appearance pass. Keep the approved artwork, footer and A4 canvas.
+   No financial/chart dimensions, image cropping or source wording changes. */
+:is(#pageAbout,#pageWhySolar,#pageSolution,#pageScope,#pageQuality,#pageWhyKtm,#pageWarranty)
+:is(.stat-card,.feat-card,.benefit-card,.spec-card,.deliv-box,.std-card,.check-card,.diff-card,.commit-card,.warr-card,.journey-card){
+ border-color:#e5e8ec;border-radius:12px;box-shadow:none;
+}
+/* Use spare space inside cards, not by lifting photos/text. A real monthly-bill
+   illustration keeps the original compact benefit layout. Edited pages retain
+   the continuation engine's normal-flow sizing. */
+#pageWhySolar:not(.has-bill):not(.doc-flow) .benefit-card{min-height:190px;}
+#pageWarranty:not(.doc-flow) .journey-card{padding-top:24px;padding-bottom:24px;}
+#pageWhyKtm:not(.doc-flow) .commit-card{padding-top:18px;padding-bottom:18px;}
+/* Small closing notes must still read in a real A4 PDF, not disappear in grey. */
+.page:not(#pageCover):not(#pageClosing)>.pg-body>.footer-note{
+ font-size:9.2px;line-height:1.5;color:#647386;
+}
+.page:not(#pageCover):not(#pageClosing) :is(.fine-note,.disclaimer-line){color:#647386;}
+/* The last Power page already clears its footer; its legacy 52px trailing
+   padding alone could overflow the fixed canvas in report-heavy proposals. */
+#powerPage6.power-six{padding-bottom:34px;}

@@ -57,7 +57,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    window.__qsOptions=[{id:'a',name:'Option A',fields:{capacity:'25'}},{id:'b',name:'Option B',fields:{capacity:'30'}}];Render.renderAll();
   });
   await geometry('Commercial: bill, BOM, loan, options and technical reports');
-  check('dense cost charts retain full width and redraw at compact height',await page.evaluate(()=>chartBridge.clientWidth===718&&chartBridge.clientHeight===180&&chartDonut.clientWidth===150&&!!document.querySelector('#v_inTaxIcon svg')));
+  check('itemised investment keeps the approved side-by-side charts, naturally redrawn',await page.evaluate(()=>chartBridge.clientWidth>=360&&chartBridge.clientHeight===240&&chartDonut.clientWidth===90&&Math.abs(chartBridge.width/chartBridge.clientWidth-chartBridge.height/chartBridge.clientHeight)<.03&&!!document.querySelector('#v_inTaxIcon svg')));
   check('all seventeen optional pages are present for stress review',await page.evaluate(()=>Render.lastVisible.length===17));
   await page.emulateMediaType('print');await geometry('Print with optional content');await page.emulateMediaType('screen');
   await page.evaluate(()=>{StateStore.applyForm({custName:'Layout QA',propRef:'QA-LAYOUT-2026'});Render.renderAll();});
@@ -97,7 +97,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.evaluate(form=>{StateStore.applyForm({...form,moduleMake:'Custom high-efficiency photovoltaic modules - reviewed equipment make',inverterMake:'Custom three-phase grid-connected inverter'});window.__qsOptions=[];Render.renderAll();},originals.form);
   await geometry('Long custom equipment names');
   await page.evaluate(form=>{StateStore.applyForm(form);Render.renderAll();window.__qsSaveNow();},originals.form);
-  check('clearing BOM restores the original full-size cost chart',await page.evaluate(()=>chartBridge.clientWidth===718&&chartBridge.clientHeight===340&&!document.getElementById('pageTechSpec').classList.contains('has-site-area')));
+  check('clearing BOM restores the original full-size cost chart',await page.evaluate(()=>chartBridge.clientWidth===718&&chartBridge.clientHeight===300&&!document.getElementById('pageTechSpec').classList.contains('has-site-area')));
   check('layout changes do not alter financial output',await page.evaluate(fin=>JSON.stringify(Finance.compute(Render.lastState))===fin,originals.finance));
   await page.setViewport({width:390,height:844});await geometry('Mobile-scaled A4');
   check('mobile document has no horizontal scrolling',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
