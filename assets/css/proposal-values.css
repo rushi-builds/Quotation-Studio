@@ -1,29 +1,34 @@
-/* Airy, page-specific accents; no duplicated illustration/handwriting banners. */
-.proposal-value-footer{position:absolute;left:38px;right:38px;min-height:42px;display:flex;align-items:center;gap:22px;color:#435c73;}
+/* One branded footer family on every page. Fixed running furniture consumes
+   no extra document space. Protected cover/closing retain their own finish. */
+.page:not(#pageCover):not(#pageClosing)>.pg-foot{
+  background:#123449;border-top:1px solid #bda17f;color:#e8eff2;
+}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-left,
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-right{color:#e7eff3;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-mid{color:#d9bc97;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot::after{
+  content:'';position:absolute;right:7px;bottom:4px;width:24px;height:25px;pointer-events:none;opacity:.32;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 32' fill='none' stroke='%23d9bc97' stroke-width='.8'%3E%3Cpath d='M14 29C3 24 0 16 2 10c9 3 13 9 12 19ZM14 29C9 15 15 5 23 1c2 12-1 21-9 28ZM14 29c2-11 8-15 15-16-1 9-7 15-15 16ZM14 29 2 10M14 29 23 1M14 29 29 13'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+.page.has-value-surface:not(#pageCover):not(#pageClosing)>.pg-foot{border-top-color:#123449;}
+/* Power summaries keep the same compact running-footer family. */
+.power-page .power-foot,.power-six .power-foot{
+  left:0;right:0;bottom:0;min-height:34px;padding:9px 38px;background:#123449;
+  border-top:1px solid #bda17f;color:#e7eff3;align-items:center;
+}
+.proposal-value-footer{position:absolute;left:0;right:0;height:56px;display:flex;align-items:center;gap:22px;padding:20px 38px 6px;color:#e8eff2;isolation:isolate;}
 .proposal-value-footer[hidden]{display:none!important;}
+.proposal-value-footer .pv-surface{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;}
 .proposal-value-footer .pv-values{flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:18px;margin:0;padding:0;list-style:none;}
 .proposal-value-footer .pv-values li{display:flex;align-items:center;justify-content:center;gap:9px;min-width:0;padding:0;}
 .proposal-value-footer .pv-mark{display:block;flex:none;line-height:0;}
 .proposal-value-footer .pv-mark svg{display:block;}
-.proposal-value-footer .pv-label{font:500 9px/1.5 'Inter',sans-serif;white-space:pre-line;overflow-wrap:anywhere;color:#4d667b;}
-.proposal-value-footer .pv-kicker{width:108px;flex:none;color:#82909d;font:600 7.3px/1.7 'Inter',sans-serif;letter-spacing:1.5px;}
-.proposal-value-footer.pv-editorial .pv-kicker::before{content:'';display:block;width:22px;height:2px;border-radius:2px;background:#c49a68;margin-bottom:6px;}
+.proposal-value-footer .pv-label{font:500 9px/1.5 'Inter',sans-serif;white-space:pre-line;overflow-wrap:anywhere;color:#e7eff3;}
+.proposal-value-footer .pv-kicker{width:108px;flex:none;color:#d9bc97;font:600 7.3px/1.7 'Inter',sans-serif;letter-spacing:1.5px;}
 .proposal-value-footer.pv-editorial .pv-values li{justify-content:flex-start;}
-.proposal-value-footer.pv-horizon{min-height:58px;}
+.proposal-value-footer.pv-horizon{height:78px;padding-top:24px;padding-bottom:7px;}
 .proposal-value-footer.pv-horizon .pv-values{gap:40px;}
-.proposal-value-footer.pv-horizon li{flex-direction:column;gap:5px;}
-.proposal-value-footer.pv-horizon li:nth-child(2){position:relative;}
-.proposal-value-footer.pv-horizon li:nth-child(2)::before,.proposal-value-footer.pv-horizon li:nth-child(2)::after{content:'';position:absolute;top:16px;width:38px;height:1px;background:#e1e7e7;}
-.proposal-value-footer.pv-horizon li:nth-child(2)::before{right:100%;}
-.proposal-value-footer.pv-horizon li:nth-child(2)::after{left:100%;}
-.proposal-value-footer.pv-precise{border-top:1px solid #edf0f2;padding-top:11px;min-height:45px;}
-.proposal-value-footer.pv-precise .pv-kicker{color:#8a7862;}
-.proposal-value-footer.pv-precise li{justify-content:flex-start;}
-.proposal-value-footer.pv-assurance{min-height:42px;}
-.proposal-value-footer.pv-assurance .pv-label{font-size:9px;letter-spacing:.15px;}
-.proposal-value-footer.pv-continuity{min-height:46px;}
-.proposal-value-footer.pv-continuity .pv-kicker{border-left:2px solid #b2c4ba;padding-left:11px;width:120px;color:#758f85;}
-.proposal-value-footer.pv-continuity .pv-values li{justify-content:flex-start;}
-.proposal-value-footer.pv-quiet .pv-values{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;}
+.proposal-value-footer.pv-horizon li{flex-direction:column;gap:4px;}
+.proposal-value-footer.pv-precise li,.proposal-value-footer.pv-continuity li{justify-content:flex-start;}
 .proposal-value-footer.pv-quiet .pv-values li{justify-content:flex-start;gap:11px;}
 .proposal-value-footer.pv-quiet .pv-values li+li{padding-left:15px;}
