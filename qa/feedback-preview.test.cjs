@@ -20,13 +20,19 @@ const {chromium}=require('playwright');
   assert(await preview.locator('.feedback-preview-banner').isVisible());assert(await preview.locator('#feedbackSubmit').isDisabled());
   assert.equal(await preview.locator('[name=proposalRating]:checked').count(),0);
   await preview.locator('[name=proposalRating][value="3"]').check({force:true});assert.equal(await preview.locator('#feedbackRatingText').textContent(),'3 out of 5');
-  assert.equal(await preview.locator('#feedbackMood').textContent(),'🙂');
+  assert.equal(await preview.locator('.feedback-mood,#feedbackMood').count(),0,'no separate emoji panel or mood text');
+  assert.equal(await preview.locator('.feedback-stars .is-selected input').inputValue(),'3');
+  assert.equal(await preview.locator('.rating-face').count(),5,'consistent vector reactions, not platform emoji glyphs');
   await preview.locator('[name=feedbackNextChoice][value=interested]').focus();await preview.keyboard.press('ArrowRight');
   assert.equal(await preview.locator('#feedbackNext').inputValue(),'changes','native keyboard choice updates the saved preference');
   await preview.locator('#feedbackClearNext').click();assert.equal(await preview.locator('[name=feedbackNextChoice]:checked').count(),0);
   await preview.locator('.feedback-option:has(input[value=question])').click();assert.equal(await preview.locator('#feedbackNext').inputValue(),'question');
-  await preview.locator('#feedbackClearRating').click();assert.equal(await preview.locator('#feedbackMood').textContent(),'✦');
-  for(const [rating,emoji] of [[1,'😕'],[2,'🙁'],[3,'🙂'],[4,'😊'],[5,'🤩']]){await preview.locator('[name=proposalRating][value="'+rating+'"]').check({force:true});assert.equal(await preview.locator('#feedbackMood').textContent(),emoji);}
+  await preview.locator('#feedbackClearRating').click();assert.equal(await preview.locator('.feedback-stars .is-selected').count(),0);
+  for(const rating of [1,2,3,4,5]){await preview.locator('[name=proposalRating][value="'+rating+'"]').check({force:true});assert.equal(await preview.locator('.feedback-stars .is-selected input').inputValue(),String(rating));assert.equal(await preview.locator('.feedback-stars .is-filled').count(),rating);}
+  assert.equal(await preview.locator('.is-selected .rating-face').evaluate(el=>getComputedStyle(el).animationName),'feedback-reaction-pop');
+  await preview.emulateMedia({reducedMotion:'reduce'});
+  assert.equal(await preview.locator('.is-selected .rating-face').evaluate(el=>getComputedStyle(el).animationName),'none');
+  await preview.emulateMedia({reducedMotion:'no-preference'});
   await preview.locator('[name=proposalRating][value="4"]').check({force:true});
   await preview.locator('#feedbackComment').fill('Previewing the feedback form.');
   await preview.locator('#proposalFeedbackForm').evaluate(f=>f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
@@ -37,6 +43,8 @@ const {chromium}=require('playwright');
   await preview.setViewportSize({width:1200,height:1400});await preview.locator('#feedbackComment').fill('Could you walk me through the roof layout and the system size?');
   await preview.screenshot({path:path.join(shots,'premium-feedback-desktop.png'),fullPage:true});
   await page.evaluate(()=>document.activeElement?.blur());
+  assert.equal(await page.locator('.closing-action-icon,.closing-action-copy,.closing-action small').count(),0,'no extra icon badges or subtext');
+  assert(await page.locator('.closing-actions').evaluate(e=>e.getBoundingClientRect().height<=35),'compact action row, not wide cards');
   await page.locator('#pageClosing .closing-invitation').screenshot({path:path.join(shots,'premium-closing-actions.png')});
   for(const width of [390,360]){await preview.setViewportSize({width,height:900});assert(await preview.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
   assert.deepEqual(errors,[]);fs.mkdirSync(path.join(__dirname,'shots','proposal-feedback'),{recursive:true});await preview.screenshot({path:path.join(__dirname,'shots','proposal-feedback','form-preview-mobile.png'),fullPage:true});

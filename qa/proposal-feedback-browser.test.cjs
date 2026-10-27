@@ -50,7 +50,7 @@ const {chromium}=require('playwright');
   await page.reload();await page.waitForFunction(()=>!document.getElementById('feedbackFields').disabled);
   assert((await page.locator('#feedbackComment').inputValue()).includes('roof layout'),'session draft survives reload');
   assert(await page.locator('[name=feedbackNextChoice][value=question]').isChecked(),'selected intent card restores with the draft');
-  assert.equal(await page.locator('#feedbackMood').textContent(),'🙁');
+  assert.equal(await page.locator('.feedback-stars .is-selected input').inputValue(),'2');
   await page.locator('#feedbackSubmit').click();await page.waitForFunction(()=>!document.getElementById('feedbackSuccess').hidden);
   stored=JSON.parse(fs.readFileSync(dbPath));const feedback=stored.events.filter(e=>e.event_type==='proposal_feedback');assert.equal(feedback.length,1);assert.equal(stored.notifications.filter(n=>n.kind==='feedback').length,1);
   assert.equal(JSON.parse(feedback[0].meta_json).rating,2);assert.equal(JSON.parse(feedback[0].meta_json).nextStep,'question');assert.equal(feedback[0].owner_id,owner.json.user.id);assert.equal(feedback[0].proposal_id,id);

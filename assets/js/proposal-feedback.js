@@ -29,22 +29,16 @@
       contactRequested: $('feedbackContact').checked
     });
     const nextChoices = [...form.querySelectorAll('[name="feedbackNextChoice"]')];
-    const moods = [
-      ['✦', 'How did it feel?', 'A quick impression. Entirely your choice.'],
-      ['😕', 'Needs a rethink', 'Tell us what missed the mark.'],
-      ['🙁', 'Could be clearer', 'Let us know what needs more attention.'],
-      ['🙂', 'A helpful start', 'What would make it more useful for you?'],
-      ['😊', 'Clear and helpful', 'We’d love to know what worked well.'],
-      ['🤩', 'Really impressed', 'Tell us what stood out to you.']
-    ];
     nextChoices.forEach(input => input.addEventListener('change', () => { $('feedbackNext').value = input.value; }));
     $('feedbackClearNext')?.addEventListener('click', () => { $('feedbackNext').value = ''; paint(); saveDraft(); });
     function paint() {
       const selected = current().rating || 0;
-      ratingInputs.forEach(input => input.closest('label').classList.toggle('is-filled', Number(input.value) <= selected));
+      ratingInputs.forEach(input => {
+        const label = input.closest('label');
+        label.classList.toggle('is-filled', Number(input.value) <= selected);
+        label.classList.toggle('is-selected', Number(input.value) === selected);
+      });
       $('feedbackRatingText').textContent = selected ? selected + ' out of 5' : 'Optional — you can leave just a message';
-      const mood = moods[selected];
-      if ($('feedbackMood')) { $('feedbackMood').textContent = mood[0]; $('feedbackMoodLabel').textContent = mood[1]; $('feedbackMoodDescription').textContent = mood[2]; }
       nextChoices.forEach(input => { input.checked = input.value === $('feedbackNext').value; });
       $('feedbackCount').textContent = $('feedbackComment').value.length + ' / 1500';
     }
