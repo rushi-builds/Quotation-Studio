@@ -46,17 +46,13 @@
 #pageClosing .closing-input-icon svg{width:15px;height:15px;}
 #pageClosing .next-d{margin-top:4px;font:400 10px/1.5 'Inter',sans-serif;color:#647080;overflow-wrap:anywhere;}
 #pageClosing .closing-invitation{position:relative;margin:10px 50px 0;padding:0;flex-shrink:0;}
-#pageClosing .closing-link-hint{display:flex;align-items:center;gap:5px;margin:0 0 6px;color:#6e788a;font:500 9px/1.5 'Inter',sans-serif;}
-#pageClosing .closing-link-hint svg{width:12px;height:12px;flex:none;color:#9180a8;}
-#pageClosing .closing-link-hint[hidden]{display:none!important;}
-#pageClosing .closing-actions{display:flex;align-items:center;gap:12px;}
-#pageClosing .closing-action{display:inline-flex;align-items:center;justify-content:center;gap:14px;min-height:33px;box-sizing:border-box;padding:7px 13px;font:500 10px/1.6 'Inter',sans-serif;text-decoration:none;cursor:pointer;border-radius:7px;transition:border-color .15s,background .15s;}
-#pageClosing .closing-action-primary{border:1px solid #234657;background:#234657;color:#fff;}
-#pageClosing .closing-action-secondary{border:1px solid #d6dce4;background:transparent;color:#29465b;}
-#pageClosing .closing-action span{font-size:13px;line-height:1;}
+#pageClosing .closing-actions{display:inline-flex;align-items:center;gap:3px;padding:3px;border:1px solid #dce1e8;border-radius:11px;background:#f3f4f8;}
+#pageClosing .closing-action{display:inline-flex;align-items:center;justify-content:center;min-height:31px;box-sizing:border-box;padding:7px 15px;border:0;border-radius:8px;font:500 10px/1.6 'Inter',sans-serif;text-decoration:none;cursor:pointer;transition:background .15s,color .15s;}
+#pageClosing .closing-action-primary{background:#244758;color:#fff;}
+#pageClosing .closing-action-secondary{background:transparent;color:#365168;}
 #pageClosing a[href]:hover{color:#dc7d22;}
-#pageClosing .closing-action-primary[href]:hover{background:#2e5264;color:#fff;}
-#pageClosing .closing-action-secondary:hover{border-color:#9facc0;background:#f4f4f9;color:#29465b;}
+#pageClosing .closing-action-primary[href]:hover{background:#315668;color:#fff;}
+#pageClosing .closing-action-secondary:hover{background:#e6e9f1;color:#244758;}
 #pageClosing a:focus-visible{outline:2px solid #9182ab;outline-offset:3px;}
 #pageClosing .closing-scope-note{margin:7px 0 0;font:400 7px/1.6 'Inter',sans-serif;color:#7c8790;}
 #pageClosing .closing-bottom{position:relative;margin:8px 50px 0;padding:0;flex-shrink:0;}

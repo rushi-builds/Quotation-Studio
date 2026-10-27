@@ -8,7 +8,7 @@
     const host = $('proposalFeedback'); if (!host) return;
     const form = $('proposalFeedbackForm'), fieldset = $('feedbackFields'), submit = $('feedbackSubmit'), status = $('feedbackStatus');
     const ratingInputs = [...form.querySelectorAll('[name="proposalRating"]')];
-    let pending = false, submissionId = '', lastPayload = '', storageKey = '';
+    let pending = false, submissionId = '', lastPayload = '', storageKey = '', retryNextStep = '';
     const setStatus = (message, error = false) => { status.textContent = message; status.classList.toggle('is-error', error); };
     const previewHost = location.hostname.endsWith('.vercel.app') && location.hostname !== 'quotation-studio-taupe.vercel.app';
     if (!preview && (!available || previewHost)) {
@@ -25,7 +25,7 @@
     const current = () => ({
       rating: Number(ratingInputs.find(input => input.checked)?.value) || null,
       comment: $('feedbackComment').value,
-      nextStep: $('feedbackNext').value,
+      nextStep: retryNextStep,
       contactRequested: $('feedbackContact').checked
     });
     const ratingResponses = [
@@ -36,9 +36,6 @@
       ['LOOKING GOOD', 'That’s lovely to hear.', 'Tell us what worked well, or anything we could refine.'],
       ['THAT’S A FIVE!', 'Hurray! Glad you liked it.', 'We’d love to know what stood out for you.']
     ];
-    const nextChoices = [...form.querySelectorAll('[name="feedbackNextChoice"]')];
-    nextChoices.forEach(input => input.addEventListener('change', () => { $('feedbackNext').value = input.value; }));
-    $('feedbackClearNext')?.addEventListener('click', () => { $('feedbackNext').value = ''; paint(); saveDraft(); });
     function paint() {
       const selected = current().rating || 0;
       ratingInputs.forEach(input => {
@@ -56,7 +53,6 @@
         $('feedbackResponseTitle').textContent = response[1];
         $('feedbackResponseCopy').textContent = response[2];
       }
-      nextChoices.forEach(input => { input.checked = input.value === $('feedbackNext').value; });
       $('feedbackCount').textContent = $('feedbackComment').value.length + ' / 1500';
     }
     function saveDraft() {
@@ -68,15 +64,21 @@
       if (draft && Date.now() - draft.at < 7200000) {
         ratingInputs.forEach(input => input.checked = Number(input.value) === draft.rating);
         $('feedbackComment').value = String(draft.comment || '').slice(0, 1500);
-        $('feedbackNext').value = ['interested','changes','question','later'].includes(draft.nextStep) ? draft.nextStep : '';
         $('feedbackContact').checked = draft.contactRequested === true;
         submissionId = typeof draft.submissionId === 'string' ? draft.submissionId : '';
         lastPayload = typeof draft.lastPayload === 'string' ? draft.lastPayload : '';
+        // The removed preference is never attached to new feedback. Only retain
+        // an identical already-attempted payload for a safe pre-upgrade retry.
+        try {
+          const prior = JSON.parse(lastPayload), data = current();
+          if (submissionId && ['interested','changes','question','later'].includes(prior.nextStep) &&
+              prior.rating === data.rating && prior.comment === data.comment.trim() && prior.contactRequested === data.contactRequested) retryNextStep = prior.nextStep;
+        } catch (_) {}
         setStatus('Your unsent draft was restored on this tab.');
       } else if (storageKey) sessionStorage.removeItem(storageKey);
     } catch (_) {}
-    form.addEventListener('input', event => { if (event.target.name === 'feedbackNextChoice') $('feedbackNext').value = event.target.value; paint(); saveDraft(); if (!pending) setStatus(''); });
-    $('feedbackClearRating').addEventListener('click', () => { ratingInputs.forEach(input => input.checked = false); paint(); saveDraft(); });
+    form.addEventListener('input', () => { retryNextStep = ''; paint(); saveDraft(); if (!pending) setStatus(''); });
+    $('feedbackClearRating').addEventListener('click', () => { retryNextStep = ''; ratingInputs.forEach(input => input.checked = false); paint(); saveDraft(); });
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (preview) { setStatus('Form preview only. Nothing has been sent or saved to Studio.'); return; }

@@ -25,10 +25,7 @@ const {chromium}=require('playwright');
   assert.equal(await preview.locator('.rating-blue-star-eyes').getAttribute('fill'),'url(#ratingBlueEyes)');
   assert.equal(await preview.locator('.feedback-stars .is-selected input').inputValue(),'3');
   assert.equal(await preview.locator('.rating-face').count(),5,'consistent vector reactions, not platform emoji glyphs');
-  await preview.locator('[name=feedbackNextChoice][value=interested]').focus();await preview.keyboard.press('ArrowRight');
-  assert.equal(await preview.locator('#feedbackNext').inputValue(),'changes','native keyboard choice updates the saved preference');
-  await preview.locator('#feedbackClearNext').click();assert.equal(await preview.locator('[name=feedbackNextChoice]:checked').count(),0);
-  await preview.locator('.feedback-option:has(input[value=question])').click();assert.equal(await preview.locator('#feedbackNext').inputValue(),'question');
+  assert.equal(await preview.locator('.feedback-options,#feedbackNext,[name=feedbackNextChoice],#feedbackClearNext').count(),0,'next-step section is completely removed');
   await preview.locator('#feedbackClearRating').click();assert.equal(await preview.locator('.feedback-stars .is-selected').count(),0);assert((await preview.locator('#feedbackResponseTitle').textContent()).includes('Your view'));
   const responseTitles=new Set();
   for(const rating of [1,2,3,4,5]){await preview.locator('[name=proposalRating][value="'+rating+'"]').check({force:true});assert.equal(await preview.locator('.feedback-stars .is-selected input').inputValue(),String(rating));assert.equal(await preview.locator('.feedback-stars .is-filled').count(),rating);responseTitles.add(await preview.locator('#feedbackResponseTitle').textContent());}
@@ -52,9 +49,9 @@ const {chromium}=require('playwright');
   await preview.screenshot({path:path.join(shots,'premium-feedback-desktop.png'),fullPage:true});
   await page.evaluate(()=>document.activeElement?.blur());
   assert.equal(await page.locator('.closing-action-icon,.closing-action-copy,.closing-action small').count(),0,'no extra icon badges or subtext');
-  assert(await page.locator('.closing-actions').evaluate(e=>e.getBoundingClientRect().height<=35),'compact action row, not wide cards');
-  assert((await page.locator('#v_clActionHint').textContent()).includes('Tap or click'));
-  assert((await page.locator('#v_clDiscuss').textContent()).includes('Open feedback form'));
+  assert(await page.locator('.closing-actions').evaluate(e=>e.getBoundingClientRect().height<=40),'compact joined action strip, not wide cards');
+  assert.equal(await page.locator('#closingLinkHint,.closing-action svg,.closing-action span').count(),0,'no pointer, arrows or extra instruction line');
+  assert((await page.locator('#v_clDiscuss').textContent()).includes('Give feedback'));
   assert((await page.locator('#v_clWhatsApp').textContent()).includes('WhatsApp'));
   await page.locator('#pageClosing .closing-invitation').screenshot({path:path.join(shots,'premium-closing-actions.png')});
   for(const width of [390,360]){await preview.setViewportSize({width,height:900});assert(await preview.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
