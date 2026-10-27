@@ -343,6 +343,15 @@
       mkField(b, 'Title', it.title, (v) => { it.title = v; });
       mkField(b, 'Description (supports {validity} {duration} {jurisdiction} {company})', it.desc, (v) => { it.desc = v; }, true);
     });
+    const termsFooterDefaults = ['Reliable\nSolutions', 'Experienced\nTeam', 'Quality\nExecution', 'Long-Term\nValue'];
+    termsFooterDefaults.forEach((label, i) => {
+      mkField(g, 'Terms footer value ' + (i + 1), CONTENT.pageTerms.footerValues?.[i]?.label ?? label, (v) => {
+        const icons = ['leaf', 'users', 'shield', 'chart'];
+        if (!Array.isArray(CONTENT.pageTerms.footerValues)) CONTENT.pageTerms.footerValues = [];
+        CONTENT.pageTerms.footerValues[i] = { ...CONTENT.pageTerms.footerValues[i], icon: CONTENT.pageTerms.footerValues[i]?.icon || icons[i], label: v };
+      }, true);
+    });
+    mkField(g, 'Terms footer promise', CONTENT.pageTerms.footerPromise ?? 'LET’S BUILD A\nGREENER FUTURE\nTOGETHER.', (v) => { CONTENT.pageTerms.footerPromise = v; }, true);
     mkField(g, 'Note label', CONTENT.pageTerms.noteLabel, (v) => { CONTENT.pageTerms.noteLabel = v; });
     mkField(g, 'Note', CONTENT.pageTerms.note, (v) => { CONTENT.pageTerms.note = v; }, true);
 

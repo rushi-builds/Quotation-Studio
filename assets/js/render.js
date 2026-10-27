@@ -1032,10 +1032,26 @@
     set('v_tmSub', root.Bess.included(s) ? 'Solar EPC terms below • battery scope, warranties and payment terms require a separate written agreement.' : P.sub);
     set('v_tmIntro', P.intro);
     set('v_tmItemsLabel', P.itemsLabel);
-    setHTML('v_tmItems', P.items.map((it, i) =>
-      '<div class="term-item"><div class="term-num">' + String(i + 1).padStart(2, '0') + '</div>' +
-      '<div><div class="term-t">' + esc(it.title) + '</div>' +
-      '<div class="term-d">' + esc(tpl(it.desc, v)) + '</div></div></div>').join(''));
+    const termIcons = ['target', 'coins', 'calendar', 'payment', 'truck', 'institution', 'meter', 'shield', 'exclusion', 'tax', 'shieldAlert', 'scales'];
+    setHTML('v_tmItems', P.items.map((it, i) => {
+      const icon = I.names.includes(it.icon) ? it.icon : termIcons[i] || 'doc';
+      // Highlight existing durations only, after escaping. Never alter legal copy.
+      const description = esc(tpl(it.desc, v)).replace(/\b\d+\s*(?:[–-]\s*\d+\s*)?(?:days?|weeks?|months?)\b/gi, '<strong class="term-highlight">$&</strong>');
+      return '<li class="term-item"><span class="term-num"><svg aria-hidden="true" viewBox="0 0 32 26"><path d="M5 0H32V16L21 26H0V5A5 5 0 0 1 5 0Z" fill="#ff7a00"/></svg><span>' + String(i + 1).padStart(2, '0') + '</span></span>' +
+        '<span class="term-icon" aria-hidden="true">' + I.get(icon, 24, '#254465') + '</span>' +
+        '<div class="term-copy"><div class="term-t">' + esc(it.title) + '</div>' +
+        '<div class="term-d">' + description + '</div></div></li>';
+    }).join(''));
+    const footerDefaults = [
+      { icon: 'leaf', label: 'Reliable\nSolutions' }, { icon: 'users', label: 'Experienced\nTeam' },
+      { icon: 'shield', label: 'Quality\nExecution' }, { icon: 'chart', label: 'Long-Term\nValue' }
+    ];
+    setHTML('v_tmFooterValues', footerDefaults.map((fallback, i) => {
+      const item = P.footerValues?.[i] || fallback;
+      const icon = I.names.includes(item.icon) ? item.icon : fallback.icon;
+      return '<li><span aria-hidden="true">' + I.get(icon, 25, '#344e6b') + '</span><span>' + esc(item.label ?? fallback.label) + '</span></li>';
+    }).join(''));
+    set('v_tmFooterPromise', P.footerPromise ?? 'LET’S BUILD A\nGREENER FUTURE\nTOGETHER.');
     set('v_tmNoteLabel', P.noteLabel);
     set('v_tmNote', tpl(P.note, v));
   }
