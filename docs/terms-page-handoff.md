@@ -1,4 +1,4 @@
-# Terms and consistent navy page footers
+# Terms and light contextual footer accents
 
 ## Revised direction (supersedes the literal reference treatment)
 
@@ -11,22 +11,22 @@ The references are inspiration, not two banners to stack. The previous Terms-onl
 - Existing authored titles, legal descriptions, substitutions, validity, duration, jurisdiction and note stay unchanged. Numeric day/week/month phrases are highlighted only after HTML escaping.
 - Icon metadata stays with default term objects if reordered. Older saved objects retain positional defaults. Unknown/prototype icon names fall back safely.
 
-### Full-bleed wave with icons and metadata inside (latest correction)
+### Light icon rows, faint dividers and outer petals (latest approved direction)
 
-The user clarified that the wave/icons were wanted; only their placement and the separate white metadata baseline were wrong. The quiet-footer removal is superseded. The approved wave artwork and page-specific vector values are restored on business pages, with **left: 0, right: 0, bottom: 0**. No rounded capsule, inset gap, drop shadow or separate white contact strip is used.
+The user approved returning to the earlier light icon layout on selected pages, with original text/images restored (not moved up), the contact footer at the bottom, short faint vertical dividers between icons, and two subtle outer-corner petals. The heavy business-page waves and copied wave SVG are removed. The original cover and approved closing wave/lettering remain untouched.
 
-Every standard content/optional/continuation footer and all six Power footers have a **794 × 78 px full-bleed footprint** on the 794 × 1123 A4 canvas. The SVG preserves the approved closing wave paths, gradients, copper ribbon and leaf; only its navy base is extended from y=142 to y=174 so the phone, website, shared tagline and page number fit **inside the dark design**, below the icons. The original closing page and cover are untouched.
+The pre-wave lightweight layout is restored: default icon rows fit on **About, Why Solar, EPC Scope, Installation Quality, Why KTM, Warranty and Terms**. Other standard-page variants are considered only if actual space permits. No content is lifted, shrunk or hidden to make a row fit. The contact/website/tagline/page-number footer stays full-width at the bottom with its quiet navy/copper finish.
 
-Bottom whitespace is reserved at 104 px, keeping existing larger reservations. Notes/disclaimers sit above the design. Only whitespace/padding is adjusted on Savings and compact Power About; charts, body type sizes, calculations, technical values and legal copy remain unchanged. The existing continuation/export mechanisms are unchanged.
+Each visible icon group has **one lavender petal at the left outer corner and one peach petal at the right outer corner**, as aria-hidden, noninteractive SVG. There are no per-icon petal backplates, card backgrounds or shadows. Between adjacent icon cells are short 1 × 18 px, 50%-opacity neutral dividers. The previous horizontal rails and extra full-row top rule are removed. Icon palette and page-specific wording remain unchanged.
 
-Per-page value-label editor fields are restored, along with existing stored values. Value copy is escaped; unsafe icon names fall back safely. Blank or oversized optional value rows can be omitted without removing the wave or metadata. There is one footer per page, not stacked banners.
+All large footer reservations, lifted note positions, and Savings/Power spacing-tightening overrides are removed. The optional-row module measures remaining space after the ordinary source layout and skips the row if there is insufficient clearance. Legacy/custom value labels remain editable and escaped; blank/oversized optional rows can be omitted while the contact footer remains visible. No calculation, source business wording or export-engine change is made.
 
 The shared assets are loaded by the builder, local viewer and secure customer portal. Company contact/website/page numbering, financial calculations, export engine, backend/auth contracts, original photography and closing page are untouched. This is frontend presentation, not a production backend release.
 
 ## Focused proof
 
 - `LD_LIBRARY_PATH=/tmp/chromium-libs/lib node qa/terms-page.test.cjs`: legal-copy/template parity, safe text, legacy icon/value defaults and live footer editing, finance parity, integrated marks/two columns, A4/normal-flow/mobile fit and actual one-page PDF.
-- `LD_LIBRARY_PATH=/tmp/chromium-libs/lib node qa/proposal-values.test.cjs`: flush edge geometry, closing-wave path reuse with base extension, icons and live metadata inside the navy area, default/Power/continuation clearance, safe copy/icon fallbacks, finance parity, mobile fit and actual three-page PDF.
+- `LD_LIBRARY_PATH=/tmp/chromium-libs/lib node qa/proposal-values.test.cjs`: compares every default page's text/photo/chart geometry against the original template with footer presentation disabled; verifies seven fitting icon groups, two outer decorative petals, short faint dividers, no card backgrounds, real-space omission, safe editable copy, finance parity, mobile/continuation fit and actual three-page PDF.
 - Closing-page and customer-feedback browser regression suites separately protect the approved closing/footer and real disposable save/retry/inbox path.
 
 All fixtures are local and disposable, with production API calls intercepted or absent. Screenshots/PDFs stay under ignored `qa/shots/terms-page/` and `qa/shots/proposal-values/`.
