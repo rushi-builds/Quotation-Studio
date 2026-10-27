@@ -2,22 +2,23 @@
 'use strict';
 (function(root){
  const definitions={
-  pageExec:{contentKey:'exec',items:[['target','System overview'],['sun','Generation basis'],['chart','Project summary']]},
-  pageOptions:{items:[['doc','Like-for-like scope'],['coins','Transparent comparison'],['target','Informed choice']]},
-  pageSolution:{items:[['target','Site-fit design'],['gear','Specified equipment'],['shield','Design basis']]},
-  pageTechSpec:{items:[['doc','Technical clarity'],['target','Stated ratings'],['check','Traceable details']]},
-  pageSavings:{items:[['sun','Generation estimate'],['rupee','Energy-value basis'],['chart','Long-term view']]},
-  pageInvestment:{items:[['doc','Itemised scope'],['coins','Cost clarity'],['payment','Defined milestones']]},
-  pageFinance:{items:[['chart','Stated assumptions'],['coins','Finance illustration'],['doc','Informed decisions']]},
-  pageProjects:{items:[['target','Site context'],['doc','Project scope'],['leaf','Practical application']]},
-  pageAbout:{items:[['users','People first'],['target','Thoughtful planning'],['leaf','Responsible energy']]},
-  pageWhySolar:{items:[['sun','Clean generation'],['rupee','Energy value'],['leaf','Lower emissions']]},
-  pageScope:{items:[['doc','Defined scope'],['gear','Careful installation'],['check','Clear handover']]},
-  pageQuality:{items:[['shield','Safe practices'],['wrench','Neat workmanship'],['check','Careful checks']]},
-  pageWhyKtm:{items:[['users','Personal attention'],['target','Practical expertise'],['leaf','Long-term thinking']]},
-  pageWarranty:{items:[['shield','OEM warranties'],['wrench','Workmanship terms'],['doc','Clear support scope']]},
+  pageExec:{contentKey:'exec',items:[['target','System overview'],['sun','Generation basis'],['chart','Project summary'],['doc','Defined scope']]},
+  pageOptions:{items:[['doc','Like-for-like scope'],['coins','Transparent comparison'],['target','Informed choice'],['shield','Scope alignment']]},
+  pageSolution:{items:[['target','Site-fit design'],['gear','Specified equipment'],['shield','Design basis'],['check','Planned handover']]},
+  pageTechSpec:{items:[['doc','Technical clarity'],['target','Stated ratings'],['check','Traceable details'],['gear','Equipment basis']]},
+  pageSavings:{items:[['sun','Generation estimate'],['rupee','Energy-value basis'],['chart','Long-term view'],['leaf','Clean energy']]},
+  pageInvestment:{items:[['doc','Itemised scope'],['coins','Cost clarity'],['payment','Defined milestones'],['target','Agreed inclusions']]},
+  pageFinance:{items:[['chart','Stated assumptions'],['coins','Finance illustration'],['doc','Informed decisions'],['target','Scenario basis']]},
+  pageProjects:{items:[['target','Site context'],['doc','Project scope'],['leaf','Practical application'],['gear','Installation approach']]},
+  pageAbout:{items:[['users','People first'],['target','Thoughtful planning'],['leaf','Responsible energy'],['shield','Clear communication']]},
+  pageWhySolar:{items:[['sun','Clean generation'],['rupee','Energy value'],['leaf','Lower emissions'],['gear','Roof utilisation']]},
+  pageScope:{items:[['doc','Defined scope'],['gear','Careful installation'],['check','Clear handover'],['users','Agreed responsibilities']]},
+  pageQuality:{items:[['shield','Safe practices'],['wrench','Neat workmanship'],['check','Careful checks'],['doc','Documented checks']]},
+  pageWhyKtm:{items:[['users','Personal attention'],['target','Practical expertise'],['leaf','Long-term thinking'],['check','Clear guidance']]},
+  pageWarranty:{items:[['shield','OEM warranties'],['wrench','Workmanship terms'],['doc','Clear support scope'],['check','Handover guidance']]},
   pageTerms:{items:[['leaf','Reliable\nSolutions'],['users','Experienced\nTeam'],['shield','Quality\nExecution'],['chart','Long-Term\nValue']]}
  };
+ for(const def of Object.values(definitions))def.items=def.items.map(([icon,label])=>[icon,label.includes('\n')?label:label.replace(/ (\S+)$/,'\n$1')]);
  const palettes=['warm','sage','lavender','blue'];
  const visible=n=>n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden';
  function sync(){

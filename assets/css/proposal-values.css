@@ -6,7 +6,7 @@
   box-sizing:border-box;display:flex;flex-direction:row;align-items:center;
   justify-content:space-between;gap:12px;padding:0 38px 3px;
   border:0;border-top:1px solid #e6e9e9;border-bottom:3px solid #193b50;
-  border-radius:0;background:#fdfdfc;box-shadow:none;color:#677886;
+  border-radius:0;background:transparent;box-shadow:none;color:#677886;
 }
 .page:not(#pageCover):not(#pageClosing)>.pg-foot::before,
 .power-page>.power-foot::before{
@@ -38,15 +38,9 @@
 .page:not(#pageCover):not(#pageClosing)>.pg-body>.footer-note{
  position:static;left:auto;right:auto;bottom:auto;margin-top:14px;flex-shrink:0;
 }
-/* Soft page-corner stationery, separate from the footer cells. Backgrounds
-   paint behind content (never over photos/text) and stop above the icon row. */
+/* Three soft coloured petals grow from the physical bottom-right corner,
+   behind the live page number and footer. No separate body-corner artwork. */
 .page:not(#pageCover):not(#pageClosing){
- background-color:#fff;background-image:var(--proposal-corner,url('../images/proposal-corner-fan.svg'));
- background-repeat:no-repeat;background-position:right 0 bottom 76px;background-size:170px 170px;
-}
-#pageWhySolar,#pageQuality,#pageFinance,#pageOptions,#pageProjects{
- --proposal-corner:url('../images/proposal-corner-arcs.svg');
-}
-#pageScope,#pageTerms,#pageTechSpec,#pageInvestment,#pageExec{
- --proposal-corner:url('../images/proposal-corner-fold.svg');
+ background-color:#fff;background-image:url('../images/proposal-corner-petals.svg');
+ background-repeat:no-repeat;background-position:100% 100%;background-size:170px 170px;
 }

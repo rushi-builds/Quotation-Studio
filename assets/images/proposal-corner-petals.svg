@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 170" fill="none">
+ <defs>
+  <linearGradient id="peach" x1="125" y1="14" x2="170" y2="170" gradientUnits="userSpaceOnUse"><stop stop-color="#efc9b5" stop-opacity=".27"/><stop offset="1" stop-color="#e9bfa7" stop-opacity=".35"/></linearGradient>
+  <linearGradient id="lavender" x1="18" y1="74" x2="170" y2="170" gradientUnits="userSpaceOnUse"><stop stop-color="#d8c5ec" stop-opacity=".23"/><stop offset="1" stop-color="#cbb4e3" stop-opacity=".31"/></linearGradient>
+  <linearGradient id="sage" x1="45" y1="140" x2="170" y2="170" gradientUnits="userSpaceOnUse"><stop stop-color="#c9e0d8" stop-opacity=".25"/><stop offset="1" stop-color="#b9d6cb" stop-opacity=".3"/></linearGradient>
+ </defs>
+ <path d="M170 170C122 127 107 68 132 8C177 51 193 109 170 170Z" fill="url(#peach)"/>
+ <path d="M170 170C105 166 54 131 18 74C100 73 150 108 170 170Z" fill="url(#lavender)"/>
+ <path d="M170 170C117 174 78 161 43 134C106 114 151 132 170 170Z" fill="url(#sage)"/>
+</svg>
