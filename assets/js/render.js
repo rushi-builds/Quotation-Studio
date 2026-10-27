@@ -1078,17 +1078,17 @@
     set('v_clEmail', s.companyEmail);
     set('v_clWebsite', s.companyWebsite);
     const footerValues = [
-      ['leaf', P.footerReliable ?? 'Reliable\nSolutions'],
-      ['users', P.footerTeam ?? 'Experienced\nTeam'],
-      ['shield', P.footerQuality ?? 'Quality\nExecution'],
-      ['chart', P.footerValue ?? 'Long-Term\nValue']
+      ['leaf', P.footerReliable ?? 'Reliability'],
+      ['users', P.footerTeam ?? 'Experience'],
+      ['shield', P.footerQuality ?? 'Quality'],
+      ['chart', P.footerValue ?? 'Long-term value']
     ];
     setHTML('v_clFooterValues', footerValues.map(([icon, label]) =>
       '<li><span class="closing-footer-value-icon" aria-hidden="true">' + I.get(icon, 25, '#eee9f5') + '</span>' +
       '<span class="closing-footer-value-text">' + esc(label) + '</span></li>').join(''));
     set('v_clThankHeading', P.thankHeading ?? 'Thank you.');
-    set('v_clThankNote', P.thankNote ?? 'For considering us for your solar journey.\nLet’s create a brighter future, together.');
-    set('v_clThankMessage', tpl(P.thankMessage ?? 'Thoughtful design. Reliable energy. A solar solution planned around your property.', v));
+    set('v_clThankNote', P.thankNote ?? 'For considering us for your solar journey.');
+    set('v_clThankMessage', tpl(P.thankMessage ?? '', v));
     // Contact URLs are presentation only. Never treat arbitrary user text as a
     // URL, and never substitute a browser-only draft for a public customer link.
     const phone = String(s.companyPhone || '').trim();

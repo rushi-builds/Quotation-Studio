@@ -15,6 +15,11 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#pageClosing .accept-block,#pageClosing .sign-box,#pageClosing .engineering-steps').count(),0);
   assert.equal(await page.locator('#v_clHeading').textContent(),'Together for a Greener Tomorrow.');
   assert.equal(await page.locator('#v_clThankHeading').textContent(),'Thank you.');
+  assert.equal(await page.locator('#v_clThankNote').textContent(),'For considering us for your solar journey.');
+  assert.equal(await page.locator('#v_clThankMessage').textContent(),'');
+  assert.equal(await page.locator('#v_clThankMessage').evaluate(e=>getComputedStyle(e).display),'none');
+  assert.equal(await page.locator('.closing-wave-caption').count(),0,'remove the extra footer slogan, not the wave artwork');
+
   assert.equal(await page.locator('#v_clNext .next-item').count(),4);
   assert((await page.locator('#v_clThankNote').textContent()).includes('For considering us for your solar journey.'));
   assert.equal(await page.locator('#v_clNext .closing-input-icon svg').count(),4);
@@ -33,7 +38,7 @@ const {chromium}=require('playwright');
    const labels=[...document.querySelectorAll('.closing-footer-value-text')].map(e=>e.textContent);
    keys.forEach((k,i)=>CONTENT.pageClosing[k]=saved[i]);Render.renderAll();return labels;
   });
-  assert.deepEqual(footerFallback,['Reliable\nSolutions','Experienced\nTeam','Quality\nExecution','Long-Term\nValue'],'older saved quotations receive safe defaults');
+  assert.deepEqual(footerFallback,['Reliability','Experience','Quality','Long-term value'],'older saved quotations receive safe defaults');
   assert(await page.evaluate(()=>{
    Editor.build();
    const field=[...document.querySelectorAll('#advContainer .field')].find(e=>e.querySelector('label')?.textContent==='Footer value 1').querySelector('textarea');

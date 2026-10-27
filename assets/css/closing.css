@@ -10,16 +10,17 @@
 #pageClosing .gallery-card{top:98px;right:26px;width:125px;padding:9px;border-radius:9px;box-shadow:none;}
 #pageClosing .gallery-card canvas{width:96px;height:96px;}
 #pageClosing:has(.closing-banner.has-gallery) .closing-promise{display:none;}
-#pageClosing .closing-hero{position:relative;inset:auto;display:block;min-height:0;margin:126px 48px 0;padding:0;flex-shrink:0;text-align:left;}
+#pageClosing .closing-hero{position:relative;inset:auto;display:block;min-height:358px;margin:126px 48px 0;padding:0;flex-shrink:0;text-align:left;}
 #pageClosing .closing-kicker{margin:0 0 7px;font:600 32px/1.15 'Inter',sans-serif;letter-spacing:-.8px;color:#19364c;}
 #pageClosing .closing-kicker::before{content:'';display:block;width:34px;height:2px;background:#ce9678;margin-bottom:11px;}
 #pageClosing .closing-thank-note{max-width:400px;margin:0 0 16px;font:400 12px/1.55 'Inter',sans-serif;color:#536373;white-space:pre-line;}
 #pageClosing .closing-thank-note:empty{display:none;}
-#pageClosing .closing-hero h2{max-width:585px;margin:0;font:700 49px/1.04 Georgia,'Times New Roman',serif;letter-spacing:-1.7px;color:#102e43;}
+#pageClosing .closing-hero h2{max-width:585px;margin:0;font:700 44px/1.08 Georgia,'Times New Roman',serif;letter-spacing:-1.3px;color:#102e43;}
 #pageClosing .closing-hero h2 em{font-style:normal;color:#e88a25;}
 #pageClosing .closing-dot{color:#e88a25;}
 #pageClosing #v_clThankMessage{max-width:395px;margin:12px 0 0;font:400 13px/1.65 'Inter',sans-serif;color:#536373;}
-#pageClosing .closing-values{display:grid;grid-template-columns:repeat(3,1fr);width:395px;margin:18px 0 0;}
+#pageClosing #v_clThankMessage:empty{display:none;}
+#pageClosing .closing-values{display:grid;grid-template-columns:repeat(3,1fr);width:395px;margin:36px 0 0;}
 #pageClosing .closing-values>div{display:flex;flex-direction:column;align-items:center;gap:9px;border-right:1px solid #dcdedb;}
 #pageClosing .closing-values>div:last-child{border:0;}
 #pageClosing .closing-values span{display:grid;place-items:center;width:39px;height:39px;border:1px solid #ffffff;border-radius:13px;background:linear-gradient(145deg,#ffffffed,#e8e2f3b8);box-shadow:inset 0 1px 0 #fff,0 3px 8px #18384c08;}
@@ -61,7 +62,6 @@
 #pageClosing .closing-wave>.closing-wave-art{position:absolute;inset:0;width:100%;height:100%;}
 /* Preserve the original wave artwork. Values are free-standing additions,
    not another panel: no card, tint, border, blur or shadow behind the icons. */
-#pageClosing .closing-wave-caption{position:absolute;left:50px;top:54px;font:500 8px/1.9 'Inter',sans-serif;letter-spacing:2px;text-transform:uppercase;color:#f0eee5;}
 #pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:90px 110px 0 48px;padding:0;list-style:none;border:0;border-radius:0;background:none;box-shadow:none;}
 #pageClosing .closing-footer-values li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 6px;text-align:left;}
 #pageClosing .closing-footer-value-icon{display:block;flex:none;}
@@ -78,7 +78,7 @@
 #pageClosing.doc-flow .pg-body>.closing-banner{position:relative;inset:auto;width:calc(100% + 2 * var(--page-pad));height:220px;margin:0 calc(-1 * var(--page-pad));z-index:0;}
 #pageClosing.doc-flow .closing-brand{position:relative;inset:auto;margin:20px 0;}
 #pageClosing.doc-flow .closing-promise{position:relative;inset:auto;margin:16px 0;}
-#pageClosing.doc-flow .closing-hero{margin:24px 0 0;}
+#pageClosing.doc-flow .closing-hero{min-height:0;margin:24px 0 0;}
 #pageClosing.doc-flow .closing-hero h2{font-size:40px;}
 #pageClosing.doc-flow .closing-card,#pageClosing.doc-flow .closing-invitation,#pageClosing.doc-flow .closing-bottom{margin:20px 0 0;}
 #pageClosing.doc-flow .closing-card{padding:20px 0;}
