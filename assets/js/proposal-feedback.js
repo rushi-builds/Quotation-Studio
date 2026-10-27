@@ -61,7 +61,15 @@
       }
       if (responseChanged && $('feedbackResponseTitle')) {
         $('feedbackResponseKicker').textContent = response[0];
-        $('feedbackResponseTitle').textContent = response[1];
+        const responseTitle = $('feedbackResponseTitle');
+        responseTitle.textContent = response[1];
+        // Colour emphasis is presentation only; keep the same accessible copy.
+        if (selected === 0 || selected === 5) {
+          const split = selected === 0 ? response[1].lastIndexOf(' ') : response[1].indexOf(' ');
+          const accent = document.createElement('span'); accent.className = 'feedback-response-accent';
+          if (selected === 0) { accent.textContent = response[1].slice(split + 1); responseTitle.replaceChildren(document.createTextNode(response[1].slice(0, split + 1)), accent); }
+          else { accent.textContent = response[1].slice(0, split); responseTitle.replaceChildren(accent, document.createTextNode(response[1].slice(split))); }
+        }
         $('feedbackResponseCopy').textContent = response[2];
       }
       $('feedbackCount').textContent = $('feedbackComment').value.length + ' / 1500';
