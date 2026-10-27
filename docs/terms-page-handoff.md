@@ -11,22 +11,22 @@ The references are inspiration, not two banners to stack. The previous Terms-onl
 - Existing authored titles, legal descriptions, substitutions, validity, duration, jurisdiction and note stay unchanged. Numeric day/week/month phrases are highlighted only after HTML escaping.
 - Icon metadata stays with default term objects if reordered. Older saved objects retain positional defaults. Unknown/prototype icon names fall back safely.
 
-### Actual closing-wave design (supersedes rounded floating panels)
+### Quiet full-width running footer (latest direction supersedes repeated waves)
 
-The user rejected the rounded navy capsule: they meant the flowing footer from the approved closing page, not a new boxed interpretation. Content-page footers now use **the exact closing SVG paths, navy gradients, copper ribbon/edge, faint grid and right-hand leaf** exported as `assets/images/proposal-footer-wave.svg`. This is reused vector artwork, not a new generated image or CSS approximation. No rectangular card fill, rounded border or drop shadow remains. The closing page itself and its unique handwritten lettering remain untouched.
+After seeing the repeated waves, the user said the pages felt crowded and delegated the design decision. The content pages now use a restrained **full-width 794 × 34 px footer at the bottom edge**, matching the A4 page width. A white surface, fine neutral rule, short copper accent and 3 px navy baseline provide a consistent branded finish without a large dark block. Contact, website, shared tagline and page numbering remain live and legible. All six Power pages and continuation pages share the same quiet treatment.
 
-All standard content-page footers—including optional/system and continuation pages—and all six Power pages share **754 × 78 px**, inset **20 px horizontally and 6 px above the bottom** on the 794 × 1123 A4 canvas. The vector wave occupies the top 64 px. Page-specific values sit directly on its lower navy section, with the original live company/contact/website/tagline/page number on the clean baseline beneath. No duplicate banner or capsule is stacked with it. Blank/oversized optional labels suppress only that row, not the wave or original metadata.
+Repeated value icons, handwritten labels, leaf artwork, floating cards and business-page waves have been removed. The **approved full wave and values remain only on the closing page**, where they form the document's ending. The cover and all original photography are unchanged.
 
-Bottom whitespace is reserved at 104 px, retaining existing larger reservations. Anchored notes/disclaimers are positioned above the wave. On Savings and the compact Power About page, only spacing/padding is tightened; business type sizes, chart dimensions and calculations are unchanged. The existing continuation engine observes the larger real footer bounds for long authored content; the export engine is unchanged. All default content descendants and all six Power page bodies are checked for a clear gap above the wave.
+The footer-only rendering module and copied wave SVG have been removed from page loads/repository. Retired per-page footer-value editor fields are removed; previously stored value data is retained untouched. The original shared footer tagline remains editable. No source data migration is performed.
 
-Value labels remain editable in each page's Advanced Edit group. Rendering does not accumulate metadata wrappers or value rows. The cover and approved closing retain their dedicated designs, with no second wave added.
+The large footer space reservations and spacing-tightening overrides are removed, restoring the original business-page whitespace, table padding, chart spacing and authored-content continuation behaviour. Body type sizes, chart dimensions, calculations and legal wording remain unchanged. There is no custom footer JavaScript, render wrapper, resize listener or dynamic visibility logic.
 
 The shared assets are loaded by the builder, local viewer and secure customer portal. Company contact/website/page numbering, financial calculations, export engine, backend/auth contracts, original photography and closing page are untouched. This is frontend presentation, not a production backend release.
 
 ## Focused proof
 
-- `LD_LIBRARY_PATH=/tmp/chromium-libs/lib node qa/terms-page.test.cjs`: legal-copy/template parity, safe text, editing/legacy defaults, finance parity, integrated marks/two columns, A4/normal-flow/mobile fit and actual one-page PDF.
-- `LD_LIBRARY_PATH=/tmp/chromium-libs/lib node qa/proposal-values.test.cjs`: exact closing-path/gradient identity and uniform wave dimensions/offsets, default content/Power/continuation fit, no duplicate panels, unknown-icon/XSS safety, optional-row overflow/blank handling, finance parity, mobile fit and an actual three-page PDF across dense and spacious pages.
+- `LD_LIBRARY_PATH=/tmp/chromium-libs/lib node qa/terms-page.test.cjs`: legal-copy/template parity, safe text, legacy icon defaults and retired-field removal, finance parity, integrated marks/two columns, A4/normal-flow/mobile fit and actual one-page PDF.
+- `LD_LIBRARY_PATH=/tmp/chromium-libs/lib node qa/proposal-values.test.cjs`: full-width bottom-edge geometry, no repeated decorative content, default/Power/continuation clearance, live and safe shared footer copy, retained legacy data, finance parity, mobile fit and actual three-page PDF.
 - Closing-page and customer-feedback browser regression suites separately protect the approved closing/footer and real disposable save/retry/inbox path.
 
 All fixtures are local and disposable, with production API calls intercepted or absent. Screenshots/PDFs stay under ignored `qa/shots/terms-page/` and `qa/shots/proposal-values/`.

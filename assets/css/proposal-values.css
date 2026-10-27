@@ -1,44 +1,22 @@
-/* The approved closing wave itself, not a rounded card inspired by it.
-   Same inset wave size on every content page; cover/closing stay untouched. */
+/* Quiet running chrome for business pages. The expressive full wave belongs
+   to the closing page only. No repeated value rows, inset panels or artwork. */
 .page:not(#pageCover):not(#pageClosing)>.pg-foot,
 .power-page>.power-foot{
- position:absolute;left:20px;right:20px;bottom:6px;height:78px;min-height:78px;
- box-sizing:border-box;display:block;padding:0;border:0;border-radius:0;box-shadow:none;
- background:transparent url('../images/proposal-footer-wave.svg') center top/100% 64px no-repeat;
- overflow:visible;color:#647384;
+  position:absolute;left:0;right:0;bottom:0;height:34px;min-height:34px;
+  box-sizing:border-box;display:flex;flex-direction:row;align-items:center;
+  justify-content:space-between;gap:12px;padding:0 38px 3px;
+  border:0;border-top:1px solid #e6e9e9;border-bottom:3px solid #193b50;
+  border-radius:0;background:#fdfdfc;box-shadow:none;color:#677886;
 }
 .page:not(#pageCover):not(#pageClosing)>.pg-foot::before,
+.power-page>.power-foot::before{
+  content:'';position:absolute;left:38px;top:-1px;width:36px;height:1px;
+  background:#c7a37a;pointer-events:none;
+}
 .page:not(#pageCover):not(#pageClosing)>.pg-foot::after,
-.power-page>.power-foot::before,.power-page>.power-foot::after{content:none;}
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .floating-footer-meta{
- position:absolute;left:18px;right:18px;bottom:0;min-height:11px;padding-top:2px;
- display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #e4e7e6;
-}
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-left{color:#647384;font-size:8px;line-height:1.2;}
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-mid{color:#9c805b;font-size:7.2px;line-height:1.2;}
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-right{color:#425c70;font-size:8px;line-height:1.2;}
-.proposal-value-footer{
- position:absolute;left:36px;right:100px;top:45px;height:18px;min-height:18px;
- display:grid;align-items:center;gap:12px;margin:0;padding:0;list-style:none;
-}
-.proposal-value-footer[hidden]{display:none!important;}
-.proposal-value-footer li{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;padding:0;}
-.proposal-value-footer .pv-mark{display:block;flex:none;line-height:0;}
-.proposal-value-footer .pv-mark svg{display:block;}
-.proposal-value-footer .pv-label{font:500 8.5px/1.1 'Inter',sans-serif;color:#f1eef8;overflow-wrap:anywhere;}
-/* Reserve the real wave footprint, retaining existing larger reservations. */
-.page>.pg-body{padding-bottom:104px;}
-#pageExec>.pg-body{padding-bottom:104px;}
-.page.doc-flow>.pg-body{padding-bottom:104px!important;}
-.page:not(#pageCover):not(#pageClosing)>.pg-body>.footer-note{bottom:104px;}
-#pageInvestment .disclaimer-line{bottom:102px;}
-/* Power uses the identical wave, with its existing metadata along the lower edge. */
-.power-page>.power-foot{display:flex;align-items:flex-end;justify-content:space-between;padding:0 18px 1px;font-size:8px;gap:10px;}
-/* Whitespace only; chart dimensions, figures and body type sizes stay unchanged. */
-#pageSavings .rule-orange{margin:6px 0;}
-#pageSavings .chart-block{margin-top:0;}
-#pageSavings .sv-table td{padding-top:3px;padding-bottom:3px;}
-#pageSavings .sv-table th{padding-top:4px;padding-bottom:4px;}
-#pageSavings .assumption-strip{padding-top:7px;padding-bottom:7px;}
-#powerPage2.power-compact .power-company{margin-bottom:12px;}
-#powerPage2.power-compact .power-company-services{margin-top:10px;}
+.power-page>.power-foot::after{content:none;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-left{color:#677886;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-mid{color:#9b7b54;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-right{color:#29485e;}
+/* Power retains all original live metadata and its readable type size. */
+.power-page>.power-foot{font-size:9px;}
