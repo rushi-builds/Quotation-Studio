@@ -1,41 +1,44 @@
-/* Uniform floating navy panels: same A4 dimensions on every content page.
-   The approved cover/closing retain their dedicated artwork. */
+/* The approved closing wave itself, not a rounded card inspired by it.
+   Same inset wave size on every content page; cover/closing stay untouched. */
 .page:not(#pageCover):not(#pageClosing)>.pg-foot,
 .power-page>.power-foot{
-  position:absolute;left:38px;right:38px;bottom:6px;height:46px;min-height:46px;
-  box-sizing:border-box;padding:5px 12px 4px;display:flex;flex-direction:column;justify-content:center;gap:3px;
-  border:1px solid #24495a;border-radius:11px;background:#123449;color:#e8eff2;
-  box-shadow:0 3px 8px #142f431a;overflow:hidden;
+ position:absolute;left:20px;right:20px;bottom:6px;height:78px;min-height:78px;
+ box-sizing:border-box;display:block;padding:0;border:0;border-radius:0;box-shadow:none;
+ background:transparent url('../images/proposal-footer-wave.svg') center top/100% 64px no-repeat;
+ overflow:visible;color:#647384;
 }
 .page:not(#pageCover):not(#pageClosing)>.pg-foot::before,
-.power-page>.power-foot::before{
-  content:'';position:absolute;inset:0 0 auto;height:7px;pointer-events:none;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 718 8' preserveAspectRatio='none'%3E%3Cpath d='M0 2C160 -2 242 7 359 6S584 -1 718 2' fill='none' stroke='%23c2a480' stroke-width='.8'/%3E%3C/svg%3E") center/100% 100% no-repeat;
-}
 .page:not(#pageCover):not(#pageClosing)>.pg-foot::after,
-.power-page>.power-foot::after{
-  content:'';position:absolute;right:7px;top:5px;width:22px;height:24px;pointer-events:none;opacity:.25;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 32' fill='none' stroke='%23d9bc97' stroke-width='.8'%3E%3Cpath d='M14 29C3 24 0 16 2 10c9 3 13 9 12 19ZM14 29C9 15 15 5 23 1c2 12-1 21-9 28ZM14 29c2-11 8-15 15-16-1 9-7 15-15 16ZM14 29 2 10M14 29 23 1M14 29 29 13'/%3E%3C/svg%3E") center/contain no-repeat;
+.power-page>.power-foot::before,.power-page>.power-foot::after{content:none;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .floating-footer-meta{
+ position:absolute;left:18px;right:18px;bottom:0;min-height:11px;padding-top:2px;
+ display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #e4e7e6;
 }
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .floating-footer-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-width:0;}
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-left{color:#e2ebef;font-size:8px;line-height:1.2;}
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-mid{color:#d9bc97;font-size:7.2px;line-height:1.2;}
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-right{color:#e7eff3;font-size:8px;line-height:1.2;}
-.proposal-value-footer{width:100%;display:grid;align-items:center;gap:12px;margin:0;padding:0 18px 0 0;list-style:none;height:17px;min-height:17px;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-left{color:#647384;font-size:8px;line-height:1.2;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-mid{color:#9c805b;font-size:7.2px;line-height:1.2;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-right{color:#425c70;font-size:8px;line-height:1.2;}
+.proposal-value-footer{
+ position:absolute;left:36px;right:100px;top:45px;height:18px;min-height:18px;
+ display:grid;align-items:center;gap:12px;margin:0;padding:0;list-style:none;
+}
 .proposal-value-footer[hidden]{display:none!important;}
 .proposal-value-footer li{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;padding:0;}
 .proposal-value-footer .pv-mark{display:block;flex:none;line-height:0;}
 .proposal-value-footer .pv-mark svg{display:block;}
-.proposal-value-footer .pv-label{font:500 8.5px/1.25 'Inter',sans-serif;color:#e7eff3;overflow-wrap:anywhere;}
-/* Reserve whitespace, not smaller business text. Keep existing larger
-   page-specific reservations, including the investment page's 110 px. */
-.page>.pg-body{padding-bottom:66px;}
-#pageExec>.pg-body{padding-bottom:66px;}
-.page.doc-flow>.pg-body{padding-bottom:66px!important;}
-.page:not(#pageCover):not(#pageClosing)>.pg-body>.footer-note{bottom:66px;}
-#pageInvestment .disclaimer-line{bottom:64px;}
-.power-page>.power-foot{flex-direction:row;justify-content:space-between;padding:8px 12px;font-size:8px;align-items:center;}
-/* Recover a few spacing-only pixels on the dense savings page. Neither chart
-   dimensions, body type size, assumptions nor financial figures change. */
-#pageSavings .rule-orange{margin:9px 0;}
-#pageSavings .chart-block{margin-top:2px;}
+.proposal-value-footer .pv-label{font:500 8.5px/1.1 'Inter',sans-serif;color:#f1eef8;overflow-wrap:anywhere;}
+/* Reserve the real wave footprint, retaining existing larger reservations. */
+.page>.pg-body{padding-bottom:104px;}
+#pageExec>.pg-body{padding-bottom:104px;}
+.page.doc-flow>.pg-body{padding-bottom:104px!important;}
+.page:not(#pageCover):not(#pageClosing)>.pg-body>.footer-note{bottom:104px;}
+#pageInvestment .disclaimer-line{bottom:102px;}
+/* Power uses the identical wave, with its existing metadata along the lower edge. */
+.power-page>.power-foot{display:flex;align-items:flex-end;justify-content:space-between;padding:0 18px 1px;font-size:8px;gap:10px;}
+/* Whitespace only; chart dimensions, figures and body type sizes stay unchanged. */
+#pageSavings .rule-orange{margin:6px 0;}
+#pageSavings .chart-block{margin-top:0;}
+#pageSavings .sv-table td{padding-top:3px;padding-bottom:3px;}
+#pageSavings .sv-table th{padding-top:4px;padding-bottom:4px;}
+#pageSavings .assumption-strip{padding-top:7px;padding-bottom:7px;}
+#powerPage2.power-compact .power-company{margin-bottom:12px;}
+#powerPage2.power-compact .power-company-services{margin-top:10px;}

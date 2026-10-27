@@ -1,4 +1,4 @@
-/* Uniform floating footers: one panel size, with source text and contacts preserved. */
+/* Approved closing-wave footers: one wave size, with source text and contacts preserved. */
 'use strict';
 (function(root){
  const definitions={
@@ -21,7 +21,7 @@
  const palettes=['warm','sage','lavender','blue'];
  function sync(){
   if(!root.Render?.lastState||!root.ProposalMarks)return;
-  // One fixed floating panel per page. Never add an expanded second tier.
+  // One actual closing-wave footer per page. No capsules or expanded second tier.
   document.querySelectorAll('.page:not(#pageCover):not(#pageClosing)').forEach(page=>{
    page.classList.remove('has-value-surface');
    page.querySelectorAll(':scope>.proposal-value-footer').forEach(old=>old.remove());
@@ -37,7 +37,7 @@
    defaults.forEach(([icon,label],i)=>{
     const item=content?.footerValues?.[i],text=String(item?.label??label);if(!text.trim())return;
     const li=document.createElement('li'),mark=document.createElement('span'),copy=document.createElement('span');
-    mark.className='pv-mark';mark.setAttribute('aria-hidden','true');mark.innerHTML=root.ProposalMarks.get(item?.icon||icon,16,palettes[i%4]).replaceAll('#28465f','#edf3f5').replace(/#(?:fbf0e1|edf4f0|f2eef8|edf3f8)/g,'#244c5e').replaceAll('#b77d40','#d9b380').replaceAll('#668d80','#a7c8b6').replaceAll('#8b7ba7','#c7b7df').replaceAll('#648ca8','#acc9dd').replaceAll('fill="#fff"','fill="#244c5e"');
+    mark.className='pv-mark';mark.setAttribute('aria-hidden','true');mark.innerHTML=root.ProposalMarks.get(item?.icon||icon,18,palettes[i%4]).replaceAll('#28465f','#edf3f5').replace(/#(?:fbf0e1|edf4f0|f2eef8|edf3f8)/g,'#244c5e').replaceAll('#b77d40','#d9b380').replaceAll('#668d80','#a7c8b6').replaceAll('#8b7ba7','#c7b7df').replaceAll('#648ca8','#acc9dd').replaceAll('fill="#fff"','fill="#244c5e"');
     copy.className='pv-label';copy.textContent=text;li.append(mark,copy);list.append(li);
    });
    list.style.gridTemplateColumns='repeat('+Math.max(list.children.length,1)+',minmax(0,1fr))';list.hidden=!list.children.length;
