@@ -63,13 +63,12 @@
         $('feedbackResponseKicker').textContent = response[0];
         const responseTitle = $('feedbackResponseTitle');
         responseTitle.textContent = response[1];
-        // Colour emphasis is presentation only; keep the same accessible copy.
-        if (selected === 0 || selected === 5) {
-          const split = selected === 0 ? response[1].lastIndexOf(' ') : response[1].indexOf(' ');
-          const accent = document.createElement('span'); accent.className = 'feedback-response-accent';
-          if (selected === 0) { accent.textContent = response[1].slice(split + 1); responseTitle.replaceChildren(document.createTextNode(response[1].slice(0, split + 1)), accent); }
-          else { accent.textContent = response[1].slice(0, split); responseTitle.replaceChildren(accent, document.createTextNode(response[1].slice(split))); }
-        }
+        // A consistent orange accent for every rating; preserve accessible copy.
+        const accentWord = ['difference.', 'better.', 'clarity?', 'closer.', 'lovely', 'Hurray!'][selected];
+        const accentAt = response[1].indexOf(accentWord);
+        const accent = document.createElement('span'); accent.className = 'feedback-response-accent';
+        accent.textContent = accentWord;
+        responseTitle.replaceChildren(document.createTextNode(response[1].slice(0, accentAt)), accent, document.createTextNode(response[1].slice(accentAt + accentWord.length)));
         $('feedbackResponseCopy').textContent = response[2];
       }
       $('feedbackCount').textContent = $('feedbackComment').value.length + ' / 1500';
@@ -145,7 +144,7 @@
     paint(); fieldset.disabled = false; submit.disabled = preview;
     if (preview) {
       submit.textContent = 'Preview — sending disabled';
-      $('feedbackContext').textContent = 'Preview of the customer feedback experience';
+      $('feedbackContext').textContent = 'A quick rating, a thought, or a question—every perspective helps.';
       setStatus('');
     }
   }

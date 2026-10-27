@@ -20,7 +20,11 @@ const {chromium}=require('playwright');
   assert(await preview.locator('.feedback-preview-banner').isVisible());assert(await preview.locator('#feedbackSubmit').isDisabled());
   assert.equal(await preview.locator('#feedbackHeading em').textContent(),'with you.');
   assert((await preview.locator('body').evaluate(el=>getComputedStyle(el).backgroundImage)).includes('closing-solar-cinematic-4k.jpg'));
-  assert((await preview.locator('.feedback-preview-banner').textContent()).includes('Studio'));
+  assert((await preview.locator('.feedback-preview-banner').textContent()).includes('Your feedback matters.'));
+  assert.equal(await preview.locator('.feedback-preview-banner').evaluate(el=>/no submission|Nothing is sent|saved to Studio/.test(el.textContent)),false);
+  assert(await preview.locator('.feedback-preview-indicator').isVisible());
+  assert.equal(await preview.locator('.feedback-response-petals>path').count(),2);
+  assert.equal(await preview.locator('.feedback-response-accent').textContent(),'difference.');
   assert.equal(await preview.locator('body').evaluate(el=>el.textContent.includes('Zoho')),false);
   assert.equal(await preview.locator('[name=proposalRating]:checked').count(),0);
   await preview.locator('[name=proposalRating][value="3"]').check({force:true});assert.equal(await preview.locator('#feedbackRatingText').textContent(),'3 out of 5');
@@ -35,7 +39,7 @@ const {chromium}=require('playwright');
   await preview.locator('#feedbackComment').fill('Keep this note while I try the stars.');
   const commentHints=new Set();
   const responseTitles=new Set();
-  for(const rating of [1,2,3,4,5]){await preview.locator('[name=proposalRating][value="'+rating+'"]').check({force:true});assert.equal(await preview.locator('.feedback-stars .is-selected input').inputValue(),String(rating));assert.equal(await preview.locator('.feedback-stars .is-filled').count(),rating);responseTitles.add(await preview.locator('#feedbackResponseTitle').textContent());commentHints.add(await preview.locator('#feedbackComment').getAttribute('placeholder'));assert.equal(await preview.locator('#feedbackComment').inputValue(),'Keep this note while I try the stars.');}
+  for(const rating of [1,2,3,4,5]){await preview.locator('[name=proposalRating][value="'+rating+'"]').check({force:true});assert.equal(await preview.locator('.feedback-stars .is-selected input').inputValue(),String(rating));assert.equal(await preview.locator('.feedback-stars .is-filled').count(),rating);responseTitles.add(await preview.locator('#feedbackResponseTitle').textContent());assert.equal(await preview.locator('.feedback-response-accent').count(),1);assert.equal(await preview.locator('.feedback-response-accent').evaluate(el=>getComputedStyle(el).color),'rgb(238, 128, 26)');commentHints.add(await preview.locator('#feedbackComment').getAttribute('placeholder'));assert.equal(await preview.locator('#feedbackComment').inputValue(),'Keep this note while I try the stars.');}
   assert.equal(responseTitles.size,5);assert.equal(commentHints.size,5);
   assert.equal(await preview.locator('#feedbackComment').getAttribute('placeholder'),"What would you like to do next? Share your plans, questions, or anything you'd like us to help with.");
   assert((await preview.locator('#feedbackResponseTitle').textContent()).includes('Hurray!'));

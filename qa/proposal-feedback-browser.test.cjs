@@ -28,6 +28,7 @@ const {chromium}=require('playwright');
   const customer=await browser.newContext({viewport:{width:1200,height:1050}}),page=await customer.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(portalUrl);await page.waitForFunction(()=>!document.getElementById('feedbackFields').disabled);await page.evaluate(()=>document.fonts.ready);
   assert.equal(await page.locator('#engineeringRequestForm').count(),0);
+  assert.equal(await page.locator('.feedback-preview-banner,.feedback-preview-indicator').count(),0,'real customer portal contains no preview warning');
   assert.equal(await page.locator('#portalGate').isVisible(),false,'loading gate must not cover the ready portal');
   assert((await page.locator('#v_clWhatsApp').getAttribute('href')).startsWith('https://wa.me/'));
   assert((await page.locator('#v_clDiscuss').getAttribute('href')).endsWith('#proposalFeedback'));
