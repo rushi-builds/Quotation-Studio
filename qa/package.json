@@ -13,6 +13,7 @@
     "test:settings-modes": "node settings-modes.test.cjs",
     "test:closing-page": "node closing-page.test.cjs",
     "test:terms-page": "node terms-page.test.cjs",
+    "test:proposal-values": "node proposal-values.test.cjs",
     "test:actions": "node --test assistant-actions.test.cjs && node assistant-workflows.test.cjs",
     "test:financial-fixes": "node --test calculation-verification.test.cjs rwa-subsidy.test.cjs && node financial-fixes-browser.test.cjs",
     "test:power": "node power-five.test.cjs && node experience.test.js",

@@ -1037,21 +1037,11 @@
       const icon = I.names.includes(it.icon) ? it.icon : termIcons[i] || 'doc';
       // Highlight existing durations only, after escaping. Never alter legal copy.
       const description = esc(tpl(it.desc, v)).replace(/\b\d+\s*(?:[–-]\s*\d+\s*)?(?:days?|weeks?|months?)\b/gi, '<strong class="term-highlight">$&</strong>');
-      return '<li class="term-item"><span class="term-num"><svg aria-hidden="true" viewBox="0 0 32 26"><path d="M5 0H32V16L21 26H0V5A5 5 0 0 1 5 0Z" fill="#ff7a00"/></svg><span>' + String(i + 1).padStart(2, '0') + '</span></span>' +
-        '<span class="term-icon" aria-hidden="true">' + I.get(icon, 24, '#254465') + '</span>' +
+      const palette = ['warm', 'sage', 'lavender', 'blue'][i % 4];
+      return '<li class="term-item"><span class="term-mark term-mark-' + palette + '" aria-hidden="true">' + root.ProposalMarks.get(icon, 27, palette) + '<span class="term-num">' + String(i + 1).padStart(2, '0') + '</span></span>' +
         '<div class="term-copy"><div class="term-t">' + esc(it.title) + '</div>' +
         '<div class="term-d">' + description + '</div></div></li>';
     }).join(''));
-    const footerDefaults = [
-      { icon: 'leaf', label: 'Reliable\nSolutions' }, { icon: 'users', label: 'Experienced\nTeam' },
-      { icon: 'shield', label: 'Quality\nExecution' }, { icon: 'chart', label: 'Long-Term\nValue' }
-    ];
-    setHTML('v_tmFooterValues', footerDefaults.map((fallback, i) => {
-      const item = P.footerValues?.[i] || fallback;
-      const icon = I.names.includes(item.icon) ? item.icon : fallback.icon;
-      return '<li><span aria-hidden="true">' + I.get(icon, 25, '#344e6b') + '</span><span>' + esc(item.label ?? fallback.label) + '</span></li>';
-    }).join(''));
-    set('v_tmFooterPromise', P.footerPromise ?? 'LET’S BUILD A\nGREENER FUTURE\nTOGETHER.');
     set('v_tmNoteLabel', P.noteLabel);
     set('v_tmNote', tpl(P.note, v));
   }

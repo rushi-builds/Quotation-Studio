@@ -411,7 +411,6 @@ const CONTENT = {
       { icon: 'shield', label: 'Quality\nExecution' },
       { icon: 'chart', label: 'Long-Term\nValue' }
     ],
-    footerPromise: 'LET’S BUILD A\nGREENER FUTURE\nTOGETHER.',
     noteLabel: 'IMPORTANT NOTE',
     note: 'This document is a commercial proposal, not a tax or legal advice. Please read all sections of this proposal together - the technical, financial and warranty sections form part of these terms.'
   },

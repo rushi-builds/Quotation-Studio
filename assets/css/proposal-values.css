@@ -1,0 +1,29 @@
+/* Airy, page-specific accents; no duplicated illustration/handwriting banners. */
+.proposal-value-footer{position:absolute;left:38px;right:38px;min-height:42px;display:flex;align-items:center;gap:22px;color:#435c73;}
+.proposal-value-footer[hidden]{display:none!important;}
+.proposal-value-footer .pv-values{flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:18px;margin:0;padding:0;list-style:none;}
+.proposal-value-footer .pv-values li{display:flex;align-items:center;justify-content:center;gap:9px;min-width:0;padding:0;}
+.proposal-value-footer .pv-mark{display:block;flex:none;line-height:0;}
+.proposal-value-footer .pv-mark svg{display:block;}
+.proposal-value-footer .pv-label{font:500 9px/1.5 'Inter',sans-serif;white-space:pre-line;overflow-wrap:anywhere;color:#4d667b;}
+.proposal-value-footer .pv-kicker{width:108px;flex:none;color:#82909d;font:600 7.3px/1.7 'Inter',sans-serif;letter-spacing:1.5px;}
+.proposal-value-footer.pv-editorial .pv-kicker::before{content:'';display:block;width:22px;height:2px;border-radius:2px;background:#c49a68;margin-bottom:6px;}
+.proposal-value-footer.pv-editorial .pv-values li{justify-content:flex-start;}
+.proposal-value-footer.pv-horizon{min-height:58px;}
+.proposal-value-footer.pv-horizon .pv-values{gap:40px;}
+.proposal-value-footer.pv-horizon li{flex-direction:column;gap:5px;}
+.proposal-value-footer.pv-horizon li:nth-child(2){position:relative;}
+.proposal-value-footer.pv-horizon li:nth-child(2)::before,.proposal-value-footer.pv-horizon li:nth-child(2)::after{content:'';position:absolute;top:16px;width:38px;height:1px;background:#e1e7e7;}
+.proposal-value-footer.pv-horizon li:nth-child(2)::before{right:100%;}
+.proposal-value-footer.pv-horizon li:nth-child(2)::after{left:100%;}
+.proposal-value-footer.pv-precise{border-top:1px solid #edf0f2;padding-top:11px;min-height:45px;}
+.proposal-value-footer.pv-precise .pv-kicker{color:#8a7862;}
+.proposal-value-footer.pv-precise li{justify-content:flex-start;}
+.proposal-value-footer.pv-assurance{min-height:42px;}
+.proposal-value-footer.pv-assurance .pv-label{font-size:9px;letter-spacing:.15px;}
+.proposal-value-footer.pv-continuity{min-height:46px;}
+.proposal-value-footer.pv-continuity .pv-kicker{border-left:2px solid #b2c4ba;padding-left:11px;width:120px;color:#758f85;}
+.proposal-value-footer.pv-continuity .pv-values li{justify-content:flex-start;}
+.proposal-value-footer.pv-quiet .pv-values{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;}
+.proposal-value-footer.pv-quiet .pv-values li{justify-content:flex-start;gap:11px;}
+.proposal-value-footer.pv-quiet .pv-values li+li{padding-left:15px;}

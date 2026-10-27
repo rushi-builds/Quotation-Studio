@@ -1,0 +1,39 @@
+/* Presentation-only, disposable local browser fixtures. No production calls. */
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');const{chromium}=require('playwright');
+(async()=>{const{default:chrome}=await import('@sparticuz/chromium');const browser=await chromium.launch({executablePath:await chrome.executablePath(),args:chrome.args.filter(a=>a!=='--single-process'),headless:true});try{
+ const context=await browser.newContext({viewport:{width:1440,height:1200}}),errors=[],writes=[];
+ await context.route('**/api/**',r=>{if(r.request().method()!=='GET')writes.push(r.request().url());return r.fulfill({status:404,contentType:'application/json',body:'{}'});});
+ const page=await context.newPage();page.on('pageerror',e=>{errors.push(e.message);console.error('BROWSER ERROR:',e.message);});await page.goto('http://127.0.0.1:8080/quotation.html');await page.waitForFunction(()=>window.Render?.lastState&&document.querySelector('.studio-ready'));await page.evaluate(()=>document.fonts.ready);await page.evaluate(()=>ProposalValueFooters.sync());
+ const expected=['pageAbout','pageWhySolar','pageScope','pageQuality','pageWhyKtm','pageWarranty','pageTerms'];
+ const shown=await page.locator('.page>.proposal-value-footer:not([hidden])').evaluateAll(nodes=>nodes.map(n=>n.parentElement.id));console.log('Visible value footers:',shown.join(', '));assert.deepEqual(shown.slice().sort(),expected.slice().sort());
+ assert.equal(await page.locator('#pageClosing .proposal-value-footer,#pageCover .proposal-value-footer').count(),0);
+ assert.equal(await page.locator('.terms-solar-sketch,.terms-footer-lettering,.terms-footer-artwork,.terms-brand-footer').count(),0,'no stacked copied-reference banners');
+ assert.equal(await page.locator('#pageTerms .term-mark').count(),12);assert.equal(await page.locator('#pageTerms .term-mark>.term-num').count(),12);assert.equal(await page.locator('#pageTerms .term-mark>svg').count(),12);assert.equal(await page.locator('#pageTerms .term-num svg,#pageTerms .term-icon').count(),0,'no disconnected orange number flags / icon tiles');
+ const copy=await page.locator('.proposal-value-footer:not([hidden])').allTextContents();assert.equal(new Set(copy).size,expected.length,'page-specific values, not the same four words repeated');
+ const layouts=await page.locator('.proposal-value-footer:not([hidden])').evaluateAll(nodes=>nodes.map(n=>n.className));assert(new Set(layouts).size>=5,'a cohesive set of different footer treatments');
+ const fits=()=>page.evaluate(()=>[...document.querySelectorAll('.proposal-value-footer:not([hidden])')].every(b=>{const p=b.parentElement,r=p.getBoundingClientRect(),s=r.width/p.offsetWidth,box=b.getBoundingClientRect(),body=p.querySelector('.pg-body'),foot=p.querySelector('.pg-foot').getBoundingClientRect();const nodes=[...body.querySelectorAll('*')].filter(n=>n.getClientRects().length&&!n.matches('.spacer')&&!n.closest('.footer-note'));const bottom=Math.max(...nodes.map(n=>n.getBoundingClientRect().bottom));return box.top>=bottom+15*s&&box.bottom<=foot.top-10*s&&box.left>=r.left&&box.right<=r.right&&p.scrollHeight<=1124;}));
+ assert(await fits(),'every visible footer has measured breathing room and no clipping');
+ const finance=await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState)));
+ assert(await page.evaluate(()=>{
+  const p=pageAbout,body=p.querySelector('.pg-body'),before=[...body.children].map(n=>n.getBoundingClientRect().height),guard=document.createElement('p');guard.style.cssText='position:absolute;top:1010px;height:65px;left:0';guard.textContent='Disposable authored-content boundary fixture';body.append(guard);ProposalValueFooters.sync();const skipped=p.querySelector('.proposal-value-footer').hidden;guard.remove();ProposalValueFooters.sync();return skipped&&!p.querySelector('.proposal-value-footer').hidden&&before.every((h,i)=>h===body.children[i].getBoundingClientRect().height);
+ }),'crowded content suppresses the decoration; never shrinks/repositions real content');
+ assert(await page.evaluate(()=>{
+  const old=CONTENT.pageAbout.footerValues;CONTENT.pageAbout.footerValues=[{icon:'__proto__',label:'<img src=x onerror=alert(1)>'},{label:''},{label:''}];Render.renderAll();const b=pageAbout.querySelector('.proposal-value-footer');const safe=!b.querySelector('img')&&b.textContent.includes('<img src=x');CONTENT.pageAbout.footerValues=old;Render.renderAll();return safe;
+ }),'authored labels are text-only and unknown/prototype icons use a safe fallback');
+ assert(await page.evaluate(()=>{
+  const old=CONTENT.pageTerms.footerValues;CONTENT.pageTerms.footerValues=old.map(it=>({...it,label:''}));Render.renderAll();const hidden=pageTerms.querySelector('.proposal-value-footer').hidden;CONTENT.pageTerms.footerValues=old;Render.renderAll();return hidden;
+ }),'blank labels can remove an optional footer');
+ for(let i=0;i<4;i++)await page.evaluate(()=>Render.renderAll());assert.equal(await page.locator('#pageAbout>.proposal-value-footer').count(),1,'renders never accumulate duplicate bands');assert(await fits());
+ const shots=path.join(__dirname,'shots','proposal-values');fs.mkdirSync(shots,{recursive:true});
+ for(const id of expected){const markup=await page.locator('#'+id).evaluate(e=>e.outerHTML),proof=await context.newPage({viewport:{width:794,height:1123}});await proof.setContent('<base href="http://127.0.0.1:8080/"><link rel="stylesheet" href="assets/css/app.css"><link rel="stylesheet" href="assets/css/experience.css"><link rel="stylesheet" href="assets/css/terms.css"><link rel="stylesheet" href="assets/css/proposal-values.css"><style>body{margin:0;padding:0;}.page{transform:none!important;}</style>'+markup);await proof.evaluate(()=>document.fonts.ready);await proof.waitForFunction(()=>[...document.images].every(i=>i.complete));await proof.locator('.page').screenshot({path:path.join(shots,id+'.png')});await proof.close();}
+ // Real PDF: three different footer designs, not a mock browser-print screenshot.
+ const captured=await page.evaluate(async()=>{const Native=jspdf.jsPDF,visible=Render.lastVisible.slice();let output='';jspdf.jsPDF=function(...args){const pdf=new Native(...args);pdf.save=()=>{output=pdf.output();};return pdf;};try{Render.lastVisible.splice(0,Render.lastVisible.length,...visible.filter(p=>['pageAbout','pageWhySolar','pageQuality'].includes(p.id)));await Exporter.exportPdf(()=>{},{format:'full'});return output;}finally{jspdf.jsPDF=Native;Render.lastVisible.splice(0,Render.lastVisible.length,...visible);}});assert.equal((captured.match(/\/Type \/Page\b/g)||[]).length,3);fs.writeFileSync(path.join(shots,'value-footers.pdf'),captured,'binary');
+ // Authored additions use the existing continuation engine without repeating accents.
+ await page.evaluate(()=>DocumentStudio.addTextBlock('pageWhySolar','Disposable continuation fixture','Solar planning notes. '.repeat(450)));
+ assert(await fits());assert.deepEqual(await page.evaluate(()=>DocumentStudio.errors()),[]);assert.equal(await page.locator('[id^="pageWhySolar-continuation"] .proposal-value-footer').count(),0);
+ await page.evaluate(()=>DocumentStudio.restorePage('pageWhySolar'));
+ assert.equal(await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState))),finance);
+ for(const width of [390,360]){await page.setViewportSize({width,height:900});await page.evaluate(()=>ProposalValueFooters.sync());assert(await fits());assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));}
+ assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);console.log('PASS: integrated pastel term marks; varied context-aware footers; real-space omission, safe/editable text, no duplicates, intrinsic A4/mobile/continuation fit, finance parity and actual three-page PDF. No production calls.');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});
