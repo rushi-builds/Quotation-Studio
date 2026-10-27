@@ -18,8 +18,8 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#v_tmFooterValues li svg').count(),4);
   assert(await page.locator('#v_tmFooterValues').evaluate(e=>getComputedStyle(e).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(e).boxShadow==='none'));
   assert.equal(await page.locator('#pageTerms .terms-footer-artwork,#pageTerms .terms-brand-footer').count(),0);
-  assert.equal(await page.locator('#pageTerms>.proposal-value-footer').count(),1);
-  assert(await page.locator('#pageTerms>.proposal-value-footer').isVisible());
+  assert.equal(await page.locator('#pageTerms>.pg-foot>.proposal-value-footer').count(),1);
+  assert(await page.locator('#pageTerms>.pg-foot>.proposal-value-footer').isVisible());
   const finance=await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState)));
   assert(await page.evaluate(()=>{
    const s=Render.lastState,v={validity:s.validityDays+' days',duration:s.durationText,jurisdiction:s.jurisdiction,company:s.companyName};

@@ -1,34 +1,41 @@
-/* One branded footer family on every page. Fixed running furniture consumes
-   no extra document space. Protected cover/closing retain their own finish. */
-.page:not(#pageCover):not(#pageClosing)>.pg-foot{
-  background:#123449;border-top:1px solid #bda17f;color:#e8eff2;
+/* Uniform floating navy panels: same A4 dimensions on every content page.
+   The approved cover/closing retain their dedicated artwork. */
+.page:not(#pageCover):not(#pageClosing)>.pg-foot,
+.power-page>.power-foot{
+  position:absolute;left:38px;right:38px;bottom:6px;height:46px;min-height:46px;
+  box-sizing:border-box;padding:5px 12px 4px;display:flex;flex-direction:column;justify-content:center;gap:3px;
+  border:1px solid #24495a;border-radius:11px;background:#123449;color:#e8eff2;
+  box-shadow:0 3px 8px #142f431a;overflow:hidden;
 }
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-left,
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-right{color:#e7eff3;}
-.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-mid{color:#d9bc97;}
-.page:not(#pageCover):not(#pageClosing)>.pg-foot::after{
-  content:'';position:absolute;right:7px;bottom:4px;width:24px;height:25px;pointer-events:none;opacity:.32;
+.page:not(#pageCover):not(#pageClosing)>.pg-foot::before,
+.power-page>.power-foot::before{
+  content:'';position:absolute;inset:0 0 auto;height:7px;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 718 8' preserveAspectRatio='none'%3E%3Cpath d='M0 2C160 -2 242 7 359 6S584 -1 718 2' fill='none' stroke='%23c2a480' stroke-width='.8'/%3E%3C/svg%3E") center/100% 100% no-repeat;
+}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot::after,
+.power-page>.power-foot::after{
+  content:'';position:absolute;right:7px;top:5px;width:22px;height:24px;pointer-events:none;opacity:.25;
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 32' fill='none' stroke='%23d9bc97' stroke-width='.8'%3E%3Cpath d='M14 29C3 24 0 16 2 10c9 3 13 9 12 19ZM14 29C9 15 15 5 23 1c2 12-1 21-9 28ZM14 29c2-11 8-15 15-16-1 9-7 15-15 16ZM14 29 2 10M14 29 23 1M14 29 29 13'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-.page.has-value-surface:not(#pageCover):not(#pageClosing)>.pg-foot{border-top-color:#123449;}
-/* Power summaries keep the same compact running-footer family. */
-.power-page .power-foot,.power-six .power-foot{
-  left:0;right:0;bottom:0;min-height:34px;padding:9px 38px;background:#123449;
-  border-top:1px solid #bda17f;color:#e7eff3;align-items:center;
-}
-.proposal-value-footer{position:absolute;left:0;right:0;height:56px;display:flex;align-items:center;gap:22px;padding:20px 38px 6px;color:#e8eff2;isolation:isolate;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .floating-footer-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-width:0;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-left{color:#e2ebef;font-size:8px;line-height:1.2;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-mid{color:#d9bc97;font-size:7.2px;line-height:1.2;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-right{color:#e7eff3;font-size:8px;line-height:1.2;}
+.proposal-value-footer{width:100%;display:grid;align-items:center;gap:12px;margin:0;padding:0 18px 0 0;list-style:none;height:17px;min-height:17px;}
 .proposal-value-footer[hidden]{display:none!important;}
-.proposal-value-footer .pv-surface{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;}
-.proposal-value-footer .pv-values{flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:18px;margin:0;padding:0;list-style:none;}
-.proposal-value-footer .pv-values li{display:flex;align-items:center;justify-content:center;gap:9px;min-width:0;padding:0;}
+.proposal-value-footer li{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;padding:0;}
 .proposal-value-footer .pv-mark{display:block;flex:none;line-height:0;}
 .proposal-value-footer .pv-mark svg{display:block;}
-.proposal-value-footer .pv-label{font:500 9px/1.5 'Inter',sans-serif;white-space:pre-line;overflow-wrap:anywhere;color:#e7eff3;}
-.proposal-value-footer .pv-kicker{width:108px;flex:none;color:#d9bc97;font:600 7.3px/1.7 'Inter',sans-serif;letter-spacing:1.5px;}
-.proposal-value-footer.pv-editorial .pv-values li{justify-content:flex-start;}
-.proposal-value-footer.pv-horizon{height:78px;padding-top:24px;padding-bottom:7px;}
-.proposal-value-footer.pv-horizon .pv-values{gap:40px;}
-.proposal-value-footer.pv-horizon li{flex-direction:column;gap:4px;}
-.proposal-value-footer.pv-precise li,.proposal-value-footer.pv-continuity li{justify-content:flex-start;}
-.proposal-value-footer.pv-quiet .pv-values li{justify-content:flex-start;gap:11px;}
-.proposal-value-footer.pv-quiet .pv-values li+li{padding-left:15px;}
+.proposal-value-footer .pv-label{font:500 8.5px/1.25 'Inter',sans-serif;color:#e7eff3;overflow-wrap:anywhere;}
+/* Reserve whitespace, not smaller business text. Keep existing larger
+   page-specific reservations, including the investment page's 110 px. */
+.page>.pg-body{padding-bottom:66px;}
+#pageExec>.pg-body{padding-bottom:66px;}
+.page.doc-flow>.pg-body{padding-bottom:66px!important;}
+.page:not(#pageCover):not(#pageClosing)>.pg-body>.footer-note{bottom:66px;}
+#pageInvestment .disclaimer-line{bottom:64px;}
+.power-page>.power-foot{flex-direction:row;justify-content:space-between;padding:8px 12px;font-size:8px;align-items:center;}
+/* Recover a few spacing-only pixels on the dense savings page. Neither chart
+   dimensions, body type size, assumptions nor financial figures change. */
+#pageSavings .rule-orange{margin:9px 0;}
+#pageSavings .chart-block{margin-top:2px;}
