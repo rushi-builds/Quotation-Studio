@@ -59,3 +59,46 @@
 body.portal-mode .share-topbar {
   /* same studio tokens; portal never shows builder controls */
 }
+
+/* Private proposal feedback lives in the online portal, never as PDF widgets. */
+#proposalFeedback{scroll-margin-top:110px;}
+.proposal-feedback .feedback-heading{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:26px;}
+.proposal-feedback h3{margin:7px 0 8px;font-size:27px;letter-spacing:-.7px;color:#19364c;}
+.proposal-feedback #feedbackContext{margin:0;color:#637188;font-size:12px;}
+.feedback-private{font-size:11px;color:#6b6484;border:1px solid #e7e1f0;background:#f8f5fc;border-radius:20px;padding:7px 11px;white-space:nowrap;}
+#feedbackFields{border:0;margin:0;padding:0;min-width:0;}
+#feedbackFields label,.feedback-rating>p{font-size:13px;font-weight:600;color:#233d53;}
+#feedbackFields small,.feedback-rating small{font-size:11px;font-weight:400;color:#788499;margin-left:5px;}
+.feedback-stars{display:flex;gap:8px;margin:10px 0 7px;}
+.feedback-stars label{position:relative;display:grid;place-items:center;width:46px;height:48px;cursor:pointer;border:1px solid #e3e7ed;border-radius:10px;background:#faf9fc;}
+.feedback-stars input{position:absolute;width:1px;height:1px;opacity:0;}
+.feedback-stars span{font-size:32px;line-height:1;color:#cad0da;}
+.feedback-stars .is-filled span{color:#e59032;}
+.feedback-stars label:focus-within{outline:2px solid #6e679d;outline-offset:3px;}
+.feedback-rating-help{display:flex;align-items:center;gap:16px;font-size:11px;color:#788499;}
+#feedbackClearRating{border:0;background:none;font-size:11px;color:#69618f;text-decoration:underline;cursor:pointer;padding:5px 0;}
+.feedback-message{margin-top:24px;}
+.feedback-message textarea{display:block;box-sizing:border-box;width:100%;margin-top:9px;padding:13px 14px;border:1px solid #dce1e9;border-radius:10px;background:#fff;font-family:inherit;font-size:13px;line-height:1.65;resize:vertical;color:#243d53;}
+#feedbackCount{display:block;text-align:right;margin:6px 0 0;color:#788499;font-size:10px;}
+.feedback-bottom-fields{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:end;margin:14px 0 22px;}
+.feedback-bottom-fields select{display:block;box-sizing:border-box;width:100%;margin-top:9px;padding:11px;border:1px solid #dce1e9;border-radius:8px;background:#fff;color:#243d53;font-size:12px;}
+#feedbackFields .feedback-contact{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:400;padding:10px 0;}
+.feedback-contact input{accent-color:#655783;}
+.feedback-privacy{max-width:660px;font-size:11px;line-height:1.7;color:#788499;}
+.feedback-status{font-size:12px;line-height:1.6;margin-top:14px;color:#637188;}
+.feedback-status.is-error{color:#a33a32;}
+.feedback-success{padding:24px;background:#f3f7f5;border:1px solid #d5e5de;border-radius:12px;outline-color:#627d70;}
+.feedback-success>span{color:#317358;font-size:24px;}
+.feedback-success h4{margin:8px 0;font-size:22px;color:#214d3e;}
+.feedback-success p{max-width:600px;font-size:13px;line-height:1.7;color:#536b62;}
+.feedback-success small{font-size:10px;color:#6e827a;}
+#proposalFeedback [hidden]{display:none!important;}
+#feedbackSubmit:disabled,#feedbackFields:disabled{opacity:.65;cursor:default;}
+#proposalFeedback .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
+@media(max-width:620px){.proposal-feedback .feedback-heading{display:block;}.feedback-private{display:inline-block;margin-top:14px;white-space:normal;}.feedback-bottom-fields{grid-template-columns:1fr;gap:12px;}.proposal-feedback h3{font-size:24px;}}
+
+#portalGate[hidden],#portalMain[hidden]{display:none!important;}
+
+#feedbackSubmit{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:11px 19px;border:1px solid #19384e;border-radius:9px;background:#19384e;color:#fff;font:600 12px/1.5 Inter,sans-serif;cursor:pointer;}
+#feedbackSubmit:hover:not(:disabled){background:#294b63;}
+#feedbackSubmit:focus-visible{outline:2px solid #82759f;outline-offset:3px;}

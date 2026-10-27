@@ -13,7 +13,7 @@ const jsQR = require('jsqr');
     const page = await context.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
-    const customerUrl = 'https://example.com/portal.html?t=cover-regression';
+    const customerUrl = 'https://example.com/portal.html?t=abababababababababababababababababababababababab';
     const galleryUrl = 'https://example.com/projects';
     const cleanCover = async view => {
       assert.equal(await view.locator('#coverQrWrap, #qrCover, #pageCover .cover-qr, #pageCover canvas').count(), 0, 'no cover QR, including hidden/exportable markup');
@@ -54,7 +54,7 @@ const jsQR = require('jsqr');
       });
       assert.equal(jsQR(new Uint8ClampedArray(image.data), image.width, image.height)?.data, galleryUrl);
     }
-    assert.equal(await page.evaluate(() => Render.requestFormUrl()), customerUrl + '#shareAcceptWrap', 'customer request destination is unchanged');
+    assert.equal(await page.evaluate(() => Render.requestFormUrl()), customerUrl + '#proposalFeedback', 'published feedback destination survives cover QR removal');
 
     await page.emulateMedia({ media: 'print' });
     await cleanCover(page);

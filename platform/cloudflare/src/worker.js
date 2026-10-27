@@ -10,6 +10,7 @@
 import * as accessService from '../../workspace-access.mjs';
 import { d1AccessStore, companyMetrics, quotedFinance } from '../../workspace-access-store.mjs';
 import { reserveCloudReference } from '../../reference-numbers.mjs';
+import { submitFeedback, d1FeedbackStore } from '../../proposal-feedback.mjs';
 import { handleOAuth } from './oauth.mjs';
 import { handlePhoneAuth } from './phone.mjs';
 import { d1OAuthStore } from '../../oauth-store.mjs';
@@ -82,7 +83,7 @@ const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 /* Deployed code marker. /api/health reports it so an operator can prove the
    running Worker is actually the build that contains the role changes,
    instead of inferring it from behaviour. Bump on every behaviour change. */
-const CODE_VERSION = 'reconcile-r1';
+const CODE_VERSION = 'proposal-feedback-r1';
 
 const SEND_CHANNELS = {
   whatsapp_manual: { label: 'WhatsApp (manual)', provider: 'manual' },
@@ -2385,9 +2386,19 @@ async function handleApi(request, env, url, ctx) {
         access: {
           expiresAt: tok.expires_at || null,
           openCount: tok.open_count || 0,
+          feedbackAvailable: true,
           privacyNote: 'Opening this link may be recorded so the sender can follow up. No payment data is collected here.'
         }
       });
+    }
+
+    if (parts[0] === 'portal' && parts[1] === 'feedback' && parts.length === 2 && method === 'POST') {
+      if (Number(request.headers.get('content-length')) > 8192) return json({ error: 'Feedback is too large.' }, 413);
+      const rawBody = await request.text();
+      if (new TextEncoder().encode(rawBody).length > 8192) return json({ error: 'Feedback is too large.' }, 413);
+      let body; try { body = JSON.parse(rawBody); } catch (_) { return json({ error: 'Invalid JSON.' }, 400); }
+      const saved = await submitFeedback(d1FeedbackStore(db), body);
+      return json(saved, saved.feedback.duplicate ? 200 : 201);
     }
 
     if (parts[0] === 'portal' && parts[1] === 'event' && method === 'POST') {

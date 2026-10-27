@@ -3661,3 +3661,8 @@ html[data-theme="dark"] #panel-sales :is(.pulse-filters,.pulse-control-tabs) but
 @media(max-width:600px) { .main .workspace-skeleton { grid-template-columns:1fr; }.main .workspace-skeleton i { height:74px; }.main .workspace-skeleton i:last-child { display:none; } }
 @media(pointer:coarse) { .main :is(.btn,.text-link,.record-link,.vall,.sc-details,.wa-tabbar>button,.wa-scope-filters>button) { min-height:44px; } }
 @media(prefers-reduced-motion:reduce) { .main .workspace-skeleton i { animation:none; } }
+
+/* Private feedback detail only; keep the existing workspace/theme intact. */
+.customer-feedback-detail{margin:10px 0 6px;padding:13px 15px;border:1px solid #dce2eb;border-radius:10px;background:rgba(255,255,255,.88);color:#263e55;max-width:740px;}
+.customer-feedback-detail p{margin:4px 0;line-height:1.6;}
+.customer-feedback-detail small{color:#66758a;}

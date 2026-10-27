@@ -39,23 +39,14 @@
     } catch (e) { return ''; }
   }
 
-  /* Where the closing page's "Open request form" call-to-action should lead:
-     the live acceptance form on the shared proposal, or this page's own form
-     anchor when the customer is already viewing the shared copy. */
-  function requestFormUrl() {
+  // Feedback must lead to a transferable secure portal, never browser-local
+  // share.html data. Unpublished drafts simply omit this optional PDF link.
+  function feedbackUrl(value) {
     try {
-      if (document.body.classList.contains('share-mode')) {
-        return new URL(location.href.split('#')[0] + '#shareAcceptWrap').href;
-      }
-      /* The proposal's own customer link (auto-filled portal token) wins over
-         the same-browser share view, which a customer can never open. */
-      const s = root.StateStore && typeof root.StateStore.collectForm === 'function'
-        ? root.StateStore.collectForm() : null;
-      const shared = s ? safeHttpUrl(s.shareUrl) : '';
-      if (shared) return new URL(shared.split('#')[0] + '#shareAcceptWrap').href;
-      const id = root.Proposals && typeof root.Proposals.activeId === 'function' ? root.Proposals.activeId() : '';
-      return id ? new URL('share.html?p=' + encodeURIComponent(id) + '#shareAcceptWrap', document.baseURI).href : '';
-    } catch (e) { return ''; }
+      const u = new URL(safeHttpUrl(value));
+      if (!/\/portal\.html$/.test(u.pathname) || !/^[a-z\d_-]{32,128}$/i.test(u.searchParams.get('t') || '')) return '';
+      u.hash = 'proposalFeedback'; return u.href;
+    } catch (_) { return ''; }
   }
 
   const TYPE_LABEL = { residential: 'Residential', rwa: 'RWA / Housing Society', commercial: 'Commercial', industrial: 'Industrial' };
@@ -1110,24 +1101,15 @@
     const whatsappUrl = canMessage ? 'https://wa.me/' + digits + '?text=' + encodeURIComponent('Hello, I would like to discuss proposal ' + (s.propRef || '') + ' from ' + (s.companyName || '') + '.') : '';
     if (wa) { wa.hidden = !canMessage; contactLink('v_clWhatsApp', whatsappUrl); }
     const sharedView = document.body.classList.contains('share-mode');
-    // A downloaded draft must not point customers at browser-only local data.
-    // The public proposal/form wins; unpublished drafts offer a manual chat.
-    const localViewer = sharedView && /(?:^|\/)share\.html$/.test(location.pathname);
-    const publicLink = safeHttpUrl(s.shareUrl);
-    const discussionUrl = sharedView && !localViewer ? requestFormUrl()
-      : publicLink ? publicLink.split('#')[0] + '#shareAcceptWrap' : whatsappUrl;
-    contactLink('v_clDiscuss', discussionUrl);
+    const inPortal = sharedView && /(?:^|\/)portal\.html$/.test(location.pathname);
+    const feedbackLink = feedbackUrl(inPortal ? location.href : s.shareUrl);
     const discuss = $('v_clDiscuss');
     if (discuss) {
-      if (sharedView) { discuss.removeAttribute('target'); discuss.removeAttribute('rel'); }
+      discuss.hidden = !feedbackLink;
+      contactLink('v_clDiscuss', feedbackLink);
+      discuss.onclick = null;
+      if (inPortal) { discuss.removeAttribute('target'); discuss.removeAttribute('rel'); }
       else { discuss.target = '_blank'; discuss.rel = 'noopener noreferrer'; }
-      // Local preview can jump to its existing hub, but cloned PDF anchors
-      // carry only a transferable public URL (or WhatsApp), never local data.
-      discuss.onclick = localViewer ? event => {
-        const jump = $('requestJump');
-        if (event.ctrlKey || event.metaKey || event.shiftKey || !jump || jump.disabled) return;
-        event.preventDefault(); location.hash = 'shareAcceptWrap'; jump.click();
-      } : null;
     }
     set('v_clDisclaimer', tpl(P.disclaimer, v));
   }
@@ -1458,7 +1440,7 @@
     if (svg) svg.replaceWith(svg.cloneNode(true));
   }
 
-  root.Render = { safeHttpUrl, requestFormUrl, renderAll, fitPages, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
+  root.Render = { safeHttpUrl, requestFormUrl: () => feedbackUrl(document.body.classList.contains('portal-mode') ? location.href : root.StateStore?.collectForm?.().shareUrl), renderAll, fitPages, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
     get lastState() { return lastState; },
     get lastVisible() { return lastVisible; } };
 })(typeof self !== 'undefined' ? self : this);

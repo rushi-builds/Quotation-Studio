@@ -67,11 +67,18 @@ const {chromium}=require('playwright');
   assert((await page.locator('#v_clPhone').getAttribute('href')).startsWith('tel:+91'));
   assert((await page.locator('#v_clEmail').getAttribute('href')).startsWith('mailto:enquiry@'));
   assert.equal(await page.locator('#v_clWebsite').getAttribute('href'),'https://www.ktmenergyexperts.com/');
-  assert((await page.locator('#v_clDiscuss').getAttribute('href')).startsWith('https://wa.me/'),'unpublished PDF must not point at a browser-only draft');
+  assert.equal(await page.locator('#v_clDiscuss').getAttribute('href'),null,'unpublished drafts cannot collect feedback');
+  await page.evaluate(()=>{window.open=url=>{window.__feedbackOpened=url;};});
+  await page.locator('#engineeringViewBtn').click();
+  assert.equal(await page.evaluate(()=>window.__feedbackOpened),undefined);
+  assert((await page.locator('#statusMsg').textContent()).includes('Publish a secure customer link'));
+  assert(await page.locator('#v_clWhatsApp').evaluate(e=>e.href.startsWith('https://wa.me/')));
   const finance=await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState)));
-  const publicUrl='https://example.com/portal.html?t=closing-fixture';
+  const publicUrl='https://example.com/portal.html?t=abababababababababababababababababababababababab';
   await page.evaluate(url=>{shareUrl.value=url;Render.renderAll();__qsSaveNow();},publicUrl);
-  assert.equal(await page.locator('#v_clDiscuss').getAttribute('href'),publicUrl+'#shareAcceptWrap');
+  assert.equal(await page.locator('#v_clDiscuss').getAttribute('href'),publicUrl+'#proposalFeedback');
+  await page.locator('#engineeringViewBtn').click();
+  assert.equal(await page.evaluate(()=>window.__feedbackOpened),publicUrl+'#proposalFeedback','builder shortcut uses the same real portal, not the retired local request');
   assert.equal(await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState))),finance);
 
   // Existing saved paragraphs remain authored, not migrated or silently cut.
@@ -109,17 +116,16 @@ const {chromium}=require('playwright');
   const pdf=captured.pdf;
   fs.writeFileSync(path.join(shots,'closing-pdf-raster.png'),Buffer.from(captured.raster.split(',')[1],'base64'));
   assert.equal((pdf.match(/\/Type \/Page\b/g)||[]).length,1);
-  for(const url of [publicUrl+'#shareAcceptWrap','https://wa.me/','https://www.ktmenergyexperts.com/'])assert(pdf.includes(url),'real PDF link annotation missing: '+url);
+  for(const url of [publicUrl+'#proposalFeedback','https://wa.me/','https://www.ktmenergyexperts.com/'])assert(pdf.includes(url),'real PDF link annotation missing: '+url);
   assert(pdf.includes('/Subtype /Link'));
   fs.writeFileSync(path.join(shots,'closing-links.pdf'),pdf,'binary');
-  console.log('PASS: real single-page PDF has website, WhatsApp and public request-form link annotations; export engine unchanged');
+  console.log('PASS: real single-page PDF has website, WhatsApp and secure feedback link annotations; export engine unchanged');
 
-  // Local customer view uses the same markup and jumps to its real request hub.
+  // Local customer view preserves the PDF markup and uses transferable feedback links.
   const id=await page.evaluate(()=>Proposals.activeId()),customer=await context.newPage();customer.on('pageerror',e=>errors.push(e.message));
   await customer.goto(base+'/share.html?p='+encodeURIComponent(id));await customer.waitForFunction(()=>window.Render?.lastState&&document.querySelector('#v_clDiscuss[href]'));
-  assert.equal(await customer.locator('#v_clDiscuss').getAttribute('href'),publicUrl+'#shareAcceptWrap','download from local viewer also uses a transferable public URL');
-  await customer.locator('#v_clDiscuss').click();await customer.waitForFunction(()=>location.hash==='#shareAcceptWrap'&&document.activeElement.id==='requestStage');
-  assert.equal(await customer.locator('#engineeringRequestForm').count(),1);
+  assert.equal(await customer.locator('#v_clDiscuss').getAttribute('href'),publicUrl+'#proposalFeedback','download from local viewer also uses a transferable public URL');
+  assert.equal(await customer.locator('#engineeringRequestForm').isVisible(),false,'local-only service request is retired');
   assert.equal(await customer.locator('#pageClosing .sign-box').count(),0);
   for(const width of [390,360]){
    await customer.setViewportSize({width,height:900});
@@ -131,14 +137,15 @@ const {chromium}=require('playwright');
   // Frozen published snapshots use portal.html, not the browser-only viewer.
   const snapshot=await page.evaluate(()=>({form:StateStore.collectForm(),content:CONTENT}));
   const portal=await context.newPage();portal.on('pageerror',e=>errors.push(e.message));
-  await portal.route('**/api/**',route=>route.fulfill({status:new URL(route.request().url()).pathname==='/api/portal/proposal'?200:404,contentType:'application/json',body:JSON.stringify({snapshot})}));
-  await portal.goto(base+'/portal.html?t=closing-fixture');
+  await portal.route('**/api/**',route=>route.fulfill({status:new URL(route.request().url()).pathname==='/api/portal/proposal'?200:404,contentType:'application/json',body:JSON.stringify({snapshot,access:{feedbackAvailable:true}})}));
+  await portal.goto(base+'/portal.html?t=abababababababababababababababababababababababab');
   await portal.waitForFunction(()=>window.Render?.lastState&&!document.querySelector('#portalMain').hidden);
   assert.equal(await portal.locator('#pageClosing').evaluate(e=>getComputedStyle(e).display),'flex');
   assert.equal(await portal.locator('#pageClosing .sign-box').count(),0);
-  assert.equal(await portal.locator('#v_clDiscuss').getAttribute('href'),portal.url()+'#shareAcceptWrap');
-  await portal.locator('#v_clDiscuss').click();await portal.waitForFunction(()=>location.hash==='#shareAcceptWrap');
-  assert(await portal.locator('#engineeringRequestForm').isVisible());await portal.close();
+  assert.equal(await portal.locator('#v_clDiscuss').getAttribute('href'),portal.url()+'#proposalFeedback');
+  await portal.locator('#v_clDiscuss').click();await portal.waitForFunction(()=>location.hash==='#proposalFeedback');
+  assert.equal(await portal.locator('#engineeringRequestForm').count(),0);
+  assert.equal(await portal.locator('[name=proposalRating]').count(),5);await portal.close();
 
   // QR/gallery, unsafe input handling and automatic Advanced Edit continuation.
   await page.evaluate(()=>{galleryUrl.value='https://example.com/projects';Render.renderAll();});
@@ -148,12 +155,12 @@ const {chromium}=require('playwright');
   await page.evaluate(()=>{companyWebsite.value='javascript:alert(1)';companyEmail.value='bad\naddress';companyPhone.value='not a phone';Render.renderAll();});
   for(const id of ['v_clWebsite','v_clEmail','v_clPhone'])assert.equal(await page.locator('#'+id).getAttribute('href'),null);
   assert.equal(await page.locator('#v_clWhatsApp').isVisible(),false);
-  assert.equal(await page.locator('#v_clDiscuss').getAttribute('href'),publicUrl+'#shareAcceptWrap');
+  assert.equal(await page.locator('#v_clDiscuss').getAttribute('href'),publicUrl+'#proposalFeedback');
   await page.evaluate(()=>{companyWebsite.value='www.ktmenergyexperts.com';companyEmail.value='enquiry@ktmenergyexperts.com';companyPhone.value='+91 93094 86769';galleryUrl.value='';Render.renderAll();DocumentStudio.addTextBlock('pageClosing','Additional project discussion','Project-specific review notes. '.repeat(160));});
   assert(await page.locator('[id^="pageClosing-continuation-"]').count()>0);
   assert.deepEqual(await page.evaluate(()=>DocumentStudio.errors('full')),[]);
   assert.equal(await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState))),finance);
   assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
-  console.log('PASS: local/published Customer view request jumps, mobile widths, retained gallery, unsafe URL rejection and automatic A4 continuation; no cloud writes/runtime errors');
+  console.log('PASS: local/published feedback-link routing, mobile widths, retained gallery, unsafe URL rejection and automatic A4 continuation; no cloud writes/runtime errors');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

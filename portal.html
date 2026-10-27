@@ -6,13 +6,13 @@
   <meta name="robots" content="noindex,nofollow" />
   <meta name="referrer" content="no-referrer" />
   <title>Your Solar Proposal</title>
-  <meta name="description" content="Secure, read-only view of your rooftop solar proposal." />
+  <meta name="description" content="Secure view of your rooftop solar proposal and private proposal feedback." />
   <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png" />
   <link rel="stylesheet" href="assets/css/app.css?v=cloud-primary1" />
   <link rel="stylesheet" href="assets/css/bess.css" />
   <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1" />
   <link rel="stylesheet" href="assets/css/closing.css?v=closing-lettering11" />
-  <link rel="stylesheet" href="assets/css/portal.css" />
+  <link rel="stylesheet" href="assets/css/portal.css?v=feedback1" />
 </head>
 <body class="share-mode portal-mode">
   <div id="portalGate" class="portal-gate">
@@ -34,7 +34,7 @@
       </div>
       <div class="st-actions">
         <span class="st-status" id="shareStatus"></span>
-        <button type="button" id="requestJump" class="request-jump" disabled>Request survey / 3D / PVsyst</button>
+        <button type="button" id="requestJump" class="request-jump" disabled>Share proposal feedback</button>
         <label class="pdf-format-label" for="pdfFormat">PDF format
           <select id="pdfFormat" class="pdf-format">
             <option value="full">Detailed Proposal — all applicable pages</option>
@@ -47,7 +47,7 @@
 
     <div class="portal-privacy" id="portalPrivacy" hidden>
       Opening this secure link may be recorded so your installer can follow up.
-      This page is read-only. It does not collect payment details.
+      Your feedback is shared privately with the proposal team. No payment details are collected here.
     </div>
 
     <div class="share-banner">
@@ -61,52 +61,45 @@
     <div id="sharePages"></div>
 
     <div class="share-accept-card" id="shareAcceptWrap" style="display:none;">
-      <div class="sac-head">
-        <div class="sac-badge">AFTER YOUR PROPOSAL REVIEW</div>
-        <h3 class="sac-title">Plan your next step</h3>
-        <p class="sac-sub">If the proposal suits your needs, confirm your interest and request an engineering review. The team checks your site before preparing agreed deliverables. This does not book a survey, place an order, or generate a simulation by itself.</p>
-      </div>
-      <section id="shareSimBar" class="engineering-section" aria-labelledby="engineeringHeading" style="display:none;">
-        <h4 id="engineeringHeading">Engineering documents</h4>
-        <p id="engineeringAvailability" class="hint"></p>
-        <div id="shareSimActions" class="ssb-actions"></div>
+      <section class="proposal-feedback" id="proposalFeedback" aria-labelledby="feedbackHeading">
+        <div class="feedback-heading">
+          <div><div class="sac-badge">YOUR PROPOSAL · YOUR PERSPECTIVE</div>
+          <h3 id="feedbackHeading">Your thoughts matter.</h3>
+          <p id="feedbackContext">Private feedback for your proposal</p></div>
+          <span class="feedback-private">Shared only with your proposal team</span>
+        </div>
+        <form id="proposalFeedbackForm">
+          <fieldset id="feedbackFields" disabled>
+            <legend class="sr-only">Proposal feedback</legend>
+            <div class="feedback-rating"><p id="feedbackRatingLabel">How clear and useful was this proposal? <small>Optional</small></p>
+              <div class="feedback-stars" role="radiogroup" aria-labelledby="feedbackRatingLabel">
+                <label><input type="radio" name="proposalRating" value="1" aria-label="1 out of 5"><span aria-hidden="true">★</span></label>
+                <label><input type="radio" name="proposalRating" value="2" aria-label="2 out of 5"><span aria-hidden="true">★</span></label>
+                <label><input type="radio" name="proposalRating" value="3" aria-label="3 out of 5"><span aria-hidden="true">★</span></label>
+                <label><input type="radio" name="proposalRating" value="4" aria-label="4 out of 5"><span aria-hidden="true">★</span></label>
+                <label><input type="radio" name="proposalRating" value="5" aria-label="5 out of 5"><span aria-hidden="true">★</span></label>
+              </div>
+              <div class="feedback-rating-help"><span id="feedbackRatingText">Optional — you can leave just a message</span><button type="button" id="feedbackClearRating">Clear rating</button></div>
+            </div>
+            <div class="feedback-message"><label for="feedbackComment">Anything you'd like us to change or help with?</label>
+              <textarea id="feedbackComment" rows="4" maxlength="1500" placeholder="Questions, changes, a request, or anything we could explain better…" aria-describedby="feedbackCount"></textarea>
+              <small id="feedbackCount">0 / 1500</small>
+            </div>
+            <div class="feedback-bottom-fields"><div><label for="feedbackNext">What would help next? <small>Optional</small></label>
+              <select id="feedbackNext"><option value="">Choose, if you'd like</option><option value="interested">I'd like to move the discussion forward</option><option value="changes">I'd like some changes</option><option value="question">I have a question</option><option value="later">I'm still considering it</option></select></div>
+              <label class="feedback-contact"><input type="checkbox" id="feedbackContact"> Please contact me about this feedback</label>
+            </div>
+          </fieldset>
+          <p class="feedback-privacy">Sent privately to the team handling this proposal. Feedback does not place an order or book a service. Please don't include passwords or payment details.</p>
+          <button type="submit" id="feedbackSubmit" class="sac-submit" disabled>Send proposal feedback</button>
+        </form>
+        <p id="feedbackStatus" class="feedback-status" role="status" aria-live="polite"></p>
+        <section id="feedbackSuccess" class="feedback-success" tabindex="-1" hidden>
+          <span aria-hidden="true">✓</span><h4>Thank you for your feedback.</h4>
+          <p>Your feedback has been saved and shared with your proposal team. They'll review your comments and follow up where needed.</p>
+          <small id="feedbackReceipt"></small>
+        </section>
       </section>
-      <form id="engineeringRequestForm" class="engineering-request">
-        <div class="sac-field">
-          <label for="requestStage">Where are you in your decision?</label>
-          <select id="requestStage">
-            <option value="reviewing">Still reviewing / comparing</option>
-            <option value="interested">The proposal interests me — discuss the site</option>
-            <option value="ready">Ready to discuss the final scope</option>
-          </select>
-        </div>
-        <fieldset class="request-services">
-          <legend>What would you like the team to arrange?</legend>
-          <label><input type="checkbox" id="requestSurvey" checked /> Site survey / feasibility discussion</label>
-          <label id="requestArkaLabel"><input type="checkbox" id="requestArka" /> Arka 3D layout &amp; shading review</label>
-          <label id="requestPvsystLabel"><input type="checkbox" id="requestPvsyst" /> PVsyst generation simulation report</label>
-        </fieldset>
-        <div class="sac-row">
-          <div class="sac-field">
-            <label for="requestLocation">Site address / locality</label>
-            <input id="requestLocation" type="text" maxlength="240" required autocomplete="street-address" />
-          </div>
-          <div class="sac-field">
-            <label for="requestWindow">Preferred call / survey window (optional)</label>
-            <input id="requestWindow" type="text" maxlength="120" placeholder="e.g. Saturday morning" />
-          </div>
-        </div>
-        <div class="sac-field">
-          <label for="requestPhone">WhatsApp number</label>
-          <input id="requestPhone" type="tel" maxlength="20" required autocomplete="tel" placeholder="+91 …" />
-        </div>
-        <div class="sac-field">
-          <label for="requestNotes">Anything the team should know? (optional)</label>
-          <textarea id="requestNotes" rows="3" maxlength="500"></textarea>
-        </div>
-        <p class="hint" id="requestHint">Your message opens WhatsApp with the company number from this proposal. Delivery is not confirmed until they reply.</p>
-        <button type="submit" class="sac-submit" id="requestSubmit">Review message &amp; open WhatsApp</button>
-      </form>
     </div>
   </main>
 
@@ -127,11 +120,12 @@
   <script src="assets/js/model.js"></script>
   <script src="assets/js/state.js?v=proposal-stage1"></script>
   <script src="assets/js/equipment.js"></script>
-  <script src="assets/js/render.js?v=closing-light10"></script>
+  <script src="assets/js/render.js?v=customer-feedback1"></script>
   <script src="assets/js/experience.js?v=proposal-stage1"></script>
   <script src="assets/js/salutation.js"></script>
   <script src="assets/js/briefing.js"></script>
   <script src="assets/js/export.js?v=power-six-audit1"></script>
-  <script src="assets/js/portal.js?v=preview-isolation1"></script>
+  <script src="assets/js/proposal-feedback.js?v=feedback1"></script>
+  <script src="assets/js/portal.js?v=feedback1"></script>
 </body>
 </html>

@@ -170,8 +170,9 @@
     document.querySelectorAll('[data-engineering-open]').forEach(button => {
       button.addEventListener('click', () => {
         if (window.__qsSaveNow && !window.__qsSaveNow()) return;
-        const id = window.Proposals.activeId();
-        if (id) window.open('share.html?p=' + encodeURIComponent(id) + '#shareAcceptWrap', '_blank');
+        const url = window.Render?.requestFormUrl?.();
+        if (url) window.open(url, '_blank', 'noopener,noreferrer');
+        else if ($('statusMsg')) $('statusMsg').textContent = 'Publish a secure customer link first to enable proposal feedback. Nothing has been sent.';
       });
     });
   }
