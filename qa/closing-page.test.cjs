@@ -26,11 +26,11 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('#closingWaveNavy stop').first().getAttribute('stop-color'),'#18495a');
   assert.equal(await page.locator('#v_clFooterValues li svg').count(),4);
   assert.equal(await page.locator('.closing-wave-leaf path').count(),4,'restore the original flowing footer with leaf line-art');
-  assert.equal(await page.locator('.closing-wave-sun circle').count(),1);
-  assert(await page.locator('.closing-wave-sun').evaluate(sun=>{
-   const box=sun.getBBox(),leaf=document.querySelector('.closing-wave-leaf');
-   return box.x>=8&&box.x+box.width<90&&box.y>=30&&box.y+box.height<124&&getComputedStyle(sun).fill==='none'&&getComputedStyle(sun).stroke===getComputedStyle(leaf).stroke;
-  }),'left solar line-art balances the existing leaf, without covering the free-standing icons or adding a filled badge');
+  assert.equal(await page.locator('.closing-wave-sun').count(),0);
+  assert(await page.locator('.closing-wave-lettering').evaluate(image=>{
+   const r=image.getBoundingClientRect(),wave=image.closest('.closing-wave').getBoundingClientRect(),icons=document.getElementById('v_clFooterValues').getBoundingClientRect();
+   return image.complete&&image.naturalWidth===191&&image.naturalHeight===74&&r.top>=wave.top&&r.bottom<=icons.top&&r.left>=wave.left&&r.right<wave.left+180;
+  }),'the supplied transparent lettering fits the left wave without covering the icons');
 
   assert(await page.locator('#v_clFooterValues').evaluate(e=>{
    const s=getComputedStyle(e);return s.backgroundImage==='none'&&s.backgroundColor==='rgba(0, 0, 0, 0)'&&s.borderTopWidth==='0px'&&s.borderRadius==='0px'&&s.boxShadow==='none'&&getComputedStyle(e.firstElementChild).borderRightWidth==='0px';
@@ -61,7 +61,7 @@ const {chromium}=require('playwright');
   }),'approved reference direction: ivory, navy serif, orange emphasis, original light-surface logo and quiet wave');
   assert(await page.locator('.closing-banner').evaluate(b=>getComputedStyle(b).backgroundSize==='cover' && b.style.backgroundImage.includes(document.getElementById('img_closing').src)),'PDF and browser must use an undistorted cover background from the original photo');
   assert.equal(await page.locator('.closing-banner').evaluate(b=>getComputedStyle(b).borderBottomLeftRadius),'0px','remove the unwanted circular photo edge');
-  assert(await page.locator('.closing-wave').evaluate(w=>getComputedStyle(w).backgroundImage==='none' && !w.querySelector('image,img') && !w.style.backgroundImage),'abstract footer must not repeat the panel photograph');
+  assert(await page.locator('.closing-wave').evaluate(w=>getComputedStyle(w).backgroundImage==='none' && !w.querySelector('image,img:not(.closing-wave-lettering)') && !w.style.backgroundImage),'abstract footer must not repeat the panel photograph');
   assert(await page.locator('.closing-card').evaluate(c=>getComputedStyle(c).backgroundImage.includes('linear-gradient') && getComputedStyle(c).borderTopWidth==='1px'),'glass panel must retain a PDF-safe surface, not depend on backdrop blur');
 
   assert((await page.locator('#v_clPhone').getAttribute('href')).startsWith('tel:+91'));

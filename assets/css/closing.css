@@ -60,6 +60,7 @@
 #pageClosing .closing-confidentiality{margin:0;font:400 6.7px/1.6 'Inter',sans-serif;color:#87909a;}
 #pageClosing .closing-wave{position:relative;min-height:124px;margin:auto 0 42px;background:none;overflow:hidden;flex-shrink:0;}
 #pageClosing .closing-wave>.closing-wave-art{position:absolute;inset:0;width:100%;height:100%;}
+#pageClosing .closing-wave-lettering{position:absolute;left:12px;top:34px;width:142px;height:auto;display:block;}
 /* Preserve the original wave artwork. Values are free-standing additions,
    not another panel: no card, tint, border, blur or shadow behind the icons. */
 #pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:90px 110px 0 48px;padding:0;list-style:none;border:0;border-radius:0;background:none;box-shadow:none;}
