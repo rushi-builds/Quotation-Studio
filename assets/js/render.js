@@ -1055,11 +1055,11 @@
       : esc(closingHeading).replace(/\bGreener\b/g, '<em>Greener</em>'));
     setHTML('v_clSub', esc(String(P.bannerSub || '').replace(/\.\s*$/, '')).replace(/\.\s+/g, '<br>'));
     const closingIcons = {v_clIcoCompany:'building', v_clIcoPin:'pin', v_clIcoPhone:'phone', v_clIcoMail:'mail', v_clIcoWeb:'globe', v_clValueLeaf:'leaf', v_clValueCost:'rupee', v_clValueSun:'sun'};
-    Object.entries(closingIcons).forEach(([id, icon]) => setHTML(id, I.get(icon, 22, /^v_clIco(Company|Pin|Mail|Web)$/.test(id) || id === 'v_clValueLeaf' ? '#19364c' : '#d77a24')));
+    Object.entries(closingIcons).forEach(([id, icon]) => setHTML(id, I.get(icon, 22, id === 'v_clIcoMail' ? '#e28126' : /^v_clIco/.test(id) || id === 'v_clValueLeaf' ? '#19364c' : '#d77a24')));
     set('v_clNextLabel', P.nextLabel);
     setHTML('v_clNext', P.next.map((it, index) =>
       '<div class="next-item"><span class="closing-input-number" aria-hidden="true">' + String(index + 1).padStart(2, '0') + '</span>' +
-      '<div><div class="next-t"><span class="closing-input-icon" aria-hidden="true">' + I.get(it.icon, 15, '#77628f') + '</span>' + esc(tpl(it.title, v)) + '</div>' +
+      '<div><div class="next-t"><span class="closing-input-icon" aria-hidden="true">' + I.get(it.icon === 'drone' ? 'home' : it.icon, 19, index === 2 ? '#dc8128' : '#173a57') + '</span>' + esc(tpl(it.title, v)) + '</div>' +
       '<div class="next-d">' + esc(tpl(it.desc, v)) + '</div></div></div>').join(''));
 
     set('v_clCompanyName', s.companyName + (s.companyName.match(/Pvt\.?\s*Ltd\.?/i) ? '' : ' Pvt. Ltd.'));
