@@ -1,0 +1,21 @@
+<svg class="proposal-wave-source" aria-hidden="true" viewBox="0 0 794 174" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="closingWaveNavy" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#18495a"/><stop offset=".55" stop-color="#12364b"/><stop offset="1" stop-color="#0b273b"/></linearGradient>
+              <linearGradient id="closingWaveRibbon" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#456976"/><stop offset=".48" stop-color="#b99c76"/><stop offset="1" stop-color="#214858"/></linearGradient>
+              <linearGradient id="closingWaveEdge" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#d9bf96" stop-opacity=".3"/><stop offset=".5" stop-color="#e1af76"/><stop offset="1" stop-color="#d9bf96" stop-opacity=".5"/></linearGradient>
+              <clipPath id="closingWaveClip"><path d="M0 24C150 4 246 102 398 101C550 100 656 35 794 9V174H0Z"/></clipPath>
+            </defs>
+            <path d="M0 21C150 1 246 99 398 98C550 97 656 32 794 6V9C656 35 550 100 398 101C246 102 150 4 0 24Z" fill="url(#closingWaveRibbon)" opacity=".8"/>
+            <path d="M0 24C150 4 246 102 398 101C550 100 656 35 794 9V174H0Z" fill="url(#closingWaveNavy)"/>
+            <g clip-path="url(#closingWaveClip)" fill="none" stroke="#a3c6d0" stroke-width=".7" opacity=".08">
+              <path d="M398 84L62 142M398 84L194 142M398 84L307 142M398 84L398 142M398 84L489 142M398 84L602 142M398 84L734 142"/>
+              <path d="M0 77C180 60 249 124 398 124C547 124 651 68 794 61M0 111C180 95 249 138 398 138C547 138 651 106 794 101"/>
+            </g>
+            <path d="M0 24C150 4 246 102 398 101C550 100 656 35 794 9" fill="none" stroke="url(#closingWaveEdge)" stroke-width="1"/>
+            <g class="closing-wave-leaf" fill="none" stroke="#d5b88a" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round" opacity=".88">
+              <path d="M730 122C705 109 691 87 685 65C712 71 730 91 730 122Z"/>
+              <path d="M730 122C722 88 733 58 757 34C766 68 754 103 730 122Z"/>
+              <path d="M730 122C742 94 763 77 785 72C781 100 760 118 730 122Z"/>
+              <path d="M730 122L698 78M730 122L757 34M730 122L774 84" opacity=".65"/>
+            </g>
+          </svg>

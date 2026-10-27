@@ -15,25 +15,32 @@ const {chromium}=require('playwright');
   assert.deepEqual(await page.locator('#v_tmItems .term-num').allTextContents(),Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')));
   assert.equal(await page.locator('#v_tmItems .term-mark>svg').count(),12);
   assert(await page.locator('#v_tmItems .term-mark').evaluateAll(marks=>marks.every(mark=>{const tile=mark.getBoundingClientRect(),icon=mark.querySelector('svg').getBoundingClientRect(),number=mark.querySelector('.term-num').getBoundingClientRect();return Math.abs(tile.width-tile.height)<1&&number.left>icon.left&&number.bottom<=icon.top+1&&number.top>=tile.top&&number.right<=tile.right&&icon.bottom<=tile.bottom;})),'numbers sit superscript-style inside the upper-right corner of square icon tiles');
-  assert.equal(await page.locator('#v_tmFooterValues,.proposal-value-footer,.floating-footer-meta,.terms-footer-artwork,.terms-brand-footer').count(),0,'retired decorative footers do not crowd the Terms page');
+  assert.equal(await page.locator('#v_tmFooterValues li svg').count(),4);
+  assert(await page.locator('#v_tmFooterValues').evaluate(e=>getComputedStyle(e).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(e).boxShadow==='none'));
+  assert.equal(await page.locator('#pageTerms .terms-footer-artwork,#pageTerms .terms-brand-footer').count(),0);
+  assert.equal(await page.locator('#pageTerms>.pg-foot>.proposal-value-footer').count(),1);
+  assert(await page.locator('#pageTerms>.pg-foot>.proposal-value-footer').isVisible());
   const finance=await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState)));
   assert(await page.evaluate(()=>{
    const s=Render.lastState,v={validity:s.validityDays+' days',duration:s.durationText,jurisdiction:s.jurisdiction,company:s.companyName};
    return CONTENT.pageTerms.items.every((item,i)=>document.querySelectorAll('#v_tmItems .term-d')[i].textContent===item.desc.replace(/\{(\w+)\}/g,(_,k)=>v[k]??''));
   }),'all authored terms and current project values are unchanged');
   assert(await page.evaluate(()=>{
-   const original=CONTENT.pageTerms.items[0].desc;
-   CONTENT.pageTerms.items[0].desc='<img src=x onerror=alert(1)> {validity}';Render.renderAll();
-   const safe=!document.querySelector('#v_tmItems img,#v_tmFooterValues b')&&document.querySelector('.term-d').textContent.startsWith('<img');
-   CONTENT.pageTerms.items[0].desc=original;Render.renderAll();return safe;
-  }),'authored terms and template values stay escaped');
+   const original=CONTENT.pageTerms.items[0].desc,old=CONTENT.pageTerms.footerValues[0].label;
+   CONTENT.pageTerms.items[0].desc='<img src=x onerror=alert(1)> {validity}';CONTENT.pageTerms.footerValues[0].label='<b>Reliable</b>';Render.renderAll();
+   const safe=!document.querySelector('#v_tmItems img,#v_tmFooterValues b')&&document.querySelector('.term-d').textContent.startsWith('<img')&&document.querySelector('#v_tmFooterValues').textContent.includes('<b>Reliable</b>');
+   CONTENT.pageTerms.items[0].desc=original;CONTENT.pageTerms.footerValues[0].label=old;Render.renderAll();return safe;
+  }),'terms, template values and footer labels stay escaped');
   assert(await page.evaluate(()=>{
    const items=CONTENT.pageTerms.items,values=CONTENT.pageTerms.footerValues;
    CONTENT.pageTerms.items=items.map(({icon,...item})=>item);delete CONTENT.pageTerms.footerValues;Render.renderAll();
-   const okay=document.querySelectorAll('#v_tmItems .term-mark>svg').length===12&&document.querySelectorAll('.proposal-value-footer').length===0;
+   const okay=document.querySelectorAll('#v_tmItems .term-mark>svg').length===12&&document.querySelectorAll('#v_tmFooterValues li').length===4;
    CONTENT.pageTerms.items=items;CONTENT.pageTerms.footerValues=values;Render.renderAll();return okay;
-  }),'older saved quotations retain safe term icons without extra footer clutter');
-  assert(await page.evaluate(()=>{Editor.build();return ![...document.querySelectorAll('#advContainer label')].some(n=>/^(Terms|Page) footer value/.test(n.textContent));}),'retired footer-value fields no longer imply a visible effect');
+  }),'older saved quotations have safe icon/footer defaults');
+  assert(await page.evaluate(()=>{
+   Editor.build();const field=[...document.querySelectorAll('#advContainer .field')].find(e=>e.querySelector('label')?.textContent==='Terms footer value 1').querySelector('textarea'),old=field.value;
+   field.value='Carefully\nPlanned';field.dispatchEvent(new Event('input',{bubbles:true}));const okay=document.querySelector('#v_tmFooterValues').textContent.includes('Carefully\nPlanned');field.value=old;field.dispatchEvent(new Event('input',{bubbles:true}));return okay;
+  }),'new footer text remains live-editable');
   assert.equal(await page.evaluate(()=>JSON.stringify(Finance.compute(Render.lastState))),finance);
   const shots=path.join(__dirname,'shots','terms-page');fs.mkdirSync(shots,{recursive:true});
   const markup=await page.locator('#pageTerms').evaluate(e=>e.outerHTML),proof=await context.newPage({viewport:{width:794,height:1123}});
@@ -61,6 +68,6 @@ const {chromium}=require('playwright');
   for(const width of [390,360]){await customer.setViewportSize({width,height:900});await customer.waitForFunction(()=>document.querySelector('#pageTerms').getBoundingClientRect().width<=innerWidth);assert(await customer.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));}
   await customer.locator('#pageTerms').screenshot({path:path.join(shots,'terms-mobile.png')});
   assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
-  console.log('PASS: 12 reference-style terms, two columns, SVG icons, unchanged/escaped legal copy, quiet footer + legacy icon defaults, finance parity, A4/normal-flow/mobile fit, real one-page PDF and customer view. No production calls.');
+  console.log('PASS: 12 reference-style terms, two columns, SVG icons, unchanged/escaped legal copy, editable footer + legacy defaults, finance parity, A4/normal-flow/mobile fit, real one-page PDF and customer view. No production calls.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});
