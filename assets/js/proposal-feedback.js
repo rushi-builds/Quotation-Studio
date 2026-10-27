@@ -36,6 +36,14 @@
       ['LOOKING GOOD', 'That’s lovely to hear.', 'Tell us what worked well, or anything we could refine.'],
       ['THAT’S A FIVE!', 'Hurray! Glad you liked it.', 'We’d love to know what stood out for you.']
     ];
+    const commentPrompts = [
+      "A thought, a question, or a change you'd like us to consider…",
+      "What didn't work for you? Tell us what we should improve.",
+      'What could we improve or explain more clearly?',
+      'What would make this proposal more useful for you?',
+      "What worked well? Anything you'd like us to refine?",
+      "What stood out for you? We'd love to hear your favourite part."
+    ];
     function paint() {
       const selected = current().rating || 0;
       ratingInputs.forEach(input => {
@@ -47,7 +55,10 @@
       const response = ratingResponses[selected];
       const panel = host.querySelector('.feedback-rating');
       const responseChanged = panel && panel.dataset.rating !== String(selected);
-      if (responseChanged) panel.dataset.rating = String(selected);
+      if (responseChanged) {
+        panel.dataset.rating = String(selected);
+        $('feedbackComment').placeholder = commentPrompts[selected];
+      }
       if (responseChanged && $('feedbackResponseTitle')) {
         $('feedbackResponseKicker').textContent = response[0];
         $('feedbackResponseTitle').textContent = response[1];

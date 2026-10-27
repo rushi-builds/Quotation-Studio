@@ -2,8 +2,8 @@
 
 ## Behaviour
 - The existing builder shortcut now opens the published feedback form; an unpublished quote opens an explicitly labelled, non-submitting form preview instead of a broken local request jump.
-- Unpublished builder closing pages keep **Give feedback** visible as a keyboard-accessible preview button. It has no `href` and is screen-only, so no preview URL or non-working feedback link is exported into the PDF. Customer/local viewers do not receive this builder preview action.
-- Closing page: **Chat on WhatsApp** opens the company WhatsApp chat. **Give feedback** links to `portal.html?t=<published-token>#proposalFeedback`.
+- Unpublished builder closing pages keep **Share your thoughts** visible as a keyboard-accessible preview button. It has no `href` and is screen-only, so no preview URL or non-working feedback link is exported into the PDF. Customer/local viewers do not receive this builder preview action.
+- Closing page: **Chat on WhatsApp** opens the company WhatsApp chat. **Share your thoughts** links to `portal.html?t=<published-token>#proposalFeedback`.
 - Only a transferable published portal link enables feedback in a PDF. An unpublished draft or browser-local `share.html?p=...` is not presented as a working customer feedback link.
 - Stars are optional (integer 1–5). A message without a rating is valid; an entirely empty submission is not. Comments/requests allow 1,500 UTF-16 characters, including Unicode. Optional follow-up permission is recorded, not auto-booked. The removed next-step field is accepted only for older-client compatibility.
 - No public business review, invented average, review gating, free survey/report entitlement, automatic task/order/payment, email, or WhatsApp notification is implied.
@@ -41,4 +41,6 @@ The optional four-card “What comes next” section has been removed, including
 
 The remaining form contains optional stars, a message, and optional follow-up permission. Colourful SVG reactions stay inside the selected star, with blue star eyes for five stars and a short pop animation (disabled for reduced motion). The illustrated response within the rating panel changes for all five ratings; celebration is not a persisted receipt. Its live region updates only on rating changes, not while typing.
 
-Closing uses a single compact, joined action strip: **Chat on WhatsApp / Give feedback**. There are no arrows, pointer icons, second-line captions or instruction line. Its actual published PDF link annotations, secure-link validation, unpublished builder form preview, keyboard support and unchanged approved footer/artwork are covered by focused browser/PDF tests. Unpublished preview actions are screen-only and never exported as customer feedback URLs.
+Closing is feedback-first: a compact soft-periwinkle **Share your thoughts** action and a quieter underlined **Chat on WhatsApp** link, without an outer joined strip. There are no arrows, pointer icons, second-line captions or instruction line. Its actual published PDF link annotations, secure-link validation, unpublished builder form preview, keyboard support and unchanged approved footer/artwork are covered by focused browser/PDF tests. Unpublished preview actions are screen-only and never exported as customer feedback URLs.
+
+The comment label stays “Share your thoughts”; only the empty-field hint changes with the selected rating. Selecting, clearing or restoring a rating never replaces the message. Focused tests cycle all five ratings with a typed note and verify the note remains intact.

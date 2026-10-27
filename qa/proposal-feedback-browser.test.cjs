@@ -52,6 +52,7 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('[name=feedbackNextChoice]').count(),0);
   assert.equal(await page.locator('.feedback-stars .is-selected input').inputValue(),'2');
   assert((await page.locator('#feedbackResponseTitle').textContent()).includes('clarity'),'restored rating also restores the matching response');
+  assert((await page.locator('#feedbackComment').getAttribute('placeholder')).includes('more clearly'),'restored rating has the matching comment hint');
   await page.locator('#feedbackSubmit').click();await page.waitForFunction(()=>!document.getElementById('feedbackSuccess').hidden);
   stored=JSON.parse(fs.readFileSync(dbPath));const feedback=stored.events.filter(e=>e.event_type==='proposal_feedback');assert.equal(feedback.length,1);assert.equal(stored.notifications.filter(n=>n.kind==='feedback').length,1);
   assert.equal(JSON.parse(feedback[0].meta_json).rating,2);assert.equal(JSON.parse(feedback[0].meta_json).nextStep,'');assert.equal(feedback[0].owner_id,owner.json.user.id);assert.equal(feedback[0].proposal_id,id);

@@ -46,13 +46,13 @@
 #pageClosing .closing-input-icon svg{width:15px;height:15px;}
 #pageClosing .next-d{margin-top:4px;font:400 10px/1.5 'Inter',sans-serif;color:#647080;overflow-wrap:anywhere;}
 #pageClosing .closing-invitation{position:relative;margin:10px 50px 0;padding:0;flex-shrink:0;}
-#pageClosing .closing-actions{display:inline-flex;align-items:center;gap:3px;padding:3px;border:1px solid #dce1e8;border-radius:11px;background:#f3f4f8;}
-#pageClosing .closing-action{display:inline-flex;align-items:center;justify-content:center;min-height:31px;box-sizing:border-box;padding:7px 15px;border:0;border-radius:8px;font:500 10px/1.6 'Inter',sans-serif;text-decoration:none;cursor:pointer;transition:background .15s,color .15s;}
-#pageClosing .closing-action-primary{background:#244758;color:#fff;}
-#pageClosing .closing-action-secondary{background:transparent;color:#365168;}
+#pageClosing .closing-actions{display:flex;align-items:center;gap:20px;padding:0;border:0;background:none;}
+#pageClosing .closing-action{display:inline-flex;align-items:center;justify-content:center;min-height:34px;box-sizing:border-box;font:500 10px/1.6 'Inter',sans-serif;cursor:pointer;transition:background .15s,color .15s;}
+#pageClosing .closing-action-primary{padding:8px 17px;border:1px solid #ded8e9;border-radius:18px;background:#eeeaf5;color:#5c4e79;text-decoration:none;}
+#pageClosing .closing-action-secondary{padding:6px 0;border:0;border-radius:0;background:none;color:#687b8c;text-decoration:underline;text-decoration-color:#b5c0ca;text-underline-offset:4px;}
 #pageClosing a[href]:hover{color:#dc7d22;}
-#pageClosing .closing-action-primary[href]:hover{background:#315668;color:#fff;}
-#pageClosing .closing-action-secondary:hover{background:#e6e9f1;color:#244758;}
+#pageClosing .closing-action-primary:hover{background:#e4ddec;color:#51416f;}
+#pageClosing .closing-action-secondary[href]:hover{color:#294e60;text-decoration-color:#294e60;}
 #pageClosing a:focus-visible{outline:2px solid #9182ab;outline-offset:3px;}
 #pageClosing .closing-scope-note{margin:7px 0 0;font:400 7px/1.6 'Inter',sans-serif;color:#7c8790;}
 #pageClosing .closing-bottom{position:relative;margin:8px 50px 0;padding:0;flex-shrink:0;}

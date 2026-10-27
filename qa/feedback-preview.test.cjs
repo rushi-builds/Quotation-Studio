@@ -27,9 +27,12 @@ const {chromium}=require('playwright');
   assert.equal(await preview.locator('.rating-face').count(),5,'consistent vector reactions, not platform emoji glyphs');
   assert.equal(await preview.locator('.feedback-options,#feedbackNext,[name=feedbackNextChoice],#feedbackClearNext').count(),0,'next-step section is completely removed');
   await preview.locator('#feedbackClearRating').click();assert.equal(await preview.locator('.feedback-stars .is-selected').count(),0);assert((await preview.locator('#feedbackResponseTitle').textContent()).includes('Your view'));
+  assert.equal(await preview.locator('label[for=feedbackComment]').textContent(),'Share your thoughts');
+  await preview.locator('#feedbackComment').fill('Keep this note while I try the stars.');
+  const commentHints=new Set();
   const responseTitles=new Set();
-  for(const rating of [1,2,3,4,5]){await preview.locator('[name=proposalRating][value="'+rating+'"]').check({force:true});assert.equal(await preview.locator('.feedback-stars .is-selected input').inputValue(),String(rating));assert.equal(await preview.locator('.feedback-stars .is-filled').count(),rating);responseTitles.add(await preview.locator('#feedbackResponseTitle').textContent());}
-  assert.equal(responseTitles.size,5);
+  for(const rating of [1,2,3,4,5]){await preview.locator('[name=proposalRating][value="'+rating+'"]').check({force:true});assert.equal(await preview.locator('.feedback-stars .is-selected input').inputValue(),String(rating));assert.equal(await preview.locator('.feedback-stars .is-filled').count(),rating);responseTitles.add(await preview.locator('#feedbackResponseTitle').textContent());commentHints.add(await preview.locator('#feedbackComment').getAttribute('placeholder'));assert.equal(await preview.locator('#feedbackComment').inputValue(),'Keep this note while I try the stars.');}
+  assert.equal(responseTitles.size,5);assert.equal(commentHints.size,5);
   assert((await preview.locator('#feedbackResponseTitle').textContent()).includes('Hurray!'));
   assert.equal(await preview.locator('#feedbackSuccess').isVisible(),false,'celebration is not a saved receipt');
   assert.equal(await preview.locator('.is-selected .rating-face').evaluate(el=>getComputedStyle(el).animationName),'feedback-reaction-pop');
@@ -49,10 +52,12 @@ const {chromium}=require('playwright');
   await preview.screenshot({path:path.join(shots,'premium-feedback-desktop.png'),fullPage:true});
   await page.evaluate(()=>document.activeElement?.blur());
   assert.equal(await page.locator('.closing-action-icon,.closing-action-copy,.closing-action small').count(),0,'no extra icon badges or subtext');
-  assert(await page.locator('.closing-actions').evaluate(e=>e.getBoundingClientRect().height<=40),'compact joined action strip, not wide cards');
+  assert(await page.locator('.closing-actions').evaluate(e=>e.getBoundingClientRect().height<=40),'compact feedback-first actions, not wide cards');
   assert.equal(await page.locator('#closingLinkHint,.closing-action svg,.closing-action span').count(),0,'no pointer, arrows or extra instruction line');
-  assert((await page.locator('#v_clDiscuss').textContent()).includes('Give feedback'));
+  assert((await page.locator('#v_clDiscuss').textContent()).includes('Share your thoughts'));
   assert((await page.locator('#v_clWhatsApp').textContent()).includes('WhatsApp'));
+  assert.equal(await page.locator('.closing-actions>a').first().getAttribute('id'),'v_clDiscuss');
+  assert.equal(await page.locator('.closing-actions').evaluate(el=>getComputedStyle(el).borderTopWidth),'0px','no outer joined box');
   await page.locator('#pageClosing .closing-invitation').screenshot({path:path.join(shots,'premium-closing-actions.png')});
   for(const width of [390,360]){await preview.setViewportSize({width,height:900});assert(await preview.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
   assert.deepEqual(errors,[]);fs.mkdirSync(path.join(__dirname,'shots','proposal-feedback'),{recursive:true});await preview.screenshot({path:path.join(__dirname,'shots','proposal-feedback','form-preview-mobile.png'),fullPage:true});
