@@ -28,6 +28,11 @@ const {chromium}=require('playwright');
   assert(await page.locator('#v_clDiscuss').evaluate(e=>getComputedStyle(e).backgroundImage.includes('linear-gradient')),'reference orange feedback pill');
   assert.equal(await page.locator('#v_clWhatsApp').evaluate(e=>getComputedStyle(e).borderTopColor),'rgb(32, 165, 114)','reference green WhatsApp outline');
   assert.equal(await page.locator('.closing-action-arrow').count(),2);
+  assert(await page.locator('.closing-actions').evaluate(row=>{const [a,b]=[...row.querySelectorAll('a')].map(e=>e.getBoundingClientRect());return a.width===b.width&&a.height===b.height&&a.width===256&&a.height===48;}),'both CTA boxes have exactly the same size');
+  const badges=await page.locator('.closing-input-number').evaluateAll(nodes=>nodes.map(e=>({color:getComputedStyle(e).color,bg:getComputedStyle(e).backgroundImage})));
+  assert.equal(badges[1].color,'rgb(120, 100, 155)');assert.equal(badges[3].color,badges[1].color);assert.equal(badges[0].color,badges[2].color);assert.notEqual(badges[0].bg,badges[1].bg);
+  await page.waitForFunction(()=>document.getElementById('img_closing').complete&&document.getElementById('img_closing').naturalWidth>0);
+  assert(await page.locator('#img_closing').evaluate(img=>img.src.includes('closing-solar-cinematic-4k.jpg')&&img.naturalWidth===4096&&img.naturalHeight===2304),'dedicated 4K-size illustrative closing image');
   assert.equal(await page.locator('#v_clNext a,#v_clNext button').count(),0,'static input rows have no fake actions');
   assert.equal(await page.locator('#closingWaveNavy stop').first().getAttribute('stop-color'),'#18495a');
   assert.equal(await page.locator('#v_clFooterValues li svg').count(),4);
@@ -65,7 +70,7 @@ const {chromium}=require('playwright');
    const title=p.querySelector('#v_clHeading'),style=getComputedStyle(p);
    return style.backgroundColor==='rgb(252, 250, 246)' && getComputedStyle(title).fontFamily.includes('Georgia') && title.querySelector('em')?.textContent==='Greener' && p.querySelector('.closing-brand img').getAttribute('src')==='assets/images/ktm-logo-light.png' && p.querySelectorAll('.closing-values>div').length===3 && !!p.querySelector('.closing-wave svg');
   }),'approved reference direction: ivory, navy serif, orange emphasis, original light-surface logo and quiet wave');
-  assert(await page.locator('.closing-banner').evaluate(b=>getComputedStyle(b).backgroundSize==='cover' && b.style.backgroundImage.includes(document.getElementById('img_closing').src)),'PDF and browser must use an undistorted cover background from the original photo');
+  assert(await page.locator('.closing-banner').evaluate(b=>getComputedStyle(b).backgroundSize==='cover' && b.style.backgroundImage.includes(document.getElementById('img_closing').src)),'PDF and browser must use an undistorted cover background from the selected closing photo');
   assert.equal(await page.locator('.closing-banner').evaluate(b=>getComputedStyle(b).borderBottomLeftRadius),'0px','remove the unwanted circular photo edge');
   assert(await page.locator('.closing-wave').evaluate(w=>getComputedStyle(w).backgroundImage==='none' && !w.querySelector('image,img:not(.closing-wave-lettering)') && !w.style.backgroundImage),'abstract footer must not repeat the panel photograph');
   assert(await page.locator('.closing-card').evaluate(c=>getComputedStyle(c).backgroundImage.includes('linear-gradient') && getComputedStyle(c).borderTopWidth==='1px'),'glass panel must retain a PDF-safe surface, not depend on backdrop blur');
@@ -112,7 +117,7 @@ const {chromium}=require('playwright');
   }),'the free-standing icons fit the restored wave and retain their own SVG geometry');
   const shots=path.join(__dirname,'shots','closing-page');fs.mkdirSync(shots,{recursive:true});
   await proof.locator('#pageClosing').screenshot({path:path.join(shots,'closing-a4.png')});await proof.screenshot({path:path.join(shots,'closing-footer.png'),clip:{x:0,y:945,width:794,height:178}});await proof.close();
-  console.log('PASS: larger readable thank-you, editable free-standing icons on the original wave, ivory/navy reference, original logo/photo, live contact + engineering blocks and A4 fit');
+  console.log('PASS: larger readable thank-you, editable free-standing icons on the original wave, ivory/navy reference, original logo + 4K-size closing image, live contact + engineering blocks and A4 fit');
 
   // Actual html2canvas + jsPDF, with only the save-to-disk replaced. Limit the
   // fixture to this page; do not claim to have re-exported the entire report.
