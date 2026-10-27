@@ -28,10 +28,24 @@
       nextStep: $('feedbackNext').value,
       contactRequested: $('feedbackContact').checked
     });
+    const nextChoices = [...form.querySelectorAll('[name="feedbackNextChoice"]')];
+    const moods = [
+      ['✦', 'How did it feel?', 'A quick impression. Entirely your choice.'],
+      ['😕', 'Needs a rethink', 'Tell us what missed the mark.'],
+      ['🙁', 'Could be clearer', 'Let us know what needs more attention.'],
+      ['🙂', 'A helpful start', 'What would make it more useful for you?'],
+      ['😊', 'Clear and helpful', 'We’d love to know what worked well.'],
+      ['🤩', 'Really impressed', 'Tell us what stood out to you.']
+    ];
+    nextChoices.forEach(input => input.addEventListener('change', () => { $('feedbackNext').value = input.value; }));
+    $('feedbackClearNext')?.addEventListener('click', () => { $('feedbackNext').value = ''; paint(); saveDraft(); });
     function paint() {
       const selected = current().rating || 0;
       ratingInputs.forEach(input => input.closest('label').classList.toggle('is-filled', Number(input.value) <= selected));
       $('feedbackRatingText').textContent = selected ? selected + ' out of 5' : 'Optional — you can leave just a message';
+      const mood = moods[selected];
+      if ($('feedbackMood')) { $('feedbackMood').textContent = mood[0]; $('feedbackMoodLabel').textContent = mood[1]; $('feedbackMoodDescription').textContent = mood[2]; }
+      nextChoices.forEach(input => { input.checked = input.value === $('feedbackNext').value; });
       $('feedbackCount').textContent = $('feedbackComment').value.length + ' / 1500';
     }
     function saveDraft() {
@@ -50,7 +64,7 @@
         setStatus('Your unsent draft was restored on this tab.');
       } else if (storageKey) sessionStorage.removeItem(storageKey);
     } catch (_) {}
-    form.addEventListener('input', () => { paint(); saveDraft(); if (!pending) setStatus(''); });
+    form.addEventListener('input', event => { if (event.target.name === 'feedbackNextChoice') $('feedbackNext').value = event.target.value; paint(); saveDraft(); if (!pending) setStatus(''); });
     $('feedbackClearRating').addEventListener('click', () => { ratingInputs.forEach(input => input.checked = false); paint(); saveDraft(); });
     form.addEventListener('submit', async event => {
       event.preventDefault();
@@ -99,8 +113,8 @@
     paint(); fieldset.disabled = false; submit.disabled = preview;
     if (preview) {
       submit.textContent = 'Preview — sending disabled';
-      $('feedbackContext').textContent = 'Form preview · not connected to a customer proposal';
-      setStatus('Nothing entered here is sent or saved to Studio. Live feedback needs a published customer link and the updated backend.');
+      $('feedbackContext').textContent = 'Preview of the customer feedback experience';
+      setStatus('');
     }
   }
   root.ProposalFeedback = { mount };

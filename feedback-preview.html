@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Proposal feedback · Form preview</title><link rel="icon" href="assets/images/ktm-logo-light.png"><link rel="stylesheet" href="assets/css/app.css?v=cloud-primary1"><link rel="stylesheet" href="assets/css/portal.css?v=feedback-preview2"></head>
-<body class="feedback-preview-page"><main class="feedback-preview-shell"><header class="feedback-preview-header"><img src="assets/images/ktm-logo-light.png" alt="KTM Energy Experts" width="120"><a href="quotation.html#pageClosing">← Back to proposal</a></header><aside class="feedback-preview-banner"><strong>Form preview · no submission</strong><p>Explore the stars and feedback fields below. Sending is disabled here; this page does not contact the production API or save customer feedback.</p></aside>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Proposal feedback · Form preview</title><link rel="icon" href="assets/images/ktm-logo-light.png"><link rel="stylesheet" href="assets/css/app.css?v=cloud-primary1"><link rel="stylesheet" href="assets/css/portal.css?v=feedback-aesthetic3"></head>
+<body class="feedback-preview-page"><main class="feedback-preview-shell"><header class="feedback-preview-header"><img src="assets/images/ktm-logo-light.png" alt="KTM Energy Experts" width="120"><a href="quotation.html#pageClosing">← Back to proposal</a></header><aside class="feedback-preview-banner"><strong>Form preview · no submission</strong><p>Try the rating and options. Nothing is sent or saved to Studio.</p></aside>
     <div class="share-accept-card" id="shareAcceptWrap">
       <section class="proposal-feedback" id="proposalFeedback" aria-labelledby="feedbackHeading">
         <div class="feedback-heading">
-          <div><div class="sac-badge">YOUR PROPOSAL · YOUR PERSPECTIVE</div>
-          <h3 id="feedbackHeading">Your thoughts matter.</h3>
+          <div><div class="sac-badge">YOUR VOICE · OUR NEXT STEP</div>
+          <h3 id="feedbackHeading">A better proposal starts with you.</h3>
           <p id="feedbackContext">Private feedback for your proposal</p></div>
-          <span class="feedback-private">Shared only with your proposal team</span>
+          <span class="feedback-private"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></svg>Private to your proposal team</span>
         </div>
         <form id="proposalFeedbackForm">
           <fieldset id="feedbackFields" disabled>
             <legend class="sr-only">Proposal feedback</legend>
-            <div class="feedback-rating"><p id="feedbackRatingLabel">How clear and useful was this proposal? <small>Optional</small></p>
+            <div class="feedback-rating"><div class="feedback-step-label">01 <span>YOUR IMPRESSION</span></div><p id="feedbackRatingLabel">How clear and useful was this proposal? <small>Optional</small></p>
               <div class="feedback-stars" role="radiogroup" aria-labelledby="feedbackRatingLabel">
                 <label><input type="radio" name="proposalRating" value="1" aria-label="1 out of 5"><span aria-hidden="true">★</span></label>
                 <label><input type="radio" name="proposalRating" value="2" aria-label="2 out of 5"><span aria-hidden="true">★</span></label>
@@ -20,18 +20,27 @@
                 <label><input type="radio" name="proposalRating" value="4" aria-label="4 out of 5"><span aria-hidden="true">★</span></label>
                 <label><input type="radio" name="proposalRating" value="5" aria-label="5 out of 5"><span aria-hidden="true">★</span></label>
               </div>
+              <div class="feedback-mood" aria-live="polite"><span id="feedbackMood" aria-hidden="true">✦</span><div><strong id="feedbackMoodLabel">How did it feel?</strong><small id="feedbackMoodDescription">A quick impression. Entirely your choice.</small></div></div>
               <div class="feedback-rating-help"><span id="feedbackRatingText">Optional — you can leave just a message</span><button type="button" id="feedbackClearRating">Clear rating</button></div>
             </div>
-            <div class="feedback-message"><label for="feedbackComment">Anything you'd like us to change or help with?</label>
-              <textarea id="feedbackComment" rows="4" maxlength="1500" placeholder="Questions, changes, a request, or anything we could explain better…" aria-describedby="feedbackCount"></textarea>
+            <div class="feedback-message"><div class="feedback-step-label">02 <span>IN YOUR WORDS</span></div><label for="feedbackComment">Tell us what's on your mind.</label>
+              <textarea id="feedbackComment" rows="4" maxlength="1500" placeholder="What worked for you? What could be clearer? Share a question, a change, or an idea…" aria-describedby="feedbackCount"></textarea>
               <small id="feedbackCount">0 / 1500</small>
             </div>
-            <div class="feedback-bottom-fields"><div><label for="feedbackNext">What would help next? <small>Optional</small></label>
-              <select id="feedbackNext"><option value="">Choose, if you'd like</option><option value="interested">I'd like to move the discussion forward</option><option value="changes">I'd like some changes</option><option value="question">I have a question</option><option value="later">I'm still considering it</option></select></div>
-              <label class="feedback-contact"><input type="checkbox" id="feedbackContact"> Please contact me about this feedback</label>
+            <div class="feedback-bottom-fields"><div class="feedback-next">
+              <div class="feedback-step-label">03 <span>WHAT COMES NEXT</span></div>
+              <div class="feedback-next-heading"><p id="feedbackNextLabel">Where would you like to go from here? <small>Optional</small></p><button type="button" id="feedbackClearNext">Clear</button></div>
+              <select id="feedbackNext" hidden aria-hidden="true" tabindex="-1"><option value="">No preference</option><option value="interested">Let's talk next steps</option><option value="changes">Refine my proposal</option><option value="question">Clear up a question</option><option value="later">Give me time to decide</option></select>
+              <div class="feedback-options" role="radiogroup" aria-labelledby="feedbackNextLabel">
+                <label class="feedback-option"><input type="radio" name="feedbackNextChoice" value="interested"><span class="feedback-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10h8m-8 4h5M6 3h12a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-6l-5 3v-3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z"/></svg></span><span class="feedback-option-copy"><strong>Let's talk next steps</strong><small>Discuss how to move forward.</small></span><span class="feedback-option-check" aria-hidden="true">✓</span></label>
+                <label class="feedback-option"><input type="radio" name="feedbackNextChoice" value="changes"><span class="feedback-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16M9 4v6m6 4v6"/></svg></span><span class="feedback-option-copy"><strong>Refine my proposal</strong><small>Adjust the scope, system or budget.</small></span><span class="feedback-option-check" aria-hidden="true">✓</span></label>
+                <label class="feedback-option"><input type="radio" name="feedbackNextChoice" value="question"><span class="feedback-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4m0 3h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></span><span class="feedback-option-copy"><strong>Clear up a question</strong><small>Help me understand a detail.</small></span><span class="feedback-option-check" aria-hidden="true">✓</span></label>
+                <label class="feedback-option"><input type="radio" name="feedbackNextChoice" value="later"><span class="feedback-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v5l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></span><span class="feedback-option-copy"><strong>Give me time to decide</strong><small>I'm still exploring my options.</small></span><span class="feedback-option-check" aria-hidden="true">✓</span></label>
+              </div></div>
+              <label class="feedback-contact"><input type="checkbox" id="feedbackContact"><span><strong>I'd welcome a follow-up</strong><small>Your proposal team can contact you about this feedback.</small></span></label>
             </div>
           </fieldset>
-          <p class="feedback-privacy">Sent privately to the team handling this proposal. Feedback does not place an order or book a service. Please don't include passwords or payment details.</p>
+          <p class="feedback-privacy">Just a conversation, not a commitment. Feedback doesn't place an order or book a service. Please leave out passwords and payment details.</p>
           <button type="submit" id="feedbackSubmit" class="sac-submit" disabled>Send proposal feedback</button>
         </form>
         <p id="feedbackStatus" class="feedback-status" role="status" aria-live="polite"></p>
@@ -42,4 +51,4 @@
         </section>
       </section>
     </div>
-</main><script src="assets/js/proposal-feedback.js?v=feedback-preview2"></script><script src="assets/js/feedback-preview.js?v=1"></script></body></html>
+</main><script src="assets/js/proposal-feedback.js?v=feedback-aesthetic3"></script><script src="assets/js/feedback-preview.js?v=1"></script></body></html>
