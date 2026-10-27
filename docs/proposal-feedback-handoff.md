@@ -1,7 +1,8 @@
 # Private proposal feedback — implementation / release handoff
 
 ## Behaviour
-- The existing builder shortcut now opens the published feedback form; an unpublished quote gets an honest publish-first message instead of a broken local request jump.
+- The existing builder shortcut now opens the published feedback form; an unpublished quote opens an explicitly labelled, non-submitting form preview instead of a broken local request jump.
+- Unpublished builder closing pages keep **Share proposal feedback** visible as a keyboard-accessible preview button. It has no `href` and is screen-only, so no preview URL or non-working feedback link is exported into the PDF. Customer/local viewers do not receive this builder preview action.
 - Closing page: **Discuss your project** opens the company WhatsApp chat. **Share proposal feedback** links to `portal.html?t=<published-token>#proposalFeedback`.
 - Only a transferable published portal link enables feedback in a PDF. An unpublished draft or browser-local `share.html?p=...` is not presented as a working customer feedback link.
 - Stars are optional (integer 1–5). A message without a rating is valid; an entirely empty submission is not. Comments/requests allow 1,500 UTF-16 characters, including Unicode. Optional next step + contact request are recorded, not auto-booked.
@@ -32,3 +33,5 @@ OpenCode remains responsible for the authorised production release. Release the 
 Browser evidence is under ignored `qa/shots/proposal-feedback/`. All people, accounts, proposal IDs and receipts in that evidence are disposable local QA fixtures, not production customer activity. After an authorised release, live verification must use an explicitly approved test proposal/link; do not submit fabricated customer feedback to production.
 
 Historical `brand-engineering`, `audit-browser` and `visual-discovery` tests include assumptions about the deliberately retired local engineering/acknowledgement UI (some also predate the approved signature-free closing design). They are not claimed as passing evidence for this flow; the focused suites above cover the replacement behaviour.
+
+`feedback-preview.html` reuses the same form fields and interaction module without any token, API access, draft storage or receipt/success behaviour. The send button remains disabled; even a programmatically dispatched submit cannot call the API. `qa/feedback-preview.test.cjs` verifies discoverability, preview form parity, mobile/keyboard access and zero API writes.

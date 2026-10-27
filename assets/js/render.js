@@ -1105,9 +1105,18 @@
     const feedbackLink = feedbackUrl(inPortal ? location.href : s.shareUrl);
     const discuss = $('v_clDiscuss');
     if (discuss) {
-      discuss.hidden = !feedbackLink;
+      const previewOnly = !sharedView && !feedbackLink;
+      discuss.hidden = !feedbackLink && !previewOnly;
+      discuss.classList.toggle('screen-only', previewOnly);
       contactLink('v_clDiscuss', feedbackLink);
-      discuss.onclick = null;
+      discuss.onclick = null; discuss.onkeydown = null;
+      discuss.removeAttribute('role'); discuss.removeAttribute('tabindex'); discuss.removeAttribute('title');
+      if (previewOnly) {
+        discuss.removeAttribute('aria-disabled'); discuss.setAttribute('role', 'button'); discuss.tabIndex = 0;
+        discuss.title = 'Open form preview. Publish a secure customer link to enable live feedback.';
+        discuss.onclick = () => root.open('feedback-preview.html', '_blank', 'noopener,noreferrer');
+        discuss.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); discuss.click(); } };
+      }
       if (inPortal) { discuss.removeAttribute('target'); discuss.removeAttribute('rel'); }
       else { discuss.target = '_blank'; discuss.rel = 'noopener noreferrer'; }
     }

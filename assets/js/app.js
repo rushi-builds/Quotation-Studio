@@ -172,7 +172,10 @@
         if (window.__qsSaveNow && !window.__qsSaveNow()) return;
         const url = window.Render?.requestFormUrl?.();
         if (url) window.open(url, '_blank', 'noopener,noreferrer');
-        else if ($('statusMsg')) $('statusMsg').textContent = 'Publish a secure customer link first to enable proposal feedback. Nothing has been sent.';
+        else {
+          window.open('feedback-preview.html', '_blank', 'noopener,noreferrer');
+          if ($('statusMsg')) $('statusMsg').textContent = 'Form preview opened. Publish a secure customer link to enable live feedback. Nothing has been sent.';
+        }
       });
     });
   }

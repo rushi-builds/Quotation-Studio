@@ -4,21 +4,23 @@
 'use strict';
 (function (root) {
   const $ = id => document.getElementById(id);
-  async function mount({ token, available, snapshot }) {
+  async function mount({ token, available, snapshot, preview = false }) {
     const host = $('proposalFeedback'); if (!host) return;
     const form = $('proposalFeedbackForm'), fieldset = $('feedbackFields'), submit = $('feedbackSubmit'), status = $('feedbackStatus');
     const ratingInputs = [...form.querySelectorAll('[name="proposalRating"]')];
     let pending = false, submissionId = '', lastPayload = '', storageKey = '';
     const setStatus = (message, error = false) => { status.textContent = message; status.classList.toggle('is-error', error); };
     const previewHost = location.hostname.endsWith('.vercel.app') && location.hostname !== 'quotation-studio-taupe.vercel.app';
-    if (!available || previewHost) {
+    if (!preview && (!available || previewHost)) {
       fieldset.disabled = true; submit.disabled = true;
       setStatus('Feedback is not available on this link yet. You can still discuss the proposal using the company contact details.');
       return;
     }
     try {
-      const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
-      storageKey = 'qs.feedback.draft.' + [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 24);
+      if (!preview) {
+        const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+        storageKey = 'qs.feedback.draft.' + [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 24);
+      }
     } catch (_) { /* Draft remains in memory if storage/crypto is restricted. */ }
     const current = () => ({
       rating: Number(ratingInputs.find(input => input.checked)?.value) || null,
@@ -51,7 +53,9 @@
     form.addEventListener('input', () => { paint(); saveDraft(); if (!pending) setStatus(''); });
     $('feedbackClearRating').addEventListener('click', () => { ratingInputs.forEach(input => input.checked = false); paint(); saveDraft(); });
     form.addEventListener('submit', async event => {
-      event.preventDefault(); if (pending) return;
+      event.preventDefault();
+      if (preview) { setStatus('Form preview only. Nothing has been sent or saved to Studio.'); return; }
+      if (pending) return;
       const data = current(); data.comment = data.comment.trim();
       if (!data.rating && !data.comment) { setStatus('Choose a rating or write a message before sending.', true); return; }
       if (data.comment.length > 1500) { setStatus('Please keep your message within 1,500 characters.', true); return; }
@@ -92,7 +96,12 @@
     window.addEventListener('hashchange', onHash); requestAnimationFrame(onHash);
     const ref = snapshot?.ref || snapshot?.form?.propRef || '';
     $('feedbackContext').textContent = ref ? 'Private feedback for proposal ' + ref : 'Private feedback for your proposal';
-    paint(); fieldset.disabled = false; submit.disabled = false;
+    paint(); fieldset.disabled = false; submit.disabled = preview;
+    if (preview) {
+      submit.textContent = 'Preview — sending disabled';
+      $('feedbackContext').textContent = 'Form preview · not connected to a customer proposal';
+      setStatus('Nothing entered here is sent or saved to Studio. Live feedback needs a published customer link and the updated backend.');
+    }
   }
   root.ProposalFeedback = { mount };
 })(window);

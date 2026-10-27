@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Proposal feedback · Form preview</title><link rel="icon" href="assets/images/ktm-logo-light.png"><link rel="stylesheet" href="assets/css/app.css?v=cloud-primary1"><link rel="stylesheet" href="assets/css/portal.css?v=feedback-preview2"></head>
+<body class="feedback-preview-page"><main class="feedback-preview-shell"><header class="feedback-preview-header"><img src="assets/images/ktm-logo-light.png" alt="KTM Energy Experts" width="120"><a href="quotation.html#pageClosing">← Back to proposal</a></header><aside class="feedback-preview-banner"><strong>Form preview · no submission</strong><p>Explore the stars and feedback fields below. Sending is disabled here; this page does not contact the production API or save customer feedback.</p></aside>
+    <div class="share-accept-card" id="shareAcceptWrap">
+      <section class="proposal-feedback" id="proposalFeedback" aria-labelledby="feedbackHeading">
+        <div class="feedback-heading">
+          <div><div class="sac-badge">YOUR PROPOSAL · YOUR PERSPECTIVE</div>
+          <h3 id="feedbackHeading">Your thoughts matter.</h3>
+          <p id="feedbackContext">Private feedback for your proposal</p></div>
+          <span class="feedback-private">Shared only with your proposal team</span>
+        </div>
+        <form id="proposalFeedbackForm">
+          <fieldset id="feedbackFields" disabled>
+            <legend class="sr-only">Proposal feedback</legend>
+            <div class="feedback-rating"><p id="feedbackRatingLabel">How clear and useful was this proposal? <small>Optional</small></p>
+              <div class="feedback-stars" role="radiogroup" aria-labelledby="feedbackRatingLabel">
+                <label><input type="radio" name="proposalRating" value="1" aria-label="1 out of 5"><span aria-hidden="true">★</span></label>
+                <label><input type="radio" name="proposalRating" value="2" aria-label="2 out of 5"><span aria-hidden="true">★</span></label>
+                <label><input type="radio" name="proposalRating" value="3" aria-label="3 out of 5"><span aria-hidden="true">★</span></label>
+                <label><input type="radio" name="proposalRating" value="4" aria-label="4 out of 5"><span aria-hidden="true">★</span></label>
+                <label><input type="radio" name="proposalRating" value="5" aria-label="5 out of 5"><span aria-hidden="true">★</span></label>
+              </div>
+              <div class="feedback-rating-help"><span id="feedbackRatingText">Optional — you can leave just a message</span><button type="button" id="feedbackClearRating">Clear rating</button></div>
+            </div>
+            <div class="feedback-message"><label for="feedbackComment">Anything you'd like us to change or help with?</label>
+              <textarea id="feedbackComment" rows="4" maxlength="1500" placeholder="Questions, changes, a request, or anything we could explain better…" aria-describedby="feedbackCount"></textarea>
+              <small id="feedbackCount">0 / 1500</small>
+            </div>
+            <div class="feedback-bottom-fields"><div><label for="feedbackNext">What would help next? <small>Optional</small></label>
+              <select id="feedbackNext"><option value="">Choose, if you'd like</option><option value="interested">I'd like to move the discussion forward</option><option value="changes">I'd like some changes</option><option value="question">I have a question</option><option value="later">I'm still considering it</option></select></div>
+              <label class="feedback-contact"><input type="checkbox" id="feedbackContact"> Please contact me about this feedback</label>
+            </div>
+          </fieldset>
+          <p class="feedback-privacy">Sent privately to the team handling this proposal. Feedback does not place an order or book a service. Please don't include passwords or payment details.</p>
+          <button type="submit" id="feedbackSubmit" class="sac-submit" disabled>Send proposal feedback</button>
+        </form>
+        <p id="feedbackStatus" class="feedback-status" role="status" aria-live="polite"></p>
+        <section id="feedbackSuccess" class="feedback-success" tabindex="-1" hidden>
+          <span aria-hidden="true">✓</span><h4>Thank you for your feedback.</h4>
+          <p>Your feedback has been saved and shared with your proposal team. They'll review your comments and follow up where needed.</p>
+          <small id="feedbackReceipt"></small>
+        </section>
+      </section>
+    </div>
+</main><script src="assets/js/proposal-feedback.js?v=feedback-preview2"></script><script src="assets/js/feedback-preview.js?v=1"></script></body></html>
