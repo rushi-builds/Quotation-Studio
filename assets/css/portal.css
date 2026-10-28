@@ -165,3 +165,17 @@ body.portal-mode .share-topbar {
 
 /* Prevent native iOS focus zoom without disabling the user's pinch zoom. */
 @media(pointer:coarse){.feedback-message textarea{font-size:16px;}}
+
+/* Feedback-first view: opening the shared #proposalFeedback link shows the
+   private form on its own instead of the full proposal above it. The pill
+   restores the complete portal. Hidden sections stay in the DOM untouched. */
+#portalMain.feedback-first .share-topbar,
+#portalMain.feedback-first .share-banner,
+#portalMain.feedback-first #savingsExplorer,
+#portalMain.feedback-first #sharePages{display:none!important;}
+#portalMain.feedback-first{padding-top:26px;}
+.feedback-full-pill{display:block;margin:0 auto 18px;padding:10px 22px;border:1px solid #d8dee8;border-radius:26px;background:#ffffffd9;font:500 12px/1.4 Inter,sans-serif;color:#263b56;letter-spacing:.4px;cursor:pointer;box-shadow:0 3px 12px #57402f0a;transition:border-color .2s ease,color .2s ease;}
+.feedback-full-pill:hover{border-color:#ef7f15;color:#ef7f15;}
+.feedback-full-pill:focus-visible{outline:2px solid #ef7f15;outline-offset:3px;}
+@media(prefers-reduced-motion:reduce){.feedback-full-pill{transition:none;}}
+

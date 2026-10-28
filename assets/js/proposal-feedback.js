@@ -141,6 +141,25 @@
     window.addEventListener('hashchange', onHash); requestAnimationFrame(onHash);
     const ref = snapshot?.ref || snapshot?.form?.propRef || '';
     $('feedbackContext').textContent = ref ? 'Private feedback for proposal ' + ref : 'Private feedback for your proposal';
+    /* Opening the shared feedback link directly (…/portal.html?t=…#proposalFeedback)
+       shows the private form on its own instead of the full portal above it.
+       Jumps made while already reading the proposal keep the normal scroll
+       behaviour, and "View full proposal" brings the whole portal back. */
+    const portalMain = document.getElementById('portalMain');
+    if (!preview && portalMain && ['#proposalFeedback', '#shareAcceptWrap'].includes(location.hash)) {
+      portalMain.classList.add('feedback-first');
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = 'feedback-full-pill';
+      pill.textContent = 'View full proposal';
+      host.prepend(pill);
+      pill.addEventListener('click', () => {
+        portalMain.classList.remove('feedback-first');
+        pill.remove();
+        try { history.replaceState(null, '', location.pathname + location.search); } catch (_) {}
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
     paint(); fieldset.disabled = false; submit.disabled = preview;
     if (preview) {
       submit.textContent = 'Preview — sending disabled';
