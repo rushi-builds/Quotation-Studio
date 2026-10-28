@@ -18,6 +18,7 @@
     </script>
       <link rel="stylesheet" href="assets/css/dashboard.css?v=customer-feedback1" />
       <link rel="stylesheet" href="assets/css/dashboard-pearl.css?v=workspace7-ai4" />
+      <link rel="stylesheet" href="assets/css/quotation-library.css?v=library1" />
         <link rel="stylesheet" href="assets/css/quote-summary.css" />
       <link rel="stylesheet" href="assets/css/growth-hub.css" />
       <link rel="stylesheet" href="assets/css/business-pulse.css" />
@@ -233,7 +234,7 @@
               <div>
                 <span class="eyebrow">YOUR SALES WORKSPACE</span>
                 <h1>Quotations</h1>
-                <p class="sub">Everything you’re working on, in one place.</p>
+                <p class="sub">Find the right quotation. Pick up where you left off.</p>
               </div>
               <div class="topbar-actions">
                 <button
@@ -246,18 +247,27 @@
               </div>
             </div>
             <div id="propStats" class="stat-chips"></div>
-            <section class="card quote-library">
+            <section class="card quote-library" aria-label="Quotation library">
+              <div class="library-views" role="group" aria-label="Quick quotation filters">
+                <button type="button" data-quote-view="" aria-pressed="true">All quotations</button>
+                <button type="button" data-quote-view="active" aria-pressed="false">Active</button>
+                <button type="button" data-quote-view="waiting" aria-pressed="false">Sent or viewed</button>
+                <button type="button" data-quote-view="accepted" aria-pressed="false">Accepted</button>
+                <button type="button" data-quote-view="archived" aria-pressed="false">Archived</button>
+              </div>
               <div class="library-toolbar">
                 <div class="search-field">
                   <span aria-hidden="true">⌕</span
                   ><input
                     type="search"
                     id="filterQ"
-                    placeholder="Search customer, reference or title…"
+                    placeholder="Customer, reference, title or capacity…"
+                    aria-describedby="quoteSearchHelp"
+                    aria-controls="propTableBody"
                     aria-label="Search quotation list"
                   />
                 </div>
-                <select id="filterStatus" aria-label="Filter quotations">
+                <label class="library-select">Stage<select id="filterStatus" aria-label="Filter quotations">
                   <option value="">All quotations</option>
                   <option value="active">Active quotations</option>
                   <option value="waiting">Sent or viewed</option>
@@ -272,8 +282,20 @@
                   <option value="rejected">Rejected</option>
                   <option value="expired">Expired</option>
                   <option value="archived">Archived</option>
-                </select>
+                </select></label>
+                <label class="library-select">Sort by<select id="quoteSort" aria-label="Sort quotations">
+                  <option value="updated">Recently updated</option>
+                  <option value="created">Newest created</option>
+                  <option value="customer">Customer A–Z</option>
+                  <option value="capacity_desc">Capacity: high to low</option>
+                  <option value="capacity_asc">Capacity: low to high</option>
+                </select></label>
               </div>
+              <div class="library-results">
+                <p id="quoteResults" role="status" aria-live="polite" aria-atomic="true">Loading quotations…</p>
+                <button type="button" id="resetQuoteFilters" class="text-link" hidden>Clear filters</button>
+              </div>
+              <p id="quoteSearchHelp" class="library-search-help">Search within the quotations available to your account. Combine words, for example a customer name and reference.</p>
               <div class="table-wrap">
                 <table class="data">
                   <thead>
@@ -282,7 +304,7 @@
                       <th>SYSTEM</th>
                       <th>STATUS</th>
                       <th>LAST UPDATED</th>
-                      <th></th>
+                      <th><span class="library-sr-only">Actions</span></th>
                     </tr>
                   </thead>
                   <tbody id="propTableBody">
@@ -292,6 +314,11 @@
                   </tbody>
                 </table>
               </div>
+              <nav class="library-pagination" aria-label="Quotation list pages" hidden>
+                <span id="quotePageInfo"></span>
+                <div><button type="button" id="quotePrev" class="btn btn-secondary btn-sm">← Previous</button>
+                <button type="button" id="quoteNext" class="btn btn-secondary btn-sm">Next →</button></div>
+              </nav>
               <div class="table-note">
                 Statuses are managed by your team. Customer events appear in
                 Activity.
@@ -1202,7 +1229,7 @@
     </dialog>
     <div id="toast" role="status"></div>
       <script src="assets/js/platform-api.js?v=oauth2"></script>
-      <script src="assets/js/dashboard.js?v=customer-feedback1"></script>
+      <script src="assets/js/dashboard.js?v=library1"></script>
       <script src="assets/js/dashboard-home.js?v=workspace7-ai5"></script>
     <script src="assets/js/finance.js?v=finance-fixes1"></script>
     <script src="assets/js/equipment.js?v=workspace7-ai4"></script>

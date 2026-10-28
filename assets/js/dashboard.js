@@ -12,6 +12,8 @@
   let loginAuth = null;
 
   let allProposals = [];
+  let quotePage = 1;
+  const QUOTE_PAGE_SIZE = 20;
   let toastTimer = null;
 
   const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Engineer', custom: 'Custom' };
@@ -1592,32 +1594,62 @@
   }
 
   function filteredProposals() {
-    const q = (($('filterQ') && $('filterQ').value) || '').trim().toLowerCase();
-    const st = ($('filterStatus') && $('filterStatus').value) || '';
-    return allProposals.filter((p) => {
+    const tokens = ($('filterQ').value || '').trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const st = $('filterStatus').value;
+    const rows = allProposals.filter((p) => {
       const status = p.status || 'draft';
       if (st === 'waiting' && !['sent','viewed'].includes(status)) return false;
       if (st === 'active' && ['accepted','rejected','expired','archived'].includes(status)) return false;
       if (st === 'this_month') { const d = new Date(p.createdAt), now = new Date(); if (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return false; }
       if (st && !['waiting','active','this_month'].includes(st) && status !== st) return false;
-      if (!q) return true;
-      const hay = [p.customer, p.ref, p.title, p.capacity, p.status].join(' ').toLowerCase();
-      return hay.includes(q);
+      const hay = [p.customer, p.ref, p.title, p.capacity, p.capacity ? p.capacity + ' kWp' : '', status, STATUS_LABEL[status], p.version].join(' ').toLocaleLowerCase();
+      return tokens.every(token => hay.includes(token));
     });
+    const order = $('quoteSort')?.value || 'updated';
+    const text = p => String(p.customer || '').trim();
+    const number = p => { const n = Number(p.capacity); return Number.isFinite(n) && n > 0 ? n : null; };
+    const time = (p, key) => { const n = Date.parse(p[key]); return Number.isFinite(n) ? n : null; };
+    // Sorting the filtered copy never mutates server records. Missing values last.
+    const compare = (a, b, descending) => a === null ? (b === null ? 0 : 1) : b === null ? -1 : (descending ? b - a : a - b);
+    return rows.sort((a, b) => {
+      let result;
+      if (order === 'customer') result = !text(a) ? (!text(b) ? 0 : 1) : !text(b) ? -1 : text(a).localeCompare(text(b), undefined, { numeric: true, sensitivity: 'base' });
+      else if (order.startsWith('capacity_')) result = compare(number(a), number(b), order === 'capacity_desc');
+      else result = compare(time(a, order === 'created' ? 'createdAt' : 'updatedAt'), time(b, order === 'created' ? 'createdAt' : 'updatedAt'), true);
+      return result || String(a.id).localeCompare(String(b.id));
+    });
+  }
+
+  function clearQuoteFilters() {
+    $('filterQ').value = ''; $('filterStatus').value = ''; quotePage = 1;
+    renderPropTable(); renderPropStats(); $('filterQ').focus();
   }
 
   function renderPropTable() {
     const body = $('propTableBody');
     if (!body) return;
-    const rows = filteredProposals();
+    const rows = filteredProposals(), pageCount = Math.max(1, Math.ceil(rows.length / QUOTE_PAGE_SIZE));
+    quotePage = Math.min(quotePage, pageCount);
+    const start = (quotePage - 1) * QUOTE_PAGE_SIZE;
+    const filtered = !!($('filterQ').value.trim() || $('filterStatus').value);
+    document.querySelectorAll('[data-quote-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.quoteView === $('filterStatus').value)));
+    if ($('resetQuoteFilters')) $('resetQuoteFilters').hidden = !filtered;
+    if ($('quoteResults')) $('quoteResults').textContent = rows.length
+      ? (start + 1) + '–' + Math.min(start + QUOTE_PAGE_SIZE, rows.length) + ' of ' + rows.length + (filtered ? ' matching quotations' : ' quotations')
+      : (allProposals.length ? 'No matching quotations' : 'No quotations yet');
+    const pagination = document.querySelector('.library-pagination');
+    if (pagination) pagination.hidden = pageCount <= 1;
+    if ($('quotePageInfo')) $('quotePageInfo').textContent = 'Page ' + quotePage + ' of ' + pageCount;
+    if ($('quotePrev')) $('quotePrev').disabled = quotePage <= 1;
+    if ($('quoteNext')) $('quoteNext').disabled = quotePage >= pageCount;
     if (!rows.length) {
       body.innerHTML = allProposals.length
-        ? '<tr><td colspan="5" class="empty"><strong>No matching quotations.</strong><button type="button" class="text-link" id="clearQuoteFilters">Clear filters</button></td></tr>'
-        : '<tr><td colspan="5" class="empty"><strong>No quotations yet.</strong></td></tr>';
-      $('clearQuoteFilters')?.addEventListener('click', () => { $('filterQ').value = ''; $('filterStatus').value = ''; renderPropTable(); renderPropStats(); $('filterQ').focus(); });
+        ? '<tr><td colspan="5" class="empty"><strong>No matching quotations.</strong><p>Try fewer words or a different stage.</p><button type="button" class="text-link" id="clearQuoteFilters">Clear filters</button></td></tr>'
+        : '<tr><td colspan="5" class="empty"><strong>Your quotation library starts here.</strong><p>Saved quotations will appear here with their customer, reference and stage.</p></td></tr>';
+      $('clearQuoteFilters')?.addEventListener('click', clearQuoteFilters);
       return;
     }
-    body.innerHTML = rows.map((p) => rowHtml(p, false)).join('');
+    body.innerHTML = rows.slice(start, start + QUOTE_PAGE_SIZE).map(rowHtml).join('');
     bindRowActions(body);
   }
 
@@ -1626,7 +1658,9 @@
     const action = (act,label,cls='') => '<button type="button" class="' + cls + '" data-act="' + act + '" data-id="' + id + '">' + label + '</button>';
     const next = NEXT_STATUS[p.status || 'draft'];
     const menu = canEdit() ? '<details class="row-menu"><summary aria-label="Actions for ' + escapeHtml(customer) + '">⋯</summary><div class="row-menu-list">' + action('send','Share quotation') + action('pub','Manage versions & links') + action('dup','Duplicate quotation') + (next ? action('adv','Mark ' + escapeHtml(STATUS_LABEL[next])) : '') + action('del','Delete quotation','danger') + '</div></details>' : '';
-    return '<tr><td><div class="quote-client"><span class="client-icon" aria-hidden="true">' + escapeHtml(customer.trim().slice(0,2).toUpperCase()) + '</span><div>' + action('open',escapeHtml(customer),'record-link') + '<small>' + escapeHtml(p.ref || p.title || 'No reference') + '</small></div></div></td><td class="capacity-cell">' + escapeHtml(p.capacity ? p.capacity + ' kWp' : '—') + '<small>Version ' + escapeHtml(p.version || '1.0') + '</small></td><td>' + badge(p.status) + '</td><td class="muted">' + escapeHtml(fmtDate(p.updatedAt)) + '</td><td><div class="row-actions">' + action('open',canEdit() ? 'Edit in Studio ↗' : 'Open ↗','btn btn-secondary btn-sm') + menu + '</div></td></tr>';
+    const capacity = Number(p.capacity) > 0 && Number.isFinite(Number(p.capacity)) ? Number(p.capacity).toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp' : '—';
+    const title = p.title && p.title !== p.ref && p.title !== p.customer ? '<span class="quote-title">' + escapeHtml(p.title) + '</span>' : '';
+    return '<tr class="quotation-row"><td><div class="quote-client"><span class="client-icon" aria-hidden="true">' + escapeHtml(customer.trim().slice(0,2).toUpperCase()) + '</span><div>' + action('open',escapeHtml(customer),'record-link') + '<small class="quote-reference">' + escapeHtml(p.ref || 'No reference') + '</small>' + title + '</div></div></td><td class="capacity-cell" data-label="System">' + escapeHtml(capacity) + '<small>' + (p.version ? 'Version ' + escapeHtml(p.version) : 'Version not supplied') + '</small></td><td data-label="Stage">' + badge(p.status) + '</td><td class="muted quote-updated" data-label="Last updated">' + escapeHtml(fmtDate(p.updatedAt)) + '</td><td><div class="row-actions">' + action('open',canEdit() ? 'Edit in Studio ↗' : 'Open ↗','btn btn-secondary btn-sm') + menu + '</div></td></tr>';
   }
 
   function bindRowActions(root) {
@@ -2022,8 +2056,25 @@
 
     $('btnNewFromHome').addEventListener('click', createBlankAndOpen);
     $('btnNewProposal').addEventListener('click', createBlankAndOpen);
-    $('filterQ').addEventListener('input', () => { renderPropTable(); renderPropStats(); });
-    $('filterStatus').addEventListener('change', () => { renderPropTable(); renderPropStats(); });
+    const updateQuoteFilters = () => { quotePage = 1; renderPropTable(); renderPropStats(); };
+    $('filterQ').addEventListener('input', updateQuoteFilters);
+    $('filterQ').addEventListener('keydown', event => {
+      if (event.key === 'Escape' && $('filterQ').value) { event.preventDefault(); $('filterQ').value = ''; updateQuoteFilters(); }
+    });
+    $('filterStatus').addEventListener('change', updateQuoteFilters);
+    $('quoteSort')?.addEventListener('change', updateQuoteFilters);
+    $('resetQuoteFilters')?.addEventListener('click', clearQuoteFilters);
+    document.querySelectorAll('[data-quote-view]').forEach(button => button.addEventListener('click', () => {
+      $('filterStatus').value = button.dataset.quoteView; updateQuoteFilters();
+    }));
+    const turnQuotePage = delta => {
+      const pages = Math.max(1, Math.ceil(filteredProposals().length / QUOTE_PAGE_SIZE));
+      quotePage = Math.max(1, Math.min(pages, quotePage + delta)); renderPropTable();
+      $('quoteResults')?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      $('quoteResults')?.setAttribute('tabindex', '-1'); $('quoteResults')?.focus({ preventScroll: true });
+    };
+    $('quotePrev')?.addEventListener('click', () => turnQuotePage(-1));
+    $('quoteNext')?.addEventListener('click', () => turnQuotePage(1));
     if ($('btnPublish')) $('btnPublish').addEventListener('click', publishSelected);
     if ($('publishSelect')) {
       $('publishSelect').addEventListener('change', () => { refreshPublishPanel(); });
