@@ -175,3 +175,18 @@ html[data-theme="dark"] .main .solar-hero .btn-secondary:enabled {
 @media(hover:hover) and (pointer:fine) {
   :is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(input,select,textarea):enabled:hover { border-color:var(--ui-hover-edge); }
 }
+
+/* A native select's intrinsic width must not widen the small-phone grid.
+   Tables keep their existing local horizontal scroll; the page does not. */
+@media(max-width:760px){
+  .main .publish-picker{grid-template-columns:minmax(0,1fr);}
+  .main .publish-picker>*{min-width:0;}
+  .main .publish-picker select{width:100%;max-width:100%;}
+}
+
+/* Native touch editing must not trigger iOS's small-text focus zoom. This
+   applies only to fields, never button typography or protected auth screens. */
+@media(pointer:coarse){
+  :is(.main,.sc-dialog,.gh-dialog,.member-dialog) :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),select,textarea){font-size:16px;min-height:44px;min-width:0;max-width:100%;box-sizing:border-box;}
+  .main .gsearch input{font-size:16px!important;}
+}

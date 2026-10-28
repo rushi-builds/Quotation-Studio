@@ -330,3 +330,12 @@ form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
 /* Only the live summary should pin. The legacy mode switch also stuck at 8px,
    underneath that summary, making Essentials/All appear unresponsive. */
 .studio-ready .form-mode{position:static;top:auto;box-shadow:none;}
+
+/* Touch devices (including tablets/landscape): readable native fields avoid
+   iOS focus zoom and provide a 44px hit area. Desktop and A4 stay unchanged. */
+@media(pointer:coarse){
+  .form-panel.studio-ready :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),select,textarea),
+  .studio-ready :is(#studioSearch,#proposalSelect,#docTextSearch){font-size:16px;min-height:44px;min-width:0;max-width:100%;box-sizing:border-box;}
+  .studio-ready .eng-basis #engineeringDesignNote{font-size:16px;}
+  .form-panel.studio-ready :is(.fm-btn,.studio-search-box button,#studioSearchResults button,#custViewBtn,#downloadBtn,.pdf-format){min-height:44px;}
+}
