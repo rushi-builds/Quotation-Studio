@@ -56,6 +56,14 @@
     target: [C({ cx: 12, cy: 12, r: 9 }), C({ cx: 12, cy: 12, r: 5.4 }), C({ cx: 12, cy: 12, r: 1.8, fill: '{S}' }, { plain: true })],
     download: [P('M12 3.5v11M7.5 10.5 12 15l4.5-4.5'), P('M4 17.5V20a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2.5')],
     inverter: [R({ x: 4, y: 4, width: 16, height: 16, rx: 1.8 }), P('M13.5 7.5 9.5 13h3l-1 3.5 4-5.5h-3z')],
+    coins: [P('M14 8V5M7 8v4c0 1.7 3.1 3 7 3'), ['ellipse', {cx: 10, cy: 5, rx: 6, ry: 2.5}], P('M4 5v8c0 1.7 2.7 3 6 3M4 9c0 1.7 2.7 3 6 3'), ['ellipse', {cx: 16, cy: 14, rx: 5, ry: 2.5}], P('M11 14v5c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-5M11 17c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5')],
+    payment: [R({x:3,y:5,width:18,height:14,rx:2}), P('M3 9h18M6.5 15h4M16 15h1')],
+    truck: [P('M3 5h11v12H3zM14 10h4l3 4v3h-7M14 14h7'), C({cx:7,cy:18,r:2}), C({cx:18,cy:18,r:2})],
+    institution: [P('m3 8 9-5 9 5H3M4 20h16M6 10v8M10 10v8M14 10v8M18 10v8M3 22h18')],
+    exclusion: [P('M6 3h9l4 4v6M6 3v18h7M14 3v5h5M9 12h4M9 16h3'), C({cx:18,cy:18,r:4}), P('M15.5 18h5')],
+    tax: [P('M6 3h9l4 4v14H6zM14 3v5h5M10 17l5-5'), C({cx:10.5,cy:12.5,r:1}), C({cx:14.5,cy:16.5,r:1})],
+    shieldAlert: [P('m12 3-8 3v6c0 4 3 7 8 9 5-2 8-5 8-9V6zM12 7v6M12 16v.2')],
+    scales: [P('M12 3v17M7 21h10M4 6h16M7 5l-4 9h8L7 5ZM17 5l-4 9h8l-4-9ZM3 14c0 4 8 4 8 0M13 14c0 4 8 4 8 0')],
     meter: [C({ cx: 12, cy: 12, r: 9 }), P('m12 12 3.5-3.5'), P('M12 3v1.8M21 12h-1.8M12 21v-1.8M3 12h1.8')]
   };
 

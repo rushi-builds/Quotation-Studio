@@ -39,8 +39,8 @@ const check = (name, ok) => {assert(ok, name);passed++;console.log('  ✓ '+name
     check('initial proposal manager metadata matches the displayed customer',await page.$eval('#proposalSelect',e=>e.selectedOptions[0].textContent.includes('Untitled customer')));
     check('request shortcut is visible above the fold',await page.$eval('#engineeringViewBtn',e=>e.checkVisibility() && e.getBoundingClientRect().bottom<innerHeight));
     check('all white page headers use transparent light lockup',await page.$$eval('.pg-logo img',els=>els.every(e=>e.getAttribute('src')==='assets/images/ktm-logo-light.png' && getComputedStyle(e).backgroundColor==='rgba(0, 0, 0, 0)')));
-    check('dark closing photograph uses transparent white lockup',await page.$eval('.closing-brand img',e=>e.getAttribute('src')==='assets/images/ktm-logo-dark.png'));
-    check('normal proposal closing page explains four-step request flow',await page.$$eval('#pageClosing .engineering-steps li',els=>els.length===4 && els.every(e=>e.checkVisibility())));
+    check('ivory closing uses the approved navy/orange logo',await page.$eval('.closing-brand img',e=>e.getAttribute('src')==='assets/images/ktm-logo-light.png'));
+    check('editorial closing has four engineering inputs without signature boxes or repeated steps',await page.$$eval('#v_clNext .next-item',els=>els.length===4 && els.every(e=>e.checkVisibility())) && !await page.$('#pageClosing .sign-box,#pageClosing .closing-steps'));
     async function layout(label){
       const result=await page.evaluate(()=>[...document.querySelectorAll('.page')].filter(p=>p.checkVisibility()).flatMap(p=>{
         const issues=[];const foot=p.querySelector('.pg-foot');const body=p.querySelector('.pg-body');
@@ -63,7 +63,7 @@ const check = (name, ok) => {assert(ok, name);passed++;console.log('  ✓ '+name
     const proof=await browser.newPage();await proof.setViewport({width:794,height:1124});
     for(const id of ['pageExec','pageAbout','pageWhySolar','pageSolution','pageScope','pageQuality','pageWhyKtm','pageProjects','pageWarranty','pageClosing']){
       const markup=await page.$eval('#'+id,e=>e.outerHTML);
-      await proof.setContent('<base href="'+page.url()+'"><link rel="stylesheet" href="assets/css/app.css">'+markup);
+      await proof.setContent('<base href="'+page.url()+'"><link rel="stylesheet" href="assets/css/app.css"><link rel="stylesheet" href="assets/css/closing.css">'+markup);
       await proof.evaluate(()=>document.fonts.ready);await proof.waitForFunction(()=>[...document.images].every(i=>i.complete));
       await proof.$eval('.page',e=>e.style.transform='none');
       await (await proof.$('.page')).screenshot({path:path.join(shots,'visual-'+id+'.png')});
@@ -81,10 +81,10 @@ const check = (name, ok) => {assert(ok, name);passed++;console.log('  ✓ '+name
     check('customer header has one direct request jump',await customer.$$eval('#requestJump',els=>els.length===1 && !els[0].disabled));
     await customer.evaluate(()=>scrollTo(0,0));await customer.click('#requestJump');
     check('customer header jump reaches the real form',await customer.$eval('#requestStage',e=>e.getBoundingClientRect().bottom<innerHeight && document.activeElement===e));
-    await customer.$eval('#pageClosing [data-engineering-open]',e=>e.click());
+    await customer.$eval('#v_clDiscuss',e=>e.click());await customer.waitForFunction(()=>location.hash==='#shareAcceptWrap' && document.activeElement.id==='requestStage');
     check('closing-page action reaches the same single form',await customer.$$eval('#engineeringRequestForm',els=>els.length===1 && document.activeElement.id==='requestStage'));
     await customer.emulateMediaType('print');
-    check('paper/PDF explanation remains visible while interactive button is hidden',await customer.evaluate(()=>document.querySelector('.engineering-overview').checkVisibility() && !document.querySelector('#pageClosing [data-engineering-open]').checkVisibility()));
+    check('thank-you and discussion link remain visible in print',await customer.evaluate(()=>document.querySelector('.closing-hero').checkVisibility() && document.querySelector('#v_clDiscuss').checkVisibility()));
     await customer.emulateMediaType('screen');await customer.setViewport({width:390,height:844});
     await customer.evaluate(()=>scrollTo(0,0));await customer.click('#requestJump');
     check('mobile jump puts request selector in view',await customer.$eval('#requestStage',e=>e.getBoundingClientRect().top>=0 && e.getBoundingClientRect().bottom<=innerHeight));

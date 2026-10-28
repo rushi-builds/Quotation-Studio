@@ -6,12 +6,16 @@
   <meta name="robots" content="noindex,nofollow" />
   <meta name="referrer" content="no-referrer" />
   <title>Your Solar Proposal</title>
-  <meta name="description" content="Secure, read-only view of your rooftop solar proposal." />
+  <meta name="description" content="Secure view of your rooftop solar proposal and private proposal feedback." />
   <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png" />
   <link rel="stylesheet" href="assets/css/app.css?v=cloud-primary1" />
   <link rel="stylesheet" href="assets/css/bess.css" />
   <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1" />
-  <link rel="stylesheet" href="assets/css/portal.css" />
+  <link rel="stylesheet" href="assets/css/closing.css?v=closing-lavender4k9" />
+  <link rel="stylesheet" href="assets/css/terms.css?v=terms-corner3">
+<link rel="stylesheet" href="assets/css/proposal-values.css?v=four-icons-corner10">
+<link rel="stylesheet" href="assets/css/proposal-polish.css?v=solution-footer2">
+  <link rel="stylesheet" href="assets/css/portal.css?v=touch-compatibility1" />
 </head>
 <body class="share-mode portal-mode">
   <div id="portalGate" class="portal-gate">
@@ -33,7 +37,7 @@
       </div>
       <div class="st-actions">
         <span class="st-status" id="shareStatus"></span>
-        <button type="button" id="requestJump" class="request-jump" disabled>Request survey / 3D / PVsyst</button>
+        <button type="button" id="requestJump" class="request-jump" disabled>Share proposal feedback</button>
         <label class="pdf-format-label" for="pdfFormat">PDF format
           <select id="pdfFormat" class="pdf-format">
             <option value="full">Detailed Proposal — all applicable pages</option>
@@ -46,7 +50,7 @@
 
     <div class="portal-privacy" id="portalPrivacy" hidden>
       Opening this secure link may be recorded so your installer can follow up.
-      This page is read-only. It does not collect payment details.
+      Your feedback is shared privately with the proposal team. No payment details are collected here.
     </div>
 
     <div class="share-banner">
@@ -60,52 +64,50 @@
     <div id="sharePages"></div>
 
     <div class="share-accept-card" id="shareAcceptWrap" style="display:none;">
-      <div class="sac-head">
-        <div class="sac-badge">AFTER YOUR PROPOSAL REVIEW</div>
-        <h3 class="sac-title">Plan your next step</h3>
-        <p class="sac-sub">If the proposal suits your needs, confirm your interest and request an engineering review. The team checks your site before preparing agreed deliverables. This does not book a survey, place an order, or generate a simulation by itself.</p>
-      </div>
-      <section id="shareSimBar" class="engineering-section" aria-labelledby="engineeringHeading" style="display:none;">
-        <h4 id="engineeringHeading">Engineering documents</h4>
-        <p id="engineeringAvailability" class="hint"></p>
-        <div id="shareSimActions" class="ssb-actions"></div>
+      <section class="proposal-feedback" id="proposalFeedback" aria-labelledby="feedbackHeading">
+        <div class="feedback-heading">
+          <div><div class="sac-badge">YOUR VOICE · OUR NEXT STEP</div>
+          <h3 id="feedbackHeading">A better proposal starts <em>with you.</em></h3>
+          <p id="feedbackContext">Private feedback for your proposal</p></div>
+          <span class="feedback-private"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></svg>Private to your proposal team</span>
+        </div>
+        <form id="proposalFeedbackForm">
+          <fieldset id="feedbackFields" disabled>
+            <legend class="sr-only">Proposal feedback</legend>
+            <div class="feedback-rating"><div class="feedback-step-label"><span class="feedback-step-number">01</span><span>YOUR IMPRESSION</span></div><p id="feedbackRatingLabel">How clear and useful was this proposal? <small>Optional</small></p>
+              <div class="feedback-stars" role="radiogroup" aria-labelledby="feedbackRatingLabel">
+                <label><input type="radio" name="proposalRating" value="1" aria-label="1 out of 5"><svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.8 1-6.1-4.4-4.3 6.1-.9Z"/></svg><svg class="rating-face" viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="ratingFace1" cx=".38" cy=".25" r=".8"><stop stop-color="#fff1a7"/><stop offset=".52" stop-color="#ffcf59"/><stop offset="1" stop-color="#eaa02e"/></radialGradient></defs><circle cx="12" cy="12" r="10.5" fill="url(#ratingFace1)" stroke="#e1a544" stroke-width=".45"/><ellipse cx="8.5" cy="5.5" rx="4" ry="1.7" fill="#fff" opacity=".26" transform="rotate(-22 8.5 5.5)"/><ellipse cx="6.5" cy="13.3" rx="1.7" ry="1" fill="#ef8e64" opacity=".3"/><ellipse cx="17.5" cy="13.3" rx="1.7" ry="1" fill="#ef8e64" opacity=".3"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" color="#78522e"><path d="m6.5 8 3 1m8-1-3 1"/><circle cx="8.5" cy="11" r=".8" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r=".8" fill="currentColor" stroke="none"/><path d="M8.5 17q3.5-3 7 0"/><path d="M17.9 10.8q-2.5 3.3-.2 3.7 2.5-.2.2-3.7Z" fill="#59bdf5" stroke="#2c9ae2" stroke-width=".35"/></g></svg></label>
+                <label><input type="radio" name="proposalRating" value="2" aria-label="2 out of 5"><svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.8 1-6.1-4.4-4.3 6.1-.9Z"/></svg><svg class="rating-face" viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="ratingFace2" cx=".38" cy=".25" r=".8"><stop stop-color="#fff1a7"/><stop offset=".52" stop-color="#ffcf59"/><stop offset="1" stop-color="#eaa02e"/></radialGradient></defs><circle cx="12" cy="12" r="10.5" fill="url(#ratingFace2)" stroke="#e1a544" stroke-width=".45"/><ellipse cx="8.5" cy="5.5" rx="4" ry="1.7" fill="#fff" opacity=".26" transform="rotate(-22 8.5 5.5)"/><ellipse cx="6.5" cy="13.3" rx="1.7" ry="1" fill="#ef8e64" opacity=".3"/><ellipse cx="17.5" cy="13.3" rx="1.7" ry="1" fill="#ef8e64" opacity=".3"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" color="#78522e"><circle cx="8" cy="10" r=".9" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r=".9" fill="currentColor" stroke="none"/><path d="m9 16 6-1" stroke="#b9576a" stroke-width="1.45"/><path d="m6.8 7.2 2.3.6m5.9.1 2.2-.7" stroke="#9c689f" stroke-width=".8"/></g></svg></label>
+                <label><input type="radio" name="proposalRating" value="3" aria-label="3 out of 5"><svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.8 1-6.1-4.4-4.3 6.1-.9Z"/></svg><svg class="rating-face" viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="ratingFace3" cx=".38" cy=".25" r=".8"><stop stop-color="#fff1a7"/><stop offset=".52" stop-color="#ffcf59"/><stop offset="1" stop-color="#eaa02e"/></radialGradient></defs><circle cx="12" cy="12" r="10.5" fill="url(#ratingFace3)" stroke="#e1a544" stroke-width=".45"/><ellipse cx="8.5" cy="5.5" rx="4" ry="1.7" fill="#fff" opacity=".26" transform="rotate(-22 8.5 5.5)"/><ellipse cx="6.5" cy="13.3" rx="1.7" ry="1" fill="#ef8e64" opacity=".3"/><ellipse cx="17.5" cy="13.3" rx="1.7" ry="1" fill="#ef8e64" opacity=".3"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" color="#78522e"><circle cx="8" cy="10" r=".9" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r=".9" fill="currentColor" stroke="none"/><path d="M8.5 15q3.5 3 7 0" stroke="#a3594d"/><ellipse cx="7" cy="13.5" rx="1.3" ry=".7" fill="#f28393" opacity=".65" stroke="none"/><ellipse cx="17" cy="13.5" rx="1.3" ry=".7" fill="#f28393" opacity=".65" stroke="none"/></g></svg></label>
+                <label><input type="radio" name="proposalRating" value="4" aria-label="4 out of 5"><svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.8 1-6.1-4.4-4.3 6.1-.9Z"/></svg><svg class="rating-face" viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="ratingFace4" cx=".38" cy=".25" r=".8"><stop stop-color="#fff1a7"/><stop offset=".52" stop-color="#ffcf59"/><stop offset="1" stop-color="#eaa02e"/></radialGradient></defs><circle cx="12" cy="12" r="10.5" fill="url(#ratingFace4)" stroke="#e1a544" stroke-width=".45"/><ellipse cx="8.5" cy="5.5" rx="4" ry="1.7" fill="#fff" opacity=".26" transform="rotate(-22 8.5 5.5)"/><ellipse cx="6.5" cy="13.3" rx="1.7" ry="1" fill="#ef8e64" opacity=".3"/><ellipse cx="17.5" cy="13.3" rx="1.7" ry="1" fill="#ef8e64" opacity=".3"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" color="#78522e"><path d="M6.5 10q1.5-3 3 0m5 0q1.5-3 3 0"/><path d="M7.5 14h9q-1 5-4.5 5T7.5 14Z" fill="#a84952" stroke="#955443" stroke-width=".6"/><path d="M9 14.5h6" stroke="#fff9e7" stroke-width="1.3"/><path d="M10 17.7q2-1.7 4 0" stroke="#f18ba0" stroke-width="1.4"/></g></svg></label>
+                <label><input type="radio" name="proposalRating" value="5" aria-label="5 out of 5"><svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.8 1-6.1-4.4-4.3 6.1-.9Z"/></svg><svg class="rating-face" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="ratingBlueEyes" x2=".4" y2="1"><stop stop-color="#89eeff"/><stop offset=".5" stop-color="#38acfa"/><stop offset="1" stop-color="#2860e4"/></linearGradient><radialGradient id="ratingFace5" cx=".38" cy=".25" r=".8"><stop stop-color="#fff1a7"/><stop offset=".52" stop-color="#ffcf59"/><stop offset="1" stop-color="#eaa02e"/></radialGradient></defs><circle cx="12" cy="12" r="10.5" fill="url(#ratingFace5)" stroke="#e1a544" stroke-width=".45"/><ellipse cx="8.5" cy="5.5" rx="4" ry="1.7" fill="#fff" opacity=".26" transform="rotate(-22 8.5 5.5)"/><ellipse cx="6.5" cy="13.3" rx="1.7" ry="1" fill="#ef8e64" opacity=".3"/><ellipse cx="17.5" cy="13.3" rx="1.7" ry="1" fill="#ef8e64" opacity=".3"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" color="#78522e"><path class="rating-blue-star-eyes" d="m7.5 5.5 1 2 2.2.3-1.6 1.6.4 2.2-2-1-2 1 .4-2.2-1.6-1.6 2.2-.3Zm9 0 1 2 2.2.3-1.6 1.6.4 2.2-2-1-2 1 .4-2.2-1.6-1.6 2.2-.3Z" fill="url(#ratingBlueEyes)" stroke="#247bcc" stroke-width=".25"/><path d="m7.3 7.4.3-.5m9 .5.3-.5" stroke="#d9f8ff" stroke-width=".6"/><path d="M7.5 14h9q-1 5-4.5 5T7.5 14Z" fill="#824529"/><path d="M10.5 18q1.5-2 3 0" stroke="#f27495" stroke-width="1.5"/><path d="M9 14.5h6" stroke="#fff4d3" stroke-width="1.5"/></g></svg></label>
+              </div>
+              <aside class="feedback-rating-response" aria-live="polite" aria-atomic="true">
+                <svg class="feedback-response-petals" viewBox="0 0 150 160" aria-hidden="true" focusable="false"><defs><linearGradient id="feedbackPetalPeach" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8c7b3" stop-opacity=".25"/><stop offset="1" stop-color="#f2b98c" stop-opacity=".12"/></linearGradient><linearGradient id="feedbackPetalLavender" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d3c5ee" stop-opacity=".15"/><stop offset="1" stop-color="#bfa9e5" stop-opacity=".28"/></linearGradient></defs><path d="M139 153C78 132 61 77 86 11C131 43 155 98 139 153Z" fill="url(#feedbackPetalPeach)"/><path d="M142 153C80 170 24 136 6 87C71 84 126 108 142 153Z" fill="url(#feedbackPetalLavender)"/></svg>
+                <div class="feedback-response-top"><svg class="feedback-response-art" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="23" fill="var(--response-tint)"/><g class="response-conversation" fill="none" stroke="var(--response-accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 16h20a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H24l-7 5v-5h-2a3 3 0 0 1-3-3V19a3 3 0 0 1 3-3Z"/><path d="M19 23h12m-12 5h7"/></g><g class="response-celebration"><path d="m15 37 6-21 15 15Z" fill="#a48ce0"/><path d="m16.5 31 12 3m-10-9 12 3" fill="none" stroke="#e2c5fa" stroke-width="2"/><path d="M25 19q-2-10 5-10m-1 14q12-3 11-11m-8 17q12 1 12-5" fill="none" stroke="#46b7c7" stroke-width="1.8" stroke-linecap="round"/></g><g class="response-confetti"><path d="m39 6 1 3 3 1-3 1-1 3-1-3-3-1 3-1Z" fill="#edaf59"/><circle cx="9" cy="13" r="2" fill="#d891ba"/><path d="m39 39 3 3m-28 2-2 3" stroke="#6daedc" stroke-width="2" stroke-linecap="round"/></g></svg><span id="feedbackResponseKicker">A LITTLE PERSPECTIVE</span></div>
+                <strong id="feedbackResponseTitle">Your view makes a difference.</strong>
+                <p id="feedbackResponseCopy">A quick rating or a thoughtful note. Both are welcome.</p>
+              </aside>
+              <div class="feedback-rating-help"><span id="feedbackRatingText">Optional — you can leave just a message</span><button type="button" id="feedbackClearRating">Clear rating</button></div>
+            </div>
+            <div class="feedback-message"><div class="feedback-step-label"><span class="feedback-step-number">02</span><span>IN YOUR WORDS</span></div><label for="feedbackComment">Share your thoughts</label>
+              <textarea id="feedbackComment" rows="4" maxlength="1500" placeholder="A thought, a question, or a change you'd like us to consider…" aria-describedby="feedbackCount"></textarea>
+              <small id="feedbackCount">0 / 1500</small>
+            </div>
+            <div class="feedback-followup">
+              <label class="feedback-contact"><input type="checkbox" id="feedbackContact"><span><strong>I'd welcome a follow-up</strong><small>Your proposal team can contact you about this feedback.</small></span></label>
+            </div>
+          </fieldset>
+          <p class="feedback-privacy">Just a conversation, not a commitment. Feedback doesn't place an order or book a service. Please leave out passwords and payment details.</p>
+          <button type="submit" id="feedbackSubmit" class="sac-submit" disabled>Send proposal feedback</button>
+        </form>
+        <p id="feedbackStatus" class="feedback-status" role="status" aria-live="polite"></p>
+        <section id="feedbackSuccess" class="feedback-success" tabindex="-1" hidden>
+          <span aria-hidden="true">✓</span><h4>Thank you for your feedback.</h4>
+          <p>Your feedback has been saved and shared with your proposal team. They'll review your comments and follow up where needed.</p>
+          <small id="feedbackReceipt"></small>
+        </section>
       </section>
-      <form id="engineeringRequestForm" class="engineering-request">
-        <div class="sac-field">
-          <label for="requestStage">Where are you in your decision?</label>
-          <select id="requestStage">
-            <option value="reviewing">Still reviewing / comparing</option>
-            <option value="interested">The proposal interests me — discuss the site</option>
-            <option value="ready">Ready to discuss the final scope</option>
-          </select>
-        </div>
-        <fieldset class="request-services">
-          <legend>What would you like the team to arrange?</legend>
-          <label><input type="checkbox" id="requestSurvey" checked /> Site survey / feasibility discussion</label>
-          <label id="requestArkaLabel"><input type="checkbox" id="requestArka" /> Arka 3D layout &amp; shading review</label>
-          <label id="requestPvsystLabel"><input type="checkbox" id="requestPvsyst" /> PVsyst generation simulation report</label>
-        </fieldset>
-        <div class="sac-row">
-          <div class="sac-field">
-            <label for="requestLocation">Site address / locality</label>
-            <input id="requestLocation" type="text" maxlength="240" required autocomplete="street-address" />
-          </div>
-          <div class="sac-field">
-            <label for="requestWindow">Preferred call / survey window (optional)</label>
-            <input id="requestWindow" type="text" maxlength="120" placeholder="e.g. Saturday morning" />
-          </div>
-        </div>
-        <div class="sac-field">
-          <label for="requestPhone">WhatsApp number</label>
-          <input id="requestPhone" type="tel" maxlength="20" required autocomplete="tel" placeholder="+91 …" />
-        </div>
-        <div class="sac-field">
-          <label for="requestNotes">Anything the team should know? (optional)</label>
-          <textarea id="requestNotes" rows="3" maxlength="500"></textarea>
-        </div>
-        <p class="hint" id="requestHint">Your message opens WhatsApp with the company number from this proposal. Delivery is not confirmed until they reply.</p>
-        <button type="submit" class="sac-submit" id="requestSubmit">Review message &amp; open WhatsApp</button>
-      </form>
     </div>
   </main>
 
@@ -113,7 +115,7 @@
   <script src="assets/vendor/html2canvas.min.js"></script>
   <script src="assets/vendor/jspdf.umd.min.js"></script>
   <script src="assets/vendor/qrcode.min.js"></script>
-  <script src="assets/js/content.js"></script>
+  <script src="assets/js/content.js?v=page-values12"></script>
   <script src="assets/js/engineering.js?v=reverify1"></script>
   <script src="assets/js/finance.js?v=finance-fixes1"></script>
   <script src="assets/js/storage-catalog.js"></script>
@@ -121,16 +123,20 @@
   <script src="assets/js/rainwater.js"></script>
 <script src="assets/js/additional-systems.js"></script>
   <script src="assets/js/supplement-design.js"></script>
-  <script src="assets/js/icons.js"></script>
+  <script src="assets/js/icons.js?v=terms-icons1"></script>
   <script src="assets/js/charts.js?v=finance-fixes1"></script>
   <script src="assets/js/model.js"></script>
   <script src="assets/js/state.js?v=proposal-stage1"></script>
   <script src="assets/js/equipment.js"></script>
-  <script src="assets/js/render.js?v=proposal-stage1"></script>
+  <script src="assets/js/proposal-marks.js?v=premium-marks1"></script>
+<script src="assets/js/render.js?v=appearance-sync11"></script>
   <script src="assets/js/experience.js?v=proposal-stage1"></script>
   <script src="assets/js/salutation.js"></script>
   <script src="assets/js/briefing.js"></script>
   <script src="assets/js/export.js?v=power-six-audit1"></script>
-  <script src="assets/js/portal.js?v=preview-isolation1"></script>
+  <script src="assets/js/proposal-feedback.js?v=feedback-petals11"></script>
+
+  <script src="assets/js/proposal-values.js?v=four-icons-corner10"></script>
+  <script src="assets/js/portal.js?v=feedback1"></script>
 </body>
 </html>

@@ -108,6 +108,11 @@
 .studio-advanced-wrap[open]{padding:0 10px 10px;}
 .studio-advanced-wrap[open]>summary{margin:0 -10px 10px;}
 form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
+/* All settings is a full section list, not the same closed expert drawer.
+   Keep the original inputs and individual disclosure states in both modes. */
+.studio-ready form:not(.qs-mode-essentials) #advancedWrap{margin:0;border:0;padding:0;background:transparent;box-shadow:none;overflow:visible;}
+.studio-ready form:not(.qs-mode-essentials) #advancedWrap>summary{display:none;}
+
 .studio-ready details.advanced{background:#f1f4f8;border:1px solid #dce4ed;border-radius:10px;margin-bottom:10px;}
 .studio-ready details.advanced>summary{padding:14px;font:600 11px 'Inter',sans-serif;color:#52677e;}
 .studio-ready .form-actions{flex-shrink:0;margin:18px -22px 0;padding:14px 22px 12px;background:#fffffffa;border-top:1px solid #dfe5ed;box-shadow:0 -8px 22px #263a5106;backdrop-filter:blur(12px);z-index:50;}
@@ -305,3 +310,32 @@ form.qs-mode-essentials #advancedWrap [data-adv]{display:block !important;}
 .excel-catalogue .catalogue-permission-notice{margin:9px 0 0;color:#727d94;font-size:10px;line-height:1.5;}
 .catalogue-permission-notice::before{content:'⊘';margin-right:5px;color:#9a6874;}
 .catalogue-permission-notice:focus{outline:1px solid #b8c3dc;outline-offset:3px;border-radius:3px;}
+
+/* Finishing pass: shared control rhythm and readable helper text. Retain all
+   existing inputs, validation states, coloured groups and event handlers. */
+.studio-ready .studio-section-copy small,.studio-ready .hint,
+.studio-ready .form-mode .fm-hint{color:#637387;}
+.studio-ready .field textarea{max-width:100%;resize:vertical;line-height:1.5;}
+.studio-ready .field :is(input,select,textarea){border-radius:8px;}
+.studio-ready #custViewBtn,.studio-ready .studio-tools>summary{min-height:36px;border-radius:8px;}
+.preview-toolbar :is(#engineeringViewBtn,.present-toggle){min-height:34px;border-radius:8px;}
+.preview-toolbar #engineeringViewBtn{flex:0 1 auto;}
+.preview-toolbar .live-chip{min-width:0;max-width:100%;min-height:34px;box-sizing:border-box;box-shadow:none;}
+.preview-toolbar #liveChipText{min-width:0;white-space:normal;overflow-wrap:anywhere;line-height:1.5;}
+/* Keep native focus/anchor scrolling clear of the pinned summary and export
+   actions. This changes no field ownership, permissions or navigation target. */
+.form-panel.studio-ready{scroll-padding-top:140px;scroll-padding-bottom:190px;}
+.studio-ready :is(input,select,textarea,button,summary){scroll-margin-top:140px;scroll-margin-bottom:190px;}
+@media(max-width:1100px){.form-panel.studio-ready{scroll-padding-top:16px;scroll-padding-bottom:16px;}.studio-ready :is(input,select,textarea,button,summary){scroll-margin-top:16px;scroll-margin-bottom:16px;}}
+/* Only the live summary should pin. The legacy mode switch also stuck at 8px,
+   underneath that summary, making Essentials/All appear unresponsive. */
+.studio-ready .form-mode{position:static;top:auto;box-shadow:none;}
+
+/* Touch devices (including tablets/landscape): readable native fields avoid
+   iOS focus zoom and provide a 44px hit area. Desktop and A4 stay unchanged. */
+@media(pointer:coarse){
+  .form-panel.studio-ready :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),select,textarea),
+  .studio-ready :is(#studioSearch,#proposalSelect,#docTextSearch){font-size:16px;min-height:44px;min-width:0;max-width:100%;box-sizing:border-box;}
+  .studio-ready .eng-basis #engineeringDesignNote{font-size:16px;}
+  .form-panel.studio-ready :is(.fm-btn,.studio-search-box button,#studioSearchResults button,#custViewBtn,#downloadBtn,.pdf-format){min-height:44px;}
+}

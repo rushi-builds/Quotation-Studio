@@ -10,7 +10,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
   await p.goto((process.env.QA_BASE||'http://127.0.0.1:8080')+'/quotation.html');
   await p.waitForFunction(()=>Render.lastState&&document.querySelectorAll('.studio-arranged-cluster').length>20);
   await p.evaluate(()=>document.fonts.ready);
-  const original=await p.evaluate(()=>({form:JSON.stringify(StateStore.collectForm()),finance:JSON.stringify(Finance.compute(Render.lastState)),pages:[...document.querySelectorAll('.page')].map(e=>e.innerHTML)}));
+  await p.evaluate(()=>Promise.all([...document.images].map(i=>i.decode().catch(()=>{}))));await p.evaluate(()=>ProposalValueFooters.sync());
+  // Attribute insertion order is not a PDF/content change; retain all values and visibility.
+  const capture=()=>({form:JSON.stringify(StateStore.collectForm()),finance:JSON.stringify(Finance.compute(Render.lastState)),pages:(()=>[...document.querySelectorAll('.page')].map(page=>{const clone=page.cloneNode(true);for(const n of clone.querySelectorAll('*')){const attrs=[...n.attributes].map(a=>[a.name,a.value]).sort((a,b)=>a[0].localeCompare(b[0]));for(const a of [...n.attributes])n.removeAttribute(a.name);for(const [name,value]of attrs)n.setAttribute(name,value);}return clone.innerHTML;}))()});
+  const original=await p.evaluate(capture);
   const folder=path.join(__dirname,'shots','editor-groups');fs.mkdirSync(folder,{recursive:true});
   const sections=['custName','moduleMake','costPerWp','payAdvance','optName','bomModules','pvsystUrl','durationText','companyName','up_cover','galleryUrl','systemEnabled','tiltDeg'];
   const relationships={custName:'Customer details',capacity:'Site & system',propRef:'Proposal details',shareUrl:'Sharing & audio',costPerWp:'Project pricing',degradation:'Savings assumptions',subsidyOverride:'Subsidy & support',loanAmt:'Loan (optional)',companyEmail:'Contact & office',bomBos:'Structure & balance of system',galleryUrl:'QR destination'};
@@ -45,7 +48,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
    await p.screenshot({path:path.join(folder,id+'.png'),clip:{x:0,y:0,width:438,height:1500}});
   }
   // Opening/rearranging sections is presentation only, including every A4 page.
-  assert.deepEqual(await p.evaluate(()=>({form:JSON.stringify(StateStore.collectForm()),finance:JSON.stringify(Finance.compute(Render.lastState)),pages:[...document.querySelectorAll('.page')].map(e=>e.innerHTML)})),original);
+  assert.deepEqual(await p.evaluate(capture),original);
   assert.equal(await p.locator('#genFactor').inputValue(),'1460');
   assert(await p.locator('#rwaEligibilityField').evaluate(e=>e.hidden));
   // Conditional package/battery fields keep their original containers and rules.

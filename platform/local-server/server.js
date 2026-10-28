@@ -29,6 +29,7 @@ const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '0.0.0.0';
 const assistantModule = import('../gemini.mjs');
 const workspaceModule = import('../workspace-access.mjs');
+const feedbackModule = import('../proposal-feedback.mjs');
 const workspaceStoreModule = import('../workspace-access-store.mjs');
 let assistantLimiter;
 const SESSION_DAYS = 30;
@@ -1155,13 +1156,13 @@ function sendJson(res, status, obj, extraHeaders) {
     'Content-Type': 'application/json; charset=utf-8'
   }, extraHeaders || {}));
 }
-function readBody(req) {
+function readBody(req, maxBytes = 8 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
     req.on('data', (c) => {
       size += c.length;
-      if (size > 8 * 1024 * 1024) {
+      if (size > maxBytes) {
         reject(Object.assign(new Error('Body too large'), { status: 413 }));
         req.destroy();
         return;
@@ -2281,9 +2282,18 @@ async function handleApi(req, res, url) {
         access: {
           expiresAt: tok.expires_at || null,
           openCount: tok.open_count || 0,
+          feedbackAvailable: true,
           privacyNote: 'Opening this link may be recorded so the sender can follow up. No payment data is collected here.'
         }
       });
+    }
+
+    if (parts[0] === 'portal' && parts[1] === 'feedback' && parts.length === 2 && method === 'POST') {
+      if (Number(req.headers['content-length']) > 8192) return sendJson(res, 413, { error: 'Feedback is too large.' });
+      const body = await readBody(req, 8192);
+      const { submitFeedback, localFeedbackStore } = await feedbackModule;
+      const saved = await submitFeedback(localFeedbackStore(loadDb, saveDb), body);
+      return sendJson(res, saved.feedback.duplicate ? 200 : 201, saved);
     }
 
     if (parts[0] === 'portal' && parts[1] === 'event' && method === 'POST') {

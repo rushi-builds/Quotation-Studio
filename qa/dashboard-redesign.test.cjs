@@ -311,8 +311,11 @@ const { spawn } = require("child_process"),
     await p.waitForFunction(() => document.querySelector('#cloudChip').textContent === 'Cloud saved');
     // Signed-in Studio autosaves; revision conflicts still stop stale writes.
     await p.click('#modeAll');
-    await p.click('.studio-management > summary');
-    await p.selectOption('#pmStatus','ready');
+    // Legacy local-engine fixture only; manual status UI is retired.
+    await p.evaluate(() => {
+      pmStatus.value = 'ready';
+      pmStatus.dispatchEvent(new Event('change', {bubbles:true}));
+    });
     assert.equal(await p.evaluate(()=>Proposals.active().status), 'ready');
     await p.waitForFunction(async()=> (await PlatformAPI.getProposal(new URL(location.href).searchParams.get('cloud'))).proposal.status==='ready');
     await p.waitForSelector('#cloudSaveBtn:not([disabled])');

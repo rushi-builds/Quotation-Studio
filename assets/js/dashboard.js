@@ -321,6 +321,7 @@
     suspected_prefetch: 'Suspected link preview / bot',
     pdf_download_requested: 'PDF download requested',
     survey_requested: 'Survey / review requested',
+    proposal_feedback: 'Customer proposal feedback',
     link_revoked: 'Link revoked',
     interest_recorded: 'Interest recorded',
     section_view: 'Section viewed',
@@ -351,7 +352,7 @@
       if ($('notifUnreadLabel')) $('notifUnreadLabel').textContent = 'Unavailable';
       $('notifBody').innerHTML = '<div class="hempty" role="status">Notifications unavailable. <button type="button" class="text-link" data-activity-retry>Retry</button></div>';
     }
-    if (act.status === 'fulfilled') renderActivity(orderedActivity(act.value?.activity));
+    if (act.status === 'fulfilled') renderActivity(orderedActivity(act.value?.activity || act.value?.events));
     else $('activityBody').innerHTML = '<div class="hempty" role="status">Activity unavailable. <button type="button" class="text-link" data-activity-retry>Retry</button></div>';
     document.querySelectorAll('[data-activity-retry]').forEach(button => button.addEventListener('click', refreshActivityPanel));
   }
@@ -364,9 +365,22 @@
     }));
   }
 
+  function feedbackDetail(event) {
+    if (event.type !== 'proposal_feedback') return '';
+    const m = event.meta || {}, rating = Number.isInteger(m.rating) && m.rating >= 1 && m.rating <= 5 ? m.rating : null;
+    const next = {interested:'Interested in discussing next steps',changes:'Changes requested',question:'Customer has a question',later:'Still considering'};
+    return '<div class="customer-feedback-detail">' +
+      '<p><strong>' + escapeHtml(m.customerName || 'Customer') + '</strong>' + (m.proposalRef ? ' · ' + escapeHtml(m.proposalRef) : '') + '</p>' +
+      (rating ? '<p aria-label="' + rating + ' out of 5">' + '★'.repeat(rating) + '☆'.repeat(5-rating) + ' · ' + rating + '/5</p>' : '<p>Message only · no rating given</p>') +
+      (m.comment ? '<p style="white-space:pre-wrap;overflow-wrap:anywhere">' + escapeHtml(String(m.comment).slice(0,1500)) + '</p>' : '') +
+      (next[m.nextStep] ? '<p>' + next[m.nextStep] + '</p>' : '') +
+      (m.contactRequested === true ? '<p><strong>Contact requested</strong> — use the customer details on this quotation.</p>' : '') +
+      (m.versionLabel ? '<small>Published version ' + escapeHtml(m.versionLabel) + ' · Submitted through the customer link</small>' : '') + '</div>';
+  }
+
   function renderActivity(rows) {
     const body = $('activityBody'); if (!body) return;
-    body.innerHTML = rows.length ? rows.map(e => '<article class="timeline-item"><time>' + escapeHtml(fmtDate(e.createdAt)) + '</time><h3>' + escapeHtml(EVENT_LABELS[e.type] || e.type) + '</h3>' + (e.proposalId && allProposals.some(p=>p.id===e.proposalId) ? '<button type="button" class="text-link" data-open-activity="' + escapeHtml(e.proposalId) + '">' + escapeHtml(e.proposalTitle || 'Open quotation') + '</button>' : '<p>' + escapeHtml(e.proposalTitle || 'Workspace event') + '</p>') + '</article>').join('') : emptyState('The story starts here.','Shared links and customer activity will build this timeline.','↗');
+    body.innerHTML = rows.length ? rows.map(e => '<article class="timeline-item"><time>' + escapeHtml(fmtDate(e.createdAt)) + '</time><h3>' + escapeHtml(EVENT_LABELS[e.type] || e.type) + '</h3>' + (e.proposalId && allProposals.some(p=>p.id===e.proposalId) ? '<button type="button" class="text-link" data-open-activity="' + escapeHtml(e.proposalId) + '">' + escapeHtml(e.proposalTitle || 'Open quotation') + '</button>' : '<p>' + escapeHtml(e.proposalTitle || 'Workspace event') + '</p>') + feedbackDetail(e) + '</article>').join('') : emptyState('The story starts here.','Shared links and customer activity will build this timeline.','↗');
     body.querySelectorAll('[data-open-activity]').forEach(b=>b.addEventListener('click',()=>openInStudio(b.dataset.openActivity)));
   }
 
@@ -1472,6 +1486,7 @@
       suspected_prefetch: 'Suspected link preview / bot',
       pdf_download_requested: 'PDF download requested',
       survey_requested: 'Survey / review requested',
+      proposal_feedback: 'Customer proposal feedback',
       link_revoked: 'Link revoked',
       interest_recorded: 'Interest recorded',
       section_view: 'Section viewed'
@@ -1480,7 +1495,7 @@
       '<tr>' +
         '<td class="muted">' + escapeHtml(fmtDate(e.createdAt)) + '</td>' +
         '<td>' + escapeHtml(labels[e.type] || e.type) + '</td>' +
-        '<td class="muted" style="font-size:12px">' + escapeHtml(e.meta && e.meta.ua ? String(e.meta.ua).slice(0, 60) : (e.versionId ? 'version ' + e.versionId.slice(0, 10) : '—')) + '</td>' +
+        '<td class="muted" style="font-size:12px">' + (e.type === 'proposal_feedback' ? feedbackDetail(e) : escapeHtml(e.meta && e.meta.ua ? String(e.meta.ua).slice(0, 60) : (e.versionId ? 'version ' + e.versionId.slice(0, 10) : '—'))) + '</td>' +
       '</tr>'
     )).join('');
   }

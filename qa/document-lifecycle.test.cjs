@@ -73,7 +73,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  await p.evaluate(()=>window.html2canvas=__canvasOriginal);
  // Owner-bound data persists without spilling into a newly created quotation.
  const id=await p.evaluate(()=>{__qsSaveNow();return Proposals.activeId();});
- await p.evaluate(()=>document.querySelector('.studio-management').open=true);await p.click('#pmNew');
+ await require('./legacy-proposal-fixture.cjs')(p, 'pmNew');
  await p.waitForFunction(id=>Proposals.activeId()!==id,id);assert.equal(await p.evaluate(()=>DocumentStudio.hasEdits()),false);
  await p.selectOption('#proposalSelect',id);await p.waitForFunction(id=>Proposals.activeId()===id,id);assert(await p.evaluate(()=>DocumentStudio.hasEdits()));
  assert.deepEqual(errors,[]);console.log('PASS: Power continuations/custom page, snapshot isolation during source edits, new-proposal isolation and switch restore');

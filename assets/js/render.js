@@ -39,23 +39,14 @@
     } catch (e) { return ''; }
   }
 
-  /* Where the closing page's "Open request form" call-to-action should lead:
-     the live acceptance form on the shared proposal, or this page's own form
-     anchor when the customer is already viewing the shared copy. */
-  function requestFormUrl() {
+  // Feedback must lead to a transferable secure portal, never browser-local
+  // share.html data. Unpublished drafts simply omit this optional PDF link.
+  function feedbackUrl(value) {
     try {
-      if (document.body.classList.contains('share-mode')) {
-        return new URL(location.href.split('#')[0] + '#shareAcceptWrap').href;
-      }
-      /* The proposal's own customer link (auto-filled portal token) wins over
-         the same-browser share view, which a customer can never open. */
-      const s = root.StateStore && typeof root.StateStore.collectForm === 'function'
-        ? root.StateStore.collectForm() : null;
-      const shared = s ? safeHttpUrl(s.shareUrl) : '';
-      if (shared) return new URL(shared.split('#')[0] + '#shareAcceptWrap').href;
-      const id = root.Proposals && typeof root.Proposals.activeId === 'function' ? root.Proposals.activeId() : '';
-      return id ? new URL('share.html?p=' + encodeURIComponent(id) + '#shareAcceptWrap', document.baseURI).href : '';
-    } catch (e) { return ''; }
+      const u = new URL(safeHttpUrl(value));
+      if (!/\/portal\.html$/.test(u.pathname) || !/^[a-z\d_-]{32,128}$/i.test(u.searchParams.get('t') || '')) return '';
+      u.hash = 'proposalFeedback'; return u.href;
+    } catch (_) { return ''; }
   }
 
   const TYPE_LABEL = { residential: 'Residential', rwa: 'RWA / Housing Society', commercial: 'Commercial', industrial: 'Industrial' };
@@ -389,6 +380,7 @@
     /* No invented bill or fixed-charge floor. This is an energy-offset
        illustration, not a DISCOM bill/settlement or guaranteed cash saving. */
     show('v_wsBillSlashCard', f.monthlyBill > 0);
+    $('pageWhySolar')?.classList.toggle('has-bill', f.monthlyBill > 0);
     set('v_bscBeforeVal', F.fmtINR(f.monthlyBill) + ' / mo');
     set('v_bscAfterVal', F.fmtINR(f.monthlyBillAfter) + ' / mo');
     set('v_bscSavedVal', F.fmtINR(f.monthlyBillSaving) + ' / mo');
@@ -1041,41 +1033,100 @@
     set('v_tmSub', root.Bess.included(s) ? 'Solar EPC terms below • battery scope, warranties and payment terms require a separate written agreement.' : P.sub);
     set('v_tmIntro', P.intro);
     set('v_tmItemsLabel', P.itemsLabel);
-    setHTML('v_tmItems', P.items.map((it, i) =>
-      '<div class="term-item"><div class="term-num">' + String(i + 1).padStart(2, '0') + '</div>' +
-      '<div><div class="term-t">' + esc(it.title) + '</div>' +
-      '<div class="term-d">' + esc(tpl(it.desc, v)) + '</div></div></div>').join(''));
+    const termIcons = ['target', 'coins', 'calendar', 'payment', 'truck', 'institution', 'meter', 'shield', 'exclusion', 'tax', 'shieldAlert', 'scales'];
+    setHTML('v_tmItems', P.items.map((it, i) => {
+      const icon = I.names.includes(it.icon) ? it.icon : termIcons[i] || 'doc';
+      // Highlight existing durations only, after escaping. Never alter legal copy.
+      const description = esc(tpl(it.desc, v)).replace(/\b\d+\s*(?:[–-]\s*\d+\s*)?(?:days?|weeks?|months?)\b/gi, '<strong class="term-highlight">$&</strong>');
+      const palette = ['warm', 'sage', 'lavender', 'blue'][i % 4];
+      return '<li class="term-item"><span class="term-mark term-mark-' + palette + '" aria-hidden="true">' + root.ProposalMarks.get(icon, 27, palette) + '<span class="term-num">' + String(i + 1).padStart(2, '0') + '</span></span>' +
+        '<div class="term-copy"><div class="term-t">' + esc(it.title) + '</div>' +
+        '<div class="term-d">' + description + '</div></div></li>';
+    }).join(''));
     set('v_tmNoteLabel', P.noteLabel);
     set('v_tmNote', tpl(P.note, v));
   }
 
   /* ================================================================== */
-  /* PAGE 15 - CLOSING / ACCEPTANCE / CONTACT                            */
+  /* PAGE 15 - THANK YOU / CONTACT                            */
   /* ================================================================== */
   function renderClosing(s, f, v) {
     const P = CONTENT.pageClosing;
-    set('v_clHeading', P.bannerHeading);
-    set('v_clSub', P.bannerSub);
+    // Native CSS cover is also supported by PDF rasterisation; object-fit on
+    // a stretched <img> is not. Use the exact current/default uploaded source.
+    const closingPhoto = $('img_closing');
+    if (closingPhoto?.parentElement) closingPhoto.parentElement.style.backgroundImage = 'url(' + JSON.stringify(closingPhoto.src) + ')';
+    const closingHeading = String(P.bannerHeading || '');
+    setHTML('v_clHeading', closingHeading === 'Together for a Greener Tomorrow.'
+      ? 'Together for a <br><em>Greener</em> Tomorrow<span class="closing-dot">.</span>'
+      : esc(closingHeading).replace(/\bGreener\b/g, '<em>Greener</em>'));
+    setHTML('v_clSub', esc(String(P.bannerSub || '').replace(/\.\s*$/, '')).replace(/\.\s+/g, '<br>'));
+    const closingIcons = {v_clIcoCompany:'building', v_clIcoPin:'pin', v_clIcoPhone:'phone', v_clIcoMail:'mail', v_clIcoWeb:'globe', v_clValueLeaf:'leaf', v_clValueCost:'rupee', v_clValueSun:'sun'};
+    Object.entries(closingIcons).forEach(([id, icon]) => setHTML(id, I.get(icon, 22, id === 'v_clIcoMail' ? '#e28126' : /^v_clIco/.test(id) || id === 'v_clValueLeaf' ? '#19364c' : '#d77a24')));
     set('v_clNextLabel', P.nextLabel);
-    setHTML('v_clNext', P.next.map((it) =>
-      '<div class="next-item">' + I.chip(it.icon, 30) +
-      '<div><div class="next-t">' + esc(tpl(it.title, v)) + '</div>' +
+    setHTML('v_clNext', P.next.map((it, index) =>
+      '<div class="next-item"><span class="closing-input-number" aria-hidden="true">' + String(index + 1).padStart(2, '0') + '</span>' +
+      '<div><div class="next-t"><span class="closing-input-icon" aria-hidden="true">' + I.get(it.icon === 'drone' ? 'home' : it.icon, 19, index === 2 ? '#dc8128' : '#173a57') + '</span>' + esc(tpl(it.title, v)) + '</div>' +
       '<div class="next-d">' + esc(tpl(it.desc, v)) + '</div></div></div>').join(''));
 
-    const icoMap = { v_clIcoCompany: 'building', v_clIcoPin: 'pin', v_clIcoPhone: 'phone', v_clIcoMail: 'mail', v_clIcoWeb: 'globe' };
-    Object.keys(icoMap).forEach((id) => setHTML(id, I.chip(icoMap[id], 26)));
     set('v_clCompanyName', s.companyName + (s.companyName.match(/Pvt\.?\s*Ltd\.?/i) ? '' : ' Pvt. Ltd.'));
     set('v_clCompanyTagline', s.companyTagline);
     set('v_clAddress', s.companyAddress);
     set('v_clPhone', s.companyPhone);
     set('v_clEmail', s.companyEmail);
     set('v_clWebsite', s.companyWebsite);
-    set('v_clAcceptLabel', P.acceptLabel);
-    set('v_clAcceptIntro', root.Bess.included(s)||root.AdditionalSystems.included(s) ? 'Signing confirms only the scope separately agreed in writing. Inclusion of a recommended or alternative battery / additional system does not authorise its supply or installation.' : tpl(P.acceptIntro, v));
-    set('v_clSignCustomer', P.signCustomer);
-    set('v_clSignCompany', tpl(P.signCompany, v));
-    set('v_clSignCustomerSub', P.signCustomerSub);
-    set('v_clSignCompanySub', P.signCompanySub);
+    const footerValues = [
+      ['leaf', P.footerReliable ?? 'Reliability'],
+      ['users', P.footerTeam ?? 'Experience'],
+      ['shield', P.footerQuality ?? 'Quality'],
+      ['chart', P.footerValue ?? 'Long-term value']
+    ];
+    setHTML('v_clFooterValues', footerValues.map(([icon, label]) =>
+      '<li><span class="closing-footer-value-icon" aria-hidden="true">' + I.get(icon, 25, '#eee9f5') + '</span>' +
+      '<span class="closing-footer-value-text">' + esc(label) + '</span></li>').join(''));
+    set('v_clThankHeading', P.thankHeading ?? 'Thank you.');
+    set('v_clThankNote', P.thankNote ?? 'For considering us for your solar journey.');
+    set('v_clThankMessage', tpl(P.thankMessage ?? '', v));
+    // Contact URLs are presentation only. Never treat arbitrary user text as a
+    // URL, and never substitute a browser-only draft for a public customer link.
+    const phone = String(s.companyPhone || '').trim();
+    const digits = phone.replace(/\D/g, '');
+    const email = String(s.companyEmail || '').trim();
+    const website = String(s.companyWebsite || '').trim();
+    const contactLink = (id, href) => {
+      const a = $(id); if (!a) return;
+      if (href) { a.href = href; a.removeAttribute('aria-disabled'); }
+      else { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); }
+      const row = a.closest('.contact-item'); if (row) row.hidden = !a.textContent.trim();
+    };
+    contactLink('v_clPhone', /^[+\d\s().-]+$/.test(phone) && digits.length >= 7 && digits.length <= 15 ? 'tel:' + (phone.startsWith('+') ? '+' : '') + digits : '');
+    contactLink('v_clEmail', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'mailto:' + encodeURIComponent(email).replace(/%40/g, '@') : '');
+    contactLink('v_clWebsite', safeHttpUrl(/^[a-z][a-z\d+.-]*:/i.test(website) ? website : website ? 'https://' + website : ''));
+    const web = $('v_clWebsite'); if (web) { web.target = '_blank'; web.rel = 'noopener noreferrer'; }
+    const wa = $('v_clWhatsApp');
+    const canMessage = phone.startsWith('+') && digits.length >= 8 && digits.length <= 15;
+    const whatsappUrl = canMessage ? 'https://wa.me/' + digits + '?text=' + encodeURIComponent('Hello, I would like to discuss proposal ' + (s.propRef || '') + ' from ' + (s.companyName || '') + '.') : '';
+    if (wa) { wa.hidden = !canMessage; contactLink('v_clWhatsApp', whatsappUrl); }
+    const sharedView = document.body.classList.contains('share-mode');
+    const inPortal = sharedView && /(?:^|\/)portal\.html$/.test(location.pathname);
+    const feedbackLink = feedbackUrl(inPortal ? location.href : s.shareUrl);
+    const discuss = $('v_clDiscuss');
+    if (discuss) {
+      const previewOnly = !sharedView && !feedbackLink;
+      discuss.hidden = !feedbackLink && !previewOnly;
+      discuss.classList.toggle('screen-only', previewOnly);
+      contactLink('v_clDiscuss', feedbackLink);
+      discuss.onclick = null; discuss.onkeydown = null;
+      discuss.removeAttribute('role'); discuss.removeAttribute('tabindex'); discuss.removeAttribute('title');
+      if (previewOnly) {
+        discuss.removeAttribute('aria-disabled'); discuss.setAttribute('role', 'button'); discuss.tabIndex = 0;
+        discuss.title = 'Open form preview. Publish a secure customer link to enable live feedback.';
+        discuss.onclick = () => root.open('feedback-preview.html', '_blank', 'noopener,noreferrer');
+        discuss.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); discuss.click(); } };
+      }
+      if (inPortal) { discuss.removeAttribute('target'); discuss.removeAttribute('rel'); }
+      else { discuss.target = '_blank'; discuss.rel = 'noopener noreferrer'; }
+    }
     set('v_clDisclaimer', tpl(P.disclaimer, v));
   }
 
@@ -1106,7 +1157,7 @@
     { id: 'pageProjects', nav: 'Projects', title: 'Projects Portfolio', render: renderProjects },
     { id: 'pageWarranty', nav: 'Warranty', title: 'Warranty & Journey', render: renderWarranty },
     { id: 'pageTerms', nav: 'Terms', title: 'Terms & Conditions', render: renderTerms },
-    { id: 'pageClosing', nav: 'Contact', title: 'Acceptance & Contact', render: renderClosing }
+    { id: 'pageClosing', nav: 'Contact', title: 'Thank You & Contact', render: renderClosing }
   ];
 
   function pageNum(id) {
@@ -1158,7 +1209,7 @@
     document.querySelectorAll('[data-foot-tagline]').forEach((el) => { el.textContent = tagline; });
     /* Same cover-derived mark, with transparent ink suited to its surface. */
     document.querySelectorAll('#formLogo, #shareLogo, .pg-logo img, .closing-brand img').forEach((img) => {
-      const src = img.closest('.closing-brand') ? 'assets/images/ktm-logo-dark.png' : 'assets/images/ktm-logo-light.png';
+      const src = img.closest('.closing-brand:not([data-logo-surface="light"])') ? 'assets/images/ktm-logo-dark.png' : 'assets/images/ktm-logo-light.png';
       if (img.getAttribute('src') !== src) img.setAttribute('src', src);
     });
   }
@@ -1174,16 +1225,17 @@
     C.emi($('chartFinEmi'), f);
   }
 
-  /* Live quote chip - shows capacity + customer + net investment live */
+  /* Builder chrome uses the same total-project-cost basis as the sidebar.
+     Savings/net-investment illustrations remain unchanged in the proposal. */
   function updateLiveChip(s, f) {
     const el = $('liveChipText');
     if (!el) return;
     const cap = (s.capacity || '-') + ' kWp';
-    const cust = (s.custName || '').trim().split(' ')[0] || 'Live';
-    const net = F.fmtINRshort(f.netInvestment);
-    el.textContent = 'Live • ' + cap + ' • ' + cust + ' • ' + net;
+    const cust = (s.custName || '').trim().split(/\s+/)[0];
+    const solarOnly = root.Bess.included(s) || root.AdditionalSystems.included(s);
+    el.textContent = ['Live', cap, cust, (solarOnly ? 'Solar project ' : 'Project ') + F.fmtINRshort(f.grossTotal)].filter(Boolean).join(' • ');
     const chip = $('liveChip');
-    if (chip) chip.title = 'Live quote - ' + cap + ' for ' + (s.custName || 'customer') + (root.Bess.included(s)||root.AdditionalSystems.included(s) ? ' - solar-only net ' : ' - net ') + F.fmtINR(f.netInvestment);
+    if (chip) chip.title = 'Live quote - ' + cap + (s.custName ? ' for ' + s.custName : '') + (solarOnly ? ' - solar project cost including GST ' : ' - total project cost including GST ') + F.fmtINR(f.grossTotal);
   }
 
   /* A page is a fixed A4 box with overflow hidden, so content that runs past
@@ -1405,7 +1457,7 @@
     if (svg) svg.replaceWith(svg.cloneNode(true));
   }
 
-  root.Render = { safeHttpUrl, requestFormUrl, renderAll, fitPages, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
+  root.Render = { safeHttpUrl, requestFormUrl: () => feedbackUrl(document.body.classList.contains('portal-mode') ? location.href : root.StateStore?.collectForm?.().shareUrl), renderAll, fitPages, PAGES, drawCharts, readState, pageNum, visiblePages, refreshDiagramScale,
     get lastState() { return lastState; },
     get lastVisible() { return lastVisible; } };
 })(typeof self !== 'undefined' ? self : this);

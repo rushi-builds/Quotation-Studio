@@ -29,7 +29,7 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
     await page.setViewport({width:1440,height:1100});
     await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});
     await page.evaluate(()=>document.fonts.ready);
-    check('all inner-page and closing logos use the approved asset',await page.$$eval('.page:not(#pageCover)',els=>els.every(e=>e.querySelector('.pg-logo img,.closing-brand img')?.getAttribute('src')===(e.id==='pageClosing'?'assets/images/ktm-logo-dark.png':'assets/images/ktm-logo-light.png'))));
+    check('all inner-page and closing logos use the approved asset',await page.$$eval('.page:not(#pageCover)',els=>els.every(e=>e.querySelector('.pg-logo img,.closing-brand img')?.getAttribute('src')==='assets/images/ktm-logo-light.png')));
     check('logos fit within their header',await page.$$eval('.pg-head',els=>els.every(e=>e.querySelector('img').getBoundingClientRect().height<=e.getBoundingClientRect().height)));
     check('old logo override control cannot split the brand',await page.$('#logoUpload')===null);
     await page.$eval('#formLogo',e=>e.src='assets/images/logo.png');
@@ -110,7 +110,7 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
       }});result.size=[canvas.width,canvas.height];return result;
     });
     check('PDF clone restores signatures and report references',cloneResult.signature && cloneResult.references);
-    check('PDF uses approved closing logo',cloneResult.logo==='assets/images/ktm-logo-dark.png' && cloneResult.size[1]>1000);
+    check('PDF uses approved closing logo',cloneResult.logo==='assets/images/ktm-logo-light.png' && cloneResult.size[1]>1000);
     // Small screens, invalid contacts and unavailable report URLs.
     await view.evaluate(id=>{const b=Proposals.get(id);b.form.companyPhone='unavailable';b.form.arkaUrl='javascript:alert(1)';Proposals.put(b);},id);
     await view.reload({waitUntil:'networkidle0'});

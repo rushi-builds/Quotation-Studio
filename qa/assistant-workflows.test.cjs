@@ -182,8 +182,7 @@ const fs = require("fs"),
       () => document.querySelector("#custName").value === "Rama Solar updated",
     );
     await p.waitForSelector("#studioAssistant #assistantLauncher");
-    await p.click(".studio-management > summary");
-    await p.click("#pmNew");
+    await require('./legacy-proposal-fixture.cjs')(p, 'pmNew');
     await p.fill("#custName", "Brand new assistant draft");
     await ask("send quotation");
     await answer("not saved to cloud yet");

@@ -1,0 +1,46 @@
+/* Quiet running chrome for business pages. The expressive full wave belongs
+   to the closing page only. Light values touch the running footer; no inset panels or artwork. */
+.page:not(#pageCover):not(#pageClosing)>.pg-foot,
+.power-page>.power-foot{
+  position:absolute;left:0;right:0;bottom:0;height:34px;min-height:34px;
+  box-sizing:border-box;display:flex;flex-direction:row;align-items:center;
+  justify-content:space-between;gap:12px;padding:0 38px 3px;
+  border:0;border-top:1px solid #e6e9e9;border-bottom:3px solid #193b50;
+  border-radius:0;background:transparent;box-shadow:none;color:#677886;
+}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot::before,
+.power-page>.power-foot::before{
+  content:'';position:absolute;left:38px;top:-1px;width:36px;height:1px;
+  background:#c7a37a;pointer-events:none;
+}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot::after,
+.power-page>.power-foot::after{content:none;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-left{color:#677886;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-mid{color:#9b7b54;}
+.page:not(#pageCover):not(#pageClosing)>.pg-foot .pf-right{color:#29485e;}
+/* Power retains all original live metadata and its readable type size. */
+.power-page>.power-foot{font-size:9px;}
+
+/* One Terms-style format everywhere: inline mark/copy, equal cells, faint dividers.
+   Only authored labels, icon choices and the number of populated cells vary. */
+.proposal-value-footer{position:absolute;left:38px;right:38px;min-height:42px;display:flex;align-items:center;color:#435c73;}
+.proposal-value-footer[hidden]{display:none!important;}
+.proposal-value-footer .pv-values{flex:1;min-width:0;display:grid;align-items:center;gap:18px;margin:0;padding:0;list-style:none;}
+.proposal-value-footer .pv-values li{position:relative;display:flex;align-items:center;justify-content:flex-start;gap:11px;min-width:0;padding:0;}
+.proposal-value-footer .pv-values li+li{padding-left:15px;}
+.proposal-value-footer .pv-mark{display:block;flex:none;line-height:0;}
+.proposal-value-footer .pv-mark svg{display:block;}
+.proposal-value-footer .pv-label{font:500 9px/1.5 'Inter',sans-serif;white-space:pre-line;overflow-wrap:anywhere;color:#4d667b;}
+.proposal-value-footer .pv-values li+li::before{content:'';position:absolute;left:-9px;top:50%;width:1px;height:18px;background:#c5ccdb;opacity:.5;transform:translateY(-50%);pointer-events:none;}
+
+/* Closing copy belongs above the icons, in source order after its content.
+   No large footer reservation and no upward shift of images/cards. */
+.page:not(#pageCover):not(#pageClosing)>.pg-body>.footer-note{
+ position:static;left:auto;right:auto;bottom:auto;margin-top:14px;flex-shrink:0;
+}
+/* Three soft coloured petals grow from the physical bottom-right corner,
+   behind the live page number and footer. No separate body-corner artwork. */
+.page:not(#pageCover):not(#pageClosing){
+ background-color:#fff;background-image:url('../images/proposal-corner-petals.svg');
+ background-repeat:no-repeat;background-position:100% 100%;background-size:170px 170px;
+}

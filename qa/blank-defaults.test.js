@@ -21,7 +21,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    }
    window.__qsSaveNow();return Proposals.activeId();
   });
-  await page.$eval('.studio-management',e=>e.open=true);await page.click('#pmNew');
+  await require('./legacy-proposal-fixture.cjs')(page, 'pmNew');
   // New reserves a reference asynchronously; wait for the actual new proposal.
   await page.waitForFunction(id=>Proposals.activeId()!==id,{},old);
   check('New starts all three identity fields empty',await page.evaluate(()=>['custName','custAddress','prepName'].every(id=>document.getElementById(id).value==='')));

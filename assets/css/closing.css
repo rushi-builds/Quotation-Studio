@@ -1,0 +1,96 @@
+/* Ivory / navy / orange closing, following the approved visual reference.
+   All wording and contact links remain live HTML, not part of the artwork. */
+#pageClosing.closing-redesigned{display:flex;flex-direction:column;background:#fcfaf6;color:#143248;isolation:isolate;}
+#pageClosing>.closing-banner{position:absolute;top:0;right:0;width:100%;height:562px;z-index:-1;border-radius:0;background-color:#f5f3ed;background-size:cover;background-position:70% 44%;background-repeat:no-repeat;overflow:hidden;}
+#pageClosing .closing-banner>img{width:100%;height:100%;opacity:0;pointer-events:none;}
+#pageClosing .closing-banner-overlay{position:absolute;inset:0;background:linear-gradient(0deg,#fcfaf6 0%,rgba(252,250,246,0) 23%),linear-gradient(90deg,#fcfaf6 0%,#fcfaf6 22%,rgba(252,250,246,.96) 37%,rgba(252,250,246,.8) 48%,rgba(252,250,246,.1) 72%,rgba(252,250,246,0) 100%);}
+#pageClosing .closing-brand{position:absolute;left:48px;top:29px;z-index:2;}
+#pageClosing .closing-brand img{height:76px;}
+#pageClosing .closing-promise{position:absolute;right:40px;top:44px;width:165px;padding-left:18px;border-left:2px solid #e98c28;font:500 8px/2 'Inter',sans-serif;letter-spacing:2px;text-transform:uppercase;color:#163248;}
+#pageClosing .gallery-card{top:98px;right:26px;width:125px;padding:9px;border-radius:9px;box-shadow:none;}
+#pageClosing .gallery-card canvas{width:96px;height:96px;}
+#pageClosing:has(.closing-banner.has-gallery) .closing-promise{display:none;}
+#pageClosing .closing-hero{position:relative;inset:auto;display:block;min-height:358px;margin:126px 48px 0;padding:0;flex-shrink:0;text-align:left;}
+#pageClosing .closing-kicker{margin:0 0 7px;font:600 32px/1.15 'Inter',sans-serif;letter-spacing:-.8px;color:#19364c;}
+#pageClosing .closing-kicker::before{content:'';display:block;width:34px;height:2px;background:#ce9678;margin-bottom:11px;}
+#pageClosing .closing-thank-note{max-width:400px;margin:0 0 16px;font:400 12px/1.55 'Inter',sans-serif;color:#536373;white-space:pre-line;}
+#pageClosing .closing-thank-note:empty{display:none;}
+#pageClosing .closing-hero h2{max-width:585px;margin:0;font:700 44px/1.08 Georgia,'Times New Roman',serif;letter-spacing:-1.3px;color:#102e43;}
+#pageClosing .closing-hero h2 em{font-style:normal;color:#e88a25;}
+#pageClosing .closing-dot{color:#e88a25;}
+#pageClosing #v_clThankMessage{max-width:395px;margin:12px 0 0;font:400 13px/1.65 'Inter',sans-serif;color:#536373;}
+#pageClosing #v_clThankMessage:empty{display:none;}
+#pageClosing .closing-values{display:grid;grid-template-columns:repeat(3,1fr);width:395px;margin:36px 0 0;}
+#pageClosing .closing-values>div{display:flex;flex-direction:column;align-items:center;gap:9px;border-right:1px solid #dcdedb;}
+#pageClosing .closing-values>div:last-child{border:0;}
+#pageClosing .closing-values span{display:grid;place-items:center;width:39px;height:39px;border:1px solid #ffffff;border-radius:13px;background:linear-gradient(145deg,#ffffffed,#e8e2f3b8);box-shadow:inset 0 1px 0 #fff,0 3px 8px #18384c08;}
+#pageClosing .closing-values strong{font:500 8px/1.55 'Inter',sans-serif;text-transform:uppercase;text-align:center;letter-spacing:1.7px;color:#526171;}
+#pageClosing .closing-card{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:27px 28px 0;padding:19px 21px 17px;border:1px solid #ffffffed;border-radius:21px;background:linear-gradient(125deg,#ffffffed,#fcf9f3ed);box-shadow:inset 0 1px 0 #fff,0 8px 24px #18384c07;flex-shrink:0;}
+#pageClosing .closing-card>div{min-width:0;}
+#pageClosing .closing-card .sec-label{display:block;margin:0 0 13px;padding:0;background:none;border:0;border-radius:0;font:600 9px/1.5 'Inter',sans-serif;letter-spacing:1.7px;color:#dc7924;}
+#pageClosing .closing-card .sec-label::after{content:none;}
+#pageClosing .closing-company-heading{padding-left:12px;margin-bottom:15px;border-left:2px solid #ed9a45;}
+#pageClosing .closing-company-heading .sec-label{margin-bottom:6px;}
+#pageClosing #v_clCompanyName{font:700 16px/1.3 'Inter',sans-serif;color:#15334c;letter-spacing:-.5px;}
+#pageClosing #v_clCompanyTagline{margin-top:5px;font:400 9px/1.5 'Inter',sans-serif;color:#7e8790;}
+#pageClosing .contact-item{display:flex;gap:11px;margin:0 0 6px;padding-bottom:6px;border-bottom:1px solid #e7e5df;align-items:center;}
+#pageClosing .contact-item:last-child{margin-bottom:0;padding-bottom:0;border:0;}
+#pageClosing .closing-contact-icon{display:grid;place-items:center;width:33px;height:33px;border:1px solid #fff;border-radius:11px;background:linear-gradient(145deg,#fff8ed,#f8ebd9);flex:none;}
+#pageClosing .closing-contact-icon svg{width:21px;height:21px;}
+#pageClosing .contact-item .rt{font:600 8px/1.5 'Inter',sans-serif;text-transform:uppercase;letter-spacing:1px;color:#143248;}
+#pageClosing .contact-item .rd{margin-top:3px;font:400 10px/1.5 'Inter',sans-serif;color:#526172;overflow-wrap:anywhere;}
+#pageClosing .closing-contact-link{display:block;text-decoration:none;}
+#pageClosing .closing-contact-link[href]:hover{text-decoration:underline;text-underline-offset:3px;}
+#pageClosing .closing-engineering-panel{padding-left:19px;border-left:1px solid #e4e1da;}
+#pageClosing .next-item{display:flex;gap:10px;align-items:center;margin:0 0 7px;padding:9px 10px;border:1px solid #fff;border-radius:13px;background:linear-gradient(120deg,#fff9f0b0,#fffdf9c0);}
+#pageClosing .next-item:last-child{margin-bottom:0;}
+#pageClosing .closing-input-number{display:grid;place-items:center;flex:none;width:33px;height:35px;border:1px solid #fff7e8;border-radius:11px;background:linear-gradient(140deg,#ffefd3,#ffe2b2);font:600 17px/1 'Inter',sans-serif;color:#e88122;}
+#pageClosing .next-item:nth-child(even) .closing-input-number{border-color:#ffffffed;background:linear-gradient(140deg,#f7f4ffed,#ddd6efcc);color:#78649b;box-shadow:inset 0 1px 0 #ffffff,0 2px 7px #8974ac0c;}
+#pageClosing .next-t{display:flex;align-items:center;gap:8px;font:600 10px/1.4 'Inter',sans-serif;color:#153247;}
+#pageClosing .closing-input-icon{display:inline-flex;align-items:center;flex:none;}
+#pageClosing .closing-input-icon svg{width:18px;height:18px;}
+#pageClosing .next-d{margin-top:4px;font:400 9px/1.5 'Inter',sans-serif;color:#6f7985;overflow-wrap:anywhere;}
+#pageClosing .closing-invitation{position:relative;margin:17px 50px 0;padding:0;flex-shrink:0;}
+#pageClosing .closing-actions{display:flex;align-items:center;justify-content:center;gap:28px;padding:0;border:0;background:none;}
+#pageClosing .closing-action{display:inline-flex;align-items:center;justify-content:center;gap:12px;width:256px;min-height:48px;height:48px;box-sizing:border-box;padding:8px 18px;border-radius:25px;font:600 12px/1.5 'Inter',sans-serif;text-decoration:none;cursor:pointer;}
+#pageClosing .closing-action-primary{border:1px solid #f29328;background:linear-gradient(180deg,#ff9d17,#f17b07 55%,#df5804);box-shadow:inset 0 1px 0 #ffd174,0 5px 12px #e9871720;color:#fff;}
+#pageClosing .closing-action-secondary{border:1px solid #20a572;background:#fff;color:#166d4b;box-shadow:inset 0 0 0 2px #f3fbf6;}
+#pageClosing .closing-action-symbol{display:inline-flex;flex:none;align-items:center;justify-content:center;}
+#pageClosing .closing-action-symbol svg{display:block;width:24px;height:24px;}
+#pageClosing .closing-action-secondary .closing-action-symbol svg{width:28px;height:28px;}
+#pageClosing .closing-action-arrow{width:19px;height:19px;flex:none;margin-left:8px;}
+#pageClosing a[href]:hover{color:#dc7d22;}
+#pageClosing .closing-action-primary:hover{filter:brightness(1.03);color:#fff;}
+#pageClosing .closing-action-secondary[href]:hover{background:#f5fcf8;color:#115d3e;}
+#pageClosing a:focus-visible{outline:2px solid #d88a35;outline-offset:3px;}
+#pageClosing .closing-bottom{position:relative;display:flex;align-items:flex-start;gap:8px;margin:13px 75px 0;padding:0;flex-shrink:0;}
+#pageClosing .closing-rule{display:none;}
+#pageClosing .closing-privacy-symbol{display:block;flex:none;}
+#pageClosing .closing-privacy-symbol svg{display:block;width:17px;height:17px;}
+#pageClosing .closing-confidentiality{margin:0;font:400 6.7px/1.6 'Inter',sans-serif;color:#87909a;}
+#pageClosing .closing-wave{position:relative;min-height:124px;margin:auto 0 42px;background:none;overflow:hidden;flex-shrink:0;}
+#pageClosing .closing-wave>.closing-wave-art{position:absolute;inset:0;width:100%;height:100%;}
+#pageClosing .closing-wave-lettering{position:absolute;left:12px;top:34px;width:142px;height:auto;display:block;}
+/* Preserve the original wave artwork. Values are free-standing additions,
+   not another panel: no card, tint, border, blur or shadow behind the icons. */
+#pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:90px 110px 0 48px;padding:0;list-style:none;border:0;border-radius:0;background:none;box-shadow:none;}
+#pageClosing .closing-footer-values li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 6px;text-align:left;}
+#pageClosing .closing-footer-value-icon{display:block;flex:none;}
+#pageClosing .closing-footer-value-icon svg{display:block;width:25px;height:25px;}
+#pageClosing .closing-footer-value-text{font:500 10px/1.25 'Inter',sans-serif;letter-spacing:.1px;color:#f1eef8;white-space:pre-line;overflow-wrap:anywhere;}
+#pageClosing .pg-foot{background:#fcfaf6;border-top:1px solid #d8dfdf;}
+#pageClosing .pg-foot .pf-mid{display:none;}
+#pageClosing .pg-foot .pf-left,#pageClosing .pg-foot .pf-right{color:#647384;}
+#pageClosing .pg-foot .pf-right::before{content:'';display:inline-block;width:22px;height:1px;margin-right:12px;vertical-align:middle;background:#d6a371;}
+#pageClosing .closing-action[hidden],#pageClosing .contact-item[hidden]{display:none!important;}
+/* Keep the existing Advanced Edit / automatic continuation mechanism. */
+#pageClosing.doc-flow{display:block;}
+#pageClosing.doc-flow .pg-body{height:auto;padding:0 var(--page-pad);}
+#pageClosing.doc-flow .pg-body>.closing-banner{position:relative;inset:auto;width:calc(100% + 2 * var(--page-pad));height:220px;margin:0 calc(-1 * var(--page-pad));z-index:0;}
+#pageClosing.doc-flow .closing-brand{position:relative;inset:auto;margin:20px 0;}
+#pageClosing.doc-flow .closing-promise{position:relative;inset:auto;margin:16px 0;}
+#pageClosing.doc-flow .closing-hero{min-height:0;margin:24px 0 0;}
+#pageClosing.doc-flow .closing-hero h2{font-size:40px;}
+#pageClosing.doc-flow .closing-card,#pageClosing.doc-flow .closing-invitation,#pageClosing.doc-flow .closing-bottom{margin:20px 0 0;}
+#pageClosing.doc-flow .closing-card{padding:20px 0;}
+#pageClosing.doc-flow .closing-wave{height:125px;margin:20px 0 0;}

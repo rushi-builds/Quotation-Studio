@@ -126,13 +126,13 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.waitForFunction(()=>window.Render&&window.Render.lastState&&Render.lastState.custName==='Equipment Audit',{timeout:10000});
   check('reload preserves custom values and rendered specification',await matchingForm()&&await matchingSpec(page));
   check('reload automatically restores Custom mode with the saved text',await page.evaluate(values=>Object.entries(values).every(([id,value])=>!document.getElementById(id+'CustomWrap').hidden&&document.getElementById(id+'Custom').value===value&&document.getElementById(id).selectedOptions[0].hasAttribute('data-custom')),custom));
-  await page.evaluate(()=>document.querySelector('.studio-management').open=true);await page.click('#pmNew');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);
+  await require('./legacy-proposal-fixture.cjs')(page, 'pmNew');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);
   check('new quotation clears all previous manual drafts and hides the text boxes',await page.evaluate(ids=>ids.every(id=>document.getElementById(id+'Custom').value===''&&document.getElementById(id+'CustomWrap').hidden),Object.keys(custom)));
   check('new quotation retains original template equipment, not previous custom entries',await page.evaluate(()=>moduleMake.value===StateStore.DEFAULTS.moduleMake&&moduleModel.value==='Bi-55-545'&&roofType.value===StateStore.DEFAULTS.roofType));
   await page.select('#proposalSelect',original);
   await page.waitForFunction(id=>Proposals.activeId()===id,{},original);
   check('switching back restores all custom entries',await matchingForm());
-  await page.click('#pmDup');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);const duplicate=await page.evaluate(()=>Proposals.activeId());
+  await require('./legacy-proposal-fixture.cjs')(page, 'pmDup');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);const duplicate=await page.evaluate(()=>Proposals.activeId());
   check('duplicate retains all custom entries',duplicate!==original&&await matchingForm());
   await page.evaluate(()=>document.querySelector('.studio-tools').open=true);
   page.once('dialog',dialog=>dialog.accept());await page.click('#resetBtn');

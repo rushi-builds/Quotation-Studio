@@ -123,7 +123,7 @@
     return /^[1-9]\d{10,14}$/.test(digits) ? digits : '';
   }
 
-  function wireCustomerActions(snapshot, token) {
+  async function wireCustomerActions(snapshot, token, feedbackAvailable) {
     const form = snapshot.form || {};
     const company = form.companyName || 'our team';
     const cust = snapshot.customerName || form.custName || 'Customer';
@@ -173,53 +173,7 @@
 
     const accept = $('shareAcceptWrap');
     if (accept) accept.style.display = '';
-    const jump = $('requestJump');
-    if (jump) {
-      jump.disabled = false;
-      jump.addEventListener('click', () => {
-        accept && accept.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }
-
-    const engForm = $('engineeringRequestForm');
-    if (engForm) {
-      engForm.addEventListener('submit', (ev) => {
-        ev.preventDefault();
-        const phone = whatsappPhone(($('requestPhone') && $('requestPhone').value) || form.companyPhone || '');
-        const stage = ($('requestStage') && $('requestStage').value) || 'reviewing';
-        const loc = ($('requestLocation') && $('requestLocation').value) || '';
-        const win = ($('requestWindow') && $('requestWindow').value) || '';
-        const notes = ($('requestNotes') && $('requestNotes').value) || '';
-        const wants = [];
-        if ($('requestSurvey') && $('requestSurvey').checked) wants.push('site survey');
-        if ($('requestArka') && $('requestArka').checked) wants.push('Arka 3D layout');
-        if ($('requestPvsyst') && $('requestPvsyst').checked) wants.push('PVsyst report');
-        postEvent(token, 'survey_requested', { stage, wants, loc: loc.slice(0, 120) });
-        const lines = [
-          'Hello ' + company + ',',
-          '',
-          'I reviewed the solar proposal' + (snapshot.ref ? ' (' + snapshot.ref + ')' : '') + '.',
-          'Customer: ' + cust,
-          cap ? ('Capacity: ' + cap + ' kWp') : '',
-          'Stage: ' + stage,
-          wants.length ? ('Requesting: ' + wants.join(', ')) : '',
-          loc ? ('Site: ' + loc) : '',
-          win ? ('Preferred window: ' + win) : '',
-          notes ? ('Notes: ' + notes) : '',
-          '',
-          'Sent from the secure proposal link.'
-        ].filter(Boolean).join('\n');
-        const companyWa = whatsappPhone(form.companyPhone || '');
-        if (!companyWa) {
-          if ($('requestHint')) {
-            $('requestHint').textContent = 'No company WhatsApp number is set on this proposal. Please call or email the team using the contact details on the last page.';
-          }
-          return;
-        }
-        const href = 'https://wa.me/' + companyWa + '?text=' + encodeURIComponent(lines);
-        window.open(href, '_blank', 'noopener,noreferrer');
-      });
-    }
+    await window.ProposalFeedback.mount({ token, available: feedbackAvailable === true, snapshot });
   }
 
   function postEvent(token, type, meta) {
@@ -280,7 +234,7 @@
     try {
       await injectPages();
       const state = applySnapshot(data.snapshot || {});
-      wireCustomerActions(data.snapshot || {}, token);
+      await wireCustomerActions(data.snapshot || {}, token, data.access?.feedbackAvailable);
       showMain();
       fitPages();
       window.addEventListener('resize', fitPages);

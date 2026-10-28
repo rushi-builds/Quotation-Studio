@@ -55,7 +55,7 @@ function bootApp(seedStorage) {
   });
   const { window } = dom;
   /* browser <script> tags share top-level scope; a single concatenated eval mimics that */
-  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'rainwater.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
+  const src = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js', 'rainwater.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'proposal-marks.js', 'charts.js', 'model.js', 'state.js',
     'catalogue-data.js', 'equipment.js', 'render.js', 'editor.js', 'experience.js', 'export.js', 'app.js']
     .map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n');
   window.eval(src);
@@ -120,7 +120,7 @@ t('warranty 4 cards', d.querySelectorAll('#v_wrWarranties .warr-card').length ==
 t('journey 6 steps', d.querySelectorAll('#v_wrJourney .journey-card').length === 6);
 t('terms 12 items', d.querySelectorAll('#v_tmItems .term-item').length === 12);
 t('terms validity templated (15 days)', d.getElementById('v_tmItems').textContent.includes('15 days'));
-t('closing signature boxes 2', d.querySelectorAll('.sign-box').length === 2);
+t('closing is a thank-you page without signatures', d.querySelectorAll('#pageClosing .sign-box,#pageClosing .accept-block').length === 0 && d.getElementById('v_clThankHeading').textContent === 'Thank you.');
 t('footer page numbers', d.getElementById('v_pgnum_pageTerms').textContent === 'Page 14 of 15',
   d.getElementById('v_pgnum_pageTerms').textContent);
 t('footer company filled', d.querySelector('[data-foot-company]').textContent.includes('KTM'));

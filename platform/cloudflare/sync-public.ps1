@@ -9,7 +9,7 @@ New-Item -ItemType Directory -Path (Join-Path $Pub "assets") -Force | Out-Null
 
 $files = @(
   "index.html", "dashboard.html", "quotation.html",
-  "portal.html", "share.html", "gallery.html"
+  "portal.html", "feedback-preview.html", "share.html", "gallery.html"
 )
 foreach ($f in $files) {
   $src = Join-Path $Root $f
