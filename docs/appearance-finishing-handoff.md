@@ -45,3 +45,9 @@ Browser commands use `LD_LIBRARY_PATH=/tmp/chromium-libs/lib` in this sandbox.
 The wider audit exposed stale expectations, not reasons to revert the product: retired audio controls must remain absent; QR destination is already in Essentials; exact search targets and unobscured real mouse clicks are used; mode persistence explicitly selects a mode; Investment's current 240/300 px chart design replaces obsolete 180/340 px expectations. The jsdom loader now includes the real ProposalMarks dependency used by Terms. Editor snapshots canonicalise attribute order (while retaining values and visibility) and await decoration/image readiness. No assertions are disabled.
 
 Proof PNGs, spacing measurements and PDFs are under ignored `qa/shots/appearance-polish/` and `qa/shots/page-spacing/`; generated artifacts are not committed. Production feedback release/smoke verification remains a separate coordinated step. Keep this work in the existing PR; do not auto-merge.
+
+## Solution page follow-up
+
+The user requested the four-value footer on Solution (page 5) too. Only the second spacer, immediately after `#v_soSpecs`, is capped at 16 px instead of 32 px on non-edited pages. This lifts the equipment/scope note by 16 px, without moving the hero photograph, introduction or equipment cards. Note wording and styling are untouched; the existing footer's measured 24 px clearance remains enforced. All eight fitting standard pages now show their four contextual values. Edited/dense custom content retains the existing overflow and continuation safeguards.
+
+The footer regression explicitly compares the note/grid/photo geometry with the finishing stylesheet disabled, verifies four visible values and clearance, and includes Solution in the actual three-page PDF proof. The broader appearance audit still passes all 17 detailed and six Power pages, optional input reversal, print and mobile layouts.

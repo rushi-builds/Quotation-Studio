@@ -18,3 +18,6 @@
 /* The last Power page already clears its footer; its legacy 52px trailing
    padding alone could overflow the fixed canvas in report-heavy proposals. */
 #powerPage6.power-six{padding-bottom:34px;}
+/* Solution: lift only the note after the equipment grid, leaving the hero and
+   cards in place, so the four-value footer has its normal measured clearance. */
+#pageSolution:not(.doc-flow) #v_soSpecs+.spacer{max-height:16px;}
