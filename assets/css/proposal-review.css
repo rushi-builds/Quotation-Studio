@@ -57,6 +57,7 @@
 .qrw-notes{border-top:1px solid #e7ebef;border-bottom:1px solid #e7ebef;padding:13px 0;margin:5px 0 22px;}
 .qrw-notes>summary,.qrw-omitted>summary{cursor:pointer;font-size:11px;font-weight:500;color:#4b6379;min-height:24px;}
 .qrw-notes .qrw-issue-group{margin:16px 0 0;}
+.qrw-excel-inputs{margin-top:13px;}
 .qrw-changes>ul{list-style:none;padding:0;margin:10px 0;}
 .qrw-changes li{padding:10px 0;border-bottom:1px solid #e9edf1;}
 .qrw-changes li strong,.qrw-changes li span{display:block;}

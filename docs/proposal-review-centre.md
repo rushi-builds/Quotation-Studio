@@ -41,7 +41,7 @@ No changes to Finance, generation defaults, renderer, export engine, CloudBridge
 
 All tests use local disposable browser data; new review QA intercepts external/API/auth requests and records zero writes.
 
-- `qa/proposal-review.test.cjs`: **55 PASS** — exact preflight parity, note provenance, source focus, resolving findings, page/title search, empty state, keyboard tabs/Escape/focus containment, view/edit routing, conditional pages not enabled, removals/continuations/current-preview marker, Power 6→5 removal, standalone system/system-power counts, cross-proposal isolation, serializer ownership, unchanged form/CONTENT/Finance/A4 HTML from review navigation, print exclusion, Customer View isolation, actual View taps at 320px/Android/tablet and short laptop sizes, no runtime errors or writes.
+- `qa/proposal-review.test.cjs`: **69 PASS** — exact preflight parity, note provenance, source focus, resolving findings, page/title search, empty state, keyboard tabs/Escape/focus containment, view/edit routing, conditional pages not enabled, removals/continuations/current-preview marker, Power 6→5 removal, standalone system/system-power counts, cross-proposal isolation, serializer ownership, unchanged form/CONTENT/Finance/A4 HTML from review navigation, print exclusion, Customer View isolation, actual View taps at 320px/Android/tablet and short laptop sizes, no runtime errors or writes.
 - `qa/device-compatibility.test.cjs`: **309 PASS** — nine Chromium laptop/Android/iPhone/iPad emulated profiles, existing builder/storage/Customer View/feedback and ten dashboard panels each.
 - `qa/review-format-state.test.cjs`: **24 PASS** — actual format button/select interaction, real six-page Power PDF through Download, original selector identity/position/focus, desktop + Android/iPhone-size/tablet touch profiles; actual editor wording → Save now → stored proposal → reload → JSON backup, including legacy transient-key cleanup. No browser errors or API/auth writes.
 - `qa/control-panel.test.js`: **41 PASS**.
@@ -101,3 +101,31 @@ Actual selected-Power download produced a valid six-page PDF (not just an event)
 Ignored proofs: `qa/shots/review-format-state/`. A Chromium launch attempt exited
 with SIGSEGV before page creation; rerun passed without application workarounds.
 PR #31 remains unmerged; no production deployment or production data access.
+
+## Follow-up: Excel input guidance
+
+Site verification & input notes now includes one **Get input values from Excel ↗**
+button when cable/soil input notes are present. Its helper points staff to the
+Excel quotation/BOM software, then manual entry through the existing Open source
+actions; site measurements still need verification. The button closes review and
+reveals/focuses existing Excel access (including switching to All when needed).
+It does not open a privileged workbook directly, alter the existing workbook
+link/permissions, import values, invoke catalogue refresh/Sync, or claim automatic
+calculation/verification. Live workbook calculations were not read or tested.
+
+Verification: review **69 PASS** (14 additional Excel guidance/navigation and
+four viewport checks), format/persistence **24 PASS**, control panel **41 PASS**.
+Snapshots confirm unchanged form, CONTENT, Finance and byte-exact A4 markup; no
+external window, browser errors or API/auth writes. Desktop, small-phone, Android,
+tablet and short-laptop actions exercised. Ignored screenshots are under
+`qa/shots/proposal-review/*excel-notes*` and `excel-input-notes-desktop.png`.
+
+The first run stopped at the pre-existing byte-exact A4 snapshot assertion before
+the new action was exercised: scheduled footer layout changed attribute order
+after the initial snapshot. The harness now waits two animation frames after
+fonts are ready before taking its initial capture. The full assertion is retained
+without normalization or excluded markup. The isolated rerun and format/control
+suites passed. No rendering/product workaround was made.
+
+PR #31 remains open/unmerged. No production release, Excel Sync, backend, finance,
+export, engineering calculations, customer PDF wording or artwork changes.

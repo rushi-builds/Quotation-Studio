@@ -168,7 +168,18 @@
       if (model.advisory.length) reviewContent.append(issueGroup('Review recommended', 'advisory', model.advisory, 'Advisories come from the current preflight, not a new scoring system.'));
       const notes = el('details', 'qrw-notes');
       notes.append(el('summary', '', 'Engineering input notes · ' + model.notes.length));
-      if (model.notes.length) notes.append(issueGroup('Site verification & input notes', 'note', model.notes, 'Internal notes are not additional export blockers.'));
+      if (model.notes.length) {
+        const group = issueGroup('Site verification & input notes', 'note', model.notes, 'Internal notes are not additional export blockers.');
+        if ($('eqCatalog') && model.notes.some(issue => ['dcCableLengthM', 'acCableLengthM', 'soilResistivity'].includes(issue.id))) {
+          const excel = el('div', 'qrw-excel-inputs');
+          const help = el('p', 'qrw-muted', 'Use the Excel quotation / BOM software, then enter its results in the source fields below. Site measurements, including soil resistivity, still need verification. Opens Excel access only; no auto-fill or Sync.');
+          help.id = 'qrwExcelInputHelp';
+          const action = button('Get input values from Excel ↗', () => navigate(() => window.__qsPreflight.reveal('eqCatalog')));
+          action.id = 'qrwExcelInputs'; action.setAttribute('aria-describedby', help.id);
+          excel.append(action, help); group.querySelector('ul').before(excel);
+        }
+        notes.append(group);
+      }
       else notes.append(el('p', 'qrw-muted', 'No input notes reported by the existing engineering checks. Site verification is still required.'));
       reviewContent.append(notes);
       const changes = model.rows.filter(r => r.edited || r.excluded || r.custom);

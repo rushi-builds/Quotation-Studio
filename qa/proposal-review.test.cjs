@@ -22,7 +22,8 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     });
     const p = await context.newPage(); p.on('pageerror', e => errors.push(e.message));
     await p.goto(base + '/quotation.html'); await p.waitForSelector('#proposalReviewButton');
-    await p.evaluate(() => document.fonts.ready);
+    // Wait for font/image-triggered footer layout frames before byte-exact A4 capture.
+    await p.evaluate(async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
     const capture = () => p.evaluate(() => ({ form: StateStore.collectForm(), content: JSON.stringify(CONTENT), finance: JSON.stringify(Finance.compute(Render.lastState)), pages: [...document.querySelectorAll('.preview-panel .page')].map(n => n.outerHTML) }));
     const initial = await capture();
     const open = async () => { await p.locator('#proposalReviewButton').evaluate(n => n.scrollIntoView({ block: 'center', behavior: 'instant' })); await p.click('#proposalReviewButton'); await p.waitForFunction(() => proposalReviewDialog.open); };
@@ -43,6 +44,20 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     await p.keyboard.press('Escape'); check('Escape clears a nonempty filter before closing modal', await p.locator('#qrwPageFilter').inputValue() === '' && await p.locator('#proposalReviewDialog').evaluate(n => n.open));
     await close(); assert.deepEqual(await capture(), initial); check('open/filter/close changes no form, CONTENT, Finance or A4 HTML', true);
     check('close returns focus to invoking control', await p.locator('#proposalReviewButton').evaluate(n => n === document.activeElement));
+    // Excel guidance is navigation, not an import, privileged opener or Sync.
+    await open(); await p.locator('.qrw-notes>summary').click();
+    check('site note messages still exactly match the existing engineering source', await p.evaluate(() => JSON.stringify([...document.querySelectorAll('.qrw-note .qrw-finding>p')].map(n => n.textContent)) === JSON.stringify(__qsPreflight.notes().map(n => n.message))));
+    check('one Excel input action for the cable/soil notes', await p.locator('#qrwExcelInputs').count() === 1 && await p.locator('#qrwExcelInputs').isVisible());
+    check('Excel guidance describes manual entry and site verification, not auto-fill', await p.locator('#qrwExcelInputs').getAttribute('aria-describedby') === 'qrwExcelInputHelp' && (await p.locator('#qrwExcelInputHelp').innerText()).includes('no auto-fill or Sync') && (await p.locator('#qrwExcelInputHelp').innerText()).includes('soil resistivity'));
+    const excelAccess = await p.locator('#openCatalogueExcel').evaluate(n => ({ href: n.getAttribute('href'), disabled: n.getAttribute('aria-disabled') }));
+    const popups = []; p.on('popup', popup => popups.push(popup));
+    await p.screenshot({ path: path.join(shots, 'excel-input-notes-desktop.png') });
+    await p.locator('#qrwExcelInputs').click();
+    check('Excel action closes review and reveals/focuses existing access in All mode', await p.locator('#proposalReviewDialog').evaluate(n => !n.open) && await p.locator('#eqCatalog').isVisible() && await p.locator('#eqCatalog').evaluate(n => n === document.activeElement));
+    assert.deepEqual(await capture(), initial); check('Excel guidance navigation leaves form, CONTENT, Finance and A4 unchanged', true);
+    assert.deepEqual(await p.locator('#openCatalogueExcel').evaluate(n => ({ href: n.getAttribute('href'), disabled: n.getAttribute('aria-disabled') })), excelAccess);
+    check('Excel navigation preserves access restrictions and opens no external window', excelAccess.disabled === 'true' && popups.length === 0);
+    await p.click('#modeEss');
     await open(); await p.locator('[data-review-source="custName"]').click();
     check('finding closes modal and focuses original customer input', await p.locator('#proposalReviewDialog').evaluate(n => !n.open) && await p.locator('#custName').evaluate(n => n === document.activeElement));
     await p.fill('#custName', 'Review QA Customer'); await p.waitForFunction(() => Render.lastState.custName === 'Review QA Customer');
@@ -120,7 +135,14 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
       const view = m.locator('[data-review-page=pageSolution]').getByRole('button', { name: 'View ↗' });
       if (options.hasTouch) await view.tap(); else await view.click();
       await m.waitForFunction(() => { const r = pageSolution.getBoundingClientRect(); return !proposalReviewDialog.open && r.top < innerHeight && r.bottom > 0; });
-      check(name + ' real View click/tap reaches the proposal page', true); await mobile.close();
+      check(name + ' real View click/tap reaches the proposal page', true);
+      await m.locator('#proposalReviewButton').scrollIntoViewIfNeeded(); await m.locator('#proposalReviewButton').click();
+      await m.locator('.qrw-notes>summary').click(); await m.locator('#qrwExcelInputs').scrollIntoViewIfNeeded();
+      check(name + ' Excel input action fits without modal overflow', await fits() && await m.locator('#qrwExcelInputs').evaluate(n => { const r = n.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }));
+      await m.screenshot({ path: path.join(shots, name + '-excel-notes.png') });
+      if (options.hasTouch) await m.locator('#qrwExcelInputs').tap(); else await m.locator('#qrwExcelInputs').click();
+      check(name + ' Excel action reaches existing access without enabling workbook', await m.locator('#proposalReviewDialog').evaluate(n => !n.open) && await m.locator('#eqCatalog').isVisible() && await m.locator('#eqCatalog').evaluate(n => n === document.activeElement) && await m.locator('#openCatalogueExcel').getAttribute('aria-disabled') === 'true');
+      await mobile.close();
     }
     // Customer view never loads the builder review interface.
     const share = await context.newPage(); const activeId = await p.evaluate(() => Proposals.activeId()); await share.goto(base + '/share.html?p=' + encodeURIComponent(activeId)); await share.waitForFunction(() => window.Render?.lastState);
