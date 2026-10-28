@@ -444,7 +444,7 @@
     }
     const feedback = element('div', 'studio-feedback'); feedback.setAttribute('role', 'status');
     feedback.hidden = true; panel.insertBefore(feedback, form);
-    let lastIssues = {blocking: [], advisory: []};
+    let lastIssues = {blocking: [], advisory: []}, lastReviewNotes = [];
     function collect() {
       /* Two levels: blocking issues would print a wrong document, advisories
          are suspicions worth a look. The panel shows both; the download only
@@ -576,6 +576,7 @@
       renderFeedback(merged);
       /* What the download sees: the two levels that change the document. */
       lastIssues = { blocking: merged.blocking, advisory: merged.advisory };
+      lastReviewNotes = merged.notes.slice();
       return lastIssues;
     }
     /* The export pre-flight reads exactly this list, so the panel and the
@@ -583,6 +584,7 @@
     window.__qsPreflight = {
       run: validateWithEngineering,
       issues: () => lastIssues,
+      notes: () => lastReviewNotes.slice(),
       reveal: (id) => { const el = $(id); if (el) reveal(el); }
     };
 
