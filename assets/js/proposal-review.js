@@ -34,7 +34,7 @@
     const heading = el('h2', '', 'Before you share.'); heading.id = 'proposalReviewTitle'; title.append(heading);
     const description = el('p', '', 'Review the current inputs and see exactly which pages are included.');
     description.id = 'proposalReviewDescription'; title.append(description);
-    const close = button('×', () => dialog.close(), 'qrw-close'); close.setAttribute('aria-label', 'Close proposal review');
+    const close = button('×', () => { restoreFormat(); dialog.close(); }, 'qrw-close'); close.setAttribute('aria-label', 'Close proposal review');
     header.append(title, close);
     const context = el('div', 'qrw-context'), reference = el('strong'), customer = el('span');
     context.append(reference, customer);
@@ -60,10 +60,45 @@
     pagesPanel.append(pageHeading, pageIntro, filterLabel, pageFilter, pageCount, pageList);
     main.append(reviewPanel, pagesPanel); body.append(main, sidebar);
     const footer = el('footer', 'qrw-footer');
-    footer.append(el('p', '', 'Input checks are not engineering approval, subsidy approval or a guarantee of site performance.'), button('Back to builder', () => dialog.close()));
+    footer.append(el('p', '', 'Input checks are not engineering approval, subsidy approval or a guarantee of site performance.'), button('Back to builder', () => { restoreFormat(); dialog.close(); }));
     shell.append(header, context, tabs, body, footer); dialog.append(shell); document.body.append(dialog);
 
     let activeTab = 'review', model, restoreFocus = true, pending = 0, returnTo = launcher;
+    // Reuse the ONE real PDF selector. Moving it preserves its original
+    // listeners and option availability; no mirror select or quote value.
+    const formatSelect = $('pdfFormat'), formatParent = formatSelect.parentNode, formatNext = formatSelect.nextSibling;
+    const outputTitle = el('h3'), sheetTotal = el('strong'), total = el('div', 'qrw-sheet-total');
+    total.append(sheetTotal, el('span', '', 'A4 sheets'));
+    const outputMetrics = el('dl', 'qrw-output-metrics');
+    const formatControl = el('div', 'qrw-format-control'); formatControl.id = 'qrwFormatControl'; formatControl.hidden = true;
+    const formatLabel = el('label', '', 'PDF format'); formatLabel.id = 'qrwFormatLabel'; formatLabel.htmlFor = 'pdfFormat';
+    const formatHelp = el('p', 'qrw-muted', 'Changes the current download choice. Nothing is saved, published or downloaded.');
+    formatControl.append(formatLabel, formatHelp);
+    let formatExpanded = false, previousFormatLabel;
+    const formatToggle = button('Change PDF format', () => {
+      if (formatExpanded) { restoreFormat(); formatToggle.focus(); }
+      else {
+        formatExpanded = true; formatControl.hidden = false; formatToggle.setAttribute('aria-expanded', 'true');
+        previousFormatLabel = formatSelect.getAttribute('aria-labelledby');
+        formatSelect.setAttribute('aria-labelledby', formatLabel.id);
+        formatLabel.after(formatSelect); formatSelect.focus({ preventScroll: true });
+        formatControl.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      }
+    });
+    formatToggle.id = 'qrwChangeFormat'; formatToggle.setAttribute('aria-controls', formatControl.id); formatToggle.setAttribute('aria-expanded', 'false');
+    const saveContext = el('div', 'qrw-save-context'), saveText = el('p');
+    saveContext.append(el('span', 'qrw-eyebrow', 'SAVE STATUS'), saveText);
+    const powerHint = el('p', 'qrw-muted', 'Power is a separate report. Open its editor to view the existing Power preview.'); powerHint.hidden = true;
+    sidebar.append(el('span', 'qrw-eyebrow', 'SELECTED PDF OUTPUT'), outputTitle, total, outputMetrics, formatToggle, formatControl,
+      saveContext, el('p', 'qrw-muted', 'Uses the current builder inputs and existing document checks. Review does not save, publish or download anything.'), powerHint);
+    function restoreFormat() {
+      if (!formatExpanded) return;
+      formatParent.insertBefore(formatSelect, formatNext?.parentNode === formatParent ? formatNext : null);
+      if (previousFormatLabel === null) formatSelect.removeAttribute('aria-labelledby');
+      else formatSelect.setAttribute('aria-labelledby', previousFormatLabel);
+      formatExpanded = false; formatControl.hidden = true; formatToggle.setAttribute('aria-expanded', 'false');
+    }
+
     function selectTab(key) {
       activeTab = key;
       for (const [tab, id] of [[reviewTab, 'review'], [pagesTab, 'pages']]) {
@@ -77,7 +112,7 @@
       const key = event.key === 'Home' ? 'review' : event.key === 'End' ? 'pages' : activeTab === 'review' ? 'pages' : 'review';
       selectTab(key); (key === 'review' ? reviewTab : pagesTab).focus();
     });
-    function navigate(action) { restoreFocus = false; dialog.close(); action(); }
+    function navigate(action) { restoreFocus = false; restoreFormat(); dialog.close(); action(); }
     function viewPage(id) {
       const index = window.Render.lastVisible.findIndex(p => p.id === id);
       if (index < 0) return;
@@ -201,19 +236,15 @@
       }
     }
     function renderOutput() {
-      sidebar.replaceChildren(el('span', 'qrw-eyebrow', 'SELECTED PDF OUTPUT'));
-      const label = $('pdfFormat')?.selectedOptions[0]?.textContent || 'Detailed proposal';
-      sidebar.append(el('h3', '', label.replace(/\s*\(\d+ Pages\)$/i, '')));
-      const total = el('div', 'qrw-sheet-total'); total.append(el('strong', '', String(model.total)), el('span', '', 'A4 sheets'));
-      sidebar.append(total);
-      const metrics = el('dl', 'qrw-output-metrics');
+      // Keep the real selector connected and focused while counts/status update.
+      const label = formatSelect.selectedOptions[0]?.textContent || 'Detailed proposal';
+      outputTitle.textContent = label.replace(/\s*\(\d+ Pages\)$/i, '');
+      sheetTotal.textContent = String(model.total); outputMetrics.replaceChildren();
       for (const [name, value] of [['Pages with saved edits', model.rows.filter(r => r.included && r.edited).length], ['Added sheets / continuations', model.rows.flatMap(r => r.pages).filter(p => p.continuation || model.rows.find(r => r.id === p.origin)?.custom).length], ['Removed page definitions', model.rows.filter(r => r.excluded).length]]) {
-        metrics.append(el('dt', '', name), el('dd', '', String(value)));
+        outputMetrics.append(el('dt', '', name), el('dd', '', String(value)));
       }
-      sidebar.append(metrics, button('Change PDF format ↗', () => navigate(() => window.__qsPreflight.reveal('pdfFormat'))));
-      const save = el('div', 'qrw-save-context'); save.append(el('span', 'qrw-eyebrow', 'SAVE STATUS'), el('p', '', $('saveIndicator')?.textContent || 'Check save status in the builder'));
-      sidebar.append(save, el('p', 'qrw-muted', 'Uses the current builder inputs and existing document checks. Review does not save, publish or download anything.'));
-      if (model.format === 'power') sidebar.append(el('p', 'qrw-muted', 'Power is a separate report. Open its editor to view the existing Power preview.'));
+      saveText.textContent = $('saveIndicator')?.textContent || 'Check save status in the builder';
+      powerHint.hidden = model.format !== 'power';
     }
     function render() {
       const s = window.Render.lastState || {};
@@ -222,7 +253,7 @@
       model = readModel(); renderReview(); renderPages(); renderOutput(); selectTab(activeTab);
     }
     function open() {
-      returnTo = document.activeElement; restoreFocus = true; activeTab = 'review'; pageFilter.value = '';
+      restoreFormat(); returnTo = document.activeElement; restoreFocus = true; activeTab = 'review'; pageFilter.value = '';
       window.__qsPreflight.run(); render(); dialog.showModal(); close.focus();
     }
     function schedule() {
@@ -236,7 +267,8 @@
     }
     pageFilter.addEventListener('input', renderPages);
     pageFilter.addEventListener('keydown', event => { if (event.key === 'Escape' && pageFilter.value) { event.preventDefault(); event.stopPropagation(); pageFilter.value = ''; renderPages(); } });
-    dialog.addEventListener('close', () => { if (restoreFocus && returnTo?.isConnected) returnTo.focus({ preventScroll: true }); });
+    dialog.addEventListener('cancel', restoreFormat);
+    dialog.addEventListener('close', () => { restoreFormat(); if (restoreFocus && returnTo?.isConnected) returnTo.focus({ preventScroll: true }); });
     document.addEventListener('qs:rendered', schedule);
     document.addEventListener('change', e => { if (e.target.id === 'pdfFormat') schedule(); });
     const saveObserver = new MutationObserver(() => { if (dialog.open) renderOutput(); });

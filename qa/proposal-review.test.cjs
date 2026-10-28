@@ -86,7 +86,8 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     await open(); await p.click('#qrw-pages-tab');
     check('Power removals use actual report pagination', await p.locator('.qrw-sheet-total strong').textContent() === '5' && (await p.locator('[data-review-page=power2]').textContent()).includes('Removed'));
     await close(); await p.evaluate(() => DocumentStudio.restorePage('power2'));
-    await open(); await p.getByRole('button', { name: 'Change PDF format ↗', exact: true }).click(); check('format action focuses the existing single selector', await p.locator('#pdfFormat').evaluate(n => document.activeElement === n) && await p.locator('#pdfFormat').count() === 1);
+    await open(); await p.getByRole('button', { name: 'Change PDF format', exact: true }).click(); check('format action reveals the existing single selector inside review', await p.locator('#pdfFormat').evaluate(n => document.activeElement === n) && await p.locator('#pdfFormat').count() === 1 && await p.locator('#qrwFormatControl #pdfFormat').count() === 1);
+    await close();
     await p.selectOption('#pdfFormat', 'full');
     // Cross-proposal navigation uses the active store, never a cached customer.
     await require('./legacy-proposal-fixture.cjs')(p, 'pmNew');

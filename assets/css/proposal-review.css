@@ -81,7 +81,7 @@
 .qrw-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:15px 30px;border-top:1px solid #e4e9ee;background:#fff;flex:none;}
 .qrw-footer p{font-size:9px;line-height:1.7;color:#6f7c8a;margin:0;max-width:560px;}
 .qrw-footer .qrw-button{flex-shrink:0;}
-.qrw :is(button,input,summary,[tabindex]):focus-visible,.qrw-launch:focus-visible{outline:2px solid #557c9d;outline-offset:3px;}
+.qrw :is(button,input,select,summary,[tabindex]):focus-visible,.qrw-launch:focus-visible{outline:2px solid #557c9d;outline-offset:3px;}
 @media(max-width:760px){
  .qrw{width:calc(100vw - 20px);max-height:calc(100dvh - 20px);border-radius:13px;}
  .qrw-shell{max-height:calc(100dvh - 22px);}
@@ -121,3 +121,10 @@
 .qrw-tag-current{color:#3b607f;background:#eaf1f8;}
 .qrw-continuation-links{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:5px;}
 .qrw-continuation-links .qrw-text-button{font-size:9px;}
+
+/* The original selector is temporarily hosted here, not cloned. */
+.qrw-format-control{margin-top:12px;padding:13px 11px;background:#fff;border:1px solid #d7e0e9;border-radius:9px;}
+.qrw-format-control label{display:block;margin-bottom:7px;font-size:10px;font-weight:600;color:#3e5870;}
+.qrw-format-control .pdf-format{display:block;width:100%;max-width:100%;min-width:0;min-height:40px;padding:8px 10px;border:1px solid #c8d5e1;border-radius:7px;font:11px/1.5 Inter,sans-serif;color:#243e55;background:#fff;}
+.qrw-format-control .qrw-muted{font-size:9px;}
+@media(pointer:coarse){.qrw-format-control .pdf-format{min-height:44px;font-size:16px;}}

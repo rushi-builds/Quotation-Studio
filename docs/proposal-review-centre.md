@@ -9,7 +9,7 @@ The **Review & pages** button sits below setting search. It opens a native label
 - **Review:** existing export blockers, advisories, collapsible internal engineering input notes and saved Document Studio presentation edits.
 - **Page overview:** searchable included/conditional/removed pages, saved page edits, added pages and continuation sheet numbers. View uses the existing preview navigation; Edit page opens the existing document editor. Removed/conditional page actions do not restore pages or enable systems.
 
-The sidebar names the currently selected PDF format, its actual A4 sheet count, document-edit counts and the existing save indicator. Change PDF format focuses the one existing selector. It does not invent a second format value or save/publish/export a proposal.
+The sidebar names the currently selected PDF format, its actual A4 sheet count, document-edit counts and the existing save indicator. Change PDF format reveals the one existing selector inside the review. The original element is temporarily moved, not cloned; its options/listeners stay intact, selected output/counts update in-place, and closing/collapsing/source navigation returns it to its exact builder-footer position. It does not invent a second format value or save/publish/export a proposal.
 
 **No ready/approval percentage or green design certification.** "No export blockers reported" is qualified explicitly; internal DATA REQUIRED notes remain notes, not new export blockers. Document changes refer to scoped Document Studio metadata, not a diff against a published version or a complete audit of template-wording edits.
 
@@ -43,6 +43,7 @@ All tests use local disposable browser data; new review QA intercepts external/A
 
 - `qa/proposal-review.test.cjs`: **55 PASS** — exact preflight parity, note provenance, source focus, resolving findings, page/title search, empty state, keyboard tabs/Escape/focus containment, view/edit routing, conditional pages not enabled, removals/continuations/current-preview marker, Power 6→5 removal, standalone system/system-power counts, cross-proposal isolation, serializer ownership, unchanged form/CONTENT/Finance/A4 HTML from review navigation, print exclusion, Customer View isolation, actual View taps at 320px/Android/tablet and short laptop sizes, no runtime errors or writes.
 - `qa/device-compatibility.test.cjs`: **309 PASS** — nine Chromium laptop/Android/iPhone/iPad emulated profiles, existing builder/storage/Customer View/feedback and ten dashboard panels each.
+- `qa/review-format-state.test.cjs`: **24 PASS** — actual format button/select interaction, real six-page Power PDF through Download, original selector identity/position/focus, desktop + Android/iPhone-size/tablet touch profiles; actual editor wording → Save now → stored proposal → reload → JSON backup, including legacy transient-key cleanup. No browser errors or API/auth writes.
 - `qa/control-panel.test.js`: **41 PASS**.
 - `qa/integration.test.js`: **116 PASS**.
 - `qa/finance.test.js`: **82 PASS**, financial engine byte-unchanged.
@@ -76,3 +77,27 @@ The library prefix is sandbox-specific. These are Chromium browser/device-emulat
 ## Explicitly later
 
 Quotations saved views, Version Compare and customer mobile Reading Mode remain separate future increments. No published-history diff, legal acceptance/e-signature, provider automation or new engineering promise is introduced here.
+
+## Follow-up: PDF format action + point-6 persistence verification
+
+The original Change PDF format action only closed review and focused the footer
+selector. That did not expose a choice in the review and could feel non-functional.
+It now expands an in-review region hosting the **original** `#pdfFormat` element.
+The sidebar is stable across status/count refreshes so the native selector is not
+detached or defocused mid-selection. Escape, close, collapse and source navigation
+restore the original control/ARIA label/position; the selected output remains set.
+No new state input, dropdown clone, synthetic download, export implementation or
+validation bypass was added. Touch input retains 16px text / 44px minimum height.
+
+The serializer fix already in PR #31 was additionally verified end-to-end rather
+than rewritten: a real Document Studio textarea edit survives Save now, reload and
+JSON backup, while `docTextSearch`/generated `docEdit-*` keys are absent from saved
+form/backup. A simulated old saved blob carrying those keys cannot restore them
+into editor UI, and its next ordinary save drops the stale keys. Real quote fields
+and `CONTENT.documentStudio` wording are preserved.
+
+Focused new tests passed 24/24, existing review 55/55 and control panel 41/41.
+Actual selected-Power download produced a valid six-page PDF (not just an event).
+Ignored proofs: `qa/shots/review-format-state/`. A Chromium launch attempt exited
+with SIGSEGV before page creation; rerun passed without application workarounds.
+PR #31 remains unmerged; no production deployment or production data access.
