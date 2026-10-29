@@ -75,8 +75,10 @@ const LOGO_CID = 'ktm-logo';
 const RECOVERY_429 = 'Too many requests. Please try again in a few minutes.';
 
 /* Deployed code marker — kept identical to platform/cloudflare/src/worker.js
-   so /api/health reports the same version whichever backend serves it. */
-const CODE_VERSION = 'reconcile-r1';
+   so /api/health reports the same version whichever backend serves it.
+   Both backends carry the customer-feedback route, so both report the same
+   marker; qa/roles-parity.test.js fails the build if they ever diverge. */
+const CODE_VERSION = 'proposal-feedback-r1';
 
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }
