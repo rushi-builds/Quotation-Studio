@@ -8,7 +8,9 @@ name: QA
 
 on:
   push:
-    branches: ['**']
+    # Only the default branch. Listing '**' here as well as pull_request ran
+    # every PR branch twice (one push run, one PR run) for identical results.
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -49,6 +51,15 @@ jobs:
       - name: Run offline suite
         working-directory: qa
         run: npm test
+
+      # Separate from `npm test` upstream, which is why the committed
+      # platform/studio-knowledge.mjs had been stale: sync-public.js
+      # regenerates it at deploy time, so the Worker served fresh knowledge
+      # while the repo held an older copy. assistant-knowledge.test.mjs
+      # catches exactly that drift and runs fully offline.
+      - name: Run assistant suite (offline)
+        working-directory: qa
+        run: npm run test:assistant
 
   browser:
     name: Browser suite (Chromium)
