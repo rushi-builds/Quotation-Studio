@@ -41,7 +41,7 @@ No changes to Finance, generation defaults, renderer, export engine, CloudBridge
 
 All tests use local disposable browser data; new review QA intercepts external/API/auth requests and records zero writes.
 
-- `qa/proposal-review.test.cjs`: **77 PASS** — exact preflight parity, live key details/default reminders, source focus, resolving findings, page/title search, keyboard/modal behavior, view/edit routing, conditional pages not enabled, page counts, selector ownership, Excel snapshot card, responsive layouts, Customer View isolation, no runtime errors or API/auth writes.
+- `qa/proposal-review.test.cjs`: **78 PASS** — exact preflight parity, live key details/default reminders, source focus, resolving findings, page/title search, keyboard/modal behavior, view/edit routing, conditional pages not enabled, page counts, selector ownership, Excel snapshot card, responsive layouts, Customer View isolation, no runtime errors or API/auth writes.
 - `qa/device-compatibility.test.cjs`: **309 PASS** — nine Chromium laptop/Android/iPhone/iPad emulated profiles, existing builder/storage/Customer View/feedback and ten dashboard panels each.
 - `qa/review-format-state.test.cjs`: **23 PASS** — Excel-ready CSV download, formula-injection escaping, SHA-256 checksum verification, no quotation/A4 mutation, PDF selector remains in the original footer, real six-page Power PDF, responsive download taps, and actual editor wording → save → reload → JSON backup. No browser errors or API/auth writes.
 - `qa/control-panel.test.js`: **41 PASS**.
@@ -106,10 +106,14 @@ confirmation/verification without implying they have been site-verified. These
 are reminders, not new PDF blockers. The list re-renders from `qs:rendered`; it
 adds no form keys, saved approval marks, financial calculations or A4 content.
 The page-level-only count is now titled **Presentation edits**, so it is not
-mistaken for a full audit of live quotation data. The PDF format selector remains
+mistaken for a full audit of live quotation data. The top-right **Items to review**
+count now tracks unique actionable detail groups plus unrepresented blockers /
+advisories. A customer-name blocker is shown once on its source row, not again
+as a duplicate alert; the summary separately reports the PDF-blocker count.
+Missing site address is marked optional when unavailable and is not counted. The PDF format selector remains
 only in the builder footer. Excel input extraction/autofill remains out of scope.
 
-Verification: Review Centre **77 PASS** including default-capacity/category
+Verification: Review Centre **78 PASS** including default-capacity/category
 warnings, source navigation, live name/address/capacity updates, unchanged
 form/CONTENT/Finance/A4, key-detail layout on four viewport profiles and zero API writes. Spreadsheet/persistence **23 PASS**;
 control panel **41 PASS**. `qa/shots/proposal-review/review-desktop.png` shows the

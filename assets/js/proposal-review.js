@@ -219,6 +219,18 @@
       const issues = window.__qsPreflight.issues();
       return { ...output, blocking: issues.blocking || [], advisory: issues.advisory || [], notes: window.__qsPreflight.notes?.() || [] };
     }
+    const detailIssueAliases = {
+      custName: ['custName'], custAddress: ['custAddress'], customerType: ['customerType'], capacity: ['capacity'],
+      moduleMake: ['moduleMake', 'moduleModel', 'moduleWattage', 'moduleTech'],
+      inverterMake: ['inverterMake', 'inverterModel', 'inverterKw']
+    };
+    function detailIssue(ids) {
+      const keys = Array.isArray(ids) ? ids : detailIssueAliases[ids] || [ids];
+      const blocker = model?.blocking?.find(issue => keys.includes(issue.id));
+      if (blocker) return { ...blocker, kind: 'blocker' };
+      const advisory = model?.advisory?.find(issue => keys.includes(issue.id));
+      return advisory ? { ...advisory, kind: 'advisory' } : null;
+    }
     function keyDetailRows() {
       const state = window.Render.lastState || {};
       const defaults = window.StateStore?.DEFAULTS || {};
@@ -236,21 +248,40 @@
       const customerType = $('customerType')?.selectedOptions?.[0]?.textContent || String(state.customerType || 'Not selected');
       const defaultModule = ['moduleMake', 'moduleModel', 'moduleWattage', 'moduleTech'].every(same);
       const defaultInverter = ['inverterMake', 'inverterModel'].every(same);
+      const status = (ids, fallback) => {
+        const issue = detailIssue(ids);
+        return issue ? (issue.kind === 'blocker' ? 'PDF blocker · ' : 'Review recommended · ') + issue.message : fallback;
+      };
+      const tone = (ids, fallback) => detailIssue(ids) ? 'attention' : fallback;
       return [
-        { id: 'custName', label: 'Customer name', value: customerName || 'Not entered', status: customerName ? 'Entered · check spelling' : 'Required · add before sharing', tone: customerName ? 'attention' : 'missing' },
-        { id: 'custAddress', label: 'Site address', value: siteAddress || 'Not entered', status: siteAddress ? 'Entered · confirm site' : 'Not entered · add if available', tone: siteAddress ? 'attention' : 'missing' },
-        { id: 'customerType', label: 'Customer category', value: customerType, status: same('customerType') ? 'Template default · confirm category' : 'Selected · confirm category', tone: same('customerType') ? 'attention' : 'neutral' },
-        { id: 'capacity', label: 'System capacity', value: capacity, status: isTemplateCapacity ? 'Template default · confirm or change' : Number(state.capacity) > 0 ? 'Entered · verify against design' : 'Needs a valid capacity', tone: isTemplateCapacity || !(Number(state.capacity) > 0) ? 'attention' : 'neutral' },
-        { id: 'moduleMake', label: 'Solar module', value: module, status: !moduleModel ? 'Model not selected · choose catalogue model' : defaultModule ? 'Template selection · confirm model' : 'Selected · verify model and rating', tone: !moduleModel || defaultModule ? 'attention' : 'neutral' },
-        { id: 'inverterMake', label: 'Inverter', value: inverter, status: !inverterModel ? 'Model not selected · choose catalogue model' : defaultInverter ? 'Template selection · confirm model' : 'Selected · verify model', tone: !inverterModel || defaultInverter ? 'attention' : 'neutral' }
+        { id: 'custName', label: 'Customer name', value: customerName || 'Not entered', status: status('custName', customerName ? 'Entered · check spelling' : 'Required · add before sharing'), tone: tone('custName', customerName ? 'attention' : 'missing') },
+        { id: 'custAddress', label: 'Site address', value: siteAddress || 'Not entered', status: status('custAddress', siteAddress ? 'Entered · confirm site' : 'Not entered · optional if available'), tone: tone('custAddress', siteAddress ? 'attention' : 'neutral') },
+        { id: 'customerType', label: 'Customer category', value: customerType, status: status('customerType', same('customerType') ? 'Template default · confirm category' : 'Selected · confirm category'), tone: tone('customerType', same('customerType') ? 'attention' : 'neutral') },
+        { id: 'capacity', label: 'System capacity', value: capacity, status: status('capacity', isTemplateCapacity ? 'Template default · confirm or change' : Number(state.capacity) > 0 ? 'Entered · verify against design' : 'Needs a valid capacity'), tone: tone('capacity', isTemplateCapacity || !(Number(state.capacity) > 0) ? 'attention' : 'neutral') },
+        { id: 'moduleMake', label: 'Solar module', value: module, status: status('moduleMake', !moduleModel ? 'Model not selected · choose catalogue model' : defaultModule ? 'Template selection · confirm model' : 'Selected · verify model and rating'), tone: tone('moduleMake', !moduleModel || defaultModule ? 'attention' : 'neutral') },
+        { id: 'inverterMake', label: 'Inverter', value: inverter, status: status('inverterMake', !inverterModel ? 'Model not selected · choose catalogue model' : defaultInverter ? 'Template selection · confirm model' : 'Selected · verify model'), tone: tone('inverterMake', !inverterModel || defaultInverter ? 'attention' : 'neutral') }
       ];
     }
-    function renderKeyDetails() {
+    function attentionItems() {
+      const details = keyDetailRows(), groups = new Map();
+      for (const detail of details) if (detail.tone === 'attention' || detail.tone === 'missing') groups.set('detail:' + detail.id, detail);
+      for (const issue of [...model.blocking, ...model.advisory]) {
+        const group = details.find(detail => (detailIssueAliases[detail.id] || []).includes(issue.id));
+        groups.set(group ? 'detail:' + group.id : 'issue:' + (issue.id || issue.message), group || issue);
+      }
+      const represented = issue => details.some(detail => (detailIssueAliases[detail.id] || []).includes(issue.id));
+      return {
+        details, count: groups.size,
+        extraBlocking: model.blocking.filter(issue => !represented(issue)),
+        extraAdvisory: model.advisory.filter(issue => !represented(issue))
+      };
+    }
+    function renderKeyDetails(details = keyDetailRows()) {
       const section = el('section', 'qrw-key-details'); section.id = 'qrwKeyDetails';
       section.append(el('h3', '', 'Key quotation details'));
       section.append(el('p', 'qrw-muted', 'Live from the current inputs. Prefilled template values are flagged to confirm or change; these reminders do not add PDF blockers.'));
       const list = el('ul', 'qrw-key-detail-list');
-      for (const detail of keyDetailRows()) {
+      for (const detail of details) {
         const item = el('li', 'qrw-key-detail qrw-detail-' + detail.tone); item.dataset.reviewDetail = detail.id;
         const copy = el('div', 'qrw-key-detail-copy');
         copy.append(el('span', 'qrw-key-detail-label', detail.label), el('strong', 'qrw-key-detail-value', detail.value), el('span', 'qrw-key-detail-status', detail.status));
@@ -266,14 +297,21 @@
     }
     function renderReview() {
       reviewContent.replaceChildren();
-      if (model.blocking.length) reviewContent.append(issueGroup('Needs correction', 'blocking', model.blocking, 'These existing export checks need attention before a PDF can be generated.'));
-      else {
-        const clear = el('section', 'qrw-clear');
-        clear.append(el('span', 'qrw-eyebrow', 'EXPORT CHECKS'), el('h3', '', 'No export blockers reported.'), el('p', 'qrw-muted', 'Review the assumptions, scope and selected output before sharing. This is not a design approval.'));
-        reviewContent.append(clear);
-      }
-      if (model.advisory.length) reviewContent.append(issueGroup('Review recommended', 'advisory', model.advisory, 'Advisories come from the current preflight, not a new scoring system.'));
-      reviewContent.append(renderKeyDetails());
+      const attention = attentionItems();
+      const summary = el('section', 'qrw-attention-summary ' + (model.blocking.length ? 'qrw-attention-blocked' : attention.count ? 'qrw-attention-review' : 'qrw-clear'));
+      summary.dataset.blockers = String(model.blocking.length > 0);
+      summary.setAttribute('aria-live', 'polite');
+      const heading = el('div', 'qrw-section-heading');
+      heading.append(el('h3', '', 'Items to review'), el('span', 'qrw-count', String(attention.count)));
+      const blockerLabel = model.blocking.length === 1 ? '1 currently blocks PDF export' : model.blocking.length ? model.blocking.length + ' currently block PDF export' : 'none currently block PDF export';
+      const summaryText = attention.count
+        ? attention.count + (attention.count === 1 ? ' item needs attention' : ' items need attention') + ' · ' + blockerLabel + '. Each input-level item is listed once below.'
+        : 'No outstanding review items · no PDF export blockers reported. This is not a design approval.';
+      summary.append(el('span', 'qrw-eyebrow', 'LIVE REVIEW COUNT'), heading, el('p', 'qrw-muted', summaryText));
+      reviewContent.append(summary);
+      if (attention.extraBlocking.length) reviewContent.append(issueGroup('Additional PDF blockers', 'blocking', attention.extraBlocking, 'These existing export checks are not represented by a key-detail row.'));
+      if (attention.extraAdvisory.length) reviewContent.append(issueGroup('Review recommended', 'advisory', attention.extraAdvisory, 'Advisories come from the current preflight, not a new scoring system.'));
+      reviewContent.append(renderKeyDetails(attention.details));
       const notes = el('details', 'qrw-notes');
       notes.append(el('summary', '', 'Engineering input notes · ' + model.notes.length));
       if (model.notes.length) {

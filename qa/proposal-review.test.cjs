@@ -30,8 +30,13 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     const close = async () => { await p.getByRole('button', { name: 'Close proposal review', exact: true }).click(); await p.waitForFunction(() => !proposalReviewDialog.open); };
     await open();
     check('one labelled native modal with live current reference', await p.locator('dialog[open]').count() === 1 && await p.locator('#proposalReviewDialog').getAttribute('aria-labelledby') === 'proposalReviewTitle' && (await p.locator('.qrw-context').textContent()).includes(await p.locator('#propRef').inputValue()));
-    const issueMessages = await p.evaluate(() => __qsPreflight.issues().blocking.map(i => i.message));
-    check('corrections exactly reuse preflight messages', JSON.stringify(await p.locator('.qrw-blocking .qrw-finding>p').allTextContents()) === JSON.stringify(issueMessages));
+    const issueMessages = await p.evaluate(() => __qsPreflight.issues().blocking.map(i => i.message).sort());
+    const visibleBlockers = await p.evaluate(() => [
+      ...[...document.querySelectorAll('.qrw-blocking .qrw-finding>p')].map(n => n.textContent),
+      ...[...document.querySelectorAll('.qrw-key-detail-status')].filter(n => n.textContent.startsWith('PDF blocker · ')).map(n => n.textContent.slice('PDF blocker · '.length))
+    ].sort());
+    check('each preflight blocker is surfaced exactly once', JSON.stringify(visibleBlockers) === JSON.stringify(issueMessages) && (await p.locator('#qrw-review').innerText()).split('Add a customer name.').length - 1 === 1);
+    check('attention badge counts distinct missing/default items, while stating the PDF blocker count', await p.locator('.qrw-attention-summary .qrw-count').textContent() === '5' && (await p.locator('.qrw-attention-summary').innerText()).includes('1 currently blocks PDF export'));
     check('engineering input notes reuse existing source', await p.evaluate(() => document.querySelector('.qrw-notes summary').textContent.endsWith(String(__qsPreflight.notes().length))));
     check('key quotation details list customer, site, capacity and selected equipment', await p.locator('#qrwKeyDetails [data-review-detail]').count() === 6 && await p.locator('[data-review-detail="custName"] .qrw-key-detail-value').textContent() === 'Not entered' && await p.locator('[data-review-detail="custAddress"] .qrw-key-detail-value').textContent() === 'Not entered' && (await p.locator('[data-review-detail="capacity"] .qrw-key-detail-value').textContent()).includes('7 kWp'));
     const defaultDetailStatus = await p.locator('#qrwKeyDetails .qrw-key-detail-status').allTextContents();
@@ -62,12 +67,12 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     assert.deepEqual(await p.locator('#openCatalogueExcel').evaluate(n => ({ href: n.getAttribute('href'), disabled: n.getAttribute('aria-disabled') })), excelAccess);
     check('Excel navigation preserves access restrictions and opens no external window', excelAccess.disabled === 'true' && popups.length === 0);
     await p.click('#modeEss');
-    await open(); await p.locator('.qrw-blocking [data-review-source="custName"]').click();
+    await open(); await p.locator('#qrwKeyDetails [data-review-source="custName"]').click();
     check('finding closes modal and focuses original customer input', await p.locator('#proposalReviewDialog').evaluate(n => !n.open) && await p.locator('#custName').evaluate(n => n === document.activeElement));
     await p.fill('#custName', 'Review QA Customer'); await p.fill('#custAddress', 'Pune QA site'); await p.fill('#capacity', '8'); await p.selectOption('#customerType', 'commercial');
     await p.waitForFunction(() => Render.lastState.custName === 'Review QA Customer' && Render.lastState.custAddress === 'Pune QA site' && Number(Render.lastState.capacity) === 8 && Render.lastState.customerType === 'commercial');
     await open();
-    check('resolved customer blocker disappears while key fields show the current source values', !await p.locator('.qrw-blocking [data-review-source="custName"]').count() && (await p.locator('.qrw-clear').textContent()).includes('No export blockers reported.') && await p.locator('[data-review-detail="custName"] .qrw-key-detail-value').textContent() === 'Review QA Customer' && await p.locator('[data-review-detail="custAddress"] .qrw-key-detail-value').textContent() === 'Pune QA site' && await p.locator('[data-review-detail="capacity"] .qrw-key-detail-value').textContent() === '8 kWp' && (await p.locator('[data-review-detail="capacity"] .qrw-key-detail-status').textContent()).includes('verify against design') && await p.locator('[data-review-detail="customerType"] .qrw-key-detail-value').textContent() === 'Commercial' && (await p.locator('[data-review-detail="customerType"] .qrw-key-detail-status').textContent()).includes('Selected · confirm category'));
+    check('customer fix removes its blocker, refreshes the unique attention count and keeps live details', (await p.locator('.qrw-attention-summary .qrw-count').textContent()) === '4' && (await p.locator('.qrw-attention-summary').innerText()).includes('none currently block PDF export') && await p.locator('[data-review-detail="custName"] .qrw-key-detail-value').textContent() === 'Review QA Customer' && await p.locator('[data-review-detail="custAddress"] .qrw-key-detail-value').textContent() === 'Pune QA site' && await p.locator('[data-review-detail="capacity"] .qrw-key-detail-value').textContent() === '8 kWp' && (await p.locator('[data-review-detail="capacity"] .qrw-key-detail-status').textContent()).includes('verify against design') && await p.locator('[data-review-detail="customerType"] .qrw-key-detail-value').textContent() === 'Commercial' && (await p.locator('[data-review-detail="customerType"] .qrw-key-detail-status').textContent()).includes('Selected · confirm category'));
     await close();
     await p.fill('#custAddress', ''); await p.fill('#capacity', '7'); await p.selectOption('#customerType', 'residential');
     await p.waitForFunction(() => !Render.lastState.custAddress && Number(Render.lastState.capacity) === 7 && Render.lastState.customerType === 'residential');

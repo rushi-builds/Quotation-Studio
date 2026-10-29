@@ -52,8 +52,13 @@
 .qrw-blocking .qrw-finding{border-color:#efd8d5;border-left-color:#c1766a;background:#fdf9f8;}
 .qrw-blocking .qrw-count{color:#91483d;background:#f7e7e3;}
 .qrw-advisory .qrw-finding{border-color:#eadfcf;border-left-color:#cbad7e;background:#fdfbf8;}
-.qrw-clear{border:1px solid #dce5ec;background:#f8fafc;border-radius:10px;padding:17px;margin-bottom:22px;}
-.qrw-clear h3{margin-top:6px;}
+.qrw-clear,.qrw-attention-summary{border:1px solid #dce5ec;background:#f8fafc;border-radius:10px;padding:17px;margin-bottom:22px;}
+.qrw-clear h3,.qrw-attention-summary h3{margin-top:6px;}
+.qrw-attention-summary{border-color:#eadfcf;background:#fdfbf8;}
+.qrw-attention-summary .qrw-count{color:#80663f;background:#f3eadb;}
+.qrw-attention-summary.qrw-attention-blocked{border-color:#efd8d5;border-left:3px solid #c1766a;background:#fdf9f8;}
+.qrw-attention-summary.qrw-attention-blocked .qrw-count{color:#91483d;background:#f7e7e3;}
+.qrw-attention-summary .qrw-muted{margin-top:6px;}
 .qrw-key-details{margin:0 0 23px;}
 .qrw-key-details>h3{margin-bottom:4px;}
 .qrw-key-detail-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px;}
