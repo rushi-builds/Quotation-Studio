@@ -1,0 +1,48 @@
+/* Workspace first-fold styles; loaded last to protect the mobile preview cascade. */
+/* Preview iteration 2 — deliberately bolder first-fold hierarchy for phones. */
+@media(max-width:1100px){
+  .form-panel.studio-ready{padding:14px 16px 18px;background:#f7f9fc;}
+  .studio-heading{margin-bottom:12px;}
+  .studio-heading .brand-row{margin-bottom:7px;}
+  .studio-heading .brand-row img{height:36px;}
+  .studio-heading .save-flag{padding:6px 9px;border:1px solid #d9e9e1;background:#f2f8f5;font-size:9px;white-space:nowrap;}
+  .studio-heading .app-title{font-size:21px;letter-spacing:-.7px;gap:9px;}
+  .studio-edition{font-size:7px;letter-spacing:1.25px;}
+  .studio-heading .app-sub{display:flex;flex-wrap:wrap;align-items:center;gap:3px 7px;margin-top:5px;font-size:10.5px;line-height:1.55;}
+  .catalogue-status-link{font-size:9px;padding:1px 0;}
+  .studio-cloud-bar{gap:7px;margin:0 0 11px;padding:0;border:0;background:transparent;flex-wrap:nowrap;}
+  .cloud-dash-link{padding:5px 9px;border-color:#e1e7ee;border-radius:999px;background:#fff;font-size:10px;font-weight:600;}
+  .cloud-chip{padding:5px 9px;border:1px solid #e3e8ef;background:#fff;font-size:9px;font-weight:600;}
+  .studio-cloud-bar .link-btn{padding:5px 9px;font-size:9px;}
+  .studio-overview-bar{padding-bottom:12px;}
+  .studio-overview{position:relative;isolation:isolate;overflow:hidden;padding:15px;border:1px solid #314e67;border-radius:17px;background:linear-gradient(130deg,#132c42 0%,#214762 100%);box-shadow:0 10px 24px #18324920;}
+  .studio-overview::after{content:"";position:absolute;z-index:-1;right:-25px;top:-75px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,#f2811d38 0,transparent 70%);pointer-events:none;}
+  .studio-overview-top{margin-bottom:13px;font-size:7.5px;letter-spacing:1.3px;}
+  .studio-page-count{font-size:9px;}
+  .studio-metrics{grid-template-columns:1fr 1fr;gap:11px 0;}
+  .studio-metrics div:first-child{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 0 11px;border:0;border-bottom:1px solid #ffffff26;}
+  .studio-metrics div:first-child small{margin:0;font-size:9px;}
+  .studio-metrics div:first-child strong{font-size:28px;letter-spacing:-.8px;}
+  .studio-metrics div+div{padding-left:0;}
+  .studio-metrics div:nth-child(3){padding-left:12px;border-left:1px solid #ffffff26;}
+  .studio-metrics small{margin-bottom:5px;font-size:8px;line-height:1.4;}
+  .studio-metrics strong{font-size:14px;letter-spacing:-.3px;}
+  .studio-ready .form-mode{gap:4px;margin-bottom:9px;padding:4px;border:1px solid #e3e9f0;border-radius:11px;background:#eef2f6;}
+  .studio-ready .form-mode .fm-btn{min-height:42px;border-radius:8px;font-size:11px;}
+  .studio-ready .form-mode .fm-btn.active{background:#fff;color:#1f3a52;box-shadow:0 2px 7px #19344c12;}
+  .studio-ready .form-mode .fm-hint{padding-top:6px;font-size:9px;}
+  .studio-search{margin-bottom:12px;}
+  .studio-search-box{border-color:#dfe6ee;border-radius:11px;box-shadow:0 2px 8px #203b5307;}
+  .studio-search-box>span{font-size:22px;}
+  .studio-search-box input{font-size:12px;}
+  .form-panel.studio-ready .qrw-launch{gap:10px;margin-bottom:14px;padding:13px;border:1px solid #f0d1b0;border-left:4px solid #e98330;border-radius:13px;background:linear-gradient(105deg,#fff8f0,#fff 68%);box-shadow:0 6px 16px #9d612015;}
+  .form-panel.studio-ready .qrw-launch-icon{width:38px;height:38px;background:#fff0df;border-color:#f5dec4;color:#a95f20;}
+  .form-panel.studio-ready .qrw-launch strong{font-size:12px;}
+  .form-panel.studio-ready .qrw-launch small{font-size:9.5px;}
+  .form-panel.studio-ready .qrw-launch-arrow{display:grid;width:30px;height:30px;place-items:center;border-radius:50%;background:#e98330;color:#fff;font-size:17px;}
+  .studio-ready .prop-manager{padding:12px;border-color:#dce5ed;border-left:3px solid #91aec5;border-radius:12px;box-shadow:0 3px 10px #203b5306;}
+  .studio-ready .prop-manager>legend{font-size:8.5px;letter-spacing:1.05px;}
+  .studio-ready #proposalSelect{border-color:#dfe6ee;border-radius:9px;background:#fbfcfe;font-size:11px;}
+  .studio-presets{margin-bottom:12px;}
+  .studio-management>summary,.studio-presets>summary{min-height:38px;font-size:10.5px;}
+}

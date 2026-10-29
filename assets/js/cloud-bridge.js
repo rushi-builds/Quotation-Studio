@@ -214,7 +214,7 @@
       savedSnapshots.set(localId, snapshot);
       const unsaved = hasUnsavedChanges();
       if (!unsaved && root.Proposals.activeId() === localId) await markCleanLocal(localId);
-      setChip(unsaved ? 'sync' : 'on', unsaved ? 'Unsaved changes' : 'Saved in cloud');
+      setChip(unsaved ? 'sync' : 'on', unsaved ? 'Cloud changes pending' : 'Saved in cloud');
       if (!quiet) setStatus('Saved to cloud · ' + (result.proposal.ref || result.proposal.title || cloudId));
       /* Keep ?cloud= in the URL so the next save updates the same row. */
       try {
@@ -403,7 +403,7 @@
       if (opening || savePending || !e.target.closest('#quoteForm')) return;
       // Do not serialize image-heavy payloads on every keystroke. Exact dirty
       // comparison is deferred until save/navigation decisions.
-      setChip('sync', 'Unsaved changes');
+      setChip('sync', 'Cloud changes pending');
     };
     document.addEventListener('input', markDirty);
     document.addEventListener('change', markDirty);

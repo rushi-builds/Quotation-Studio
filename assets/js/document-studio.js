@@ -436,5 +436,37 @@
  function searchEntries(){const result=[];for(const [pageId,sample] of samples){if(pageId.startsWith('power'))continue;const page=pageList().find(p=>p.id===pageId);if(!page)continue;for(const t of sample.texts){if(t.locked)continue;result.push({label:t.label,section:page.title+' › Page text',activate(){report='full';selected=pageId;$('advancedPanel').open=true;buildEditor();const row=[...$('documentStudio').querySelectorAll('[data-doc-text-key]')].find(e=>e.dataset.docTextKey===t.key);if(row){row.closest('details').open=true;row.scrollIntoView({block:'center'});row.querySelector('textarea').focus({preventScroll:true});}}});}}return result;}
  const loadedImages=new Set();let imageFrame=0;
  document.addEventListener('load',event=>{const image=event.target;if(!hasEdits()||!image.matches?.('.preview-panel img,#sharePages img')||!image.complete||!image.naturalWidth||loadedImages.has(image.currentSrc||image.src))return;loadedImages.add(image.currentSrc||image.src);cancelAnimationFrame(imageFrame);imageFrame=requestAnimationFrame(()=>root.Render.renderAll(root.QS_SHARE?root.Render.lastState:undefined));},true);
- root.DocumentStudio={searchEntries,inventory:id=>samples.get(id),setText,addTextBlock,hideBlock:(id,key)=>edit(id,v=>{v.hidden=[...new Set([...(v.hidden||[]),key])];}),excludePage:(id,excluded)=>edit(id,(v,c)=>{c.excluded=!!excluded;}),exportPdf:exportDocument,refresh:refreshEditor,hasEdits,scan,store,errors:format=>(format==='power'?powerErrors:layoutErrors).slice(),restorePage:id=>edit(id,(v,c)=>{c.excluded=false;c.variants={};})};
+ // Read-only presentation metadata for the builder review centre. Counts use
+ // the same scoped variants, visibility and pagination as the document editor.
+ function overview(format='full'){
+  const state=root.Render.lastState||{},power=format==='power';
+  let host,rendered,titles=new Map();
+  if(power){
+   const canonical=canonicalPower(state);
+   try{[...canonical.children].forEach((p,i)=>titles.set('power'+(i+1),p.querySelector('h1')?.textContent||'Power '+(i+1)));}finally{canonical.remove();}
+   host=powerDocument();rendered=[...host.children].map((p,i)=>({id:p.dataset.docKey||p.dataset.docOrigin+'-continuation-'+i,origin:p.dataset.docOrigin||p.dataset.docKey,number:i+1,continuation:!!p.dataset.docOrigin}));
+  }else rendered=(root.Render.lastVisible||[]).filter(p=>belongs(p,format)).map((p,i)=>({id:p.id,origin:p.id.replace(/-continuation-\d+$/,''),number:i+1,continuation:/-continuation-\d+$/.test(p.id)}));
+  try{
+   const pages=power?[...Array.from({length:6},(_,i)=>({id:'power'+(i+1),title:titles.get('power'+(i+1))})),...customPages().filter(p=>p.format==='power')]:pageList().filter(p=>belongs(p,format));
+   const rows=pages.map(p=>{
+    const v=variant(p.id),excluded=!!config(p.id).excluded,enabled=power||sourceEnabled(p.id,state);
+    const renderedPages=rendered.filter(r=>r.origin===p.id);
+    return {id:p.id,title:p.title,excluded,enabled,included:renderedPages.length>0,custom:customPages().some(c=>c.id===p.id),
+     textOverrides:Object.keys(v.texts).length,removedBlocks:v.hidden.length,addedBlocks:v.blocks.length,
+     edited:!!(Object.keys(v.texts).length||v.hidden.length||v.blocks.length),
+     pages:renderedPages};
+   });
+   return {format,total:rendered.length,rows,errors:(power?powerErrors:layoutErrors).map(e=>({message:e.message}))};
+  }finally{host?.remove();}
+ }
+ function openEditor(id,format='full'){
+  const panel=$('advancedPanel');if(!panel||!$('documentStudio'))return false;
+  const source=String(id).replace(/-continuation-\d+$/,'');
+  const valid=format==='power'?/^power[1-6]$/.test(source)||customPages().some(p=>p.id===source&&p.format==='power'):pageList().some(p=>p.id===source);
+  if(!valid)return false;
+  report=format==='power'?'power':'full';selected=source;
+  root.__qsPreflight?.reveal?.('advancedPanel');panel.open=true;buildEditor();
+  const picker=$('documentStudio').querySelector('[aria-label="Page to edit"]');picker?.scrollIntoView({block:'center',behavior:'instant'});picker?.focus({preventScroll:true});return true;
+ }
+ root.DocumentStudio={overview,openEditor,searchEntries,inventory:id=>samples.get(id),setText,addTextBlock,hideBlock:(id,key)=>edit(id,v=>{v.hidden=[...new Set([...(v.hidden||[]),key])];}),excludePage:(id,excluded)=>edit(id,(v,c)=>{c.excluded=!!excluded;}),exportPdf:exportDocument,refresh:refreshEditor,hasEdits,scan,store,errors:format=>(format==='power'?powerErrors:layoutErrors).slice(),restorePage:id=>edit(id,(v,c)=>{c.excluded=false;c.variants={};})};
 })(window);
