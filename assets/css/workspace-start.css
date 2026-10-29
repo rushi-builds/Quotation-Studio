@@ -1,6 +1,6 @@
 /* Workspace first-fold styles; loaded last to protect the mobile preview cascade. */
 /* Preview iteration 2 — deliberately bolder first-fold hierarchy for phones. */
-@media(max-width:760px){
+@media(max-width:1100px){
   .form-panel.studio-ready{padding:14px 16px 18px;background:#f7f9fc;}
   .studio-heading{margin-bottom:12px;}
   .studio-heading .brand-row{margin-bottom:7px;}
