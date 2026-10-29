@@ -1,7 +1,7 @@
-/* Real review-format interaction + persisted editor-state ownership regression.
- * Local browser data only; no production access, auth or API writes. */
+/* Local Excel snapshot export + PDF-selector ownership and persisted editor-state QA.
+ * Browser-only snapshot; no production access, auth or API writes. */
 'use strict';
-const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path');
+const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
 const { chromium, devices } = require('playwright');
 const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
 (async () => {
@@ -22,7 +22,7 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     });
     const p = await ctx.newPage(); p.on('pageerror', e => errors.push(e.message));
     await p.goto(base + '/quotation.html'); await p.waitForSelector('#proposalReviewButton');
-    await p.evaluate(() => document.fonts.ready);
+    await p.evaluate(async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
     return { ctx, p };
   }
   async function open(p, touch = false) {
@@ -38,36 +38,32 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
   try {
     const { ctx, p } = await context();
     await p.evaluate(() => { window.__originalFormat = pdfFormat; window.__formatParent = pdfFormat.parentNode; window.__formatNext = pdfFormat.nextSibling; });
-    const original = await snapshot(p);
-    await open(p); await p.click('#qrwChangeFormat');
-    check('format button reveals the ONE original selector without closing review', await p.evaluate(() => proposalReviewDialog.open && document.querySelector('#qrwFormatControl #pdfFormat') === __originalFormat && document.querySelectorAll('#pdfFormat').length === 1 && document.activeElement === __originalFormat));
-    await p.selectOption('#pdfFormat', 'power');
-    await p.waitForFunction(() => document.querySelector('.qrw-sheet-total strong').textContent === '6');
-    check('Power selection updates the real format, label and review count', await p.evaluate(() => pdfFormat.value === 'power' && downloadLabel.textContent.includes('6 Pages') && document.querySelector('#qrwChangeFormat').getAttribute('aria-expanded') === 'true'));
-    check('count/status refresh keeps the selector connected and focused', await p.evaluate(() => document.activeElement === __originalFormat && __originalFormat.isConnected));
-    await p.screenshot({ path: path.join(folder, 'format-desktop.png') });
-    await close(p);
-    check('close restores exact selector position/listeners and selected format', await p.evaluate(() => pdfFormat === __originalFormat && pdfFormat.parentNode === __formatParent && pdfFormat.nextSibling === __formatNext && pdfFormat.value === 'power' && !pdfFormat.hasAttribute('aria-labelledby')));
-    assert.deepEqual(await snapshot(p), original); check('choosing output format does not change quote, CONTENT, Finance or A4 markup', true);
-    await open(p); await p.click('#qrwChangeFormat'); await p.selectOption('#pdfFormat', 'full');
-    await p.waitForFunction(() => document.querySelector('.qrw-sheet-total strong').textContent === String(Render.lastVisible.length));
-    await p.click('#qrwChangeFormat');
-    check('toggle collapse restores selector while keeping modal open', await p.evaluate(() => proposalReviewDialog.open && pdfFormat.parentNode === __formatParent && document.querySelector('#qrwChangeFormat').getAttribute('aria-expanded') === 'false'));
-    await p.click('#qrwChangeFormat'); await p.keyboard.press('Escape');
-    await p.waitForFunction(() => !proposalReviewDialog.open);
-    check('Escape cannot strand the real selector inside closed modal', await p.evaluate(() => pdfFormat.parentNode === __formatParent));
-    await open(p); await p.click('#qrwChangeFormat'); await p.locator('[data-review-source="custName"]').click();
-    check('source navigation restores PDF control before focusing original input', await p.evaluate(() => !proposalReviewDialog.open && document.activeElement === custName && pdfFormat.parentNode === __formatParent));
-    await p.fill('#custName', 'Format QA');
-    // Prove an actual download uses the format selected inside the review.
-    await open(p); await p.click('#qrwChangeFormat'); await p.selectOption('#pdfFormat', 'power');
-    await p.waitForFunction(() => document.querySelector('.qrw-sheet-total strong').textContent === '6'); await close(p);
+    await p.fill('#custName', '=HYPERLINK("https://invalid.invalid","click")');
+    await p.waitForFunction(() => Render.lastState.custName.startsWith('='));
+    await p.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const beforeExport = await snapshot(p);
+    await open(p);
+    check('review offers a distinct Excel snapshot and keeps the sole PDF selector in the original footer', await p.locator('#qrwExportSpreadsheet').count() === 1 && await p.locator('#pdfFormat').count() === 1 && await p.locator('#pdfFormat').evaluate(n => n.parentNode === __formatParent && n.nextSibling === __formatNext) && await p.locator('#qrwChangeFormat').count() === 0);
+    check('snapshot preview reflects current PDF output and page count', await p.locator('.qrw-sheet-total strong').textContent() === String(await p.evaluate(() => Render.lastVisible.length)) && (await p.locator('#qrwSpreadsheetHelp').textContent()).includes('finance estimates'));
+    await p.screenshot({ path: path.join(folder, 'excel-snapshot-desktop.png') });
+    const csvDownload = p.waitForEvent('download'); await p.click('#qrwExportSpreadsheet');
+    const csvFile = await csvDownload, csvPath = path.join(folder, 'quotation-review.csv'); await csvFile.saveAs(csvPath);
+    const csvBuffer = fs.readFileSync(csvPath), csv = csvBuffer.toString('utf8'), plainCsv = csv.replace(/^\uFEFF/, '');
+    check('Excel-ready CSV contains live quote, finance estimates, checks and page manifest', csv.startsWith('\uFEFF') && plainCsv.includes('"Customer","\'=HYPERLINK') && plainCsv.includes('FINANCE ENGINE OUTPUT') && plainCsv.includes('EXISTING REVIEW CHECKS') && plainCsv.includes('PROPOSAL PAGE MANIFEST'));
+    const integrityPrefix = '\r\n"INTEGRITY","SHA-256 of all preceding rows","';
+    const integrityAt = plainCsv.lastIndexOf(integrityPrefix), hashStart = integrityAt + integrityPrefix.length, expectedHash = plainCsv.slice(hashStart, hashStart + 64);
+    check('export includes verifiable SHA-256 fingerprint of the exact CSV snapshot', integrityAt > 0 && /^[0-9a-f]{64}$/.test(expectedHash) && crypto.createHash('sha256').update(plainCsv.slice(0, integrityAt + 2), 'utf8').digest('hex') === expectedHash);
+    await close(p); assert.deepEqual(await snapshot(p), beforeExport); check('spreadsheet export changes no quote, CONTENT, Finance or A4 markup', true);
+    check('closing review preserves exact PDF selector position', await p.evaluate(() => pdfFormat === __originalFormat && pdfFormat.parentNode === __formatParent && pdfFormat.nextSibling === __formatNext));
+    await p.selectOption('#pdfFormat', 'power'); await p.waitForFunction(() => downloadLabel.textContent.includes('6 Pages'));
+    await open(p); check('existing footer selector still controls the selected output in review', await p.locator('#pdfFormat').inputValue() === 'power' && await p.locator('.qrw-sheet-total strong').textContent() === '6'); await close(p);
     const download = p.waitForEvent('download', { timeout: 120000 });
     await p.locator('#downloadBtn').scrollIntoViewIfNeeded(); await p.click('#downloadBtn');
     const pdf = await download; const pdfPath = path.join(folder, 'selected-power.pdf'); await pdf.saveAs(pdfPath);
     const bytes = fs.readFileSync(pdfPath), text = bytes.toString('latin1');
-    check('actual Download button generates a real six-page PDF from selected Power format', bytes.subarray(0, 5).toString() === '%PDF-' && (text.match(/\/Type \/Page\b/g) || []).length === 6 && bytes.length > 10000);
+    check('actual Download button still generates a real six-page Power PDF', bytes.subarray(0, 5).toString() === '%PDF-' && (text.match(/\/Type \/Page\b/g) || []).length === 6 && bytes.length > 10000);
     await p.waitForFunction(() => !downloadBtn.disabled);
+    await p.fill('#custName', 'Format QA');
     // Point 6: real content-editor input, save, reload and JSON backup.
     await p.evaluate(() => DocumentStudio.openEditor('pageAbout'));
     const key = await p.evaluate(() => DocumentStudio.inventory('pageAbout').texts.find(t => !t.locked && t.node.parentElement.id === 'v_abHeading').key);
@@ -99,14 +95,14 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     await ctx.close();
     for (const [name, options] of [['android', devices['Pixel 7']], ['small-iphone', devices['iPhone SE']], ['tablet', devices['iPad (gen 7) landscape']]]) {
       const { ctx, p } = await context(options);
-      await open(p, true); await p.locator('#qrwChangeFormat').scrollIntoViewIfNeeded(); await p.locator('#qrwChangeFormat').tap();
-      await p.selectOption('#pdfFormat', 'power');
-      await p.waitForFunction(() => document.querySelector('.qrw-sheet-total strong').textContent === '6');
-      check(name + ': real tap opens native source selector and format updates in-place', await p.evaluate(() => proposalReviewDialog.open && document.querySelector('#qrwFormatControl #pdfFormat').value === 'power' && document.querySelectorAll('#pdfFormat').length === 1));
-      check(name + ': touch selector is readable and fits the modal', await p.locator('#pdfFormat').evaluate(n => { const r = n.getBoundingClientRect(), body = n.closest('.qrw-body'); return parseFloat(getComputedStyle(n).fontSize) >= 16 && r.height >= 44 && r.left >= 0 && r.right <= innerWidth && body.scrollWidth <= body.clientWidth + 1; }));
-      await p.screenshot({ path: path.join(folder, name + '-format.png') });
-      await close(p); check(name + ': close returns selected format to builder footer', await p.locator('.form-actions #pdfFormat').count() === 1 && await p.locator('#pdfFormat').inputValue() === 'power');
-      await ctx.close();
+      await open(p, true); await p.locator('#qrwExportSpreadsheet').scrollIntoViewIfNeeded();
+      check(name + ': Excel snapshot card fits the review without horizontal overflow', await p.locator('#qrwSpreadsheetCard').evaluate(n => { const r=n.getBoundingClientRect(), body=n.closest('.qrw-body'); return r.left >= 0 && r.right <= innerWidth && body.scrollWidth <= body.clientWidth + 1; }));
+      check(name + ': spreadsheet export has touch-friendly target and explicit local status', await p.locator('#qrwExportSpreadsheet').evaluate(n => n.getBoundingClientRect().height >= 44) && await p.locator('#qrwSpreadsheetStatus').getAttribute('aria-live') === 'polite');
+      await p.screenshot({ path: path.join(folder, name + '-excel-snapshot.png') });
+      const mobileExport = p.waitForEvent('download'); await p.locator('#qrwExportSpreadsheet').tap();
+      const mobileFile = await mobileExport;
+      check(name + ': real tap downloads an Excel-ready CSV without moving PDF selector', mobileFile.suggestedFilename().endsWith('.csv') && await p.locator('#pdfFormat').evaluate(n => n.closest('.form-actions') !== null) && await p.locator('#pdfFormat').count() === 1);
+      await close(p); await ctx.close();
     }
     check('zero browser errors', errors.length === 0); check('zero API/auth writes', writes.length === 0);
     console.log('RESULT:', count, 'PASS. Chromium emulation, not physical iOS/Safari certification.');

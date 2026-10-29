@@ -1,5 +1,5 @@
-/* Builder-only review workspace. Read existing preflight/document metadata;
- * never own a quote value, approve engineering, save, publish or export. */
+/* Builder-only review workspace. Reads current quote/preflight/document data;
+ * never owns quote values or approval. Spreadsheet export is local-only. */
 'use strict';
 (function () {
   const $ = id => document.getElementById(id);
@@ -34,7 +34,7 @@
     const heading = el('h2', '', 'Before you share.'); heading.id = 'proposalReviewTitle'; title.append(heading);
     const description = el('p', '', 'Review the current inputs and see exactly which pages are included.');
     description.id = 'proposalReviewDescription'; title.append(description);
-    const close = button('×', () => { restoreFormat(); dialog.close(); }, 'qrw-close'); close.setAttribute('aria-label', 'Close proposal review');
+    const close = button('×', () => dialog.close(), 'qrw-close'); close.setAttribute('aria-label', 'Close proposal review');
     header.append(title, close);
     const context = el('div', 'qrw-context'), reference = el('strong'), customer = el('span');
     context.append(reference, customer);
@@ -60,43 +60,105 @@
     pagesPanel.append(pageHeading, pageIntro, filterLabel, pageFilter, pageCount, pageList);
     main.append(reviewPanel, pagesPanel); body.append(main, sidebar);
     const footer = el('footer', 'qrw-footer');
-    footer.append(el('p', '', 'Input checks are not engineering approval, subsidy approval or a guarantee of site performance.'), button('Back to builder', () => { restoreFormat(); dialog.close(); }));
+    footer.append(el('p', '', 'Input checks are not engineering approval, subsidy approval or a guarantee of site performance.'), button('Back to builder', () => dialog.close()));
     shell.append(header, context, tabs, body, footer); dialog.append(shell); document.body.append(dialog);
 
     let activeTab = 'review', model, restoreFocus = true, pending = 0, returnTo = launcher;
-    // Reuse the ONE real PDF selector. Moving it preserves its original
-    // listeners and option availability; no mirror select or quote value.
-    const formatSelect = $('pdfFormat'), formatParent = formatSelect.parentNode, formatNext = formatSelect.nextSibling;
+    // PDF format remains in its original builder footer. This sidebar slot
+    // provides a distinct, local-only Excel-compatible quotation snapshot.
     const outputTitle = el('h3'), sheetTotal = el('strong'), total = el('div', 'qrw-sheet-total');
     total.append(sheetTotal, el('span', '', 'A4 sheets'));
     const outputMetrics = el('dl', 'qrw-output-metrics');
-    const formatControl = el('div', 'qrw-format-control'); formatControl.id = 'qrwFormatControl'; formatControl.hidden = true;
-    const formatLabel = el('label', '', 'PDF format'); formatLabel.id = 'qrwFormatLabel'; formatLabel.htmlFor = 'pdfFormat';
-    const formatHelp = el('p', 'qrw-muted', 'Changes the current download choice. Nothing is saved, published or downloaded.');
-    formatControl.append(formatLabel, formatHelp);
-    let formatExpanded = false, previousFormatLabel;
-    const formatToggle = button('Change PDF format', () => {
-      if (formatExpanded) { restoreFormat(); formatToggle.focus(); }
-      else {
-        formatExpanded = true; formatControl.hidden = false; formatToggle.setAttribute('aria-expanded', 'true');
-        previousFormatLabel = formatSelect.getAttribute('aria-labelledby');
-        formatSelect.setAttribute('aria-labelledby', formatLabel.id);
-        formatLabel.after(formatSelect); formatSelect.focus({ preventScroll: true });
-        formatControl.scrollIntoView({ block: 'nearest', behavior: 'instant' });
-      }
-    });
-    formatToggle.id = 'qrwChangeFormat'; formatToggle.setAttribute('aria-controls', formatControl.id); formatToggle.setAttribute('aria-expanded', 'false');
+    const spreadsheetCard = el('section', 'qrw-spreadsheet-card'); spreadsheetCard.id = 'qrwSpreadsheetCard';
+    spreadsheetCard.append(el('span', 'qrw-eyebrow', 'LIVE QUOTE SNAPSHOT'), el('h3', '', 'Excel review sheet'));
+    const spreadsheetHelp = el('p', 'qrw-muted', 'Download current quotation inputs, finance estimates, existing review checks and page list as an Excel-ready CSV.');
+    spreadsheetHelp.id = 'qrwSpreadsheetHelp'; spreadsheetCard.append(spreadsheetHelp);
+    const spreadsheetButton = button('', () => { void exportSpreadsheet(); }, 'qrw-export-button');
+    const spreadsheetIcon = el('span', 'qrw-export-icon'); spreadsheetIcon.setAttribute('aria-hidden', 'true');
+    spreadsheetIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h10l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20z"/><path d="M15 3.5V8h4M8 11h8M8 14.5h8M8 18h8"/></svg>';
+    spreadsheetButton.append(spreadsheetIcon, el('span', '', 'Download review sheet'), el('span', 'qrw-file-badge', 'CSV'));
+    spreadsheetButton.id = 'qrwExportSpreadsheet'; spreadsheetButton.setAttribute('aria-label', 'Download Excel-ready review sheet as CSV'); spreadsheetButton.setAttribute('aria-describedby', spreadsheetHelp.id);
+    const spreadsheetMeta = el('span', 'qrw-spreadsheet-meta', 'Inputs · estimates · checks · page manifest');
+    const spreadsheetStatus = el('p', 'qrw-spreadsheet-status', 'Generated in this browser only. Nothing is uploaded or saved to the quotation.');
+    spreadsheetStatus.id = 'qrwSpreadsheetStatus'; spreadsheetStatus.setAttribute('role', 'status'); spreadsheetStatus.setAttribute('aria-live', 'polite');
+    spreadsheetCard.append(spreadsheetButton, spreadsheetMeta, spreadsheetStatus);
     const saveContext = el('div', 'qrw-save-context'), saveText = el('p');
     saveContext.append(el('span', 'qrw-eyebrow', 'SAVE STATUS'), saveText);
     const powerHint = el('p', 'qrw-muted', 'Power is a separate report. Open its editor to view the existing Power preview.'); powerHint.hidden = true;
-    sidebar.append(el('span', 'qrw-eyebrow', 'SELECTED PDF OUTPUT'), outputTitle, total, outputMetrics, formatToggle, formatControl,
-      saveContext, el('p', 'qrw-muted', 'Uses the current builder inputs and existing document checks. Review does not save, publish or download anything.'), powerHint);
-    function restoreFormat() {
-      if (!formatExpanded) return;
-      formatParent.insertBefore(formatSelect, formatNext?.parentNode === formatParent ? formatNext : null);
-      if (previousFormatLabel === null) formatSelect.removeAttribute('aria-labelledby');
-      else formatSelect.setAttribute('aria-labelledby', previousFormatLabel);
-      formatExpanded = false; formatControl.hidden = true; formatToggle.setAttribute('aria-expanded', 'false');
+    sidebar.append(el('span', 'qrw-eyebrow', 'SELECTED PDF OUTPUT'), outputTitle, total, outputMetrics, spreadsheetCard,
+      saveContext, el('p', 'qrw-muted', 'Uses the current builder inputs and existing document checks. The spreadsheet is a local snapshot, not an approval or a saved quotation.'), powerHint);
+
+    function csvCell(value) {
+      if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+      let text = value == null ? '' : String(value);
+      // Prevent spreadsheet formula execution from customer-entered text.
+      if (/^[\u0000-\u0020\u00a0\u2000-\u200a]*[=+@-]/.test(text)) text = "'" + text;
+      return '"' + text.replace(/"/g, '""') + '"';
+    }
+    function spreadsheetRows() {
+      const s = window.Render.lastState || {};
+      let finance = {};
+      try { finance = window.Finance?.compute ? window.Finance.compute(s) : {}; } catch (_) { /* Keep the source-value export available if estimates are invalid. */ }
+      const selectedCategory = $('customerType')?.selectedOptions?.[0]?.textContent || s.customerType || '';
+      const selectedOutput = $('pdfFormat')?.selectedOptions?.[0]?.textContent || 'Detailed proposal';
+      const finite = value => value === '' || value == null ? '' : Number.isFinite(Number(value)) ? Number(value) : '';
+      const rows = [
+        ['QUOTATION STUDIO', 'LIVE REVIEW SNAPSHOT'],
+        ['Generated (UTC)', new Date().toISOString()],
+        ['Source', 'Current builder inputs · generated locally · no upload'],
+        [],
+        ['QUOTE DETAILS'],
+        ['Reference', s.propRef || 'Not assigned'], ['Version', s.propVersion || '1.0'],
+        ['Proposal date', s.propDate || 'Not entered'], ['Customer', s.custName || 'Not entered'],
+        ['Site address', s.custAddress || 'Not entered'], ['Customer category', selectedCategory],
+        ['System capacity (kWp)', finite(s.capacity)], ['Solar module make', s.moduleMake || 'Not selected'],
+        ['Solar module model', s.moduleModel || 'Not selected'], ['Solar module rating (Wp)', finite(s.moduleWattage)],
+        ['Inverter make', s.inverterMake || 'Not selected'], ['Inverter model', s.inverterModel || 'Not selected'],
+        ['Inverter rating (kW)', finite(s.inverterKw)], ['Selected PDF output', selectedOutput],
+        ['Included A4 sheets', finite(model?.total)], [],
+        ['FINANCE ENGINE OUTPUT · ESTIMATES · INR'],
+        ['Gross project total', finite(finance.grossTotal)], ['Estimated subsidy', finite(finance.subsidy)],
+        ['Estimated net investment', finite(finance.netInvestment)],
+        ['Note', 'Current finance-engine estimates only. Verify assumptions, eligibility and terms in the proposal.'], [],
+        ['EXISTING REVIEW CHECKS'], ['Type', 'Message']
+      ];
+      for (const issue of model?.blocking || []) rows.push(['PDF blocker', issue.message]);
+      for (const issue of model?.advisory || []) rows.push(['Advisory', issue.message]);
+      for (const issue of model?.notes || []) rows.push(['Engineering input note', issue.message]);
+      if (!model?.blocking?.length) rows.push(['PDF blocker', 'None reported by existing checks']);
+      if (!model?.advisory?.length) rows.push(['Advisory', 'None reported by existing checks']);
+      rows.push([], ['PROPOSAL PAGE MANIFEST'], ['Page', 'Included in selected output', 'A4 sheet numbers', 'Saved presentation edits']);
+      for (const page of model?.rows || []) {
+        rows.push([page.title, page.included ? 'Yes' : 'No', (page.pages || []).map(p => p.number).filter(Number.isFinite).join(', '), editSummary(page)]);
+      }
+      return rows;
+    }
+    async function exportSpreadsheet() {
+      spreadsheetButton.disabled = true; spreadsheetStatus.textContent = 'Building the live snapshot and calculating its SHA-256 fingerprint…';
+      let objectUrl;
+      try {
+        const rows = spreadsheetRows();
+        const content = rows.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
+        let digest = 'not available';
+        if (window.crypto?.subtle && window.TextEncoder) {
+          const bytes = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));
+          digest = [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+        const csv = '\ufeff' + content + [
+          ['INTEGRITY', 'SHA-256 of all preceding rows', digest].map(csvCell).join(',')
+        ].join('\r\n') + '\r\n';
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); objectUrl = URL.createObjectURL(blob);
+        const link = el('a');
+        const ref = String(window.Render.lastState?.propRef || 'quotation').toLocaleLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'quotation';
+        link.href = objectUrl; link.download = 'quotation-review-' + ref + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+        document.body.append(link); link.click(); link.remove();
+        spreadsheetStatus.textContent = 'Downloaded ' + link.download + ' · SHA-256 ' + (digest === 'not available' ? digest : digest.slice(0, 16) + '…') + ' · no data uploaded.';
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+      } catch (error) {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        spreadsheetStatus.textContent = 'Snapshot could not be created. Your quotation has not been changed.';
+        console.error('Quotation spreadsheet snapshot failed:', error);
+      } finally { spreadsheetButton.disabled = false; }
     }
 
     function selectTab(key) {
@@ -112,7 +174,7 @@
       const key = event.key === 'Home' ? 'review' : event.key === 'End' ? 'pages' : activeTab === 'review' ? 'pages' : 'review';
       selectTab(key); (key === 'review' ? reviewTab : pagesTab).focus();
     });
-    function navigate(action) { restoreFocus = false; restoreFormat(); dialog.close(); action(); }
+    function navigate(action) { restoreFocus = false; dialog.close(); action(); }
     function viewPage(id) {
       const index = window.Render.lastVisible.findIndex(p => p.id === id);
       if (index < 0) return;
@@ -157,6 +219,51 @@
       const issues = window.__qsPreflight.issues();
       return { ...output, blocking: issues.blocking || [], advisory: issues.advisory || [], notes: window.__qsPreflight.notes?.() || [] };
     }
+    function keyDetailRows() {
+      const state = window.Render.lastState || {};
+      const defaults = window.StateStore?.DEFAULTS || {};
+      const same = (id) => String(state[id] ?? '').trim().toLocaleLowerCase() === String(defaults[id] ?? '').trim().toLocaleLowerCase();
+      const isTemplateCapacity = Number(state.capacity) > 0 && Number(state.capacity) === Number(defaults.capacity);
+      const capacity = Number(state.capacity) > 0 && Number.isFinite(Number(state.capacity))
+        ? Number(state.capacity).toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp'
+        : (state.capacity ? String(state.capacity) : 'Not entered');
+      const customerName = String(state.custName || '').trim();
+      const siteAddress = String(state.custAddress || '').trim();
+      const moduleMake = String(state.moduleMake || '').trim(), moduleModel = String(state.moduleModel || '').trim();
+      const inverterMake = String(state.inverterMake || '').trim(), inverterModel = String(state.inverterModel || '').trim();
+      const module = [moduleMake || 'Make not selected', moduleModel || 'Model not selected', state.moduleWattage ? state.moduleWattage + ' Wp' : 'Rating not entered'].join(' · ');
+      const inverter = [inverterMake || 'Make not selected', inverterModel || 'Model not selected'].join(' · ');
+      const customerType = $('customerType')?.selectedOptions?.[0]?.textContent || String(state.customerType || 'Not selected');
+      const defaultModule = ['moduleMake', 'moduleModel', 'moduleWattage', 'moduleTech'].every(same);
+      const defaultInverter = ['inverterMake', 'inverterModel'].every(same);
+      return [
+        { id: 'custName', label: 'Customer name', value: customerName || 'Not entered', status: customerName ? 'Entered · check spelling' : 'Required · add before sharing', tone: customerName ? 'attention' : 'missing' },
+        { id: 'custAddress', label: 'Site address', value: siteAddress || 'Not entered', status: siteAddress ? 'Entered · confirm site' : 'Not entered · add if available', tone: siteAddress ? 'attention' : 'missing' },
+        { id: 'customerType', label: 'Customer category', value: customerType, status: same('customerType') ? 'Template default · confirm category' : 'Selected · confirm category', tone: same('customerType') ? 'attention' : 'neutral' },
+        { id: 'capacity', label: 'System capacity', value: capacity, status: isTemplateCapacity ? 'Template default · confirm or change' : Number(state.capacity) > 0 ? 'Entered · verify against design' : 'Needs a valid capacity', tone: isTemplateCapacity || !(Number(state.capacity) > 0) ? 'attention' : 'neutral' },
+        { id: 'moduleMake', label: 'Solar module', value: module, status: !moduleModel ? 'Model not selected · choose catalogue model' : defaultModule ? 'Template selection · confirm model' : 'Selected · verify model and rating', tone: !moduleModel || defaultModule ? 'attention' : 'neutral' },
+        { id: 'inverterMake', label: 'Inverter', value: inverter, status: !inverterModel ? 'Model not selected · choose catalogue model' : defaultInverter ? 'Template selection · confirm model' : 'Selected · verify model', tone: !inverterModel || defaultInverter ? 'attention' : 'neutral' }
+      ];
+    }
+    function renderKeyDetails() {
+      const section = el('section', 'qrw-key-details'); section.id = 'qrwKeyDetails';
+      section.append(el('h3', '', 'Key quotation details'));
+      section.append(el('p', 'qrw-muted', 'Live from the current inputs. Prefilled template values are flagged to confirm or change; these reminders do not add PDF blockers.'));
+      const list = el('ul', 'qrw-key-detail-list');
+      for (const detail of keyDetailRows()) {
+        const item = el('li', 'qrw-key-detail qrw-detail-' + detail.tone); item.dataset.reviewDetail = detail.id;
+        const copy = el('div', 'qrw-key-detail-copy');
+        copy.append(el('span', 'qrw-key-detail-label', detail.label), el('strong', 'qrw-key-detail-value', detail.value), el('span', 'qrw-key-detail-status', detail.status));
+        item.append(copy);
+        const target = sourceTarget(detail.id);
+        if (target) {
+          const action = button('Open source ↗', () => navigate(() => window.__qsPreflight.reveal(target.id)), 'qrw-text-button');
+          action.dataset.reviewSource = target.id; item.append(action);
+        } else item.append(el('small', 'qrw-muted', 'Review in the original input section.'));
+        list.append(item);
+      }
+      section.append(list); return section;
+    }
     function renderReview() {
       reviewContent.replaceChildren();
       if (model.blocking.length) reviewContent.append(issueGroup('Needs correction', 'blocking', model.blocking, 'These existing export checks need attention before a PDF can be generated.'));
@@ -166,6 +273,7 @@
         reviewContent.append(clear);
       }
       if (model.advisory.length) reviewContent.append(issueGroup('Review recommended', 'advisory', model.advisory, 'Advisories come from the current preflight, not a new scoring system.'));
+      reviewContent.append(renderKeyDetails());
       const notes = el('details', 'qrw-notes');
       notes.append(el('summary', '', 'Engineering input notes · ' + model.notes.length));
       if (model.notes.length) {
@@ -184,8 +292,8 @@
       reviewContent.append(notes);
       const changes = model.rows.filter(r => r.edited || r.excluded || r.custom);
       const changeSection = el('section', 'qrw-changes');
-      const head = el('div', 'qrw-section-heading'); head.append(el('h3', '', 'Document changes'), el('span', 'qrw-count', String(changes.length)));
-      changeSection.append(head, el('p', 'qrw-muted', changes.length ? 'Saved presentation edits in this output. This is not a comparison against a published version.' : 'No page removals or Document Studio edits saved for this output. Linked form values and template wording are reviewed at their sources.'));
+      const head = el('div', 'qrw-section-heading'); head.append(el('h3', '', 'Presentation edits'), el('span', 'qrw-count', String(changes.length)));
+      changeSection.append(head, el('p', 'qrw-muted', changes.length ? 'Saved page-level edits in this output; this is not a comparison against a published version.' : 'No saved page-level edits or removals. Live quotation details are listed above.'));
       if (changes.length) {
         const list = el('ul');
         for (const row of changes) { const li = el('li'); li.append(el('strong', '', row.title), el('span', 'qrw-muted', editSummary(row))); list.append(li); }
@@ -247,8 +355,8 @@
       }
     }
     function renderOutput() {
-      // Keep the real selector connected and focused while counts/status update.
-      const label = formatSelect.selectedOptions[0]?.textContent || 'Detailed proposal';
+      // Reflect the sole PDF selector in the builder footer; never duplicate or move it.
+      const label = $('pdfFormat')?.selectedOptions?.[0]?.textContent || 'Detailed proposal';
       outputTitle.textContent = label.replace(/\s*\(\d+ Pages\)$/i, '');
       sheetTotal.textContent = String(model.total); outputMetrics.replaceChildren();
       for (const [name, value] of [['Pages with saved edits', model.rows.filter(r => r.included && r.edited).length], ['Added sheets / continuations', model.rows.flatMap(r => r.pages).filter(p => p.continuation || model.rows.find(r => r.id === p.origin)?.custom).length], ['Removed page definitions', model.rows.filter(r => r.excluded).length]]) {
@@ -264,7 +372,7 @@
       model = readModel(); renderReview(); renderPages(); renderOutput(); selectTab(activeTab);
     }
     function open() {
-      restoreFormat(); returnTo = document.activeElement; restoreFocus = true; activeTab = 'review'; pageFilter.value = '';
+      returnTo = document.activeElement; restoreFocus = true; activeTab = 'review'; pageFilter.value = '';
       window.__qsPreflight.run(); render(); dialog.showModal(); close.focus();
     }
     function schedule() {
@@ -278,8 +386,7 @@
     }
     pageFilter.addEventListener('input', renderPages);
     pageFilter.addEventListener('keydown', event => { if (event.key === 'Escape' && pageFilter.value) { event.preventDefault(); event.stopPropagation(); pageFilter.value = ''; renderPages(); } });
-    dialog.addEventListener('cancel', restoreFormat);
-    dialog.addEventListener('close', () => { restoreFormat(); if (restoreFocus && returnTo?.isConnected) returnTo.focus({ preventScroll: true }); });
+    dialog.addEventListener('close', () => { if (restoreFocus && returnTo?.isConnected) returnTo.focus({ preventScroll: true }); });
     document.addEventListener('qs:rendered', schedule);
     document.addEventListener('change', e => { if (e.target.id === 'pdfFormat') schedule(); });
     const saveObserver = new MutationObserver(() => { if (dialog.open) renderOutput(); });

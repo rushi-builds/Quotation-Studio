@@ -9,7 +9,7 @@ The **Review & pages** button sits below setting search. It opens a native label
 - **Review:** existing export blockers, advisories, collapsible internal engineering input notes and saved Document Studio presentation edits.
 - **Page overview:** searchable included/conditional/removed pages, saved page edits, added pages and continuation sheet numbers. View uses the existing preview navigation; Edit page opens the existing document editor. Removed/conditional page actions do not restore pages or enable systems.
 
-The sidebar names the currently selected PDF format, its actual A4 sheet count, document-edit counts and the existing save indicator. Change PDF format reveals the one existing selector inside the review. The original element is temporarily moved, not cloned; its options/listeners stay intact, selected output/counts update in-place, and closing/collapsing/source navigation returns it to its exact builder-footer position. It does not invent a second format value or save/publish/export a proposal.
+The sidebar names the currently selected PDF format, actual A4 sheet count, document-edit counts and save status. The PDF selector exists only once in the builder footer. The sidebar's separate Excel review-sheet action downloads a local snapshot of current quote values, finance-engine estimates, existing checks and the page manifest; it never imports data back into the builder.
 
 **No ready/approval percentage or green design certification.** "No export blockers reported" is qualified explicitly; internal DATA REQUIRED notes remain notes, not new export blockers. Document changes refer to scoped Document Studio metadata, not a diff against a published version or a complete audit of template-wording edits.
 
@@ -41,9 +41,9 @@ No changes to Finance, generation defaults, renderer, export engine, CloudBridge
 
 All tests use local disposable browser data; new review QA intercepts external/API/auth requests and records zero writes.
 
-- `qa/proposal-review.test.cjs`: **69 PASS** — exact preflight parity, note provenance, source focus, resolving findings, page/title search, empty state, keyboard tabs/Escape/focus containment, view/edit routing, conditional pages not enabled, removals/continuations/current-preview marker, Power 6→5 removal, standalone system/system-power counts, cross-proposal isolation, serializer ownership, unchanged form/CONTENT/Finance/A4 HTML from review navigation, print exclusion, Customer View isolation, actual View taps at 320px/Android/tablet and short laptop sizes, no runtime errors or writes.
+- `qa/proposal-review.test.cjs`: **77 PASS** — exact preflight parity, live key details/default reminders, source focus, resolving findings, page/title search, keyboard/modal behavior, view/edit routing, conditional pages not enabled, page counts, selector ownership, Excel snapshot card, responsive layouts, Customer View isolation, no runtime errors or API/auth writes.
 - `qa/device-compatibility.test.cjs`: **309 PASS** — nine Chromium laptop/Android/iPhone/iPad emulated profiles, existing builder/storage/Customer View/feedback and ten dashboard panels each.
-- `qa/review-format-state.test.cjs`: **24 PASS** — actual format button/select interaction, real six-page Power PDF through Download, original selector identity/position/focus, desktop + Android/iPhone-size/tablet touch profiles; actual editor wording → Save now → stored proposal → reload → JSON backup, including legacy transient-key cleanup. No browser errors or API/auth writes.
+- `qa/review-format-state.test.cjs`: **23 PASS** — Excel-ready CSV download, formula-injection escaping, SHA-256 checksum verification, no quotation/A4 mutation, PDF selector remains in the original footer, real six-page Power PDF, responsive download taps, and actual editor wording → save → reload → JSON backup. No browser errors or API/auth writes.
 - `qa/control-panel.test.js`: **41 PASS**.
 - `qa/integration.test.js`: **116 PASS**.
 - `qa/finance.test.js`: **82 PASS**, financial engine byte-unchanged.
@@ -78,16 +78,9 @@ The library prefix is sandbox-specific. These are Chromium browser/device-emulat
 
 Quotations saved views, Version Compare and customer mobile Reading Mode remain separate future increments. No published-history diff, legal acceptance/e-signature, provider automation or new engineering promise is introduced here.
 
-## Follow-up: PDF format action + point-6 persistence verification
+## Historical implementation note: PDF format action + point-6 persistence verification
 
-The original Change PDF format action only closed review and focused the footer
-selector. That did not expose a choice in the review and could feel non-functional.
-It now expands an in-review region hosting the **original** `#pdfFormat` element.
-The sidebar is stable across status/count refreshes so the native selector is not
-detached or defocused mid-selection. Escape, close, collapse and source navigation
-restore the original control/ARIA label/position; the selected output remains set.
-No new state input, dropdown clone, synthetic download, export implementation or
-validation bypass was added. Touch input retains 16px text / 44px minimum height.
+An earlier iteration temporarily hosted the original `#pdfFormat` control inside the review. The user clarified that this duplicated the selector already at the builder footer. That in-review format action has since been removed; the selector is now kept in its original position, and the sidebar slot has a different purpose. The persistence verification below remains relevant.
 
 The serializer fix already in PR #31 was additionally verified end-to-end rather
 than rewritten: a real Document Studio textarea edit survives Save now, reload and
@@ -96,11 +89,37 @@ form/backup. A simulated old saved blob carrying those keys cannot restore them
 into editor UI, and its next ordinary save drops the stale keys. Real quote fields
 and `CONTENT.documentStudio` wording are preserved.
 
-Focused new tests passed 24/24, existing review 55/55 and control panel 41/41.
+At the time, focused tests passed 24/24, existing review 55/55 and control panel 41/41.
 Actual selected-Power download produced a valid six-page PDF (not just an event).
 Ignored proofs: `qa/shots/review-format-state/`. A Chromium launch attempt exited
 with SIGSEGV before page creation; rerun passed without application workarounds.
 PR #31 remains unmerged; no production deployment or production data access.
+
+## Follow-up: live key-details checklist
+
+The Review tab now shows current customer name, site address, customer category,
+capacity, module and inverter details directly from `Render.lastState`, with Open source actions to
+the original fields. Blank name/address and missing module/inverter models are
+spelled out. Capacity equal to the quotation template's starting value is marked
+**Template default · confirm or change**; other populated values still ask for
+confirmation/verification without implying they have been site-verified. These
+are reminders, not new PDF blockers. The list re-renders from `qs:rendered`; it
+adds no form keys, saved approval marks, financial calculations or A4 content.
+The page-level-only count is now titled **Presentation edits**, so it is not
+mistaken for a full audit of live quotation data. The PDF format selector remains
+only in the builder footer. Excel input extraction/autofill remains out of scope.
+
+Verification: Review Centre **77 PASS** including default-capacity/category
+warnings, source navigation, live name/address/capacity updates, unchanged
+form/CONTENT/Finance/A4, key-detail layout on four viewport profiles and zero API writes. Spreadsheet/persistence **23 PASS**;
+control panel **41 PASS**. `qa/shots/proposal-review/review-desktop.png` shows the
+new checklist.
+
+## Follow-up: Excel review-sheet export replaces duplicate PDF control
+
+The sidebar now has one distinct **Excel review sheet** action instead of another PDF-format selector. It downloads a UTF-8, Excel-compatible CSV built from current customer/system inputs, current Finance engine estimates (clearly labelled estimates), existing preflight messages and the selected-output page manifest. A SHA-256 fingerprint covers all CSV rows above its integrity line; customer-controlled text is formula-escaped before export. The action is local-only, makes no API/auth calls, changes no quote or saved state, and does not populate builder fields. The PDF selector remains solely at the builder footer.
+
+Focused QA verified the actual download, checksum, formula-injection protection, no A4/finance/state mutations and mobile/touch use.
 
 ## Follow-up: Excel input guidance
 
