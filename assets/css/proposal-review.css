@@ -56,6 +56,8 @@
 .qrw-clear h3,.qrw-attention-summary h3{margin-top:6px;}
 .qrw-attention-summary{border-color:#eadfcf;background:#fdfbf8;}
 .qrw-attention-summary .qrw-count{color:#80663f;background:#f3eadb;}
+.qrw-attention-summary.qrw-clear{border-color:#cbded3;background:#f3faf5;}
+.qrw-attention-summary.qrw-clear .qrw-count{color:#34684d;background:#e2f0e6;}
 .qrw-attention-summary.qrw-attention-blocked{border-color:#efd8d5;border-left:3px solid #c1766a;background:#fdf9f8;}
 .qrw-attention-summary.qrw-attention-blocked .qrw-count{color:#91483d;background:#f7e7e3;}
 .qrw-attention-summary .qrw-muted{margin-top:6px;}

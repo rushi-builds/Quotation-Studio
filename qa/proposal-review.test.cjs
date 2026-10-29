@@ -36,8 +36,8 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
       ...[...document.querySelectorAll('.qrw-key-detail-status')].filter(n => n.textContent.startsWith('PDF blocker · ')).map(n => n.textContent.slice('PDF blocker · '.length))
     ].sort());
     check('each preflight blocker is surfaced exactly once', JSON.stringify(visibleBlockers) === JSON.stringify(issueMessages) && (await p.locator('#qrw-review').innerText()).split('Add a customer name.').length - 1 === 1);
-    check('attention badge counts distinct missing/default items, while stating the PDF blocker count', await p.locator('.qrw-attention-summary .qrw-count').textContent() === '5' && (await p.locator('.qrw-attention-summary').innerText()).includes('1 currently blocks PDF export'));
-    check('engineering input notes reuse existing source', await p.evaluate(() => document.querySelector('.qrw-notes summary').textContent.endsWith(String(__qsPreflight.notes().length))));
+    check('attention badge counts all eight missing/default items and distinguishes the one PDF blocker', await p.locator('.qrw-attention-summary .qrw-count').textContent() === '8' && (await p.locator('.qrw-attention-summary').innerText()).includes('1 PDF export blocker') && (await p.locator('.qrw-attention-summary').innerText()).includes('3 engineering inputs required'));
+    check('all required engineering notes are expanded and reuse the existing source', await p.locator('.qrw-notes').evaluate(n => n.open) && await p.locator('.qrw-note .qrw-finding').count() === 3 && await p.evaluate(() => document.querySelector('.qrw-notes summary').textContent.endsWith(String(__qsPreflight.notes().length))));
     check('key quotation details list customer, site, capacity and selected equipment', await p.locator('#qrwKeyDetails [data-review-detail]').count() === 6 && await p.locator('[data-review-detail="custName"] .qrw-key-detail-value').textContent() === 'Not entered' && await p.locator('[data-review-detail="custAddress"] .qrw-key-detail-value').textContent() === 'Not entered' && (await p.locator('[data-review-detail="capacity"] .qrw-key-detail-value').textContent()).includes('7 kWp'));
     const defaultDetailStatus = await p.locator('#qrwKeyDetails .qrw-key-detail-status').allTextContents();
     check('default capacity is flagged and catalogue equipment is never presented as verified', defaultDetailStatus[2].includes('Template default') && defaultDetailStatus[3].includes('Template default') && !defaultDetailStatus[4].includes('verified') && !defaultDetailStatus[5].includes('verified') && (await p.locator('[data-review-detail="moduleMake"] .qrw-key-detail-value').textContent()).includes('Model') && (await p.locator('[data-review-detail="inverterMake"] .qrw-key-detail-value').textContent()).includes('Model'));
@@ -54,7 +54,7 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     await close(); assert.deepEqual(await capture(), initial); check('open/filter/close changes no form, CONTENT, Finance or A4 HTML', true);
     check('close returns focus to invoking control', await p.locator('#proposalReviewButton').evaluate(n => n === document.activeElement));
     // Excel guidance is navigation, not an import, privileged opener or Sync.
-    await open(); await p.locator('.qrw-notes>summary').click();
+    await open(); if (!await p.locator('.qrw-notes').evaluate(n => n.open)) await p.locator('.qrw-notes>summary').click();
     check('site note messages still exactly match the existing engineering source', await p.evaluate(() => JSON.stringify([...document.querySelectorAll('.qrw-note .qrw-finding>p')].map(n => n.textContent)) === JSON.stringify(__qsPreflight.notes().map(n => n.message))));
     check('one Excel input action for the cable/soil notes', await p.locator('#qrwExcelInputs').count() === 1 && await p.locator('#qrwExcelInputs').isVisible());
     check('Excel guidance describes manual entry and site verification, not auto-fill', await p.locator('#qrwExcelInputs').getAttribute('aria-describedby') === 'qrwExcelInputHelp' && (await p.locator('#qrwExcelInputHelp').innerText()).includes('no auto-fill or Sync') && (await p.locator('#qrwExcelInputHelp').innerText()).includes('soil resistivity'));
@@ -72,16 +72,51 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     await p.fill('#custName', 'Review QA Customer'); await p.fill('#custAddress', 'Pune QA site'); await p.fill('#capacity', '8'); await p.selectOption('#customerType', 'commercial');
     await p.waitForFunction(() => Render.lastState.custName === 'Review QA Customer' && Render.lastState.custAddress === 'Pune QA site' && Number(Render.lastState.capacity) === 8 && Render.lastState.customerType === 'commercial');
     await open();
-    check('customer fix removes its blocker, refreshes the unique attention count and keeps live details', (await p.locator('.qrw-attention-summary .qrw-count').textContent()) === '4' && (await p.locator('.qrw-attention-summary').innerText()).includes('none currently block PDF export') && await p.locator('[data-review-detail="custName"] .qrw-key-detail-value').textContent() === 'Review QA Customer' && await p.locator('[data-review-detail="custAddress"] .qrw-key-detail-value').textContent() === 'Pune QA site' && await p.locator('[data-review-detail="capacity"] .qrw-key-detail-value').textContent() === '8 kWp' && (await p.locator('[data-review-detail="capacity"] .qrw-key-detail-status').textContent()).includes('verify against design') && await p.locator('[data-review-detail="customerType"] .qrw-key-detail-value').textContent() === 'Commercial' && (await p.locator('[data-review-detail="customerType"] .qrw-key-detail-status').textContent()).includes('Selected · confirm category'));
+    check('customer, address and default fixes decrement the live count to five with no PDF blockers', (await p.locator('.qrw-attention-summary .qrw-count').textContent()) === '5' && (await p.locator('.qrw-attention-summary').innerText()).includes('no PDF export blockers') && await p.locator('[data-review-detail="custName"] .qrw-key-detail-value').textContent() === 'Review QA Customer' && await p.locator('[data-review-detail="custAddress"] .qrw-key-detail-value').textContent() === 'Pune QA site' && await p.locator('[data-review-detail="capacity"] .qrw-key-detail-value').textContent() === '8 kWp' && (await p.locator('[data-review-detail="capacity"] .qrw-key-detail-status').textContent()).includes('verify against design') && await p.locator('[data-review-detail="customerType"] .qrw-key-detail-value').textContent() === 'Commercial' && (await p.locator('[data-review-detail="customerType"] .qrw-key-detail-status').textContent()).includes('Selected · confirm category'));
+    // Resolving the three required engineering notes decrements the same live count.
     await close();
+    await p.evaluate(() => { for (const [id, value] of Object.entries({ dcCableLengthM: '10', dcCableSizeMm2: '16', acCableLengthM: '10', acCableSizeMm2: '16', soilResistivity: '100' })) { const n = document.getElementById(id); n.value = value; n.dispatchEvent(new Event('input', { bubbles: true })); } });
+    await open();
+    check('resolving the three DATA REQUIRED engineering notes removes exactly three points', await p.locator('.qrw-attention-summary .qrw-count').textContent() === '2' && (await p.locator('.qrw-attention-summary').innerText()).includes('no engineering inputs required') && await p.locator('.qrw-notes .qrw-finding').count() > 0 && await p.locator('.qrw-notes .qrw-finding').evaluateAll(ns => ns.every(n => !/^DATA REQUIRED/i.test(n.textContent))));
+    await close();
+    await p.evaluate(() => { for (const id of ['dcCableLengthM', 'dcCableSizeMm2', 'acCableLengthM', 'acCableSizeMm2', 'soilResistivity']) { const n = document.getElementById(id); n.value = ''; n.dispatchEvent(new Event('input', { bubbles: true })); } });
     await p.fill('#custAddress', ''); await p.fill('#capacity', '7'); await p.selectOption('#customerType', 'residential');
     await p.waitForFunction(() => !Render.lastState.custAddress && Number(Render.lastState.capacity) === 7 && Render.lastState.customerType === 'residential');
     // Live advisory and blocker parity, including payment and partial loan.
     await p.evaluate(() => { for (const [id, value] of Object.entries({ payAdvance: '60', loanAmt: '300000', loanRate: '', loanYears: '' })) { const n = document.getElementById(id); n.value = value; n.dispatchEvent(new Event('input', { bubbles: true })); } });
     await open();
     check('all payment/loan corrections match the live export gate', await p.evaluate(() => JSON.stringify([...document.querySelectorAll('.qrw-blocking .qrw-finding>p')].map(n => n.textContent)) === JSON.stringify(__qsPreflight.issues().blocking.map(i => i.message))));
+    check('new payment and partial-loan blockers increment the live attention count', await p.locator('.qrw-attention-summary .qrw-count').textContent() === '9' && (await p.locator('.qrw-attention-summary').innerText()).includes('2 PDF export blockers'));
     await p.locator('[data-review-source="payAdvance"]').click(); check('source navigation opens the real payment section', await p.locator('#payAdvance').evaluate(n => n === document.activeElement && n.closest('.studio-section').open));
     await p.evaluate(() => { for (const [id, value] of Object.entries({ payAdvance: '50', loanAmt: '', loanRate: '', loanYears: '' })) { const n = document.getElementById(id); n.value = value; n.dispatchEvent(new Event('input', { bubbles: true })); } });
+    await open();
+    // Exercise the zero-count copy with a clean renderer fixture; this does not save or export the quote.
+    await close();
+    await p.evaluate(() => {
+      const api = window.__qsPreflight, state = Render.lastState, defaults = StateStore.DEFAULTS;
+      const ids = ['custName', 'customerType', 'capacity', 'moduleMake', 'moduleModel', 'moduleWattage', 'moduleTech', 'inverterMake', 'inverterModel'];
+      const defaultIds = ['customerType', 'capacity', 'moduleMake', 'moduleModel', 'moduleWattage', 'moduleTech', 'inverterMake', 'inverterModel'];
+      window.__qrwZeroFixture = {
+        run: api.run, issues: api.issues, notes: api.notes,
+        state: Object.fromEntries(ids.map(id => [id, state[id]])),
+        defaults: Object.fromEntries(defaultIds.map(id => [id, defaults[id]])),
+        category: document.getElementById('customerType').value,
+        capacityInput: document.getElementById('capacity').value
+      };
+      Object.assign(state, { custName: 'Confirmed QA customer', customerType: 'commercial', capacity: '8', moduleMake: 'QA module maker', moduleModel: 'QA module model', moduleWattage: '555', moduleTech: 'QA technology', inverterMake: 'QA inverter maker', inverterModel: 'QA inverter model' });
+      Object.assign(defaults, { customerType: 'residential', capacity: '7', moduleMake: 'Template maker', moduleModel: 'Template module', moduleWattage: '545', moduleTech: 'Template technology', inverterMake: 'Template inverter maker', inverterModel: 'Template inverter' });
+      document.getElementById('customerType').value = 'commercial'; document.getElementById('capacity').value = '8';
+      api.run = () => ({ blocking: [], advisory: [] }); api.issues = () => ({ blocking: [], advisory: [] }); api.notes = () => [];
+    });
+    await open();
+    check('zero unresolved items shows the exact ready-to-export state without implying engineering approval', await p.locator('.qrw-attention-summary .qrw-count').textContent() === '0' && (await p.locator('.qrw-attention-summary').innerText()).includes('All good · ready to export') && await p.locator('.qrw-attention-summary').evaluate(n => n.classList.contains('qrw-clear')) && (await p.locator('.qrw-attention-summary').innerText()).includes('not design approval'));
+    await close();
+    await p.evaluate(() => {
+      const f = window.__qrwZeroFixture, api = window.__qsPreflight, state = Render.lastState, defaults = StateStore.DEFAULTS;
+      Object.assign(state, f.state); Object.assign(defaults, f.defaults);
+      document.getElementById('customerType').value = f.category; document.getElementById('capacity').value = f.capacityInput;
+      api.run = f.run; api.issues = f.issues; api.notes = f.notes; delete window.__qrwZeroFixture;
+    });
     await open(); await p.click('#qrw-pages-tab'); await p.fill('#qrwPageFilter', 'solution'); await p.locator('[data-review-page="pageSolution"]').getByRole('button', { name: 'View ↗' }).click();
     await p.waitForFunction(() => { const r = pageSolution.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; });
     check('View reuses real page navigation without editing', await p.locator('#pageSolution').evaluate(n => { const r = n.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; }));
@@ -153,7 +188,8 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
       await m.waitForFunction(() => { const r = pageSolution.getBoundingClientRect(); return !proposalReviewDialog.open && r.top < innerHeight && r.bottom > 0; });
       check(name + ' real View click/tap reaches the proposal page', true);
       await m.locator('#proposalReviewButton').scrollIntoViewIfNeeded(); await m.locator('#proposalReviewButton').click();
-      await m.locator('.qrw-notes>summary').click(); await m.locator('#qrwExcelInputs').scrollIntoViewIfNeeded();
+      if (!await m.locator('.qrw-notes').evaluate(n => n.open)) await m.locator('.qrw-notes>summary').click();
+      await m.locator('#qrwExcelInputs').scrollIntoViewIfNeeded();
       check(name + ' Excel input action fits without modal overflow', await fits() && await m.locator('#qrwExcelInputs').evaluate(n => { const r = n.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }));
       await m.screenshot({ path: path.join(shots, name + '-excel-notes.png') });
       if (options.hasTouch) await m.locator('#qrwExcelInputs').tap(); else await m.locator('#qrwExcelInputs').click();

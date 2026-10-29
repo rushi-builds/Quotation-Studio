@@ -254,8 +254,8 @@
       };
       const tone = (ids, fallback) => detailIssue(ids) ? 'attention' : fallback;
       return [
-        { id: 'custName', label: 'Customer name', value: customerName || 'Not entered', status: status('custName', customerName ? 'Entered · check spelling' : 'Required · add before sharing'), tone: tone('custName', customerName ? 'attention' : 'missing') },
-        { id: 'custAddress', label: 'Site address', value: siteAddress || 'Not entered', status: status('custAddress', siteAddress ? 'Entered · confirm site' : 'Not entered · optional if available'), tone: tone('custAddress', siteAddress ? 'attention' : 'neutral') },
+        { id: 'custName', label: 'Customer name', value: customerName || 'Not entered', status: status('custName', customerName ? 'Entered' : 'Required · add before sharing'), tone: tone('custName', customerName ? 'neutral' : 'missing') },
+        { id: 'custAddress', label: 'Site address', value: siteAddress || 'Not entered', status: status('custAddress', siteAddress ? 'Entered' : 'Not entered · optional if available'), tone: tone('custAddress', 'neutral') },
         { id: 'customerType', label: 'Customer category', value: customerType, status: status('customerType', same('customerType') ? 'Template default · confirm category' : 'Selected · confirm category'), tone: tone('customerType', same('customerType') ? 'attention' : 'neutral') },
         { id: 'capacity', label: 'System capacity', value: capacity, status: status('capacity', isTemplateCapacity ? 'Template default · confirm or change' : Number(state.capacity) > 0 ? 'Entered · verify against design' : 'Needs a valid capacity'), tone: tone('capacity', isTemplateCapacity || !(Number(state.capacity) > 0) ? 'attention' : 'neutral') },
         { id: 'moduleMake', label: 'Solar module', value: module, status: status('moduleMake', !moduleModel ? 'Model not selected · choose catalogue model' : defaultModule ? 'Template selection · confirm model' : 'Selected · verify model and rating'), tone: tone('moduleMake', !moduleModel || defaultModule ? 'attention' : 'neutral') },
@@ -270,8 +270,10 @@
         groups.set(group ? 'detail:' + group.id : 'issue:' + (issue.id || issue.message), group || issue);
       }
       const represented = issue => details.some(detail => (detailIssueAliases[detail.id] || []).includes(issue.id));
+      const requiredNotes = model.notes.filter(note => /^DATA REQUIRED(?:\s|[-–—]|$)/i.test(String(note.message || '').trim()));
+      for (const note of requiredNotes) groups.set('note:' + (note.id || note.message), note);
       return {
-        details, count: groups.size,
+        details, requiredNotes, count: groups.size,
         extraBlocking: model.blocking.filter(issue => !represented(issue)),
         extraAdvisory: model.advisory.filter(issue => !represented(issue))
       };
@@ -302,17 +304,18 @@
       summary.dataset.blockers = String(model.blocking.length > 0);
       summary.setAttribute('aria-live', 'polite');
       const heading = el('div', 'qrw-section-heading');
-      heading.append(el('h3', '', 'Items to review'), el('span', 'qrw-count', String(attention.count)));
-      const blockerLabel = model.blocking.length === 1 ? '1 currently blocks PDF export' : model.blocking.length ? model.blocking.length + ' currently block PDF export' : 'none currently block PDF export';
+      heading.append(el('h3', '', 'Items to resolve'), el('span', 'qrw-count', String(attention.count)));
+      const blockerLabel = model.blocking.length === 1 ? '1 PDF export blocker' : model.blocking.length ? model.blocking.length + ' PDF export blockers' : 'no PDF export blockers';
+      const requiredLabel = attention.requiredNotes.length === 0 ? 'no engineering inputs required' : attention.requiredNotes.length === 1 ? '1 engineering input required' : attention.requiredNotes.length + ' engineering inputs required';
       const summaryText = attention.count
-        ? attention.count + (attention.count === 1 ? ' item needs attention' : ' items need attention') + ' · ' + blockerLabel + '. Each input-level item is listed once below.'
-        : 'No outstanding review items · no PDF export blockers reported. This is not a design approval.';
+        ? attention.count + (attention.count === 1 ? ' item remains' : ' items remain') + ' · ' + blockerLabel + ' · ' + requiredLabel + '. Resolve an item and this count updates live.'
+        : 'All good · ready to export. No unresolved blockers or flagged inputs. Engineering and site verification still applies; this is not design approval.';
       summary.append(el('span', 'qrw-eyebrow', 'LIVE REVIEW COUNT'), heading, el('p', 'qrw-muted', summaryText));
       reviewContent.append(summary);
       if (attention.extraBlocking.length) reviewContent.append(issueGroup('Additional PDF blockers', 'blocking', attention.extraBlocking, 'These existing export checks are not represented by a key-detail row.'));
       if (attention.extraAdvisory.length) reviewContent.append(issueGroup('Review recommended', 'advisory', attention.extraAdvisory, 'Advisories come from the current preflight, not a new scoring system.'));
       reviewContent.append(renderKeyDetails(attention.details));
-      const notes = el('details', 'qrw-notes');
+      const notes = el('details', 'qrw-notes'); notes.open = attention.requiredNotes.length > 0;
       notes.append(el('summary', '', 'Engineering input notes · ' + model.notes.length));
       if (model.notes.length) {
         const group = issueGroup('Site verification & input notes', 'note', model.notes, 'Internal notes are not additional export blockers.');
