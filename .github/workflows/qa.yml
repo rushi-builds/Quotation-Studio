@@ -1,0 +1,109 @@
+name: QA
+
+# The repository had no CI at all before this workflow (see
+# docs/repository-analysis-2026-10-29.md §3.4): 80 of 121 test files need a
+# real Chromium, and nothing ran on push or PR. The offline suite below is the
+# part that runs anywhere and is required; the browser job is opt-in until it
+# has been proven on a real runner.
+
+on:
+  push:
+    # Only the default branch. Listing '**' here as well as pull_request ran
+    # every PR branch twice (one push run, one PR run) for identical results.
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline:
+    name: Offline suite (jsdom + node)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # pr-scope-guard pins the frozen calc/pricing family by blob hash to
+          # golden tree 8cc7db1. A shallow clone cannot resolve that commit, so
+          # the frozen checks report "absent in comparison tree" and fail.
+          # Full history is required, not optional.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Two independent dependency trees. `qa` runs the suites; the Excel
+      # catalogue suites import from platform/cloudflare/src/, and Node
+      # resolves bare imports relative to the IMPORTING file — so
+      # @e965/xlsx must be installed under platform/cloudflare, not only in qa.
+      - name: Install QA dependencies
+        working-directory: qa
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Install Cloudflare Worker dependencies
+        working-directory: platform/cloudflare
+        run: npm install --no-audit --no-fund
+
+      - name: Run offline suite
+        working-directory: qa
+        run: npm test
+
+      # Separate from `npm test` upstream, which is why the committed
+      # platform/studio-knowledge.mjs had been stale: sync-public.js
+      # regenerates it at deploy time, so the Worker served fresh knowledge
+      # while the repo held an older copy. assistant-knowledge.test.mjs
+      # catches exactly that drift and runs fully offline.
+      - name: Run assistant suite (offline)
+        working-directory: qa
+        run: npm run test:assistant
+
+  browser:
+    name: Browser suite (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Flip to false once this job has been verified green on the default
+    # branch. It is not required yet because it has never run in CI.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install QA dependencies
+        working-directory: qa
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Install Cloudflare Worker dependencies
+        working-directory: platform/cloudflare
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        working-directory: qa
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local platform server
+        run: node platform/local-server/server.js &
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8787/api/health > /dev/null; then
+              echo "server ready"; exit 0
+            fi
+            sleep 1
+          done
+          echo "server did not start"; exit 1
+
+      - name: Run browser suite
+        working-directory: qa
+        env:
+          QA_BASE: http://127.0.0.1:8787
+        run: npm run test:browser
