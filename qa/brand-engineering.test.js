@@ -36,7 +36,11 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
     await page.evaluate(()=>Render.renderAll());
     check('render restores one canonical identity',await page.$eval('#formLogo',e=>e.getAttribute('src')==='assets/images/ktm-logo-light.png'));
     check('repeated savings and phone CTA blocks removed',await page.evaluate(()=>['v_wsHighlight','v_wsAnnualGen','v_wsAnnualSaving','v_wsLifetimeSaving','v_clHighlight','v_clCtaPhone'].every(id=>!document.getElementById(id))));
-    check('builder keeps one paper acceptance block',await page.$$eval('.accept-block',els=>els.length===1));
+    /* The closing redesign moved acceptance into the single share hub
+       (#shareAcceptWrap, asserted below) and left only its CSS behind, so the
+       builder must carry no second signature surface. This used to expect one
+       `.accept-block`, an element that no longer exists in any served page. */
+    check('builder carries no duplicate paper acceptance block',await page.$$eval('.accept-block',els=>els.length===0));
     // Capture a page header to visually verify the extracted mark at print size.
     fs.mkdirSync(path.join(__dirname,'shots'),{recursive:true});
     const proof=await browser.newPage();await proof.setViewport({width:820,height:1130});
@@ -54,7 +58,7 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
     check('customer header uses same identity',await view.$eval('#shareLogo',e=>e.getAttribute('src')==='assets/images/ktm-logo-light.png'));
     check('one action hub placed after the full proposal',await view.evaluate(()=>document.querySelectorAll('#shareAcceptWrap').length===1 && !!(document.getElementById('sharePages').compareDocumentPosition(document.getElementById('shareAcceptWrap')) & Node.DOCUMENT_POSITION_FOLLOWING)));
     check('engineering controls owned by the single hub',await view.$eval('#shareSimBar',e=>!!e.closest('#shareAcceptWrap')));
-    check('online paper signature is not duplicated',!await view.$eval('#pageClosing .accept-block',e=>e.checkVisibility()));
+    check('online paper signature is not duplicated',await view.$$eval('#pageClosing .accept-block',els=>els.length===0));
     check('acknowledgement is optional, collapsed by default',!await view.$eval('#localAcknowledgement',e=>e.open));
     check('still-reviewing stage cannot prepare request',await view.$eval('#prepareRequest',e=>e.disabled));
     await view.$eval('#engineeringRequestForm',e=>e.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true})));
@@ -97,19 +101,21 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
     check('provided report link visible exactly once online',await view.$$eval('a[href="https://example.com/layout"]',els=>els.filter(e=>e.checkVisibility()).length===1));
     await view.emulateMediaType('print');
     check('print restores report reference in its technical page',await view.$eval('#v_tsRefsWrap',e=>e.checkVisibility()));
-    check('print restores paper signature',await view.$eval('#pageClosing .accept-block',e=>e.checkVisibility()));
+    check('print keeps the closing page and no duplicate paper signature',await view.$$eval('#pageClosing',els=>els.length===1)&&await view.$$eval('#pageClosing .accept-block',els=>els.length===0));
     check('print excludes online request hub',!await view.$eval('#shareAcceptWrap',e=>e.checkVisibility()));
     await view.emulateMediaType('screen');
     const cloneResult=await view.evaluate(async()=>{
       const result={};
       const canvas=await html2canvas(document.getElementById('pageClosing'),{scale:1,logging:false,onclone:doc=>{
         doc.body.classList.add('qs-pdf-capture');
-        result.signature=doc.defaultView.getComputedStyle(doc.querySelector('#pageClosing .accept-block')).display!=='none';
+        /* No paper signature block exists any more; what the PDF must not do is
+           resurrect a second acceptance surface next to the online hub. */
+        result.signature=doc.querySelector('#pageClosing .accept-block')===null;
         result.references=doc.defaultView.getComputedStyle(doc.getElementById('v_tsRefsWrap')).display!=='none';
         result.logo=doc.querySelector('#pageClosing .closing-brand img').getAttribute('src');
       }});result.size=[canvas.width,canvas.height];return result;
     });
-    check('PDF clone restores signatures and report references',cloneResult.signature && cloneResult.references);
+    check('PDF clone keeps one acceptance surface and restores report references',cloneResult.signature && cloneResult.references);
     check('PDF uses approved closing logo',cloneResult.logo==='assets/images/ktm-logo-light.png' && cloneResult.size[1]>1000);
     // Small screens, invalid contacts and unavailable report URLs.
     await view.evaluate(id=>{const b=Proposals.get(id);b.form.companyPhone='unavailable';b.form.arkaUrl='javascript:alert(1)';Proposals.put(b);},id);
