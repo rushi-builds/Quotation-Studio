@@ -71,8 +71,9 @@ jobs:
         run: |
           log="$RUNNER_TEMP/offline.log"
           [ -f "$log" ] || exit 0
-          grep -nE "✗ FAIL|AssertionError|^Error|not ok|failed" "$log" \
-            | grep -v "pageTerms" | head -10 | sed 's/^/::error title=offline-suite::/'
+          # GitHub keeps at most 10 error annotations per step, so send the
+          # END of the output: that is where the failing suite stopped.
+          tail -n 10 "$log" | sed 's/^/::error title=offline-suite::/'
 
       # Separate from `npm test` upstream, which is why the committed
       # platform/studio-knowledge.mjs had been stale: sync-public.js
@@ -139,5 +140,4 @@ jobs:
         run: |
           log="$RUNNER_TEMP/browser.log"
           [ -f "$log" ] || exit 0
-          grep -nE "✗ FAIL|AssertionError|^Error|not ok|failed" "$log" \
-            | grep -v "pageTerms" | head -10 | sed 's/^/::error title=browser-suite::/'
+          tail -n 10 "$log" | sed 's/^/::error title=browser-suite::/'
