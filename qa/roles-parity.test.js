@@ -521,8 +521,12 @@ for (const [label, src] of BOTH) {
      - negative proof lives in qa/pr-scope.test.cjs (renames, deletions,
        worktree masks, mutation traps). */
 {
-  const base = guard.resolveBase(ROOT);
-  t('patch-scope comparison base resolves (line-tip or explicit QS_PR_BASE)', !!base && !!base.ref, JSON.stringify(base));
+  /* Judge the patch against the line reviewed work lands on. The older
+     line-tip branch is not the base for a branch cut from main - diffing
+     against it made every merged PR since look like part of this patch. */
+  const reviewedLine = guard.mainTip(ROOT);
+  const base = guard.resolveBase(ROOT, reviewedLine && !process.env.QS_PR_BASE ? { base: reviewedLine } : undefined);
+  t('patch-scope comparison base resolves (reviewed line or explicit QS_PR_BASE)', !!base && !!base.ref, JSON.stringify(base));
   const changed = guard.changedFiles(ROOT, base && base.ref) || [];
   const frozen = guard.frozenTouches(changed);
   const bl = guard.baselineMatch(ROOT, undefined, { base: base && base.ref });

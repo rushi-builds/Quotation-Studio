@@ -112,6 +112,12 @@ jobs:
         working-directory: qa
         run: npx playwright install --with-deps chromium
 
+      # qa/brand-engineering.test.js crops the approved cover with `convert`
+      # and compares the pixels against the logo, so the suite needs ImageMagick
+      # on the runner, not only a browser.
+      - name: Install ImageMagick
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+
       - name: Start local platform server
         run: node platform/local-server/server.js &
 

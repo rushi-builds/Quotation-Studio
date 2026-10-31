@@ -151,6 +151,19 @@ function git(repoRoot, args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
 }
 
+/* The reviewed line: where merged, reviewed work actually lands. A long-lived
+   release branch can sit far behind it, and comparing a patch against that
+   older tip reports every PR merged since as "this patch's" change - which is
+   exactly what turned the frozen, deploy-config and scope checks red on CI
+   for a branch that touches none of those files. Callers that judge a patch
+   against the reviewed line resolve against main explicitly. */
+function mainTip(repoRoot) {
+  for (const ref of ['origin/main', 'main']) {
+    try { git(repoRoot, ['rev-parse', '--verify', '--quiet', ref]); return ref; } catch (_) { /* try the next name */ }
+  }
+  return null;
+}
+
 /* Resolve the PR's own comparison base. Precedence:
      1. opts.base (argument)
      2. env QS_PR_BASE (let a packaged, ref-poor environment pin it)
@@ -295,5 +308,5 @@ function verify(repoRoot, opts) {
 module.exports = {
   GOLDEN_BASE_REF, FROZEN_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
   resolveBase, changedFiles, worktreeStatus,
-  frozenTouches, deployConfigTouches, scopeOffenders, newAccessMigration, baselineMatch, verify, git
+  frozenTouches, deployConfigTouches, scopeOffenders, newAccessMigration, baselineMatch, mainTip, verify, git
 };
