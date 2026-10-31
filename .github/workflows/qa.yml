@@ -36,6 +36,13 @@ jobs:
         with:
           node-version: '22'
 
+      # roles-parity resolves its comparison base from origin/merge/reconcile-v1
+      # or origin/main. actions/checkout fetches the PR merge ref, so the base
+      # branch ref is not guaranteed to exist; without it every frozen-baseline
+      # entry reports "no comparison base resolved" instead of a real verdict.
+      - name: Make the comparison base ref available
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+
       # Two independent dependency trees. `qa` runs the suites; the Excel
       # catalogue suites import from platform/cloudflare/src/, and Node
       # resolves bare imports relative to the IMPORTING file — so

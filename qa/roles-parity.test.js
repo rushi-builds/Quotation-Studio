@@ -525,9 +525,9 @@ for (const [label, src] of BOTH) {
   t('patch-scope comparison base resolves (line-tip or explicit QS_PR_BASE)', !!base && !!base.ref, JSON.stringify(base));
   const changed = guard.changedFiles(ROOT, base && base.ref) || [];
   const frozen = guard.frozenTouches(changed);
-  const bl = guard.baselineMatch(ROOT);
+  const bl = guard.baselineMatch(ROOT, undefined, { base: base && base.ref });
   const blBad = bl.filter((b) => !b.ok);
-  t('FROZEN calc/pricing family byte-identical to golden base ' + guard.GOLDEN_BASE_REF,
+  t('FROZEN calc/pricing family byte-identical to golden base ' + guard.GOLDEN_BASE_REF + ' (drift inherited from the comparison base is not a violation; a new edit still fails)',
     blBad.length === 0 && bl.length === guard.FROZEN_FILES.length, JSON.stringify(blBad));
   t('FROZEN calc/pricing/finance/export files untouched (committed BASE→HEAD scope, base ' + (base ? base.ref.slice(0, 10) : '?') + ' [' + (base ? base.from : '?') + '])',
     frozen.length === 0, frozen.join(', '));

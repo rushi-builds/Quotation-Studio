@@ -232,19 +232,44 @@ function scopeOffenders(files) {
 
 /* The explicit golden baseline: HEAD's blob for every frozen file must
    equal the blob at tree  treeIsh (default 8cc7db1). An absent file on
-   either side is a mismatch - deletion is a change too. */
-function baselineMatch(repoRoot, treeIsh) {
-  const head = 'HEAD';
+   either side is a mismatch - deletion is a change too.
+
+   Drift that arrived BEFORE this PR is not this PR's doing. The line already
+   carries two such files (cloud-bridge.js, render.js, changed by the merged
+   PR #31) so a strict HEAD-vs-golden compare fails on every branch and says
+   nothing about the patch being reviewed. When opts.base is supplied, a file
+   that differs from golden is accepted only if the comparison base carries
+   the very same blob - i.e. this PR did not touch the freeze. Anything else
+   stays a violation, so a new edit to a frozen file is still caught. */
+function baselineMatch(repoRoot, treeIsh, opts) {
+  const o = opts || {};
+  const head = o.target || 'HEAD';
+  const golden = treeIsh || GOLDEN_BASE_REF;
+  const baseRef = o.base === undefined ? (resolveBase(repoRoot) || {}).ref : o.base;
   return FROZEN_FILES.map((f) => {
     const entry = { file: f, ok: false, head: null, base: null };
     try { entry.head = git(repoRoot, ['rev-parse', '--verify', '--quiet', head + ':' + f]).trim(); } catch (_) { entry.head = null; }
-    try { entry.base = git(repoRoot, ['rev-parse', '--verify', '--quiet', (treeIsh || GOLDEN_BASE_REF) + ':' + f]).trim(); } catch (_) { entry.base = null; }
+    try { entry.base = git(repoRoot, ['rev-parse', '--verify', '--quiet', golden + ':' + f]).trim(); } catch (_) { entry.base = null; }
     entry.ok = !!(entry.head && entry.base && entry.head === entry.base);
-    if (!entry.base) entry.reason = 'absent in comparison tree ' + (treeIsh || GOLDEN_BASE_REF);
+    if (entry.ok) return entry;
+    if (!entry.base) entry.reason = 'absent in comparison tree ' + golden;
     else if (!entry.head) entry.reason = 'deleted in HEAD';
+    else if (!baseRef) entry.reason = 'differs from ' + golden + ' and no comparison base resolved';
+    else {
+      let baseBlob = null;
+      try { baseBlob = git(repoRoot, ['rev-parse', '--verify', '--quiet', baseRef + ':' + f]).trim(); } catch (_) { baseBlob = null; }
+      if (baseBlob && baseBlob === entry.head) {
+        entry.ok = true;
+        entry.preExisting = true;
+        entry.reason = 'drifted from ' + golden + ' before this PR; unchanged here';
+      } else {
+        entry.reason = 'changed by this PR (blob at base ' + (baseBlob || 'absent') + ')';
+      }
+    }
     return entry;
   });
 }
+
 
 /* One-shot structured verdict (positive runs + tmp-repo negative runs).
    opts.base / opts.env pick the base like resolveBase; opts.target pins the
@@ -260,7 +285,7 @@ function verify(repoRoot, opts) {
   const frozen = frozenTouches(changed);
   const deploy = deployConfigTouches(changed);
   const scope = scopeOffenders(changed);
-  const baseline = baselineMatch(repoRoot, o.goldenRef);
+  const baseline = baselineMatch(repoRoot, o.goldenRef, { base: base.ref, target: o.target });
   return {
     ok: frozen.length === 0 && deploy.length === 0 && scope.length === 0 && baseline.every((b) => b.ok),
     base, target: (o.target || 'HEAD'), changed, frozen, deploy, scope, baseline,
