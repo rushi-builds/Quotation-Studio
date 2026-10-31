@@ -57,7 +57,22 @@ jobs:
 
       - name: Run offline suite
         working-directory: qa
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/offline.log"
+
+      # A failed job's log lives behind a signed blob URL that some networks
+      # refuse (it answers EOF), leaving "Process completed with exit code 1"
+      # as the only signal. The failing assertion lines are re-emitted as
+      # check-run annotations, which the API always returns, so a red run
+      # says WHAT broke instead of only that something did.
+      - name: Annotate the first offline failures
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/offline.log"
+          [ -f "$log" ] || exit 0
+          grep -nE "✗ FAIL|AssertionError|^Error|not ok|failed" "$log" \
+            | grep -v "pageTerms" | head -10 | sed 's/^/::error title=offline-suite::/'
 
       # Separate from `npm test` upstream, which is why the committed
       # platform/studio-knowledge.mjs had been stale: sync-public.js
@@ -113,4 +128,16 @@ jobs:
         working-directory: qa
         env:
           QA_BASE: http://127.0.0.1:8787
-        run: npm run test:browser
+        run: |
+          set -o pipefail
+          npm run test:browser 2>&1 | tee "$RUNNER_TEMP/browser.log"
+
+      # Same reason as the offline job: surface the failing assertions as
+      # annotations, because the job log URL is not always reachable.
+      - name: Annotate the first browser failures
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/browser.log"
+          [ -f "$log" ] || exit 0
+          grep -nE "✗ FAIL|AssertionError|^Error|not ok|failed" "$log" \
+            | grep -v "pageTerms" | head -10 | sed 's/^/::error title=browser-suite::/'
