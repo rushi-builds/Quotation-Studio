@@ -8,11 +8,20 @@
 
 (function () {
   const $ = (id) => document.getElementById(id);
-  const PRODUCTION_VERCEL_HOST = 'quotation-studio-taupe.vercel.app';
+  /* Keep identical to the copy in platform-api.js - see the note there about
+     why the production Vercel aliases are listed by hand. */
+  const PRODUCTION_VERCEL_HOSTS = [
+    'quotation-studio-two.vercel.app',
+    'quotation-studio-rushi-builds.vercel.app'
+  ];
+  function isProductionVercelHost(host) {
+    if (PRODUCTION_VERCEL_HOSTS.indexOf(host) !== -1) return true;
+    return /^quotation-studio-git-main-[a-z0-9-]+\.vercel\.app$/.test(host);
+  }
   function isUnisolatedVercelPreview() {
     try {
       const host = String(location.hostname || '').toLowerCase();
-      return host.endsWith('.vercel.app') && host !== PRODUCTION_VERCEL_HOST;
+      return host.endsWith('.vercel.app') && !isProductionVercelHost(host);
     } catch (_) { return false; }
   }
 

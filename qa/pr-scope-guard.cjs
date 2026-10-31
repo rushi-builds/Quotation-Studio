@@ -99,7 +99,54 @@ const OWNER_IMAGE_PATHS=new Set([
   'assets/images/masters/about-residential-solar-source.png',
   'assets/images/system-elevated-canopy.jpg'
 ]);
-const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|experience|export|engineering)\.js|assets\/css\/(dashboard|experience|app)\.css|quotation\.html|dashboard\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|vercel\.json|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
+
+/* Owner-approved image payload re-encode (2026-10-31).
+
+   Why: the Vercel team hit 100% of the 10 GB Hobby deployment-storage
+   quota. With no .vercelignore and no build step, every deploy uploaded
+   the whole repository, of which ~68 MB was assets/. Every file below was
+   re-encoded in place - same name, same format, same dimensions unless it
+   renders small enough that the extra resolution was never reachable. No
+   reference changed, so nothing had to be updated anywhere else.
+
+   Listed by exact path rather than as an assets/images/.+ wildcard so that
+   a future image swap, addition or deletion still trips this guard. See
+   qa/tracking-project.test.js for the one asset that must stay
+   byte-identical - Tracking.png is deliberately NOT in this set. */
+const REENCODED_IMAGE_PATHS=new Set([
+  'assets/images/bess-concept.jpg',
+  'assets/images/closing-solar-cinematic-4k.jpg',
+  'assets/images/closing-solar-cinematic-source.png',
+  'assets/images/cover-commercial-background.webp',
+  'assets/images/cover-industrial-background.webp',
+  'assets/images/cover-rwa-background.webp',
+  'assets/images/dash-hero-bg.jpg',
+  'assets/images/ev.png',
+  'assets/images/inc-cables.png',
+  'assets/images/inc-install.png',
+  'assets/images/inc-inverter.png',
+  'assets/images/inc-modules.png',
+  'assets/images/inc-monitor.png',
+  'assets/images/inc-mount.png',
+  'assets/images/ktm-cover-logo.png',
+  'assets/images/ktm-logo-dark.png',
+  'assets/images/ktm-logo-light.png',
+  'assets/images/login-bg.jpg',
+  'assets/images/logo-white.png',
+  'assets/images/logo.png',
+  'assets/images/proj-commercial-2.jpg',
+  'assets/images/proj-residential-1.jpg',
+  'assets/images/storage-evening.jpg',
+  'assets/images/summary-carport-ev.jpg',
+  'assets/images/system-carport-concept.jpg',
+  'assets/images/system-dg-concept.jpg',
+  'assets/images/system-ev-concept.jpg',
+  'assets/images/system-monitoring-concept.jpg',
+  'assets/images/system-pfc-concept.jpg',
+  'assets/images/system-zero-concept.jpg',
+  'assets/ktm-cover-page-1.png'
+]);
+const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|proposal-feedback|experience|export|engineering)\.js|assets\/css\/(dashboard|experience|app)\.css|quotation\.html|dashboard\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|\.vercelignore|vercel\.json|\.github\/workflows\/qa\.yml|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
 
 function git(repoRoot, args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
@@ -180,7 +227,7 @@ function deployConfigTouches(files) {
 function newAccessMigration(file,status){return file==='platform/migrations/011-workspace-access.sql'&&status==='A';}
 
 function scopeOffenders(files) {
-  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f));
+  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f));
 }
 
 /* The explicit golden baseline: HEAD's blob for every frozen file must
