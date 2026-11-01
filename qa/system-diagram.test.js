@@ -17,7 +17,8 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     const page = await browser.newPage(); const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.setViewport({width:1440,height:1100});
-    await page.goto((process.env.QA_BASE || 'http://127.0.0.1:8080') + '/quotation.html', {waitUntil:'networkidle0'});
+    const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
+    await page.goto(base + '/quotation.html', {waitUntil:'networkidle0'});
     await page.evaluate(() => document.fonts.ready);
     const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots,{recursive:true});
     const label = (p, key) => p.$eval('[data-diagram-label="'+key+'"]', e => [...e.querySelectorAll('text')].map(t => t.textContent).join(' '));
@@ -107,10 +108,18 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     await proof.setContent('<style>body{margin:12px;background:#fbfcfe}</style>'+svgMarkup);
     check('standalone SVG is valid XML with no external image dependencies', await proof.evaluate(s=>!new DOMParser().parseFromString(s,'image/svg+xml').querySelector('parsererror') && !document.querySelector('svg image'),svgMarkup));
     await proof.screenshot({path:path.join(shots,'system-overview-detail.png')}); await proof.close();
-    const targetPromise=browser.waitForTarget(t=>t.url().includes('/share.html?'));
-    await page.click('#engineeringViewBtn'); const customer=await (await targetPromise).page();
+    /* The builder's request shortcut belongs to the retired request hub
+       (d835545): it now opens the portal feedback preview instead of a
+       share.html tab, so waiting for that tab only ever timed out. The
+       read-only Customer View these checks are about is share.html itself, so
+       it is opened directly, exactly as a customer receives it. */
+    const shareId=await page.evaluate(()=>{window.__qsSaveNow&&window.__qsSaveNow();return window.Proposals.activeId();});
+    check('the builder has a saved proposal to review as a customer',!!shareId);
+    const customer=await browser.newPage();
     customer.on('pageerror',e=>errors.push(e.message));
-    await customer.waitForSelector('#v_tsDiagram svg');
+    await customer.goto(base+'/share.html?p='+encodeURIComponent(shareId),{waitUntil:'networkidle0'});
+    await customer.evaluate(()=>document.fonts.ready);
+    await customer.waitForSelector('#v_tsDiagram svg',{timeout:20000}).catch(e=>{throw new Error('Customer View never rendered the diagram: '+e.message);});
     check('saved Customer View retains illustrations and live equipment values', (await label(customer,'array-value')) === '13 × 545 Wp modules' && await customer.$$eval('[data-component]',els=>els.length===8));
     await geometry(customer,'Customer View');
     /* A backgrounded tab never runs its scale transition in headless Chrome,
@@ -118,7 +127,7 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
        and paint are measured. */
     await customer.bringToFront();
     await customer.setViewport({width:390,height:844});
-    await customer.waitForFunction(() => {const r=document.querySelector('#v_tsDiagram').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth+1;});
+    await customer.waitForFunction(() => {const r=document.querySelector('#v_tsDiagram').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth+1;},{timeout:20000}).catch(e=>{throw new Error('Mobile Customer View never framed the diagram: '+e.message);});
     await geometry(customer,'Mobile Customer View');
     await customer.$eval('#pageTechSpec',e=>e.scrollIntoView({behavior:'instant'}));
     check('mobile drawing scales inside the viewport', await customer.$eval('#v_tsDiagram',e=>e.getBoundingClientRect().left>=0 && e.getBoundingClientRect().right<=innerWidth+1));
@@ -164,7 +173,7 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
        geometry is measured. */
     await page.bringToFront();
     await page.setViewport({width:390,height:844});
-    await page.waitForFunction(() => {const r=document.querySelector('#v_tsDiagram').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth+1;});
+    await page.waitForFunction(() => {const r=document.querySelector('#v_tsDiagram').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth+1;},{timeout:20000}).catch(e=>{throw new Error('Mobile builder never framed the diagram: '+e.message);});
     check('mobile builder also keeps the complete illustrated page in frame', await page.$eval('#pageTechSpec',e=>e.getBoundingClientRect().left>=0 && e.getBoundingClientRect().right<=innerWidth+1));
     check('mobile approved cover is not clipped by its scaled wrapper', await page.$eval('#pageCover',e=>e.getBoundingClientRect().left>=0 && e.getBoundingClientRect().right<=innerWidth+1));
     await repaintParity(page,'Mobile builder');

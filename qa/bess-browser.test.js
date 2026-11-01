@@ -10,13 +10,23 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';await page.setViewport({width:1440,height:1200});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
   const original=await page.evaluate(()=>({form:StateStore.collectForm(),finance:JSON.stringify(Finance.compute(Render.lastState)),diagram:document.getElementById('v_tsDiagram').innerHTML}));
   check('No is default; fifteen solar pages and no battery input exposure',await page.evaluate(()=>!bessEnabled.checked&&bessFields.hidden&&Render.lastVisible.length===15&&!document.getElementById('pageBessOverview').checkVisibility()));
-  check('new BESS section is visible in Essentials',await page.$eval('[data-section=bessEnabled]',e=>e.checkVisibility()&&!e.hasAttribute('data-adv')));
+  /* BESS is no longer its own studio section: control-panel.js folds the
+     battery fieldset into "Advanced Systems", whose picker carries the BESS
+     option, and the retired .bess-choice buttons stay hidden for good. What
+     the customer must still find is the choice itself, reachable in
+     Essentials, with storage still off. */
+  check('BESS choice is reachable from Essentials without enabling it',await page.$eval('.studio-section[data-section=systemEnabled]',e=>e.checkVisibility()&&!e.hasAttribute('data-adv')&&!!e.querySelector('#advancedSystemSelect option[value=bess]')&&!document.getElementById('bessEnabled').checked));
   await page.type('#studioSearch','battery');await page.click('#studioSearchResults li button');
-  check('search reveals the BESS choice without enabling it',await page.evaluate(()=>document.querySelector('[data-section=bessEnabled]').open&&!bessEnabled.checked&&document.activeElement.dataset.bessChoice==='yes'));
-  await page.$eval('[data-section=bessEnabled]',e=>e.open=true);await page.click('[data-bess-choice=yes]');await page.waitForFunction(()=>Render.lastVisible.length===17);
-  check('Yes reveals battery inputs and two navigable pages',await page.evaluate(()=>!bessFields.hidden&&document.querySelectorAll('#pageNav .nav-chip').length===17&&document.querySelector('[data-bess-choice=yes]').getAttribute('aria-pressed')==='true'));
+  check('search reveals the BESS choice without enabling it',await page.evaluate(()=>document.querySelector('.studio-section[data-section=systemEnabled]').open&&!bessEnabled.checked&&!!document.querySelector('#advancedSystemSelect option[value=bess]')));
+  await page.$eval('.studio-section[data-section=systemEnabled]',e=>e.open=true);
+  await setSystemChoice('bess');await page.waitForFunction(()=>Render.lastVisible.length===17);
+  check('Yes reveals battery inputs and two navigable pages',await page.evaluate(()=>!bessFields.hidden&&document.querySelectorAll('#pageNav .nav-chip').length===17&&document.getElementById('advancedSystemSelect').value==='bess'));
   check('blank battery does not invent runtime or savings',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('Not established')&&e.textContent.includes('Resilience first')));
   async function apply(values){await page.evaluate(v=>{StateStore.applyForm(v);Render.renderAll();},values);}
+  /* One switch for the battery: the Advanced Systems picker is the only live
+     control left, and 'bess' means storage on while 'none' leaves the entered
+     draft in place (verified against the page, not assumed). */
+  async function setSystemChoice(choice){await page.evaluate(v=>{const p=document.getElementById('advancedSystemSelect');p.value=v;p.dispatchEvent(new Event('change',{bubbles:true}));},choice);}
   async function geometry(label,target=page){
    const bad=await target.evaluate(()=>[...document.querySelectorAll('.page')].filter(p=>p.checkVisibility()).flatMap(p=>{
     const box=p.getBoundingClientRect(),body=p.querySelector('.pg-body'),foot=p.querySelector('.pg-foot'),issues=[];
@@ -49,10 +59,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await apply({...fixture,bessSourceRate:'15'});check('unfavourable export credit yields no positive payback',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('No positive payback')));
   await apply({...fixture,bessUseCase:'tou'});check('TOU tariff field and assessment label synchronize',await page.evaluate(()=>document.querySelector('label[for=bessSourceRate]').textContent.includes('Off-peak')&&bessAssessmentBody.textContent.includes('Time-of-use shifting')));
   await apply({...fixture,bessUseCase:'backup'});check('backup-first hides economics inputs and drops savings claims',await page.evaluate(()=>bessEconomics.hidden&&!bessAssessmentBody.textContent.includes('21,940')&&bessAssessmentBody.textContent.includes('not represented as bill savings')));
-  await apply(fixture);await page.click('[data-bess-choice=no]');await page.waitForFunction(()=>Render.lastVisible.length===15);
+  await apply(fixture);await setSystemChoice('none');await page.waitForFunction(()=>Render.lastVisible.length===15);
   check('No preserves the entered draft but removes all BESS pages',await page.evaluate(()=>bessFields.hidden&&bessCapacity.value==='10'&&Render.lastState.bessEnabled===false));
   check('No restores the original solar summary wording and briefing',await page.evaluate(()=>!v_exSub.textContent.includes('battery')&&!Briefing.scriptFor(Render.lastState,'en').join(' ').includes('Optional battery')));
-  await page.click('[data-bess-choice=yes]');await page.waitForFunction(()=>Render.lastVisible.length===17);await page.evaluate(()=>__qsSaveNow());
+  await setSystemChoice('bess');await page.waitForFunction(()=>Render.lastVisible.length===17);await page.evaluate(()=>__qsSaveNow());
   const savedId=await page.evaluate(()=>Proposals.activeId());await page.reload({waitUntil:'networkidle0'});
   check('reload restores BESS including hidden operating assumptions',await page.evaluate(()=>bessEnabled.checked&&bessReserve.value==='20'&&Render.lastVisible.length===17));
   await page.evaluate(()=>document.getElementById('pmDup').click());await page.waitForFunction(id=>Proposals.activeId()!==id,{},savedId);
@@ -74,7 +84,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.evaluate(()=>{window.__qsOptions=[];Render.renderAll();__qsSaveNow();});const customerId=await page.evaluate(()=>Proposals.activeId());
   const customer=await browser.newPage();customer.on('pageerror',e=>errors.push(e.message));await customer.setViewport({width:1200,height:1000});await customer.goto(base+'/share.html?p='+encodeURIComponent(customerId),{waitUntil:'networkidle0'});await customer.evaluate(()=>document.fonts.ready);
   check('Customer View shows both live battery pages with matching values',await customer.evaluate(()=>Render.lastVisible.length===17&&bessAssessmentBody.textContent.includes('21,940')&&bessOverviewBody.textContent.includes('4.28 hours')));await geometry('Customer View',customer);
-  await page.setViewport({width:390,height:844});await page.$eval('[data-section=bessEnabled]',e=>e.open=true);await geometry('Mobile-scaled A4');check('mobile has no document horizontal overflow',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.setViewport({width:390,height:844});await page.$eval('.studio-section[data-section=systemEnabled]',e=>e.open=true);await geometry('Mobile-scaled A4');check('mobile has no document horizontal overflow',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.setViewport({width:1440,height:1200});
   await apply({bessMake:'Long battery equipment identification - '.repeat(3).slice(0,120),bessInverter:'Long compatible inverter reference - '.repeat(3).slice(0,120),bessWarranty:'OEM warranty and cycle limits require confirmation - '.repeat(3).slice(0,120)});await geometry('Long battery names and warranty');
   await apply({...fixture,bessDod:'101',bessReserve:'-1',bessDays:'999',bessRte:'0',bessOm:'-100'});await geometry('Invalid-input warnings');check('invalid assumptions suppress financial output',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('Inputs pending')&&!e.textContent.includes('21,940')));

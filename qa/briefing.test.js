@@ -36,7 +36,11 @@ async function installSpeech(page) {
   check('blank destination stays silent and prints no customer QR',await page.evaluate(()=>document.getElementById('closingGallery').hidden&&document.getElementById('galleryStatus').textContent===''));
   await edit({qrDestinationType:'video',galleryUrl:'https://example.com/project-videos'});
   check('video destination updates closing card label, accessibility name and exact link',await page.$eval('#closingGallery',e=>e.href==='https://example.com/project-videos'&&e.textContent.includes('Open video / playlist')&&e.getAttribute('aria-label').includes('video')));
-  check('short PDF uses the same destination type and link',await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),a=h.querySelector('.power-gallery');const ok=a.href==='https://example.com/project-videos'&&a.textContent.includes('Open video / playlist');h.remove();return ok;}));
+  /* The short PDF carries the destination as a scannable QR card labelled
+     "Scan to explore", not as a second copy of the closing page's
+     "Open video / playlist" button, so the label there is the QR one. The
+     destination itself - the exact supplied link - is what must match. */
+  check('short PDF uses the same destination link',await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),a=h.querySelector('.power-gallery');const ok=!!a&&a.href==='https://example.com/project-videos'&&a.textContent.includes('Scan to explore')&&!!a.querySelector('canvas');h.remove();return ok;}));
   await edit({qrDestinationType:'website'});
   check('changing destination type with the same URL updates copy immediately',await page.$eval('#closingGallery',e=>e.textContent.includes('Visit our website')&&e.href==='https://example.com/project-videos'));
   await edit({galleryUrl:''});

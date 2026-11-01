@@ -67,7 +67,13 @@ await apply({bessMake:'Customer specified storage <not markup>'});check('Custom 
   check('Custom system edits appear literally on both pages',await page.evaluate(()=>!systemCustomName.hidden&&systemOverviewBody.textContent.includes('Load prioritisation study')&&systemDetailBody.textContent.includes('Custom scope, not an automatic savings calculation.')));
   check('additional-system price is separate and solar Finance remains unchanged',await page.evaluate(v=>systemOverviewBody.textContent.includes('25,000')&&JSON.stringify(Finance.compute(Render.lastState))===v,original.finance));
   await apply({systemWarranty:'Prior system warranty',systemDelivery:'Prior system delivery'});await page.select('#systemTemplate','zero');check('template change clears stale price, warranty and delivery while refreshing technical notes',await page.evaluate(()=>systemPrice.value===''&&systemWarranty.value===''&&systemDelivery.value===''&&systemNotes.value.includes('transient export')));await apply({systemPrice:'25000'});
-  check('main proposal and multilingual briefing disclose additional scope',await page.evaluate(()=>v_exSub.textContent.includes('system supplement')&&v_svSub.textContent.includes('not modelled')&&v_inPayNote.textContent.includes('Solar-only')&&v_finSub.textContent.includes('Solar-only')&&v_opSub.textContent.includes('Solar-only')&&Briefing.scriptFor(Render.lastState,'en').join(' ').includes('additional system')));
+  /* The executive subtitle now names the selected supplements and states that
+     each is quoted apart ("Solar PV + Zero Export Control + Battery Energy
+     Storage · system separately quoted; battery separately quoted") instead of
+     the earlier generic "system supplement". The disclosure the check is about
+     is that separate pricing, so that is what it asserts - the other four
+     hints and the briefing wording are unchanged. */
+  check('main proposal and multilingual briefing disclose additional scope',await page.evaluate(()=>v_exSub.textContent.includes('separately quoted')&&v_svSub.textContent.includes('not modelled')&&v_inPayNote.textContent.includes('Solar-only')&&v_finSub.textContent.includes('Solar-only')&&v_opSub.textContent.includes('Solar-only')&&Briefing.scriptFor(Render.lastState,'en').join(' ').includes('additional system')));
   check('optional recommendations are not authorised by inclusion alone',await page.evaluate(()=>v_clAcceptIntro.textContent.includes('does not authorise')));
   await apply({systemInclude:'false',bessInclude:'false',bessAutoEconomics:'false'});
   check('imported string flags cannot silently enable optional scope',await page.evaluate(()=>!systemInclude.checked&&!bessInclude.checked&&!bessAutoEconomics.checked));

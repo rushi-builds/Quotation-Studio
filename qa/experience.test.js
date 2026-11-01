@@ -29,7 +29,13 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage5.textContent.includes(x.net)&&powerPage4.textContent.includes(x.lifetime),expected));
  check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage5.textContent.includes('not approved')&&powerPage6.textContent.includes('Additional scope')&&powerPage6.textContent.includes('valid until')&&powerPage6.textContent.includes('not an installation order')));
  async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer').getBoundingClientRect(),last=e.querySelector('footer').previousElementSibling.getBoundingClientRect();return {id:e.id,h:e.scrollHeight,gap:foot.top-last.bottom,fit:e.scrollWidth<=e.clientWidth};}));}
- let layout=await powerLayout();console.log('Power layout',layout);check('all six power pages fit A4 without footer overlap',layout.every(x=>x.h<=1124&&x.gap>=4&&x.fit));
+ let layout=await powerLayout();console.log('Power layout',layout);
+ /* Same predicate, but a failure now names the page and the numbers it broke
+    on. This is a pixel-geometry check: it can only be measured in a browser,
+    and the job log is not always reachable, so the detail has to travel in
+    the check name itself. */
+ const badPage=layout.filter(x=>!(x.h<=1124&&x.gap>=4&&x.fit));
+ check('all six power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': h='+x.h+' gap='+x.gap+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
  check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage5',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
  const rasterQR=await page.$eval('#powerPage2',async el=>{
    const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});
@@ -48,7 +54,17 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const data=await page.$eval('#'+id,async e=>{const c=await html2canvas(e,{scale:1,logging:false,useCORS:true,backgroundColor:'#ffffff',onclone:doc=>doc.body.classList.add('qs-pdf-capture')});return c.toDataURL();});fs.writeFileSync(path.join(shots,'experience-'+id+'.png'),Buffer.from(data.split(',')[1],'base64'));
  }
  await proof.close();await page.evaluate(()=>window.__power.remove());
- const targetPromise=browser.waitForTarget(t=>t.url().includes('/share.html?'));await page.click('#engineeringViewBtn');const customer=await(await targetPromise).page();customer.on('pageerror',e=>errors.push(e.message));await customer.waitForSelector('#scenarioTariff');
+ /* The builder's request shortcut belongs to the retired request hub (d835545)
+    and now opens the portal feedback preview, never a share.html tab, so
+    waiting for that tab only ever timed out. The read-only Customer View this
+    section is about is share.html itself, opened directly with the saved
+    proposal - exactly the page a customer receives. */
+ const shareId=await page.evaluate(()=>{window.__qsSaveNow&&window.__qsSaveNow();return window.Proposals.activeId();});
+ check('the builder has a saved proposal to review as a customer',!!shareId);
+ const customer=await browser.newPage();customer.on('pageerror',e=>errors.push(e.message));
+ await customer.goto(base+'/share.html?p='+encodeURIComponent(shareId),{waitUntil:'networkidle0'});
+ await customer.evaluate(()=>document.fonts.ready);
+ await customer.waitForSelector('#scenarioTariff',{timeout:20000}).catch(e=>{throw new Error('Customer View never rendered the savings explorer: '+e.message);});
  check('Customer View loads the exact baseline even outside nominal slider range',await customer.$eval('#scenarioTariff',e=>e.value==='8.75'&&+e.min<=8.75));
  const before=await customer.evaluate(()=>({state:JSON.stringify(Render.lastState),storage:JSON.stringify({...localStorage}),cover:document.getElementById('v_coverCapacity').textContent}));
  await customer.$eval('#scenarioTariff',e=>{e.value='18';e.dispatchEvent(new Event('input',{bubbles:true}));});
