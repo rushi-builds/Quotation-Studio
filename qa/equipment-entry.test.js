@@ -26,6 +26,8 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   async function typeCustom(id,value){
    await page.focus('#'+id+'Custom');await page.keyboard.down('Control');await page.keyboard.press('A');await page.keyboard.up('Control');await page.keyboard.press('Backspace');await page.type('#'+id+'Custom',value);await page.keyboard.press('Tab');}
   async function matchingForm(){return page.evaluate(values=>Object.entries(values).every(([id,v])=>document.getElementById(id).value===v&&Render.lastState[id]===v),custom);}
+  /* Which custom value went missing, so a failure names it. */
+  async function formMismatch(){return page.evaluate(values=>Object.entries(values).filter(([id,v])=>document.getElementById(id).value!==v||Render.lastState[id]!==v).map(([id,v])=>id+' field='+JSON.stringify(document.getElementById(id).value)+' state='+JSON.stringify(Render.lastState[id])).join('; '),custom);}
   /* The specification table prints some entries as one combined cell (the
      structure row is "mountMake · roofType"), so each custom value has to
      appear in a value cell rather than be a whole cell of its own. */
@@ -115,7 +117,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('markup-like brand text is rendered literally, not as elements',await page.$eval('#v_tsTable',el=>!el.querySelector('series')&&el.textContent.includes('Custom cable <series>')));
   check('pricing is unchanged by custom makes',await page.evaluate(()=>Math.abs(Finance.compute(Render.lastState).netInvestment-379380)<1e-8));
   await page.evaluate(()=>EquipmentStore.refreshSelects());
-  check('catalog refresh does not discard custom values',await matchingForm());
+  const refreshMismatch=await formMismatch();check('catalog refresh does not discard custom values'+(refreshMismatch?' ['+refreshMismatch+']':''),refreshMismatch==='');
   await type('moduleMake','');await page.evaluate(()=>EquipmentStore.refreshSelects());
   check('clearing a make is not silently replaced with a default',await page.$eval('#moduleMake',el=>el.value===''));
   await type('moduleMake',custom.moduleMake);
@@ -137,9 +139,9 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('new quotation retains original template equipment, not previous custom entries',await page.evaluate(()=>moduleMake.value===StateStore.DEFAULTS.moduleMake&&moduleModel.value==='Bi-55-545'&&roofType.value===StateStore.DEFAULTS.roofType));
   await page.select('#proposalSelect',original);
   await page.waitForFunction(id=>Proposals.activeId()===id,{},original);
-  check('switching back restores all custom entries',await matchingForm());
+  const backMismatch=await formMismatch();check('switching back restores all custom entries'+(backMismatch?' ['+backMismatch+']':''),backMismatch==='');
   await require('./legacy-proposal-fixture.cjs')(page, 'pmDup');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);const duplicate=await page.evaluate(()=>Proposals.activeId());
-  check('duplicate retains all custom entries',duplicate!==original&&await matchingForm());
+  const dupMismatch=await formMismatch();check('duplicate retains all custom entries'+(dupMismatch?' ['+dupMismatch+']':''),duplicate!==original&&dupMismatch==='');
   await page.evaluate(()=>document.querySelector('.studio-tools').open=true);
   page.once('dialog',dialog=>dialog.accept());await page.click('#resetBtn');
   await page.waitForFunction(id=>Proposals.get(id).form.moduleMake===StateStore.DEFAULTS.moduleMake,{},duplicate);

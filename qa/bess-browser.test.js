@@ -78,7 +78,11 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   async function download(action){let timer,name;const done=new Promise((resolve,reject)=>{timer=setTimeout(()=>reject(new Error('Download timeout')),150000);cdp.once('Browser.downloadWillBegin',e=>name=e.suggestedFilename);const onProgress=e=>{if(e.state==='completed'||e.state==='canceled'){cdp.off('Browser.downloadProgress',onProgress);clearTimeout(timer);e.state==='completed'?resolve():reject(new Error('Canceled'));}};cdp.on('Browser.downloadProgress',onProgress);});done.catch(()=>{});try{await action();await done;return path.join(output,name);}finally{clearTimeout(timer);}}
   const json=await download(()=>page.evaluate(()=>document.getElementById('exportBtn').click()));const payload=JSON.parse(fs.readFileSync(json,'utf8'));
   check('actual JSON export retains every battery field',Object.keys(fixture).every(k=>payload.proposal.form[k]===fixture[k]));
-  await page.evaluate(()=>document.getElementById('pmNew').click());check('New starts with BESS off and no inherited ratings',await page.evaluate(()=>!bessEnabled.checked&&bessCapacity.value===''&&Render.lastVisible.length===15));
+  /* "New" saves, reserves a reference and only then loads a clean proposal, so
+     wait for the new proposal to become active before reading the page. */
+  await page.evaluate(()=>document.getElementById('pmNew').click());
+  await page.waitForFunction(id=>Proposals.activeId()&&Proposals.activeId()!==id,{timeout:20000},savedId).catch(e=>{throw new Error('New never activated a clean proposal: '+e.message);});
+  check('New starts with BESS off and no inherited ratings',await page.evaluate(()=>!bessEnabled.checked&&bessCapacity.value===''&&Render.lastVisible.length===15));
   const newId=await page.evaluate(()=>Proposals.activeId());await(await page.$('#importFile')).uploadFile(json);await page.waitForFunction(id=>Proposals.activeId()!==id,{},newId);
   check('actual JSON import restores visible BESS and its assumptions',await page.evaluate(()=>bessEnabled.checked&&bessRte.value==='90'&&Render.lastVisible.length===17));
   await page.evaluate(()=>{const old=Proposals.create({capacity:'7',custName:'Legacy solar proposal'});document.getElementById('proposalSelect').add(new Option('Legacy',old.id));proposalSelect.value=old.id;proposalSelect.dispatchEvent(new Event('change',{bubbles:true}));});
