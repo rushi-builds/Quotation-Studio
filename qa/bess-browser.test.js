@@ -45,7 +45,9 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
      generic "Solar-only" wording; the disclosure is the same - the battery is
      priced apart and the solar figures exclude it. */
   check('solar-only scope is explicit in executive, investment, savings and terms',await page.evaluate(()=>v_exSub.textContent.includes('Battery Energy Storage')&&v_exSub.textContent.includes('separately quoted')&&['v_inSub','v_svSub'].every(id=>document.getElementById(id).textContent.includes('Solar-only'))&&v_tmSub.textContent.includes('separate written agreement')));
-  check('new image is loaded and honestly captioned as a concept',await page.$eval('.bess-hero img',e=>e.complete&&e.naturalWidth>0&&e.parentElement.textContent.includes('not a manufacturer')));
+  /* The hero is an illustration, not the customer's site: the image alt says
+     so and the copy says the battery is not one-size-fits-all. */
+  check('new image is loaded and honestly captioned as a concept',await page.$eval('.bess-hero',e=>{const img=e.querySelector('img');return !!img&&img.complete&&img.naturalWidth>0&&/^Concept illustration/i.test(img.alt)&&e.textContent.includes('not a one-size-fits-all battery');}));
   check('printed assumptions include efficiencies, charging limit and reserve',await page.$eval('#bessAssessmentBody',e=>['90% / 95%','3 kW','20% reserve','300','12 years'].every(x=>e.textContent.includes(x))));
   check('all three audio briefings disclose separately priced storage',await page.evaluate(()=>Briefing.scriptFor(Render.lastState,'en').join(' ').includes('solar-only')&&Briefing.scriptFor(Render.lastState,'hi').join(' ').includes('बैटरी स्टोरेज')&&Briefing.scriptFor(Render.lastState,'mr').join(' ').includes('बॅटरी स्टोरेज')));
   await geometry('Completed battery pages');

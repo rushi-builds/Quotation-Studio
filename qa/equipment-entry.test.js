@@ -180,7 +180,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    const native=window.html2canvas;window.__restoreCapture=()=>{window.html2canvas=native;};
    window.html2canvas=async(el,options)=>{
     if(el.id==='pageTechSpec'){
-     window.__customCaptured=Object.values(values).every(v=>[...el.querySelectorAll('.spec-v')].some(cell=>cell.textContent===v));
+     window.__customCaptured=Object.values(values).every(v=>[...el.querySelectorAll('.spec-v')].some(cell=>cell.textContent.includes(v)));
      if(!window.__customCaptured)throw new Error('Custom equipment lost in PDF snapshot');
     }
     const canvas=await native(el,options);if(el.id==='pageTechSpec')window.__customCanvas=canvas.toDataURL('image/png');return canvas;

@@ -102,9 +102,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('enlarged image caption includes the confirmed Pune location',await gallery.$eval('#photoViewer',e=>e.open&&e.querySelector('img').naturalWidth===1536&&e.textContent.includes('500 kWp')&&e.textContent.includes('Pune, Maharashtra')));
   await gallery.keyboard.press('Escape');
   await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());
-  /* The Industrial filter now holds the real industrial portfolio, so the
-     count comes from the page's own sector list instead of a fixed four. */
-  check('industrial filter includes both Agarwal projects as regular entries',await gallery.evaluate(()=>{const cards=[...document.querySelectorAll('#galleryProjects article')],expected=PROJECTS.filter(p=>p.sector===SECTORS[1]).length;const tracking=cards.find(c=>c.textContent.includes('Ground-Mounted Solar Tracking'));return cards.length===expected&&cards.some(c=>c.textContent.includes('1,700 kWp'))&&!!tracking&&tracking.textContent.includes('500 kWp');}));
+  /* The second filter button is "Industrial": it is built as
+     ['All projects', ...SECTORS], so the button maps to SECTORS[0]. The count
+     comes from the page's own sector list instead of a fixed four. */
+  check('industrial filter includes both Agarwal projects as regular entries',await gallery.evaluate(()=>{const cards=[...document.querySelectorAll('#galleryProjects article')],expected=PROJECTS.filter(p=>p.sector===SECTORS[0]).length;const tracking=cards.find(c=>c.textContent.includes('Ground-Mounted Solar Tracking'));return cards.length===expected&&cards.some(c=>c.textContent.includes('1,700 kWp'))&&!!tracking&&tracking.textContent.includes('500 kWp');}));
   await gallery.$eval('#galleryFilters button:first-child',e=>e.click());await gallery.setViewport({width:390,height:844});
   await gallery.$eval(cardOf('Tracking.png'),e=>e.scrollIntoView({behavior:'instant'}));
   check('standard gallery card is responsive without horizontal clipping',await gallery.$eval(cardOf('Tracking.png'),e=>e.getBoundingClientRect().left>=0&&e.getBoundingClientRect().right<=innerWidth&&e.scrollWidth<=e.clientWidth));
