@@ -139,7 +139,7 @@ jobs:
           QA_BASE: http://127.0.0.1:8787
         run: |
           set -o pipefail
-          npm run test:browser 2>&1 | tee "$RUNNER_TEMP/browser.log"
+          node run-browser-suite.cjs 2>&1 | tee "$RUNNER_TEMP/browser.log"
 
       # Same reason as the offline job: surface the failing assertions as
       # annotations, because the job log URL is not always reachable.
