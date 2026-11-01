@@ -26,11 +26,16 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    document.getElementById('capacity').dispatchEvent(new Event('input',{bubbles:true}));
   },{capacity,watts});}
   async function row(p,label){return p.$eval('#v_tsTable',(table,label)=>[...table.querySelectorAll('tr')].find(r=>r.querySelector('.spec-k')?.textContent===label)?.querySelector('.spec-v')?.textContent.replace(/ \(contracted .*\)$/, ''),label);}
+  /* The technical row was renamed to "MPPT / DC-AC Ratio" and now carries the
+     MPPT count in front ("2 × MPPT · 1.04 : 1"). The ratio itself is what these
+     cases assert, so the label and the prefix are peeled off here rather than
+     duplicated into every expectation. */
+  const ratioRow=async p=>String(await row(p,'MPPT / DC-AC Ratio')||'').replace(/^\d+\s*×\s*MPPT\s*·\s*/,'');
   for(const [capacity,watts,count,expected,ratio] of cases){
    await edit(capacity,watts);
    check(capacity+' kWp / '+watts+' Wp renders '+count+' modules and '+expected,
     await row(page,'Quantity')===count+' modules'&&await row(page,'Installed Array Size')===expected);
-   check(capacity+' kWp / '+watts+' Wp DC/AC ratio matches installed array',await row(page,'DC/AC Ratio')===ratio);
+   check(capacity+' kWp / '+watts+' Wp DC/AC ratio matches installed array',await ratioRow(page)===ratio);
    check(capacity+' kWp / '+watts+' Wp has no NaN or Infinity in rendered proposal pages',await page.$$eval('.page',els=>els.every(e=>!/NaN|Infinity/.test(e.textContent))));
   }
   await edit('10','545');
@@ -41,17 +46,17 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
 
   for(const [inverter,expected] of [['8','1.29 : 1'],['20','0.52 : 1'],['','1.04 : 1']]){
    await page.evaluate(inverter=>{const el=document.getElementById('inverterKw');el.value=inverter;el.dispatchEvent(new Event('input',{bubbles:true}));},inverter);
-   check('inverter '+(inverter||'auto')+' kW ratio updates live',await row(page,'DC/AC Ratio')===expected);
+   check('inverter '+(inverter||'auto')+' kW ratio updates live',await ratioRow(page)===expected);
   }
   check('10 kWp pricing remains unchanged',await page.evaluate(()=>{const n=Finance.compute(Render.lastState).netInvestment;return Math.abs(n-575400)<1e-8&&document.getElementById('v_inCostNet').textContent==='₹5,75,400';}));
   await page.evaluate(()=>window.__qsSaveNow());
   await page.reload({waitUntil:'networkidle0'});
   check('reload retains the correct installed array size',await row(page,'Installed Array Size')==='10.355 kWp');
-  check('reload retains corrected DC/AC ratio',await row(page,'DC/AC Ratio')==='1.04 : 1');
+  check('reload retains corrected DC/AC ratio',await ratioRow(page)==='1.04 : 1');
   const id=await page.evaluate(()=>Proposals.activeId()),customer=await browser.newPage();customer.on('pageerror',e=>errors.push(e.message));
   await customer.goto(base+'/share.html?p='+encodeURIComponent(id),{waitUntil:'networkidle0'});
   check('saved Customer View uses the same correct value',await row(customer,'Installed Array Size')==='10.355 kWp');
-  check('saved Customer View uses installed DC/AC ratio',await row(customer,'DC/AC Ratio')==='1.04 : 1');
+  check('saved Customer View uses installed DC/AC ratio',await ratioRow(customer)==='1.04 : 1');
   await customer.emulateMediaType('print');
   check('print view retains the same technical row',await row(customer,'Installed Array Size')==='10.355 kWp');
   await customer.close();
@@ -73,7 +78,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    window.html2canvas=async(el,options)=>{
     if(el.id==='pageTechSpec'){
      window.__arrayRow=[...el.querySelectorAll('tr')].find(r=>r.querySelector('.spec-k')?.textContent==='Installed Array Size')?.querySelector('.spec-v')?.textContent;
-     window.__arrayRatio=[...el.querySelectorAll('tr')].find(r=>r.querySelector('.spec-k')?.textContent==='DC/AC Ratio')?.querySelector('.spec-v')?.textContent;
+     window.__arrayRatio=[...el.querySelectorAll('tr')].find(r=>r.querySelector('.spec-k')?.textContent==='MPPT / DC-AC Ratio')?.querySelector('.spec-v')?.textContent.replace(/^\d+\s*×\s*MPPT\s*·\s*/,'');
      if(window.__arrayRatio!=='1.04 : 1')throw new Error('Incorrect DC/AC ratio in actual PDF snapshot');
      if(window.__arrayRow!=='10.355 kWp (contracted 10 kWp)')throw new Error('Incorrect installed array value in actual PDF snapshot');
     }
