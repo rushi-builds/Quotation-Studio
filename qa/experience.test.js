@@ -28,15 +28,14 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('summary reflects energy/equipment while pricing stays on Investment',await page.$eval('#powerPage1',(e,x)=>!e.textContent.includes('₹')&&e.textContent.includes(x.annual)&&e.textContent.includes(x.module+' × 620')&&e.textContent.includes('10 kW inverter'),expected));
  check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage5.textContent.includes(x.net)&&powerPage4.textContent.includes(x.lifetime),expected));
  check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage5.textContent.includes('not approved')&&powerPage6.textContent.includes('Additional scope')&&powerPage6.textContent.includes('valid until')&&powerPage6.textContent.includes('not an installation order')));
- /* The sheet is a fixed-height, overflow-hidden A4 page, so its scrollHeight
-    always includes the page's own bottom padding: page 2 reported 1130 while
-    every element sat 21px above the footer and nothing was clipped. What has
-    to hold is that no content passes the sheet edge, nothing is clipped
-    inside the body, and the footer keeps its clearance. */
- async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer'),body=foot.previousElementSibling,f=foot.getBoundingClientRect(),b=body.getBoundingClientRect();return {id:e.id,sheet:e.clientHeight,bottom:b.bottom-r.top,inner:body.scrollHeight-body.clientHeight,gap:f.top-b.bottom,fit:e.scrollWidth<=e.clientWidth};}));}
+ /* Same predicate as Exporter's own guard (scrollHeight against the 1124px
+    A4 allowance, footer clearance, no sideways overflow), but a failure now
+    names the page and the deepest element on it - scrollHeight alone does not
+    say what is sticking out. */
+ async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer'),body=foot.previousElementSibling,f=foot.getBoundingClientRect();let deepest='(none)',low=-Infinity;for(const n of e.querySelectorAll('*')){if(n.closest('footer'))continue;const nb=n.getBoundingClientRect();if(!nb.height)continue;if(nb.bottom>low){low=nb.bottom;deepest=n.tagName.toLowerCase()+(n.id?'#'+n.id:'')+(typeof n.className==='string'&&n.className.trim()?'.'+n.className.trim().split(/\s+/).join('.'):'');}}return {id:e.id,h:e.scrollHeight,deepest:deepest,deep:Math.round(low-r.top),gap:f.top-body.getBoundingClientRect().bottom,fit:e.scrollWidth<=e.clientWidth};}));}
  let layout=await powerLayout();console.log('Power layout',layout);
- const badPage=layout.filter(x=>!(x.bottom<=x.sheet&&x.inner<=1&&x.gap>=4&&x.fit));
- check('all six power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': content bottom='+Math.round(x.bottom)+' of '+x.sheet+', clipped='+x.inner+', gap='+Math.round(x.gap)+', fit='+x.fit).join(' | ')+']':''),badPage.length===0);
+ const badPage=layout.filter(x=>!(x.h<=1124&&x.gap>=4&&x.fit));
+ check('all six power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': h='+x.h+' deepest='+x.deepest+'@'+x.deep+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
  check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage5',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
  const rasterQR=await page.$eval('#powerPage2',async el=>{
    const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});
@@ -95,7 +94,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await page.evaluate(()=>{const Original=jspdf.jsPDF;jspdf.jsPDF=function(...args){const pdf=new Original(...args),save=pdf.save.bind(pdf);pdf.save=name=>{window.__pdf={name,data:pdf.output('datauristring').split(',')[1]};return save(name);};return pdf;};});
  await page.select('#pdfFormat','power');check('download label follows selected format',await page.$eval('#downloadLabel',e=>e.textContent==='Download Power Proposal (6 Pages)'));
  await page.$eval('#custName',e=>{e.value='QA Customer';e.dispatchEvent(new Event('input',{bubbles:true}));});
- await page.click('#downloadBtn');await page.evaluate(()=>{const dialog=document.getElementById('exportCheckDialog');if(dialog?.open){const proceed=[...dialog.querySelectorAll('button')].find(b=>b.textContent==='Download anyway');if(!proceed)throw new Error(dialog.textContent);proceed.click();}});await page.waitForFunction(()=>window.__pdf&&document.getElementById('statusMsg').textContent.includes('Downloaded'),{timeout:90000});
+ await page.click('#downloadBtn');await page.evaluate(()=>{const dialog=document.getElementById('exportCheckDialog');if(dialog?.open){const proceed=[...dialog.querySelectorAll('button')].find(b=>b.textContent==='Download anyway');if(!proceed)throw new Error(dialog.textContent);proceed.click();}});
+ /* If the exporter refuses, it says why in the status line; report that
+    instead of waiting 90s for a PDF that will never arrive. */
+ await page.waitForFunction(()=>window.__pdf&&document.getElementById('statusMsg').textContent.includes('Downloaded'),{timeout:90000}).catch(async e=>{const why=await page.evaluate(()=>document.getElementById('statusMsg').textContent.trim());throw new Error('Power Proposal export produced no PDF: '+why+' ('+e.message+')');});
  const exported=await page.evaluate(()=>window.__pdf),bytes=Buffer.from(exported.data,'base64'),pdf=bytes.toString('latin1');fs.writeFileSync(path.join(shots,'experience','Power_Proposal_test.pdf'),bytes);
  check('actual Power Proposal PDF has six pages and correct filename',(pdf.match(/\/Type \/Page\b/g)||[]).length===6&&exported.name.startsWith('Power_Proposal_')&&exported.name.includes('12.5kWp'));
  check('actual PDF has clickable gallery destination',pdf.includes('/Subtype /Link')&&pdf.includes('https://example.com/updated-gallery'));

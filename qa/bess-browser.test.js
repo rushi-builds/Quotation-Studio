@@ -41,7 +41,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('capacity, backup and storage-only benefit synchronize',await page.evaluate(()=>bessOverviewBody.textContent.includes('10 kWh')&&bessOverviewBody.textContent.includes('4.28 hours')&&bessAssessmentBody.textContent.includes('21,940')));
   check('storage payback beyond assumed life is clearly flagged',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('Beyond entered service life')));
   check('solar finance and approved small-house diagram remain unchanged',await page.evaluate(v=>JSON.stringify(Finance.compute(Render.lastState))===v.finance&&document.getElementById('v_tsDiagram').innerHTML===v.diagram,original));
-  check('solar-only scope is explicit in executive, investment, savings and terms',await page.evaluate(()=>['v_exSub','v_inSub','v_svSub'].every(id=>document.getElementById(id).textContent.includes('Solar-only'))&&v_tmSub.textContent.includes('separate written agreement')));
+  /* The executive subtitle now names the included supplement instead of the
+     generic "Solar-only" wording; the disclosure is the same - the battery is
+     priced apart and the solar figures exclude it. */
+  check('solar-only scope is explicit in executive, investment, savings and terms',await page.evaluate(()=>v_exSub.textContent.includes('Battery Energy Storage')&&v_exSub.textContent.includes('separately quoted')&&['v_inSub','v_svSub'].every(id=>document.getElementById(id).textContent.includes('Solar-only'))&&v_tmSub.textContent.includes('separate written agreement')));
   check('new image is loaded and honestly captioned as a concept',await page.$eval('.bess-hero img',e=>e.complete&&e.naturalWidth>0&&e.parentElement.textContent.includes('not a manufacturer')));
   check('printed assumptions include efficiencies, charging limit and reserve',await page.$eval('#bessAssessmentBody',e=>['90% / 95%','3 kW','20% reserve','300','12 years'].every(x=>e.textContent.includes(x))));
   check('all three audio briefings disclose separately priced storage',await page.evaluate(()=>Briefing.scriptFor(Render.lastState,'en').join(' ').includes('solar-only')&&Briefing.scriptFor(Render.lastState,'hi').join(' ').includes('बैटरी स्टोरेज')&&Briefing.scriptFor(Render.lastState,'mr').join(' ').includes('बॅटरी स्टोरेज')));

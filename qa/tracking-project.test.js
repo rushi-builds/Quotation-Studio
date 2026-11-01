@@ -83,25 +83,31 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('all gallery cards share the same width, thumbnail height and styling',await gallery.$$eval('#galleryProjects article',els=>els.every(e=>e.className===''&&Math.abs(e.offsetWidth-els[0].offsetWidth)<=1&&e.querySelector('img').offsetHeight===els[0].querySelector('img').offsetHeight)));
   check('no featured banner or separate tracking filter remains',await gallery.evaluate(()=>!document.querySelector('.featured-project')&&!document.getElementById('galleryFilters').textContent.includes('Solar tracking')));
   await (await gallery.$('#galleryProjects')).screenshot({path:path.join(shots,'tracking-gallery-grid.png')});
-  const photo='[data-project="PROJ_TRACKING"] .project-photo';
-  await gallery.hover('[data-project="PROJ_1_1"] .project-photo');
-  await gallery.waitForFunction(()=>new DOMMatrix(getComputedStyle(document.querySelector('[data-project="PROJ_1_1"] .project-photo img')).transform).a>1.029);
-  const normalZoom=await gallery.$eval('[data-project="PROJ_1_1"] .project-photo img',e=>({transform:getComputedStyle(e).transform,transition:getComputedStyle(e).transition}));
+  /* The gallery cards are built from the page's PROJECTS list and carry no
+     data-project attribute any more, so a card is identified by the photograph
+     it shows - the tracking unit's own PNG. */
+  const cardOf=src=>'article:has(img[src*="'+src+'"])';
+  const photo=cardOf('Tracking.png')+' .project-photo',other=cardOf('site-agarwal.jpg')+' .project-photo';
+  await gallery.hover(other);
+  await gallery.waitForFunction(sel=>new DOMMatrix(getComputedStyle(document.querySelector(sel+' img')).transform).a>1.029,{},other);
+  const normalZoom=await gallery.$eval(other+' img',e=>({transform:getComputedStyle(e).transform,transition:getComputedStyle(e).transition}));
   await gallery.hover(photo);
-  await gallery.waitForFunction(()=>new DOMMatrix(getComputedStyle(document.querySelector('[data-project="PROJ_TRACKING"] .project-photo img')).transform).a>1.029);
+  await gallery.waitForFunction(sel=>new DOMMatrix(getComputedStyle(document.querySelector(sel+' img')).transform).a>1.029,{},photo);
   check('tracking photo uses the same hover zoom and transition as the other images',await gallery.$eval(photo+' img',(e,normal)=>getComputedStyle(e).transform===normal.transform&&getComputedStyle(e).transition===normal.transition,normalZoom));
   await gallery.mouse.move(0,0);
-  await gallery.waitForFunction(()=>getComputedStyle(document.querySelector('[data-project="PROJ_TRACKING"] .project-photo img')).transform==='none');
+  await gallery.waitForFunction(sel=>getComputedStyle(document.querySelector(sel+' img')).transform==='none',{},photo);
   check('tracking photo returns to its original size when the pointer leaves',await gallery.$eval(photo+' img',e=>getComputedStyle(e).transform==='none'));
-  check('gallery card shows the confirmed location',await gallery.$eval('[data-project="PROJ_TRACKING"]',e=>e.textContent.includes('Pune, Maharashtra')));
+  check('gallery card shows the confirmed location',await gallery.$eval(cardOf('Tracking.png'),e=>e.textContent.includes('Pune, Maharashtra')));
   await gallery.click(photo);
   check('enlarged image caption includes the confirmed Pune location',await gallery.$eval('#photoViewer',e=>e.open&&e.querySelector('img').naturalWidth===1536&&e.textContent.includes('500 kWp')&&e.textContent.includes('Pune, Maharashtra')));
   await gallery.keyboard.press('Escape');
   await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());
-  check('industrial filter includes both Agarwal projects as regular entries',await gallery.$eval('#galleryProjects',e=>e.querySelectorAll('article').length===4&&e.textContent.includes('1,700 kWp')&&e.querySelector('[data-project="PROJ_TRACKING"]').textContent.includes('500 kWp')));
+  /* The Industrial filter now holds the real industrial portfolio, so the
+     count comes from the page's own sector list instead of a fixed four. */
+  check('industrial filter includes both Agarwal projects as regular entries',await gallery.evaluate(()=>{const cards=[...document.querySelectorAll('#galleryProjects article')],expected=PROJECTS.filter(p=>p.sector===SECTORS[1]).length;const tracking=cards.find(c=>c.textContent.includes('Ground-Mounted Solar Tracking'));return cards.length===expected&&cards.some(c=>c.textContent.includes('1,700 kWp'))&&!!tracking&&tracking.textContent.includes('500 kWp');}));
   await gallery.$eval('#galleryFilters button:first-child',e=>e.click());await gallery.setViewport({width:390,height:844});
-  await gallery.$eval('[data-project="PROJ_TRACKING"]',e=>e.scrollIntoView({behavior:'instant'}));
-  check('standard gallery card is responsive without horizontal clipping',await gallery.$eval('[data-project="PROJ_TRACKING"]',e=>e.getBoundingClientRect().left>=0&&e.getBoundingClientRect().right<=innerWidth&&e.scrollWidth<=e.clientWidth));
+  await gallery.$eval(cardOf('Tracking.png'),e=>e.scrollIntoView({behavior:'instant'}));
+  check('standard gallery card is responsive without horizontal clipping',await gallery.$eval(cardOf('Tracking.png'),e=>e.getBoundingClientRect().left>=0&&e.getBoundingClientRect().right<=innerWidth&&e.scrollWidth<=e.clientWidth));
   await gallery.screenshot({path:path.join(shots,'tracking-gallery-mobile.png')});
   check('no runtime errors',errors.length===0);
   console.log(`\n${passed} passed, 0 failed`);

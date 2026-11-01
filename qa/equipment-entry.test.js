@@ -26,7 +26,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   async function typeCustom(id,value){
    await page.focus('#'+id+'Custom');await page.keyboard.down('Control');await page.keyboard.press('A');await page.keyboard.up('Control');await page.keyboard.press('Backspace');await page.type('#'+id+'Custom',value);await page.keyboard.press('Tab');}
   async function matchingForm(){return page.evaluate(values=>Object.entries(values).every(([id,v])=>document.getElementById(id).value===v&&Render.lastState[id]===v),custom);}
-  async function matchingSpec(target){return target.$eval('#v_tsTable',(el,values)=>Object.values(values).every(v=>[...el.querySelectorAll('.spec-v')].some(cell=>cell.textContent===v)),custom);}
+  /* The specification table prints some entries as one combined cell (the
+     structure row is "mountMake · roofType"), so each custom value has to
+     appear in a value cell rather than be a whole cell of its own. */
+  async function matchingSpec(target){return target.$eval('#v_tsTable',(el,values)=>{const cells=[...el.querySelectorAll('.spec-v')].map(c=>c.textContent);return Object.values(values).every(v=>cells.some(c=>c.includes(v)));},custom);}
   check('all eight dropdowns have Custom last and labelled hidden text boxes below',await page.evaluate(ids=>ids.every(id=>{
    const el=document.getElementById(id),input=document.getElementById(id+'Custom'),wrap=document.getElementById(id+'CustomWrap');
    return el.tagName==='SELECT'&&el.options.length>1&&el.options[el.options.length-1].text==='Custom…'&&wrap.hidden&&input.disabled&&el.nextElementSibling===wrap&&document.querySelector('label[for="'+id+'"]')&&input.labels.length===1;
