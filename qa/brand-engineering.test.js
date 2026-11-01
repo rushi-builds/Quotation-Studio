@@ -56,48 +56,28 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
     await view.setViewport({width:1200,height:1100});
     await view.goto(base+'/share.html?p='+id,{waitUntil:'networkidle0'});
     check('customer header uses same identity',await view.$eval('#shareLogo',e=>e.getAttribute('src')==='assets/images/ktm-logo-light.png'));
-    check('one action hub placed after the full proposal',await view.evaluate(()=>document.querySelectorAll('#shareAcceptWrap').length===1 && !!(document.getElementById('sharePages').compareDocumentPosition(document.getElementById('shareAcceptWrap')) & Node.DOCUMENT_POSITION_FOLLOWING)));
-    check('engineering controls owned by the single hub',await view.$eval('#shareSimBar',e=>!!e.closest('#shareAcceptWrap')));
-    check('online paper signature is not duplicated',await view.$$eval('#pageClosing .accept-block',els=>els.length===0));
-    check('acknowledgement is optional, collapsed by default',!await view.$eval('#localAcknowledgement',e=>e.open));
-    check('still-reviewing stage cannot prepare request',await view.$eval('#prepareRequest',e=>e.disabled));
-    await view.$eval('#engineeringRequestForm',e=>e.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true})));
-    check('bypassing disabled button still enforces interest',await view.$eval('#requestError',e=>e.textContent.includes('confirm your interest')));
-    await view.select('#requestStage','interested');
-    await view.$eval('#requestSurvey',e=>{e.checked=false;e.dispatchEvent(new Event('change',{bubbles:true}));});
-    await view.click('#prepareRequest');
-    check('empty service choice rejected',await view.$eval('#requestError',e=>e.textContent.includes('at least one')));
-    await view.click('#requestArka');await view.click('#requestPvsyst');
-    await view.$eval('#requestLocation',e=>{e.value='   ';e.dispatchEvent(new Event('input',{bubbles:true}));});
-    await view.click('#prepareRequest');
-    check('whitespace-only site address rejected',await view.$eval('#requestError',e=>e.textContent.includes('site address')));
-    await view.$eval('#requestLocation',e=>{e.value='Baner roof, Pune';e.dispatchEvent(new Event('input',{bubbles:true}));});
-    await view.type('#requestWindow','Saturday morning');
-    const before=await view.evaluate(id=>JSON.stringify(Proposals.get(id)),id);
-    await view.click('#prepareRequest');
-    const message=await view.$eval('#requestMessage',e=>e.value);
-    check('message includes proposal reference, site, selected services and timing',['ENG-007','Baner roof, Pune','Arka 3D layout','PVsyst simulation report','Saturday morning'].every(text=>message.includes(text)));
-    check('unselected site survey not inserted',!message.includes('Requested: Site survey'));
-    check('request never pretends an order is placed',message.includes('not an installation order') && message.includes('any fees'));
-    check('request preparation does not change saved proposal/order status',await view.evaluate(({id,before})=>JSON.stringify(Proposals.get(id))===before,{id,before}));
-    check('WhatsApp contains exactly the reviewed message',await view.$eval('#requestWhatsApp',(e,message)=>new URL(e.href).searchParams.get('text')===message,message));
-    check('delivery status honestly says not sent',await view.$eval('#requestDeliveryNote',e=>e.textContent.includes('not sent or booked')));
-    // Clipboard fallback is explicit, not an invented success.
-    await view.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw Error('denied');}}}));
-    await view.click('#copyRequest');
-    check('clipboard denial offers manual copy',await view.$eval('#requestDeliveryNote',e=>e.textContent.includes('Automatic copy is unavailable')));
-    await view.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__copied=text;}}}));
-    await view.click('#copyRequest');
-    check('clipboard success copies exact message',await view.evaluate(message=>window.__copied===message,message));
-    await view.type('#requestWindow',' after 10am');
-    check('editing request invalidates old message and old WhatsApp URL',await view.evaluate(()=>document.getElementById('requestPreview').hidden && !document.getElementById('requestWhatsApp').hasAttribute('href')));
-    await view.select('#requestStage','reviewing');
-    check('returning to review disables sending',await view.$eval('#prepareRequest',e=>e.disabled));
+    /* The browser-local engineering request hub was retired in d835545, when
+       the customer flow moved to the portal feedback form. share.html keeps
+       the markup (and its listeners) inert - display:none!important plus
+       aria-hidden - so nothing here is reachable by a customer any more.
+       The old suite clicked #prepareRequest through a dozen scenarios; those
+       can only fail now. What the page still owes the customer is that the
+       retired flow does not reappear and cannot pretend an order was placed. */
+    check('retired request hub is unreachable for customers',await view.evaluate(()=>{
+      const wrap=document.getElementById('shareAcceptWrap');
+      const jump=document.getElementById('requestJump');
+      return !!wrap && wrap.checkVisibility()===false
+        && !!wrap.closest('[aria-hidden="true"]')
+        && !!jump && jump.checkVisibility()===false;
+    }));
+    check('retired request form cannot offer a submission',await view.evaluate(()=>{
+      const form=document.getElementById('engineeringRequestForm');
+      const prepare=document.getElementById('prepareRequest');
+      return !!form && !!prepare && form.checkVisibility()===false && prepare.checkVisibility()===false;
+    }));
     // Add one report; it should appear once online, never as a duplicate request.
     await view.evaluate(id=>{const b=Proposals.get(id);b.form.arkaUrl='https://example.com/layout';Proposals.put(b);},id);
     await view.reload({waitUntil:'networkidle0'});
-    check('provided report cannot be requested again',await view.$eval('#requestArka',e=>e.disabled));
-    check('only missing report remains selectable',!await view.$eval('#requestPvsyst',e=>e.disabled));
     check('provided report link visible exactly once online',await view.$$eval('a[href="https://example.com/layout"]',els=>els.filter(e=>e.checkVisibility()).length===1));
     await view.emulateMediaType('print');
     check('print restores report reference in its technical page',await view.$eval('#v_tsRefsWrap',e=>e.checkVisibility()));
@@ -121,16 +101,12 @@ function check(name,ok){assert(ok,name);passed++;console.log('  ✓ '+name);}
     await view.evaluate(id=>{const b=Proposals.get(id);b.form.companyPhone='unavailable';b.form.arkaUrl='javascript:alert(1)';Proposals.put(b);},id);
     await view.reload({waitUntil:'networkidle0'});
     check('unsafe URL is not exposed in technical reference or hub',await view.$$eval('a',els=>els.every(e=>!e.href.startsWith('javascript:'))));
-    await view.select('#requestStage','ready');await view.click('#prepareRequest');
-    check('invalid contact offers copy, not invented WhatsApp destination',await view.$eval('#requestWhatsApp',e=>!e.checkVisibility() && !e.hasAttribute('href')));
-    check('copy-only fallback explains nothing was sent',await view.$eval('#requestDeliveryNote',e=>e.textContent.includes('No valid WhatsApp')));
     await view.setViewport({width:390,height:844});
-    check('hub fits mobile screen without horizontal overflow',await view.$eval('#shareAcceptWrap',e=>e.getBoundingClientRect().right<=innerWidth && e.scrollWidth<=e.clientWidth+1));
-    await view.$eval('#shareAcceptWrap',e=>e.scrollIntoView());
-    await view.screenshot({path:path.join(__dirname,'shots/engineering-mobile.png'),fullPage:false});
+    check('retired hub stays hidden on a phone viewport too',await view.evaluate(()=>{
+      const wrap=document.getElementById('shareAcceptWrap');
+      return !!wrap && wrap.checkVisibility()===false && wrap.getBoundingClientRect().width===0;
+    }));
     await view.setViewport({width:1200,height:1100});
-    await view.addStyleTag({content:'.share-topbar{position:static!important}'});
-    await (await view.$('#shareAcceptWrap')).screenshot({path:path.join(__dirname,'shots/engineering-hub.png')});
     check('no runtime errors',errors.length===0);
     console.log(`\n${passed} passed, 0 failed`);
   } finally {await browser.close();}
