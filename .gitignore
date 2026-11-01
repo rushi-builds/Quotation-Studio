@@ -2,6 +2,8 @@
 qa/node_modules/
 qa/package-lock.json
 qa/shots/
+# ad-hoc jsdom probes used while investigating a red run
+qa/probe-*.cjs
 qa/.install-done
 
 # Platform local data (Phase A file-backed DB — never commit secrets)

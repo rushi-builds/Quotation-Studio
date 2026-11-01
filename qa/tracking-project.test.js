@@ -74,8 +74,12 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('mobile proposal card stays within the scaled page',await customer.$eval('[data-project="PROJ_TRACKING"]',e=>e.getBoundingClientRect().left>=0&&e.getBoundingClientRect().right<=innerWidth+1));
   const context=await browser.createBrowserContext(),gallery=await context.newPage();gallery.on('pageerror',e=>errors.push(e.message));await gallery.setViewport({width:1360,height:1100});
   await gallery.goto(base+'/gallery.html',{waitUntil:'networkidle0'});
-  check('public gallery has ten distinct projects without proposal storage',await gallery.evaluate(()=>localStorage.length===0&&document.querySelectorAll('#galleryProjects article').length===10));
-  check('tracking is a regular gallery entry with the supplied facts and photograph',await gallery.$eval('#galleryProjects [data-project="PROJ_TRACKING"]',e=>e.dataset.project==='PROJ_TRACKING'&&e.textContent.includes('500 kWp')&&e.textContent.includes('Ground-Mounted Solar Tracking')&&e.querySelector('img').getAttribute('src')==='assets/images/Tracking.png'));
+  /* The public gallery is now the real project list (PROJECTS on the page,
+     41 entries at the time of writing) rather than a ten-card sample, and the
+     cards carry no data-project attribute - so the check is that every listed
+     project becomes exactly one card, without touching proposal storage. */
+  check('public gallery lists every project without proposal storage',await gallery.evaluate(()=>{const cards=[...document.querySelectorAll('#galleryProjects article')];const names=cards.map(c=>c.textContent.trim());return localStorage.length===0&&cards.length===PROJECTS.length&&cards.length>=10&&new Set(names).size===names.length;}));
+  check('tracking is a regular gallery entry with the supplied facts and photograph',await gallery.evaluate(()=>{const card=[...document.querySelectorAll('#galleryProjects article')].find(a=>a.textContent.includes('Ground-Mounted Solar Tracking'));return !!card&&card.textContent.includes('500 kWp')&&card.querySelector('img').getAttribute('src')==='assets/images/Tracking.png';}));
   check('all gallery cards share the same width, thumbnail height and styling',await gallery.$$eval('#galleryProjects article',els=>els.every(e=>e.className===''&&Math.abs(e.offsetWidth-els[0].offsetWidth)<=1&&e.querySelector('img').offsetHeight===els[0].querySelector('img').offsetHeight)));
   check('no featured banner or separate tracking filter remains',await gallery.evaluate(()=>!document.querySelector('.featured-project')&&!document.getElementById('galleryFilters').textContent.includes('Solar tracking')));
   await (await gallery.$('#galleryProjects')).screenshot({path:path.join(shots,'tracking-gallery-grid.png')});

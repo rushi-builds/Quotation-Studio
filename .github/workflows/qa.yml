@@ -143,13 +143,23 @@ jobs:
 
       # Same reason as the offline job: surface the failing assertions as
       # annotations, because the job log URL is not always reachable.
-      - name: Annotate the first browser failures
+      - name: Annotate the browser failures
         if: failure()
         run: |
           log="$RUNNER_TEMP/browser.log"
           [ -f "$log" ] || exit 0
-          { grep -m3 -A1 -E "AssertionError|TimeoutError|Evaluation failed|not clickable" "$log" || true; echo '--- tail ---'; tail -n 3 "$log"; } \
-            | sed 's/^/::error title=browser-suite::/'
+          # The runner prints one line per failing file plus the pass count, so
+          # the whole block is the report. Only a missing block falls back to
+          # grepping the first assertion lines.
+          block="$RUNNER_TEMP/browser-failures.txt"
+          { sed -n '/browser files passed/,$p' "$log" || true; } > "$block"
+          if [ ! -s "$block" ]; then
+            { grep -m3 -A1 -E "AssertionError|TimeoutError|Evaluation failed|not clickable" "$log" || true; echo '--- tail ---'; tail -n 5 "$log"; } > "$block"
+          fi
+          # One annotation body: newlines are percent-encoded so every failing
+          # file survives in the same check-run message.
+          awk '{ gsub(/%/, "%25"); printf "%s%%0A", $0 }' "$block" | cut -c1-60000 \
+            | sed '1s/^/::error title=browser-suite::/'
 
       # The job log itself sits behind a signed blob URL that some networks
       # answer with EOF. The artifact is fetched through the API instead, so

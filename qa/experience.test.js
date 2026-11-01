@@ -28,14 +28,15 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('summary reflects energy/equipment while pricing stays on Investment',await page.$eval('#powerPage1',(e,x)=>!e.textContent.includes('₹')&&e.textContent.includes(x.annual)&&e.textContent.includes(x.module+' × 620')&&e.textContent.includes('10 kW inverter'),expected));
  check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage5.textContent.includes(x.net)&&powerPage4.textContent.includes(x.lifetime),expected));
  check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage5.textContent.includes('not approved')&&powerPage6.textContent.includes('Additional scope')&&powerPage6.textContent.includes('valid until')&&powerPage6.textContent.includes('not an installation order')));
- async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer').getBoundingClientRect(),last=e.querySelector('footer').previousElementSibling.getBoundingClientRect();return {id:e.id,h:e.scrollHeight,gap:foot.top-last.bottom,fit:e.scrollWidth<=e.clientWidth};}));}
+ /* The sheet is a fixed-height, overflow-hidden A4 page, so its scrollHeight
+    always includes the page's own bottom padding: page 2 reported 1130 while
+    every element sat 21px above the footer and nothing was clipped. What has
+    to hold is that no content passes the sheet edge, nothing is clipped
+    inside the body, and the footer keeps its clearance. */
+ async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer'),body=foot.previousElementSibling,f=foot.getBoundingClientRect(),b=body.getBoundingClientRect();return {id:e.id,sheet:e.clientHeight,bottom:b.bottom-r.top,inner:body.scrollHeight-body.clientHeight,gap:f.top-b.bottom,fit:e.scrollWidth<=e.clientWidth};}));}
  let layout=await powerLayout();console.log('Power layout',layout);
- /* Same predicate, but a failure now names the page and the numbers it broke
-    on. This is a pixel-geometry check: it can only be measured in a browser,
-    and the job log is not always reachable, so the detail has to travel in
-    the check name itself. */
- const badPage=layout.filter(x=>!(x.h<=1124&&x.gap>=4&&x.fit));
- check('all six power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': h='+x.h+' gap='+x.gap+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
+ const badPage=layout.filter(x=>!(x.bottom<=x.sheet&&x.inner<=1&&x.gap>=4&&x.fit));
+ check('all six power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': content bottom='+Math.round(x.bottom)+' of '+x.sheet+', clipped='+x.inner+', gap='+Math.round(x.gap)+', fit='+x.fit).join(' | ')+']':''),badPage.length===0);
  check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage5',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
  const rasterQR=await page.$eval('#powerPage2',async el=>{
    const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});

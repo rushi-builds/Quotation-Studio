@@ -61,7 +61,10 @@ if (failed.length) {
   for (const f of failed) {
     const lines = f.out.trim().split('\n');
     const why = lines.find((l) => /AssertionError|TimeoutError|Evaluation failed|not clickable|Error:/.test(l)) || lines.slice(-1)[0];
-    console.log(`  - ${f.file}: ${String(why).trim().slice(0, 200)}`);
+    /* The last passing check says where in the file the run stopped, so a
+       report of one stale check does not read like the whole file is broken. */
+    const lastPass = [...lines].reverse().find((l) => l.trim().startsWith('✓'));
+    console.log(`  - ${f.file}: ${String(why).trim().slice(0, 200)}${lastPass ? '  [after: ' + lastPass.trim().slice(2, 80) + ']' : ''}`);
   }
   process.exitCode = 1;
 }

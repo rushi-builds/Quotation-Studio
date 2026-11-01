@@ -74,7 +74,11 @@ await apply({bessMake:'Customer specified storage <not markup>'});check('Custom 
      is that separate pricing, so that is what it asserts - the other four
      hints and the briefing wording are unchanged. */
   check('main proposal and multilingual briefing disclose additional scope',await page.evaluate(()=>v_exSub.textContent.includes('separately quoted')&&v_svSub.textContent.includes('not modelled')&&v_inPayNote.textContent.includes('Solar-only')&&v_finSub.textContent.includes('Solar-only')&&v_opSub.textContent.includes('Solar-only')&&Briefing.scriptFor(Render.lastState,'en').join(' ').includes('additional system')));
-  check('optional recommendations are not authorised by inclusion alone',await page.evaluate(()=>v_clAcceptIntro.textContent.includes('does not authorise')));
+  /* The closing page no longer carries its own acceptance intro (the request
+     hub moved to the portal), so the live disclosure is the EPC terms line:
+     including an optional system in the proposal still needs a separate
+     agreement for its scope, price and payment terms. */
+  check('optional recommendations are not authorised by inclusion alone',await page.evaluate(()=>v_tmSub.textContent.includes('require separate agreement')));
   await apply({systemInclude:'false',bessInclude:'false',bessAutoEconomics:'false'});
   check('imported string flags cannot silently enable optional scope',await page.evaluate(()=>!systemInclude.checked&&!bessInclude.checked&&!bessAutoEconomics.checked));
   await apply({bessAutoEconomics:true});
