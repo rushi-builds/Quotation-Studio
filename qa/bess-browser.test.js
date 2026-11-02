@@ -81,7 +81,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   /* "New" saves, reserves a reference and only then loads a clean proposal, so
      wait for the new proposal to become active before reading the page. */
   await page.evaluate(()=>document.getElementById('pmNew').click());
-  await page.waitForFunction(id=>Proposals.activeId()&&Proposals.activeId()!==id,{timeout:20000},savedId).catch(e=>{throw new Error('New never activated a clean proposal: '+e.message);});
+  /* New activates the fresh proposal and then loads it into the form, so the
+     page is only clean once that load has run - wait for the page, not just
+     the id. */
+  await page.waitForFunction(id=>Proposals.activeId()&&Proposals.activeId()!==id&&!document.getElementById('bessEnabled').checked&&document.getElementById('bessCapacity').value==='',{timeout:20000},savedId).catch(async e=>{throw new Error('New never loaded a clean proposal: '+e.message+' ['+JSON.stringify(await page.evaluate(()=>({id:Proposals.activeId(),on:bessEnabled.checked,cap:bessCapacity.value,pages:Render.lastVisible.length})))+']');});
   const fresh=await page.evaluate(()=>({on:bessEnabled.checked,cap:bessCapacity.value,pages:Render.lastVisible.length,model:bessModel&&bessModel.value}));
   check('New starts with BESS off and no inherited ratings'+(fresh.on||fresh.cap!==''||fresh.pages!==15?' [bessEnabled='+fresh.on+' capacity='+JSON.stringify(fresh.cap)+' model='+fresh.model+' pages='+fresh.pages+']':''),!fresh.on&&fresh.cap===''&&fresh.pages===15);
   const newId=await page.evaluate(()=>Proposals.activeId());await(await page.$('#importFile')).uploadFile(json);await page.waitForFunction(id=>Proposals.activeId()!==id,{},newId);

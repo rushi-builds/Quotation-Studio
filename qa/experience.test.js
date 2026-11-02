@@ -137,7 +137,9 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  /* The published gallery is the real project list (PROJECTS on that page,
      41 entries at the time of writing), not a ten-card sample. */
  check('public gallery works in a fresh browser with no proposal storage',await gallery.evaluate(()=>localStorage.length===0&&document.querySelectorAll('#galleryProjects article').length===PROJECTS.length&&PROJECTS.length>=10));
- check('unsupplied videos are not advertised',await gallery.$eval('#videos',e=>e.hidden));
+ /* The gallery no longer carries a videos section at all, so "not advertised"
+    means the element is absent (or hidden if it ever returns). */
+ check('unsupplied videos are not advertised',await gallery.evaluate(()=>{const v=document.getElementById('videos');return !v||v.hidden;}));
  await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());
  /* The buttons are ['All projects', ...SECTORS], so the second one is
     SECTORS[0]; its count follows the list instead of a fixed four. */
