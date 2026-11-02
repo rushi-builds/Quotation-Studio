@@ -31,6 +31,11 @@
 
   var HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="heart-fill" d="M12 20.6S3.9 15.8 2.1 11.3A5.5 5.5 0 0 1 12 6.2a5.5 5.5 0 0 1 9.9 5.1c-1.8 4.5-9.9 9.3-9.9 9.3Z"/></svg>';
   var SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.4 10.7 15.6 6.4M8.4 13.3l7.2 4.3"/></svg>';
+  var BOLT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4.5 13.5H11l-.6 8.5L20 10h-6.6L13 2Z"/></svg>';
+  var ROOF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/><path d="M9.5 20v-5h5v5"/></svg>';
+  var PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>';
+  var CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>';
+  var LAYERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></svg>';
   var PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 6.5l4 4"/></svg>';
   var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.2 4.2L19 6.6"/></svg>';
 
@@ -273,25 +278,36 @@
     var known = state.available !== false;
     var count = known ? (state.counts[it.id] || 0) : '–';
     var countWord = known ? (count === 1 ? ' like' : ' likes') : ' likes';
-    var tags = [
-      '<span>' + esc(p.capacity) + '</span>',
-      '<span>' + esc(kindOf(p)) + '</span>',
-      p.location ? '<span>' + esc(p.location) + '</span>' : '',
-      '<span class="date">Installed ' + esc(d.installed) + '</span>'
+    /* Four facts, each shown once: the photograph used to repeat them in a
+       footer bar, so that bar is gone and the chips are the single source. */
+    var facts = [
+      '<span class="tag"><i class="tag-ico cap">' + BOLT + '</i><span class="tag-txt"><b>' +
+        esc(p.capacity) + '</b><em>Capacity</em></span></span>',
+      '<span class="tag"><i class="tag-ico type">' + ROOF + '</i><span class="tag-txt"><b>' +
+        esc(kindOf(p)) + '</b><em>Installation</em></span></span>',
+      p.location ? '<span class="tag"><i class="tag-ico where">' + PIN + '</i><span class="tag-txt"><b>' +
+        esc(p.location) + '</b><em>Location</em></span></span>' : '',
+      '<span class="tag date"><i class="tag-ico when">' + CAL + '</i><span class="tag-txt"><b>Installed ' +
+        esc(d.installed) + '</b><em>Commissioned</em></span></span>'
     ].filter(Boolean).join('');
 
     dialog.innerHTML =
       '<button type="button" id="closePhoto" aria-label="Close project">×</button>' +
       '<div class="detail">' +
-        '<div class="detail-media"><img id="largePhoto" alt="' + esc(p.name + ' · ' + p.capacity) + '" src="' +
-          esc((window.PROJECT_IMAGES ? window.PROJECT_IMAGES[p.img] : p.img) || p.img) + '"></div>' +
+        '<div class="detail-media">' +
+          '<img id="largePhoto" alt="' + esc(p.name + ' · ' + p.capacity) + '" src="' +
+            esc((window.PROJECT_IMAGES ? window.PROJECT_IMAGES[p.img] : p.img) || p.img) + '"' +
+            ' data-project="' + esc(p.img) + '">' +
+          '<span class="media-tag">' + LAYERS + 'Project portfolio</span>' +
+        '</div>' +
         '<div class="detail-body">' +
-          '<span class="section-kicker">' + esc(p.sector || 'SOLAR') + ' PROJECT</span>' +
+          '<span class="detail-kicker"><b>' + esc(p.sector || 'SOLAR') + ' PROJECT</b><i aria-hidden="true"></i></span>' +
           '<h2 id="detailTitle">' + esc(p.name) + '</h2>' +
-          '<div class="detail-tags">' + tags + '</div>' +
           '<p class="detail-summary">' + esc(d.summary) + '</p>' +
+          '<div class="detail-tags">' + facts + '</div>' +
+          '<h3 class="detail-h"><i aria-hidden="true"></i>Project highlights</h3>' +
           '<ul class="detail-points">' + d.points.map(function (point) {
-            return '<li>' + CHECK + '<span>' + esc(point) + '</span></li>';
+            return '<li><span class="tick">' + CHECK + '</span><span>' + esc(point) + '</span></li>';
           }).join('') + '</ul>' +
           '<p id="photoCaption" class="visually-hidden">' +
             esc([p.name, p.capacity, p.installation, p.location].filter(Boolean).join(' · ')) +
@@ -301,7 +317,7 @@
               '" data-label="' + esc(p.name) + '" aria-label="Like this project"><span class="like-ico">' + HEART + '</span><span class="like-count">' + count + '</span>' +
               '<span class="like-word">' + countWord + '</span></button>' +
             '<button type="button" class="btn primary" data-detail-share="' + esc(it.id) + '">' + SHARE + 'Share project</button>' +
-            '<button type="button" class="btn feedback" data-detail-feedback="' + esc(it.id) + '">' + PENCIL + 'Feedback</button>' +
+            '<button type="button" class="btn feedback" data-detail-feedback="' + esc(it.id) + '">' + PENCIL + 'Give feedback</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -380,6 +396,8 @@
       b.addEventListener('click', function () {
         var value = Number(b.getAttribute('data-star'));
         setStars(feedbackRating === value ? 0 : value);
+        /* Same celebration as a like: the stars throw a small burst. */
+        if (feedbackRating) L.burst(b, ['⭐', '✨', '🌟']);
       });
     });
     var feedbackCancel = document.getElementById('feedbackCancel');
@@ -404,8 +422,12 @@
             feedbackError.textContent = res.error || 'Could not send that just now.';
             return;
           }
-          feedbackBox.close();
+          /* A short celebration, then close - the note is already stored. */
+          L.burst(feedbackForm, ['🎉', '✨', '💛', '🌟', '🎊']);
           L.toast('Thank you — your note is with the studio.');
+          setTimeout(function () {
+            if (feedbackBox.open) feedbackBox.close();
+          }, 420);
         });
     });
   }

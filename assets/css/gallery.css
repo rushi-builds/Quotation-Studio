@@ -245,51 +245,112 @@ footer.gallery-footer .legal{border-top:1px solid rgba(255,255,255,.14);margin-t
 footer.gallery-footer a{color:#E9C398;text-decoration:none}
 footer.gallery-footer a:hover{text-decoration:underline}
 
-/* ---------- detail dialog ---------- */
+/* ---------- detail dialog ----------
+   A slanted split: the photograph takes the left half and its right edge cuts
+   diagonally into the white panel, which carries the facts - each fact once,
+   no repeat bar over the photo. */
 #photoViewer{
-  width:min(1040px,94vw);max-height:92vh;padding:0;border:0;border-radius:24px;
+  width:min(1160px,95vw);max-height:92vh;padding:0;border:0;border-radius:26px;
   background:#fff;color:var(--ink);box-shadow:var(--shadow-lg);overflow:hidden;
 }
-#photoViewer::backdrop{background:rgba(4,14,24,.72);backdrop-filter:blur(3px)}
-.detail{display:grid;grid-template-columns:1.05fr .95fr;max-height:92vh}
-.detail-media{position:relative;background:#0C1E30;min-height:280px}
-.detail-media img{width:100%;height:100%;max-height:92vh;object-fit:contain;display:block;background:#0C1E30}
-.detail-body{padding:26px 26px 22px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
-.detail-body h2{margin:0;font-size:23px;line-height:1.2;letter-spacing:-.4px}
-.detail-tags{display:flex;flex-wrap:wrap;gap:8px}
-.detail-tags span{
-  padding:6px 12px;border-radius:999px;background:#F2F5F8;color:var(--ink);
-  font-size:11.5px;font-weight:600;
+#photoViewer::backdrop{background:rgba(4,14,24,.74);backdrop-filter:blur(3px)}
+.detail{display:grid;grid-template-columns:1.06fr .94fr;max-height:92vh}
+.detail-media{
+  position:relative;background:#0C1E30;min-height:380px;overflow:hidden;
+  clip-path:polygon(0 0,100% 0,calc(100% - 62px) 100%,0 100%);
 }
-.detail-tags span.date{background:var(--orange-soft);color:#8A4400}
-.detail-summary{margin:0;color:var(--muted);font-size:13.5px}
-.detail-points{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
-.detail-points li{display:flex;gap:10px;font-size:13px;color:var(--ink)}
-.detail-points li svg{flex:0 0 17px;width:17px;height:17px;margin-top:2px;color:var(--orange)}
-.detail-actions{display:flex;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--line);margin-top:auto;flex-wrap:wrap}
-.detail-actions .act.like{padding:9px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:13px}
-.detail-actions .act.like[aria-pressed="true"]{border-color:#F6C9D0;background:#FFF5F6}
-.detail-actions .act.like svg{width:18px;height:18px}
-.detail-actions .btn svg{width:17px;height:17px}
+.detail-media img{
+  width:100%;height:100%;max-height:92vh;object-fit:cover;display:block;background:#0C1E30;
+}
+/* The published tracking photograph is shown uncropped, as the owner asked. */
+.detail-media img[data-project$="Tracking.png"]{object-fit:contain;padding:0}
+.detail-media::after{
+  content:'';position:absolute;inset:auto 0 0 0;height:38%;pointer-events:none;
+  background:linear-gradient(rgba(6,18,30,0),rgba(6,18,30,.55));
+}
+.media-tag{
+  position:absolute;top:16px;left:16px;z-index:2;display:inline-flex;align-items:center;gap:8px;
+  padding:8px 15px 8px 12px;border-radius:999px;background:rgba(7,26,46,.72);color:#fff;
+  font-size:11.5px;font-weight:600;letter-spacing:.04em;backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.16);
+}
+.media-tag svg{width:15px;height:15px;color:#F7C08D}
+
+.detail-body{
+  padding:36px 34px 24px 34px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;
+}
+.detail-kicker{display:flex;align-items:center;gap:12px;font-size:11px;letter-spacing:.16em}
+.detail-kicker b{color:var(--orange);font-weight:800}
+.detail-kicker i{flex:0 0 auto;width:52px;height:3px;border-radius:2px;background:var(--gold);opacity:.75}
+.detail-body h2{margin:0;font-size:clamp(22px,2.1vw,29px);line-height:1.16;letter-spacing:-.7px}
+.detail-summary{margin:0;color:var(--muted);font-size:13.5px;line-height:1.62;max-width:56ch}
+
+/* Facts: one chip each, icon + value + label. */
+.detail-tags{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.detail-tags .tag{
+  display:flex;align-items:center;gap:10px;min-width:0;
+  padding:10px 12px;border-radius:14px;background:#F5F8FB;border:1px solid #E8EEF4;
+}
+.tag-ico{
+  flex:0 0 30px;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+}
+.tag-ico svg{width:16px;height:16px}
+.tag-ico.cap{background:#FFF0DE;color:#B4611A}
+.tag-ico.type{background:#E7F0FB;color:#2C5C8A}
+.tag-ico.where{background:#E8F6EC;color:#2C7A46}
+.tag-ico.when{background:#F1E9FB;color:#6B3FA0}
+.detail-tags .tag-txt{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+.detail-tags .tag-txt b{
+  font-size:12.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.detail-tags .tag-txt em{font-style:normal;font-size:10.5px;color:var(--muted);letter-spacing:.04em}
+.detail-tags .tag.date{background:#FFF8EF;border-color:#F6E3C9}
+.detail-tags .tag.date .tag-txt b{color:#8A4400}
+
+.detail-h{
+  display:flex;align-items:center;gap:10px;margin:4px 0 0;
+  font-size:14.5px;font-weight:800;letter-spacing:-.2px;color:var(--navy);
+}
+.detail-h i{width:4px;height:17px;border-radius:2px;background:var(--orange)}
+.detail-points{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.detail-points li{
+  display:flex;gap:11px;font-size:13px;color:var(--ink);line-height:1.5;
+  padding:9px 0;border-bottom:1px solid #F1F4F8;
+}
+.detail-points li:last-child{border-bottom:0}
+.detail-points .tick{
+  flex:0 0 20px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+  background:var(--orange);color:#fff;margin-top:1px;
+}
+.detail-points .tick svg{width:12px;height:12px;stroke-width:3}
+
+.detail-actions{
+  display:flex;align-items:center;gap:9px;padding-top:14px;border-top:1px solid var(--line);
+  margin-top:auto;flex-wrap:wrap;
+}
+.detail-actions .act.like{
+  padding:10px 15px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:13px;
+}
+.detail-actions .act.like[aria-pressed="true"]{border-color:#F6C9D0;background:#FFF2F4}
+.detail-actions .btn svg{width:16px;height:16px}
 .detail-actions .btn{
-  display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:12px;
-  border:1px solid var(--line);background:#fff;color:var(--ink);font-size:13px;font-weight:600;
-  cursor:pointer;text-decoration:none;transition:background .2s var(--ease),border-color .2s var(--ease);
+  display:inline-flex;align-items:center;gap:8px;padding:11px 17px;border-radius:12px;
+  border:1px solid var(--line);background:#fff;color:var(--ink);font-size:13px;font-weight:700;
+  cursor:pointer;text-decoration:none;
+  transition:background .2s var(--ease),border-color .2s var(--ease),transform .2s var(--ease),box-shadow .2s var(--ease);
 }
-.detail-actions .btn:hover{background:#F5F7FA;border-color:#D3DCE6}
+.detail-actions .btn:hover{background:#F5F7FA;border-color:#D3DCE6;transform:translateY(-1px)}
 .detail-actions .btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
-.detail-actions .btn.primary:hover{background:var(--navy-2)}
-/* The like is a pill here too, so the three controls read as one row. */
-.detail-actions .act.like{padding:9px 14px;border-radius:12px;background:#fff}
-.detail-actions .act.like[aria-pressed="true"]{background:#FFF2F4}
-.detail-actions .btn.feedback{background:var(--orange-soft);border-color:#F6D7B8;color:#8A4400}
-.detail-actions .btn.feedback:hover{background:#FFE7CE;border-color:#F0C49B}
+.detail-actions .btn.primary:hover{background:var(--navy-2);box-shadow:0 10px 22px rgba(7,26,46,.22)}
+.detail-actions .btn.feedback{background:var(--orange);border-color:var(--orange);color:#fff}
+.detail-actions .btn.feedback:hover{background:#E5761A;box-shadow:0 10px 22px rgba(242,129,29,.3)}
 #closePhoto{
-  position:absolute;top:10px;right:10px;z-index:5;width:38px;height:38px;border-radius:50%;
-  border:0;background:rgba(255,255,255,.92);color:var(--navy);font-size:20px;line-height:1;
-  cursor:pointer;display:grid;place-items:center;box-shadow:var(--shadow-sm);
+  position:absolute;top:16px;right:16px;z-index:6;width:40px;height:40px;border-radius:50%;
+  border:1px solid #E7EDF3;background:#fff;color:var(--navy);font-size:20px;line-height:1;
+  cursor:pointer;display:grid;place-items:center;box-shadow:0 6px 18px rgba(7,26,46,.12);
+  transition:transform .2s var(--ease),background .2s var(--ease);
 }
-#closePhoto:hover{background:#fff}
+#closePhoto:hover{transform:scale(1.06);background:#F7FAFD}
 /* The dialog is rebuilt on every open, so the only fixed child is the hidden
    caption that carries the full alt-style description for screen readers. */
 #photoCaption{display:none}
@@ -300,11 +361,12 @@ footer.gallery-footer a:hover{text-decoration:underline}
   background:#fff;color:var(--ink);box-shadow:var(--shadow-lg);overflow:auto;
 }
 #feedbackBox::backdrop{background:rgba(4,14,24,.72);backdrop-filter:blur(3px)}
-.feedback-card{display:flex;flex-direction:column;gap:14px;margin:0;padding:26px 26px 22px}
+.feedback-card{position:relative;display:flex;flex-direction:column;gap:14px;margin:0;padding:26px 26px 22px}
 .feedback-card h2{margin:0;font-size:22px;line-height:1.2;letter-spacing:-.4px}
 .feedback-lede{margin:0;color:var(--muted);font-size:13px}
 .feedback-stars{display:flex;gap:6px}
 .feedback-stars button{
+  position:relative;overflow:visible;
   border:1px solid var(--line);background:#F9FAFC;color:#C8D2DC;cursor:pointer;
   width:42px;height:42px;border-radius:12px;font-size:20px;line-height:1;
   display:grid;place-items:center;transition:transform .18s var(--ease),background .18s var(--ease),color .18s var(--ease),border-color .18s var(--ease);
@@ -361,9 +423,13 @@ footer.gallery-footer .foot-cta a{font-weight:600}
   .gallery-hero{grid-template-columns:1fr}
   .gallery-hero>img{min-height:250px;max-height:320px}
   .detail{grid-template-columns:1fr;max-height:88vh;overflow:auto}
-  .detail-media img{max-height:42vh}
+  .detail-media{clip-path:none;min-height:0}
+  .detail-media img{max-height:40vh;aspect-ratio:16/10}
+  .detail-body{padding:24px 22px 20px}
+  .detail-media::after{height:28%}
 }
 @media (max-width:640px){
+  .detail-tags{grid-template-columns:1fr}
   .gallery-header span{display:none}
   .gallery-grid{grid-template-columns:1fr}
   .gallery-filters{top:60px}

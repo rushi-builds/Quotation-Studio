@@ -126,10 +126,10 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
       const dlg = document.getElementById('photoViewer');
       return {
         name: dlg.querySelector('h2').textContent,
-        tags: [...dlg.querySelectorAll('.detail-tags span')].map(s => s.textContent),
+        tags: [...dlg.querySelectorAll('.detail-tags .tag')].map(s => s.textContent),
         summary: dlg.querySelector('.detail-summary').textContent,
         points: dlg.querySelectorAll('.detail-points li').length,
-        date: dlg.querySelector('.detail-tags .date').textContent,
+        date: dlg.querySelector('.detail-tags .tag.date').textContent,
         img: dlg.querySelector('img').getAttribute('src'),
         hash: location.hash,
         like: !!dlg.querySelector('[data-like]'),
@@ -146,7 +146,7 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
       detail.tags.some(t => t.includes(project.location)) &&
       /* The stored install date is a placeholder until the backend supplies the
          real one, so this checks the shape rather than today's value. */
-      /^Installed \d{2}\/\d{2}\/\d{4}$/.test(detail.date), JSON.stringify(detail));
+      /^Installed \d{2}\/\d{2}\/\d{4}/.test(detail.date), JSON.stringify(detail));
     check('the detail copy is written for that project and lists its scope',
       detail.summary.length > 80 && detail.summary.includes(project.capacity) && detail.points >= 4,
       JSON.stringify({ summary: detail.summary.slice(0, 120), points: detail.points }));

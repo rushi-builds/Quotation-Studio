@@ -95,15 +95,19 @@
   /* WhatsApp-style acknowledgement: a burst of hearts drifting up from the
      button, plus a short pop on the icon. Purely decorative. */
   var GLYPHS = ['❤️', '💗', '💖', '❤️', '💓', '🧡'];
-  function burst(host) {
+  /* `glyphs` lets a caller celebrate with its own set (the feedback stars use
+     sparkles, a stored note uses confetti) instead of hearts. */
+  function burst(host, glyphs) {
     if (!host || !host.isConnected) return;
+    var set = (glyphs && glyphs.length) ? glyphs : GLYPHS;
     var box = document.createElement('span');
     box.className = 'heart-burst';
     box.setAttribute('aria-hidden', 'true');
-    for (var i = 0; i < 6; i++) {
+    for (var i = 0; i < Math.max(6, set.length); i++) {
       var heart = document.createElement('i');
-      heart.textContent = GLYPHS[i % GLYPHS.length];
-      var spread = 46;
+      heart.textContent = set[i % set.length];
+      /* Small hosts (a star button) get a tighter burst than a wide pill. */
+      var spread = Math.max(16, Math.min(46, (host.offsetWidth || 90) * 0.55));
       heart.style.setProperty('--dx', (Math.round((Math.random() * 2 - 1) * spread)) + 'px');
       heart.style.setProperty('--dy', (-52 - Math.round(Math.random() * 46)) + 'px');
       heart.style.left = (38 + Math.round(Math.random() * 30)) + '%';
