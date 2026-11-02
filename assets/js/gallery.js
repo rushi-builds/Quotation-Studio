@@ -31,6 +31,7 @@
 
   var HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="heart-fill" d="M12 20.6S3.9 15.8 2.1 11.3A5.5 5.5 0 0 1 12 6.2a5.5 5.5 0 0 1 9.9 5.1c-1.8 4.5-9.9 9.3-9.9 9.3Z"/></svg>';
   var SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.4 10.7 15.6 6.4M8.4 13.3l7.2 4.3"/></svg>';
+  var PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 6.5l4 4"/></svg>';
   var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.2 4.2L19 6.6"/></svg>';
 
   function esc(value) {
@@ -118,7 +119,8 @@
     /* A dash until the server answers: on a page without the API (a static
        copy, a preview without the backend) an invented 0 would read as
        "nobody has liked this", which is a claim this page cannot make. */
-    btn.innerHTML = HEART + '<span class="like-count">–</span>';
+    btn.innerHTML = '<span class="like-ico">' + HEART + '</span>' +
+      '<span class="like-count">–</span>';
     btn.classList.add('is-loading');
     btn.addEventListener('click', function () { toggleLike(it, btn); });
     return btn;
@@ -131,7 +133,7 @@
     btn.setAttribute('data-share', it.id);
     btn.setAttribute('aria-label', 'Share this project: ' + it.p.name);
     btn.title = 'Share this project';
-    btn.innerHTML = SHARE + '<span>Share</span>';
+    btn.innerHTML = SHARE + '<span class="act-word">Share</span>';
     btn.addEventListener('click', function () { shareProject(it); });
     return btn;
   }
@@ -299,6 +301,7 @@
               '" data-label="' + esc(p.name) + '" aria-label="Like this project"><span class="like-ico">' + HEART + '</span><span class="like-count">' + count + '</span>' +
               '<span class="like-word">' + countWord + '</span></button>' +
             '<button type="button" class="btn primary" data-detail-share="' + esc(it.id) + '">' + SHARE + 'Share project</button>' +
+            '<button type="button" class="btn feedback" data-detail-feedback="' + esc(it.id) + '">' + PENCIL + 'Feedback</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -309,6 +312,8 @@
     if (likeBtn) likeBtn.addEventListener('click', function () { toggleLike(it, likeBtn); });
     var shareBtn = dialog.querySelector('[data-detail-share]');
     if (shareBtn) shareBtn.addEventListener('click', function () { shareProject(it); });
+    var feedbackBtn = dialog.querySelector('[data-detail-feedback]');
+    if (feedbackBtn) feedbackBtn.addEventListener('click', function () { openFeedback(it); });
 
     dialog.setAttribute('aria-labelledby', 'detailTitle');
     if (typeof dialog.showModal === 'function') dialog.showModal();
@@ -331,6 +336,83 @@
     }
     if (opener && opener.focus) opener.focus();
   });
+
+  /* ---------- feedback ----------
+     One small form, opened from a project (and from the page-level button in
+     the context section). The dialog never invents a success: if the API is
+     unreachable the typed note stays and the reason is shown. */
+  var feedbackBox = document.getElementById('feedbackBox');
+  var feedbackForm = document.getElementById('feedbackForm');
+  var feedbackMessage = document.getElementById('feedbackMessage');
+  var feedbackName = document.getElementById('feedbackName');
+  var feedbackError = document.getElementById('feedbackError');
+  var feedbackSend = document.getElementById('feedbackSend');
+  var feedbackLede = document.getElementById('feedbackLede');
+  var feedbackTarget = '';
+  var feedbackRating = 0;
+
+  function setStars(value) {
+    feedbackRating = value;
+    Array.prototype.forEach.call(feedbackBox.querySelectorAll('[data-star]'), function (b) {
+      b.setAttribute('aria-pressed', String(Number(b.getAttribute('data-star')) <= value));
+    });
+  }
+
+  function openFeedback(it) {
+    if (!feedbackBox) return;
+    feedbackTarget = it ? it.id : '';
+    if (feedbackError) { feedbackError.hidden = true; feedbackError.textContent = ''; }
+    if (feedbackLede) {
+      feedbackLede.textContent = it
+        ? 'About ' + it.p.name.replace(/\.$/, '') + ' — a sentence is enough. Your note goes to the studio, not to other visitors.'
+        : 'A sentence is enough. Your note goes to the studio, not to other visitors.';
+    }
+    setStars(0);
+    if (feedbackMessage) feedbackMessage.value = '';
+    if (feedbackName) feedbackName.value = '';
+    if (typeof feedbackBox.showModal === 'function') feedbackBox.showModal();
+    else feedbackBox.setAttribute('open', '');
+    if (feedbackMessage) feedbackMessage.focus();
+  }
+
+  if (feedbackBox) {
+    Array.prototype.forEach.call(feedbackBox.querySelectorAll('[data-star]'), function (b) {
+      b.addEventListener('click', function () {
+        var value = Number(b.getAttribute('data-star'));
+        setStars(feedbackRating === value ? 0 : value);
+      });
+    });
+    var feedbackCancel = document.getElementById('feedbackCancel');
+    if (feedbackCancel) feedbackCancel.addEventListener('click', function () { feedbackBox.close(); });
+    feedbackBox.addEventListener('click', function (event) { if (event.target === feedbackBox) feedbackBox.close(); });
+    feedbackForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      if (!feedbackBox.open) return;
+      var message = (feedbackMessage.value || '').trim();
+      if (message.length < 4) {
+        feedbackError.hidden = false;
+        feedbackError.textContent = 'Write a few words first.';
+        feedbackMessage.focus();
+        return;
+      }
+      if (feedbackSend) { feedbackSend.disabled = true; feedbackSend.textContent = 'Sending…'; }
+      L.feedback({ message: message, name: feedbackName ? feedbackName.value : '', project: feedbackTarget, rating: feedbackRating })
+        .then(function (res) {
+          if (feedbackSend) { feedbackSend.disabled = false; feedbackSend.textContent = 'Send feedback'; }
+          if (!res.ok) {
+            feedbackError.hidden = false;
+            feedbackError.textContent = res.error || 'Could not send that just now.';
+            return;
+          }
+          feedbackBox.close();
+          L.toast('Thank you — your note is with the studio.');
+        });
+    });
+  }
+
+  /* Page-level entry point, next to the copy that explains the page. */
+  var pageFeedback = document.getElementById('pageFeedback');
+  if (pageFeedback) pageFeedback.addEventListener('click', function () { openFeedback(null); });
 
   /* ---------- filters + hero figures ---------- */
   var names = ['All projects'].concat(window.SECTORS);

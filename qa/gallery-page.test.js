@@ -185,6 +185,41 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
       !!sharedPayload && sharedPayload.url.endsWith('#p-' + first) && sharedPayload.title.includes(project.name),
       JSON.stringify(sharedPayload));
     await linkPage.screenshot({ path: path.join(shots, 'gallery-detail.png') });
+
+    /* ---- feedback, from the project and from the page ---- */
+    const detailFeedbackBtn = await linkPage.$('#photoViewer [data-detail-feedback]').catch(() => null);
+    check('the detail view offers feedback next to like and share', !!detailFeedbackBtn);
+    await linkPage.click('#photoViewer [data-detail-feedback]');
+    await linkPage.waitForFunction(() => document.getElementById('feedbackBox').open);
+    const feedbackCopy = await linkPage.evaluate(() => ({
+      title: document.getElementById('feedbackTitle').textContent,
+      lede: document.getElementById('feedbackLede').textContent,
+      stars: document.querySelectorAll('#feedbackBox [data-star]').length
+    }));
+    check('the feedback form names the project and offers an optional rating',
+      feedbackCopy.title.length > 8 && feedbackCopy.lede.includes(project.name.replace(/\.$/, '')) && feedbackCopy.stars === 5,
+      JSON.stringify(feedbackCopy));
+
+    /* An empty note is refused in the page, without a round trip. */
+    await linkPage.click('#feedbackBox #feedbackSend');
+    const emptyError = await linkPage.$eval('#feedbackError', e => (e.hidden ? '' : e.textContent)).catch(() => '');
+    check('an empty note is refused with a reason, not sent', /few words/i.test(emptyError), emptyError);
+
+    await linkPage.click('#feedbackBox [data-star="4"]');
+    await linkPage.type('#feedbackBox #feedbackName', 'QA visitor');
+    await linkPage.type('#feedbackBox #feedbackMessage', 'The detail view is clear and the photographs show the work properly.');
+    const posted = [];
+    linkPage.on('request', r => { if (r.url().includes('/api/gallery/feedback')) posted.push({ method: r.method(), body: r.postData() }); });
+    await linkPage.click('#feedbackBox #feedbackSend');
+    const feedbackClosed = await linkPage.waitForFunction(() => !document.getElementById('feedbackBox').open, { timeout: 15000 }).then(() => true).catch(() => false);
+    check('sending a note saves it and closes the form', feedbackClosed && posted.length === 1 && posted[0].method === 'POST', JSON.stringify(posted));
+    const sentBody = posted.length ? JSON.parse(posted[0].body) : {};
+    check('the note carries the project id and the chosen rating', sentBody.project === first && sentBody.rating === 4 && /detail view is clear/.test(sentBody.message), JSON.stringify(sentBody));
+    const thanks = await linkPage.waitForFunction(() => {
+      const t = document.querySelector('.gallery-toast');
+      return t && t.classList.contains('is-on') ? t.textContent : null;
+    }, { timeout: 5000 }).then(h => h.jsonValue()).catch(() => '');
+    check('the visitor is thanked only after the note is stored', /thank you/i.test(thanks), thanks);
     await linkPage.close();
 
     /* ---- filters, footer, mobile ---- */
@@ -201,6 +236,17 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
       .flatMap(p => [...p.children].filter(c => !c.matches('img') && !c.matches('.open-hint')).map(c => c.className || c.tagName)));
     check('no label is drawn over the project photographs', overlays.length === 0, overlays.join(','));
     await page.click('#galleryFilters button:first-child');
+
+    const pageFeedbackBtn = await page.$('#pageFeedback');
+    check('the page itself offers a feedback entry point', !!pageFeedbackBtn);
+    if (pageFeedbackBtn) {
+      await pageFeedbackBtn.click();
+      await page.waitForFunction(() => document.getElementById('feedbackBox').open);
+      const generic = await page.$eval('#feedbackLede', e => e.textContent);
+      check('the page-level form is about the page, not a project', !/About /.test(generic), generic);
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => !document.getElementById('feedbackBox').open);
+    }
 
     const footer = await page.evaluate(() => {
       const f = document.querySelector('footer');

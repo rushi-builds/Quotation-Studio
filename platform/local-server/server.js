@@ -2367,6 +2367,42 @@ async function handleApi(req, res, url) {
       });
     }
 
+    /* PUBLIC GALLERY FEEDBACK - mirrors platform/cloudflare/src/worker.js.
+       A visitor may leave a short plain-text note about a project; it is
+       stored for the studio and never shown back to other visitors. */
+    if (parts[0] === 'gallery' && parts[1] === 'feedback' && parts.length === 2 && method === 'POST') {
+      const visitorMatch = String(req.headers['cookie'] || '').match(/(?:^|;\s*)qs_gallery_visitor=([^;]+)/);
+      let visitor = String(req.headers['x-gallery-visitor'] || '').toLowerCase().trim();
+      if (!visitor && visitorMatch) {
+        try { visitor = decodeURIComponent(visitorMatch[1]).toLowerCase().trim(); } catch (_) { visitor = ''; }
+      }
+      if (!/^[a-z0-9]{16,40}$/.test(visitor)) visitor = '';
+      if (!visitor) return sendJson(res, 400, { error: 'Could not identify this browser. Reload the page and try again.' });
+      let body;
+      try { body = await readBody(req, 4096); }
+      catch (err) { return sendJson(res, err.status || 400, { error: err.message || 'Invalid request.' }); }
+      const raw = String((body && body.message) || '').replace(/\r\n?/g, '\n').trim();
+      if (raw.length < 4) return sendJson(res, 400, { error: 'Write a few words first.' });
+      if (raw.length > 1000) return sendJson(res, 400, { error: 'Please keep the note under 1,000 characters.' });
+      if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(raw)) return sendJson(res, 400, { error: 'Use plain text only.' });
+      const project = String((body && body.project) || '').trim().toLowerCase();
+      if (project && !/^[a-z0-9][a-z0-9_-]{2,79}$/.test(project)) return sendJson(res, 400, { error: 'Unknown project.' });
+      const name = String((body && body.name) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      const rating = Number.isInteger(body && body.rating) && body.rating >= 1 && body.rating <= 5 ? body.rating : null;
+      if (!Array.isArray(db.galleryFeedback)) db.galleryFeedback = [];
+      const since = new Date(Date.now() - 3600000).toISOString();
+      const recent = db.galleryFeedback.filter(f => f.visitor_id === visitor && f.created_at >= since).length;
+      if (recent >= 5) return sendJson(res, 429, { error: 'That is a few notes already. Please try again in an hour.' });
+      const row = {
+        id: 'gfb_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        project_id: project || null, visitor_id: visitor, name: name || null,
+        rating, message: raw, created_at: nowISO()
+      };
+      db.galleryFeedback.push(row);
+      saveDb(db);
+      return sendJson(res, 201, { ok: true, id: row.id });
+    }
+
     /* Everything below needs a staff session */
     const user = requireUser(req, db);
     if (!user) return sendJson(res, 401, { error: 'Sign in required' });

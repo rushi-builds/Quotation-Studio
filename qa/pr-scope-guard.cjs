@@ -61,7 +61,8 @@ const GALLERY_PAGE_PATHS = new Set([
   'assets/js/gallery.js',
   'assets/js/gallery-details.js',
   'assets/js/gallery-likes.js',
-  'platform/migrations/012-gallery-likes.sql'
+  'platform/migrations/012-gallery-likes.sql',
+  'platform/migrations/013-gallery-feedback.sql'
 ]);
 
 /* Owner-approved corrections that HAD to edit the frozen family (2026-11-02).

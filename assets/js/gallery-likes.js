@@ -159,7 +159,37 @@
     return Promise.resolve('prompted');
   }
 
+  /* Feedback: a short plain-text note about a project (or the page). The same
+     anonymous visitor id as the likes travels with it, and the server caps the
+     length and the rate. Errors are returned, never thrown, so the form can
+     keep the typed text. */
+  var FEEDBACK_API = '/api/gallery/feedback';
+  function feedback(payload) {
+    if (!canReachApi()) return Promise.resolve({ ok: false, error: 'Feedback needs the live site.' });
+    var body = {
+      message: String((payload && payload.message) || '').slice(0, 1000),
+      name: String((payload && payload.name) || '').slice(0, 60),
+      project: (payload && payload.project) || '',
+      rating: payload && payload.rating ? payload.rating : null
+    };
+    return fetch(FEEDBACK_API, {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: headers(),
+      body: JSON.stringify(body)
+    })
+      .then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (data) {
+          if (!res.ok) return { ok: false, error: (data && data.error) || 'Could not send that just now.' };
+          return { ok: true, id: data && data.id };
+        });
+      })
+      .catch(function () { return { ok: false, error: 'Could not reach the site. Check your connection.' }; });
+  }
+
   root.GalleryLikes = {
+    feedback: feedback,
     visitorId: visitorId,
     fetchCounts: fetchCounts,
     setLike: setLike,

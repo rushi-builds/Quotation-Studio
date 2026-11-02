@@ -1819,6 +1819,60 @@ async function handleGalleryLikes(request, db, url, method) {
   return json({ error: 'Method not allowed' }, 405);
 }
 
+/* ---------- public gallery feedback ----------
+   The portfolio page lets a visitor leave a short note about a project (or
+   about the page itself). Like the likes, this is public: the visitor id is a
+   random first-party cookie, no account, no email required. A note is plain
+   text, capped, rate-limited per visitor, and never rendered back to other
+   visitors - the studio reads it. */
+const GALLERY_FEEDBACK_DDL = `CREATE TABLE IF NOT EXISTS gallery_feedback (
+  id TEXT PRIMARY KEY,
+  project_id TEXT,
+  visitor_id TEXT NOT NULL,
+  name TEXT,
+  rating INTEGER,
+  message TEXT NOT NULL,
+  created_at TEXT NOT NULL
+)`;
+const galleryFeedbackSchemas = new WeakMap();
+async function ensureGalleryFeedbackSchema(db) {
+  let pending = galleryFeedbackSchemas.get(db);
+  if (!pending) {
+    pending = run(db, GALLERY_FEEDBACK_DDL).catch(error => {
+      galleryFeedbackSchemas.delete(db);
+      throw error;
+    });
+    galleryFeedbackSchemas.set(db, pending);
+  }
+  await pending;
+}
+const GALLERY_FEEDBACK_MAX = 1000;
+const GALLERY_FEEDBACK_PER_HOUR = 5;
+async function handleGalleryFeedback(request, db, body) {
+  await ensureGalleryFeedbackSchema(db);
+  const visitor = galleryVisitorId(request);
+  if (!visitor) return json({ error: 'Could not identify this browser. Reload the page and try again.' }, 400);
+  const raw = String((body && body.message) || '').replace(/\r\n?/g, '\n').trim();
+  if (raw.length < 4) return json({ error: 'Write a few words first.' }, 400);
+  if (raw.length > GALLERY_FEEDBACK_MAX) return json({ error: 'Please keep the note under 1,000 characters.' }, 400);
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(raw)) return json({ error: 'Use plain text only.' }, 400);
+  const project = String((body && body.project) || '').trim().toLowerCase();
+  if (project && !GALLERY_PROJECT_ID.test(project)) return json({ error: 'Unknown project.' }, 400);
+  const name = String((body && body.name) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const rating = Number.isInteger(body && body.rating) && body.rating >= 1 && body.rating <= 5 ? body.rating : null;
+  const since = new Date(Date.now() - 3600000).toISOString();
+  const recent = await one(db,
+    'SELECT COUNT(*) AS n FROM gallery_feedback WHERE visitor_id = ? AND created_at >= ?', visitor, since);
+  if (Number(recent && recent.n) >= GALLERY_FEEDBACK_PER_HOUR) {
+    return json({ error: 'That is a few notes already. Please try again in an hour.' }, 429);
+  }
+  const id = uid('gfb');
+  await run(db,
+    'INSERT INTO gallery_feedback (id, project_id, visitor_id, name, rating, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    id, project || null, visitor, name || null, rating, raw, new Date().toISOString());
+  return json({ ok: true, id }, 201);
+}
+
 async function handleApi(request, env, url, ctx) {
   const db = getDb(env);
   if (!db) {
@@ -1874,6 +1928,11 @@ async function handleApi(request, env, url, ctx) {
        behind a login, and the counts are the same for every reader. */
     if (parts[0] === 'gallery' && parts[1] === 'likes' && parts.length === 2 && (method === 'GET' || method === 'POST')) {
       return await handleGalleryLikes(request, db, url, method);
+    }
+    /* PUBLIC GALLERY FEEDBACK - also no session; the studio reads the notes. */
+    if (parts[0] === 'gallery' && parts[1] === 'feedback' && parts.length === 2 && method === 'POST') {
+      const body = await readBody(request);
+      return await handleGalleryFeedback(request, db, body);
     }
     /* AUTH */
     if (parts[0] === 'auth' && parts[1] === 'register' && method === 'POST') {

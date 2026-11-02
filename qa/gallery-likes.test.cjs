@@ -21,6 +21,7 @@ const worker = read('platform/cloudflare/src/worker.js');
 const local = read('platform/local-server/server.js');
 const client = read('assets/js/gallery-likes.js');
 const migration = read('platform/migrations/012-gallery-likes.sql');
+const migrationFeedback = read('platform/migrations/013-gallery-feedback.sql');
 const page = read('gallery.html');
 
 const checks = [];
@@ -109,6 +110,29 @@ check('counts come from the server response, never invented', () => {
   assert.match(client, /function canReachApi/);
 });
 
+/* ---------- feedback ---------- */
+
+check('both backends store gallery feedback behind the same public route', () => {
+  assert.match(worker, /parts\[0\] === 'gallery' && parts\[1\] === 'feedback'/);
+  assert.match(local, /parts\[0\] === 'gallery' && parts\[1\] === 'feedback'/);
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS gallery_feedback/);
+  assert.match(migrationFeedback, /CREATE TABLE IF NOT EXISTS gallery_feedback/);
+});
+
+check('a note is capped, sanitised and rate-limited server-side', () => {
+  for (const [label, source] of [['worker', worker], ['local', local]]) {
+    assert.match(source, /1,000 characters/, label + ': length cap');
+    assert.match(source, /plain text/, label + ': control characters refused');
+    assert.ok(/gallery_feedback[^\n]*created_at >= \?|visitor_id === visitor && f\.created_at >= since/.test(source), label + ': per-visitor rate window');
+  }
+});
+
+check('feedback is never rendered back to visitors', () => {
+  const js = read('assets/js/gallery.js');
+  assert.ok(!/gallery\/feedback\?|fetch\([^)]*gallery\/feedback/.test(js), 'the page only POSTs a note');
+  assert.match(read('assets/js/gallery-likes.js'), /method: 'POST'[\s\S]{0,120}feedback|feedback[\s\S]{0,600}method: 'POST'/);
+});
+
 /* ---------- optional live smoke test ---------- */
 
 async function live(base) {
@@ -154,6 +178,31 @@ async function live(base) {
   await cleanup();
   const empty = await call('GET', '?ids=' + encodeURIComponent(idA), null, visitor);
   assert.equal(empty.body.counts[idA], 0, 'cleanup leaves no test likes behind');
+
+  /* ---- feedback ---- */
+  const note = async (body, who) => {
+    const res = await fetch(base + '/api/gallery/feedback', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, who ? { 'X-Gallery-Visitor': who } : {}),
+      body: JSON.stringify(body)
+    });
+    return { status: res.status, body: await res.json().catch(() => ({})) };
+  };
+  const sent = await note({ message: 'QA note: the detail view reads well.', name: 'QA', rating: 4, project: idB }, visitor);
+  assert.equal(sent.status, 201, 'a note is accepted');
+  assert.ok(/^gfb_/.test(sent.body.id || ''), 'the note gets its own id');
+
+  const tooShort = await note({ message: 'hi' }, visitor);
+  assert.equal(tooShort.status, 400, 'a two-word note is refused');
+
+  const tooLong = await note({ message: 'x'.repeat(1200) }, visitor);
+  assert.equal(tooLong.status, 400, 'a note over the cap is refused');
+
+  const nameless = await note({ message: 'no name needed here' }, null);
+  assert.equal(nameless.status, 400, 'a note with no visitor id is refused');
+
+  const badProject = await note({ message: 'valid words here', project: 'no' }, visitor);
+  assert.equal(badProject.status, 400, 'a malformed project id is refused');
 }
 
 (async () => {
@@ -164,7 +213,7 @@ async function live(base) {
   }
   const base = (process.env.QA_BASE || '').replace(/\/$/, '');
   if (base) {
-    try { await live(base); console.log('  ok   live likes API (persistence, dedupe, unlike, 400s)'); }
+    try { await live(base); console.log('  ok   live likes + feedback API (persistence, dedupe, unlike, 400s)'); }
     catch (err) { failed++; console.error('  FAIL live likes API\n       ' + err.message); }
   } else {
     console.log('  skip live likes API (set QA_BASE=http://127.0.0.1:8787 to run it)');
