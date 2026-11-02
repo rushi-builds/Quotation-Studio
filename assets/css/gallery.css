@@ -145,7 +145,14 @@ img{max-width:100%}
 .project-photo .open-hint{
   position:absolute;right:12px;bottom:12px;z-index:2;display:inline-flex;align-items:center;gap:6px;
   padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;pointer-events:none;
-  background:rgba(255,255,255,.94);color:var(--navy);box-shadow:0 6px 16px rgba(7,26,46,.18);
+  /* Frosted-glass pill: the photograph stays visible through the hover hint
+     while the label keeps contrast on any image - translucent white, a real
+     backdrop blur, and a hairline highlight instead of a solid white fill. */
+  background:rgba(255,255,255,.14);
+  -webkit-backdrop-filter:blur(10px) saturate(150%);backdrop-filter:blur(10px) saturate(150%);
+  border:1px solid rgba(255,255,255,.38);
+  color:#fff;text-shadow:0 1px 6px rgba(7,26,46,.45);
+  box-shadow:0 6px 18px rgba(7,26,46,.22),inset 0 1px 0 rgba(255,255,255,.25);
   opacity:0;transform:translateY(6px);transition:opacity .28s var(--ease),transform .28s var(--ease);
 }
 .project-photo:hover .open-hint,.project-photo:focus-visible .open-hint{opacity:1;transform:none}
