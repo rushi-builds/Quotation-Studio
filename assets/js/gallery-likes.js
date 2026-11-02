@@ -92,18 +92,45 @@
       });
   }
 
-  /* WhatsApp-style acknowledgement: a burst of hearts drifting up from the
-     button, plus a short pop on the icon. Purely decorative. */
-  var GLYPHS = ['❤️', '💗', '💖', '❤️', '💓', '🧡'];
-  /* `glyphs` lets a caller celebrate with its own set (the feedback stars use
-     sparkles, a stored note uses confetti) instead of hearts. */
-  function burst(host, glyphs) {
+  /* A like answers with three hearts drifting up from the button, slowly and
+     softly. They are drawn as SVG rather than emoji so the colour and the shape
+     are the same everywhere. Purely decorative. */
+  var HEART_INKS = ['#E5304A', '#F2618A', '#FF7A59'];
+  var HEART_PATH = 'M12 20.4S3.9 15.6 2.2 11.2A5.4 5.4 0 0 1 12 6.1a5.4 5.4 0 0 1 9.8 5.1c-1.7 4.4-9.8 9.2-9.8 9.2Z';
+  function heartBurst(host) {
+    if (!host || !host.isConnected) return;
+    var box = document.createElement('span');
+    box.className = 'heart-burst';
+    box.setAttribute('aria-hidden', 'true');
+    var spread = Math.max(22, Math.min(58, (host.offsetWidth || 80) * 0.8));
+    for (var i = 0; i < 3; i++) {
+      var heart = document.createElement('i');
+      var size = 12 + Math.round(Math.random() * 5);
+      heart.style.color = HEART_INKS[i % HEART_INKS.length];
+      /* The like sits at the left edge of a card, so the hearts always
+         drift right and up - never off the card. */
+      heart.style.setProperty('--dx', Math.round(spread * (0.35 + i * 0.45) + (Math.random() * 8 - 4)) + 'px');
+      heart.style.setProperty('--dy', (-34 - Math.round(Math.random() * 20)) + 'px');
+      heart.style.setProperty('--rot', (i === 1 ? 0 : (i - 1) * 14) + 'deg');
+      heart.style.left = (42 + i * 8) + '%';
+      heart.style.animationDelay = (i * 90) + 'ms';
+      heart.innerHTML = '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size +
+        '" aria-hidden="true"><path fill="currentColor" d="' + HEART_PATH + '"/></svg>';
+      box.appendChild(heart);
+    }
+    host.appendChild(box);
+    setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 1800);
+  }
+  /* Kept for any caller that still wants text glyphs. */
+  var GLYPHS = ['❤️', '💖', '💗'];
+  /* `count` lets a caller keep the burst small (the like uses three). */
+  function burst(host, glyphs, count) {
     if (!host || !host.isConnected) return;
     var set = (glyphs && glyphs.length) ? glyphs : GLYPHS;
     var box = document.createElement('span');
     box.className = 'heart-burst';
     box.setAttribute('aria-hidden', 'true');
-    for (var i = 0; i < Math.max(6, set.length); i++) {
+    for (var i = 0; i < (count || Math.max(6, set.length)); i++) {
       var heart = document.createElement('i');
       heart.textContent = set[i % set.length];
       /* Small hosts (a star button) get a tighter burst than a wide pill. */
@@ -116,7 +143,44 @@
       box.appendChild(heart);
     }
     host.appendChild(box);
-    setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 1500);
+    setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 1800);
+  }
+
+  /* The rating stars answer in colour: small stars in the brand palette (plus
+     pink and violet) rise from the star that was chosen and turn as they go.
+     Five stars also throw a single party popper - the one emoji the moment
+     deserves. */
+  var STAR_INKS = ['#F6A21D', '#F2618A', '#8B5CF6', '#2FA97C', '#F2C14E', '#E8577E'];
+  function starBurst(host, opts) {
+    if (!host || !host.isConnected) return;
+    opts = opts || {};
+    var box = document.createElement('span');
+    box.className = 'star-burst';
+    box.setAttribute('aria-hidden', 'true');
+    var spread = Math.max(26, Math.min(62, (host.offsetWidth || 42) * 1.6));
+    var total = opts.count || 8;
+    for (var i = 0; i < total; i++) {
+      var bit = document.createElement('i');
+      var size = 11 + Math.round(Math.random() * 9);
+      bit.className = 'star-bit';
+      bit.style.color = STAR_INKS[i % STAR_INKS.length];
+      bit.style.setProperty('--dx', Math.round((Math.random() * 2 - 1) * spread) + 'px');
+      bit.style.setProperty('--dy', (-40 - Math.round(Math.random() * 22)) + 'px');
+      bit.style.setProperty('--rot', Math.round((Math.random() * 2 - 1) * 150) + 'deg');
+      bit.style.left = (34 + Math.round(Math.random() * 32)) + '%';
+      bit.style.animationDelay = (i * 40) + 'ms';
+      bit.innerHTML = '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size +
+        '" aria-hidden="true"><path fill="currentColor" d="M12 2.4l2.95 6.02 6.65.95-4.8 4.66 1.14 6.6L12 17.5l-5.94 3.13 1.14-6.6-4.8-4.66 6.65-.95z"/></svg>';
+      box.appendChild(bit);
+    }
+    if (opts.party) {
+      var pop = document.createElement('i');
+      pop.className = 'star-party';
+      pop.textContent = '🎉';
+      box.appendChild(pop);
+    }
+    host.appendChild(box);
+    setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 1900);
   }
 
   var toastEl = null, toastTimer = 0;
@@ -198,6 +262,8 @@
     fetchCounts: fetchCounts,
     setLike: setLike,
     burst: burst,
+    heartBurst: heartBurst,
+    starBurst: starBurst,
     toast: toast,
     share: share
   };

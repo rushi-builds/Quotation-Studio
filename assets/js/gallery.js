@@ -253,7 +253,7 @@
       paintLikes([it.id]);
       if (res.liked) {
         btn.classList.add('is-pop');
-        L.burst(btn);
+        L.heartBurst(btn);
         setTimeout(function () { btn.classList.remove('is-pop'); }, 560);
       }
     });
@@ -378,8 +378,33 @@
     });
   }
 
+  /* Replaces the form with a short, quiet thank-you. The dialog stays open
+     just long enough to read it, then closes itself. */
+  function showThanks() {
+    var card = feedbackForm;
+    if (!card) return;
+    var old = card.querySelector('.feedback-thanks');
+    if (old) old.parentNode.removeChild(old);
+    var panel = document.createElement('div');
+    panel.className = 'feedback-thanks';
+    panel.innerHTML =
+      '<span class="thanks-mark" aria-hidden="true">✓</span>' +
+      '<h3>Thank you for your valuable feedback</h3>' +
+      '<p>Your note is on its way to the studio — it genuinely helps us build better.</p>';
+    card.appendChild(panel);
+    card.classList.add('is-thanked');
+  }
+
+  function clearThanks() {
+    if (!feedbackForm) return;
+    feedbackForm.classList.remove('is-thanked');
+    var old = feedbackForm.querySelector('.feedback-thanks');
+    if (old) old.parentNode.removeChild(old);
+  }
+
   function openFeedback(it) {
     if (!feedbackBox) return;
+    clearThanks();
     feedbackTarget = it ? it.id : '';
     if (feedbackError) { feedbackError.hidden = true; feedbackError.textContent = ''; }
     if (feedbackLede) {
@@ -400,12 +425,13 @@
       b.addEventListener('click', function () {
         var value = Number(b.getAttribute('data-star'));
         setStars(feedbackRating === value ? 0 : value);
-        /* A small pop on the stars - no emoji burst, which read as decoration
-           rather than feedback. */
+        /* The rating answers in motion: coloured stars lift off the chosen one,
+           and five stars let a party popper go with them. */
         if (feedbackRating) {
           b.classList.remove('is-pop');
           void b.offsetWidth;
           b.classList.add('is-pop');
+          L.starBurst(b, { party: value === 5 });
         }
       });
     });
@@ -431,9 +457,12 @@
             feedbackError.textContent = res.error || 'Could not send that just now.';
             return;
           }
-          /* The note is stored first; only then does the form close. */
-          L.toast('Thank you — your note is with the studio.');
-          feedbackBox.close();
+          /* The note is stored first; the card then thanks the visitor in its
+             own words before closing itself. */
+          showThanks();
+          setTimeout(function () {
+            if (feedbackBox.open) feedbackBox.close();
+          }, 1700);
         });
     });
   }

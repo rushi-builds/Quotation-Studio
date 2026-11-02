@@ -77,7 +77,8 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     const spoken = await page.$eval(sel(first) + ' [data-like]', b => b.getAttribute('aria-label'));
     check('the like button announces the saved count', new RegExp('\\(\\d+ likes?\\)').test(spoken), spoken);
     const hearts = await page.waitForSelector(sel(first) + ' .heart-burst i', { timeout: 4000 }).then(() => true).catch(() => false);
-    check('the hearts animation runs on a like', hearts && await page.$$eval(sel(first) + ' .heart-burst i', els => els.length >= 4));
+    check('a like answers with exactly three drifting hearts',
+      hearts && await page.$$eval(sel(first) + ' .heart-burst i', els => els.length === 3));
 
     const saved = await serverState(first);
     check('the saved count is the server count, not a page-local number', saved.counts[first] === after.count && saved.mine.includes(first), JSON.stringify(saved));
@@ -206,20 +207,33 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     check('an empty note is refused with a reason, not sent', /few words/i.test(emptyError), emptyError);
 
     await linkPage.click('#feedbackBox [data-star="4"]');
+    const starBits = await linkPage.waitForSelector('#feedbackBox .star-burst .star-bit', { timeout: 4000 })
+      .then(() => linkPage.$$eval('#feedbackBox .star-burst .star-bit', els => els.length)).catch(() => 0);
+    check('a rating throws coloured stars', starBits >= 6, String(starBits));
+    await linkPage.click('#feedbackBox [data-star="5"]');
+    const party = await linkPage.waitForSelector('#feedbackBox .star-burst .star-party', { timeout: 4000 })
+      .then(() => true).catch(() => false);
+    check('five stars let the party popper go', party);
     await linkPage.type('#feedbackBox #feedbackName', 'QA visitor');
     await linkPage.type('#feedbackBox #feedbackMessage', 'The detail view is clear and the photographs show the work properly.');
     const posted = [];
     linkPage.on('request', r => { if (r.url().includes('/api/gallery/feedback')) posted.push({ method: r.method(), body: r.postData() }); });
     await linkPage.click('#feedbackBox #feedbackSend');
+    const thanked = await linkPage.waitForFunction(() => {
+      const el = document.querySelector('#feedbackBox .feedback-thanks');
+      return !!el && /Thank you for your valuable feedback/i.test(el.textContent);
+    }, { timeout: 15000 }).then(() => true).catch(() => false);
+    check('a stored note is answered with a thank-you', thanked);
     const feedbackClosed = await linkPage.waitForFunction(() => !document.getElementById('feedbackBox').open, { timeout: 15000 }).then(() => true).catch(() => false);
     check('sending a note saves it and closes the form', feedbackClosed && posted.length === 1 && posted[0].method === 'POST', JSON.stringify(posted));
     const sentBody = posted.length ? JSON.parse(posted[0].body) : {};
-    check('the note carries the project id and the chosen rating', sentBody.project === first && sentBody.rating === 4 && /detail view is clear/.test(sentBody.message), JSON.stringify(sentBody));
-    const thanks = await linkPage.waitForFunction(() => {
+    check('the note carries the project id and the chosen rating', sentBody.project === first && sentBody.rating === 5 && /detail view is clear/.test(sentBody.message), JSON.stringify(sentBody));
+    /* The thank-you lives inside the card, not in a toast that outlives it. */
+    const strayToast = await linkPage.evaluate(() => {
       const t = document.querySelector('.gallery-toast');
-      return t && t.classList.contains('is-on') ? t.textContent : null;
-    }, { timeout: 5000 }).then(h => h.jsonValue()).catch(() => '');
-    check('the visitor is thanked only after the note is stored', /thank you/i.test(thanks), thanks);
+      return !!(t && t.classList.contains('is-on'));
+    });
+    check('the thank-you is shown in the form, not as a stray toast', !strayToast);
     await linkPage.close();
 
     /* ---- filters, footer, mobile ---- */

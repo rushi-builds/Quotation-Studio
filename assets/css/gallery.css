@@ -206,20 +206,47 @@ img{max-width:100%}
 /* The burst is anchored to the button that was pressed, not the card. */
 .heart-burst{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:3}
 .heart-burst i{
-  position:absolute;left:50%;top:46%;font-style:normal;font-size:15px;
-  animation:heart-float 1.05s var(--ease) forwards;
-  filter:drop-shadow(0 4px 8px rgba(229,48,74,.35));
+  position:absolute;left:50%;top:52%;display:block;line-height:0;font-style:normal;
+  animation:heart-float 1.5s cubic-bezier(.22,.68,.3,1) forwards;
+  filter:drop-shadow(0 5px 11px rgba(229,48,74,.26));
 }
+.heart-burst i svg{display:block}
 @keyframes heart-float{
-  0%{opacity:0;transform:translate(-50%,0) scale(.5)}
-  18%{opacity:1;transform:translate(calc(-50% + var(--dx,0px) * .35),calc(var(--dy,-40px) * .35)) scale(1.15)}
-  100%{opacity:0;transform:translate(calc(-50% + var(--dx,0px)),var(--dy,-70px)) scale(.65)}
+  0%{opacity:0;transform:translate(-50%,0) scale(.5) rotate(-6deg)}
+  18%{opacity:1;transform:translate(calc(-50% + var(--dx,0px) * .34),calc(var(--dy,-60px) * .3)) scale(1.05) rotate(var(--rot,0deg))}
+  60%{opacity:.92}
+  100%{opacity:0;transform:translate(calc(-50% + var(--dx,0px)),var(--dy,-70px)) scale(.76) rotate(calc(var(--rot,0deg) * -.6))}
+}
+
+/* Coloured stars lifting off a rating star. */
+.star-burst{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:4}
+.star-burst .star-bit{
+  position:absolute;left:50%;top:42%;display:block;line-height:0;
+  animation:star-lift 1.05s cubic-bezier(.2,.7,.3,1) forwards;
+  filter:drop-shadow(0 3px 6px rgba(16,42,67,.22));
+}
+@keyframes star-lift{
+  0%{opacity:0;transform:translate(-50%,0) scale(.35) rotate(0)}
+  22%{opacity:1;transform:translate(calc(-50% + var(--dx,0px) * .55),-16px) scale(1.08) rotate(calc(var(--rot,40deg) * .3))}
+  70%{opacity:.9}
+  100%{opacity:0;transform:translate(calc(-50% + var(--dx,0px)),-56px) scale(.72) rotate(var(--rot,60deg))}
+}
+.star-burst .star-party{
+  position:absolute;left:50%;top:4%;font-style:normal;font-size:30px;line-height:1;
+  animation:party-lift 1.55s cubic-bezier(.2,.7,.3,1) forwards;
+  filter:drop-shadow(0 6px 12px rgba(16,42,67,.25));
+}
+@keyframes party-lift{
+  0%{opacity:0;transform:translate(-50%,14px) scale(.5) rotate(-12deg)}
+  22%{opacity:1;transform:translate(-50%,-4px) scale(1.06) rotate(6deg)}
+  70%{opacity:1;transform:translate(-50%,-26px) scale(1) rotate(-4deg)}
+  100%{opacity:0;transform:translate(-50%,-46px) scale(.86) rotate(0)}
 }
 @media (prefers-reduced-motion:reduce){
   .gallery-card,.project-photo img,.gallery-hero a{transition:none}
   .gallery-card{opacity:1;transform:none}
   .like.is-pop svg{animation:none}
-  .heart-burst{display:none}
+  .heart-burst,.star-burst{display:none}
 }
 .like-count{min-width:1ch}
 
@@ -262,17 +289,22 @@ footer.gallery-footer a:hover{text-decoration:underline}
 /* The whole photograph, never a crop: a blurred copy of the same image fills
    the letterbox, and the sharp original sits centred on top of it. */
 .detail-blur{
-  position:absolute;inset:-10%;width:120%;height:120%;object-fit:cover;z-index:0;
-  filter:blur(26px) saturate(1.15) brightness(.5);opacity:.9;transform:scale(1.02);
+  position:absolute;inset:-14%;width:128%;height:128%;object-fit:cover;z-index:0;
+  filter:blur(46px) saturate(1.35) brightness(.92);opacity:1;transform:scale(1.05);
 }
+/* The whole photograph at the panel's full width - nothing cropped and nothing
+   shrunk - with its top and bottom edges fading into the blurred copy behind,
+   so the panel reads as one continuous image instead of a letterbox. */
 .detail-media #largePhoto{
   position:relative;z-index:1;
   width:100%;height:100%;max-height:84vh;object-fit:contain;display:block;
-  background:transparent;padding:10px;
+  background:transparent;padding:0;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%);
 }
 .detail-media::after{
-  content:'';position:absolute;inset:auto 0 0 0;height:26%;pointer-events:none;
-  background:linear-gradient(rgba(6,18,30,0),rgba(6,18,30,.42));
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:radial-gradient(120% 82% at 50% 50%,rgba(6,18,30,0) 58%,rgba(6,18,30,.2));
 }
 .media-tag{
   position:absolute;top:14px;left:14px;z-index:2;display:inline-flex;align-items:center;gap:7px;
@@ -283,19 +315,19 @@ footer.gallery-footer a:hover{text-decoration:underline}
 .media-tag svg{width:14px;height:14px;color:#F7C08D}
 
 .detail-body{
-  padding:26px 26px 20px 26px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;
+  padding:24px 24px 18px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;
 }
 .detail-kicker{display:flex;align-items:center;gap:10px;font-size:10.5px;letter-spacing:.16em}
 .detail-kicker b{color:var(--orange);font-weight:800}
 .detail-kicker i{flex:0 0 auto;width:40px;height:3px;border-radius:2px;background:var(--gold);opacity:.75}
 .detail-body h2{margin:0;font-size:clamp(20px,1.8vw,24px);line-height:1.18;letter-spacing:-.5px}
-.detail-summary{margin:0;color:var(--muted);font-size:12.8px;line-height:1.58;max-width:56ch}
+.detail-summary{margin:0;color:var(--muted);font-size:12.3px;line-height:1.55;max-width:56ch}
 
 /* Facts: one chip each, icon + value + label. */
 .detail-tags{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
 .detail-tags .tag{
   display:flex;align-items:center;gap:9px;min-width:0;
-  padding:8px 10px;border-radius:12px;background:#F5F8FB;border:1px solid #E8EEF4;
+  padding:7px 10px;border-radius:11px;background:#F5F8FB;border:1px solid #E8EEF4;
 }
 .tag-ico{flex:0 0 26px;width:26px;height:26px;border-radius:8px;display:grid;place-items:center}
 .tag-ico svg{width:14px;height:14px}
@@ -318,8 +350,8 @@ footer.gallery-footer a:hover{text-decoration:underline}
 .detail-h i{width:4px;height:15px;border-radius:2px;background:var(--orange)}
 .detail-points{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .detail-points li{
-  display:flex;gap:10px;font-size:12.5px;color:var(--ink);line-height:1.45;
-  padding:7px 0;border-bottom:1px solid #F1F4F8;
+  display:flex;gap:10px;font-size:12.2px;color:var(--ink);line-height:1.45;
+  padding:5px 0;border-bottom:1px solid #F1F4F8;
 }
 .detail-points li:last-child{border-bottom:0}
 .detail-points .tick{
@@ -328,33 +360,48 @@ footer.gallery-footer a:hover{text-decoration:underline}
 }
 .detail-points .tick svg{width:11px;height:11px;stroke-width:3}
 
+/* A frosted control bar: a soft wash of blue and orange sits under the three
+   actions, and the actions themselves are glass - translucent, blurred, lit
+   from the top edge - so they read as one surface rather than three boxes. */
 .detail-actions{
-  display:flex;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--line);
-  margin-top:auto;flex-wrap:wrap;
+  position:relative;display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  margin-top:auto;padding:7px;border-radius:15px;
+  background:
+    radial-gradient(90% 160% at 8% 0%,rgba(255,214,178,.55),rgba(255,214,178,0) 62%),
+    radial-gradient(90% 160% at 96% 100%,rgba(198,222,244,.7),rgba(198,222,244,0) 60%),
+    linear-gradient(120deg,#F3F7FC,#FBFDFF);
+  border:1px solid rgba(255,255,255,.9);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 10px 24px rgba(16,42,67,.08);
+  backdrop-filter:blur(10px);
 }
-.detail-actions .act.like{
-  padding:9px 13px;border-radius:11px;border:1px solid #F3D5DA;background:#FFF7F8;font-size:12.5px;
-}
-.detail-actions .act.like[aria-pressed="true"]{border-color:#F6C9D0;background:#FFF0F3}
-.detail-actions .btn svg{width:15px;height:15px}
+.detail-actions .act.like,
 .detail-actions .btn{
-  display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:11px;
-  border:1px solid var(--line);background:#fff;color:var(--ink);font-size:12.5px;font-weight:700;
-  cursor:pointer;text-decoration:none;
-  transition:background .2s var(--ease),border-color .2s var(--ease),transform .2s var(--ease),box-shadow .2s var(--ease);
+  display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:10px;
+  font-size:12.3px;font-weight:700;cursor:pointer;text-decoration:none;color:var(--ink);
+  background:rgba(255,255,255,.6);
+  border:1px solid rgba(255,255,255,.9);
+  box-shadow:0 4px 12px rgba(16,42,67,.08),inset 0 1px 0 rgba(255,255,255,.95);
+  backdrop-filter:blur(14px) saturate(1.6);
+  -webkit-backdrop-filter:blur(14px) saturate(1.6);
+  transition:background .2s var(--ease),border-color .2s var(--ease),transform .2s var(--ease),box-shadow .2s var(--ease),color .2s var(--ease);
 }
-.detail-actions .btn:hover{background:#F5F7FA;border-color:#D3DCE6;transform:translateY(-1px)}
-/* Share is a soft slate pill, not black - it sits between the pink like and
-   the orange feedback without competing with either. */
-.detail-actions .btn.primary{
-  background:#EAF1F8;border-color:#D5E2EE;color:#16405F;
+.detail-actions .act.like:hover,
+.detail-actions .btn:hover{background:rgba(255,255,255,.85);transform:translateY(-1px);box-shadow:0 8px 18px rgba(16,42,67,.12),inset 0 1px 0 #fff}
+.detail-actions .btn svg{width:15px;height:15px}
+.detail-actions .act.like{color:#8E1B2C}
+.detail-actions .act.like[aria-pressed="true"]{
+  color:#C11B33;background:rgba(255,232,236,.72);border-color:rgba(248,196,205,.9);
 }
-.detail-actions .btn.primary:hover{background:#DDE9F4;border-color:#C3D6E7;box-shadow:0 8px 18px rgba(22,64,95,.14)}
+/* Share is a cool glass, not black - it sits between the pink like and the
+   orange feedback without competing with either. */
+.detail-actions .btn.primary{color:#16405F;background:rgba(226,239,250,.72);border-color:rgba(255,255,255,.92)}
+.detail-actions .btn.primary:hover{background:rgba(211,231,248,.9)}
 .detail-actions .btn.feedback{
-  background:var(--orange);border-color:var(--orange);color:#fff;
-  box-shadow:0 6px 16px rgba(242,129,29,.24);
+  color:#fff;border-color:rgba(255,255,255,.42);
+  background:linear-gradient(135deg,rgba(242,129,29,.94),rgba(226,104,20,.94));
+  box-shadow:0 8px 18px rgba(226,104,20,.28),inset 0 1px 0 rgba(255,255,255,.4);
 }
-.detail-actions .btn.feedback:hover{background:#E5761A;box-shadow:0 10px 20px rgba(242,129,29,.3)}
+.detail-actions .btn.feedback:hover{background:linear-gradient(135deg,#F08A29,#DE6414);box-shadow:0 11px 22px rgba(226,104,20,.34),inset 0 1px 0 rgba(255,255,255,.4)}
 #closePhoto{
   position:absolute;top:14px;right:14px;z-index:6;width:36px;height:36px;border-radius:50%;
   border:1px solid #E7EDF3;background:#fff;color:var(--navy);font-size:18px;line-height:1;
@@ -403,6 +450,24 @@ footer.gallery-footer a:hover{text-decoration:underline}
 .feedback-field input:focus,.feedback-field textarea:focus{
   outline:none;border-color:#F2A03D;background:#fff;box-shadow:0 0 0 4px rgba(242,129,29,.14);
 }
+/* After a stored note the form is replaced by a short thank-you. */
+.feedback-card.is-thanked > *:not(.feedback-thanks){display:none}
+.feedback-thanks{
+  display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px 2px 6px;
+  animation:thanks-in .32s var(--ease) both;
+}
+.feedback-thanks .thanks-mark{
+  width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+  background:linear-gradient(135deg,#F7A23C,#E8711A);color:#fff;font-size:19px;font-weight:800;
+  box-shadow:0 8px 18px rgba(232,113,26,.32);
+}
+.feedback-thanks h3{margin:0;font-size:19px;line-height:1.25;letter-spacing:-.4px;color:var(--navy)}
+.feedback-thanks p{margin:0;color:var(--muted);font-size:13px;line-height:1.55;max-width:42ch}
+@keyframes thanks-in{
+  0%{opacity:0;transform:translateY(8px)}
+  100%{opacity:1;transform:none}
+}
+
 .feedback-error{
   margin:0;padding:9px 12px;border-radius:10px;background:#FFF1F3;color:#B42338;
   font-size:12.5px;font-weight:600;
@@ -442,7 +507,7 @@ footer.gallery-footer .foot-cta a{font-weight:600}
   .gallery-hero>img{min-height:250px;max-height:320px}
   .detail{grid-template-columns:1fr;max-height:86vh;overflow:auto}
   .detail-media{clip-path:none;min-height:0}
-  .detail-media img{max-height:36vh;height:36vh;padding:10px}
+  .detail-media #largePhoto{max-height:36vh;height:36vh;padding:0}
   .detail-body{padding:20px 20px 18px}
   .detail-media::after{height:22%}
 }
