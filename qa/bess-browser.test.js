@@ -6,7 +6,11 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  const {default:chromium}=await import('@sparticuz/chromium');
  const browser=await puppeteer.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(a=>a!=='--single-process'),headless:true});
  try{
-  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});page.on('dialog',d=>d.accept());
+  /* The QA server runs without a signed-in user, so API probes answer 401;
+     that is the normal signed-out state, not a page error. Missing assets and
+     real JS errors still fail, and the URL is kept in the message. */
+  const authNoise=m=>/status of 401/.test(m.text())&&/\/api\//.test(m.location().url||'');
+  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!authNoise(m))errors.push(m.text()+' ['+(m.location().url||'')+']');});page.on('dialog',d=>d.accept());
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';await page.setViewport({width:1440,height:1200});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
   const original=await page.evaluate(()=>({form:StateStore.collectForm(),finance:JSON.stringify(Finance.compute(Render.lastState)),diagram:document.getElementById('v_tsDiagram').innerHTML}));
   check('No is default; fifteen solar pages and no battery input exposure',await page.evaluate(()=>!bessEnabled.checked&&bessFields.hidden&&Render.lastVisible.length===15&&!document.getElementById('pageBessOverview').checkVisibility()));

@@ -73,7 +73,7 @@ jobs:
           [ -f "$log" ] || exit 0
           # Assertion messages carry the failing check's name, so the first
           # one is worth more than the stack that follows it.
-          { grep -m3 -A1 -E "AssertionError|TimeoutError|Evaluation failed|not clickable" "$log" || true; echo '--- tail ---'; tail -n 3 "$log"; } \
+          { grep -m6 -A1 -E "✗|AssertionError|TimeoutError|Evaluation failed|not clickable" "$log" || true; echo '--- tail ---'; tail -n 3 "$log"; } \
             | sed 's/^/::error title=offline-suite::/'
           cp "$log" "$RUNNER_TEMP/offline-artifact.log"
 
