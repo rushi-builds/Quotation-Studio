@@ -80,7 +80,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
      project becomes exactly one card, without touching proposal storage. */
   check('public gallery lists every project without proposal storage',await gallery.evaluate(()=>{const cards=[...document.querySelectorAll('#galleryProjects article')];const names=cards.map(c=>c.textContent.trim());return localStorage.length===0&&cards.length===PROJECTS.length&&cards.length>=10&&new Set(names).size===names.length;}));
   check('tracking is a regular gallery entry with the supplied facts and photograph',await gallery.evaluate(()=>{const card=[...document.querySelectorAll('#galleryProjects article')].find(a=>a.textContent.includes('Ground-Mounted Solar Tracking'));return !!card&&card.textContent.includes('500 kWp')&&card.querySelector('img').getAttribute('src')==='assets/images/Tracking.png';}));
-  check('all gallery cards share the same width, thumbnail height and styling',await gallery.$$eval('#galleryProjects article',els=>els.every(e=>e.className===''&&Math.abs(e.offsetWidth-els[0].offsetWidth)<=1&&e.querySelector('img').offsetHeight===els[0].querySelector('img').offsetHeight)));
+  /* Cards now carry their own class (gallery-card) and a fixed-ratio photo
+     frame, so uniformity is asserted on the structure the design guarantees:
+     same class, same width, same photo height, same action row. */
+  check('all gallery cards share the same width, thumbnail height and styling',await gallery.$$eval('#galleryProjects article',els=>els.every(e=>e.classList.contains('gallery-card')&&Math.abs(e.offsetWidth-els[0].offsetWidth)<=1&&e.querySelector('img').offsetHeight===els[0].querySelector('img').offsetHeight&&e.querySelectorAll('.card-actions .act').length===2)));
   check('no featured banner or separate tracking filter remains',await gallery.evaluate(()=>!document.querySelector('.featured-project')&&!document.getElementById('galleryFilters').textContent.includes('Solar tracking')));
   await (await gallery.$('#galleryProjects')).screenshot({path:path.join(shots,'tracking-gallery-grid.png')});
   /* The gallery cards are built from the page's PROJECTS list and carry no

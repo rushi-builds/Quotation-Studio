@@ -49,6 +49,21 @@ const FROZEN_FILES = Object.freeze([
   'assets/js/bess.js'
 ]);
 
+/* Owner-requested public portfolio upgrade (2026-11-02): real saved likes,
+   sharing, a per-project detail view and the footer notice on the public
+   gallery page. The gallery had one inline script and an unreferenced
+   stylesheet; this replaces both with three small files and one API pair.
+   Exact paths only - no assets/js wildcard, so a future gallery file still
+   has to be reviewed. */
+const GALLERY_PAGE_PATHS = new Set([
+  'gallery.html',
+  'assets/css/gallery.css',
+  'assets/js/gallery.js',
+  'assets/js/gallery-details.js',
+  'assets/js/gallery-likes.js',
+  'platform/migrations/012-gallery-likes.sql'
+]);
+
 /* Owner-approved corrections that HAD to edit the frozen family (2026-11-02).
 
    Why: the six-page Power Proposal refused to export a proposal that fitted.
@@ -260,7 +275,7 @@ function deployConfigTouches(files) {
 function newAccessMigration(file,status){return file==='platform/migrations/011-workspace-access.sql'&&status==='A';}
 
 function scopeOffenders(files) {
-  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !FROZEN_EDIT_ALLOWANCE.has(f));
+  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f));
 }
 
 /* The explicit golden baseline: HEAD's blob for every frozen file must
@@ -335,7 +350,7 @@ function verify(repoRoot, opts) {
 }
 
 module.exports = {
-  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
+  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, GALLERY_PAGE_PATHS, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
   resolveBase, changedFiles, worktreeStatus,
   frozenTouches, deployConfigTouches, scopeOffenders, newAccessMigration, baselineMatch, mainTip, verify, git
 };

@@ -2328,6 +2328,45 @@ async function handleApi(req, res, url) {
       return sendJson(res, 201, { ok: true });
     }
 
+    /* PUBLIC GALLERY LIKES - mirrors platform/cloudflare/src/worker.js.
+       The public portfolio page is not behind a login; a visitor is the random
+       first-party cookie id, and the (project, visitor) pair is unique so a
+       double tap or a re-open cannot inflate a count. */
+    if (parts[0] === 'gallery' && parts[1] === 'likes' && parts.length === 2 &&
+        (method === 'GET' || method === 'POST')) {
+      const visitorMatch = String(req.headers['cookie'] || '').match(/(?:^|;\s*)qs_gallery_visitor=([^;]+)/);
+      let visitor = String(req.headers['x-gallery-visitor'] || '').toLowerCase().trim();
+      if (!visitor && visitorMatch) {
+        try { visitor = decodeURIComponent(visitorMatch[1]).toLowerCase().trim(); } catch (_) { visitor = ''; }
+      }
+      if (!/^[a-z0-9]{16,40}$/.test(visitor)) visitor = '';
+      const validId = (id) => /^[a-z0-9][a-z0-9_-]{2,79}$/.test(id);
+      if (!Array.isArray(db.galleryLikes)) db.galleryLikes = [];
+      if (method === 'GET') {
+        const ids = String(url.searchParams.get('ids') || '').split(',')
+          .map(v => v.trim()).filter(validId).slice(0, 80);
+        const counts = {};
+        ids.forEach(id => { counts[id] = db.galleryLikes.filter(l => l.project_id === id).length; });
+        const mine = visitor ? ids.filter(id => db.galleryLikes.some(l => l.project_id === id && l.visitor_id === visitor)) : [];
+        return sendJson(res, 200, { counts, mine });
+      }
+      let body;
+      try { body = await readBody(req, 4096); }
+      catch (err) { return sendJson(res, err.status || 400, { error: err.message || 'Invalid request.' }); }
+      const id = String((body && body.id) || '').trim().toLowerCase();
+      if (!validId(id)) return sendJson(res, 400, { error: 'Unknown project.' });
+      if (!visitor) return sendJson(res, 400, { error: 'Could not identify this browser. Reload the page and try again.' });
+      const liked = !body || body.liked !== false;
+      const existing = db.galleryLikes.find(l => l.project_id === id && l.visitor_id === visitor);
+      if (liked && !existing) db.galleryLikes.push({ project_id: id, visitor_id: visitor, created_at: nowISO() });
+      if (!liked && existing) db.galleryLikes = db.galleryLikes.filter(l => l !== existing);
+      if (liked !== !!existing) saveDb(db);
+      return sendJson(res, 200, {
+        ok: true, id, liked,
+        count: db.galleryLikes.filter(l => l.project_id === id).length
+      });
+    }
+
     /* Everything below needs a staff session */
     const user = requireUser(req, db);
     if (!user) return sendJson(res, 401, { error: 'Sign in required' });

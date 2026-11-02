@@ -1738,6 +1738,87 @@ function publicGallery(g) {
 }
 
 /* ---------- API ---------- */
+/* ---------- public gallery likes ----------
+   The public portfolio page needs real, saved counts without an account.
+   A visitor is a random id the page keeps in a first-party cookie (or sends
+   as X-Gallery-Visitor); the primary key makes one like per visitor per
+   project a database rule, so a double tap or a re-open cannot inflate it and
+   a second visit cannot like the same project twice. Nothing personal is
+   stored: no user id, no email, no IP. */
+const GALLERY_LIKES_DDL = `CREATE TABLE IF NOT EXISTS gallery_likes (
+  project_id TEXT NOT NULL,
+  visitor_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (project_id, visitor_id)
+)`;
+const galleryLikesSchemas = new WeakMap();
+async function ensureGalleryLikesSchema(db) {
+  let pending = galleryLikesSchemas.get(db);
+  if (!pending) {
+    pending = run(db, GALLERY_LIKES_DDL).catch(error => {
+      galleryLikesSchemas.delete(db);
+      throw error;
+    });
+    galleryLikesSchemas.set(db, pending);
+  }
+  await pending;
+}
+/* Project ids are slugs built by the page (name + capacity); anything else is
+   not a project we publish, so it is rejected instead of creating rows. */
+const GALLERY_PROJECT_ID = /^[a-z0-9][a-z0-9_-]{2,79}$/;
+function galleryVisitorId(request) {
+  let id = String(request.headers.get('X-Gallery-Visitor') || '').toLowerCase().trim();
+  if (!id) {
+    const cookie = String(request.headers.get('Cookie') || '');
+    const match = cookie.match(/(?:^|;\s*)qs_gallery_visitor=([^;]+)/);
+    if (match) {
+      try { id = decodeURIComponent(match[1]).toLowerCase().trim(); } catch (_) { id = ''; }
+    }
+  }
+  return /^[a-z0-9]{16,40}$/.test(id) ? id : '';
+}
+async function handleGalleryLikes(request, db, url, method) {
+  await ensureGalleryLikesSchema(db);
+  const visitor = galleryVisitorId(request);
+  if (method === 'GET') {
+    const ids = String(url.searchParams.get('ids') || '')
+      .split(',').map(s => s.trim())
+      .filter(id => GALLERY_PROJECT_ID.test(id)).slice(0, 80);
+    if (!ids.length) return json({ counts: {}, mine: [] });
+    const marks = ids.map(() => '?').join(',');
+    const counts = {};
+    const rows = await all(db,
+      'SELECT project_id, COUNT(*) AS n FROM gallery_likes WHERE project_id IN (' + marks + ') GROUP BY project_id',
+      ...ids);
+    rows.forEach(row => { counts[row.project_id] = Number(row.n) || 0; });
+    let mine = [];
+    if (visitor) {
+      const liked = await all(db,
+        'SELECT project_id FROM gallery_likes WHERE visitor_id = ? AND project_id IN (' + marks + ')',
+        visitor, ...ids);
+      mine = liked.map(row => row.project_id);
+    }
+    return json({ counts, mine });
+  }
+  if (method === 'POST') {
+    if (!visitor) return json({ error: 'Could not identify this browser. Reload the page and try again.' }, 400);
+    const body = await readBody(request);
+    const id = String(body.id || '').trim().toLowerCase();
+    if (!GALLERY_PROJECT_ID.test(id)) return json({ error: 'Unknown project.' }, 400);
+    const liked = body.liked !== false;
+    if (liked) {
+      await run(db,
+        'INSERT OR IGNORE INTO gallery_likes (project_id, visitor_id, created_at) VALUES (?, ?, ?)',
+        id, visitor, new Date().toISOString());
+    } else {
+      await run(db, 'DELETE FROM gallery_likes WHERE project_id = ? AND visitor_id = ?', id, visitor);
+    }
+    const row = await one(db, 'SELECT COUNT(*) AS n FROM gallery_likes WHERE project_id = ?', id);
+    return json({ ok: true, id, liked, count: Number(row && row.n) || 0 });
+  }
+  return json({ error: 'Method not allowed' }, 405);
+}
+
 async function handleApi(request, env, url, ctx) {
   const db = getDb(env);
   if (!db) {
@@ -1788,6 +1869,11 @@ async function handleApi(request, env, url, ctx) {
         session: user => createSession(db, user),
         cookie: (token, r) => sessionCookie(token, SESSION_DAYS * 86400, r)
       });
+    }
+    /* PUBLIC GALLERY LIKES - no session: the public portfolio page is not
+       behind a login, and the counts are the same for every reader. */
+    if (parts[0] === 'gallery' && parts[1] === 'likes' && parts.length === 2 && (method === 'GET' || method === 'POST')) {
+      return await handleGalleryLikes(request, db, url, method);
     }
     /* AUTH */
     if (parts[0] === 'auth' && parts[1] === 'register' && method === 'POST') {
