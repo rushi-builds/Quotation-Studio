@@ -78,18 +78,15 @@
       photo.classList.add('is-missing');
       photo.setAttribute('data-fallback', p.name);
     }, { once: true });
-    var badge = document.createElement('span');
-    badge.className = 'sector-badge';
-    badge.textContent = p.sector || 'Solar';
-
-    /* The hint lives inside the photograph so it never covers the like and
-       share controls underneath it. */
+    /* Nothing is laid over the photograph. The sector used to ride on it as a
+       pill, which covered the top of every image; it now lives in the detail
+       view's kicker and in the filter row, where it never hides a photo. */
     var hint = document.createElement('span');
     hint.className = 'open-hint';
     hint.setAttribute('aria-hidden', 'true');
     hint.innerHTML = 'View project <span aria-hidden="true">↗</span>';
 
-    photo.append(img, badge, hint);
+    photo.append(img, hint);
     photo.addEventListener('click', function () { openProject(it, photo); });
 
     var body = document.createElement('div');

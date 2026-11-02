@@ -194,6 +194,12 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
       expected: PROJECTS.filter(p => p.sector === SECTORS[0]).length
     }));
     check('the sector filter still narrows the real list', filtered.cards === filtered.expected, JSON.stringify(filtered));
+
+    /* The sector used to ride on the photograph as a pill and covered the top
+       of every image; nothing may sit over the photo except the hover hint. */
+    const overlays = await page.evaluate(() => [...document.querySelectorAll('#galleryProjects .project-photo')]
+      .flatMap(p => [...p.children].filter(c => !c.matches('img') && !c.matches('.open-hint')).map(c => c.className || c.tagName)));
+    check('no label is drawn over the project photographs', overlays.length === 0, overlays.join(','));
     await page.click('#galleryFilters button:first-child');
 
     const footer = await page.evaluate(() => {
