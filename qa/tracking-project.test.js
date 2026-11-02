@@ -91,11 +91,25 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
      it shows - the tracking unit's own PNG. */
   const cardOf=src=>'article:has(img[src*="'+src+'"])';
   const photo=cardOf('Tracking.png')+' .project-photo',other=cardOf('site-agarwal.jpg')+' .project-photo';
+  /* A transform read mid-transition is a different float on every run, so wait
+     for the zoom to settle before comparing the two photographs. */
+  const settle=sel=>gallery.waitForFunction(sel=>new Promise(done=>{
+    const img=document.querySelector(sel+' img');
+    let last=getComputedStyle(img).transform,stable=0;
+    const tick=()=>{
+      const now=getComputedStyle(img).transform;
+      if(now===last) stable++; else { stable=0; last=now; }
+      if(stable>=3) done(true); else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }),{},sel);
   await gallery.hover(other);
   await gallery.waitForFunction(sel=>new DOMMatrix(getComputedStyle(document.querySelector(sel+' img')).transform).a>1.029,{},other);
+  await settle(other);
   const normalZoom=await gallery.$eval(other+' img',e=>({transform:getComputedStyle(e).transform,transition:getComputedStyle(e).transition}));
   await gallery.hover(photo);
   await gallery.waitForFunction(sel=>new DOMMatrix(getComputedStyle(document.querySelector(sel+' img')).transform).a>1.029,{},photo);
+  await settle(photo);
   check('tracking photo uses the same hover zoom and transition as the other images',await gallery.$eval(photo+' img',(e,normal)=>getComputedStyle(e).transform===normal.transform&&getComputedStyle(e).transition===normal.transition,normalZoom));
   await gallery.mouse.move(0,0);
   await gallery.waitForFunction(sel=>getComputedStyle(document.querySelector(sel+' img')).transform==='none',{},photo);

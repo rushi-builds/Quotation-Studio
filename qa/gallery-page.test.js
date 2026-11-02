@@ -21,6 +21,11 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
       /* The QA server runs without a signed-in user; its API answers 401 to
          the app's own probes. Real page errors still fail. */
       if (/status of 401/.test(m.text()) && /\/api\//.test(m.location().url || '')) return;
+      /* Press photographs are hosted on the WordPress site. A sandbox or a
+         flaky network can refuse that connection; the page then draws its own
+         named fallback frame, which is handled, not an error of this page. */
+      const where = m.location().url || '';
+      if (/Failed to load resource/.test(m.text()) && /^https?:\/\//.test(where) && !where.startsWith(base)) return;
       errors.push(m.text() + ' [' + (m.location().url || '') + ']');
     });
   };
@@ -109,7 +114,9 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     await page.waitForFunction((id) => document.querySelector('[data-id="' + id + '"] [data-like]').getAttribute('aria-pressed') === 'false', { timeout: 15000 }, first);
     const unliked = await likeState();
     const savedAfterUnlike = await serverState(first);
-    check('unliking removes the saved like', unliked.pressed === 'false' && unliked.count === after.count - 1 && savedAfterUnlike.counts[first] === unliked.count && !savedAfterUnlike.mine.includes(first), JSON.stringify({ unliked, savedAfterUnlike }));
+    /* The second visitor's like is still there, so removing ours leaves their
+       count: seenAfter - 1, not the count from before their visit. */
+    check('unliking removes only this visitor’s saved like', unliked.pressed === 'false' && unliked.count === seenAfter - 1 && savedAfterUnlike.counts[first] === unliked.count && !savedAfterUnlike.mine.includes(first), JSON.stringify({ seenAfter, unliked, savedAfterUnlike }));
     await other.close();
 
     /* ---- project detail ---- */
@@ -157,7 +164,11 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
 
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.getElementById('photoViewer').open);
-    check('Escape closes the detail view and clears the hash', await page.evaluate(() => location.hash === ''));
+    /* The hash is cleared by the dialog's own close event, which is dispatched
+       after the open attribute is removed - so wait for it, do not race it. */
+    const hashCleared = await page.waitForFunction(() => location.hash === '', { timeout: 5000 })
+      .then(() => true).catch(() => false);
+    check('Escape closes the detail view and clears the hash', hashCleared, await page.evaluate(() => location.hash));
 
     /* Deep link: a shared URL opens straight on that project. */
     const shared = base + '/gallery.html#p-' + encodeURIComponent(first);

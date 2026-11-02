@@ -71,16 +71,26 @@
     img.height = 400;
     if (img.complete) img.classList.add('is-ready');
     else img.addEventListener('load', function () { img.classList.add('is-ready'); }, { once: true });
-    photo.appendChild(img);
-    photo.addEventListener('click', function () { openProject(it, photo); });
-
+    /* Some published photographs are hosted on the WordPress site. If one does
+       not load, the card keeps its shape and names the project rather than
+       leaving an empty grey frame. */
+    img.addEventListener('error', function () {
+      photo.classList.add('is-missing');
+      photo.setAttribute('data-fallback', p.name);
+    }, { once: true });
     var badge = document.createElement('span');
     badge.className = 'sector-badge';
     badge.textContent = p.sector || 'Solar';
 
+    /* The hint lives inside the photograph so it never covers the like and
+       share controls underneath it. */
     var hint = document.createElement('span');
     hint.className = 'open-hint';
+    hint.setAttribute('aria-hidden', 'true');
     hint.innerHTML = 'View project <span aria-hidden="true">↗</span>';
+
+    photo.append(img, badge, hint);
+    photo.addEventListener('click', function () { openProject(it, photo); });
 
     var body = document.createElement('div');
     body.className = 'card-body';
@@ -95,7 +105,7 @@
     actions.className = 'card-actions';
     actions.append(likeButton(it), shareButton(it));
 
-    card.append(photo, badge, hint, body, actions);
+    card.append(photo, body, actions);
     return card;
   }
 
@@ -184,7 +194,10 @@
       if (detailBtn) {
         var inner = detailBtn.querySelector('.like-count');
         var word = detailBtn.querySelector('.like-word');
+        var detailName = detailBtn.getAttribute('data-label') || 'this project';
         detailBtn.setAttribute('aria-pressed', String(liked));
+        detailBtn.setAttribute('aria-label',
+          (liked ? 'Remove your like from ' : 'Like ') + detailName + ' (' + count + (count === 1 ? ' like' : ' likes') + ')');
         if (inner) inner.textContent = String(count);
         if (word) word.textContent = count === 1 ? ' like' : ' likes';
       }
