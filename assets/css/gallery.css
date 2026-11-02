@@ -315,7 +315,7 @@ footer.gallery-footer a:hover{text-decoration:underline}
 .media-tag svg{width:14px;height:14px;color:#F7C08D}
 
 .detail-body{
-  padding:24px 24px 18px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;
+  padding:24px 16px 18px 22px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;
 }
 .detail-kicker{display:flex;align-items:center;gap:10px;font-size:10.5px;letter-spacing:.16em}
 .detail-kicker b{color:var(--orange);font-weight:800}
@@ -364,8 +364,8 @@ footer.gallery-footer a:hover{text-decoration:underline}
    actions, and the actions themselves are glass - translucent, blurred, lit
    from the top edge - so they read as one surface rather than three boxes. */
 .detail-actions{
-  position:relative;display:flex;align-items:center;gap:7px;flex-wrap:wrap;
-  margin-top:auto;padding:7px;border-radius:15px;
+  position:relative;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  margin-top:auto;padding:10px;border-radius:16px;
   background:
     radial-gradient(90% 160% at 8% 0%,rgba(255,214,178,.55),rgba(255,214,178,0) 62%),
     radial-gradient(90% 160% at 96% 100%,rgba(198,222,244,.7),rgba(198,222,244,0) 60%),
@@ -376,8 +376,10 @@ footer.gallery-footer a:hover{text-decoration:underline}
 }
 .detail-actions .act.like,
 .detail-actions .btn{
-  display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:10px;
-  font-size:12.3px;font-weight:700;cursor:pointer;text-decoration:none;color:var(--ink);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  flex:1 1 0;min-width:0;white-space:nowrap;
+  padding:10px 11px;min-height:42px;border-radius:12px;
+  font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;color:var(--ink);
   background:rgba(255,255,255,.6);
   border:1px solid rgba(255,255,255,.9);
   box-shadow:0 4px 12px rgba(16,42,67,.08),inset 0 1px 0 rgba(255,255,255,.95);
@@ -387,7 +389,8 @@ footer.gallery-footer a:hover{text-decoration:underline}
 }
 .detail-actions .act.like:hover,
 .detail-actions .btn:hover{background:rgba(255,255,255,.85);transform:translateY(-1px);box-shadow:0 8px 18px rgba(16,42,67,.12),inset 0 1px 0 #fff}
-.detail-actions .btn svg{width:15px;height:15px}
+.detail-actions .btn svg{width:15px;height:15px;flex:0 0 auto}
+.detail-actions .act.like .like-ico{flex:0 0 auto}
 .detail-actions .act.like{color:#8E1B2C}
 .detail-actions .act.like[aria-pressed="true"]{
   color:#C11B33;background:rgba(255,232,236,.72);border-color:rgba(248,196,205,.9);
@@ -513,6 +516,10 @@ footer.gallery-footer .foot-cta a{font-weight:600}
 }
 @media (max-width:640px){
   .detail-tags{grid-template-columns:1fr}
+  /* Three glass controls cannot share a phone's width - they stack full width. */
+  .detail-actions{gap:9px;padding:9px}
+  .detail-actions .act.like,
+  .detail-actions .btn{flex:1 1 100%;justify-content:flex-start;padding-left:16px}
   .gallery-header span{display:none}
   .gallery-grid{grid-template-columns:1fr}
   .gallery-filters{top:60px}
