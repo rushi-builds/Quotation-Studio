@@ -295,6 +295,10 @@
       '<button type="button" id="closePhoto" aria-label="Close project">×</button>' +
       '<div class="detail">' +
         '<div class="detail-media">' +
+          /* A blurred copy of the same photograph fills the letterbox, so the
+             whole area reads as the image instead of empty navy bands. */
+          '<img class="detail-blur" aria-hidden="true" alt="" src="' +
+            esc((window.PROJECT_IMAGES ? window.PROJECT_IMAGES[p.img] : p.img) || p.img) + '">' +
           '<img id="largePhoto" alt="' + esc(p.name + ' · ' + p.capacity) + '" src="' +
             esc((window.PROJECT_IMAGES ? window.PROJECT_IMAGES[p.img] : p.img) || p.img) + '"' +
             ' data-project="' + esc(p.img) + '">' +
@@ -396,8 +400,13 @@
       b.addEventListener('click', function () {
         var value = Number(b.getAttribute('data-star'));
         setStars(feedbackRating === value ? 0 : value);
-        /* Same celebration as a like: the stars throw a small burst. */
-        if (feedbackRating) L.burst(b, ['⭐', '✨', '🌟']);
+        /* A small pop on the stars - no emoji burst, which read as decoration
+           rather than feedback. */
+        if (feedbackRating) {
+          b.classList.remove('is-pop');
+          void b.offsetWidth;
+          b.classList.add('is-pop');
+        }
       });
     });
     var feedbackCancel = document.getElementById('feedbackCancel');
@@ -422,12 +431,9 @@
             feedbackError.textContent = res.error || 'Could not send that just now.';
             return;
           }
-          /* A short celebration, then close - the note is already stored. */
-          L.burst(feedbackForm, ['🎉', '✨', '💛', '🌟', '🎊']);
+          /* The note is stored first; only then does the form close. */
           L.toast('Thank you — your note is with the studio.');
-          setTimeout(function () {
-            if (feedbackBox.open) feedbackBox.close();
-          }, 420);
+          feedbackBox.close();
         });
     });
   }

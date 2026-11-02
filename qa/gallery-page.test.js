@@ -155,7 +155,7 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     /* The photograph is the point of the detail view; a stray display:none on a
        dialog id once hid it while every text assertion still passed. */
     const media = await page.evaluate(() => {
-      const img = document.querySelector('#photoViewer .detail-media img');
+      const img = document.getElementById('largePhoto');
       const r = img.getBoundingClientRect();
       return { display: getComputedStyle(img).display, w: Math.round(r.width), h: Math.round(r.height) };
     });
