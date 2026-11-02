@@ -75,8 +75,10 @@ const LOGO_CID = 'ktm-logo';
 const RECOVERY_429 = 'Too many requests. Please try again in a few minutes.';
 
 /* Deployed code marker — kept identical to platform/cloudflare/src/worker.js
-   so /api/health reports the same version whichever backend serves it. */
-const CODE_VERSION = 'reconcile-r1';
+   so /api/health reports the same version whichever backend serves it.
+   Both backends carry the customer-feedback route, so both report the same
+   marker; qa/roles-parity.test.js fails the build if they ever diverge. */
+const CODE_VERSION = 'proposal-feedback-r1';
 
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }
@@ -2324,6 +2326,81 @@ async function handleApi(req, res, url) {
       notifyFromPortalEvent(db, ev);
       saveDb(db);
       return sendJson(res, 201, { ok: true });
+    }
+
+    /* PUBLIC GALLERY LIKES - mirrors platform/cloudflare/src/worker.js.
+       The public portfolio page is not behind a login; a visitor is the random
+       first-party cookie id, and the (project, visitor) pair is unique so a
+       double tap or a re-open cannot inflate a count. */
+    if (parts[0] === 'gallery' && parts[1] === 'likes' && parts.length === 2 &&
+        (method === 'GET' || method === 'POST')) {
+      const visitorMatch = String(req.headers['cookie'] || '').match(/(?:^|;\s*)qs_gallery_visitor=([^;]+)/);
+      let visitor = String(req.headers['x-gallery-visitor'] || '').toLowerCase().trim();
+      if (!visitor && visitorMatch) {
+        try { visitor = decodeURIComponent(visitorMatch[1]).toLowerCase().trim(); } catch (_) { visitor = ''; }
+      }
+      if (!/^[a-z0-9]{16,40}$/.test(visitor)) visitor = '';
+      const validId = (id) => /^[a-z0-9][a-z0-9_-]{2,79}$/.test(id);
+      if (!Array.isArray(db.galleryLikes)) db.galleryLikes = [];
+      if (method === 'GET') {
+        const ids = String(url.searchParams.get('ids') || '').split(',')
+          .map(v => v.trim()).filter(validId).slice(0, 80);
+        const counts = {};
+        ids.forEach(id => { counts[id] = db.galleryLikes.filter(l => l.project_id === id).length; });
+        const mine = visitor ? ids.filter(id => db.galleryLikes.some(l => l.project_id === id && l.visitor_id === visitor)) : [];
+        return sendJson(res, 200, { counts, mine });
+      }
+      let body;
+      try { body = await readBody(req, 4096); }
+      catch (err) { return sendJson(res, err.status || 400, { error: err.message || 'Invalid request.' }); }
+      const id = String((body && body.id) || '').trim().toLowerCase();
+      if (!validId(id)) return sendJson(res, 400, { error: 'Unknown project.' });
+      if (!visitor) return sendJson(res, 400, { error: 'Could not identify this browser. Reload the page and try again.' });
+      const liked = !body || body.liked !== false;
+      const existing = db.galleryLikes.find(l => l.project_id === id && l.visitor_id === visitor);
+      if (liked && !existing) db.galleryLikes.push({ project_id: id, visitor_id: visitor, created_at: nowISO() });
+      if (!liked && existing) db.galleryLikes = db.galleryLikes.filter(l => l !== existing);
+      if (liked !== !!existing) saveDb(db);
+      return sendJson(res, 200, {
+        ok: true, id, liked,
+        count: db.galleryLikes.filter(l => l.project_id === id).length
+      });
+    }
+
+    /* PUBLIC GALLERY FEEDBACK - mirrors platform/cloudflare/src/worker.js.
+       A visitor may leave a short plain-text note about a project; it is
+       stored for the studio and never shown back to other visitors. */
+    if (parts[0] === 'gallery' && parts[1] === 'feedback' && parts.length === 2 && method === 'POST') {
+      const visitorMatch = String(req.headers['cookie'] || '').match(/(?:^|;\s*)qs_gallery_visitor=([^;]+)/);
+      let visitor = String(req.headers['x-gallery-visitor'] || '').toLowerCase().trim();
+      if (!visitor && visitorMatch) {
+        try { visitor = decodeURIComponent(visitorMatch[1]).toLowerCase().trim(); } catch (_) { visitor = ''; }
+      }
+      if (!/^[a-z0-9]{16,40}$/.test(visitor)) visitor = '';
+      if (!visitor) return sendJson(res, 400, { error: 'Could not identify this browser. Reload the page and try again.' });
+      let body;
+      try { body = await readBody(req, 4096); }
+      catch (err) { return sendJson(res, err.status || 400, { error: err.message || 'Invalid request.' }); }
+      const raw = String((body && body.message) || '').replace(/\r\n?/g, '\n').trim();
+      if (raw.length < 4) return sendJson(res, 400, { error: 'Write a few words first.' });
+      if (raw.length > 1000) return sendJson(res, 400, { error: 'Please keep the note under 1,000 characters.' });
+      if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(raw)) return sendJson(res, 400, { error: 'Use plain text only.' });
+      const project = String((body && body.project) || '').trim().toLowerCase();
+      if (project && !/^[a-z0-9][a-z0-9_-]{2,79}$/.test(project)) return sendJson(res, 400, { error: 'Unknown project.' });
+      const name = String((body && body.name) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      const rating = Number.isInteger(body && body.rating) && body.rating >= 1 && body.rating <= 5 ? body.rating : null;
+      if (!Array.isArray(db.galleryFeedback)) db.galleryFeedback = [];
+      const since = new Date(Date.now() - 3600000).toISOString();
+      const recent = db.galleryFeedback.filter(f => f.visitor_id === visitor && f.created_at >= since).length;
+      if (recent >= 5) return sendJson(res, 429, { error: 'That is a few notes already. Please try again in an hour.' });
+      const row = {
+        id: 'gfb_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        project_id: project || null, visitor_id: visitor, name: name || null,
+        rating, message: raw, created_at: nowISO()
+      };
+      db.galleryFeedback.push(row);
+      saveDb(db);
+      return sendJson(res, 201, { ok: true, id: row.id });
     }
 
     /* Everything below needs a staff session */

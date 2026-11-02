@@ -74,30 +74,58 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('mobile proposal card stays within the scaled page',await customer.$eval('[data-project="PROJ_TRACKING"]',e=>e.getBoundingClientRect().left>=0&&e.getBoundingClientRect().right<=innerWidth+1));
   const context=await browser.createBrowserContext(),gallery=await context.newPage();gallery.on('pageerror',e=>errors.push(e.message));await gallery.setViewport({width:1360,height:1100});
   await gallery.goto(base+'/gallery.html',{waitUntil:'networkidle0'});
-  check('public gallery has ten distinct projects without proposal storage',await gallery.evaluate(()=>localStorage.length===0&&document.querySelectorAll('#galleryProjects article').length===10));
-  check('tracking is a regular gallery entry with the supplied facts and photograph',await gallery.$eval('#galleryProjects [data-project="PROJ_TRACKING"]',e=>e.dataset.project==='PROJ_TRACKING'&&e.textContent.includes('500 kWp')&&e.textContent.includes('Ground-Mounted Solar Tracking')&&e.querySelector('img').getAttribute('src')==='assets/images/Tracking.png'));
-  check('all gallery cards share the same width, thumbnail height and styling',await gallery.$$eval('#galleryProjects article',els=>els.every(e=>e.className===''&&Math.abs(e.offsetWidth-els[0].offsetWidth)<=1&&e.querySelector('img').offsetHeight===els[0].querySelector('img').offsetHeight)));
+  /* The public gallery is now the real project list (PROJECTS on the page,
+     41 entries at the time of writing) rather than a ten-card sample, and the
+     cards carry no data-project attribute - so the check is that every listed
+     project becomes exactly one card, without touching proposal storage. */
+  check('public gallery lists every project without proposal storage',await gallery.evaluate(()=>{const cards=[...document.querySelectorAll('#galleryProjects article')];const names=cards.map(c=>c.textContent.trim());return localStorage.length===0&&cards.length===PROJECTS.length&&cards.length>=10&&new Set(names).size===names.length;}));
+  check('tracking is a regular gallery entry with the supplied facts and photograph',await gallery.evaluate(()=>{const card=[...document.querySelectorAll('#galleryProjects article')].find(a=>a.textContent.includes('Ground-Mounted Solar Tracking'));return !!card&&card.textContent.includes('500 kWp')&&card.querySelector('img').getAttribute('src')==='assets/images/Tracking.png';}));
+  /* Cards now carry their own class (gallery-card) and a fixed-ratio photo
+     frame, so uniformity is asserted on the structure the design guarantees:
+     same class, same width, same photo height, same action row. */
+  check('all gallery cards share the same width, thumbnail height and styling',await gallery.$$eval('#galleryProjects article',els=>els.every(e=>e.classList.contains('gallery-card')&&Math.abs(e.offsetWidth-els[0].offsetWidth)<=1&&e.querySelector('img').offsetHeight===els[0].querySelector('img').offsetHeight&&e.querySelectorAll('.card-actions .act').length===2)));
   check('no featured banner or separate tracking filter remains',await gallery.evaluate(()=>!document.querySelector('.featured-project')&&!document.getElementById('galleryFilters').textContent.includes('Solar tracking')));
   await (await gallery.$('#galleryProjects')).screenshot({path:path.join(shots,'tracking-gallery-grid.png')});
-  const photo='[data-project="PROJ_TRACKING"] .project-photo';
-  await gallery.hover('[data-project="PROJ_1_1"] .project-photo');
-  await gallery.waitForFunction(()=>new DOMMatrix(getComputedStyle(document.querySelector('[data-project="PROJ_1_1"] .project-photo img')).transform).a>1.029);
-  const normalZoom=await gallery.$eval('[data-project="PROJ_1_1"] .project-photo img',e=>({transform:getComputedStyle(e).transform,transition:getComputedStyle(e).transition}));
+  /* The gallery cards are built from the page's PROJECTS list and carry no
+     data-project attribute any more, so a card is identified by the photograph
+     it shows - the tracking unit's own PNG. */
+  const cardOf=src=>'article:has(img[src*="'+src+'"])';
+  const photo=cardOf('Tracking.png')+' .project-photo',other=cardOf('site-agarwal.jpg')+' .project-photo';
+  /* A transform read mid-transition is a different float on every run, so wait
+     for the zoom to settle before comparing the two photographs. */
+  const settle=sel=>gallery.waitForFunction(sel=>new Promise(done=>{
+    const img=document.querySelector(sel+' img');
+    let last=getComputedStyle(img).transform,stable=0;
+    const tick=()=>{
+      const now=getComputedStyle(img).transform;
+      if(now===last) stable++; else { stable=0; last=now; }
+      if(stable>=3) done(true); else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }),{},sel);
+  await gallery.hover(other);
+  await gallery.waitForFunction(sel=>new DOMMatrix(getComputedStyle(document.querySelector(sel+' img')).transform).a>1.029,{},other);
+  await settle(other);
+  const normalZoom=await gallery.$eval(other+' img',e=>({transform:getComputedStyle(e).transform,transition:getComputedStyle(e).transition}));
   await gallery.hover(photo);
-  await gallery.waitForFunction(()=>new DOMMatrix(getComputedStyle(document.querySelector('[data-project="PROJ_TRACKING"] .project-photo img')).transform).a>1.029);
+  await gallery.waitForFunction(sel=>new DOMMatrix(getComputedStyle(document.querySelector(sel+' img')).transform).a>1.029,{},photo);
+  await settle(photo);
   check('tracking photo uses the same hover zoom and transition as the other images',await gallery.$eval(photo+' img',(e,normal)=>getComputedStyle(e).transform===normal.transform&&getComputedStyle(e).transition===normal.transition,normalZoom));
   await gallery.mouse.move(0,0);
-  await gallery.waitForFunction(()=>getComputedStyle(document.querySelector('[data-project="PROJ_TRACKING"] .project-photo img')).transform==='none');
+  await gallery.waitForFunction(sel=>getComputedStyle(document.querySelector(sel+' img')).transform==='none',{},photo);
   check('tracking photo returns to its original size when the pointer leaves',await gallery.$eval(photo+' img',e=>getComputedStyle(e).transform==='none'));
-  check('gallery card shows the confirmed location',await gallery.$eval('[data-project="PROJ_TRACKING"]',e=>e.textContent.includes('Pune, Maharashtra')));
+  check('gallery card shows the confirmed location',await gallery.$eval(cardOf('Tracking.png'),e=>e.textContent.includes('Pune, Maharashtra')));
   await gallery.click(photo);
   check('enlarged image caption includes the confirmed Pune location',await gallery.$eval('#photoViewer',e=>e.open&&e.querySelector('img').naturalWidth===1536&&e.textContent.includes('500 kWp')&&e.textContent.includes('Pune, Maharashtra')));
   await gallery.keyboard.press('Escape');
   await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());
-  check('industrial filter includes both Agarwal projects as regular entries',await gallery.$eval('#galleryProjects',e=>e.querySelectorAll('article').length===4&&e.textContent.includes('1,700 kWp')&&e.querySelector('[data-project="PROJ_TRACKING"]').textContent.includes('500 kWp')));
+  /* The second filter button is "Industrial": it is built as
+     ['All projects', ...SECTORS], so the button maps to SECTORS[0]. The count
+     comes from the page's own sector list instead of a fixed four. */
+  check('industrial filter includes both Agarwal projects as regular entries',await gallery.evaluate(()=>{const cards=[...document.querySelectorAll('#galleryProjects article')],expected=PROJECTS.filter(p=>p.sector===SECTORS[0]).length;const tracking=cards.find(c=>c.textContent.includes('Ground-Mounted Solar Tracking'));return cards.length===expected&&cards.some(c=>c.textContent.includes('1,700 kWp'))&&!!tracking&&tracking.textContent.includes('500 kWp');}));
   await gallery.$eval('#galleryFilters button:first-child',e=>e.click());await gallery.setViewport({width:390,height:844});
-  await gallery.$eval('[data-project="PROJ_TRACKING"]',e=>e.scrollIntoView({behavior:'instant'}));
-  check('standard gallery card is responsive without horizontal clipping',await gallery.$eval('[data-project="PROJ_TRACKING"]',e=>e.getBoundingClientRect().left>=0&&e.getBoundingClientRect().right<=innerWidth&&e.scrollWidth<=e.clientWidth));
+  await gallery.$eval(cardOf('Tracking.png'),e=>e.scrollIntoView({behavior:'instant'}));
+  check('standard gallery card is responsive without horizontal clipping',await gallery.$eval(cardOf('Tracking.png'),e=>e.getBoundingClientRect().left>=0&&e.getBoundingClientRect().right<=innerWidth&&e.scrollWidth<=e.clientWidth));
   await gallery.screenshot({path:path.join(shots,'tracking-gallery-mobile.png')});
   check('no runtime errors',errors.length===0);
   console.log(`\n${passed} passed, 0 failed`);

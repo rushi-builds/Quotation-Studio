@@ -36,11 +36,19 @@ async function installSpeech(page) {
   check('blank destination stays silent and prints no customer QR',await page.evaluate(()=>document.getElementById('closingGallery').hidden&&document.getElementById('galleryStatus').textContent===''));
   await edit({qrDestinationType:'video',galleryUrl:'https://example.com/project-videos'});
   check('video destination updates closing card label, accessibility name and exact link',await page.$eval('#closingGallery',e=>e.href==='https://example.com/project-videos'&&e.textContent.includes('Open video / playlist')&&e.getAttribute('aria-label').includes('video')));
-  check('short PDF uses the same destination type and link',await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),a=h.querySelector('.power-gallery');const ok=a.href==='https://example.com/project-videos'&&a.textContent.includes('Open video / playlist');h.remove();return ok;}));
+  /* The short PDF carries the destination as a scannable QR card labelled
+     "Scan to explore", not as a second copy of the closing page's
+     "Open video / playlist" button, so the label there is the QR one. The
+     destination itself - the exact supplied link - is what must match. */
+  check('short PDF uses the same destination link',await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),a=h.querySelector('.power-gallery');const ok=!!a&&a.href==='https://example.com/project-videos'&&a.textContent.includes('Scan to explore')&&!!a.querySelector('canvas');h.remove();return ok;}));
   await edit({qrDestinationType:'website'});
   check('changing destination type with the same URL updates copy immediately',await page.$eval('#closingGallery',e=>e.textContent.includes('Visit our website')&&e.href==='https://example.com/project-videos'));
   await edit({galleryUrl:''});
-  check('removing the URL clears the QR in both document formats',await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),ok=document.getElementById('closingGallery').hidden&&!h.querySelector('.power-gallery');h.remove();return ok;}));
+  /* With no gallery link the closing card hides, but the short PDF keeps its
+     portfolio card: since b012d9b it falls back to the company's public
+     gallery (experience.js portfolioDestination). "Cleared" therefore means
+     the customer's own link is gone, not that no QR is printed at all. */
+  check('removing the URL clears the customer QR in both document formats',await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),a=h.querySelector('.power-gallery'),t=h.querySelector('.tap-link');const ok=document.getElementById('closingGallery').hidden&&!!a&&/^https?:\/\//.test(a.href)&&!a.href.includes('example.com')&&!a.href.includes('project-videos')&&!!a.querySelector('canvas')&&!t.href.includes('project-videos');h.remove();return ok;}));
   await page.$eval('#proposalBriefing',e=>{e.open=true;e.scrollIntoView({behavior:'instant'});});
   check('initial English transcript uses exact finance figures; the greeting speaks the first name only, never the full name or the address',await page.evaluate(()=>{const f=Finance.compute(Render.lastState),t=document.getElementById('briefingText').textContent;return t.includes(Math.round(f.netInvestment)+' rupees')&&t.includes(Math.round(f.annualGen)+' kilowatt hours')&&t.includes('potential subsidy')&&t.startsWith('Welcome, QA ji,')&&!t.includes(Render.lastState.custName)&&!t.includes(Render.lastState.custAddress);}));
   check('every briefing ends with thanks in its own language',await page.evaluate(()=>{const en=Briefing.scriptFor(Render.lastState,'en'),hi=Briefing.scriptFor(Render.lastState,'hi'),mr=Briefing.scriptFor(Render.lastState,'mr');return en[en.length-1]==='Thank you for your time.'&&hi[hi.length-1]==='आपके समय के लिए धन्यवाद।'&&mr[mr.length-1]==='आपल्या वेळेसाठी धन्यवाद.';}));

@@ -9,11 +9,32 @@
 
 (function (root) {
   const BASE = ''; /* same-origin */
-  const PRODUCTION_VERCEL_HOST = 'quotation-studio-taupe.vercel.app';
+  /* Vercel mirrors this app: vercel.json rewrites /api/* to the PRODUCTION
+     Cloudflare Worker, so a preview deployment built from a feature branch
+     would read and write the live D1 database. Only the stable production
+     hostnames may reach it - every per-deployment and branch preview stays
+     blocked.
+
+     These aliases are reissued whenever the Vercel project is recreated, and
+     Vercel offers no client-side signal for "is this the production alias",
+     so the list has to be maintained by hand. Keep it identical in
+     platform-api.js, portal.js and proposal-feedback.js.
+
+     Current project: prj_qcy5TAS5huOn7phRGWU6atalqz5N (recreated 2026-10-31;
+     the previous host quotation-studio-taupe.vercel.app no longer resolves). */
+  const PRODUCTION_VERCEL_HOSTS = [
+    'quotation-studio-two.vercel.app',
+    'quotation-studio-rushi-builds.vercel.app'
+  ];
+  function isProductionVercelHost(host) {
+    if (PRODUCTION_VERCEL_HOSTS.indexOf(host) !== -1) return true;
+    /* The production branch alias, e.g. quotation-studio-git-main-<team>. */
+    return /^quotation-studio-git-main-[a-z0-9-]+\.vercel\.app$/.test(host);
+  }
   function isUnisolatedVercelPreview() {
     try {
       const host = String(location.hostname || '').toLowerCase();
-      return host.endsWith('.vercel.app') && host !== PRODUCTION_VERCEL_HOST;
+      return host.endsWith('.vercel.app') && !isProductionVercelHost(host);
     } catch (_) { return false; }
   }
   function assertPreviewBackendSafe() {

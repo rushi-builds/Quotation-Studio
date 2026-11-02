@@ -2,7 +2,16 @@ import assert from 'node:assert/strict';
 import worker from '../platform/cloudflare/src/worker.js';
 const queries=[];
 const DB={prepare(sql){return{bind(...params){queries.push({sql,params});return{
- async first(){if(sql.includes('FROM sessions'))return{user_id:'u1'};if(sql.includes('FROM users'))return{id:'u1',role:'sales'};if(sql.includes('INSERT INTO assistant_usage'))return{count:1};if(sql.includes('FROM proposals WHERE id'))return null;throw Error('Unexpected first SQL '+sql)},
+ async first(){if(sql.includes('FROM sessions'))return{user_id:'u1'};if(sql.includes('FROM users'))return{id:'u1',role:'sales'};if(sql.includes('INSERT INTO assistant_usage'))return{count:1};if(sql.includes('FROM proposals WHERE id'))return null;
+  /* Workspace-access gate (workspace-access-store.mjs): the assistant route
+     now asks the shared access service for pricing.read before it does any
+     work. A fresh workspace has no workspace_access row yet, and a sales
+     writer keeps pricing access in that state, so "no row" is the correct
+     fixture - returning nothing (or throwing) here used to turn the whole
+     route into a 403 PRICING_ACCESS_REQUIRED unrelated to what this test
+     checks. */
+  if(sql.includes('FROM workspace_access'))return null;
+  throw Error('Unexpected first SQL '+sql)},
  async all(){if(sql.includes('GROUP BY status'))return{results:[{status:'draft',count:1}]};return{results:[]}},async run(){return{success:true}}
  }}}}};
 const env={DB,GEMINI_ENABLED:'true',GEMINI_API_KEY:'fake-never-sent'};

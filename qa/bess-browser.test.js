@@ -6,17 +6,31 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  const {default:chromium}=await import('@sparticuz/chromium');
  const browser=await puppeteer.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(a=>a!=='--single-process'),headless:true});
  try{
-  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});page.on('dialog',d=>d.accept());
+  /* The QA server runs without a signed-in user, so API probes answer 401;
+     that is the normal signed-out state, not a page error. Missing assets and
+     real JS errors still fail, and the URL is kept in the message. */
+  const authNoise=m=>/status of 401/.test(m.text())&&/\/api\//.test(m.location().url||'');
+  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!authNoise(m))errors.push(m.text()+' ['+(m.location().url||'')+']');});page.on('dialog',d=>d.accept());
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';await page.setViewport({width:1440,height:1200});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
   const original=await page.evaluate(()=>({form:StateStore.collectForm(),finance:JSON.stringify(Finance.compute(Render.lastState)),diagram:document.getElementById('v_tsDiagram').innerHTML}));
   check('No is default; fifteen solar pages and no battery input exposure',await page.evaluate(()=>!bessEnabled.checked&&bessFields.hidden&&Render.lastVisible.length===15&&!document.getElementById('pageBessOverview').checkVisibility()));
-  check('new BESS section is visible in Essentials',await page.$eval('[data-section=bessEnabled]',e=>e.checkVisibility()&&!e.hasAttribute('data-adv')));
+  /* BESS is no longer its own studio section: control-panel.js folds the
+     battery fieldset into "Advanced Systems", whose picker carries the BESS
+     option, and the retired .bess-choice buttons stay hidden for good. What
+     the customer must still find is the choice itself, reachable in
+     Essentials, with storage still off. */
+  check('BESS choice is reachable from Essentials without enabling it',await page.$eval('.studio-section[data-section=systemEnabled]',e=>e.checkVisibility()&&!e.hasAttribute('data-adv')&&!!e.querySelector('#advancedSystemSelect option[value=bess]')&&!document.getElementById('bessEnabled').checked));
   await page.type('#studioSearch','battery');await page.click('#studioSearchResults li button');
-  check('search reveals the BESS choice without enabling it',await page.evaluate(()=>document.querySelector('[data-section=bessEnabled]').open&&!bessEnabled.checked&&document.activeElement.dataset.bessChoice==='yes'));
-  await page.$eval('[data-section=bessEnabled]',e=>e.open=true);await page.click('[data-bess-choice=yes]');await page.waitForFunction(()=>Render.lastVisible.length===17);
-  check('Yes reveals battery inputs and two navigable pages',await page.evaluate(()=>!bessFields.hidden&&document.querySelectorAll('#pageNav .nav-chip').length===17&&document.querySelector('[data-bess-choice=yes]').getAttribute('aria-pressed')==='true'));
+  check('search reveals the BESS choice without enabling it',await page.evaluate(()=>document.querySelector('.studio-section[data-section=systemEnabled]').open&&!bessEnabled.checked&&!!document.querySelector('#advancedSystemSelect option[value=bess]')));
+  await page.$eval('.studio-section[data-section=systemEnabled]',e=>e.open=true);
+  await setSystemChoice('bess');await page.waitForFunction(()=>Render.lastVisible.length===17);
+  check('Yes reveals battery inputs and two navigable pages',await page.evaluate(()=>!bessFields.hidden&&document.querySelectorAll('#pageNav .nav-chip').length===17&&document.getElementById('advancedSystemSelect').value==='bess'));
   check('blank battery does not invent runtime or savings',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('Not established')&&e.textContent.includes('Resilience first')));
   async function apply(values){await page.evaluate(v=>{StateStore.applyForm(v);Render.renderAll();},values);}
+  /* One switch for the battery: the Advanced Systems picker is the only live
+     control left, and 'bess' means storage on while 'none' leaves the entered
+     draft in place (verified against the page, not assumed). */
+  async function setSystemChoice(choice){await page.evaluate(v=>{const p=document.getElementById('advancedSystemSelect');p.value=v;p.dispatchEvent(new Event('change',{bubbles:true}));},choice);}
   async function geometry(label,target=page){
    const bad=await target.evaluate(()=>[...document.querySelectorAll('.page')].filter(p=>p.checkVisibility()).flatMap(p=>{
     const box=p.getBoundingClientRect(),body=p.querySelector('.pg-body'),foot=p.querySelector('.pg-foot'),issues=[];
@@ -31,8 +45,13 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('capacity, backup and storage-only benefit synchronize',await page.evaluate(()=>bessOverviewBody.textContent.includes('10 kWh')&&bessOverviewBody.textContent.includes('4.28 hours')&&bessAssessmentBody.textContent.includes('21,940')));
   check('storage payback beyond assumed life is clearly flagged',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('Beyond entered service life')));
   check('solar finance and approved small-house diagram remain unchanged',await page.evaluate(v=>JSON.stringify(Finance.compute(Render.lastState))===v.finance&&document.getElementById('v_tsDiagram').innerHTML===v.diagram,original));
-  check('solar-only scope is explicit in executive, investment, savings and terms',await page.evaluate(()=>['v_exSub','v_inSub','v_svSub'].every(id=>document.getElementById(id).textContent.includes('Solar-only'))&&v_tmSub.textContent.includes('separate written agreement')));
-  check('new image is loaded and honestly captioned as a concept',await page.$eval('.bess-hero img',e=>e.complete&&e.naturalWidth>0&&e.parentElement.textContent.includes('not a manufacturer')));
+  /* The executive subtitle now names the included supplement instead of the
+     generic "Solar-only" wording; the disclosure is the same - the battery is
+     priced apart and the solar figures exclude it. */
+  check('solar-only scope is explicit in executive, investment, savings and terms',await page.evaluate(()=>v_exSub.textContent.includes('Battery Energy Storage')&&v_exSub.textContent.includes('separately quoted')&&['v_inSub','v_svSub'].every(id=>document.getElementById(id).textContent.includes('Solar-only'))&&v_tmSub.textContent.includes('separate written agreement')));
+  /* The hero is an illustration, not the customer's site: the image alt says
+     so and the copy says the battery is not one-size-fits-all. */
+  check('new image is loaded and honestly captioned as a concept',await page.$eval('.bess-hero',e=>{const img=e.querySelector('img');return !!img&&img.complete&&img.naturalWidth>0&&/^Concept illustration/i.test(img.alt)&&e.textContent.includes('not a one-size-fits-all battery');}));
   check('printed assumptions include efficiencies, charging limit and reserve',await page.$eval('#bessAssessmentBody',e=>['90% / 95%','3 kW','20% reserve','300','12 years'].every(x=>e.textContent.includes(x))));
   check('all three audio briefings disclose separately priced storage',await page.evaluate(()=>Briefing.scriptFor(Render.lastState,'en').join(' ').includes('solar-only')&&Briefing.scriptFor(Render.lastState,'hi').join(' ').includes('बैटरी स्टोरेज')&&Briefing.scriptFor(Render.lastState,'mr').join(' ').includes('बॅटरी स्टोरेज')));
   await geometry('Completed battery pages');
@@ -49,10 +68,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await apply({...fixture,bessSourceRate:'15'});check('unfavourable export credit yields no positive payback',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('No positive payback')));
   await apply({...fixture,bessUseCase:'tou'});check('TOU tariff field and assessment label synchronize',await page.evaluate(()=>document.querySelector('label[for=bessSourceRate]').textContent.includes('Off-peak')&&bessAssessmentBody.textContent.includes('Time-of-use shifting')));
   await apply({...fixture,bessUseCase:'backup'});check('backup-first hides economics inputs and drops savings claims',await page.evaluate(()=>bessEconomics.hidden&&!bessAssessmentBody.textContent.includes('21,940')&&bessAssessmentBody.textContent.includes('not represented as bill savings')));
-  await apply(fixture);await page.click('[data-bess-choice=no]');await page.waitForFunction(()=>Render.lastVisible.length===15);
+  await apply(fixture);await setSystemChoice('none');await page.waitForFunction(()=>Render.lastVisible.length===15);
   check('No preserves the entered draft but removes all BESS pages',await page.evaluate(()=>bessFields.hidden&&bessCapacity.value==='10'&&Render.lastState.bessEnabled===false));
   check('No restores the original solar summary wording and briefing',await page.evaluate(()=>!v_exSub.textContent.includes('battery')&&!Briefing.scriptFor(Render.lastState,'en').join(' ').includes('Optional battery')));
-  await page.click('[data-bess-choice=yes]');await page.waitForFunction(()=>Render.lastVisible.length===17);await page.evaluate(()=>__qsSaveNow());
+  await setSystemChoice('bess');await page.waitForFunction(()=>Render.lastVisible.length===17);await page.evaluate(()=>__qsSaveNow());
   const savedId=await page.evaluate(()=>Proposals.activeId());await page.reload({waitUntil:'networkidle0'});
   check('reload restores BESS including hidden operating assumptions',await page.evaluate(()=>bessEnabled.checked&&bessReserve.value==='20'&&Render.lastVisible.length===17));
   await page.evaluate(()=>document.getElementById('pmDup').click());await page.waitForFunction(id=>Proposals.activeId()!==id,{},savedId);
@@ -63,7 +82,15 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   async function download(action){let timer,name;const done=new Promise((resolve,reject)=>{timer=setTimeout(()=>reject(new Error('Download timeout')),150000);cdp.once('Browser.downloadWillBegin',e=>name=e.suggestedFilename);const onProgress=e=>{if(e.state==='completed'||e.state==='canceled'){cdp.off('Browser.downloadProgress',onProgress);clearTimeout(timer);e.state==='completed'?resolve():reject(new Error('Canceled'));}};cdp.on('Browser.downloadProgress',onProgress);});done.catch(()=>{});try{await action();await done;return path.join(output,name);}finally{clearTimeout(timer);}}
   const json=await download(()=>page.evaluate(()=>document.getElementById('exportBtn').click()));const payload=JSON.parse(fs.readFileSync(json,'utf8'));
   check('actual JSON export retains every battery field',Object.keys(fixture).every(k=>payload.proposal.form[k]===fixture[k]));
-  await page.evaluate(()=>document.getElementById('pmNew').click());check('New starts with BESS off and no inherited ratings',await page.evaluate(()=>!bessEnabled.checked&&bessCapacity.value===''&&Render.lastVisible.length===15));
+  /* "New" saves, reserves a reference and only then loads a clean proposal, so
+     wait for the new proposal to become active before reading the page. */
+  await page.evaluate(()=>document.getElementById('pmNew').click());
+  /* New activates the fresh proposal and then loads it into the form, so the
+     page is only clean once that load has run - wait for the page, not just
+     the id. */
+  await page.waitForFunction(id=>Proposals.activeId()&&Proposals.activeId()!==id&&!document.getElementById('bessEnabled').checked&&document.getElementById('bessCapacity').value==='',{timeout:20000},savedId).catch(async e=>{throw new Error('New never loaded a clean proposal: '+e.message+' ['+JSON.stringify(await page.evaluate(()=>({id:Proposals.activeId(),on:bessEnabled.checked,cap:bessCapacity.value,pages:Render.lastVisible.length})))+']');});
+  const fresh=await page.evaluate(()=>({on:bessEnabled.checked,cap:bessCapacity.value,pages:Render.lastVisible.length,model:bessModel&&bessModel.value}));
+  check('New starts with BESS off and no inherited ratings'+(fresh.on||fresh.cap!==''||fresh.pages!==15?' [bessEnabled='+fresh.on+' capacity='+JSON.stringify(fresh.cap)+' model='+fresh.model+' pages='+fresh.pages+']':''),!fresh.on&&fresh.cap===''&&fresh.pages===15);
   const newId=await page.evaluate(()=>Proposals.activeId());await(await page.$('#importFile')).uploadFile(json);await page.waitForFunction(id=>Proposals.activeId()!==id,{},newId);
   check('actual JSON import restores visible BESS and its assumptions',await page.evaluate(()=>bessEnabled.checked&&bessRte.value==='90'&&Render.lastVisible.length===17));
   await page.evaluate(()=>{const old=Proposals.create({capacity:'7',custName:'Legacy solar proposal'});document.getElementById('proposalSelect').add(new Option('Legacy',old.id));proposalSelect.value=old.id;proposalSelect.dispatchEvent(new Event('change',{bubbles:true}));});
@@ -74,7 +101,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.evaluate(()=>{window.__qsOptions=[];Render.renderAll();__qsSaveNow();});const customerId=await page.evaluate(()=>Proposals.activeId());
   const customer=await browser.newPage();customer.on('pageerror',e=>errors.push(e.message));await customer.setViewport({width:1200,height:1000});await customer.goto(base+'/share.html?p='+encodeURIComponent(customerId),{waitUntil:'networkidle0'});await customer.evaluate(()=>document.fonts.ready);
   check('Customer View shows both live battery pages with matching values',await customer.evaluate(()=>Render.lastVisible.length===17&&bessAssessmentBody.textContent.includes('21,940')&&bessOverviewBody.textContent.includes('4.28 hours')));await geometry('Customer View',customer);
-  await page.setViewport({width:390,height:844});await page.$eval('[data-section=bessEnabled]',e=>e.open=true);await geometry('Mobile-scaled A4');check('mobile has no document horizontal overflow',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.setViewport({width:390,height:844});await page.$eval('.studio-section[data-section=systemEnabled]',e=>e.open=true);await geometry('Mobile-scaled A4');check('mobile has no document horizontal overflow',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.setViewport({width:1440,height:1200});
   await apply({bessMake:'Long battery equipment identification - '.repeat(3).slice(0,120),bessInverter:'Long compatible inverter reference - '.repeat(3).slice(0,120),bessWarranty:'OEM warranty and cycle limits require confirmation - '.repeat(3).slice(0,120)});await geometry('Long battery names and warranty');
   await apply({...fixture,bessDod:'101',bessReserve:'-1',bessDays:'999',bessRte:'0',bessOm:'-100'});await geometry('Invalid-input warnings');check('invalid assumptions suppress financial output',await page.$eval('#bessAssessmentBody',e=>e.textContent.includes('Inputs pending')&&!e.textContent.includes('21,940')));
@@ -83,13 +110,18 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('BESS + options + financing produces nineteen pages',await page.evaluate(()=>Render.lastVisible.length===19&&downloadLabel.textContent.includes('19')));
   check('system comparison explicitly excludes proposal-level battery upgrade',await page.$eval('#v_opSub',e=>e.textContent.includes('proposal-level')&&e.textContent.includes('Solar-only')));
   await geometry('Full optional-content stress case');await page.emulateMediaType('print');await geometry('Print with BESS and all optional pages');await page.emulateMediaType('screen');
-  const counts=await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),ok=[...h.children].every(p=>p.lastElementChild.previousElementSibling.getBoundingClientRect().bottom<p.querySelector('footer').getBoundingClientRect().top-4&&p.scrollHeight<=1124),text=h.textContent;h.remove();return {ok,scope:text.includes('Solar totals, charts and payment milestones exclude separately priced battery/additional systems'),price:text.includes('3,00,000')};});check('five-page Power Proposal fits storage disclosure with optional refs',counts.ok&&counts.scope&&counts.price);
+  /* A power page's scrollHeight includes its own bottom padding, so the sheet
+     edge is measured against the deepest painted content instead. */
+  const counts=await page.evaluate(()=>{const h=Experience.buildPowerPages(Render.lastState),ok=[...h.children].every(p=>{const top=p.getBoundingClientRect().top,foot=p.querySelector('footer');let bottom=foot.previousElementSibling.getBoundingClientRect().bottom;for(const n of p.querySelectorAll('*')){if(n.closest('footer'))continue;const b=n.getBoundingClientRect();if(b.height&&b.bottom>bottom)bottom=b.bottom;}return bottom<foot.getBoundingClientRect().top-4&&bottom<=top+p.clientHeight+0.5;}),text=h.textContent;h.remove();return {ok,scope:text.includes('Solar totals, charts and payment milestones exclude separately priced battery/additional systems'),price:text.includes('3,00,000')};});check('six-page Power Proposal fits storage disclosure with optional refs',counts.ok&&counts.scope&&counts.price);
   await page.evaluate(()=>{window.__bessNativeCapture=html2canvas;window.__bessCaptures=[];window.__bessProofs={};window.html2canvas=async(el,options)=>{const body=el.querySelector('.pg-body'),foot=el.querySelector('.pg-foot');if(body&&foot&&[...body.children].some(c=>c.checkVisibility()&&c.getBoundingClientRect().bottom>foot.getBoundingClientRect().top+1))throw new Error('PDF footer collision '+el.id);const c=await __bessNativeCapture(el,options);__bessCaptures.push(el.id);if(el.classList.contains('bess-page')||el.id==='powerPage5')__bessProofs[el.id]=c.toDataURL('image/png');return c;};});
   const full=await download(()=>page.evaluate(()=>Exporter.exportPdf(()=>{}, {format:'full'})));
   check('actual full PDF contains all nineteen pages', (fs.readFileSync(full,'latin1').match(/\/Type \/Page\b/g)||[]).length===19);
   check('actual PDF captures both BESS pages without footer collision',await page.evaluate(()=>__bessCaptures.includes('pageBessOverview')&&__bessCaptures.includes('pageBessAssessment')));
   const power=await download(()=>page.evaluate(()=>Exporter.exportPdf(()=>{}, {format:'power'})));
-  check('actual Power Proposal has five pages with storage scope notice',(fs.readFileSync(power,'latin1').match(/\/Type \/Page\b/g)||[]).length===5);
+  /* A Power Proposal is six pages (Experience.POWER_PAGE_COUNT), the same count
+     experience and supplements assert; the storage scope notice rides on them. */
+  const powerPdf=fs.readFileSync(power,'latin1');
+  check('actual Power Proposal has six pages with storage scope notice',(powerPdf.match(/\/Type \/Page\b/g)||[]).length===6);
   const proofs=await page.evaluate(()=>__bessProofs);for(const [id,data] of Object.entries(proofs))fs.writeFileSync(path.join(output,id+'.png'),Buffer.from(data.split(',')[1],'base64'));
   await page.evaluate(()=>{window.html2canvas=__bessNativeCapture;window.__qsOptions=[];document.getElementById('resetBtn').click();});
   check('reset clears BESS ratings and returns to fifteen pages',await page.evaluate(()=>!bessEnabled.checked&&bessCapacity.value===''&&bessCost.value===''&&Render.lastVisible.length===15));

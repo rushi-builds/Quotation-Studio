@@ -41,7 +41,12 @@ check('EMI independently reconciles to reducing-balance formula',Math.abs(loan.e
   await (await page.$('#up_about')).uploadFile(file);
   await page.waitForFunction(()=>Proposals.active().pageImages?.img_about?.startsWith('data:image/png'));
   check('page photograph upload is actually saved, not just painted',await page.$eval('#img_about',e=>e.naturalWidth===1));
+  /* "New" saves, reserves a customer-facing reference over the API and only
+     then loads a clean proposal, so the reset is asynchronous; wait for the
+     new proposal to become active before reading the page. */
+  const beforeNew=await page.evaluate(()=>Proposals.activeId());
   await page.$eval('#pmNew',e=>e.click());
+  await page.waitForFunction(id=>Proposals.activeId()&&Proposals.activeId()!==id&&document.getElementById('custName').value==='',{timeout:20000},beforeNew).catch(e=>{throw new Error('New never loaded a clean proposal: '+e.message);});
   check('New cannot inherit another proposal’s custom text',await page.evaluate(c=>CONTENT.pageProjects.heading===c,canonical.heading));
   check('New cannot inherit another proposal’s project photo',await page.evaluate(c=>PROJECT_IMAGES.PROJ_1_1===c,canonical.project));
   check('New cannot inherit another proposal’s page photograph',await page.$eval('#img_about',(e,c)=>e.getAttribute('src')===c,canonical.page));

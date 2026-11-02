@@ -26,7 +26,12 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   async function typeCustom(id,value){
    await page.focus('#'+id+'Custom');await page.keyboard.down('Control');await page.keyboard.press('A');await page.keyboard.up('Control');await page.keyboard.press('Backspace');await page.type('#'+id+'Custom',value);await page.keyboard.press('Tab');}
   async function matchingForm(){return page.evaluate(values=>Object.entries(values).every(([id,v])=>document.getElementById(id).value===v&&Render.lastState[id]===v),custom);}
-  async function matchingSpec(target){return target.$eval('#v_tsTable',(el,values)=>Object.values(values).every(v=>[...el.querySelectorAll('.spec-v')].some(cell=>cell.textContent===v)),custom);}
+  /* Which custom value went missing, so a failure names it. */
+  async function formMismatch(){return page.evaluate(values=>Object.entries(values).filter(([id,v])=>document.getElementById(id).value!==v||Render.lastState[id]!==v).map(([id,v])=>id+' field='+JSON.stringify(document.getElementById(id).value)+' state='+JSON.stringify(Render.lastState[id])).join('; '),custom);}
+  /* The specification table prints some entries as one combined cell (the
+     structure row is "mountMake · roofType"), so each custom value has to
+     appear in a value cell rather than be a whole cell of its own. */
+  async function matchingSpec(target){return target.$eval('#v_tsTable',(el,values)=>{const cells=[...el.querySelectorAll('.spec-v')].map(c=>c.textContent);return Object.values(values).every(v=>cells.some(c=>c.includes(v)));},custom);}
   check('all eight dropdowns have Custom last and labelled hidden text boxes below',await page.evaluate(ids=>ids.every(id=>{
    const el=document.getElementById(id),input=document.getElementById(id+'Custom'),wrap=document.getElementById(id+'CustomWrap');
    return el.tagName==='SELECT'&&el.options.length>1&&el.options[el.options.length-1].text==='Custom…'&&wrap.hidden&&input.disabled&&el.nextElementSibling===wrap&&document.querySelector('label[for="'+id+'"]')&&input.labels.length===1;
@@ -112,7 +117,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   check('markup-like brand text is rendered literally, not as elements',await page.$eval('#v_tsTable',el=>!el.querySelector('series')&&el.textContent.includes('Custom cable <series>')));
   check('pricing is unchanged by custom makes',await page.evaluate(()=>Math.abs(Finance.compute(Render.lastState).netInvestment-379380)<1e-8));
   await page.evaluate(()=>EquipmentStore.refreshSelects());
-  check('catalog refresh does not discard custom values',await matchingForm());
+  const refreshMismatch=await formMismatch();check('catalog refresh does not discard custom values'+(refreshMismatch?' ['+refreshMismatch+']':''),refreshMismatch==='');
   await type('moduleMake','');await page.evaluate(()=>EquipmentStore.refreshSelects());
   check('clearing a make is not silently replaced with a default',await page.$eval('#moduleMake',el=>el.value===''));
   await type('moduleMake',custom.moduleMake);
@@ -124,16 +129,19 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const original=await page.evaluate(()=>Proposals.activeId());
   await page.reload({waitUntil:'networkidle0'});
   await page.waitForFunction(()=>window.Render&&window.Render.lastState&&Render.lastState.custName==='Equipment Audit',{timeout:10000});
-  check('reload preserves custom values and rendered specification',await matchingForm()&&await matchingSpec(page));
+  /* Two separate promises: a failure now says whether the saved values came
+     back or the rendered specification table lost them. */
+  const formBack=await matchingForm(),specBack=await matchingSpec(page);
+  check('reload preserves custom values and rendered specification'+(formBack?'':' [saved values missing from the form]')+(specBack?'':' [technical specification table missing them]'),formBack&&specBack);
   check('reload automatically restores Custom mode with the saved text',await page.evaluate(values=>Object.entries(values).every(([id,value])=>!document.getElementById(id+'CustomWrap').hidden&&document.getElementById(id+'Custom').value===value&&document.getElementById(id).selectedOptions[0].hasAttribute('data-custom')),custom));
   await require('./legacy-proposal-fixture.cjs')(page, 'pmNew');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);
   check('new quotation clears all previous manual drafts and hides the text boxes',await page.evaluate(ids=>ids.every(id=>document.getElementById(id+'Custom').value===''&&document.getElementById(id+'CustomWrap').hidden),Object.keys(custom)));
   check('new quotation retains original template equipment, not previous custom entries',await page.evaluate(()=>moduleMake.value===StateStore.DEFAULTS.moduleMake&&moduleModel.value==='Bi-55-545'&&roofType.value===StateStore.DEFAULTS.roofType));
   await page.select('#proposalSelect',original);
   await page.waitForFunction(id=>Proposals.activeId()===id,{},original);
-  check('switching back restores all custom entries',await matchingForm());
+  const backMismatch=await formMismatch();check('switching back restores all custom entries'+(backMismatch?' ['+backMismatch+']':''),backMismatch==='');
   await require('./legacy-proposal-fixture.cjs')(page, 'pmDup');await page.waitForFunction(id=>Proposals.activeId()!==id,{},original);const duplicate=await page.evaluate(()=>Proposals.activeId());
-  check('duplicate retains all custom entries',duplicate!==original&&await matchingForm());
+  const dupMismatch=await formMismatch();check('duplicate retains all custom entries'+(dupMismatch?' ['+dupMismatch+']':''),duplicate!==original&&dupMismatch==='');
   await page.evaluate(()=>document.querySelector('.studio-tools').open=true);
   page.once('dialog',dialog=>dialog.accept());await page.click('#resetBtn');
   await page.waitForFunction(id=>Proposals.get(id).form.moduleMake===StateStore.DEFAULTS.moduleMake,{},duplicate);
@@ -174,7 +182,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
    const native=window.html2canvas;window.__restoreCapture=()=>{window.html2canvas=native;};
    window.html2canvas=async(el,options)=>{
     if(el.id==='pageTechSpec'){
-     window.__customCaptured=Object.values(values).every(v=>[...el.querySelectorAll('.spec-v')].some(cell=>cell.textContent===v));
+     window.__customCaptured=Object.values(values).every(v=>[...el.querySelectorAll('.spec-v')].some(cell=>cell.textContent.includes(v)));
      if(!window.__customCaptured)throw new Error('Custom equipment lost in PDF snapshot');
     }
     const canvas=await native(el,options);if(el.id==='pageTechSpec')window.__customCanvas=canvas.toDataURL('image/png');return canvas;

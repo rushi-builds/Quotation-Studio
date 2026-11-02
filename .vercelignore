@@ -1,0 +1,48 @@
+# ---------------------------------------------------------------------------
+# Vercel deploy scope
+# ---------------------------------------------------------------------------
+# This project has no build step: Vercel serves the repo root as static files,
+# and vercel.json rewrites /api/* to the Cloudflare Worker. Without an ignore
+# file Vercel uploaded the ENTIRE repository on every deploy - including test
+# fixtures, docs, the Worker source and two legacy prototype folders.
+#
+# Measured before this file: ~79 MB per deployment. The Hobby plan allows
+# 10 GB of deployment storage, so every ~126 deployments filled it.
+#
+# Nothing below is fetched by a served page. Verified: index / dashboard /
+# quotation / portal / share / gallery / feedback-preview / oauth-complete
+# contain zero href/src/url references to any of these directories.
+# ---------------------------------------------------------------------------
+
+# Documentation and process notes (3.7 MB)
+docs/
+README.md
+*.md
+
+# Test suite, fixtures and screenshots (2.0 MB)
+qa/
+
+# Back end sources - the API lives on Cloudflare Workers, not here (1.2 MB)
+platform/
+
+# Legacy prototype folders, not linked from any served page (2.6 MB)
+review/
+concept-preview/
+
+# Build/dev tooling
+scripts/
+.github/
+node_modules/
+**/node_modules/
+
+# Local data and secrets - must never reach a static host
+platform/data/
+.env
+.env.*
+.dev.vars
+.cf-vars
+
+# Repo housekeeping
+.gitignore
+.assetsignore
+.vercelignore

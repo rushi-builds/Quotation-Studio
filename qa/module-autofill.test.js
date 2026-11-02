@@ -1,3 +1,24 @@
+/* ---------------------------------------------------------------- QUARANTINED
+   NOT part of `npm test` (see package.json -> test:quarantine).
+
+   This suite asserts an API / DOM surface that no longer exists in the app:
+
+     * `EquipmentStore.modelEntriesForMake` and `EquipmentStore.findModule`
+       are exported by nothing. The real module lookup today is the internal
+       `basisInfo` / `modelRows` / `syncModelSelect` path in
+       assets/js/equipment.js, and `ModuleReferenceCatalog` (module-catalog.js)
+       which is itself currently called by no runtime code.
+     * The workbook picker ids it drives (`inverterWorkbookModel`,
+       `workbookCableProduct`) appear nowhere in quotation.html or assets/.
+
+   It cannot pass without a rewrite against the current catalogue UI, so it
+   was quarantined rather than deleted or left silently red. Restoring it to
+   `npm test` requires the rewrite first.
+
+   Found during the 2026-10-29 repository analysis: the suite was 0/8 (here)
+   and 0/19 (product-match) while `npm test` was read as "green".
+   ------------------------------------------------------------------------- */
+
 /* ==========================================================================
    Module picker: a grouped make must still reach its datasheet record.
 
@@ -53,7 +74,7 @@ function boot() {
   const w = dom.window;
   const files = ['content.js', 'engineering.js', 'finance.js', 'storage-catalog.js', 'bess.js',
     'rainwater.js', 'additional-systems.js', 'supplement-design.js', 'icons.js', 'charts.js', 'model.js', 'state.js',
-    'module-catalog.js', 'equipment-calc.js', 'equipment.js', 'render.js', 'editor.js',
+    'module-catalog.js', 'equipment-calc.js', 'equipment.js', 'proposal-marks.js', 'render.js', 'editor.js',
     'experience.js', 'export.js', 'app.js'];
   w.eval(files.map((f) => fs.readFileSync(path.join(ROOT, 'assets/js', f), 'utf8')).join('\n;\n'));
   w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));

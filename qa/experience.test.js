@@ -28,8 +28,17 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('summary reflects energy/equipment while pricing stays on Investment',await page.$eval('#powerPage1',(e,x)=>!e.textContent.includes('₹')&&e.textContent.includes(x.annual)&&e.textContent.includes(x.module+' × 620')&&e.textContent.includes('10 kW inverter'),expected));
  check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage5.textContent.includes(x.net)&&powerPage4.textContent.includes(x.lifetime),expected));
  check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage5.textContent.includes('not approved')&&powerPage6.textContent.includes('Additional scope')&&powerPage6.textContent.includes('valid until')&&powerPage6.textContent.includes('not an installation order')));
- async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer').getBoundingClientRect(),last=e.querySelector('footer').previousElementSibling.getBoundingClientRect();return {id:e.id,h:e.scrollHeight,gap:foot.top-last.bottom,fit:e.scrollWidth<=e.clientWidth};}));}
- let layout=await powerLayout();console.log('Power layout',layout);check('all six power pages fit A4 without footer overlap',layout.every(x=>x.h<=1124&&x.gap>=4&&x.fit));
+ /* A power page is a fixed A4 box with overflow hidden whose own bottom
+    padding is part of scrollHeight (1123 + padding), so scrollHeight alone
+    reads 1130 on a page that is completely inside the sheet. Measure the same
+    three things Exporter's guard now measures - deepest painted content
+    against the sheet edge, clearance above the footer, no sideways overflow -
+    and name the deepest element so a failure says what is sticking out. */
+ async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer'),body=foot.previousElementSibling,f=foot.getBoundingClientRect();let deepest='(none)',low=-Infinity;for(const n of e.querySelectorAll('*')){if(n.closest('footer'))continue;const nb=n.getBoundingClientRect();if(!nb.width&&!nb.height)continue;if(nb.bottom>low){low=nb.bottom;deepest=n.tagName.toLowerCase()+(n.id?'#'+n.id:'')+(typeof n.className==='string'&&n.className.trim()?'.'+n.className.trim().split(/\s+/).join('.'):'');}}return {id:e.id,sheet:e.clientHeight,h:e.scrollHeight,deepest:deepest,deep:Math.round(low-r.top),gap:f.top-body.getBoundingClientRect().bottom,fit:e.scrollWidth<=e.clientWidth};}));}
+ let layout=await powerLayout();console.log('Power layout',layout);
+ const fits=x=>x.deep<=x.sheet&&x.gap>=4&&x.fit;
+ const badPage=layout.filter(x=>!fits(x));
+ check('all six power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': deepest='+x.deepest+'@'+x.deep+' of '+x.sheet+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
  check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage5',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
  const rasterQR=await page.$eval('#powerPage2',async el=>{
    const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});
@@ -48,7 +57,17 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   const data=await page.$eval('#'+id,async e=>{const c=await html2canvas(e,{scale:1,logging:false,useCORS:true,backgroundColor:'#ffffff',onclone:doc=>doc.body.classList.add('qs-pdf-capture')});return c.toDataURL();});fs.writeFileSync(path.join(shots,'experience-'+id+'.png'),Buffer.from(data.split(',')[1],'base64'));
  }
  await proof.close();await page.evaluate(()=>window.__power.remove());
- const targetPromise=browser.waitForTarget(t=>t.url().includes('/share.html?'));await page.click('#engineeringViewBtn');const customer=await(await targetPromise).page();customer.on('pageerror',e=>errors.push(e.message));await customer.waitForSelector('#scenarioTariff');
+ /* The builder's request shortcut belongs to the retired request hub (d835545)
+    and now opens the portal feedback preview, never a share.html tab, so
+    waiting for that tab only ever timed out. The read-only Customer View this
+    section is about is share.html itself, opened directly with the saved
+    proposal - exactly the page a customer receives. */
+ const shareId=await page.evaluate(()=>{window.__qsSaveNow&&window.__qsSaveNow();return window.Proposals.activeId();});
+ check('the builder has a saved proposal to review as a customer',!!shareId);
+ const customer=await browser.newPage();customer.on('pageerror',e=>errors.push(e.message));
+ await customer.goto(base+'/share.html?p='+encodeURIComponent(shareId),{waitUntil:'networkidle0'});
+ await customer.evaluate(()=>document.fonts.ready);
+ await customer.waitForSelector('#scenarioTariff',{timeout:20000}).catch(e=>{throw new Error('Customer View never rendered the savings explorer: '+e.message);});
  check('Customer View loads the exact baseline even outside nominal slider range',await customer.$eval('#scenarioTariff',e=>e.value==='8.75'&&+e.min<=8.75));
  const before=await customer.evaluate(()=>({state:JSON.stringify(Render.lastState),storage:JSON.stringify({...localStorage}),cover:document.getElementById('v_coverCapacity').textContent}));
  await customer.$eval('#scenarioTariff',e=>{e.value='18';e.dispatchEvent(new Event('input',{bubbles:true}));});
@@ -78,7 +97,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await page.evaluate(()=>{const Original=jspdf.jsPDF;jspdf.jsPDF=function(...args){const pdf=new Original(...args),save=pdf.save.bind(pdf);pdf.save=name=>{window.__pdf={name,data:pdf.output('datauristring').split(',')[1]};return save(name);};return pdf;};});
  await page.select('#pdfFormat','power');check('download label follows selected format',await page.$eval('#downloadLabel',e=>e.textContent==='Download Power Proposal (6 Pages)'));
  await page.$eval('#custName',e=>{e.value='QA Customer';e.dispatchEvent(new Event('input',{bubbles:true}));});
- await page.click('#downloadBtn');await page.evaluate(()=>{const dialog=document.getElementById('exportCheckDialog');if(dialog?.open){const proceed=[...dialog.querySelectorAll('button')].find(b=>b.textContent==='Download anyway');if(!proceed)throw new Error(dialog.textContent);proceed.click();}});await page.waitForFunction(()=>window.__pdf&&document.getElementById('statusMsg').textContent.includes('Downloaded'),{timeout:90000});
+ await page.click('#downloadBtn');await page.evaluate(()=>{const dialog=document.getElementById('exportCheckDialog');if(dialog?.open){const proceed=[...dialog.querySelectorAll('button')].find(b=>b.textContent==='Download anyway');if(!proceed)throw new Error(dialog.textContent);proceed.click();}});
+ /* If the exporter refuses, it says why in the status line; report that
+    instead of waiting 90s for a PDF that will never arrive. */
+ await page.waitForFunction(()=>window.__pdf&&document.getElementById('statusMsg').textContent.includes('Downloaded'),{timeout:90000}).catch(async e=>{const why=await page.evaluate(()=>document.getElementById('statusMsg').textContent.trim());throw new Error('Power Proposal export produced no PDF: '+why+' ('+e.message+')');});
  const exported=await page.evaluate(()=>window.__pdf),bytes=Buffer.from(exported.data,'base64'),pdf=bytes.toString('latin1');fs.writeFileSync(path.join(shots,'experience','Power_Proposal_test.pdf'),bytes);
  check('actual Power Proposal PDF has six pages and correct filename',(pdf.match(/\/Type \/Page\b/g)||[]).length===6&&exported.name.startsWith('Power_Proposal_')&&exported.name.includes('12.5kWp'));
  check('actual PDF has clickable gallery destination',pdf.includes('/Subtype /Link')&&pdf.includes('https://example.com/updated-gallery'));
@@ -106,15 +128,22 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await edit({propRef:original.ref,companyName:original.company,durationText:original.duration,customerType:'commercial',tariff:'22',payCompletion:'5',loanAmt:'300000',loanRate:'9',loanYears:'5'});
  await page.evaluate(()=>window.__power=Experience.buildPowerPages(Render.lastState));
  check('commercial short proposal uses zero automatic subsidy and flags payment mismatch',await page.$eval('#powerPage5',e=>e.textContent.includes('95%')&&e.textContent.includes('not approved₹0')));
- check('six-page proposal fits including entered financing',(await powerLayout()).every(x=>x.h<=1124&&x.gap>=4));
+ check('six-page proposal fits including entered financing',(await powerLayout()).every(x=>x.deep<=x.sheet&&x.gap>=4));
  await page.evaluate(()=>window.__power.remove());await page.select('#pdfFormat','full');
  check('full-format label follows optional financing page count',await page.$eval('#downloadLabel',e=>e.textContent.includes('16 Pages')));
  await edit({customerType:'residential',tariff:'8.75',payCompletion:'10',loanAmt:'',loanRate:'',loanYears:''});
  // No shared local storage is needed to browse the published gallery.
  const context=await browser.createBrowserContext(),gallery=await context.newPage();await gallery.setViewport({width:390,height:844});await gallery.goto(base+'/gallery.html',{waitUntil:'networkidle0'});
- check('public gallery works in a fresh browser with no proposal storage',await gallery.evaluate(()=>localStorage.length===0&&document.querySelectorAll('#galleryProjects article').length===10));
- check('unsupplied videos are not advertised',await gallery.$eval('#videos',e=>e.hidden));
- await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());check('project filters work',await gallery.$$eval('#galleryProjects article',els=>els.length===4));
+ /* The published gallery is the real project list (PROJECTS on that page,
+     41 entries at the time of writing), not a ten-card sample. */
+ check('public gallery works in a fresh browser with no proposal storage',await gallery.evaluate(()=>localStorage.length===0&&document.querySelectorAll('#galleryProjects article').length===PROJECTS.length&&PROJECTS.length>=10));
+ /* The gallery no longer carries a videos section at all, so "not advertised"
+    means the element is absent (or hidden if it ever returns). */
+ check('unsupplied videos are not advertised',await gallery.evaluate(()=>{const v=document.getElementById('videos');return !v||v.hidden;}));
+ await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());
+ /* The buttons are ['All projects', ...SECTORS], so the second one is
+    SECTORS[0]; its count follows the list instead of a fixed four. */
+ check('project filters work',await gallery.evaluate(()=>document.querySelectorAll('#galleryProjects article').length===PROJECTS.filter(p=>p.sector===SECTORS[0]).length));
  await gallery.click('.project-photo');check('photographs open in an accessible dialog',await gallery.$eval('#photoViewer',e=>e.open));await gallery.keyboard.press('Escape');check('Escape closes photo viewer',await gallery.$eval('#photoViewer',e=>!e.open));
  check('public gallery has no mobile horizontal overflow',await gallery.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await gallery.screenshot({path:path.join(shots,'experience-gallery-mobile.png'),fullPage:true});await context.close();
  await edit({galleryUrl:'https://example.com/final-gallery'});await page.waitForFunction(()=>Proposals.active().form.galleryUrl==='https://example.com/final-gallery');await page.reload({waitUntil:'networkidle0'});await page.evaluate(()=>Experience.whenReady());check('gallery edit persists after builder reload',await page.$eval('#galleryUrl',e=>e.value==='https://example.com/final-gallery'));

@@ -147,7 +147,16 @@ async function main() {
 
     /* ---- health: version marker, elevation feature, no P1 warning ---- */
     let r = await req(PORT, 'GET', '/api/health');
-    t('health reports the code version marker', r.status === 200 && r.json.codeVersion === 'reconcile-r1', r.json && r.json.codeVersion);
+    /* Assert against the marker the SOURCE declares, not a frozen literal.
+       A hardcoded literal here meant every release bump had to be repeated in
+       three files, and it silently disagreed with roles-parity's requirement
+       that both backends report the same marker. Reading the constant proves
+       the running process serves the build we just started, which is the
+       actual thing this check is for. */
+    const declaredVersion = (/const CODE_VERSION = '([^']+)'/.exec(fs.readFileSync(SERVER, 'utf8')) || [])[1];
+    t('health reports the code version declared in the server source',
+      r.status === 200 && !!declaredVersion && r.json.codeVersion === declaredVersion,
+      (r.json && r.json.codeVersion) + ' vs declared ' + declaredVersion);
     t('health advertises features.elevation', r.status === 200 && r.json.features && r.json.features.elevation === true, JSON.stringify(r.json && r.json.features));
     t('health roles[] has no "admin" entry (elevation is not a role)', r.status === 200 && !(r.json.features.roles || []).includes('admin'), JSON.stringify(r.json && r.json.features.roles));
     t('health has no warning when ADMIN_EMAIL != OWNER_EMAIL', r.status === 200 && Array.isArray(r.json.warnings) && r.json.warnings.length === 0, JSON.stringify(r.json && r.json.warnings));

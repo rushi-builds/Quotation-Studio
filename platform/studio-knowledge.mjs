@@ -11969,81 +11969,118 @@ export default {
       "itemsLabel": "TERMS OF THIS PROPOSAL",
       "items": [
         {
+          "icon": "target",
           "title": "Scope of Supply",
           "desc": "Supply, installation and commissioning of the rooftop solar system as described in the System Specification and EPC Scope sections of this proposal."
         },
         {
+          "icon": "coins",
           "title": "Price Basis",
           "desc": "Pricing is as per the Investment & Cost Breakdown section and excludes items listed under \"Additional Scope\", which are quoted separately if required."
         },
         {
+          "icon": "calendar",
           "title": "Proposal Validity",
           "desc": "This proposal and its pricing are valid for {validity} from the proposal date."
         },
         {
+          "icon": "payment",
           "title": "Payment Schedule",
           "desc": "Payments follow the schedule stated in the Investment section. Material remains the property of {company} until full payment is realised."
         },
         {
+          "icon": "truck",
           "title": "Delivery & Commissioning",
           "desc": "{duration} Timelines begin on receipt of advance payment and are indicative of DISCOM liaisoning durations."
         },
         {
+          "icon": "institution",
           "title": "Government Subsidy",
           "desc": "Subsidy is governed by PM Surya Ghar / MNRE guidelines applicable at the time of installation. Eligibility, amounts and disbursal timelines are determined by the government and DISCOM and are beyond company control."
         },
         {
+          "icon": "meter",
           "title": "Net Metering",
           "desc": "DISCOM application, feasibility approval and bidirectional meter installation are subject to DISCOM processes, timelines and prevailing regulations."
         },
         {
+          "icon": "shield",
           "title": "Warranties",
           "desc": "Equipment warranties are provided by the respective OEMs and pass through to the customer. Workmanship warranty is provided by {company} as stated in the Warranty section."
         },
         {
+          "icon": "exclusion",
           "title": "Exclusions",
           "desc": "Civil or structural works beyond the agreed scope, load enhancement, additional internal electrical works and DISCOM statutory deposits or fees are excluded unless expressly included."
         },
         {
+          "icon": "tax",
           "title": "Taxes & Statutory Charges",
           "desc": "GST is charged as stated. Any revision in tax rates or statutory levies after the proposal date shall be adjusted at actuals."
         },
         {
+          "icon": "shieldAlert",
           "title": "Force Majeure",
           "desc": "Neither party is liable for delays caused by events beyond reasonable control, including natural events, government actions or supply-chain disruptions."
         },
         {
+          "icon": "scales",
           "title": "Jurisdiction",
           "desc": "This proposal is subject to the jurisdiction of courts at {jurisdiction}."
+        }
+      ],
+      "footerValues": [
+        {
+          "icon": "leaf",
+          "label": "Reliable\nSolutions"
+        },
+        {
+          "icon": "users",
+          "label": "Experienced\nTeam"
+        },
+        {
+          "icon": "shield",
+          "label": "Quality\nExecution"
+        },
+        {
+          "icon": "chart",
+          "label": "Long-Term\nValue"
         }
       ],
       "noteLabel": "IMPORTANT NOTE",
       "note": "This document is a commercial proposal, not a tax or legal advice. Please read all sections of this proposal together - the technical, financial and warranty sections form part of these terms."
     },
     "pageClosing": {
-      "bannerHeading": "Let's Build a Greener Future Together",
-      "bannerSub": "Your Journey Towards Clean & Affordable Energy Starts Here.",
+      "bannerHeading": "Together for a Greener Tomorrow.",
+      "bannerSub": "Clean energy. Affordable today. Brighter tomorrow.",
       "nextLabel": "ENGINEERING INPUTS",
+      "thankHeading": "Thank you.",
+      "footerReliable": "Reliability",
+      "footerTeam": "Experience",
+      "footerQuality": "Quality",
+      "footerValue": "Long-term value",
+      "thankNote": "For considering us for your solar journey.",
+      "thankMessage": "",
       "next": [
         {
           "icon": "doc",
           "title": "Electricity information",
-          "desc": "The latest bill, tariff category and sanctioned load help establish the design basis."
+          "desc": "Latest bill, tariff category & sanctioned load."
         },
         {
           "icon": "drone",
           "title": "Roof & site information",
-          "desc": "Roof dimensions, photos, shading and access constraints support the feasibility review."
+          "desc": "Roof dimensions, photos, shading & site access."
         },
         {
           "icon": "sun",
           "title": "Scope confirmation",
-          "desc": "Design assumptions, deliverables, any fees and dates are agreed before engineering proceeds."
+          "desc": "Agree design assumptions, deliverables, fees & dates before engineering."
         },
         {
           "icon": "calendar",
           "title": "Preferred visit window",
-          "desc": "A convenient date and window for the site visit, if required."
+          "desc": "Preferred date and time, if a visit is needed."
         }
       ],
       "readyLabel": "WHY ACT NOW",

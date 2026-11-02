@@ -34,7 +34,11 @@
     return copy[s.qrDestinationType] || copy.gallery;
   }
   function portfolioDestination(s) {
-    return galleryUrl(s)||(!String(s.galleryUrl||'').trim()?'https://studio.rushidhumal-04.workers.dev/gallery.html':'');
+    /* The deployment that serves this page also serves gallery.html
+       (platform/cloudflare/wrangler.git.toml, sync-public.js), so the printed
+       QR points at the public gallery there rather than an older personal
+       Worker host. */
+    return galleryUrl(s)||(!String(s.galleryUrl||'').trim()?'https://qs-studio-rushi.ktmenergyexperts.workers.dev/gallery.html':'');
   }
   /* Tap-cursor line icon with ripple arcs (stroke-only, transparent background). */
   const TAP_ICON = '<svg class="tap-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'

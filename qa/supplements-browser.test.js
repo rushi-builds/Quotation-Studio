@@ -5,7 +5,7 @@ let passed=0;const check=(n,c)=>{assert(c,n);passed++;console.log('  ✓ '+n);};
 (async()=>{
  const {default:chromium}=await import('@sparticuz/chromium');const browser=await puppeteer.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(x=>x!=='--single-process'),headless:true});
  try{
-  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()!=='error')return;/* The static :8080 QA server intentionally has no auth/backend. Only its two offline probes may 404; missing assets and actual JS errors still fail. */const offlineProbe=/^http:\/\/(?:127\.0\.0\.1|localhost):8080\/api\/(?:health|auth\/me)$/.test(m.location().url||'')&&m.text().includes('status of 404');if(!offlineProbe)errors.push(m.text());});page.on('dialog',d=>d.accept());
+  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()!=='error')return;/* The QA server runs without a signed-in user, so auth probes are expected to fail (404 on the static server, 401 on the real one); missing assets and actual JS errors still fail, and the URL is kept in the message. */const authProbe=(/(?:status of 401)/.test(m.text())&&/\/api\//.test(m.location().url||''))||((/\/api\/(?:health|auth\/me)$/.test(m.location().url||''))&&/status of 404/.test(m.text()));if(!authProbe)errors.push(m.text()+' ['+(m.location().url||'')+']');});page.on('dialog',d=>d.accept());
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';await page.setViewport({width:1440,height:1200});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
   const original=await page.evaluate(()=>({finance:JSON.stringify(Finance.compute(Render.lastState)),form:StateStore.collectForm()}));
   const apply=values=>page.evaluate(v=>{StateStore.applyForm(v);Render.renderAll();},values);
@@ -67,8 +67,18 @@ await apply({bessMake:'Customer specified storage <not markup>'});check('Custom 
   check('Custom system edits appear literally on both pages',await page.evaluate(()=>!systemCustomName.hidden&&systemOverviewBody.textContent.includes('Load prioritisation study')&&systemDetailBody.textContent.includes('Custom scope, not an automatic savings calculation.')));
   check('additional-system price is separate and solar Finance remains unchanged',await page.evaluate(v=>systemOverviewBody.textContent.includes('25,000')&&JSON.stringify(Finance.compute(Render.lastState))===v,original.finance));
   await apply({systemWarranty:'Prior system warranty',systemDelivery:'Prior system delivery'});await page.select('#systemTemplate','zero');check('template change clears stale price, warranty and delivery while refreshing technical notes',await page.evaluate(()=>systemPrice.value===''&&systemWarranty.value===''&&systemDelivery.value===''&&systemNotes.value.includes('transient export')));await apply({systemPrice:'25000'});
-  check('main proposal and multilingual briefing disclose additional scope',await page.evaluate(()=>v_exSub.textContent.includes('system supplement')&&v_svSub.textContent.includes('not modelled')&&v_inPayNote.textContent.includes('Solar-only')&&v_finSub.textContent.includes('Solar-only')&&v_opSub.textContent.includes('Solar-only')&&Briefing.scriptFor(Render.lastState,'en').join(' ').includes('additional system')));
-  check('optional recommendations are not authorised by inclusion alone',await page.evaluate(()=>v_clAcceptIntro.textContent.includes('does not authorise')));
+  /* The executive subtitle now names the selected supplements and states that
+     each is quoted apart ("Solar PV + Zero Export Control + Battery Energy
+     Storage · system separately quoted; battery separately quoted") instead of
+     the earlier generic "system supplement". The disclosure the check is about
+     is that separate pricing, so that is what it asserts - the other four
+     hints and the briefing wording are unchanged. */
+  check('main proposal and multilingual briefing disclose additional scope',await page.evaluate(()=>v_exSub.textContent.includes('separately quoted')&&v_svSub.textContent.includes('not modelled')&&v_inPayNote.textContent.includes('Solar-only')&&v_finSub.textContent.includes('Solar-only')&&v_opSub.textContent.includes('Solar-only')&&Briefing.scriptFor(Render.lastState,'en').join(' ').includes('additional system')));
+  /* The closing page no longer carries its own acceptance intro (the request
+     hub moved to the portal), so the live disclosure is the EPC terms line:
+     including an optional system in the proposal still needs a separate
+     agreement for its scope, price and payment terms. */
+  check('optional recommendations are not authorised by inclusion alone',await page.evaluate(()=>v_tmSub.textContent.includes('require separate agreement')));
   await apply({systemInclude:'false',bessInclude:'false',bessAutoEconomics:'false'});
   check('imported string flags cannot silently enable optional scope',await page.evaluate(()=>!systemInclude.checked&&!bessInclude.checked&&!bessAutoEconomics.checked));
   await apply({bessAutoEconomics:true});

@@ -113,7 +113,20 @@
       root.SupplementDesign.fit(snapshot);
       if(format==='power') pages.forEach(page=>{
         const footer=page.querySelector('footer'),last=footer.previousElementSibling;
-        if(last.getBoundingClientRect().bottom>footer.getBoundingClientRect().top-4 || page.scrollHeight>1124 || page.scrollWidth>page.clientWidth+1)
+        /* A power page is a fixed A4 box with overflow hidden, so its
+           scrollHeight is never smaller than the box plus the page's own bottom
+           padding (1123 + padding), which reported overflow on pages whose
+           deepest element sat 21px clear of the footer. Measure the painted
+           content against the footer and the sheet edge instead - same guard,
+           without the padding counted as text. */
+        const sheetTop=page.getBoundingClientRect().top;
+        let contentBottom=last.getBoundingClientRect().bottom;
+        for(const node of page.querySelectorAll('*')){
+          if(node.closest('footer')) continue;
+          const box=node.getBoundingClientRect();
+          if(box.height&&box.bottom>contentBottom) contentBottom=box.bottom;
+        }
+        if(contentBottom>footer.getBoundingClientRect().top-4 || contentBottom>sheetTop+page.clientHeight+0.5 || page.scrollWidth>page.clientWidth+1)
           throw new Error('This proposal has too much text for the '+powerPageCount()+'-page report. Please use the detailed PDF or shorten the equipment / delivery text.');
       });
       // Supplements accept user-authored text. Never silently clip a long scope or model name.

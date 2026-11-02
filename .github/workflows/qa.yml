@@ -1,0 +1,174 @@
+name: QA
+
+# The repository had no CI at all before this workflow (see
+# docs/repository-analysis-2026-10-29.md §3.4): 80 of 121 test files need a
+# real Chromium, and nothing ran on push or PR. The offline suite below is the
+# part that runs anywhere and is required; the browser job is opt-in until it
+# has been proven on a real runner.
+
+on:
+  push:
+    # Only the default branch. Listing '**' here as well as pull_request ran
+    # every PR branch twice (one push run, one PR run) for identical results.
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline:
+    name: Offline suite (jsdom + node)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # pr-scope-guard pins the frozen calc/pricing family by blob hash to
+          # golden tree 8cc7db1. A shallow clone cannot resolve that commit, so
+          # the frozen checks report "absent in comparison tree" and fail.
+          # Full history is required, not optional.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # roles-parity resolves its comparison base from origin/merge/reconcile-v1
+      # or origin/main. actions/checkout fetches the PR merge ref, so the base
+      # branch ref is not guaranteed to exist; without it every frozen-baseline
+      # entry reports "no comparison base resolved" instead of a real verdict.
+      - name: Make the comparison base ref available
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+
+      # Two independent dependency trees. `qa` runs the suites; the Excel
+      # catalogue suites import from platform/cloudflare/src/, and Node
+      # resolves bare imports relative to the IMPORTING file — so
+      # @e965/xlsx must be installed under platform/cloudflare, not only in qa.
+      - name: Install QA dependencies
+        working-directory: qa
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Install Cloudflare Worker dependencies
+        working-directory: platform/cloudflare
+        run: npm install --no-audit --no-fund
+
+      - name: Run offline suite
+        working-directory: qa
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/offline.log"
+
+      # A failed job's log lives behind a signed blob URL that some networks
+      # refuse (it answers EOF), leaving "Process completed with exit code 1"
+      # as the only signal. The failing assertion lines are re-emitted as
+      # check-run annotations, which the API always returns, so a red run
+      # says WHAT broke instead of only that something did.
+      - name: Annotate the first offline failures
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/offline.log"
+          [ -f "$log" ] || exit 0
+          # Assertion messages carry the failing check's name, so the first
+          # one is worth more than the stack that follows it.
+          { grep -m6 -A1 -E "✗|AssertionError|TimeoutError|Evaluation failed|not clickable" "$log" || true; echo '--- tail ---'; tail -n 3 "$log"; } \
+            | sed 's/^/::error title=offline-suite::/'
+          cp "$log" "$RUNNER_TEMP/offline-artifact.log"
+
+      # Separate from `npm test` upstream, which is why the committed
+      # platform/studio-knowledge.mjs had been stale: sync-public.js
+      # regenerates it at deploy time, so the Worker served fresh knowledge
+      # while the repo held an older copy. assistant-knowledge.test.mjs
+      # catches exactly that drift and runs fully offline.
+      - name: Run assistant suite (offline)
+        working-directory: qa
+        run: npm run test:assistant
+
+  browser:
+    name: Browser suite (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Flip to false once this job has been verified green on the default
+    # branch. It is not required yet because it has never run in CI.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install QA dependencies
+        working-directory: qa
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Install Cloudflare Worker dependencies
+        working-directory: platform/cloudflare
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        working-directory: qa
+        run: npx playwright install --with-deps chromium
+
+      # qa/brand-engineering.test.js crops the approved cover with `convert`
+      # and compares the pixels against the logo, so the suite needs ImageMagick
+      # on the runner, not only a browser.
+      - name: Install ImageMagick
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+
+      - name: Start local platform server
+        run: node platform/local-server/server.js &
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8787/api/health > /dev/null; then
+              echo "server ready"; exit 0
+            fi
+            sleep 1
+          done
+          echo "server did not start"; exit 1
+
+      - name: Run browser suite
+        working-directory: qa
+        env:
+          QA_BASE: http://127.0.0.1:8787
+        run: |
+          set -o pipefail
+          node run-browser-suite.cjs 2>&1 | tee "$RUNNER_TEMP/browser.log"
+
+      # Same reason as the offline job: surface the failing assertions as
+      # annotations, because the job log URL is not always reachable.
+      - name: Annotate the browser failures
+        if: failure()
+        run: |
+          log="$RUNNER_TEMP/browser.log"
+          [ -f "$log" ] || exit 0
+          # The runner prints one line per failing file plus the pass count, so
+          # the whole block is the report. Only a missing block falls back to
+          # grepping the first assertion lines.
+          block="$RUNNER_TEMP/browser-failures.txt"
+          { sed -n '/browser files passed/,$p' "$log" || true; } > "$block"
+          if [ ! -s "$block" ]; then
+            { grep -m3 -A1 -E "AssertionError|TimeoutError|Evaluation failed|not clickable" "$log" || true; echo '--- tail ---'; tail -n 5 "$log"; } > "$block"
+          fi
+          # One annotation body: newlines are percent-encoded so every failing
+          # file survives in the same check-run message.
+          awk '{ gsub(/%/, "%25"); printf "%s%%0A", $0 }' "$block" | cut -c1-60000 \
+            | sed '1s/^/::error title=browser-suite::/'
+
+      # The job log itself sits behind a signed blob URL that some networks
+      # answer with EOF. The artifact is fetched through the API instead, so
+      # the full output of a red run stays readable.
+      - name: Upload browser log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-suite-log
+          path: ${{ runner.temp }}/browser.log
+          if-no-files-found: ignore
+          retention-days: 7

@@ -521,13 +521,17 @@ for (const [label, src] of BOTH) {
      - negative proof lives in qa/pr-scope.test.cjs (renames, deletions,
        worktree masks, mutation traps). */
 {
-  const base = guard.resolveBase(ROOT);
-  t('patch-scope comparison base resolves (line-tip or explicit QS_PR_BASE)', !!base && !!base.ref, JSON.stringify(base));
+  /* Judge the patch against the line reviewed work lands on. The older
+     line-tip branch is not the base for a branch cut from main - diffing
+     against it made every merged PR since look like part of this patch. */
+  const reviewedLine = guard.mainTip(ROOT);
+  const base = guard.resolveBase(ROOT, reviewedLine && !process.env.QS_PR_BASE ? { base: reviewedLine } : undefined);
+  t('patch-scope comparison base resolves (reviewed line or explicit QS_PR_BASE)', !!base && !!base.ref, JSON.stringify(base));
   const changed = guard.changedFiles(ROOT, base && base.ref) || [];
   const frozen = guard.frozenTouches(changed);
-  const bl = guard.baselineMatch(ROOT);
+  const bl = guard.baselineMatch(ROOT, undefined, { base: base && base.ref });
   const blBad = bl.filter((b) => !b.ok);
-  t('FROZEN calc/pricing family byte-identical to golden base ' + guard.GOLDEN_BASE_REF,
+  t('FROZEN calc/pricing family byte-identical to golden base ' + guard.GOLDEN_BASE_REF + ' (drift inherited from the comparison base is not a violation; a new edit still fails)',
     blBad.length === 0 && bl.length === guard.FROZEN_FILES.length, JSON.stringify(blBad));
   t('FROZEN calc/pricing/finance/export files untouched (committed BASE→HEAD scope, base ' + (base ? base.ref.slice(0, 10) : '?') + ' [' + (base ? base.from : '?') + '])',
     frozen.length === 0, frozen.join(', '));
@@ -558,7 +562,7 @@ for (const [label, src] of BOTH) {
     unintended.length === 0, unintended.join(', '));
   const migrationStatus=new Map(guard.git(ROOT,['diff','--no-renames','--name-status',base.ref,'HEAD']).trim().split('\n').filter(Boolean).map(line=>{const [status,file]=line.split('\t');return [file,status];}));
   t('no earlier migration was modified',
-    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-catalogue|006-profile-info|007-site-geo|007-member-links-likes|008-member-custom-link|009-recovery-resend|010-excel-product-catalog/.test(f) && !guard.newAccessMigration(f,migrationStatus.get(f))),
+    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-catalogue|006-profile-info|007-site-geo|007-member-links-likes|008-member-custom-link|009-recovery-resend|010-excel-product-catalog|012-gallery-likes|013-gallery-feedback/.test(f) && !guard.newAccessMigration(f,migrationStatus.get(f))),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 }
 

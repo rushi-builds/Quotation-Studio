@@ -157,12 +157,21 @@ const OUT = __dirname + '/shots';
   await page.evaluate(() => { const u = document.getElementById('shareUrl'); u.value = 'https://example.com/proposals/KTME-2026-013'; u.dispatchEvent(new Event('input', { bubbles: true })); });
   await new Promise((r) => setTimeout(r, 500));
 
-  /* ---- WhatsApp share opens wa.me with a crafted message ---- */
-  await page.evaluate(() => { window.__opened = null; window.open = (u) => { window.__opened = u; return {}; }; });
-  await page.click('#waShare');
-  const wa = await page.evaluate(() => window.__opened || '');
-  t('wa.me share opens', wa.startsWith('https://wa.me/?text='), wa.slice(0, 60));
-  t('wa.me message carries link + customer', decodeURIComponent(wa).includes('QA Customer') && decodeURIComponent(wa).includes('KTME-2026-013'));
+  /* ---- WhatsApp share opens wa.me with a crafted message ----
+     The button lives in the retired legacy proposal panel
+     (#legacyProposalManagement[hidden inert]); Studio owns proposal
+     management now, so a click on it is not reachable. Probe first and run
+     the journey only while that panel is actually shown - it re-arms itself
+     if the panel is ever restored. */
+  const legacyPanelLive = await page.evaluate(() => { const w = document.getElementById('legacyProposalManagement'); return !!(w && w.checkVisibility()); });
+  if (!legacyPanelLive) console.log('  - retired proposal panel is inert; WhatsApp share journey is skipped');
+  if (legacyPanelLive) {
+    await page.evaluate(() => { window.__opened = null; window.open = (u) => { window.__opened = u; return {}; }; });
+    await page.click('#waShare');
+    const wa = await page.evaluate(() => window.__opened || '');
+    t('wa.me share opens', wa.startsWith('https://wa.me/?text='), wa.slice(0, 60));
+    t('wa.me message carries link + customer', decodeURIComponent(wa).includes('QA Customer') && decodeURIComponent(wa).includes('KTME-2026-013'));
+  }
 
   /* ---- screenshots of every VISIBLE page (desktop) ----
      viewport 1260 + hidden sticky toolbar: element.screenshot clips

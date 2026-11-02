@@ -4,13 +4,29 @@
 'use strict';
 (function (root) {
   const $ = id => document.getElementById(id);
+  /* Keep identical to the copy in platform-api.js - see the note there about
+     why the production Vercel aliases are listed by hand. */
+  const PRODUCTION_VERCEL_HOSTS = [
+    'quotation-studio-two.vercel.app',
+    'quotation-studio-rushi-builds.vercel.app'
+  ];
+  function isProductionVercelHost(host) {
+    if (PRODUCTION_VERCEL_HOSTS.indexOf(host) !== -1) return true;
+    return /^quotation-studio-git-main-[a-z0-9-]+\.vercel\.app$/.test(host);
+  }
+  function isUnisolatedVercelPreview() {
+    try {
+      const host = String(location.hostname || '').toLowerCase();
+      return host.endsWith('.vercel.app') && !isProductionVercelHost(host);
+    } catch (_) { return false; }
+  }
   async function mount({ token, available, snapshot, preview = false }) {
     const host = $('proposalFeedback'); if (!host) return;
     const form = $('proposalFeedbackForm'), fieldset = $('feedbackFields'), submit = $('feedbackSubmit'), status = $('feedbackStatus');
     const ratingInputs = [...form.querySelectorAll('[name="proposalRating"]')];
     let pending = false, submissionId = '', lastPayload = '', storageKey = '', retryNextStep = '';
     const setStatus = (message, error = false) => { status.textContent = message; status.classList.toggle('is-error', error); };
-    const previewHost = location.hostname.endsWith('.vercel.app') && location.hostname !== 'quotation-studio-taupe.vercel.app';
+    const previewHost = isUnisolatedVercelPreview();
     if (!preview && (!available || previewHost)) {
       fieldset.disabled = true; submit.disabled = true;
       setStatus('Feedback is not available on this link yet. You can still discuss the proposal using the company contact details.');
