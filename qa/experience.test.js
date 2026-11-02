@@ -28,14 +28,17 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('summary reflects energy/equipment while pricing stays on Investment',await page.$eval('#powerPage1',(e,x)=>!e.textContent.includes('₹')&&e.textContent.includes(x.annual)&&e.textContent.includes(x.module+' × 620')&&e.textContent.includes('10 kW inverter'),expected));
  check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage5.textContent.includes(x.net)&&powerPage4.textContent.includes(x.lifetime),expected));
  check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage5.textContent.includes('not approved')&&powerPage6.textContent.includes('Additional scope')&&powerPage6.textContent.includes('valid until')&&powerPage6.textContent.includes('not an installation order')));
- /* Same predicate as Exporter's own guard (scrollHeight against the 1124px
-    A4 allowance, footer clearance, no sideways overflow), but a failure now
-    names the page and the deepest element on it - scrollHeight alone does not
-    say what is sticking out. */
- async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer'),body=foot.previousElementSibling,f=foot.getBoundingClientRect();let deepest='(none)',low=-Infinity;for(const n of e.querySelectorAll('*')){if(n.closest('footer'))continue;const nb=n.getBoundingClientRect();if(!nb.width&&!nb.height)continue;if(nb.bottom>low){low=nb.bottom;deepest=n.tagName.toLowerCase()+(n.id?'#'+n.id:'')+(typeof n.className==='string'&&n.className.trim()?'.'+n.className.trim().split(/\s+/).join('.'):'');}}return {id:e.id,h:e.scrollHeight,deepest:deepest,deep:Math.round(low-r.top),gap:f.top-body.getBoundingClientRect().bottom,fit:e.scrollWidth<=e.clientWidth};}));}
+ /* A power page is a fixed A4 box with overflow hidden whose own bottom
+    padding is part of scrollHeight (1123 + padding), so scrollHeight alone
+    reads 1130 on a page that is completely inside the sheet. Measure the same
+    three things Exporter's guard now measures - deepest painted content
+    against the sheet edge, clearance above the footer, no sideways overflow -
+    and name the deepest element so a failure says what is sticking out. */
+ async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer'),body=foot.previousElementSibling,f=foot.getBoundingClientRect();let deepest='(none)',low=-Infinity;for(const n of e.querySelectorAll('*')){if(n.closest('footer'))continue;const nb=n.getBoundingClientRect();if(!nb.width&&!nb.height)continue;if(nb.bottom>low){low=nb.bottom;deepest=n.tagName.toLowerCase()+(n.id?'#'+n.id:'')+(typeof n.className==='string'&&n.className.trim()?'.'+n.className.trim().split(/\s+/).join('.'):'');}}return {id:e.id,sheet:e.clientHeight,h:e.scrollHeight,deepest:deepest,deep:Math.round(low-r.top),gap:f.top-body.getBoundingClientRect().bottom,fit:e.scrollWidth<=e.clientWidth};}));}
  let layout=await powerLayout();console.log('Power layout',layout);
- const badPage=layout.filter(x=>!(x.h<=1124&&x.gap>=4&&x.fit));
- check('all six power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': h='+x.h+' deepest='+x.deepest+'@'+x.deep+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
+ const fits=x=>x.deep<=x.sheet&&x.gap>=4&&x.fit;
+ const badPage=layout.filter(x=>!fits(x));
+ check('all six power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': deepest='+x.deepest+'@'+x.deep+' of '+x.sheet+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
  check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage5',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
  const rasterQR=await page.$eval('#powerPage2',async el=>{
    const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});
@@ -125,7 +128,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await edit({propRef:original.ref,companyName:original.company,durationText:original.duration,customerType:'commercial',tariff:'22',payCompletion:'5',loanAmt:'300000',loanRate:'9',loanYears:'5'});
  await page.evaluate(()=>window.__power=Experience.buildPowerPages(Render.lastState));
  check('commercial short proposal uses zero automatic subsidy and flags payment mismatch',await page.$eval('#powerPage5',e=>e.textContent.includes('95%')&&e.textContent.includes('not approved₹0')));
- check('six-page proposal fits including entered financing',(await powerLayout()).every(x=>x.h<=1124&&x.gap>=4));
+ check('six-page proposal fits including entered financing',(await powerLayout()).every(x=>x.deep<=x.sheet&&x.gap>=4));
  await page.evaluate(()=>window.__power.remove());await page.select('#pdfFormat','full');
  check('full-format label follows optional financing page count',await page.$eval('#downloadLabel',e=>e.textContent.includes('16 Pages')));
  await edit({customerType:'residential',tariff:'8.75',payCompletion:'10',loanAmt:'',loanRate:'',loanYears:''});
