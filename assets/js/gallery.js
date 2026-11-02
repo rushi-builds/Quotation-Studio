@@ -115,10 +115,14 @@
     btn.className = 'act like';
     btn.setAttribute('data-like', it.id);
     btn.setAttribute('aria-pressed', 'false');
-    btn.setAttribute('aria-label', 'Like ' + it.p.name + ' (0 likes so far)');
+    btn.setAttribute('aria-label', 'Like ' + it.p.name);
     btn.setAttribute('data-label', it.p.name);
     btn.title = 'Like this project';
-    btn.innerHTML = HEART + '<span class="like-count">0</span>';
+    /* A dash until the server answers: on a page without the API (a static
+       copy, a preview without the backend) an invented 0 would read as
+       "nobody has liked this", which is a claim this page cannot make. */
+    btn.innerHTML = HEART + '<span class="like-count">–</span>';
+    btn.classList.add('is-loading');
     btn.addEventListener('click', function () { toggleLike(it, btn); });
     return btn;
   }
@@ -176,18 +180,23 @@
       var liked = !!state.mine[id];
       if (btn) {
         var name = btn.getAttribute('data-label') || 'this project';
+        var countEl2 = btn.querySelector('.like-count');
         btn.setAttribute('aria-pressed', String(liked));
-        btn.querySelector('.like-count').textContent = String(count);
-        btn.setAttribute('aria-label',
-          (liked ? 'Remove your like from ' : 'Like ') + name + ' (' + count + (count === 1 ? ' like' : ' likes') + ')');
-        btn.title = liked ? 'Unlike this project' : 'Like this project';
+        btn.classList.remove('is-loading');
         if (state.available === false) {
+          /* No API here: show that the count is unknown instead of 0. */
+          if (countEl2) countEl2.textContent = '–';
           btn.classList.add('is-offline');
           btn.title = 'Likes need the live site';
           btn.setAttribute('aria-disabled', 'true');
+          btn.setAttribute('aria-label', 'Likes are unavailable here: ' + name);
         } else {
+          if (countEl2) countEl2.textContent = String(count);
           btn.classList.remove('is-offline');
           btn.removeAttribute('aria-disabled');
+          btn.setAttribute('aria-label',
+            (liked ? 'Remove your like from ' : 'Like ') + name + ' (' + count + (count === 1 ? ' like' : ' likes') + ')');
+          btn.title = liked ? 'Unlike this project' : 'Like this project';
         }
       }
       var detailBtn = dialog.querySelector('[data-like="' + cssEscape(id) + '"]');
@@ -262,7 +271,9 @@
     opener = from || null;
     var p = it.p, d = it.detail;
     var liked = !!state.mine[it.id];
-    var count = state.counts[it.id] || 0;
+    var known = state.available !== false;
+    var count = known ? (state.counts[it.id] || 0) : '–';
+    var countWord = known ? (count === 1 ? ' like' : ' likes') : ' likes';
     var tags = [
       '<span>' + esc(p.capacity) + '</span>',
       '<span>' + esc(kindOf(p)) + '</span>',
@@ -289,7 +300,7 @@
           '<div class="detail-actions">' +
             '<button type="button" class="act like" data-like="' + esc(it.id) + '" aria-pressed="' + liked +
               '" data-label="' + esc(p.name) + '" aria-label="Like this project"><span class="like-ico">' + HEART + '</span><span class="like-count">' + count + '</span>' +
-              '<span class="like-word">' + (count === 1 ? ' like' : ' likes') + '</span></button>' +
+              '<span class="like-word">' + countWord + '</span></button>' +
             '<button type="button" class="btn primary" data-detail-share="' + esc(it.id) + '">' + SHARE + 'Share project</button>' +
           '</div>' +
         '</div>' +

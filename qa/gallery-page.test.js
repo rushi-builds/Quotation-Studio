@@ -209,6 +209,32 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     check('mobile keeps the grid inside the viewport', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     await page.screenshot({ path: path.join(shots, 'gallery-mobile.png') });
 
+    /* ---- no API: say "unknown", never an invented zero ----
+       The Vercel preview rewrites /api to a Worker that may not carry this
+       route yet; the page must then show that the count is unknown instead of
+       claiming nobody has liked anything. */
+    const offline = await context.newPage();
+    await offline.setRequestInterception(true);
+    offline.on('request', (req) => {
+      if (req.url().includes('/api/gallery/likes')) return req.respond({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' });
+      return req.continue();
+    });
+    await offline.goto(base + '/gallery.html', { waitUntil: 'networkidle0' });
+    await offline.waitForSelector('#galleryProjects article');
+    const offlineState = await offline.waitForFunction(() => {
+      const btn = document.querySelector('#galleryProjects [data-like]');
+      return btn && btn.classList.contains('is-offline')
+        ? { text: btn.querySelector('.like-count').textContent, label: btn.getAttribute('aria-label'), title: btn.getAttribute('title') }
+        : null;
+    }, { timeout: 15000 }).then(h => h.jsonValue()).catch(() => null);
+    check('with no likes API the card says the count is unknown, not 0',
+      !!offlineState && offlineState.text === '–' && /unavailable/i.test(offlineState.label), JSON.stringify(offlineState));
+    await offline.click('#galleryProjects [data-like]');
+    const offlineToast = await offline.waitForSelector('.gallery-toast.is-on', { timeout: 5000 }).then(e => e.evaluate(n => n.textContent)).catch(() => '');
+    check('pressing like offline explains itself instead of failing silently',
+      /live site|offline/i.test(offlineToast), offlineToast);
+    await offline.close();
+
     check('no runtime or console errors: ' + errors.join('; '), errors.length === 0);
     await context.close();
     console.log(`\n${passed} passed, 0 failed`);
