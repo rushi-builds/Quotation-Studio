@@ -259,8 +259,22 @@
     });
   }
 
+  /* A share link goes to the project's own card (/p/<id>), which carries the
+     photo, name and capacity as Open Graph tags, then lands on that project's
+     detail view. A static copy of the page (file://, an old export) has no
+     server, so it falls back to the hash link that still works offline. */
+  function shareUrl(it) {
+    try {
+      var origin = location.origin || '';
+      if (!origin || origin === 'null' || location.protocol === 'file:') return detailUrl(it.id);
+      return origin + '/p/' + encodeURIComponent(it.id);
+    } catch (_) {
+      return detailUrl(it.id);
+    }
+  }
+
   function shareProject(it) {
-    var url = detailUrl(it.id);
+    var url = shareUrl(it);
     L.share({
       title: it.p.name + ' · ' + it.p.capacity + ' | KTM Energy Experts',
       text: it.p.name + ' — ' + it.p.capacity + (it.p.location ? ', ' + it.p.location : '') + ' · KTM Energy Experts',

@@ -6,6 +6,8 @@ const path = require('path');
 const HERE = __dirname;
 const ROOT = path.resolve(HERE, '../..');
 fs.writeFileSync(path.join(ROOT,'platform/studio-knowledge.mjs'),require('../../scripts/build-assistant-knowledge.cjs').generate());
+/* The Worker's project catalogue is generated from the gallery's own list. */
+require('../../scripts/build-gallery-catalog.cjs');
 const PUB = path.join(HERE, 'public');
 
 function rm(p) {

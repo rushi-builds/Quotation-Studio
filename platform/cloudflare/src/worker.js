@@ -11,6 +11,8 @@ import * as accessService from '../../workspace-access.mjs';
 import { d1AccessStore, companyMetrics, quotedFinance } from '../../workspace-access-store.mjs';
 import { reserveCloudReference } from '../../reference-numbers.mjs';
 import { submitFeedback, d1FeedbackStore } from '../../proposal-feedback.mjs';
+import { GALLERY_BY_ID, GALLERY_PROJECTS, galleryProject } from './gallery-catalog.mjs';
+import { buildInbox, filterItems, inboxCsv, parseKey, readHandledPatch, likeStats } from '../../feedback-inbox.mjs';
 import { handleOAuth } from './oauth.mjs';
 import { handlePhoneAuth } from './phone.mjs';
 import { d1OAuthStore } from '../../oauth-store.mjs';
@@ -1873,6 +1875,64 @@ async function handleGalleryFeedback(request, db, body) {
   return json({ ok: true, id }, 201);
 }
 
+/* ---------- feedback inbox (staff) ----------
+   The two public feedback sources - project notes and customer notes on a
+   shared quotation - are read together and marked handled in one place. The
+   marker lives in its own table so neither source table is rewritten and a
+   note can be re-opened without losing the original text. */
+const FEEDBACK_STATE_DDL = `CREATE TABLE IF NOT EXISTS feedback_state (
+  source TEXT NOT NULL,
+  item_id TEXT NOT NULL,
+  handled_at TEXT,
+  handled_by TEXT,
+  PRIMARY KEY (source, item_id)
+)`;
+const feedbackStateSchemas = new WeakMap();
+async function ensureFeedbackStateSchema(db) {
+  let pending = feedbackStateSchemas.get(db);
+  if (!pending) {
+    pending = run(db, FEEDBACK_STATE_DDL).catch(error => {
+      feedbackStateSchemas.delete(db);
+      throw error;
+    });
+    feedbackStateSchemas.set(db, pending);
+  }
+  await pending;
+}
+
+/* Owner-sees-all applies to quotation feedback exactly as it does to the
+   quotation itself: a member reads only their own customers' notes, while the
+   public project notes belong to the workspace and are read by everyone. */
+async function loadFeedbackInbox(db, scope, user) {
+  await ensureGalleryFeedbackSchema(db);
+  await ensureFeedbackStateSchema(db);
+  const [projectFeedback, proposalFeedback, likes, state] = await Promise.all([
+    all(db, 'SELECT id, project_id, name, rating, message, created_at FROM gallery_feedback ORDER BY created_at DESC LIMIT 1000'),
+    all(db,
+      `SELECT e.id, e.proposal_id, e.owner_id, e.meta_json, e.created_at,
+              p.ref, p.customer_name, p.title
+         FROM portal_events e LEFT JOIN proposals p ON p.id = e.proposal_id
+        WHERE e.event_type = 'proposal_feedback' AND (e.owner_id = ? OR ? IS NULL)
+        ORDER BY e.created_at DESC LIMIT 1000`,
+      user.id, scope),
+    all(db, 'SELECT project_id, created_at FROM gallery_likes ORDER BY created_at DESC LIMIT 5000'),
+    all(db, 'SELECT source, item_id, handled_at FROM feedback_state')
+  ]);
+  return buildInbox({ projectFeedback, proposalFeedback, likes, state, projects: GALLERY_BY_ID });
+}
+
+/* One filter vocabulary for the list, the export and the dashboard. */
+function feedbackQuery(url) {
+  return {
+    source: String(url.searchParams.get('source') || 'all'),
+    status: String(url.searchParams.get('status') || 'all'),
+    rating: Number(url.searchParams.get('rating') || 0) || 0,
+    q: String(url.searchParams.get('q') || '').slice(0, 120),
+    proposal: String(url.searchParams.get('proposal') || '').slice(0, 80),
+    project: String(url.searchParams.get('project') || '').slice(0, 120)
+  };
+}
+
 async function handleApi(request, env, url, ctx) {
   const db = getDb(env);
   if (!db) {
@@ -2524,6 +2584,15 @@ async function handleApi(request, env, url, ctx) {
           meta: { ua, openCount: tok.open_count }
         });
         await notifyFromPortalEvent(db, ev);
+        /* The customer has actually looked at it: a quotation that was only
+           'sent' moves to 'viewed' on the first real open. The WHERE clause
+           keeps it one-way - a reply, an accepted or a rejected proposal is
+           never dragged back, and a prefetch above never triggers it. */
+        await run(
+          db,
+          "UPDATE proposals SET status = 'viewed', updated_at = ? WHERE id = ? AND status = 'sent'",
+          now, tok.proposal_id
+        );
       }
       return json({
         version: publicVersion(version),
@@ -2649,6 +2718,59 @@ async function handleApi(request, env, url, ctx) {
         }
       });
       return json(result.body, result.status);
+    }
+
+    /* FEEDBACK INBOX - project notes and quotation notes in one list.
+       Stats are always computed from everything; the filter only changes what
+       is listed, so "12 notes, 4.3 average" never depends on the open tab. */
+    if (parts[0] === 'feedback' && parts[1] === 'export' && method === 'GET') {
+      const inbox = await loadFeedbackInbox(db, scope, user);
+      const rows = filterItems(inbox.items, feedbackQuery(url));
+      const stamp = nowISO().slice(0, 10);
+      return new Response(inboxCsv(rows), {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="ktm-feedback-' + stamp + '.csv"',
+          'Cache-Control': 'no-store'
+        }
+      });
+    }
+    if (parts[0] === 'feedback' && parts.length === 1 && method === 'GET') {
+      const inbox = await loadFeedbackInbox(db, scope, user);
+      const matched = filterItems(inbox.items, feedbackQuery(url));
+      const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit')) || 40));
+      const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0);
+      return json({
+        items: matched.slice(offset, offset + limit),
+        stats: inbox.stats,
+        matched: matched.length,
+        hasMore: offset + limit < matched.length
+      });
+    }
+    if (parts[0] === 'feedback' && parts[1] && parts.length === 2 && method === 'PATCH') {
+      if (!canWrite) return json({ error: 'Your role can read feedback but cannot mark it handled.' }, 403);
+      const key = parseKey(decodeURIComponent(parts[1]));
+      if (!key) return json({ error: 'Unknown feedback item.' }, 400);
+      const patch = readHandledPatch(await readBody(request));
+      if (patch.error) return json({ error: patch.error }, 400);
+      await ensureFeedbackStateSchema(db);
+      if (patch.handled) {
+        const at = nowISO();
+        await run(db,
+          `INSERT INTO feedback_state (source, item_id, handled_at, handled_by) VALUES (?, ?, ?, ?)
+           ON CONFLICT(source, item_id) DO UPDATE SET handled_at = excluded.handled_at, handled_by = excluded.handled_by`,
+          key.source, key.id, at, user.id);
+        return json({ ok: true, id: key.source + ':' + key.id, handled: true, handledAt: at });
+      }
+      await run(db, 'DELETE FROM feedback_state WHERE source = ? AND item_id = ?', key.source, key.id);
+      return json({ ok: true, id: key.source + ':' + key.id, handled: false, handledAt: null });
+    }
+    /* Likes leaderboard, for the gallery panel and the Pulse cards. */
+    if (parts[0] === 'gallery' && parts[1] === 'insights' && method === 'GET') {
+      await ensureGalleryLikesSchema(db);
+      const rows = await all(db, 'SELECT project_id, created_at FROM gallery_likes ORDER BY created_at DESC LIMIT 5000');
+      return json({ likes: likeStats(rows, GALLERY_BY_ID) });
     }
 
     /* PROJECT GALLERY (staff uploads; writes need sales+) */
@@ -3953,6 +4075,66 @@ async function serve(request, env, ctx) {
          Without the parameter that call throws — but only once a mailbox is
          actually configured, because the config gate sits in front of it. */
       return handleApi(request, env, url, ctx);
+    }
+
+    /* Per-project share card: /p/<project id>.
+       WhatsApp, LinkedIn and iMessage read the Open Graph tags below, and the
+       visitor lands on that project's detail view. The page is a small HTML
+       document with a meta refresh rather than a 302, because link scrapers
+       follow the refresh and still read the tags. */
+    if (url.pathname.startsWith('/p/') && (request.method === 'GET' || request.method === 'HEAD')) {
+      const id = decodeURIComponent(url.pathname.slice(3)).replace(/\/+$/, '');
+      const project = galleryProject(id);
+      if (!project) {
+        return new Response('<!DOCTYPE html><meta charset="utf-8"><title>Project not found</title>' +
+          '<meta http-equiv="refresh" content="0;url=/gallery.html">' +
+          '<p style="font-family:system-ui;padding:2rem">That project is not in the portfolio. <a href="/gallery.html">Browse the gallery</a>.</p>',
+          { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+      }
+      const title = project.name + ' — ' + project.capacity + ' | KTM Energy Experts';
+      const facts = [project.capacity, project.sector, project.location].filter(Boolean).join(' · ');
+      const description = facts
+        ? facts + '. A completed installation by KTM Energy Experts, Pune.'
+        : 'A completed solar installation by KTM Energy Experts, Pune.';
+      /* Relative asset paths become absolute here: a scraper ignores a relative
+         og:image, and the same card is served from any hostname. */
+      const image = project.img
+        ? (/^https?:\/\//i.test(project.img) ? project.img : url.origin + '/' + project.img.replace(/^\//, ''))
+        : url.origin + '/assets/images/ktm-logo-light.png';
+      const page = url.origin + '/gallery.html#p-' + encodeURIComponent(project.id);
+      const esc = (value) => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+        '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+        '<title>' + esc(title) + '</title>' +
+        '<meta name="description" content="' + esc(description) + '">' +
+        '<link rel="canonical" href="' + esc(url.origin + url.pathname) + '">' +
+        '<meta property="og:type" content="article">' +
+        '<meta property="og:site_name" content="KTM Energy Experts">' +
+        '<meta property="og:title" content="' + esc(title) + '">' +
+        '<meta property="og:description" content="' + esc(description) + '">' +
+        '<meta property="og:image" content="' + esc(image) + '">' +
+        '<meta property="og:image:alt" content="' + esc(project.name + ' · ' + project.capacity) + '">' +
+        '<meta property="og:url" content="' + esc(url.origin + url.pathname) + '">' +
+        '<meta name="twitter:card" content="summary_large_image">' +
+        '<meta name="twitter:title" content="' + esc(title) + '">' +
+        '<meta name="twitter:description" content="' + esc(description) + '">' +
+        '<meta name="twitter:image" content="' + esc(image) + '">' +
+        '<meta http-equiv="refresh" content="0;url=' + esc(page) + '">' +
+        '<link rel="icon" href="/assets/images/ktm-logo-light.png" type="image/png">' +
+        '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0C1E30;' +
+        'color:#fff;font-family:system-ui,-apple-system,Segoe UI,sans-serif;text-align:center}' +
+        'img{width:min(640px,86vw);border-radius:18px;box-shadow:0 24px 60px #0006;margin-bottom:20px}' +
+        'h1{font-size:20px;margin:0 0 6px}p{color:#a9bccd;margin:0 0 14px;font-size:14px}' +
+        'a{color:#f2a03d}</style></head><body><main>' +
+        '<img src="' + esc(image) + '" alt="' + esc(project.name + ' · ' + project.capacity) + '">' +
+        '<h1>' + esc(project.name) + '</h1><p>' + esc(facts) + '</p>' +
+        '<p>Opening the portfolio… <a href="' + esc(page) + '">Continue</a></p>' +
+        '</main></body></html>';
+      return new Response(request.method === 'HEAD' ? null : html, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=3600' }
+      });
     }
 
     /* Static assets from Workers Assets (./public via wrangler [assets]).
