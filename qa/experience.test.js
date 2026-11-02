@@ -134,9 +134,14 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await edit({customerType:'residential',tariff:'8.75',payCompletion:'10',loanAmt:'',loanRate:'',loanYears:''});
  // No shared local storage is needed to browse the published gallery.
  const context=await browser.createBrowserContext(),gallery=await context.newPage();await gallery.setViewport({width:390,height:844});await gallery.goto(base+'/gallery.html',{waitUntil:'networkidle0'});
- check('public gallery works in a fresh browser with no proposal storage',await gallery.evaluate(()=>localStorage.length===0&&document.querySelectorAll('#galleryProjects article').length===10));
+ /* The published gallery is the real project list (PROJECTS on that page,
+     41 entries at the time of writing), not a ten-card sample. */
+ check('public gallery works in a fresh browser with no proposal storage',await gallery.evaluate(()=>localStorage.length===0&&document.querySelectorAll('#galleryProjects article').length===PROJECTS.length&&PROJECTS.length>=10));
  check('unsupplied videos are not advertised',await gallery.$eval('#videos',e=>e.hidden));
- await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());check('project filters work',await gallery.$$eval('#galleryProjects article',els=>els.length===4));
+ await gallery.$eval('#galleryFilters button:nth-child(2)',e=>e.click());
+ /* The buttons are ['All projects', ...SECTORS], so the second one is
+    SECTORS[0]; its count follows the list instead of a fixed four. */
+ check('project filters work',await gallery.evaluate(()=>document.querySelectorAll('#galleryProjects article').length===PROJECTS.filter(p=>p.sector===SECTORS[0]).length));
  await gallery.click('.project-photo');check('photographs open in an accessible dialog',await gallery.$eval('#photoViewer',e=>e.open));await gallery.keyboard.press('Escape');check('Escape closes photo viewer',await gallery.$eval('#photoViewer',e=>!e.open));
  check('public gallery has no mobile horizontal overflow',await gallery.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await gallery.screenshot({path:path.join(shots,'experience-gallery-mobile.png'),fullPage:true});await context.close();
  await edit({galleryUrl:'https://example.com/final-gallery'});await page.waitForFunction(()=>Proposals.active().form.galleryUrl==='https://example.com/final-gallery');await page.reload({waitUntil:'networkidle0'});await page.evaluate(()=>Experience.whenReady());check('gallery edit persists after builder reload',await page.$eval('#galleryUrl',e=>e.value==='https://example.com/final-gallery'));

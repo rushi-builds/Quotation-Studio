@@ -82,7 +82,8 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
      wait for the new proposal to become active before reading the page. */
   await page.evaluate(()=>document.getElementById('pmNew').click());
   await page.waitForFunction(id=>Proposals.activeId()&&Proposals.activeId()!==id,{timeout:20000},savedId).catch(e=>{throw new Error('New never activated a clean proposal: '+e.message);});
-  check('New starts with BESS off and no inherited ratings',await page.evaluate(()=>!bessEnabled.checked&&bessCapacity.value===''&&Render.lastVisible.length===15));
+  const fresh=await page.evaluate(()=>({on:bessEnabled.checked,cap:bessCapacity.value,pages:Render.lastVisible.length,model:bessModel&&bessModel.value}));
+  check('New starts with BESS off and no inherited ratings'+(fresh.on||fresh.cap!==''||fresh.pages!==15?' [bessEnabled='+fresh.on+' capacity='+JSON.stringify(fresh.cap)+' model='+fresh.model+' pages='+fresh.pages+']':''),!fresh.on&&fresh.cap===''&&fresh.pages===15);
   const newId=await page.evaluate(()=>Proposals.activeId());await(await page.$('#importFile')).uploadFile(json);await page.waitForFunction(id=>Proposals.activeId()!==id,{},newId);
   check('actual JSON import restores visible BESS and its assumptions',await page.evaluate(()=>bessEnabled.checked&&bessRte.value==='90'&&Render.lastVisible.length===17));
   await page.evaluate(()=>{const old=Proposals.create({capacity:'7',custName:'Legacy solar proposal'});document.getElementById('proposalSelect').add(new Option('Legacy',old.id));proposalSelect.value=old.id;proposalSelect.dispatchEvent(new Event('change',{bubbles:true}));});
