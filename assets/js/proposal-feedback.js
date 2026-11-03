@@ -148,7 +148,14 @@
         if (result.ok !== true || !/^fb_[a-f\d]{40}$/.test(result.feedback?.id || '') || !Number.isFinite(Date.parse(result.feedback?.savedAt))) throw new Error('The server did not confirm a saved receipt. Please retry.');
         try { if (storageKey) sessionStorage.removeItem(storageKey); } catch (_) {}
         form.hidden = true; $('feedbackSuccess').hidden = false;
-        $('feedbackReceipt').textContent = 'Receipt ' + result.feedback.id.slice(3, 15) + ' · ' + new Date(result.feedback.savedAt).toLocaleString();
+        /* Day first, always: the visitor's receipt must not depend on which
+           locale order the browser happens to prefer. */
+        const saved = new Date(result.feedback.savedAt);
+        const pad2 = n => String(n).padStart(2, '0');
+        let clock = '';
+        try { clock = saved.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }); } catch (_) { clock = ''; }
+        $('feedbackReceipt').textContent = 'Receipt ' + result.feedback.id.slice(3, 15) + ' · ' +
+          pad2(saved.getDate()) + '/' + pad2(saved.getMonth() + 1) + '/' + saved.getFullYear() + (clock ? ', ' + clock : '');
         $('feedbackSuccess').focus(); setStatus('');
       } catch (error) {
         setStatus(error.name === 'AbortError' ? 'The connection timed out. Your draft is still here. Retry safely — the same submission will not be saved twice.' : (error.message || 'Could not send feedback. Your draft is still here; please retry.'), true);

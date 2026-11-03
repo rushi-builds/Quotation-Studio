@@ -137,74 +137,83 @@ body.portal-mode .share-topbar {
    ------------------------------------------------------------------ */
 .feedback-success{
   position:relative;overflow:hidden;outline-color:#627d70;
-  padding:24px 24px 20px;border-radius:18px;
-  border:1px solid #D6E9DE;
+  padding:26px 26px 22px;border-radius:16px;
+  border:1px solid #DCEBE1;
   background:
-    radial-gradient(130% 120% at 100% 0%,rgba(146,206,170,.22),rgba(146,206,170,0) 58%),
-    linear-gradient(160deg,#F8FCF9 0%,#EFF8F2 100%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 16px 34px rgba(28,86,60,.07);
+    radial-gradient(90% 130% at 104% 112%,rgba(140,208,166,.34),rgba(140,208,166,0) 62%),
+    linear-gradient(180deg,#FFFFFF 0%,#F5FBF7 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 18px 38px rgba(28,86,60,.08);
   animation:fs-in .42s cubic-bezier(.2,.75,.3,1) both;
 }
+/* The soft green swell in the bottom-right corner, drawn behind the copy. */
+.feedback-success::before{
+  content:'';position:absolute;right:-70px;bottom:-96px;width:420px;height:250px;pointer-events:none;
+  background:radial-gradient(52% 62% at 62% 34%,rgba(122,203,154,.42),rgba(122,203,154,0) 72%);
+  transform:rotate(-7deg);
+}
+.feedback-success > *{position:relative;z-index:1}
 @keyframes fs-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 .feedback-success .fs-top{
   display:flex;align-items:flex-start;gap:18px;
 }
+/* Two pale rings, not one drop shadow: the tick sits in a calm halo. */
 .feedback-success .fs-badge{
-  flex:0 0 auto;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
-  color:#fff;background:linear-gradient(150deg,#41A96F,#1E7F4C);
-  box-shadow:0 0 0 7px rgba(74,170,116,.16),0 12px 24px rgba(30,127,76,.28);
+  flex:0 0 auto;width:66px;height:66px;border-radius:50%;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(155deg,#37A766,#147A45);
+  box-shadow:0 0 0 6px rgba(88,181,127,.16),0 0 0 15px rgba(88,181,127,.08),0 10px 22px rgba(20,122,69,.22);
 }
-.feedback-success .fs-badge svg{width:30px;height:30px;stroke-width:2.4}
-.feedback-success .fs-copy{min-width:0;padding-top:2px}
+.feedback-success .fs-badge svg{width:31px;height:31px;stroke-width:2.6}
+.feedback-success .fs-copy{min-width:0;padding-top:1px}
 .feedback-success h4{
-  margin:0 0 6px;font-size:22px;line-height:1.25;letter-spacing:-.1px;color:#14653C;
-  font-weight:700;
+  margin:0 0 8px;font-size:23.5px;line-height:1.2;letter-spacing:-.2px;color:#14653C;
+  font-weight:800;
 }
 .feedback-success .fs-rule{
-  display:block;width:46px;height:3px;border-radius:2px;background:#F2811D;margin:0 0 10px;opacity:.9;
+  display:block;width:76px;height:4px;border-radius:3px;background:#F2811D;margin:0 0 12px;
 }
 .feedback-success p{
-  margin:0;max-width:64ch;font-size:12.9px;line-height:1.68;color:#4E6D62;
+  margin:0;max-width:640px;font-size:13.4px;line-height:1.62;color:#4F6468;
 }
 
 .feedback-success .fs-steps{
-  list-style:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  margin:18px 0 0;padding:0;
+  list-style:none;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  margin:20px 0 0;padding:0;
 }
 .feedback-success .fs-steps li{
-  display:inline-flex;align-items:center;gap:8px;position:relative;
-  padding:8px 14px 8px 11px;border-radius:999px;
-  border:1px solid #E4E9EE;background:rgba(255,255,255,.72);
-  font-size:11.8px;font-weight:700;color:#6C7C86;letter-spacing:.01em;
+  display:inline-flex;align-items:center;gap:9px;position:relative;
+  padding:9px 16px 9px 13px;border-radius:999px;
+  border:1px solid #E2E8ED;background:rgba(255,255,255,.86);
+  font-size:12px;font-weight:700;color:#6B7A85;letter-spacing:.01em;
 }
 .feedback-success .fs-steps li + li::before{
-  content:'';position:absolute;left:-9px;top:50%;width:6px;height:6px;
-  border-top:1.6px solid #B9C6CE;border-right:1.6px solid #B9C6CE;
+  content:'';position:absolute;left:-11px;top:50%;width:7px;height:7px;
+  border-top:1.9px solid #ACBAC3;border-right:1.9px solid #ACBAC3;
   transform:translateY(-50%) rotate(45deg);
 }
 .feedback-success .fs-steps li.is-done{
-  border-color:#BFE3CC;background:linear-gradient(150deg,#F0FAF3,#E3F5EA);color:#1D7145;
+  border-color:#BFE3CC;background:linear-gradient(150deg,#F2FBF5,#E7F7ED);color:#1B7A45;
   box-shadow:0 6px 14px rgba(46,138,86,.10);
 }
-.feedback-success .fs-step-ico{display:grid;place-items:center;width:16px;height:16px;color:#8FA0AA}
+.feedback-success .fs-step-ico{display:grid;place-items:center;width:17px;height:17px;color:#93A1AA}
 .feedback-success .fs-step-ico svg{width:15px;height:15px}
-.feedback-success .fs-steps li.is-done .fs-step-ico{color:#2E8B57}
+/* The received note keeps the paper in its amber, the tick in the brand green. */
+.feedback-success .fs-steps li.is-done .fs-step-ico{color:#E39A3C}
 .feedback-success .fs-tick{
-  display:grid;place-items:center;width:16px;height:16px;border-radius:50%;
-  background:#2E8B57;color:#fff;
+  display:grid;place-items:center;width:17px;height:17px;border-radius:50%;
+  background:#1E7F4C;color:#fff;
 }
-.feedback-success .fs-tick svg{width:10px;height:10px}
+.feedback-success .fs-tick svg{width:10px;height:10px;stroke-width:3.4}
 
 .feedback-success small{
-  display:block;margin-top:14px;padding-top:11px;border-top:1px dashed #CEDFD5;
-  font-size:10.5px;color:#6E827A;font-variant-numeric:tabular-nums;letter-spacing:.01em;
+  display:block;margin-top:16px;padding-top:12px;border-top:1px dashed #D2E4D9;
+  font-size:10.8px;color:#6E827A;font-variant-numeric:tabular-nums;letter-spacing:.01em;
 }
 
 @media (max-width:640px){
   .feedback-success{padding:18px 16px 16px;border-radius:16px}
   .feedback-success .fs-top{gap:13px}
-  .feedback-success .fs-badge{width:48px;height:48px;box-shadow:0 0 0 5px rgba(74,170,116,.16),0 10px 20px rgba(30,127,76,.24)}
+  .feedback-success .fs-badge{width:50px;height:50px;box-shadow:0 0 0 5px rgba(88,181,127,.16),0 0 0 11px rgba(88,181,127,.08),0 8px 18px rgba(20,122,69,.2)}
   .feedback-success .fs-badge svg{width:24px;height:24px}
   .feedback-success h4{font-size:18px}
   .feedback-success p{font-size:12.4px}
