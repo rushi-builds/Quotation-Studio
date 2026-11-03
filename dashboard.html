@@ -27,6 +27,7 @@
       <link rel="stylesheet" href="assets/css/pulse-governance.css" />
       <link rel="stylesheet" href="assets/css/settings-connections.css?v=connections1" />
       <link rel="stylesheet" href="assets/css/workspace-fit.css?v=touch-compatibility1" />
+      <link rel="stylesheet" href="assets/css/feedback-inbox.css?v=inbox1" />
 </head>
   <body>
     <div id="authScreen" class="splash">
@@ -75,6 +76,11 @@
           ><button type="button" class="nav-item" data-panel="activity">
             <span class="ico" aria-hidden="true">◇</span
             ><span class="label">Customer activity</span>
+          </button>
+          <button type="button" class="nav-item" data-panel="feedback">
+            <span class="ico" aria-hidden="true">◇</span
+            ><span class="label">Feedback</span
+            ><span class="nav-badge" id="feedbackNavBadge" hidden>0</span>
           </button>
           <details class="nav-group">
             <summary class="nav-caption">
@@ -749,6 +755,114 @@
               </aside>
             </div>
           </section>
+          <section id="panel-feedback" class="panel" aria-labelledby="feedbackHeading">
+            <div class="page-heading">
+              <div>
+                <span class="eyebrow">WHAT PEOPLE ACTUALLY SAID</span>
+                <h1 id="feedbackHeading">Feedback<span class="fb-h-dot">.</span></h1>
+                <p class="sub">
+                  Project notes from the public gallery and customer ratings on shared
+                  quotations — read them, mark them handled, export the lot.
+                </p>
+              </div>
+              <div class="topbar-actions">
+                <button type="button" class="btn btn-secondary" id="feedbackExport">
+                  Export CSV
+                </button>
+                <button type="button" class="btn btn-secondary" id="feedbackRefresh">
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            <div id="feedbackStats" class="fb-stats" aria-live="polite"></div>
+
+            <div class="fb-toolbar">
+              <div class="fb-tabs" role="tablist" aria-label="Feedback source" id="feedbackTabs">
+                <button type="button" class="fb-tab on" data-source="all" role="tab" aria-selected="true">
+                  All <b id="fbCountAll">0</b>
+                </button>
+                <button type="button" class="fb-tab" data-source="project" role="tab" aria-selected="false">
+                  Projects <b id="fbCountProject">0</b>
+                </button>
+                <button type="button" class="fb-tab" data-source="quotation" role="tab" aria-selected="false">
+                  Quotations <b id="fbCountQuotation">0</b>
+                </button>
+              </div>
+              <div class="fb-filters">
+                <label class="fb-search">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-3.2-3.2" />
+                  </svg>
+                  <input
+                    type="search"
+                    id="feedbackSearch"
+                    placeholder="Search notes, names, projects…"
+                    aria-label="Search feedback"
+                  />
+                </label>
+                <select id="feedbackStatus" aria-label="Feedback status">
+                  <option value="all">All notes</option>
+                  <option value="new">Needs a reply</option>
+                  <option value="handled">Handled</option>
+                </select>
+                <select id="feedbackRating" aria-label="Filter by rating">
+                  <option value="0">Any rating</option>
+                  <option value="5">5 stars</option>
+                  <option value="4">4 stars</option>
+                  <option value="3">3 stars</option>
+                  <option value="2">2 stars</option>
+                  <option value="1">1 star</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="fb-layout">
+              <div class="fb-stream">
+                <div class="fb-list" id="feedbackList">
+                  <div class="fb-skeleton"></div>
+                  <div class="fb-skeleton"></div>
+                  <div class="fb-skeleton"></div>
+                </div>
+                <div class="fb-more">
+                  <button type="button" class="btn btn-secondary" id="feedbackMore" hidden>Load more</button>
+                </div>
+              </div>
+              <aside class="fb-side" aria-label="Feedback summary">
+                <section class="fb-card">
+                  <header>
+                    <h2>Rating split</h2>
+                    <span class="fb-chip" id="fbAvgChip">no ratings</span>
+                  </header>
+                  <div class="fb-ratings" id="feedbackRatings"></div>
+                </section>
+                <section class="fb-card">
+                  <header>
+                    <h2>Most liked projects</h2>
+                    <span class="fb-chip" id="fbLikesTotal">0</span>
+                  </header>
+                  <div class="fb-likes" id="feedbackLikes"></div>
+                </section>
+                <section class="fb-card fb-connection">
+                  <header><h2>Where this comes from</h2></header>
+                  <ul>
+                    <li>
+                      <b>Project notes</b>
+                      gallery.html — anyone can like a project or leave a note. No account,
+                      no email, one cookie.
+                    </li>
+                    <li>
+                      <b>Quotation ratings</b>
+                      a customer opens a shared link and rates the proposal; the rating and
+                      the comment land here with the quotation.
+                    </li>
+                  </ul>
+                </section>
+              </aside>
+            </div>
+          </section>
+
           <section id="panel-sales" class="panel growth-hub bi-workspace" aria-labelledby="growthHeading">
             <header class="pulse-solar-hero">
               <div class="page-heading"><div><span class="eyebrow">YOUR BUSINESS, IN PERSPECTIVE</span><h1 id="growthHeading">Studio Pulse<span>.</span></h1><p class="sub">Clear insights. Brighter next moves.</p></div><div class="topbar-actions"><button type="button" class="pulse-report-toggle" data-bi-action="report-options" aria-controls="pulseReportOptions" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18"/></svg><span id="pulsePeriodLabel">Report options</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div></div>
@@ -1243,6 +1357,7 @@
       <script src="assets/js/pulse/pulse-operations.js"></script>
       <script src="assets/js/pulse/pulse-governance.js"></script>
       <script src="assets/js/pulse/pulse-brand.js"></script>
+      <script src="assets/js/feedback-inbox.js?v=inbox1"></script>
       <script src="assets/js/settings-connections.js?v=connections1"></script>
       <script src="assets/js/workspace-access.js?v=access1"></script>
       <script src="assets/js/pulse/pulse-customer.js"></script>

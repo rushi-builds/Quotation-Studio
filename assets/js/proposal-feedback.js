@@ -115,7 +115,15 @@
     $('feedbackClearRating').addEventListener('click', () => { retryNextStep = ''; ratingInputs.forEach(input => input.checked = false); paint(); saveDraft(); });
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      if (preview) { setStatus('Form preview only. Nothing has been sent or saved to Studio.'); return; }
+      /* The preview page exists to show the whole flow, including what a
+         customer sees after a stored note. Nothing leaves the browser: the
+         confirmation opens with a sample receipt. */
+      if (preview) {
+        form.hidden = true; $('feedbackSuccess').hidden = false;
+        $('feedbackReceipt').textContent = 'Sample receipt · nothing was sent';
+        $('feedbackSuccess').focus(); setStatus('');
+        return;
+      }
       if (pending) return;
       const data = current(); data.comment = data.comment.trim();
       if (!data.rating && !data.comment) { setStatus('Choose a rating or write a message before sending.', true); return; }
@@ -176,9 +184,9 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }
-    paint(); fieldset.disabled = false; submit.disabled = preview;
+    paint(); fieldset.disabled = false; submit.disabled = false;
     if (preview) {
-      submit.textContent = 'Preview — sending disabled';
+      submit.textContent = 'Preview the confirmation';
       $('feedbackContext').textContent = 'A quick rating, a thought, or a question—every perspective helps.';
       setStatus('');
     }

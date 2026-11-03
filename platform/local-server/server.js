@@ -30,6 +30,8 @@ const HOST = process.env.HOST || '0.0.0.0';
 const assistantModule = import('../gemini.mjs');
 const workspaceModule = import('../workspace-access.mjs');
 const feedbackModule = import('../proposal-feedback.mjs');
+const inboxModule = import('../feedback-inbox.mjs');
+const galleryCatalogModule = import('../cloudflare/src/gallery-catalog.mjs');
 const workspaceStoreModule = import('../workspace-access-store.mjs');
 let assistantLimiter;
 const SESSION_DAYS = 30;
@@ -78,7 +80,7 @@ const RECOVERY_429 = 'Too many requests. Please try again in a few minutes.';
    so /api/health reports the same version whichever backend serves it.
    Both backends carry the customer-feedback route, so both report the same
    marker; qa/roles-parity.test.js fails the build if they ever diverge. */
-const CODE_VERSION = 'proposal-feedback-r1';
+const CODE_VERSION = 'feedback-inbox-r1';
 
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }
@@ -1613,7 +1615,12 @@ function safePath(urlPath) {
    random filenames are not an authorisation mechanism. */
 const PUBLIC_HTML = new Set([
   'index.html', 'dashboard.html', 'quotation.html', 'portal.html',
-  'share.html', 'gallery.html', 'oauth-complete.html'
+  'share.html', 'gallery.html', 'oauth-complete.html',
+  /* Design preview of the customer feedback form. Noindex, inert (its own
+     script mounts it with preview: true) and mounted on the static hosts, so
+     the local server serves it too - otherwise the only way to look at the
+     confirmation screen on a dev box is to publish a real proposal. */
+  'feedback-preview.html'
 ]);
 /* Dev-only UI: the bag-reference drop box (anonymous file upload) and the
    login design preview have no production purpose and stay dark unless the
@@ -2276,6 +2283,13 @@ async function handleApi(req, res, url) {
           meta: { ua, openCount: tok.open_count }
         });
         notifyFromPortalEvent(db, ev);
+        /* One-way, same rule as the Worker: a quotation that was only 'sent'
+           becomes 'viewed' on the first real open. */
+        const opened = (db.proposals || []).find(pr => pr.id === tok.proposal_id);
+        if (opened && opened.status === 'sent') {
+          opened.status = 'viewed';
+          opened.updated_at = nowISO();
+        }
       }
       saveDb(db);
       return sendJson(res, 200, {
@@ -2413,6 +2427,99 @@ async function handleApi(req, res, url) {
        null for owner/hidden admin (every row is in scope), the user's own id
        for members, whose reads stay exactly as narrowly scoped as before. */
     const scope = scopeOf(user);
+
+    /* FEEDBACK INBOX - parity with platform/cloudflare/src/worker.js.
+       Project notes and quotation notes in one list, one handled marker. */
+    if (parts[0] === 'feedback' && method === 'GET' && (parts.length === 1 || parts[1] === 'export')) {
+      const inbox = await inboxModule;
+      const catalog = await galleryCatalogModule;
+      if (!Array.isArray(db.galleryLikes)) db.galleryLikes = [];
+      if (!Array.isArray(db.galleryFeedback)) db.galleryFeedback = [];
+      if (!Array.isArray(db.feedbackState)) db.feedbackState = [];
+      if (!Array.isArray(db.events)) db.events = [];
+      const proposals = Array.isArray(db.proposals) ? db.proposals : [];
+      const proposalFeedback = db.events
+        .filter(e => e.event_type === 'proposal_feedback')
+        .filter(e => scope === null || e.owner_id === scope)
+        .map(e => {
+          const proposal = proposals.find(pr => pr.id === e.proposal_id) || {};
+          return {
+            id: e.id,
+            proposal_id: e.proposal_id,
+            owner_id: e.owner_id,
+            meta_json: e.meta_json,
+            created_at: e.created_at,
+            ref: proposal.ref,
+            customer_name: proposal.customer_name,
+            title: proposal.title
+          };
+        });
+      const built = inbox.buildInbox({
+        projectFeedback: db.galleryFeedback,
+        proposalFeedback,
+        likes: db.galleryLikes,
+        state: db.feedbackState,
+        projects: catalog.GALLERY_BY_ID
+      });
+      const opts = {
+        source: String(url.searchParams.get('source') || 'all'),
+        status: String(url.searchParams.get('status') || 'all'),
+        rating: Number(url.searchParams.get('rating') || 0) || 0,
+        q: String(url.searchParams.get('q') || '').slice(0, 120),
+        proposal: String(url.searchParams.get('proposal') || '').slice(0, 80),
+        project: String(url.searchParams.get('project') || '').slice(0, 120)
+      };
+      const matchedItems = inbox.filterItems(built.items, opts);
+      if (parts[1] === 'export') {
+        const stamp = nowISO().slice(0, 10);
+        res.writeHead(200, {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="ktm-feedback-' + stamp + '.csv"',
+          'Cache-Control': 'no-store'
+        });
+        res.end(inbox.inboxCsv(matchedItems));
+        return;
+      }
+      const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit')) || 40));
+      const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0);
+      return sendJson(res, 200, {
+        items: matchedItems.slice(offset, offset + limit),
+        stats: built.stats,
+        matched: matchedItems.length,
+        hasMore: offset + limit < matchedItems.length
+      });
+    }
+    if (parts[0] === 'feedback' && parts[1] && parts.length === 2 && method === 'PATCH') {
+      if (!canWrite) return sendJson(res, 403, { error: 'Your role can read feedback but cannot mark it handled.' });
+      const inbox = await inboxModule;
+      const key = inbox.parseKey(decodeURIComponent(parts[1]));
+      if (!key) return sendJson(res, 400, { error: 'Unknown feedback item.' });
+      let body;
+      try { body = await readBody(req, 4096); }
+      catch (err) { return sendJson(res, err.status || 400, { error: err.message || 'Invalid request.' }); }
+      const patch = inbox.readHandledPatch(body);
+      if (patch.error) return sendJson(res, 400, { error: patch.error });
+      if (!Array.isArray(db.feedbackState)) db.feedbackState = [];
+      const existing = db.feedbackState.find(r => r.source === key.source && r.item_id === key.id);
+      if (patch.handled) {
+        const at = nowISO();
+        if (existing) { existing.handled_at = at; existing.handled_by = user.id; }
+        else db.feedbackState.push({ source: key.source, item_id: key.id, handled_at: at, handled_by: user.id });
+      } else if (existing) {
+        db.feedbackState = db.feedbackState.filter(r => r !== existing);
+      }
+      saveDb(db);
+      return sendJson(res, 200, {
+        ok: true, id: key.source + ':' + key.id,
+        handled: patch.handled, handledAt: patch.handled ? nowISO() : null
+      });
+    }
+    if (parts[0] === 'gallery' && parts[1] === 'insights' && method === 'GET') {
+      const inbox = await inboxModule;
+      const catalog = await galleryCatalogModule;
+      if (!Array.isArray(db.galleryLikes)) db.galleryLikes = [];
+      return sendJson(res, 200, { likes: inbox.likeStats(db.galleryLikes, catalog.GALLERY_BY_ID) });
+    }
 
     // Access identities derive only from fresh server-side users, never body roles.
     const accessActor = u => u && ({id:u.id,name:u.name,manager:requireRole(u,'owner'),writer:requireRole(u,'sales')});
@@ -3695,6 +3802,52 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
     return handleApi(req, res, url);
+  }
+  /* Per-project share card - parity with the Worker's /p/<id>. Social scrapers
+     read the Open Graph tags; a browser follows the meta refresh into the
+     gallery's detail view. */
+  if (url.pathname.startsWith('/p/')) {
+    const catalog = await galleryCatalogModule;
+    let id = '';
+    try { id = decodeURIComponent(url.pathname.slice(3)).replace(/\/+$/, ''); } catch (_) { id = ''; }
+    const project = catalog.galleryProject(id);
+    const esc = (value) => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    if (!project) {
+      res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end('<!DOCTYPE html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/gallery.html">' +
+        '<p style="font-family:system-ui;padding:2rem">That project is not in the portfolio. ' +
+        '<a href="/gallery.html">Browse the gallery</a>.</p>');
+      return;
+    }
+    const origin = (req.headers.host ? (req.headers['x-forwarded-proto'] || 'http') + '://' + req.headers.host : 'http://127.0.0.1:' + PORT);
+    const title = project.name + ' — ' + project.capacity + ' | KTM Energy Experts';
+    const facts = [project.capacity, project.sector, project.location].filter(Boolean).join(' · ');
+    const description = facts ? facts + '. A completed installation by KTM Energy Experts, Pune.' : 'A completed solar installation by KTM Energy Experts, Pune.';
+    const image = project.img ? (/^https?:\/\//i.test(project.img) ? project.img : origin + '/' + project.img.replace(/^\//, '')) : origin + '/assets/images/ktm-logo-light.png';
+    const page = origin + '/gallery.html#p-' + encodeURIComponent(project.id);
+    const html = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<title>' + esc(title) + '</title>' +
+      '<meta name="description" content="' + esc(description) + '">' +
+      '<link rel="canonical" href="' + esc(origin + url.pathname) + '">' +
+      '<meta property="og:type" content="article"><meta property="og:site_name" content="KTM Energy Experts">' +
+      '<meta property="og:title" content="' + esc(title) + '">' +
+      '<meta property="og:description" content="' + esc(description) + '">' +
+      '<meta property="og:image" content="' + esc(image) + '">' +
+      '<meta property="og:url" content="' + esc(origin + url.pathname) + '">' +
+      '<meta name="twitter:card" content="summary_large_image">' +
+      '<meta http-equiv="refresh" content="0;url=' + esc(page) + '">' +
+      '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0C1E30;color:#fff;' +
+      'font-family:system-ui,-apple-system,Segoe UI,sans-serif;text-align:center}' +
+      'img{width:min(640px,86vw);border-radius:18px;box-shadow:0 24px 60px #0006;margin-bottom:20px}' +
+      'h1{font-size:20px;margin:0 0 6px}p{color:#a9bccd;margin:0 0 14px;font-size:14px}a{color:#f2a03d}</style>' +
+      '</head><body><main><img src="' + esc(image) + '" alt="' + esc(project.name) + '">' +
+      '<h1>' + esc(project.name) + '</h1><p>' + esc(facts) + '</p>' +
+      '<p>Opening the portfolio… <a href="' + esc(page) + '">Continue</a></p></main></body></html>';
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(html);
+    return;
   }
   // Preserve old photo links, but require the same session and membership as
   // the new byte endpoint. Never pass workspace files to the public server.

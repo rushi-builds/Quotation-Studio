@@ -461,21 +461,122 @@ footer.gallery-footer a:hover{text-decoration:underline}
   outline:none;border-color:#F2A03D;background:#fff;box-shadow:0 0 0 4px rgba(242,129,29,.14);
 }
 /* After a stored note the form is replaced by a short thank-you. */
+/* ---------- the thank-you card ----------
+   The dialog grows for the confirmation and turns into a celebration: a tick,
+   a two-tone thank-you in the brand's navy and orange, one reaction line that
+   matches the rating the visitor gave, and a small illustration of what they
+   just reviewed. Soft waves sit under it so the card ends warm rather than
+   flat. */
+#feedbackBox.is-thanked{width:min(760px,94vw)}
+.feedback-card.is-thanked{padding:0;background:transparent;overflow:hidden;border-radius:22px}
 .feedback-card.is-thanked > *:not(.feedback-thanks){display:none}
 .feedback-thanks{
-  display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px 2px 6px;
-  animation:thanks-in .32s var(--ease) both;
+  position:relative;overflow:hidden;
+  padding:26px 26px 22px;border-radius:22px;background:#fff;
+  box-shadow:0 24px 60px rgba(9,26,44,.16);
+  animation:thanks-in .42s var(--ease) both;
 }
-.feedback-thanks .thanks-mark{
-  width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
-  background:linear-gradient(135deg,#F7A23C,#E8711A);color:#fff;font-size:19px;font-weight:800;
-  box-shadow:0 8px 18px rgba(232,113,26,.32);
+.feedback-thanks .thanks-main{
+  position:relative;z-index:2;display:flex;align-items:flex-start;gap:16px;
+  padding-right:172px;
 }
-.feedback-thanks h3{margin:0;font-size:19px;line-height:1.25;letter-spacing:-.4px;color:var(--navy)}
-.feedback-thanks p{margin:0;color:var(--muted);font-size:13px;line-height:1.55;max-width:42ch}
+.feedback-thanks .thanks-check{
+  flex:0 0 auto;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(150deg,#F8AE4E,#E9761B);
+  box-shadow:0 0 0 8px rgba(246,169,80,.18),0 12px 24px rgba(226,116,27,.26);
+}
+.feedback-thanks .thanks-check svg{width:25px;height:25px;stroke-width:2.5}
+.feedback-thanks .thanks-copy{min-width:0}
+.feedback-thanks h3{
+  margin:0 0 10px;font-size:23px;line-height:1.18;letter-spacing:-.6px;color:#0E2340;
+}
+.feedback-thanks h3:focus{outline:none}
+.feedback-thanks h3 em{display:block;font-style:normal;color:#EB7A16}
+.feedback-thanks .thanks-spark{width:13px;height:13px;flex:0 0 auto;color:#2C7A3F}
+.feedback-thanks .thanks-pill{
+  display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;
+  padding:6px 13px;border-radius:999px;background:#EAF8E7;border:1px solid #D5EFCF;
+  color:#2C7A3F;font-size:11.8px;font-weight:700;letter-spacing:.01em;
+}
+.feedback-thanks p{
+  margin:0;padding-left:12px;border-left:3px solid #2E8B57;
+  color:#5C6E7E;font-size:12.6px;line-height:1.6;max-width:46ch;
+}
+.feedback-thanks p strong{color:#15324F;font-weight:700}
+.feedback-thanks .thanks-receipt{
+  display:block;margin-top:12px;color:#8A98A6;font-size:10.5px;
+  font-variant-numeric:tabular-nums;letter-spacing:.01em;
+}
+
+/* ---- illustration: the project the visitor just reviewed ---- */
+.feedback-thanks .thanks-art{
+  position:absolute;right:18px;top:24px;width:154px;height:136px;z-index:1;pointer-events:none;
+}
+.feedback-thanks .thanks-art-glow{
+  position:absolute;inset:2px -6px 4px 2px;border-radius:50%;
+  background:radial-gradient(circle at 55% 45%,#FFE6C9,#FFDDB6 60%,rgba(255,221,182,0) 72%);
+  opacity:.85;
+}
+.feedback-thanks .thanks-shot{
+  position:absolute;left:4px;top:10px;width:124px;margin:0;
+  padding:7px 7px 9px;border-radius:12px;background:#fff;
+  box-shadow:0 14px 30px rgba(12,30,48,.18),0 1px 0 #EFF2F6 inset;
+  transform:rotate(-4deg);
+}
+.feedback-thanks .thanks-shot img,
+.feedback-thanks .thanks-shot-blank{
+  display:block;width:100%;height:52px;object-fit:cover;border-radius:7px;background:#0C1E30;
+}
+.feedback-thanks .thanks-shot-blank{display:grid;place-items:center;color:#F5B35E}
+.feedback-thanks .thanks-shot-blank svg{width:20px;height:20px}
+.feedback-thanks .thanks-lines{display:flex;flex-direction:column;gap:4px;margin:7px 2px 0}
+.feedback-thanks .thanks-lines i{height:4px;border-radius:3px;background:#E7ECF2}
+.feedback-thanks .thanks-lines i:nth-child(1){width:88%}
+.feedback-thanks .thanks-lines i:nth-child(2){width:68%}
+.feedback-thanks .thanks-lines i:nth-child(3){width:40%}
+.feedback-thanks .thanks-stars{display:flex;gap:1px;margin:7px 2px 0;color:#EB7A16}
+.feedback-thanks .thanks-stars i{display:block;line-height:0;opacity:.22}
+.feedback-thanks .thanks-stars i.on{opacity:1}
+.feedback-thanks .thanks-stars svg{width:9px;height:9px}
+.feedback-thanks .thanks-thumb{
+  position:absolute;right:0;bottom:2px;width:44px;height:44px;border-radius:50%;
+  display:grid;place-items:center;background:#fff;color:#EB7A16;
+  box-shadow:0 10px 22px rgba(12,30,48,.2);
+}
+.feedback-thanks .thanks-thumb svg{width:21px;height:21px}
+.feedback-thanks .thanks-art-spark{
+  position:absolute;right:6px;top:-2px;width:22px;height:22px;
+  border-top:2px solid #F5A25A;border-right:2px solid #F5A25A;border-radius:3px;
+  transform:rotate(-8deg);
+}
+.feedback-thanks .thanks-wave{
+  position:absolute;left:0;right:0;bottom:0;width:100%;height:74px;z-index:0;pointer-events:none;
+}
+
 @keyframes thanks-in{
-  0%{opacity:0;transform:translateY(8px)}
+  0%{opacity:0;transform:translateY(10px) scale(.985)}
   100%{opacity:1;transform:none}
+}
+
+@media (max-width:700px){
+  #feedbackBox.is-thanked{width:min(520px,94vw)}
+  .feedback-thanks{padding:20px 18px 18px}
+  .feedback-thanks .thanks-main{padding-right:0;flex-direction:column;gap:12px}
+  .feedback-thanks .thanks-check{width:44px;height:44px;box-shadow:0 0 0 6px rgba(246,169,80,.18),0 10px 20px rgba(226,116,27,.22)}
+  .feedback-thanks .thanks-check svg{width:21px;height:21px}
+  .feedback-thanks h3{font-size:19.5px}
+  .feedback-thanks p{font-size:12.2px}
+  .feedback-thanks .thanks-art{display:none}
+  .feedback-thanks .thanks-wave{height:56px;opacity:.9}
+}
+@media (prefers-reduced-motion:reduce){
+  .feedback-thanks{animation:none}
+}
+}
+@media (max-width:640px){
+  .feedback-card.is-thanked{padding:16px}
+  .feedback-thanks{padding:18px 17px 15px}
+  .feedback-thanks h3{font-size:17.5px}
 }
 
 .feedback-error{

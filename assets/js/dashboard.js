@@ -268,7 +268,7 @@
   /* ---------- navigation ---------- */
   let lastLaunch = null, lastSendId = null, lastSendChannel = null;
 
-  const PAGE_LABELS = {home:'Overview',proposals:'Quotations',tasks:'Follow-ups',activity:'Customer activity',send:'Sharing',publish:'Sharing',gallery:'Project gallery',reports:'Analytics',sales:'Studio Pulse',settings:'Settings'};
+  const PAGE_LABELS = {home:'Overview',proposals:'Quotations',tasks:'Follow-ups',activity:'Customer activity',feedback:'Feedback',send:'Sharing',publish:'Sharing',gallery:'Project gallery',reports:'Analytics',sales:'Studio Pulse',settings:'Settings'};
   function showPanel(name, preferId) {
     if (!$('panel-' + name)) return;
     banner(null);
@@ -294,6 +294,7 @@
     if (name === 'send') refreshSendPanel();
     if (name === 'activity') refreshActivityPanel();
     if (name === 'tasks') refreshTasksPanel();
+    if (name === 'feedback' && window.QSFeedback) window.QSFeedback.open();
     if (name === 'reports') refreshReportsPanel();
     if (name === 'settings') {
       refreshHealth();
@@ -1660,7 +1661,7 @@
     const menu = canEdit() ? '<details class="row-menu"><summary aria-label="Actions for ' + escapeHtml(customer) + '">⋯</summary><div class="row-menu-list">' + action('send','Share quotation') + action('pub','Manage versions & links') + action('dup','Duplicate quotation') + (next ? action('adv','Mark ' + escapeHtml(STATUS_LABEL[next])) : '') + action('del','Delete quotation','danger') + '</div></details>' : '';
     const capacity = Number(p.capacity) > 0 && Number.isFinite(Number(p.capacity)) ? Number(p.capacity).toLocaleString('en-IN', { maximumFractionDigits: 3 }) + ' kWp' : '—';
     const title = p.title && p.title !== p.ref && p.title !== p.customer ? '<span class="quote-title">' + escapeHtml(p.title) + '</span>' : '';
-    return '<tr class="quotation-row"><td><div class="quote-client"><span class="client-icon" aria-hidden="true">' + escapeHtml(customer.trim().slice(0,2).toUpperCase()) + '</span><div>' + action('open',escapeHtml(customer),'record-link') + '<small class="quote-reference">' + escapeHtml(p.ref || 'No reference') + '</small>' + title + '</div></div></td><td class="capacity-cell" data-label="System">' + escapeHtml(capacity) + '<small>' + (p.version ? 'Version ' + escapeHtml(p.version) : 'Version not supplied') + '</small></td><td data-label="Stage">' + badge(p.status) + '</td><td class="muted quote-updated" data-label="Last updated">' + escapeHtml(fmtDate(p.updatedAt)) + '</td><td><div class="row-actions">' + action('open',canEdit() ? 'Edit in Studio ↗' : 'Open ↗','btn btn-secondary btn-sm') + menu + '</div></td></tr>';
+    return '<tr class="quotation-row"><td><div class="quote-client"><span class="client-icon" aria-hidden="true">' + escapeHtml(customer.trim().slice(0,2).toUpperCase()) + '</span><div>' + action('open',escapeHtml(customer),'record-link') + '<small class="quote-reference">' + escapeHtml(p.ref || 'No reference') + '</small>' + title + (window.QSFeedback ? window.QSFeedback.chipFor(p.id) : '') + '</div></div></td><td class="capacity-cell" data-label="System">' + escapeHtml(capacity) + '<small>' + (p.version ? 'Version ' + escapeHtml(p.version) : 'Version not supplied') + '</small></td><td data-label="Stage">' + badge(p.status) + '</td><td class="muted quote-updated" data-label="Last updated">' + escapeHtml(fmtDate(p.updatedAt)) + '</td><td><div class="row-actions">' + action('open',canEdit() ? 'Edit in Studio ↗' : 'Open ↗','btn btn-secondary btn-sm') + menu + '</div></td></tr>';
   }
 
   function bindRowActions(root) {
@@ -1926,6 +1927,7 @@
   }
 
   window.QSDash = { orderedActivity, proposals: () => allProposals, setProposals: rows => { allProposals = rows; renderPropTable(); renderPropStats(); }, user: () => user, canEdit, canManage, powerLabel, refresh: () => refreshAll(), show: (name, id) => showPanel(name, id), showSettings, open: (id) => openInStudio(id), toast,
+    refreshTable: () => renderPropTable(),
     showTasks(filter, id) { focusedTaskId = id || null; if ($('taskFilter')) $('taskFilter').value = filter || 'all'; showPanel('tasks'); },
     filterStatus(status) { if ($('filterStatus')) $('filterStatus').value = status || ''; if ($('filterQ')) $('filterQ').value = ''; showPanel('proposals'); }
   };

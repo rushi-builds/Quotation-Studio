@@ -132,6 +132,32 @@
     return data;
   }
 
+  /* Same auth/cookie treatment as request(), but the response is text - used
+     by the CSV export, which must not be JSON-parsed. */
+  async function requestText(path) {
+    assertPreviewBackendSafe();
+    const opts = { method: 'GET', credentials: 'same-origin', headers: {} };
+    const token = readToken();
+    if (token) {
+      writeClientCookie(token);
+      opts.headers['Authorization'] = 'Bearer ' + token;
+      opts.headers['X-QS-Session'] = token;
+    }
+    let res;
+    try {
+      res = await fetch(BASE + path, opts);
+    } catch (err) {
+      const e = new Error('Cannot reach the platform server. Please try again.');
+      e.code = 'NETWORK'; e.cause = err; throw e;
+    }
+    if (!res.ok) {
+      const e = new Error('Request failed (' + res.status + ')');
+      e.status = res.status;
+      throw e;
+    }
+    return res.text();
+  }
+
   async function requestRaw(method, path, buf, extraHeaders) {
     assertPreviewBackendSafe();
     const opts = {
@@ -300,6 +326,32 @@
       return request('GET', '/api/reports/summary');
     },
     listGallery() { return request('GET', '/api/gallery'); },
+    /* Feedback inbox. `params` is a plain object of query fields; empty values
+       and 'all' are dropped so the URL stays readable. */
+    feedback(params) {
+      const qs = new URLSearchParams();
+      Object.keys(params || {}).forEach((key) => {
+        const value = params[key];
+        if (value === undefined || value === null || value === '' || value === 'all') return;
+        qs.set(key, String(value));
+      });
+      const suffix = qs.toString();
+      return request('GET', '/api/feedback' + (suffix ? '?' + suffix : ''));
+    },
+    feedbackCsv(params) {
+      const qs = new URLSearchParams();
+      Object.keys(params || {}).forEach((key) => {
+        const value = params[key];
+        if (value === undefined || value === null || value === '' || value === 'all') return;
+        qs.set(key, String(value));
+      });
+      const suffix = qs.toString();
+      return requestText('/api/feedback/export' + (suffix ? '?' + suffix : ''));
+    },
+    markFeedback(key, handled) {
+      return request('PATCH', '/api/feedback/' + encodeURIComponent(key), { handled: !!handled });
+    },
+    galleryInsights() { return request('GET', '/api/gallery/insights'); },
     async uploadGallery(file, meta) {
       const buf = await file.arrayBuffer();
       const headers = {

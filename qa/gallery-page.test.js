@@ -177,13 +177,27 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
     await linkPage.goto(shared, { waitUntil: 'networkidle0' });
     await linkPage.waitForFunction(() => { const d = document.getElementById('photoViewer'); return d && d.open && !!d.querySelector('h2'); }, { timeout: 15000 });
     check('a shared project link opens that project directly', await linkPage.$eval('#photoViewer h2', (e, name) => e.textContent === name, project.name));
+    /* Sharing hands out the project's own card, /p/<id>, so a chat app can read
+       a photo and a title. The card must name this project and then send the
+       visitor to its detail view. */
+    const card = await fetch(base + '/p/' + encodeURIComponent(first)).then((r) => r.text()).catch(() => '');
+    check('the share card names the project and its capacity',
+      new RegExp('og:title" content="' + project.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(card) &&
+      card.includes('og:image') && card.includes(encodeURIComponent('p-' + first)),
+      card.slice(0, 120));
+    const missingCard = await fetch(base + '/p/not-a-real-project').then((r) => r.status).catch(() => 0);
+    check('an unknown share card is a 404, not a blank page', missingCard === 404, String(missingCard));
 
     /* Share uses the OS sheet and passes exactly this project. */
     await linkPage.evaluate(() => { window.__shared = null; navigator.share = (payload) => { window.__shared = payload; return Promise.resolve(); }; });
     await linkPage.click('#photoViewer [data-detail-share]');
     const sharedPayload = await linkPage.evaluate(() => window.__shared);
+    /* The share sheet now gets the project's own card URL, which still carries
+       the id (and adds a photo + title for the chat app); a server-less copy of
+       the page falls back to the hash link. */
     check('sharing passes this project’s link to the share sheet',
-      !!sharedPayload && sharedPayload.url.endsWith('#p-' + first) && sharedPayload.title.includes(project.name),
+      !!sharedPayload && sharedPayload.url.includes(first) && sharedPayload.title.includes(project.name) &&
+      /\/p\/[a-z0-9_-]+$/.test(sharedPayload.url),
       JSON.stringify(sharedPayload));
     await linkPage.screenshot({ path: path.join(shots, 'gallery-detail.png') });
 
@@ -224,6 +238,10 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
       return !!el && /Thank you for your valuable feedback/i.test(el.textContent);
     }, { timeout: 15000 }).then(() => true).catch(() => false);
     check('a stored note is answered with a thank-you', thanked);
+    /* The receipt names the saved note's id, so a visitor can quote it when
+       they follow up - the same shape the customer portal shows. */
+    const receipt = await linkPage.$eval('#feedbackBox .feedback-thanks .thanks-receipt', e => e.textContent).catch(() => '');
+    check('the thank-you carries a receipt line', /^Receipt .+ · /.test(receipt), receipt);
     const feedbackClosed = await linkPage.waitForFunction(() => !document.getElementById('feedbackBox').open, { timeout: 15000 }).then(() => true).catch(() => false);
     check('sending a note saves it and closes the form', feedbackClosed && posted.length === 1 && posted[0].method === 'POST', JSON.stringify(posted));
     const sentBody = posted.length ? JSON.parse(posted[0].body) : {};
