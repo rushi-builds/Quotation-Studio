@@ -383,6 +383,7 @@
   var feedbackSend = document.getElementById('feedbackSend');
   var feedbackLede = document.getElementById('feedbackLede');
   var feedbackTarget = '';
+  var feedbackProject = null;
   var feedbackRating = 0;
 
   function setStars(value) {
@@ -392,26 +393,109 @@
     });
   }
 
-  /* Replaces the form with a short, quiet thank-you. The dialog stays open
-     just long enough to read it, then closes itself. */
-  function showThanks() {
+  /* Replaces the form with the celebration card: the tick, a two-tone
+     thank-you, a one-line reaction that matches the rating the visitor gave,
+     and a small illustration of their project. The dialog stays open long
+     enough to read the saved receipt, then closes itself. */
+  var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" ' +
+    'stroke-linejoin="round" aria-hidden="true"><path d="m5 12.6 4.6 4.6L19 7.3"/></svg>';
+  var STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" ' +
+    'd="M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.45l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95z"/></svg>';
+  var THUMB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+    'stroke-linecap="round" stroke-linejoin="round"><path d="M7 21V10.5l4.6-7.2a1.6 1.6 0 0 1 2.8 1.1V8h4.1a2.2 2.2 0 0 1 2.2 2.6l-1.4 8a2.2 2.2 0 0 1-2.2 1.8H7Z"/>' +
+    '<rect x="2.6" y="10.5" width="3.4" height="10.5" rx="1.1"/></svg>';
+
+  function receiptStamp(id) {
+    var when = new Date();
+    var time = '';
+    try {
+      time = when.toLocaleString('en-IN', {
+        day: 'numeric', month: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+      });
+    } catch (_) {
+      time = when.toISOString().slice(0, 16).replace('T', ' ');
+    }
+    var clean = String(id || '').replace(/^gfb_/, '').slice(0, 18);
+    return 'Receipt ' + (clean || 'saved') + ' · ' + time;
+  }
+
+  /* The reaction line is about what the visitor actually said - a five-star
+     note and a two-star note are not thanked in the same words. The sparkle is
+     an inline SVG so it never depends on an emoji font being installed. */
+  var SPARK = '<svg class="thanks-spark" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path fill="currentColor" d="M12 2.2l1.7 5.2a4.6 4.6 0 0 0 2.9 2.9l5.2 1.7-5.2 1.7a4.6 4.6 0 0 0-2.9 2.9L12 21.8l-1.7-5.2a4.6 4.6 0 0 0-2.9-2.9L2.2 12l5.2-1.7a4.6 4.6 0 0 0 2.9-2.9Z"/></svg>';
+  function reactionFor(rating) {
+    if (rating >= 5) return SPARK + 'Delighted you liked it!';
+    if (rating === 4) return SPARK + 'Glad you liked it!';
+    if (rating === 3) return SPARK + 'Thanks for the honest note.';
+    if (rating >= 1) return SPARK + 'Thanks for telling us straight.';
+    return SPARK + 'Thanks for stopping by.';
+  }
+
+  function thanksArt(project, rating) {
+    var src = '';
+    if (project) {
+      src = (window.PROJECT_IMAGES ? (window.PROJECT_IMAGES[project.img] || project.img) : project.img) || '';
+    }
+    var stars = '';
+    var filled = rating || 5;
+    for (var i = 1; i <= 5; i += 1) {
+      stars += '<i class="' + (i <= filled ? 'on' : '') + '">' + STAR + '</i>';
+    }
+    return '<div class="thanks-art" aria-hidden="true">' +
+      '<span class="thanks-art-glow"></span>' +
+      '<span class="thanks-art-spark"></span>' +
+      '<figure class="thanks-shot">' +
+        (src ? '<img src="' + esc(src) + '" alt="" loading="lazy">' : '<span class="thanks-shot-blank">' + STAR + '</span>') +
+        '<span class="thanks-lines"><i></i><i></i><i></i></span>' +
+        '<span class="thanks-stars">' + stars + '</span>' +
+      '</figure>' +
+      '<span class="thanks-thumb">' + THUMB + '</span>' +
+      '</div>';
+  }
+
+  function showThanks(res, ctx) {
     var card = feedbackForm;
     if (!card) return;
+    ctx = ctx || {};
     var old = card.querySelector('.feedback-thanks');
     if (old) old.parentNode.removeChild(old);
     var panel = document.createElement('div');
+    /* role=status: a screen reader hears the confirmation even though the form
+       around it is gone. */
     panel.className = 'feedback-thanks';
+    panel.setAttribute('role', 'status');
+    panel.setAttribute('aria-live', 'polite');
     panel.innerHTML =
-      '<span class="thanks-mark" aria-hidden="true">✓</span>' +
-      '<h3>Thank you for your valuable feedback</h3>' +
-      '<p>Your note is on its way to the studio — it genuinely helps us build better.</p>';
+      '<div class="thanks-main">' +
+        '<span class="thanks-check" aria-hidden="true">' + CHECK + '</span>' +
+        '<div class="thanks-copy">' +
+          '<h3>Thank you for your <em>valuable feedback!</em></h3>' +
+          '<span class="thanks-pill">' + reactionFor(ctx.rating) + '</span>' +
+          '<p><strong>We really appreciate your feedback.</strong> We read every note and use it to sharpen the installs, the photographs and this page itself.</p>' +
+          '<small class="thanks-receipt">' + esc(receiptStamp(res && res.id)) + '</small>' +
+        '</div>' +
+      '</div>' +
+      thanksArt(ctx.project, ctx.rating) +
+      '<svg class="thanks-wave" viewBox="0 0 420 120" preserveAspectRatio="none" aria-hidden="true">' +
+        '<path d="M0 96c70-26 130-32 205-10 62 18 122 16 215-26v60H0Z" fill="rgba(242,129,29,.10)"/>' +
+        '<path d="M0 112c84-22 148-22 226 2 66 20 122 14 194-14v20H0Z" fill="rgba(242,129,29,.16)"/>' +
+      '</svg>';
     card.appendChild(panel);
     card.classList.add('is-thanked');
+    if (feedbackBox) feedbackBox.classList.add('is-thanked');
+    var focusTarget = panel.querySelector('h3');
+    if (focusTarget) {
+      focusTarget.setAttribute('tabindex', '-1');
+      try { focusTarget.focus({ preventScroll: true }); } catch (_) {}
+    }
   }
 
   function clearThanks() {
     if (!feedbackForm) return;
     feedbackForm.classList.remove('is-thanked');
+    if (feedbackBox) feedbackBox.classList.remove('is-thanked');
     var old = feedbackForm.querySelector('.feedback-thanks');
     if (old) old.parentNode.removeChild(old);
   }
@@ -419,6 +503,7 @@
   function openFeedback(it) {
     if (!feedbackBox) return;
     clearThanks();
+    feedbackProject = it ? it.p : null;
     feedbackTarget = it ? it.id : '';
     if (feedbackError) { feedbackError.hidden = true; feedbackError.textContent = ''; }
     if (feedbackLede) {
@@ -463,6 +548,7 @@
         return;
       }
       if (feedbackSend) { feedbackSend.disabled = true; feedbackSend.textContent = 'Sending…'; }
+      var savedRating = feedbackRating;
       L.feedback({ message: message, name: feedbackName ? feedbackName.value : '', project: feedbackTarget, rating: feedbackRating })
         .then(function (res) {
           if (feedbackSend) { feedbackSend.disabled = false; feedbackSend.textContent = 'Send feedback'; }
@@ -473,10 +559,10 @@
           }
           /* The note is stored first; the card then thanks the visitor in its
              own words before closing itself. */
-          showThanks();
+          showThanks(res, { rating: savedRating, project: feedbackProject });
           setTimeout(function () {
             if (feedbackBox.open) feedbackBox.close();
-          }, 1700);
+          }, 2600);
         });
     });
   }

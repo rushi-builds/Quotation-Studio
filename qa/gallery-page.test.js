@@ -238,6 +238,10 @@ const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' +
       return !!el && /Thank you for your valuable feedback/i.test(el.textContent);
     }, { timeout: 15000 }).then(() => true).catch(() => false);
     check('a stored note is answered with a thank-you', thanked);
+    /* The receipt names the saved note's id, so a visitor can quote it when
+       they follow up - the same shape the customer portal shows. */
+    const receipt = await linkPage.$eval('#feedbackBox .feedback-thanks .thanks-receipt', e => e.textContent).catch(() => '');
+    check('the thank-you carries a receipt line', /^Receipt .+ · /.test(receipt), receipt);
     const feedbackClosed = await linkPage.waitForFunction(() => !document.getElementById('feedbackBox').open, { timeout: 15000 }).then(() => true).catch(() => false);
     check('sending a note saves it and closes the form', feedbackClosed && posted.length === 1 && posted[0].method === 'POST', JSON.stringify(posted));
     const sentBody = posted.length ? JSON.parse(posted[0].body) : {};

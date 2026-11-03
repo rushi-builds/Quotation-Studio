@@ -129,11 +129,90 @@ body.portal-mode .share-topbar {
 .feedback-status{font-size:11px;line-height:1.8;margin:13px 0 0;color:#8b90a4;}
 .feedback-status:empty{display:none;}
 .feedback-status.is-error{color:#a33a32;}
-.feedback-success{padding:28px;background:#f3f7f5;border:1px solid #d5e5de;border-radius:16px;outline-color:#627d70;}
-.feedback-success>span{color:#317358;font-size:24px;}
-.feedback-success h4{margin:8px 0;font-size:22px;color:#214d3e;}
-.feedback-success p{max-width:600px;font-size:13px;line-height:1.7;color:#536b62;}
-.feedback-success small{font-size:10px;color:#6e827a;}
+/* ------------------------------------------------------------------
+   The receipt a customer sees after sending proposal feedback.
+   A soft green panel: the tick, the words, then the three steps that
+   follow (received → under review → we'll be in touch). The gallery's
+   feedback dialog answers with the same language on its own card.
+   ------------------------------------------------------------------ */
+.feedback-success{
+  position:relative;overflow:hidden;outline-color:#627d70;
+  padding:24px 24px 20px;border-radius:18px;
+  border:1px solid #D6E9DE;
+  background:
+    radial-gradient(130% 120% at 100% 0%,rgba(146,206,170,.22),rgba(146,206,170,0) 58%),
+    linear-gradient(160deg,#F8FCF9 0%,#EFF8F2 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 16px 34px rgba(28,86,60,.07);
+  animation:fs-in .42s cubic-bezier(.2,.75,.3,1) both;
+}
+@keyframes fs-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.feedback-success .fs-top{
+  display:flex;align-items:flex-start;gap:18px;
+}
+.feedback-success .fs-badge{
+  flex:0 0 auto;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(150deg,#41A96F,#1E7F4C);
+  box-shadow:0 0 0 7px rgba(74,170,116,.16),0 12px 24px rgba(30,127,76,.28);
+}
+.feedback-success .fs-badge svg{width:30px;height:30px;stroke-width:2.4}
+.feedback-success .fs-copy{min-width:0;padding-top:2px}
+.feedback-success h4{
+  margin:0 0 6px;font-size:22px;line-height:1.25;letter-spacing:-.1px;color:#14653C;
+  font-weight:700;
+}
+.feedback-success .fs-rule{
+  display:block;width:46px;height:3px;border-radius:2px;background:#F2811D;margin:0 0 10px;opacity:.9;
+}
+.feedback-success p{
+  margin:0;max-width:64ch;font-size:12.9px;line-height:1.68;color:#4E6D62;
+}
+
+.feedback-success .fs-steps{
+  list-style:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:18px 0 0;padding:0;
+}
+.feedback-success .fs-steps li{
+  display:inline-flex;align-items:center;gap:8px;position:relative;
+  padding:8px 14px 8px 11px;border-radius:999px;
+  border:1px solid #E4E9EE;background:rgba(255,255,255,.72);
+  font-size:11.8px;font-weight:700;color:#6C7C86;letter-spacing:.01em;
+}
+.feedback-success .fs-steps li + li::before{
+  content:'';position:absolute;left:-9px;top:50%;width:6px;height:6px;
+  border-top:1.6px solid #B9C6CE;border-right:1.6px solid #B9C6CE;
+  transform:translateY(-50%) rotate(45deg);
+}
+.feedback-success .fs-steps li.is-done{
+  border-color:#BFE3CC;background:linear-gradient(150deg,#F0FAF3,#E3F5EA);color:#1D7145;
+  box-shadow:0 6px 14px rgba(46,138,86,.10);
+}
+.feedback-success .fs-step-ico{display:grid;place-items:center;width:16px;height:16px;color:#8FA0AA}
+.feedback-success .fs-step-ico svg{width:15px;height:15px}
+.feedback-success .fs-steps li.is-done .fs-step-ico{color:#2E8B57}
+.feedback-success .fs-tick{
+  display:grid;place-items:center;width:16px;height:16px;border-radius:50%;
+  background:#2E8B57;color:#fff;
+}
+.feedback-success .fs-tick svg{width:10px;height:10px}
+
+.feedback-success small{
+  display:block;margin-top:14px;padding-top:11px;border-top:1px dashed #CEDFD5;
+  font-size:10.5px;color:#6E827A;font-variant-numeric:tabular-nums;letter-spacing:.01em;
+}
+
+@media (max-width:640px){
+  .feedback-success{padding:18px 16px 16px;border-radius:16px}
+  .feedback-success .fs-top{gap:13px}
+  .feedback-success .fs-badge{width:48px;height:48px;box-shadow:0 0 0 5px rgba(74,170,116,.16),0 10px 20px rgba(30,127,76,.24)}
+  .feedback-success .fs-badge svg{width:24px;height:24px}
+  .feedback-success h4{font-size:18px}
+  .feedback-success p{font-size:12.4px}
+  .feedback-success .fs-steps{gap:8px;margin-top:14px}
+  .feedback-success .fs-steps li{font-size:11px;padding:7px 11px 7px 9px}
+  .feedback-success .fs-steps li + li::before{display:none}
+}
+
 #proposalFeedback [hidden]{display:none!important;}
 #feedbackSubmit:disabled,#feedbackFields:disabled{opacity:.65;cursor:default;}
 #proposalFeedback .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
