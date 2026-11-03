@@ -1615,7 +1615,12 @@ function safePath(urlPath) {
    random filenames are not an authorisation mechanism. */
 const PUBLIC_HTML = new Set([
   'index.html', 'dashboard.html', 'quotation.html', 'portal.html',
-  'share.html', 'gallery.html', 'oauth-complete.html'
+  'share.html', 'gallery.html', 'oauth-complete.html',
+  /* Design preview of the customer feedback form. Noindex, inert (its own
+     script mounts it with preview: true) and mounted on the static hosts, so
+     the local server serves it too - otherwise the only way to look at the
+     confirmation screen on a dev box is to publish a real proposal. */
+  'feedback-preview.html'
 ]);
 /* Dev-only UI: the bag-reference drop box (anonymous file upload) and the
    login design preview have no production purpose and stay dark unless the
