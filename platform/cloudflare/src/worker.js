@@ -592,6 +592,10 @@ function seesAll(user, env) {
    owner_id test short-circuits and every row is returned; when it is a user id
    the query behaves exactly like the old `owner_id = ?`. */
 const OWN_SCOPE = '(? IS NULL OR owner_id = ?)';
+/* The inbox joins portal_events to proposals and both carry owner_id, so the
+   unqualified constant would be ambiguous there. Same NULL-lifting shape,
+   qualified on the event table only. */
+const OWN_SCOPE_EVENT = '(? IS NULL OR e.owner_id = ?)';
 function proposalRevision(row) {
   return Number(row.revision) || 1;
 }
@@ -1912,9 +1916,9 @@ async function loadFeedbackInbox(db, scope, user) {
       `SELECT e.id, e.proposal_id, e.owner_id, e.meta_json, e.created_at,
               p.ref, p.customer_name, p.title
          FROM portal_events e LEFT JOIN proposals p ON p.id = e.proposal_id
-        WHERE e.event_type = 'proposal_feedback' AND (e.owner_id = ? OR ? IS NULL)
+        WHERE e.event_type = 'proposal_feedback' AND ${OWN_SCOPE_EVENT}
         ORDER BY e.created_at DESC LIMIT 1000`,
-      user.id, scope),
+      scope, user.id),
     all(db, 'SELECT project_id, created_at FROM gallery_likes ORDER BY created_at DESC LIMIT 5000'),
     all(db, 'SELECT source, item_id, handled_at FROM feedback_state')
   ]);

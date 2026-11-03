@@ -431,7 +431,11 @@ try {
 /* ---------- 11. C4 + item 5: every owner-scoped SQL site is rewritten and bound right ---------- */
 let scopeSites = 0, badBinds = [], rawLeft = 0;
 eachDbCall(worker, ({ inner, line }) => {
-  if (inner.includes('owner_id = ?')) rawLeft++;
+  /* A NULL-lifting guard is not a raw filter, whichever table alias it gets
+     qualified on (the inbox joins portal_events to proposals, and both have
+     owner_id, so the unqualified constant would be ambiguous). */
+  const lifted = inner.replace(/\(\? IS NULL OR (?:[a-z]+\.)?owner_id = \?\)/g, '');
+  if (lifted.includes('owner_id = ?')) rawLeft++;
   if (!inner.includes('OWN_SCOPE')) return;
   scopeSites++;
   const args = splitArgs(inner);
@@ -460,7 +464,9 @@ t('worker: per-request scope is declared at the staff gate',
 /* Exactly ONE raw filter may remain: the token-based portal query, which has no
    user context and is deliberately excluded (C4). */
 t('worker: only the excluded portal query keeps a raw owner_id filter', rawLeft === 1, rawLeft + ' raw owner_id = ? remain');
-t('worker: 55 owner-scoped queries rewritten', scopeSites === 55, scopeSites);
+/* 55 pre-existing sites plus the feedback inbox's join, which needs the
+   alias-qualified copy of the same guard (OWN_SCOPE_EVENT). */
+t('worker: 56 owner-scoped queries rewritten', scopeSites === 56, scopeSites);
 t('worker: all rewritten queries bind scope + user.id correctly', badBinds.length === 0, JSON.stringify(badBinds.slice(0, 5)));
 
 const portalFn = worker.slice(worker.indexOf('async function notifyFromPortalEvent'));
@@ -562,7 +568,7 @@ for (const [label, src] of BOTH) {
     unintended.length === 0, unintended.join(', '));
   const migrationStatus=new Map(guard.git(ROOT,['diff','--no-renames','--name-status',base.ref,'HEAD']).trim().split('\n').filter(Boolean).map(line=>{const [status,file]=line.split('\t');return [file,status];}));
   t('no earlier migration was modified',
-    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-catalogue|006-profile-info|007-site-geo|007-member-links-likes|008-member-custom-link|009-recovery-resend|010-excel-product-catalog|012-gallery-likes|013-gallery-feedback/.test(f) && !guard.newAccessMigration(f,migrationStatus.get(f))),
+    !changed.some((f) => /^platform\/migrations\//.test(f) && !/005-is-admin|006-catalogue|006-profile-info|007-site-geo|007-member-links-likes|008-member-custom-link|009-recovery-resend|010-excel-product-catalog|012-gallery-likes|013-gallery-feedback|014-feedback-state/.test(f) && !guard.newAccessMigration(f,migrationStatus.get(f))),
     changed.filter((f) => /^platform\/migrations\//.test(f)).join(', '));
 }
 
