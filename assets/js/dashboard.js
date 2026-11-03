@@ -816,6 +816,34 @@
     return 'https://wa.me/' + (digits.length === 10 ? '91' + digits : digits);
   }
 
+  /* Three hearts lift off the kudos button and fade, drawn as SVG so the
+     colour and shape are the same on every device. Decorative: the button's
+     aria-pressed and the tally already say what happened. */
+  const HEART_INKS = ['#E5304A', '#F2618A', '#FF7A59'];
+  const HEART_PATH = 'M12 20.4S3.9 15.6 2.2 11.2A5.4 5.4 0 0 1 12 6.1a5.4 5.4 0 0 1 9.8 5.1c-1.7 4.4-9.8 9.2-9.8 9.2Z';
+  function heartBurst(host) {
+    if (!host || !host.isConnected) return;
+    const box = document.createElement('span');
+    box.className = 'heart-burst';
+    box.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 3; i++) {
+      const heart = document.createElement('i');
+      const size = 13 + Math.round(Math.random() * 5);
+      heart.style.color = HEART_INKS[i % HEART_INKS.length];
+      /* The button sits at the right edge of the card, so the hearts drift
+         left and up - never off the card and never over the name. */
+      heart.style.setProperty('--dx', (-16 - i * 13 - Math.round(Math.random() * 6)) + 'px');
+      heart.style.setProperty('--dy', (-30 - Math.round(Math.random() * 18)) + 'px');
+      heart.style.setProperty('--rot', (i === 1 ? 0 : (i - 1) * 14) + 'deg');
+      heart.style.animationDelay = (i * 85) + 'ms';
+      heart.innerHTML = '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size +
+        '" aria-hidden="true"><path fill="currentColor" d="' + HEART_PATH + '"/></svg>';
+      box.appendChild(heart);
+    }
+    host.appendChild(box);
+    setTimeout(() => { if (box.parentNode) box.parentNode.removeChild(box); }, 1800);
+  }
+
   function paintLike(m) {
     const b = $('miLike');
     if (b) {
@@ -839,6 +867,17 @@
       m.likes = Number(out && out.likes) || 0;
       m.likedByMe = !!(out && out.likedByMe);
       paintLike(m);
+      /* Only a vote that landed and is now on earns the celebration; taking a
+         kudos back is a quiet act. */
+      if (m.likedByMe) {
+        heartBurst($('miLike'));
+        const c = $('miLikeCount');
+        if (c) {
+          c.classList.remove('is-bumped');
+          void c.offsetWidth;
+          c.classList.add('is-bumped');
+        }
+      }
     } catch (err) {
       toast(err.message || 'Could not save that');
     }
