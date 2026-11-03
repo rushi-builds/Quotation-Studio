@@ -351,6 +351,9 @@
     markFeedback(key, handled) {
       return request('PATCH', '/api/feedback/' + encodeURIComponent(key), { handled: !!handled });
     },
+    deleteFeedback(key) {
+      return request('DELETE', '/api/feedback/' + encodeURIComponent(key));
+    },
     galleryInsights() { return request('GET', '/api/gallery/insights'); },
     async uploadGallery(file, meta) {
       const buf = await file.arrayBuffer();
