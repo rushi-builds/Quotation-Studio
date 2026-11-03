@@ -1273,7 +1273,12 @@
          conditions are measured; without a layout engine (jsdom) the footer
          limit is Infinity and only the box is judged. */
       const rect = spec.getBoundingClientRect(), foot = spec.querySelector('.pg-foot');
-      const limit = rect.height ? (foot ? foot.getBoundingClientRect().top : rect.bottom - 34) - 1 : Infinity;
+      /* The conceptual-layout line sits above the footer, outside the flow, so
+         it is a second floor for the page: the table may not run into it any
+         more than it may run under the footer. */
+      const layoutNote = spec.querySelector('.ts-diagram-note');
+      const floor = foot ? foot.getBoundingClientRect().top : rect.bottom - 34;
+      const limit = rect.height ? Math.min(floor, layoutNote ? layoutNote.getBoundingClientRect().top : Infinity) - 1 : Infinity;
       const lowest = () => {
         const body = spec.querySelector('.pg-body');
         let max = 0;
