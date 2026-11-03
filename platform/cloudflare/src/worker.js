@@ -2619,6 +2619,16 @@ async function handleApi(request, env, url, ctx) {
       return json(saved, saved.feedback.duplicate ? 200 : 201);
     }
 
+    if (parts[0] === 'portal' && parts[1] === 'feedback' && parts.length === 4 && parts[3] === 'reply' && method === 'POST') {
+      const replyUser = await requireUser(request, db, env);
+      const replyCanWrite = requireRole(replyUser, 'sales', env);
+      if (!replyCanWrite) return json({ error: 'Your role can read feedback but cannot send replies.' }, 403);
+      const rawBody = await request.text();
+      let body; try { body = JSON.parse(rawBody); } catch (_) { return json({ error: 'Invalid JSON.' }, 400); }
+      const sent = await submitReply(d1FeedbackStore(db), parts[2], body);
+      return json(sent, 200);
+    }
+
     if (parts[0] === 'portal' && parts[1] === 'event' && method === 'POST') {
       const body = await readBody(request);
       const raw = String(body.token || body.t || '').trim();
