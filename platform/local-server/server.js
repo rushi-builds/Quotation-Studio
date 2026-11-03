@@ -80,7 +80,7 @@ const RECOVERY_429 = 'Too many requests. Please try again in a few minutes.';
    so /api/health reports the same version whichever backend serves it.
    Both backends carry the customer-feedback route, so both report the same
    marker; qa/roles-parity.test.js fails the build if they ever diverge. */
-const CODE_VERSION = 'proposal-feedback-r1';
+const CODE_VERSION = 'feedback-inbox-r1';
 
 /* ---------- tiny helpers ---------- */
 function nowISO() { return new Date().toISOString(); }

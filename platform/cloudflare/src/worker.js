@@ -85,7 +85,7 @@ const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 /* Deployed code marker. /api/health reports it so an operator can prove the
    running Worker is actually the build that contains the role changes,
    instead of inferring it from behaviour. Bump on every behaviour change. */
-const CODE_VERSION = 'proposal-feedback-r1';
+const CODE_VERSION = 'feedback-inbox-r1';
 
 const SEND_CHANNELS = {
   whatsapp_manual: { label: 'WhatsApp (manual)', provider: 'manual' },
