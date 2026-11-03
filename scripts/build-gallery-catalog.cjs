@@ -98,6 +98,10 @@ function main() {
     console.log('gallery-catalog.mjs unchanged');
     return;
   }
+  /* A clean checkout (or the isolated packager fixture, which copies only the
+     files the build needs) may not have src/ yet. The generator owns its
+     output, so it makes the directory instead of assuming it exists. */
+  fs.mkdirSync(path.dirname(TARGET), { recursive: true });
   fs.writeFileSync(TARGET, output);
   console.log('wrote platform/cloudflare/src/gallery-catalog.mjs');
 }

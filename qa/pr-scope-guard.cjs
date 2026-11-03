@@ -65,6 +65,25 @@ const GALLERY_PAGE_PATHS = new Set([
   'platform/migrations/013-gallery-feedback.sql'
 ]);
 
+/* Owner-requested feedback loop (2026-11-03): one inbox that reads both the
+   quotation ratings and the gallery notes, plus the two thank-you screens
+   they land on. The list is exact paths only - a new backend module, a new
+   migration or a new stylesheet still has to be reviewed and named here.
+   Nothing in the frozen calc/pricing family or the deploy configs is
+   touched, so those checks stay independent. */
+const FEEDBACK_LOOP_PATHS = new Set([
+  'assets/css/feedback-inbox.css',
+  'assets/css/portal.css',
+  'assets/js/feedback-inbox.js',
+  'assets/js/gallery-projects.js',
+  'feedback-preview.html',
+  'platform/feedback-inbox.mjs',
+  'platform/cloudflare/src/gallery-catalog.mjs',
+  'platform/cloudflare/sync-public.js',
+  'platform/migrations/014-feedback-state.sql',
+  'scripts/build-gallery-catalog.cjs'
+]);
+
 /* Owner-approved corrections that HAD to edit the frozen family (2026-11-02).
 
    Why: the six-page Power Proposal refused to export a proposal that fitted.
@@ -276,7 +295,7 @@ function deployConfigTouches(files) {
 function newAccessMigration(file,status){return file==='platform/migrations/011-workspace-access.sql'&&status==='A';}
 
 function scopeOffenders(files) {
-  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f));
+  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f) && !FEEDBACK_LOOP_PATHS.has(f));
 }
 
 /* The explicit golden baseline: HEAD's blob for every frozen file must
@@ -351,7 +370,7 @@ function verify(repoRoot, opts) {
 }
 
 module.exports = {
-  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, GALLERY_PAGE_PATHS, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
+  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, GALLERY_PAGE_PATHS, FEEDBACK_LOOP_PATHS, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
   resolveBase, changedFiles, worktreeStatus,
   frozenTouches, deployConfigTouches, scopeOffenders, newAccessMigration, baselineMatch, mainTip, verify, git
 };

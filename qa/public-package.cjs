@@ -48,6 +48,7 @@ function buildPublic(sourceRoot) {
       'assets', 'index.html', 'dashboard.html', 'quotation.html', 'portal.html',
       'share.html', 'gallery.html', 'oauth-complete.html',
       'platform/cloudflare/sync-public.js', 'scripts/build-assistant-knowledge.cjs',
+      'scripts/build-gallery-catalog.cjs',
       'docs/storage-catalogue.md'
     ]) copy(relative);
     const log = execFileSync(process.execPath, [path.join(workspace, 'platform/cloudflare/sync-public.js')], {
