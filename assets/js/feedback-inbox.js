@@ -226,6 +226,9 @@
             openLink +
             '<button type="button" class="fb-mark ' + (item.handledAt ? 'is-undo' : '') + '" data-mark="' +
               esc(item.id) + '">' + (item.handledAt ? 'Handled ✓' : 'Mark handled') + '</button>' +
+            '<button type="button" class="fb-delete" data-delete="' + esc(item.id) + '"' +
+              (canManage() ? '' : ' disabled title="Only the owner can delete feedback."') +
+              ' aria-label="Delete feedback">Delete</button>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -312,6 +315,38 @@
   }
 
   /* ---------- actions ---------- */
+  /* Deletion is an owner-level capability. The dashboard exposes the same
+     effective-power flag the server honours (canManageTeam), so the button is
+     disabled — not hidden — for every other role, and the reason reads as a
+     rule, never as a role name. */
+  function canManage() {
+    return !!(root.QSDash && typeof root.QSDash.canManage === 'function' && root.QSDash.canManage());
+  }
+
+  async function deleteOne(itemId, button) {
+    if (!api || !canManage()) return;
+    if (!window.confirm('Delete this feedback for everyone? This cannot be undone.')) return;
+    const item = state.items.find((row) => row.id === itemId);
+    if (button) button.disabled = true;
+    try {
+      await api.deleteFeedback(itemId);
+      state.items = state.items.filter((row) => row.id !== itemId);
+      if (state.stats) {
+        const wasHandled = !!(item && item.handledAt);
+        if (wasHandled) state.stats.handled = Math.max(0, (Number(state.stats.handled) || 0) - 1);
+        else state.stats.fresh = Math.max(0, (Number(state.stats.fresh) || 0) - 1);
+      }
+      render();
+      paintBadge();
+      index.loaded = false;
+      loadIndex();
+      if (root.QSDash && root.QSDash.toast) root.QSDash.toast('Feedback deleted.');
+    } catch (error) {
+      if (button) button.disabled = false;
+      if (root.QSDash && root.QSDash.toast) root.QSDash.toast((error && error.message) || 'Could not delete that note.');
+    }
+  }
+
   async function markHandled(itemId, button) {
     if (!api) return;
     const item = state.items.find((row) => row.id === itemId);
@@ -388,6 +423,8 @@
       list.addEventListener('click', (event) => {
         const mark = event.target.closest('[data-mark]');
         if (mark) { markHandled(mark.getAttribute('data-mark'), mark); return; }
+        const del = event.target.closest('[data-delete]');
+        if (del) { deleteOne(del.getAttribute('data-delete'), del); return; }
         const quote = event.target.closest('[data-open-quote]');
         if (quote) {
           const id = quote.getAttribute('data-open-quote');

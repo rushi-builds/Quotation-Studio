@@ -2523,6 +2523,23 @@ async function handleApi(req, res, url) {
         handled: patch.handled, handledAt: patch.handled ? nowISO() : null
       });
     }
+    if (parts[0] === 'feedback' && parts[1] && parts.length === 2 && method === 'DELETE') {
+      /* Deleting a note removes the source row and its handled marker. This is
+         an owner-level capability: the UI disables the same action for every
+         other role, and the wording states a rule, never a hidden role name. */
+      if (!canAdmin) return sendJson(res, 403, { error: 'Only the owner can delete feedback.' });
+      const inbox = await inboxModule;
+      const key = inbox.parseKey(decodeURIComponent(parts[1]));
+      if (!key) return sendJson(res, 400, { error: 'Unknown feedback item.' });
+      if (key.source === 'project') {
+        if (Array.isArray(db.galleryFeedback)) db.galleryFeedback = db.galleryFeedback.filter(r => r.id !== key.id);
+      } else if (Array.isArray(db.events)) {
+        db.events = db.events.filter(e => !(e.id === key.id && e.event_type === 'proposal_feedback'));
+      }
+      if (Array.isArray(db.feedbackState)) db.feedbackState = db.feedbackState.filter(r => !(r.source === key.source && r.item_id === key.id));
+      saveDb(db);
+      return sendJson(res, 200, { ok: true, id: key.source + ':' + key.id, deleted: true });
+    }
     if (parts[0] === 'gallery' && parts[1] === 'insights' && method === 'GET') {
       const inbox = await inboxModule;
       const catalog = await galleryCatalogModule;

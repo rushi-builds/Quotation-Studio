@@ -2762,6 +2762,22 @@ async function handleApi(request, env, url, ctx) {
         hasMore: offset + limit < matched.length
       });
     }
+    if (parts[0] === 'feedback' && parts[1] && parts.length === 2 && method === 'DELETE') {
+      /* Deleting a note removes the source row and its handled marker. This is
+         an owner-level capability: the UI disables the same action for every
+         other role, and the wording states a rule, never a hidden role name. */
+      if (!canManageTeam(user, env)) return json({ error: 'Only the owner can delete feedback.' }, 403);
+      const key = parseKey(decodeURIComponent(parts[1]));
+      if (!key) return json({ error: 'Unknown feedback item.' }, 400);
+      if (key.source === 'project') {
+        await run(db, 'DELETE FROM gallery_feedback WHERE id = ?', key.id);
+      } else {
+        await run(db, "DELETE FROM portal_events WHERE id = ? AND event_type = 'proposal_feedback'", key.id);
+      }
+      await ensureFeedbackStateSchema(db);
+      await run(db, 'DELETE FROM feedback_state WHERE source = ? AND item_id = ?', key.source, key.id);
+      return json({ ok: true, id: key.source + ':' + key.id, deleted: true });
+    }
     if (parts[0] === 'feedback' && parts[1] && parts.length === 2 && method === 'PATCH') {
       if (!canWrite) return json({ error: 'Your role can read feedback but cannot mark it handled.' }, 403);
       const key = parseKey(decodeURIComponent(parts[1]));
