@@ -100,7 +100,26 @@ const FEEDBACK_LOOP_PATHS = new Set([
    and any later edit to these two still fails against this blob. */
 const FROZEN_EDIT_ALLOWANCE = Object.freeze(new Set([
   'assets/js/export.js',
-  'assets/js/supplement-design.js'
+  'assets/js/supplement-design.js',
+  /* Owner-approved PR #36 corrections (2026-11-03).
+
+     Why: page 6 SYSTEM OVERVIEW diagram was shrinking to 42-55% on dense
+     spec pages because the design note under it lived inside the same fit
+     box. The fix moves the note to page level and adds it as a second floor
+     in render.js fitPages alongside the footer. No pricing or calc logic is
+     touched - render.js is only used for layout measurement here.
+
+     Also: paired concept-preview/studio.html class + cache-buster, and the
+     advanced feedback module (source/contact/reply validation) that PR #36
+     adds to proposal-feedback.mjs.
+
+     This is the review step the rules require - an explicit, dated,
+     exact-path allowance, not a silent pass: any other frozen file still
+     fails, and any later edit to these three still fails against this blob.
+   */
+  'assets/js/render.js',
+  'concept-preview/studio.html',
+  'platform/proposal-feedback.mjs'
 ]));
 
 /* Deploy-config surface. Matches every wrangler config spelling and the
