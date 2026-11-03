@@ -3369,9 +3369,37 @@ html[data-theme="dark"] .sidebar {
    count beside it. The count belongs to everyone; only the fill is personal. */
 .mi-kudos { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 .heart-btn {
+  position: relative;
   padding: 4px 6px; line-height: 1; border: 0; border-radius: 10px;
   background: none; cursor: pointer; color: var(--muted, #9aa3ad);
   transition: transform .12s ease, color .12s ease;
+}
+/* A kudos answers the way the gallery's like does: three hearts lifting off
+   the button, slowly, then gone. Purely decorative, never focusable. */
+.heart-burst { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 3; }
+.heart-burst i {
+  position: absolute; left: 50%; top: 54%; display: block; line-height: 0; font-style: normal;
+  animation: kudos-float 1.5s cubic-bezier(.22,.68,.3,1) forwards;
+  filter: drop-shadow(0 5px 11px rgba(229,48,74,.26));
+}
+.heart-burst i svg { display: block; }
+@keyframes kudos-float {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(.5) rotate(-6deg); }
+  18% { opacity: 1; transform: translate(calc(-50% + var(--dx, 0px) * .34), calc(var(--dy, -60px) * .3)) scale(1.05) rotate(var(--rot, 0deg)); }
+  60% { opacity: .92; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx, 0px)), var(--dy, -70px)) scale(.76) rotate(calc(var(--rot, 0deg) * -.6)); }
+}
+/* The tally gives a small hop when it changes, so a vote registers even when
+   the hearts are missed out of the corner of an eye. */
+.mi-like-count.is-bumped { animation: kudos-count .46s cubic-bezier(.2,.8,.3,1); }
+@keyframes kudos-count {
+  0% { transform: scale(1); }
+  38% { transform: scale(1.28); color: var(--red, #e5484d); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heart-burst { display: none; }
+  .mi-like-count.is-bumped { animation: none; }
 }
 .heart-btn:hover { color: var(--red, #e5484d); transform: scale(1.1); }
 .heart-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }

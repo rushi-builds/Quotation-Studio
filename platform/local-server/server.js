@@ -2311,6 +2311,15 @@ async function handleApi(req, res, url) {
       const saved = await submitFeedback(localFeedbackStore(loadDb, saveDb), body);
       return sendJson(res, saved.feedback.duplicate ? 200 : 201, saved);
     }
+    if (parts[0] === 'portal' && parts[1] === 'feedback' && parts.length === 4 && parts[3] === 'reply' && method === 'POST') {
+      const replyUser = requireUser(req, db);
+      const replyCanWrite = requireRole(replyUser, 'sales');
+      if (!replyCanWrite) return sendJson(res, 403, { error: 'Your role can read feedback but cannot send replies.' });
+      const body = await readBody(req, 4096);
+      const { submitReply, localFeedbackStore } = await feedbackModule;
+      const sent = await submitReply(localFeedbackStore(loadDb, saveDb), parts[2], body);
+      return sendJson(res, 200, sent);
+    }
 
     if (parts[0] === 'portal' && parts[1] === 'event' && method === 'POST') {
       const body = await readBody(req);

@@ -924,6 +924,14 @@ details.page-group > summary::-webkit-details-marker{display:none;}
   border:1px solid var(--line-cool);border-radius:11px;padding:12px 14px 8px;
   background:#FBFCFE;margin-top:4px;
 }
+/* The honesty note belongs to the page, not to the drawing, so it can never be
+   shrunk along with it. Pinned above the footer at full page width, it leaves
+   the whole box to the diagram. */
+#pageTechSpec .pg-body{padding-bottom:62px;}
+#pageTechSpec .ts-diagram-note{
+  position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:44px;margin:0;
+  text-align:center;font-size:9.3px;line-height:1.5;color:var(--gray-light);
+}
 .diagram{width:100%;}
 /* Keep the original page layout: the SVG's 8-unit top inset uses the existing
    title gap, so only the small house moves up and PDF capture cannot clip it. */
@@ -1707,6 +1715,23 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec.is-table-min .spec-table .spec-k{width:30%;}
 #pageTechSpec.is-table-min #v_tsRefsWrap{margin-top:0;}
 #pageTechSpec.is-table-min .note-box{margin-top:4px;}
+/* When the page also carries site rows and reference pills, a few pixels of
+   air are worth more than a few pixels of drawing: trim the frame, the label
+   gaps and the row padding before the ladder spends a shrink step. */
+#pageTechSpec.is-table-min .diagram-box{border:0;background:none;border-radius:0;padding:0;}
+#pageTechSpec.is-table-min .sec-label.tight{margin-bottom:2px;padding:4px 10px;}
+#pageTechSpec.is-table-min .sec-label.mt-12{margin-top:3px;}
+#pageTechSpec.is-table-min .note-box{margin-top:4px;padding:4px 8px;font-size:8.8px;line-height:1.35;}
+#pageTechSpec.is-table-min .body-para{margin:6px 0 7px;line-height:1.55;}
+#pageTechSpec.is-table-min .rule-orange{margin:6px 0;}
+#pageTechSpec.is-table-min .pg-title{line-height:1.14;}
+#pageTechSpec.is-table-min .ts-refs{gap:6px;}
+#pageTechSpec.is-table-min .ts-ref{padding:4px 7px;}
+#pageTechSpec.is-table-min .ts-ref-note{margin-top:2px;}
+#pageTechSpec.is-tighter-spec.is-table-min .spec-table{font-size:9.2px;}
+#pageTechSpec.is-tighter-spec.is-table-min .spec-table td{padding-top:.5px;padding-bottom:.5px;}
+#pageTechSpec.is-tighter-spec.is-table-min .spec-table tr.is-eng td{padding-top:.5px;padding-bottom:.5px;}
+#pageTechSpec.is-tighter-spec.is-table-min .spec-table tr.spec-group td{padding-top:3px;padding-bottom:3px;}
 #chartBridge{width:718px!important;height:340px!important;}
 #chartDonut{width:230px!important;height:230px!important;}
 #pageInvestment.has-bom #chartBridge{height:180px!important;}

@@ -473,7 +473,7 @@
         '<div class="thanks-copy">' +
           '<h3>Thank you for your <em>valuable feedback!</em></h3>' +
           '<span class="thanks-pill">' + reactionFor(ctx.rating) + '</span>' +
-          '<p><strong>We really appreciate your feedback.</strong> We read every note and use it to sharpen the installs, the photographs and this page itself.</p>' +
+          '<p><strong>We really appreciate your feedback.</strong> We&#39;ll review your comments and use them to further enhance our service and project delivery.</p>' +
           '<small class="thanks-receipt">' + esc(receiptStamp(res && res.id)) + '</small>' +
         '</div>' +
       '</div>' +
