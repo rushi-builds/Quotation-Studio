@@ -20,13 +20,22 @@
     performanceRatio: 0.81
   };
 
-  /* Explicit per-kWp installed cost by consumer type (all-inclusive). */
-  var COST_PER_KWP = {
-    residential: 55000,
-    commercial:  50000,
-    industrial:  45000,
-    society:     52000
-  };
+  /* Installed cost rate, sliding by capacity — matches the quotation engine's
+     ₹63.6/Wp anchor at 1 kW (owner decision, 2026-11-05):
+     - Residential / society (subsidy band): ₹63.6/Wp at 1 kW sliding to
+       ₹60/Wp by 3 kW, flat ₹60 above — small systems carry fixed costs.
+     - Commercial / industrial (no subsidy): ₹63.6/Wp at 1 kW sliding
+       linearly to ₹45/Wp at 20 kW, flat ₹45 above — economies of scale.
+     All rates GST-inclusive, same treatment as the quotation. */
+  function ratePerWp(type, kwp) {
+    if (type === 'residential' || type === 'society') {
+      if (kwp >= 3) return 60;
+      return 63.6 - 3.6 * ((kwp - 1) / 2); /* 63.6 → 60 across 1–3 kW */
+    }
+    if (kwp <= 1) return 63.6;
+    if (kwp >= 20) return 45;
+    return 63.6 - 18.6 * ((kwp - 1) / 19); /* 63.6 → 45 across 1–20 kW */
+  }
 
   /* Yield adjustment by consumer type. */
   var YIELD_MULT = {
@@ -125,7 +134,7 @@
     var city = inputs.city ? inputs.city.value : 'Pune';
     if (!bill || !type || !city) return null;
 
-    var costPerKwp = COST_PER_KWP[type] || COST_PER_KWP.residential;
+    var costPerKwp = ratePerWp(type, systemKwp) * 1000;
     var yieldMult = YIELD_MULT[type] || YIELD_MULT.residential;
 
     /* Monthly units from bill: units = bill / rate. */
@@ -159,6 +168,7 @@
       panelCount: panelCount,
       roofNeeded: roofNeeded,
       cost: cost,
+      rateWp: costPerKwp / 1000,
       subsidy: subsidy,
       net: cost - (subsidy || 0),
       annualSavings: annualSavings,
@@ -328,7 +338,7 @@
     whatsappBtn.addEventListener('click', function () {
       if (!lastRes) return;
       var subsidyText = lastRes.subsidy == null ? 'Not applicable' : 'Govt subsidy ' + money(lastRes.subsidy);
-      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (550Wp) · Cost ' + money(lastRes.cost) + ' (GST included) · ' + subsidyText + ' · Net cost ' + money(lastRes.net) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + lastRes.payback.toFixed(1) + ' years.\nGet in touch for a detailed proposal.';
+      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (550Wp) · Cost ' + money(lastRes.cost) + ' (₹' + lastRes.rateWp.toFixed(1) + '/Wp, GST incl) · ' + subsidyText + ' · Net cost ' + money(lastRes.net) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + lastRes.payback.toFixed(1) + ' years.\nGet in touch for a detailed proposal.';
       var waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
       var win = window.open(waUrl, '_blank');
       if (!win) alert('Could not open WhatsApp — please allow pop-ups for this site.');
@@ -355,7 +365,7 @@
       '<div class="card grid">' +
       '<div><div class="label">Recommended System</div><div class="value">' + res.systemKwp.toFixed(1) + '</div><div class="unit">kWp</div></div>' +
       '<div><div class="label">Solar Panels</div><div class="value">' + res.panelCount + '</div><div class="unit">550Wp each</div></div>' +
-      '<div><div class="label">Estimated Cost</div><div class="value">' + money(res.cost) + '</div><div class="unit">(GST included)</div></div>' +
+      '<div><div class="label">Estimated Cost</div><div class="value">' + money(res.cost) + '</div><div class="unit">(₹' + res.rateWp.toFixed(1) + '/Wp GST incl)</div></div>' +
       '<div><div class="label">Govt Subsidy</div><div class="value">' + (res.subsidy == null ? '—' : money(res.subsidy)) + '</div><div class="unit">' + (SUBSIDY_CAPTION[res.type] || '') + '</div></div>' +
       '<div><div class="label">Your Net Cost</div><div class="value">' + money(res.net) + '</div><div class="unit">after subsidy</div></div>' +
       '<div><div class="label">Annual Savings</div><div class="value">' + money(Math.round(res.annualSavings)) + '</div><div class="unit">/ yr</div></div>' +
