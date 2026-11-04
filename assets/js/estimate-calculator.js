@@ -171,12 +171,14 @@
     if (!chartCtx || !res) return;
     var canvas = chartCanvas;
     var wrap = canvas.parentElement;
-    var width = (wrap && wrap.clientWidth) || canvas.clientWidth || 320;
+    if (!wrap || wrap.clientWidth < 40) return; /* not laid out yet - the observer retries */
+    var width = wrap.clientWidth;
     var height = 240;
     var dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = width + 'px';
+    /* Only the bitmap is sized here. The element itself stays glued to the
+       card via CSS width:100%, so it can never freeze at a stale width. */
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
     canvas.style.height = height + 'px';
 
     var ctx = chartCtx;
@@ -300,9 +302,13 @@
     if (waBtn) waBtn.style.display = res ? 'inline-flex' : 'none';
     if (waWrap) waWrap.style.display = res ? 'flex' : 'none';
 
-    /* Show chart section only after a calculation. */
+    /* Show chart section only after a calculation. Draw on the NEXT frame so
+       the wrap is fully laid out before the bitmap is measured. */
     var estChartWrap = el('estChartWrap');
-    if (estChartWrap) estChartWrap.hidden = !res;
+    if (estChartWrap) {
+      estChartWrap.hidden = !res;
+      if (res) window.requestAnimationFrame(function () { drawChart(lastRes); });
+    }
   }
 
   function onInput() {
@@ -389,7 +395,10 @@
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
     /* Repaint once the modal is laid out so the chart spans the full card. */
-    if (lastRes) window.setTimeout(function () { drawChart(lastRes); }, 30);
+    if (lastRes) {
+      window.requestAnimationFrame(function () { drawChart(lastRes); });
+      window.setTimeout(function () { drawChart(lastRes); }, 60);
+    }
   }
   function closeCalc() {
     if (!modal) return;
@@ -407,6 +416,13 @@
   window.addEventListener('resize', function () {
     if (lastRes && modal && !modal.hidden) drawChart(lastRes);
   });
+  /* Zoom, window resize, modal entry animation - any change to the chart
+     wrap's size redraws the bitmap at the true card width. */
+  if (typeof ResizeObserver !== 'undefined' && chartCanvas) {
+    new ResizeObserver(function () {
+      if (lastRes && modal && !modal.hidden && chartCanvas.clientWidth > 40) drawChart(lastRes);
+    }).observe(chartCanvas.parentElement);
+  }
 
   /* Start with results hidden - calculate only on button click. */
   if (calculateBtn) calculateBtn.disabled = true;
