@@ -11,8 +11,6 @@
   var DEFAULTS = {
     /* kWh per kWp per day, averaged over a year for Pune/Maharashtra. */
     solarYield: 4.2,
-    /* ₹ per kWp installed, all-inclusive (modules, inverter, structure, cabling, net-metering). */
-    costPerKwp: 52000,
     /* ₹ per kWh grid electricity (Maharashtra average). */
     gridRate: 7.50,
     /* Roof area needed per kWp (sq ft) - practical allowance incl. spacing. */
@@ -21,12 +19,20 @@
     performanceRatio: 0.81
   };
 
-  /* Consumer type adjustments on yield and cost. */
-  var TYPE_ADJUST = {
-    residential: { yieldMult: 1.00, costMult: 1.00 },
-    commercial:  { yieldMult: 1.05, costMult: 0.95 },
-    industrial:  { yieldMult: 1.10, costMult: 0.90 },
-    society:     { yieldMult: 1.00, costMult: 1.00 }
+  /* Explicit per-kWp installed cost by consumer type (all-inclusive). */
+  var COST_PER_KWP = {
+    residential: 55000,
+    commercial:  50000,
+    industrial:  45000,
+    society:     52000
+  };
+
+  /* Yield adjustment by consumer type. */
+  var YIELD_MULT = {
+    residential: 1.00,
+    commercial:  1.05,
+    industrial:  1.10,
+    society:     1.00
   };
 
   /* Standard commercial panel used for the panel-count estimate:
@@ -71,21 +77,21 @@
     var city = inputs.city ? inputs.city.value : 'Pune';
     if (!bill || !type || !city) return null;
 
-    var adj = TYPE_ADJUST[type] || TYPE_ADJUST.residential;
+    var costPerKwp = COST_PER_KWP[type] || COST_PER_KWP.residential;
+    var yieldMult = YIELD_MULT[type] || YIELD_MULT.residential;
 
     /* Monthly units from bill: units = bill / rate. */
     var monthlyUnits = bill / DEFAULTS.gridRate;
     var annualUnits = monthlyUnits * 12;
 
     /* System size needed to cover annual consumption. */
-    var annualYieldPerKwp = DEFAULTS.solarYield * 365 * DEFAULTS.performanceRatio * adj.yieldMult;
+    var annualYieldPerKwp = DEFAULTS.solarYield * 365 * DEFAULTS.performanceRatio * yieldMult;
     var systemKwp = annualUnits / annualYieldPerKwp;
     systemKwp = Math.max(systemKwp, 1); /* minimum 1 kWp */
 
     var panelCount = Math.round((systemKwp * 1000) / PANEL_WP);
     var roofNeeded = systemKwp * DEFAULTS.areaPerKwp;
 
-    var costPerKwp = DEFAULTS.costPerKwp * adj.costMult;
     var cost = systemKwp * costPerKwp;
 
     /* Annual solar generation. */
@@ -139,7 +145,6 @@
 
   function onInput() {
     if (calculateBtn) calculateBtn.disabled = !allFilled();
-    paint(compute());
   }
 
   if (calculateBtn) {
@@ -162,8 +167,9 @@
     if (i) i.addEventListener('input', onInput);
   });
 
-  /* Live preview as the visitor types. */
-  onInput();
+  /* Start with results hidden - calculate only on button click. */
+  if (calculateBtn) calculateBtn.disabled = true;
+  paint(null);
 
   root.EstimateCalculator = { compute: compute };
 })(window);

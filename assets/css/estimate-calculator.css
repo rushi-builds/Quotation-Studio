@@ -46,15 +46,28 @@
 }
 .estimate-field{display:flex;flex-direction:column;gap:8px;}
 .estimate-field label{font-size:11px;font-weight:700;letter-spacing:.14em;color:#6B7A85;text-transform:uppercase;}
-.estimate-field input,.estimate-field select{
-  font:inherit;font-size:14px;padding:13px 15px;border-radius:12px;border:1px solid #D7DEE7;background:rgba(255,255,255,0.5);color:#17354A;
+.estimate-input-box{
+  display:flex;align-items:center;border-radius:12px;border:1px solid #D7DEE7;background:rgba(255,255,255,0.5);
   transition:border-color .2s,box-shadow .2s,background .2s;
 }
-.estimate-field input:focus,.estimate-field select:focus{
+.estimate-input-box input{
+  flex:1;border:none;background:transparent;padding:13px 15px;font:inherit;font-size:14px;color:#17354A;outline:none;
+}
+.estimate-input-box:focus-within{
+  border-color:#F2811D;background:#fff;box-shadow:0 0 0 4px rgba(242,129,29,0.14);
+}
+.estimate-field select{
+  width:100%;font:inherit;font-size:14px;padding:13px 15px;border-radius:12px;border:1px solid #D7DEE7;background:rgba(255,255,255,0.5);color:#17354A;
+  transition:border-color .2s,box-shadow .2s,background .2s;
+}
+.estimate-field select:focus{
   outline:none;border-color:#F2811D;background:#fff;box-shadow:0 0 0 4px rgba(242,129,29,0.14);
 }
 .estimate-field input::placeholder{color:#A8B2C3;}
 .estimate-hint{font-size:11px;color:#8A90A2;line-height:1.5;margin-top:2px;}
+.estimate-unit-text{
+  font-size:12px;font-weight:700;color:#A8B2C3;padding:0 14px;pointer-events:none;white-space:nowrap;
+}
 .estimate-actions{
   display:flex;gap:12px;margin-top:4px;
 }
@@ -124,9 +137,6 @@
 }
 .estimate-disclaimer strong{color:#17354A;font-weight:700;}
 .estimate-hidden{display:none!important;}
-.estimate-input-wrap{position:relative;display:inline-block;width:100%;}
-.estimate-input-wrap input{padding-right:64px;}
-.estimate-unit-text{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:700;color:#A8B2C3;pointer-events:none;}
 @media (prefers-reduced-motion:reduce){
   .result-card{transition:none;}
 }
