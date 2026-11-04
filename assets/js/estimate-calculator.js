@@ -151,11 +151,11 @@
     var years = 5;
     var annualSavings = res.annualSavings;
     var maxVal = annualSavings * years;
-    var padding = 24;
+    var padding = 16;
     var chartWidth = width - padding * 2;
-    var chartHeight = height - padding - 34;
-    var barWidth = (chartWidth / years) * 0.72;
-    var gap = (chartWidth / years) * 0.28;
+    var chartHeight = height - padding - 40;
+    var barWidth = (chartWidth / years) * 0.82;
+    var gap = (chartWidth / years) * 0.18;
 
     /* Grid lines + Y labels. */
     ctx.strokeStyle = '#EDF1F6';
