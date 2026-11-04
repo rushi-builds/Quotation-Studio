@@ -409,16 +409,7 @@ footer.gallery-footer a:hover{text-decoration:underline}
   color:#B4611A;background:rgba(255,240,223,.72);border-color:rgba(242,183,93,.9);
 }
 .detail-actions .act.bookmark.is-pop svg{animation:heart-pop .52s var(--ease)}
-/* WhatsApp share — green glass between orange share and pink feedback. */
-.detail-actions .btn[data-detail-whatsapp]{
-  color:#fff;border-color:rgba(255,255,255,.42);
-  background:linear-gradient(135deg,rgba(37,211,102,.94),rgba(25,179,83,.94));
-  box-shadow:0 8px 18px rgba(37,211,102,.28),inset 0 1px 0 rgba(255,255,255,.4);
-}
-.detail-actions .btn[data-detail-whatsapp]:hover{
-  background:linear-gradient(135deg,#25d366,#128c43);
-  box-shadow:0 11px 22px rgba(37,211,102,.34),inset 0 1px 0 rgba(255,255,255,.4);
-}
+
 /* Share is a cool glass, not black - it sits between the pink like and the
    orange feedback without competing with either. */
 .detail-actions .btn.primary{color:#16405F;background:rgba(226,239,250,.72);border-color:rgba(255,255,255,.92)}

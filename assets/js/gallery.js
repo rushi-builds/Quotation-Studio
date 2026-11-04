@@ -389,10 +389,7 @@
             '<button type="button" class="act like" data-like="' + esc(it.id) + '" aria-pressed="' + liked +
               '" data-label="' + esc(p.name) + '" aria-label="Like this project"><span class="like-ico">' + HEART + '</span><span class="like-count">' + count + '</span>' +
               '<span class="like-word">' + countWord + '</span></button>' +
-            '<button type="button" class="act bookmark" data-bookmark="' + esc(it.id) + '" aria-pressed="' + C.has(it.id) +
-              '" aria-label="Save to collection"><span class="bookmark-ico">' + BOOKMARK + '</span><span class="act-word">' + (C.has(it.id) ? 'Saved' : 'Save') + '</span></button>' +
             '<button type="button" class="btn primary" data-detail-share="' + esc(it.id) + '">' + SHARE + 'Share project</button>' +
-            '<button type="button" class="btn feedback" data-detail-whatsapp="' + esc(it.id) + '">' + WHATSAPP + 'WhatsApp</button>' +
             '<button type="button" class="btn feedback" data-detail-feedback="' + esc(it.id) + '">' + PENCIL + 'Give feedback</button>' +
           '</div>' +
         '</div>' +
@@ -404,22 +401,6 @@
     if (likeBtn) likeBtn.addEventListener('click', function () { toggleLike(it, likeBtn); });
     var shareBtn = dialog.querySelector('[data-detail-share]');
     if (shareBtn) shareBtn.addEventListener('click', function () { shareProject(it); });
-    var waBtn = dialog.querySelector('[data-detail-whatsapp]');
-    if (waBtn) waBtn.addEventListener('click', function () { shareWhatsApp(it); });
-    var detailBookmark = dialog.querySelector('[data-bookmark]');
-    if (detailBookmark) {
-      detailBookmark.addEventListener('click', function () {
-        var next = C.toggle(it.id);
-        var saved = next.indexOf(it.id) >= 0;
-        detailBookmark.setAttribute('aria-pressed', String(saved));
-        detailBookmark.setAttribute('aria-label', saved ? 'Remove from your collection' : 'Save to collection');
-        detailBookmark.classList.toggle('is-saved', saved);
-        var word = detailBookmark.querySelector('.act-word');
-        if (word) word.textContent = saved ? 'Saved' : 'Save';
-        detailBookmark.classList.add('is-pop');
-        setTimeout(function () { detailBookmark.classList.remove('is-pop'); }, 300);
-      });
-    }
     var feedbackBtn = dialog.querySelector('[data-detail-feedback]');
     if (feedbackBtn) feedbackBtn.addEventListener('click', function () { openFeedback(it); });
 

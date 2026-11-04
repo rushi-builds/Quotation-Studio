@@ -64,13 +64,19 @@
       <div class="estimate-form">
         <div class="estimate-field">
           <label for="estArea">Roof area available</label>
-          <input type="number" id="estArea" min="100" step="50" placeholder="e.g. 500" aria-describedby="estAreaHint">
-          <span class="estimate-hint" id="estAreaHint">Square feet of usable, shadow-free roof space.</span>
+          <div class="estimate-input-row">
+            <input type="number" id="estArea" min="100" step="50" placeholder="e.g. 500" aria-describedby="estAreaHint">
+            <span class="estimate-unit">sq ft</span>
+          </div>
+          <span class="estimate-hint" id="estAreaHint">Unit: sq ft · usable, shadow-free roof space.</span>
         </div>
         <div class="estimate-field">
           <label for="estBill">Monthly electricity bill</label>
-          <input type="number" id="estBill" min="500" step="100" placeholder="e.g. 4000" aria-describedby="estBillHint">
-          <span class="estimate-hint" id="estBillHint">Your average monthly bill in ₹.</span>
+          <div class="estimate-input-row">
+            <input type="number" id="estBill" min="500" step="100" placeholder="e.g. 4000" aria-describedby="estBillHint">
+            <span class="estimate-unit">₹ / month</span>
+          </div>
+          <span class="estimate-hint" id="estBillHint">Unit: ₹ per month · your average bill.</span>
         </div>
         <div class="estimate-field">
           <label for="estCity">City</label>
