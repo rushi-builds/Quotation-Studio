@@ -171,12 +171,14 @@
     if (!chartCtx || !res) return;
     var canvas = chartCanvas;
     var wrap = canvas.parentElement;
-    var width = (wrap && wrap.clientWidth) || canvas.clientWidth || 320;
-    var height = 240;
+    if (!wrap || wrap.clientWidth < 40) return; /* not laid out yet - the observer retries */
+    var width = wrap.clientWidth;
+    var height = 170;
     var dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = width + 'px';
+    /* Only the bitmap is sized here. The element itself stays glued to the
+       card via CSS width:100%, so it can never freeze at a stale width. */
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
     canvas.style.height = height + 'px';
 
     var ctx = chartCtx;
@@ -186,28 +188,20 @@
     var years = 5;
     var annualSavings = res.annualSavings;
     var maxVal = annualSavings * years;
-    var leftPad = 58, rightPad = 16, topPad = 24, bottomPad = 40;
+    var leftPad = 14, rightPad = 14, topPad = 18, bottomPad = 34;
     var chartWidth = width - leftPad - rightPad;
     var chartHeight = height - topPad - bottomPad;
     var slot = chartWidth / years;
     var barWidth = slot * 0.64; /* even gaps between the bars */
     var gap = slot - barWidth;
 
-    /* Grid lines + Y labels. */
-    ctx.strokeStyle = '#EDF1F6';
+    /* Single subtle baseline - no grid lines, keeps the chart minimal. */
+    ctx.strokeStyle = '#D8DEE6';
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#9AA5B2';
-    ctx.font = '11px Inter, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    for (var i = 0; i <= 4; i++) {
-      var y = topPad + chartHeight - (chartHeight * i / 4);
-      ctx.beginPath();
-      ctx.moveTo(leftPad, y);
-      ctx.lineTo(leftPad + chartWidth, y);
-      ctx.stroke();
-      ctx.fillText(fmt(Math.round(maxVal * i / 4)), leftPad - 8, y);
-    }
+    ctx.beginPath();
+    ctx.moveTo(leftPad, topPad + chartHeight);
+    ctx.lineTo(leftPad + chartWidth, topPad + chartHeight);
+    ctx.stroke();
 
     /* Bars: cumulative savings per year - wide flat solid orange, clean rounded corners. */
     for (var i = 0; i < years; i++) {
@@ -223,22 +217,16 @@
 
       /* Year label. */
       ctx.fillStyle = '#8A90A2';
-      ctx.font = '11px Inter, sans-serif';
+      ctx.font = '10.5px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, topPad + chartHeight + 18);
+      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, topPad + chartHeight + 16);
 
       /* Value label on top of bar. */
       ctx.fillStyle = '#0F1E2A';
       ctx.font = 'bold 10px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('₹' + fmt(Math.round(cumulative)), x + barWidth / 2, y - 7);
+      ctx.fillText('₹' + fmt(Math.round(cumulative)), x + barWidth / 2, y - 6);
     }
-
-    /* Chart title. */
-    ctx.fillStyle = '#0F1E2A';
-    ctx.font = 'bold 13px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('5-Year Cumulative Savings', width / 2, 16);
   }
 
   function paint(res) {
@@ -300,9 +288,13 @@
     if (waBtn) waBtn.style.display = res ? 'inline-flex' : 'none';
     if (waWrap) waWrap.style.display = res ? 'flex' : 'none';
 
-    /* Show chart section only after a calculation. */
+    /* Show chart section only after a calculation. Draw on the NEXT frame so
+       the wrap is fully laid out before the bitmap is measured. */
     var estChartWrap = el('estChartWrap');
-    if (estChartWrap) estChartWrap.hidden = !res;
+    if (estChartWrap) {
+      estChartWrap.hidden = !res;
+      if (res) window.requestAnimationFrame(function () { drawChart(lastRes); });
+    }
   }
 
   function onInput() {
@@ -389,7 +381,10 @@
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
     /* Repaint once the modal is laid out so the chart spans the full card. */
-    if (lastRes) window.setTimeout(function () { drawChart(lastRes); }, 30);
+    if (lastRes) {
+      window.requestAnimationFrame(function () { drawChart(lastRes); });
+      window.setTimeout(function () { drawChart(lastRes); }, 60);
+    }
   }
   function closeCalc() {
     if (!modal) return;
@@ -407,6 +402,13 @@
   window.addEventListener('resize', function () {
     if (lastRes && modal && !modal.hidden) drawChart(lastRes);
   });
+  /* Zoom, window resize, modal entry animation - any change to the chart
+     wrap's size redraws the bitmap at the true card width. */
+  if (typeof ResizeObserver !== 'undefined' && chartCanvas) {
+    new ResizeObserver(function () {
+      if (lastRes && modal && !modal.hidden && chartCanvas.clientWidth > 40) drawChart(lastRes);
+    }).observe(chartCanvas.parentElement);
+  }
 
   /* Start with results hidden - calculate only on button click. */
   if (calculateBtn) calculateBtn.disabled = true;
