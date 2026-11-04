@@ -155,31 +155,6 @@
 .result-card-savings{ border-color:#6A1B9A; }
 .result-card-roof{ border-color:#00838F; }
 
-/* Customer Activity (Lead Capture) section. */
-.estimate-activity-wrap{
-  margin-top:clamp(24px,4vw,36px);
-  padding-top:clamp(24px,4vw,36px);
-  border-top:1px solid rgba(255,255,255,0.5);
-}
-.estimate-activity-wrap h3{
-  font-size:14px;font-weight:700;letter-spacing:.1em;color:#0F1E2A;text-transform:uppercase;margin:0 0 12px;
-}
-.activity-list{
-  display:flex;flex-direction:column;gap:10px;
-}
-.activity-item{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.4);
-  backdrop-filter:blur(10px);
-}
-.activity-info{display:flex;flex-direction:column;gap:2px;min-width:0;}
-.activity-kwp{font-size:15px;font-weight:800;color:#0F1E2A;white-space:nowrap;}
-.activity-meta{font-size:11px;color:#5B6B80;}
-.activity-whatsapp{
-  font-size:16px;padding:6px 10px;border-radius:8px;border:1px solid #25d366;background:#fff;color:#25d366;cursor:pointer;
-}
-.activity-whatsapp:hover{background:#25d366;color:#fff;}
-.activity-empty{font-size:12px;color:#8A90A2;text-align:center;padding:20px;}
 .estimate-disclaimer{
   margin-top:clamp(24px,4vw,32px);
   padding-top:18px;

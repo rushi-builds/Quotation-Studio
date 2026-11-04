@@ -2,10 +2,9 @@
 
    Public-facing tool: enter monthly electricity bill, consumer type and
    place - get an instant estimate of recommended system size, panel count,
-   cost, annual savings and payback period. Includes 5-year savings chart,
-   customer activity (lead capture) and print/download PDF. All figures are
-   indicative only - a real proposal follows after a site visit. No data
-   leaves the browser.
+   cost, annual savings and payback period. Includes 5-year savings chart
+   and print/download PDF. All figures are indicative only - a real proposal
+   follows after a site visit. No data leaves the browser.
  */
 'use strict';
 (function (root) {
@@ -43,9 +42,6 @@
      allowance stays at 80 sq ft/kWp (areaPerKwp above). */
   var PANEL_WP = 550;
 
-  /* localStorage key for customer activity (lead capture). */
-  var ACTIVITY_KEY = 'qs_customer_activity';
-
   function el(id) { return document.getElementById(id); }
   function fmt(n, decimals) {
     if (n == null || !isFinite(n)) return '—';
@@ -72,6 +68,7 @@
   var resultPanel = el('estimateResult');
   var calculateBtn = el('estCalculate');
   var printBtn = el('estPrint');
+  var whatsappBtn = el('estWhatsApp');
   var chartCanvas = el('estChart');
   var chartCtx = chartCanvas ? chartCanvas.getContext('2d') : null;
 
@@ -256,15 +253,12 @@
     var printBtnEl = el('estPrint');
     if (printBtnEl) printBtnEl.style.display = res ? 'inline-flex' : 'none';
 
-    /* Show chart + activity sections only after a calculation. */
-    var estChartWrap = el('estChartWrap');
-    var estActivityWrap = el('estActivityWrap');
-    if (estChartWrap) estChartWrap.hidden = !res;
-    if (estActivityWrap) estActivityWrap.hidden = !res;
+    var waBtn = el('estWhatsApp');
+    if (waBtn) waBtn.style.display = res ? 'inline-flex' : 'none';
 
-    /* Customer activity (lead capture). */
-    if (res) saveActivity(res);
-    renderActivityList();
+    /* Show chart section only after a calculation. */
+    var estChartWrap = el('estChartWrap');
+    if (estChartWrap) estChartWrap.hidden = !res;
   }
 
   function onInput() {
@@ -276,7 +270,6 @@
       event.preventDefault();
       var res = compute();
       paint(res);
-      if (res) saveActivity(res);
     });
   }
 
@@ -294,49 +287,15 @@
     if (i) i.addEventListener('input', onInput);
   });
 
-  /* ---------- Customer Activity (Lead Capture) ---------- */
-  function saveActivity(res) {
-    try {
-      var stored = localStorage.getItem(ACTIVITY_KEY);
-      var activities = stored ? JSON.parse(stored) : [];
-      var entry = {
-        id: Date.now(),
-        date: new Date().toISOString(),
-        systemKwp: res.systemKwp,
-        type: res.type,
-        city: res.city
-      };
-      activities.unshift(entry);
-      activities = activities.slice(0, 10);
-      localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activities));
-    } catch (e) { /* localStorage may be blocked */ }
-  }
-
-  function renderActivityList() {
-    var list = el('activityList');
-    if (!list) return;
-    try {
-      var stored = localStorage.getItem(ACTIVITY_KEY);
-      var activities = stored ? JSON.parse(stored) : [];
-      var wrap = el('activityWrap');
-      if (activities.length === 0) {
-        if (wrap) wrap.style.display = 'none';
-        list.innerHTML = '<p class="activity-empty">No calculations yet.</p>';
-        return;
-      }
-      if (wrap) wrap.style.display = 'block';
-      var html = activities.map(function (a) {
-        var label = Math.round(a.systemKwp * 10) / 10 + ' kWp';
-        return '<div class="activity-item">' +
-          '<div class="activity-info">' +
-          '<span class="activity-kwp">' + label + '</span>' +
-          '<span class="activity-meta">' + a.city + ' · ' + a.type + '</span>' +
-          '</div>' +
-          '<button class="activity-whatsapp" type="button" title="Contact via WhatsApp">📱</button>' +
-          '</div>';
-      }).join('');
-      list.innerHTML = html;
-    } catch (e) {}
+  /* ---------- WhatsApp share ---------- */
+  if (whatsappBtn) {
+    whatsappBtn.addEventListener('click', function () {
+      if (!lastRes) return;
+      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (550Wp) · Cost ' + money(lastRes.cost) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + lastRes.payback.toFixed(1) + ' years · Roof ' + Math.round(lastRes.roofNeeded) + ' sq ft.\nGet in touch for a detailed proposal.';
+      var waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
+      var win = window.open(waUrl, '_blank');
+      if (!win) alert('Could not open WhatsApp — please allow pop-ups for this site.');
+    });
   }
 
   /* ---------- Print / Download PDF ---------- */
@@ -364,7 +323,7 @@
       '<div><div class="label">Payback Period</div><div class="value">' + res.payback.toFixed(1) + '</div><div class="unit">years</div></div>' +
       '<div><div class="label">Roof Space</div><div class="value">' + Math.round(res.roofNeeded) + '</div><div class="unit">sq ft</div></div>' +
       '</div>' +
-      '<div class="disclaimer"><strong>Indicative only.</strong> Figures use Maharashtra-average solar yield (≈4.2 kWh/kWp/day), ₹7.50/kWh grid rate. Actual output depends on roof orientation, shading, structure and local DISCOM tariff. A site visit confirms the real design and price.</div>' +
+      '<div class="disclaimer"><strong>Indicative only.</strong> All prices and figures may vary as per site conditions and equipment. A site visit confirms the real design and price.</div>' +
       '</body></html>');
     win.document.close();
   }
@@ -376,7 +335,7 @@
     });
   }
 
-    /* Start with results hidden - calculate only on button click. */
+  /* Start with results hidden - calculate only on button click. */
   if (calculateBtn) calculateBtn.disabled = true;
   paint(null);
 
