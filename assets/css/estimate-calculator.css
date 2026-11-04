@@ -59,8 +59,9 @@
 }
 .estimate-disclaimer strong{color:#17354A;font-weight:600;}
 .estimate-hidden{display:none!important;}
-.estimate-input-row{display:flex;align-items:center;gap:10px;}
-.estimate-unit{font-size:12px;font-weight:600;color:#8A90A2;background:#F5F7FA;border:1px solid #D7DEE7;border-radius:8px;padding:6px 10px;min-width:56px;text-align:center;white-space:nowrap;}
+.estimate-input-wrap{position:relative;display:inline-block;width:100%;}
+.estimate-input-wrap input{padding-right:64px;}
+.estimate-unit-text{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:600;color:#A8B2C3;pointer-events:none;}
 @media (max-width:700px){
   .estimate-card{grid-template-columns:1fr;padding:20px 18px;}
   .estimate-actions{flex-direction:column;}
