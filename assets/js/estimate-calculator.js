@@ -235,10 +235,12 @@
       }
     });
 
-    /* Payback card - always green with green text and icon. */
+    /* Payback card - always green. Override inline styles with CSS class. */
     if (res) {
       var paybackCard = cardMap.payback;
       paybackCard.classList.add('payback-green');
+      paybackCard.style.borderColor = '#2E7D32';
+      paybackCard.style.background = 'rgba(46,125,50,0.08)';
     }
 
     drawChart(res);
@@ -247,7 +249,9 @@
     if (printBtnEl) printBtnEl.style.display = res ? 'inline-flex' : 'none';
 
     var waBtn = el('estWhatsApp');
+    var waWrap = el('estWhatsAppWrap');
     if (waBtn) waBtn.style.display = res ? 'inline-flex' : 'none';
+    if (waWrap) waWrap.style.display = res ? 'flex' : 'none';
 
     /* Show chart section only after a calculation. */
     var estChartWrap = el('estChartWrap');
