@@ -338,7 +338,7 @@
     whatsappBtn.addEventListener('click', function () {
       if (!lastRes) return;
       var subsidyText = lastRes.subsidy == null ? 'Not applicable' : 'Govt subsidy ' + money(lastRes.subsidy);
-      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (550Wp) · Cost ' + money(lastRes.cost) + ' (₹' + lastRes.rateWp.toFixed(1) + '/Wp, GST incl) · ' + subsidyText + ' · Net cost ' + money(lastRes.net) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + lastRes.payback.toFixed(1) + ' years.\nGet in touch for a detailed proposal.';
+      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (550Wp) · Cost ' + money(lastRes.cost) + ' (GST included) · ' + subsidyText + ' · Net cost ' + money(lastRes.net) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + lastRes.payback.toFixed(1) + ' years.\nGet in touch for a detailed proposal.';
       var waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
       var win = window.open(waUrl, '_blank');
       if (!win) alert('Could not open WhatsApp — please allow pop-ups for this site.');
@@ -365,7 +365,7 @@
       '<div class="card grid">' +
       '<div><div class="label">Recommended System</div><div class="value">' + res.systemKwp.toFixed(1) + '</div><div class="unit">kWp</div></div>' +
       '<div><div class="label">Solar Panels</div><div class="value">' + res.panelCount + '</div><div class="unit">550Wp each</div></div>' +
-      '<div><div class="label">Estimated Cost</div><div class="value">' + money(res.cost) + '</div><div class="unit">(₹' + res.rateWp.toFixed(1) + '/Wp GST incl)</div></div>' +
+      '<div><div class="label">Estimated Cost</div><div class="value">' + money(res.cost) + '</div><div class="unit">(GST included)</div></div>' +
       '<div><div class="label">Govt Subsidy</div><div class="value">' + (res.subsidy == null ? '—' : money(res.subsidy)) + '</div><div class="unit">' + (SUBSIDY_CAPTION[res.type] || '') + '</div></div>' +
       '<div><div class="label">Your Net Cost</div><div class="value">' + money(res.net) + '</div><div class="unit">after subsidy</div></div>' +
       '<div><div class="label">Annual Savings</div><div class="value">' + money(Math.round(res.annualSavings)) + '</div><div class="unit">/ yr</div></div>' +
