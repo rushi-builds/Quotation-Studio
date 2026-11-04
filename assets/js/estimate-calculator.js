@@ -30,10 +30,10 @@
   };
 
   /* Standard commercial panel used for the panel-count estimate:
-     ~2278 mm × 1134 mm ≈ 27.8 sq ft per 580Wp panel (~48 sq ft/kWp panel-only).
+     ~2278 mm × 1134 mm ≈ 27.8 sq ft per 550Wp panel (~50.5 sq ft/kWp panel-only).
      Real roofs need spacing, tilt rows and access, so the practical roof
      allowance stays at 80 sq ft/kWp (areaPerKwp above). */
-  var PANEL_WP = 580;
+  var PANEL_WP = 550;
 
   function el(id) { return document.getElementById(id); }
   function fmt(n, decimals) {
@@ -116,7 +116,7 @@
     }
     outputs.system.textContent = res.systemKwp.toFixed(1) + ' kWp';
     if (outputs.panels) {
-      outputs.panels.textContent = '≈' + res.panelCount + ' panels (580Wp)';
+      outputs.panels.textContent = '≈' + res.panelCount + ' panels (550Wp)';
     }
     outputs.cost.textContent = money(res.cost);
     outputs.savings.textContent = money(Math.round(res.annualSavings)) + ' / yr';
