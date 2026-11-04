@@ -2,9 +2,9 @@
 
    Public-facing tool: enter monthly electricity bill, consumer type and
    place - get an instant estimate of recommended system size, panel count,
-   cost, annual savings and payback period. Includes 5-year savings chart
-   and print/download PDF. All figures are indicative only - a real proposal
-   follows after a site visit. No data leaves the browser.
+   cost, annual savings and payback period. Includes 5-year savings chart,
+   WhatsApp share and print/download PDF. All figures are indicative only -
+   a real proposal follows after a site visit. No data leaves the browser.
  */
 'use strict';
 (function (root) {
@@ -137,7 +137,7 @@
     var canvas = chartCanvas;
     var rect = canvas.parentElement.getBoundingClientRect();
     var width = rect.width || 300;
-    var height = 200;
+    var height = 180;
     canvas.width = width;
     canvas.height = height;
 
@@ -147,14 +147,14 @@
     var years = 5;
     var annualSavings = res.annualSavings;
     var maxVal = annualSavings * years;
-    var padding = 44;
+    var padding = 40;
     var chartWidth = width - padding * 2;
-    var chartHeight = height - padding - 34;
-    var barWidth = (chartWidth / years) * 0.6;
-    var gap = (chartWidth / years) * 0.4;
+    var chartHeight = height - padding - 30;
+    var barWidth = (chartWidth / years) * 0.55;
+    var gap = (chartWidth / years) * 0.45;
 
     /* Grid lines + Y labels. */
-    ctx.strokeStyle = '#E4E8EE';
+    ctx.strokeStyle = '#E8EEF4';
     ctx.lineWidth = 1;
     ctx.fillStyle = '#8A90A2';
     ctx.font = '10px Inter, sans-serif';
@@ -180,7 +180,7 @@
       grad.addColorStop(1, '#D96A0E');
       ctx.fillStyle = grad;
       ctx.beginPath();
-      if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, barWidth, barHeight, 6);
+      if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, barWidth, barHeight, 8);
       else ctx.rect(x, y, barWidth, barHeight);
       ctx.fill();
 
@@ -188,7 +188,7 @@
       ctx.fillStyle = '#8A90A2';
       ctx.font = '11px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, padding + chartHeight + 20);
+      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, padding + chartHeight + 16);
 
       /* Value label on top of bar. */
       ctx.fillStyle = '#0F1E2A';
@@ -199,9 +199,9 @@
 
     /* Chart title. */
     ctx.fillStyle = '#0F1E2A';
-    ctx.font = '13px Inter, sans-serif';
+    ctx.font = '12px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('5-Year Cumulative Savings', width / 2, 22);
+    ctx.fillText('5-Year Cumulative Savings', width / 2, 16);
   }
 
   function paint(res) {
@@ -287,7 +287,7 @@
     if (i) i.addEventListener('input', onInput);
   });
 
-  /* ---------- WhatsApp share ---------- */
+  /* ---------- WhatsApp share (small icon button) ---------- */
   if (whatsappBtn) {
     whatsappBtn.addEventListener('click', function () {
       if (!lastRes) return;

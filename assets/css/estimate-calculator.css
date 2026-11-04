@@ -39,7 +39,7 @@
 }
 /* Input fields section. */
 .estimate-fields{
-  display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:clamp(20px,3vw,28px);
+  display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:clamp(20px,4vw,28px);
 }
 @media (min-width:600px){
   .estimate-fields{grid-template-columns:repeat(3,1fr);}
@@ -84,6 +84,14 @@
   color:#5B6B80;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
 }
 .btn-reset-calc:hover{border-color:#B9C4D1;color:#17354A;background:#F5F7FA;}
+/* WhatsApp icon button - small, green. */
+.btn-whatsapp{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:44px;height:44px;border-radius:14px;border:1px solid #25d366;background:#fff;color:#25d366;
+  font-size:18px;cursor:pointer;transition:all .2s;
+}
+.btn-whatsapp:hover{background:#25d366;color:#fff;transform:translateY(-1px);}
+/* Print button - small icon. */
 .btn-print-calc{
   display:inline-flex;align-items:center;gap:8px;padding:14px 20px;border-radius:14px;border:1px solid #D7DEE7;background:#fff;
   color:#17354A;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
@@ -104,7 +112,7 @@
 @media (max-width:700px){
   .results-grid{grid-template-columns:1fr;}
   .estimate-actions{flex-direction:column;}
-  .btn-primary-calc,.btn-reset-calc,.btn-print-calc{width:100%;justify-content:center;}
+  .btn-primary-calc,.btn-reset-calc,.btn-print-calc,.btn-whatsapp{width:100%;justify-content:center;}
 }
 .result-card{
   display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.45);
@@ -135,7 +143,7 @@
 .payback-high{ border-color:#C62828; background:rgba(198,40,40,0.08); }
 .payback-high .result-value{ color:#B71C1C; }
 .payback-high .result-ico svg{ color:#C62828; }
-/* 5-Year savings chart container. */
+/* 5-Year savings chart container - hidden until calculation. */
 .estimate-chart-wrap{
   margin-top:clamp(24px,4vw,36px);
   padding-top:clamp(24px,4vw,36px);
@@ -163,6 +171,4 @@
 }
 .estimate-disclaimer strong{color:#17354A;font-weight:700;}
 .estimate-hidden{display:none!important;}
-@media (prefers-reduced-motion:reduce){
-  .result-card{transition:none;}
-}
+@media (prefers-reduced-motion:reduce){\n  .result-card{transition:none;}\n}
