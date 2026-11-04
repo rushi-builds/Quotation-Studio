@@ -46,11 +46,17 @@
   var resultPanel = el('estimateResult');
   var calculateBtn = el('estCalculate');
 
+  /* Standard commercial panel used for the panel-count estimate:
+     ~2278 mm × 1134 mm ≈ 27.8 sq ft per 580Wp panel (~48 sq ft/kWp panel-only).
+     Real roofs need spacing, tilt rows and access, so the practical roof
+     allowance stays at 80 sq ft/kWp (areaPerKwp above). */
+  var PANEL_WP = 580;
+
   function compute() {
     var area = Number(inputs.area.value) || 0;
     var bill = Number(inputs.bill.value) || 0;
     var city = inputs.city ? inputs.city.value : 'Pune';
-    if (!area || !bill) return null;
+    if (!bill) return null; /* bill is the only required input */
 
     /* Monthly units from bill: units = bill / rate. */
     var monthlyUnits = bill / DEFAULTS.gridRate;
@@ -60,14 +66,21 @@
     var annualYieldPerKwp = DEFAULTS.solarYield * 365 * DEFAULTS.performanceRatio;
     var systemByUsage = annualUnits / annualYieldPerKwp;
 
-    /* System size limited by roof area. */
-    var systemByRoof = area / DEFAULTS.areaPerKwp;
+    var systemKwp = systemByUsage;
+    var roofLimited = false;
 
-    /* Recommend the smaller of the two - don't oversize past roof or need. */
-    var systemKwp = Math.min(systemByUsage, systemByRoof);
+    /* If roof area is given, cap the system at what fits on the roof. */
+    if (area) {
+      var systemByRoof = area / DEFAULTS.areaPerKwp;
+      if (systemByRoof < systemByUsage) {
+        systemKwp = systemByRoof;
+        roofLimited = true;
+      }
+    }
     systemKwp = Math.max(systemKwp, 1); /* minimum 1 kWp */
 
     var roofNeeded = systemKwp * DEFAULTS.areaPerKwp;
+    var panelCount = Math.round((systemKwp * 1000) / PANEL_WP);
     var cost = systemKwp * DEFAULTS.costPerKwp;
 
     /* Annual solar generation. */
@@ -83,6 +96,8 @@
       bill: bill,
       systemKwp: systemKwp,
       roofNeeded: roofNeeded,
+      roofLimited: roofLimited,
+      panelCount: panelCount,
       cost: cost,
       annualSavings: annualSavings,
       payback: payback,
@@ -95,17 +110,21 @@
       if (resultPanel) resultPanel.hidden = true;
       return;
     }
-    outputs.system.textContent = res.systemKwp.toFixed(1) + ' kWp';
+    var systemLabel = res.systemKwp.toFixed(1) + ' kWp';
+    if (res.panelCount) systemLabel += ' · ≈' + res.panelCount + ' panels (580Wp)';
+    outputs.system.textContent = systemLabel;
     outputs.cost.textContent = money(res.cost);
     outputs.savings.textContent = money(Math.round(res.annualSavings)) + ' / yr';
     outputs.payback.textContent = res.payback.toFixed(1) + ' years';
-    outputs.roof.textContent = Math.round(res.roofNeeded) + ' sq ft';
+    var roofLabel = Math.round(res.roofNeeded) + ' sq ft';
+    if (res.roofLimited) roofLabel += ' (roof-limited)';
+    outputs.roof.textContent = roofLabel;
     if (resultPanel) resultPanel.hidden = false;
     resultPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function onInput() {
-    if (calculateBtn) calculateBtn.disabled = !(inputs.area.value && inputs.bill.value);
+    if (calculateBtn) calculateBtn.disabled = !inputs.bill.value;
     paint(compute());
   }
 
