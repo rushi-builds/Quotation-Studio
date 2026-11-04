@@ -137,7 +137,7 @@
     var canvas = chartCanvas;
     var rect = canvas.parentElement.getBoundingClientRect();
     var width = rect.width || 300;
-    var height = 160;
+    var height = 170;
     var dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -151,11 +151,11 @@
     var years = 5;
     var annualSavings = res.annualSavings;
     var maxVal = annualSavings * years;
-    var padding = 34;
+    var padding = 28;
     var chartWidth = width - padding * 2;
-    var chartHeight = height - padding - 28;
-    var barWidth = (chartWidth / years) * 0.6;
-    var gap = (chartWidth / years) * 0.4;
+    var chartHeight = height - padding - 30;
+    var barWidth = (chartWidth / years) * 0.65;
+    var gap = (chartWidth / years) * 0.35;
 
     /* Grid lines + Y labels. */
     ctx.strokeStyle = '#EDF1F6';
