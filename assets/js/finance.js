@@ -69,22 +69,13 @@
   }
 
   /* ---------- engineering helpers ---------- */
-  /** PM Surya Ghar CFA subsidy slabs (residential only).
-      - ₹30,000 per kW for the first 2 kW
-      - ₹18,000 for the 3rd kW
-      - Maximum cap ₹78,000 (₹30,000 × 2 + ₹18,000)
-      Values are internal defaults, never shown as UI text. */
+  /** PM Surya Ghar subsidy slabs: ₹30,000/kW for first 2 kW, ₹18,000 for the
+      3rd kW, capped at ₹78,000 for 3 kW and above. Residential only. */
   function calcSubsidy(kwp) {
     if (!isFinite(kwp) || kwp <= 0) return 0;
-    let subsidy;
-    if (kwp <= 2) {
-      subsidy = kwp * 30000;              // ₹30,000/kW × first 2 kW
-    } else if (kwp <= 3) {
-      subsidy = 60000 + (kwp - 2) * 18000; // ₹60,000 + ₹18,000 for 3rd kW
-    } else {
-      subsidy = 78000;                    // cap
-    }
-    return Math.min(subsidy, SUBSIDY_MAX);
+    if (kwp <= 2) return 30000 * kwp;
+    if (kwp < 3) return 60000 + 18000 * (kwp - 2);
+    return 78000;
   }
   const SUBSIDY_MAX = 78000;
   const RWA_SUBSIDY_PER_KWP = 18000, RWA_MAX_KWP = 500;
