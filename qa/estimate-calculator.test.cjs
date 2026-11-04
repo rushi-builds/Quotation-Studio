@@ -119,7 +119,10 @@ for (const type of ['residential', 'society', 'commercial', 'industrial']) {
 /* 3. The published rate band: ₹63.6/Wp at 1 kW, then the two documented floors.
       Read back from the rendered cost, so this checks the wiring the bug broke,
       not a private function. */
-const rateOf = (r) => (r.kwp ? r.cost / (r.kwp * 1000) : null);
+/* The card shows the GST-inclusive cost - its own label says "GST included" -
+   so the ex-GST ₹/Wp is read back by taking the GST out again. */
+const GST_PCT = w.EstimateCalculator.assumptions.gstPercent;
+const rateOf = (r) => (r.kwp ? (r.cost / (1 + GST_PCT / 100)) / (r.kwp * 1000) : null);
 
 t('1 kW (floor of the size clamp): rate is the ₹63.6/Wp anchor', () => {
   const r = run(500, 'residential');
@@ -301,7 +304,7 @@ t('the band is a percentage curve, not a straight line', () => {
 t('end-to-end: a 500 kW-class residential bill still prices at ₹60/Wp, not ₹30', () => {
   const r = run(5000000, 'residential');
   assert.ok(r.kwp > 100, 'expected a very large system, got ' + r.kwp + ' kWp');
-  const endToEnd = r.cost / (r.kwp * 1000);
+  const endToEnd = (r.cost / (1 + GST_PCT / 100)) / (r.kwp * 1000);
   assert.ok(Math.abs(endToEnd - 60) < 0.5, 'rendered rate was ₹' + endToEnd.toFixed(2) + '/Wp');
   assert.doesNotMatch(r.text, /NaN/i);
 });
@@ -309,8 +312,138 @@ t('end-to-end: a 500 kW-class residential bill still prices at ₹60/Wp, not ₹
 t('end-to-end: a 100 kW-class commercial bill prices at ₹45/Wp', () => {
   const r = run(5000000, 'commercial');
   assert.ok(r.kwp > 100, 'expected a very large system, got ' + r.kwp + ' kWp');
-  const endToEnd = r.cost / (r.kwp * 1000);
+  const endToEnd = (r.cost / (1 + GST_PCT / 100)) / (r.kwp * 1000);
   assert.ok(Math.abs(endToEnd - 45) < 0.5, 'rendered rate was ₹' + endToEnd.toFixed(2) + '/Wp');
+});
+
+/* ---------------------------------------------------------------------------
+   7. THE SAME NUMBERS THE QUOTATION QUOTES.
+
+   The card and the proposal both face the customer, so they must not disagree
+   about the same system. Three things are proved here:
+
+     a) the assumptions this card uses ARE the quotation's defaults (state.js),
+        read from state.js itself, so a retune on one side cannot leave the
+        other behind;
+     b) given a capacity and a rate, the money is byte-identical to the real
+        finance.js engine - the same project cost, GST, gross total, subsidy,
+        installed capacity, generation and net investment;
+     c) the card's own "GST included" label is true, which it was not while the
+        calculator showed an ex-GST number under an inclusive label.
+   --------------------------------------------------------------------------- */
+console.log('\nestimate calculator — parity with the quotation engine');
+
+const Finance = require(path.join(ROOT, 'assets/js/finance.js'));
+
+/* state.js is a browser script that merges Bess + AdditionalSystems defaults.
+   Stub just those two so the real DEFAULTS object can be read. */
+const stateWin = new JSDOM('<!doctype html><html><body></body></html>', {
+  runScripts: 'outside-only', pretendToBeVisual: true
+}).window;
+stateWin.Bess = { DEFAULTS: {} };
+stateWin.AdditionalSystems = { DEFAULTS: {} };
+stateWin.eval(fs.readFileSync(path.join(ROOT, 'assets/js/state.js'), 'utf8'));
+const QUOTE_DEFAULTS = stateWin.StateStore.DEFAULTS;
+const A = curve.assumptions;
+
+t('the card uses the quotation\'s own defaults, not its own copies', () => {
+  assert.equal(String(A.costPerWp), String(QUOTE_DEFAULTS.costPerWp), 'costPerWp drifted from state.js');
+  assert.equal(String(A.gstPercent), String(QUOTE_DEFAULTS.gstPercent), 'gstPercent drifted from state.js');
+  assert.equal(String(A.moduleWattage), String(QUOTE_DEFAULTS.moduleWattage), 'moduleWattage drifted from state.js');
+  assert.equal(String(A.genFactor), String(QUOTE_DEFAULTS.genFactor), 'genFactor drifted from state.js');
+  assert.equal(String(A.tariff), String(QUOTE_DEFAULTS.tariff), 'tariff drifted from state.js');
+  assert.equal(A.costPerWp, ANCHOR, 'the rate anchor must be the quotation\'s default ₹/Wp');
+});
+
+/* finance.js customerType names, as the quotation form spells them. */
+const CUSTOMER = { residential: 'residential', society: 'rwa', commercial: 'commercial', industrial: 'industrial' };
+
+function quotationFor(capacityKwp, type) {
+  const q = curve.quote(capacityKwp, type);
+  const f = Finance.compute({
+    capacity: String(capacityKwp),
+    costPerWp: String(q.rateWp),
+    gstPercent: String(A.gstPercent),
+    customerType: CUSTOMER[type],
+    moduleWattage: String(A.moduleWattage),
+    genFactor: String(A.genFactor),
+    tariff: String(A.tariff),
+    moduleLengthMm: String(QUOTE_DEFAULTS.moduleLengthMm),
+    moduleWidthMm: String(QUOTE_DEFAULTS.moduleWidthMm),
+    degradation: String(QUOTE_DEFAULTS.degradation),
+    escalation: String(QUOTE_DEFAULTS.escalation),
+    monthlyBill: '5000',
+    subsidyOverride: ''
+  });
+  return { q, f };
+}
+
+t('card and quotation agree to the rupee on cost, GST, gross, subsidy and net', () => {
+  const near = (a, b, label) => assert.ok(Math.abs(a - b) < 0.01,
+    label + ': card ' + a + ' vs quotation ' + b);
+  let checked = 0;
+  for (const type of ['residential', 'society', 'commercial', 'industrial']) {
+    for (const kwp of [1, 2, 2.725, 3, 4.1, 6.4, 7, 10, 20, 50, 100, 500]) {
+      const { q, f } = quotationFor(kwp, type);
+      const at = type + ' @ ' + kwp + ' kWp';
+      near(q.projectCost, f.projectCost, at + ' project cost');
+      near(q.gstAmount, f.gstAmount, at + ' GST');
+      near(q.cost, f.grossTotal, at + ' gross total');
+      near(q.subsidy || 0, f.subsidy || 0, at + ' subsidy');
+      near(q.net, f.netInvestment, at + ' net investment');
+      near(q.installedKwp, f.installedKwp, at + ' installed capacity');
+      near(q.annualGen, f.annualGen, at + ' year-1 generation');
+      near(q.panelCount, f.moduleCount, at + ' module count');
+      checked++;
+    }
+  }
+  assert.equal(checked, 48);
+});
+
+t('the subsidy function is the quotation\'s, slab for slab', () => {
+  for (let kwp = 0.1; kwp <= 600; kwp += 0.1) {
+    const k = Number(kwp.toFixed(2));
+    assert.ok(Math.abs(curve.calcSubsidy('residential', k) - Finance.calcSubsidy(k)) < 1e-9,
+      'residential subsidy differs at ' + k + ' kWp');
+  }
+  const rwa = (k) => Math.min(k, Finance.RWA_MAX_KWP) * Finance.RWA_SUBSIDY_PER_KWP;
+  for (let kwp = 0.5; kwp <= 600; kwp += 0.5) {
+    assert.equal(curve.calcSubsidy('society', kwp), rwa(kwp), 'RWA subsidy differs at ' + kwp + ' kWp');
+  }
+  assert.equal(curve.calcSubsidy('commercial', 50), null);
+  assert.equal(curve.calcSubsidy('industrial', 50), null);
+});
+
+t('"GST included" is finally true: the card adds the quotation\'s GST', () => {
+  const costCard = $('estCost') && $('estCost').closest('.result-card');
+  assert.match(costCard ? costCard.textContent : '', /GST included/,
+    'the cost card must keep its "GST included" label - this test exists because that label was already there while the number was not');
+  const q = curve.quote(6.4, 'residential');
+  const expected = q.projectCost * (1 + A.gstPercent / 100);
+  assert.ok(Math.abs(q.cost - expected) < 1e-9, 'gross total is not ex-GST + GST');
+  assert.ok(q.gstAmount > 0, 'no GST was added at all');
+  /* …and the rendered card carries that gross number, not the ex-GST one. */
+  const r = run(5000, 'residential');
+  const kwp = Math.max(((5000 / A.tariff) * 12) / A.genFactor, 1);   /* exact, not the 1-dp card figure */
+  const rendered = curve.quote(kwp, 'residential');
+  assert.ok(Math.abs(r.cost - Math.round(rendered.cost)) < 1, 'card showed ' + r.cost + ', quote() says ' + rendered.cost);
+});
+
+t('payback is measured on what the customer actually pays, after subsidy', () => {
+  const r = run(5000, 'residential');
+  const kwp = Math.max(((5000 / A.tariff) * 12) / A.genFactor, 1);   /* exact, not the 1-dp card figure */
+  const q = curve.quote(kwp, 'residential');
+  const savings = Math.min(q.annualGen, (5000 / A.tariff) * 12) * A.tariff;
+  const expected = q.net / savings;
+  assert.ok(Math.abs(Number(r.paybackText.split(' ')[0]) - expected) < 0.06,
+    'card payback ' + r.paybackText + ' vs net/savings ' + expected.toFixed(2));
+  assert.ok(expected < q.cost / savings, 'payback must be shorter than the gross-cost payback');
+});
+
+t('annual savings never claim more than the bill they replace', () => {
+  const r = run(5000, 'residential');
+  const savings = Number(r.savingsText.replace(/[^\d.]/g, ''));
+  assert.ok(savings <= 5000 * 12 + 1, 'savings ' + savings + ' exceed the annual bill 60000');
 });
 
 console.log(`\n${pass} calculator checks passed.`);
