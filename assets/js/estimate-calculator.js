@@ -1,9 +1,9 @@
 /* Quick solar estimate calculator.
 
-   Public-facing tool: enter roof area and monthly electricity bill, get an
-   instant estimate of recommended system size, cost, annual savings and
-   payback period. All figures are indicative only - a real proposal follows
-   after a site visit. No data leaves the browser.
+   Public-facing tool: enter monthly electricity bill, consumer type and
+   location, get an instant estimate of recommended system size, cost,
+   annual savings and payback period. All figures are indicative only -
+   a real proposal follows after a site visit. No data leaves the browser.
  */
 'use strict';
 (function (root) {
@@ -13,10 +13,8 @@
     solarYield: 4.2,
     /* ₹ per kWp installed, all-inclusive (modules, inverter, structure, cabling, net-metering). */
     costPerKwp: 52000,
-    /* ₹ per kWh grid electricity. */
+    /* ₹ per kWh grid electricity (Maharashtra average). */
     gridRate: 7.50,
-    /* Roof area needed per kWp (sq ft). */
-    areaPerKwp: 80,
     /* Annual degradation and performance ratio already baked into yield. */
     performanceRatio: 0.81
   };
@@ -32,29 +30,22 @@
   if (!form) return;
 
   var inputs = {
-    area: el('estArea'),
     bill: el('estBill'),
+    type: el('estType'),
     city: el('estCity')
   };
   var outputs = {
     system: el('estSystem'),
     cost: el('estCost'),
     savings: el('estSavings'),
-    payback: el('estPayback'),
-    roof: el('estRoof')
+    payback: el('estPayback')
   };
   var resultPanel = el('estimateResult');
   var calculateBtn = el('estCalculate');
 
-  /* Standard commercial panel used for the panel-count estimate:
-     ~2278 mm × 1134 mm ≈ 27.8 sq ft per 580Wp panel (~48 sq ft/kWp panel-only).
-     Real roofs need spacing, tilt rows and access, so the practical roof
-     allowance stays at 80 sq ft/kWp (areaPerKwp above). */
-  var PANEL_WP = 580;
-
   function compute() {
-    var area = Number(inputs.area.value) || 0;
     var bill = Number(inputs.bill.value) || 0;
+    var type = inputs.type ? inputs.type.value : 'residential';
     var city = inputs.city ? inputs.city.value : 'Pune';
     if (!bill) return null; /* bill is the only required input */
 
@@ -64,23 +55,9 @@
 
     /* System size needed to cover annual consumption. */
     var annualYieldPerKwp = DEFAULTS.solarYield * 365 * DEFAULTS.performanceRatio;
-    var systemByUsage = annualUnits / annualYieldPerKwp;
-
-    var systemKwp = systemByUsage;
-    var roofLimited = false;
-
-    /* If roof area is given, cap the system at what fits on the roof. */
-    if (area) {
-      var systemByRoof = area / DEFAULTS.areaPerKwp;
-      if (systemByRoof < systemByUsage) {
-        systemKwp = systemByRoof;
-        roofLimited = true;
-      }
-    }
+    var systemKwp = annualUnits / annualYieldPerKwp;
     systemKwp = Math.max(systemKwp, 1); /* minimum 1 kWp */
 
-    var roofNeeded = systemKwp * DEFAULTS.areaPerKwp;
-    var panelCount = Math.round((systemKwp * 1000) / PANEL_WP);
     var cost = systemKwp * DEFAULTS.costPerKwp;
 
     /* Annual solar generation. */
@@ -91,13 +68,10 @@
     var payback = annualSavings > 0 ? cost / annualSavings : 99;
 
     return {
+      type: type,
       city: city,
-      area: area,
       bill: bill,
       systemKwp: systemKwp,
-      roofNeeded: roofNeeded,
-      roofLimited: roofLimited,
-      panelCount: panelCount,
       cost: cost,
       annualSavings: annualSavings,
       payback: payback,
@@ -110,15 +84,10 @@
       if (resultPanel) resultPanel.hidden = true;
       return;
     }
-    var systemLabel = res.systemKwp.toFixed(1) + ' kWp';
-    if (res.panelCount) systemLabel += ' · ≈' + res.panelCount + ' panels (580Wp)';
-    outputs.system.textContent = systemLabel;
+    outputs.system.textContent = res.systemKwp.toFixed(1) + ' kWp';
     outputs.cost.textContent = money(res.cost);
     outputs.savings.textContent = money(Math.round(res.annualSavings)) + ' / yr';
     outputs.payback.textContent = res.payback.toFixed(1) + ' years';
-    var roofLabel = Math.round(res.roofNeeded) + ' sq ft';
-    if (res.roofLimited) roofLabel += ' (roof-limited)';
-    outputs.roof.textContent = roofLabel;
     if (resultPanel) resultPanel.hidden = false;
     resultPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
@@ -137,14 +106,14 @@
   var resetBtn = el('estReset');
   if (resetBtn) {
     resetBtn.addEventListener('click', function () {
-      inputs.area.value = '';
       inputs.bill.value = '';
+      if (inputs.type) inputs.type.selectedIndex = 0;
       if (inputs.city) inputs.city.selectedIndex = 0;
       if (calculateBtn) calculateBtn.disabled = true;
       paint(null);
     });
   }
-  [inputs.area, inputs.bill, inputs.city].forEach(function (i) {
+  [inputs.bill, inputs.type, inputs.city].forEach(function (i) {
     if (i) i.addEventListener('input', onInput);
   });
 

@@ -8,7 +8,6 @@
 (function () {
   var D = window.GalleryDetails;
   var L = window.GalleryLikes;
-  var C = window.GalleryCollections;
   var grid = document.getElementById('galleryProjects');
   var filters = document.getElementById('galleryFilters');
   var countEl = document.getElementById('galleryCount');
@@ -35,8 +34,7 @@
   var BOLT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4.5 13.5H11l-.6 8.5L20 10h-6.6L13 2Z"/></svg>';
   var ROOF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/><path d="M9.5 20v-5h5v5"/></svg>';
   var PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>';
-  var BOOKMARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/></svg>';
-  var WHATSAPP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 16.6a4.5 4.5 0 0 1 1.9-3.6l2.2-2.2a1 1 0 0 1 1.4 0L8 14.9a1 1 0 0 0-.5 1c.2.5.5 1 1 1l2.3-.2a4.5 4.5 0 0 1 3.6-1.9l5.5-5.4a1 1 0 0 1 1.4-1.4l5.4 5.5a1 1 0 0 1-1.4 1.4l-1.2-.1a3 3 0 0 0-1 0c-2.7-.1-5.5 1.6-6.8 3l-2.6 2.5a1 1 0 0 1-1.3-.1c-.3-.5-.4-1-.3-1.5l-.3-3.4a1 1 0 0 1 .5-.9c.1-.2.2-.4.4-.6l2.5-3.5a1 1 0 0 1 .4-.4h1l.1.1L22 17c0 1-.8 1.7-1.7 1.8-1.2.2-2.4-.3-3-1l-3-3c-.6-.6-1.2-1.2-1.8-1.7A5.8 5.8 0 0 1 2 16.6Z"/></svg>';
+
   var CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>';
   var LAYERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></svg>';
   var PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 6.5l4 4"/></svg>';
@@ -109,7 +107,7 @@
 
     var actions = document.createElement('div');
     actions.className = 'card-actions';
-    actions.append(likeButton(it), bookmarkButton(it), shareButton(it));
+    actions.append(likeButton(it), shareButton(it));
 
     card.append(photo, body, actions);
     return card;
@@ -146,52 +144,15 @@
     return btn;
   }
 
-  /* Bookmark a project to the visitor's personal collection. localStorage
-     only - nothing goes to the server - so it works offline and on any
-     copy of the page. The filled bookmark shows the project is saved. */
-  function bookmarkButton(it) {
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'act bookmark';
-    btn.setAttribute('data-bookmark', it.id);
-    btn.setAttribute('aria-label', C.has(it.id) ? 'Remove ' + it.p.name + ' from your collection' : 'Save ' + it.p.name + ' to your collection');
-    btn.title = C.has(it.id) ? 'Saved to your collection' : 'Save to collection';
-    btn.innerHTML = BOOKMARK + '<span class="act-word">Save</span>';
-    btn.addEventListener('click', function () {
-      var next = C.toggle(it.id);
-      var saved = next.indexOf(it.id) >= 0;
-      btn.setAttribute('aria-pressed', String(saved));
-      btn.setAttribute('aria-label', saved ? 'Remove ' + it.p.name + ' from your collection' : 'Save ' + it.p.name + ' to your collection');
-      btn.title = saved ? 'Saved to your collection' : 'Save to collection';
-      btn.classList.toggle('is-saved', saved);
-      var word = btn.querySelector('.act-word');
-      if (word) word.textContent = saved ? 'Saved' : 'Save';
-      btn.classList.add('is-pop');
-      setTimeout(function () { btn.classList.remove('is-pop'); }, 300);
-    });
-    btn.setAttribute('aria-pressed', String(C.has(it.id)));
-    btn.classList.toggle('is-saved', C.has(it.id));
-    var word = btn.querySelector('.act-word');
-    if (word) word.textContent = C.has(it.id) ? 'Saved' : 'Save';
-    return btn;
-  }
-
   function render(category) {
     grid.replaceChildren();
-    var shown;
-    if (category === -2) {
-      /* My Collection: only projects the visitor has saved. */
-      var saved = C.read();
-      shown = items.filter(function (it) { return saved.indexOf(it.id) >= 0; });
-    } else {
-      shown = items.filter(function (it) {
-        return category === -1 || it.p.sector === window.SECTORS[category];
-      });
-    }
+    var shown = items.filter(function (it) {
+      return category === -1 || it.p.sector === window.SECTORS[category];
+    });
     countEl.textContent = shown.length + (shown.length === 1 ? ' project photograph' : ' project photographs');
     shown.forEach(function (it, index) { grid.appendChild(cardFor(it, index)); });
     Array.prototype.forEach.call(filters.children, function (b, i) {
-      b.setAttribute('aria-pressed', String(i - 1 === category || (category === -2 && b.textContent === 'My Collection')));
+      b.setAttribute('aria-pressed', String(i - 1 === category));
     });
     reveal();
     loadCounts(shown.map(function (it) { return it.id; }));
@@ -322,21 +283,6 @@
     }).then(function (result) {
       if (result === 'copied') L.toast('Link copied — paste it in WhatsApp or anywhere else.');
     });
-  }
-
-  /* WhatsApp share: opens wa.me with the project name, a one-line note and
-     the project's share URL. Works on phones (WhatsApp app) and desktop
-     (WhatsApp Web). */
-  function shareWhatsApp(it) {
-    var url = shareUrl(it);
-    var text = 'Check out ' + it.p.name + ' — ' + it.p.capacity + ' solar installation by KTM Energy Experts.\n' + url;
-    var waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
-    try {
-      var win = window.open(waUrl, '_blank');
-      if (!win) L.toast('Could not open WhatsApp — please allow pop-ups for this site.');
-    } catch (_) {
-      L.toast('Could not open WhatsApp. Try the Share project button instead.');
-    }
   }
 
   /* ---------- detail view ---------- */
@@ -635,20 +581,12 @@
     b.addEventListener('click', function () { active = index - 1; render(active); });
     filters.appendChild(b);
   });
-  /* My Collection filter - shows only projects the visitor has saved. */
-  var collBtn = document.createElement('button');
-  collBtn.type = 'button';
-  collBtn.textContent = 'My Collection';
-  collBtn.addEventListener('click', function () { active = -2; render(-2); });
-  filters.appendChild(collBtn);
   render(-1);
 
   /* Hero numbers are read off the published list, never typed in. */
   var heroSectors = document.getElementById('heroSectorCount');
-  var heroSaved = document.getElementById('heroSavedCount');
   if (heroCount) heroCount.textContent = String(items.length);
   if (heroSectors) heroSectors.textContent = String((window.SECTORS || []).length);
-  if (heroSaved) heroSaved.textContent = String(C.size());
   if (heroCapacity) {
     /* Published capacities mix "kWp" (our own installations) and "kW" (the
        older web listings). Both are the installed DC capacity of the project,

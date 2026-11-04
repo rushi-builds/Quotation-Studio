@@ -36,7 +36,7 @@
         <div><b id="heroProjectCount">41</b><span>PROJECTS PUBLISHED</span></div>
         <div><b id="heroCapacity">—</b><span>PUBLISHED CAPACITY</span></div>
         <div><b id="heroSectorCount">4</b><span>SECTORS SERVED</span></div>
-        <div><b id="heroSavedCount">0</b><span>SAVED TO COLLECTION</span></div>
+
       </div>
       <a href="#projects">View the portfolio ↗</a>
     </div>
@@ -59,17 +59,9 @@
 
   <section class="estimate-calculator" id="estimate">
     <h2>Quick solar estimate</h2>
-    <p class="sub">Enter your roof area and monthly electricity bill for an indicative system size, cost and savings figure. A site visit confirms the real numbers.</p>
+    <p class="sub">Enter your monthly electricity bill, consumer type and location for an indicative system size, cost and savings figure. A site visit confirms the real numbers.</p>
     <div class="estimate-card">
       <div class="estimate-form">
-        <div class="estimate-field">
-          <label for="estArea">Roof area available</label>
-          <div class="estimate-input-wrap">
-            <input type="number" id="estArea" min="100" step="50" placeholder="e.g. 500" aria-describedby="estAreaHint">
-            <span class="estimate-unit-text">sq ft</span>
-          </div>
-          <span class="estimate-hint" id="estAreaHint">sq ft · optional · usable, shadow-free roof space.</span>
-        </div>
         <div class="estimate-field">
           <label for="estBill">Monthly electricity bill</label>
           <div class="estimate-input-wrap">
@@ -79,7 +71,16 @@
           <span class="estimate-hint" id="estBillHint">₹ per month · your average bill.</span>
         </div>
         <div class="estimate-field">
-          <label for="estCity">City</label>
+          <label for="estType">Consumer type</label>
+          <select id="estType">
+            <option value="residential">Residential</option>
+            <option value="commercial">Commercial</option>
+            <option value="industrial">Industrial</option>
+            <option value="society">Housing society</option>
+          </select>
+        </div>
+        <div class="estimate-field">
+          <label for="estCity">Location</label>
           <select id="estCity">
             <option value="Pune">Pune</option>
             <option value="Mumbai">Mumbai</option>
@@ -124,14 +125,6 @@
             <p class="result-label">Payback period</p>
             <p class="result-value" id="estPayback">—</p>
             <p class="result-unit">approx.</p>
-          </div>
-        </div>
-        <div class="result-card">
-          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
-          <div class="result-body">
-            <p class="result-label">Roof space needed</p>
-            <p class="result-value" id="estRoof">—</p>
-            <p class="result-unit">shadow-free</p>
           </div>
         </div>
       </div>
@@ -191,7 +184,6 @@
 <script src="assets/js/gallery-projects.js"></script>
 <script src="assets/js/gallery-details.js"></script>
 <script src="assets/js/gallery-likes.js"></script>
-<script src="assets/js/gallery-collections.js"></script>
 <script src="assets/js/gallery.js?v=thanks-copy2"></script>
 <script src="assets/js/estimate-calculator.js?v=1"></script>
 </body>
