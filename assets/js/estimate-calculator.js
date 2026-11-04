@@ -20,13 +20,22 @@
     performanceRatio: 0.81
   };
 
-  /* Explicit per-kWp installed cost by consumer type (all-inclusive). */
-  var COST_PER_KWP = {
-    residential: 55000,
-    commercial:  50000,
-    industrial:  45000,
-    society:     52000
-  };
+  /* Installed cost rate, sliding by capacity — matches the quotation engine's
+     ₹63.6/Wp anchor at 1 kW (owner decision, 2026-11-05):
+     - Residential / society (subsidy band): ₹63.6/Wp at 1 kW sliding to
+       ₹60/Wp by 3 kW, flat ₹60 above — small systems carry fixed costs.
+     - Commercial / industrial (no subsidy): ₹63.6/Wp at 1 kW sliding
+       linearly to ₹45/Wp at 20 kW, flat ₹45 above — economies of scale.
+     All rates GST-inclusive, same treatment as the quotation. */
+  function ratePerWp(type, kwp) {
+    if (type === 'residential' || type === 'society') {
+      if (kwp >= 3) return 60;
+      return 63.6 - 3.6 * ((kwp - 1) / 2); /* 63.6 → 60 across 1–3 kW */
+    }
+    if (kwp <= 1) return 63.6;
+    if (kwp >= 20) return 45;
+    return 63.6 - 18.6 * ((kwp - 1) / 19); /* 63.6 → 45 across 1–20 kW */
+  }
 
   /* Yield adjustment by consumer type. */
   var YIELD_MULT = {
@@ -125,7 +134,7 @@
     var city = inputs.city ? inputs.city.value : 'Pune';
     if (!bill || !type || !city) return null;
 
-    var costPerKwp = COST_PER_KWP[type] || COST_PER_KWP.residential;
+    var costPerKwp = ratePerWp(type, systemKwp) * 1000;
     var yieldMult = YIELD_MULT[type] || YIELD_MULT.residential;
 
     /* Monthly units from bill: units = bill / rate. */
@@ -159,6 +168,7 @@
       panelCount: panelCount,
       roofNeeded: roofNeeded,
       cost: cost,
+      rateWp: costPerKwp / 1000,
       subsidy: subsidy,
       net: cost - (subsidy || 0),
       annualSavings: annualSavings,
