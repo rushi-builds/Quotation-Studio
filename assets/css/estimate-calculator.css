@@ -1,0 +1,172 @@
+/* Quick solar estimate calculator — one aesthetic glass card. */
+.estimate-calculator{
+  margin:clamp(34px,5vw,64px) clamp(16px,4vw,54px);
+  max-width:900px;
+}
+/* Main aesthetic card - glass, light, professional. */
+.estimate-card{
+  position:relative;
+  background:rgba(255,255,255,0.55);
+  border:1px solid rgba(255,255,255,0.6);
+  border-radius:30px;
+  padding:clamp(30px,4vw,48px);
+  backdrop-filter:blur(24px) saturate(1.4);
+  -webkit-backdrop-filter:blur(24px) saturate(1.4);
+  box-shadow:0 20px 48px rgba(7,26,46,0.06);
+  overflow:hidden;
+}
+.estimate-card::before{
+  content:"";
+  position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,#F2811D,#D96A0E,#2E7D32,#16405F);
+}
+.estimate-header{
+  margin-bottom:clamp(24px,4vw,36px);
+}
+.estimate-kicker{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:700;letter-spacing:.16em;color:#F2811D;text-transform:uppercase;margin:0 0 10px;
+}
+.estimate-kicker::before{
+  content:"☀";
+  font-size:13px;
+}
+.estimate-card h2{
+  margin:0 0 10px;font-size:clamp(26px,3vw,34px);line-height:1.15;letter-spacing:-.8px;color:#0F1E2A;font-weight:800;
+}
+.estimate-sub{
+  margin:0;color:#5B6B80;font-size:13.5px;line-height:1.6;max-width:62ch;
+}
+/* Input fields section. */
+.estimate-fields{
+  display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:clamp(20px,4vw,28px);
+}
+@media (min-width:600px){
+  .estimate-fields{grid-template-columns:repeat(3,1fr);}
+}
+.estimate-field{display:flex;flex-direction:column;gap:8px;}
+.estimate-field label{font-size:11px;font-weight:700;letter-spacing:.14em;color:#6B7A85;text-transform:uppercase;}
+.estimate-input-box{
+  display:flex;align-items:center;border-radius:12px;border:1px solid #D7DEE7;background:rgba(255,255,255,0.5);
+  transition:border-color .2s,box-shadow .2s,background .2s;
+}
+.estimate-input-box input{
+  flex:1;border:none;background:transparent;padding:13px 15px;font:inherit;font-size:14px;color:#17354A;outline:none;
+}
+.estimate-input-box:focus-within{
+  border-color:#F2811D;background:#fff;box-shadow:0 0 0 4px rgba(242,129,29,0.14);
+}
+.estimate-field select{
+  width:100%;font:inherit;font-size:14px;padding:13px 15px;border-radius:12px;border:1px solid #D7DEE7;background:rgba(255,255,255,0.5);color:#17354A;
+  transition:border-color .2s,box-shadow .2s,background .2s;
+}
+.estimate-field select:focus{
+  outline:none;border-color:#F2811D;background:#fff;box-shadow:0 0 0 4px rgba(242,129,29,0.14);
+}
+.estimate-field input::placeholder{color:#A8B2C3;}
+.estimate-hint{font-size:11px;color:#8A90A2;line-height:1.5;margin-top:2px;}
+.estimate-unit-text{
+  font-size:12px;font-weight:700;color:#A8B2C3;padding:0 14px;pointer-events:none;white-space:nowrap;
+}
+.estimate-actions{
+  display:flex;gap:12px;margin-top:4px;
+}
+.btn-primary-calc{
+  flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 22px;border-radius:14px;border:1px solid #F2811D;background:linear-gradient(135deg,#F2811D,#D96A0E);
+  color:#fff;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s;
+  box-shadow:0 10px 24px rgba(242,129,29,0.3);
+}
+.btn-primary-calc:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(242,129,29,0.42);}
+.btn-primary-calc:disabled{opacity:.65;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn-reset-calc{
+  display:inline-flex;align-items:center;gap:8px;padding:14px 20px;border-radius:14px;border:1px solid #D7DEE7;background:rgba(255,255,255,0.6);
+  color:#5B6B80;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
+}
+.btn-reset-calc:hover{border-color:#B9C4D1;color:#17354A;background:#F5F7FA;}
+/* WhatsApp icon button - SVG has green circle + white phone (self-contained logo). */
+.btn-whatsapp{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:44px;height:44px;border-radius:50%;border:none;background:transparent;color:#fff;
+  cursor:pointer;transition:transform .2s;
+}
+.btn-whatsapp:hover{transform:scale(1.05);}
+.btn-whatsapp svg{width:28px;height:28px;flex:0 0 auto;display:block;}
+.whatsapp-btn-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.whatsapp-label{font-size:11px;font-weight:600;color:#25D366;letter-spacing:.02em;text-align:center;white-space:nowrap;}
+@media (max-width:700px){
+  .whatsapp-btn-wrap{width:100%;flex-direction:row;justify-content:center;}
+  .whatsapp-label{white-space:normal;}
+}
+/* Print button - small icon. */
+.btn-print-calc{
+  display:inline-flex;align-items:center;gap:8px;padding:14px 20px;border-radius:14px;border:1px solid #D7DEE7;background:#fff;
+  color:#17354A;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
+}
+.btn-print-calc:hover{border-color:#B9C4D1;color:#0F1E2A;background:#F5F7FA;}
+.btn-print-calc svg{width:16px;height:16px;flex:0 0 auto;}
+/* Results section - one grid of aesthetic cards. */
+.estimate-results{
+  margin-top:clamp(24px,4vw,36px);
+  padding-top:clamp(24px,4vw,36px);
+  border-top:1px solid rgba(255,255,255,0.5);
+}
+.results-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+}
+@media (max-width:700px){
+  .results-grid{grid-template-columns:1fr;}
+  .estimate-actions{flex-direction:column;}
+  .btn-primary-calc,.btn-reset-calc,.btn-print-calc,.btn-whatsapp{width:100%;justify-content:center;}
+}
+.result-card{
+  display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.45);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  transition:transform .2s,border-color .2s,box-shadow .2s;
+}
+.result-card:hover{border-color:#D3DCE6;transform:translateY(-1px);box-shadow:0 10px 24px rgba(7,26,46,0.05);}
+.result-ico{
+  flex:0 0 auto;width:40px;height:40px;border-radius:14px;display:grid;place-items:center;
+  background:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.55);box-shadow:0 4px 10px rgba(7,26,46,0.04);
+}
+.result-ico svg{width:20px;height:20px;color:#F2811D;}
+.result-body{min-width:0;}
+.result-label{font-size:10px;font-weight:700;letter-spacing:.12em;color:#8A90A2;text-transform:uppercase;margin:0 0 2px;}
+.result-value{font-size:17px;font-weight:800;letter-spacing:-.4px;color:#0F1E2A;margin:0;}
+.result-unit{font-size:11px;color:#5B6B80;margin:0;}
+/* Payback card - always green. */
+.payback-green{ border-color:#2E7D32; background:rgba(46,125,50,0.08); }
+.payback-green .result-value{ color:#1B5E20; }
+.payback-green .result-ico svg{ color:#2E7D32; }
+/* 5-Year savings chart container - hidden until calculation. */
+.estimate-chart-wrap{
+  margin-top:clamp(24px,4vw,36px);
+  padding-top:clamp(24px,4vw,36px);
+  border-top:1px solid rgba(255,255,255,0.5);
+}
+.estimate-chart-wrap h3{
+  font-size:14px;font-weight:700;letter-spacing:.1em;color:#0F1E2A;text-transform:uppercase;margin:0 0 12px;
+}
+.estimate-chart-wrap canvas{
+  width:100%;
+  max-height:220px;
+}
+/* Card color classes for all result cards. */
+.result-card-system{ border-color:#16405F; }
+.result-card-panels{ border-color:#2E7D32; }
+.result-card-cost{ border-color:#F2811D; }
+.result-card-savings{ border-color:#6A1B9A; }
+.result-card-roof{ border-color:#00838F; }
+
+.estimate-disclaimer{
+  margin-top:clamp(24px,4vw,32px);
+  padding-top:18px;
+  border-top:1px solid rgba(255,255,255,0.5);
+  font-size:10.5px;color:#8A90A2;line-height:1.7;max-width:62ch;
+}
+.estimate-disclaimer strong{color:#17354A;font-weight:700;}
+.estimate-hidden{display:none!important;}
+@media (prefers-reduced-motion:reduce){\n  .result-card{transition:none;}\n}

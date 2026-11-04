@@ -16,6 +16,7 @@
 <title>Project Gallery | KTM Energy Experts</title>
 <link rel="icon" href="assets/images/ktm-logo-light.png">
 <link rel="stylesheet" href="assets/css/gallery.css?v=thanks-copy2">
+<link rel="stylesheet" href="assets/css/estimate-calculator.css?v=1">
 <link rel="preconnect" href="https://ktmenergyexperts.com" crossorigin>
 </head>
 <body>
@@ -49,10 +50,113 @@
     <noscript><p class="gallery-count">The project grid needs JavaScript. Every photograph is also available from the contact details in your proposal.</p></noscript>
   </section>
 
-  <section class="gallery-context">
-    <h2>Your property deserves its own assessment.</h2>
-    <p>These are portfolio references, not a customer-specific layout, simulation or performance guarantee. Site measurements, shading, structural suitability and electricity data must be reviewed for your site.</p>
-    <p>To discuss your proposal, use the contact details printed in it. This public gallery does not collect or display your quotation, address or financial information.</p>
+  <section class="estimate-calculator" id="estimate">
+    <div class="estimate-card">
+      <div class="estimate-header">
+        <span class="estimate-kicker">Quick solar estimate</span>
+        <h2>Find your ideal system size.</h2>
+        <p class="estimate-sub">Enter your monthly electricity bill, consumer type and place for an indicative system size, cost and savings figure.</p>
+      </div>
+      <form id="estimateForm">
+        <div class="estimate-fields">
+          <div class="estimate-field">
+            <label for="estBill">Monthly electricity bill</label>
+            <div class="estimate-input-box">
+              <input type="number" id="estBill" min="500" step="100" placeholder="e.g. 4000" aria-describedby="estBillHint" required>
+              <span class="estimate-unit-text">₹ / month</span>
+            </div>
+            <span class="estimate-hint" id="estBillHint">Your average monthly bill in ₹.</span>
+          </div>
+          <div class="estimate-field">
+            <label for="estType">Consumer type</label>
+            <select id="estType" required>
+              <option value="">Select type</option>
+              <option value="residential">Residential</option>
+              <option value="commercial">Commercial</option>
+              <option value="industrial">Industrial</option>
+              <option value="society">Housing society</option>
+            </select>
+          </div>
+          <div class="estimate-field">
+            <label for="estCity">Place / City</label>
+            <select id="estCity" required>
+              <option value="">Select place</option>
+              <option value="Pune">Pune</option>
+              <option value="Mumbai">Mumbai</option>
+              <option value="Delhi">Delhi</option>
+              <option value="Bangalore">Bangalore</option>
+              <option value="Other">Other (Maharashtra average)</option>
+            </select>
+          </div>
+        </div>
+        <div class="estimate-actions">
+          <button type="button" id="estCalculate" class="btn-primary-calc" disabled>Calculate estimate</button>
+          <button type="button" id="estReset" class="btn-reset-calc">Reset</button>
+          <button type="button" id="estPrint" class="btn-print-calc" style="display:none;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8H11V3H5v18h14V8h-6zM7 10h4v4H7zM13 10h4v4h-4z"/></svg>Download PDF</button>
+          <div class="whatsapp-btn-wrap" id="estWhatsAppWrap" style="display:none;">
+            <button type="button" id="estWhatsApp" class="btn-whatsapp" title="WhatsApp for more details"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#25D366"/><path fill="#FFFFFF" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.41 15.82L9.5 13.62c-.21-.21-.33-.49-.35-.76-.02-.31.1-.57.29-.77l5-5c.18-.18.43-.29.71-.29s.53.11.71.29l1.92 1.91c.18.18.29.43.29.71s-.11.53-.29.71L9.71 14.25c-.19.19-.45.29-.71.29-.26 0-.52-.1-.71-.29-.18-.19-.29-.44-.29-.71 0-.27.11-.55.3-.75l2.64-2.65c.4-.4 1.05-.4 1.45 0l5 5c.4.4.4 1.05 0 1.45-.2.2-.47.3-.74.3-.24 0-.51-.1-.71-.3z"/></svg></button>
+            <div class="whatsapp-label">WhatsApp for more details</div>
+          </div>
+        </div>
+      </form>
+      <div class="estimate-results" id="estimateResult">
+        <div class="results-grid">
+        <div class="result-card" id="cardSystem">
+          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z"/></svg></span>
+          <div class="result-body">
+            <p class="result-label">Recommended system</p>
+            <p class="result-value" id="estSystem">—</p>
+            <p class="result-unit">kWp</p>
+          </div>
+        </div>
+        <div class="result-card" id="cardPanels">
+          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v3m0 13v-3M4 12H2m17 8h-2M5.94 6.66l1.41-1.41m12.73 12.73-1.41 1.41M17.34 17.34l-1.41 1.41M5.94 17.34l1.41 1.41M17.34 6.66l-1.41-1.41"/></svg></span>
+          <div class="result-body">
+            <p class="result-label">Solar panels needed</p>
+            <p class="result-value" id="estPanels">—</p>
+            <p class="result-unit">550Wp each</p>
+          </div>
+        </div>
+        <div class="result-card" id="cardCost">
+          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+          <div class="result-body">
+            <p class="result-label">Estimated cost</p>
+            <p class="result-value" id="estCost">—</p>
+            <p class="result-unit">(all-inclusive)</p>
+          </div>
+        </div>
+        <div class="result-card" id="cardSavings">
+          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l3 3 4-4-8-8-8 8 3 -3 4 4"/></svg></span>
+          <div class="result-body">
+            <p class="result-label">Annual savings</p>
+            <p class="result-value" id="estSavings">—</p>
+            <p class="result-unit">on electricity</p>
+          </div>
+        </div>
+          <div class="result-card" id="estPaybackCard">
+            <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <div class="result-body">
+              <p class="result-label">Payback period</p>
+              <p class="result-value" id="estPayback">—</p>
+              <p class="result-unit">approx.</p>
+            </div>
+          </div>
+        <div class="result-card" id="cardRoof">
+          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+          <div class="result-body">
+            <p class="result-label">Roof space needed</p>
+            <p class="result-value" id="estRoof">—</p>
+            <p class="result-unit">shadow-free</p>
+          </div>
+        </div>
+      </div>
+      <div class="estimate-chart-wrap" id="estChartWrap" hidden>
+        <h3>5-Year Cumulative Savings</h3>
+        <canvas id="estChart"></canvas>
+      </div>
+    </div>
+    </div>
+    <p class="estimate-disclaimer"><strong>Indicative only.</strong> All prices, system sizes and savings figures may vary as per site conditions, roof orientation, shading, structure, equipment selection and local DISCOM tariff. A site visit and proposal confirm the real design and price. This is not a commercial offer.</p>
   </section>
 </main>
 <footer class="gallery-footer">
@@ -108,5 +212,6 @@
 <script src="assets/js/gallery-details.js"></script>
 <script src="assets/js/gallery-likes.js"></script>
 <script src="assets/js/gallery.js?v=thanks-copy2"></script>
+<script src="assets/js/estimate-calculator.js?v=1"></script>
 </body>
 </html>

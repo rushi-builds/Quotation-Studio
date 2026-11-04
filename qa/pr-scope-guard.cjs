@@ -65,6 +65,17 @@ const GALLERY_PAGE_PATHS = new Set([
   'platform/migrations/013-gallery-feedback.sql'
 ]);
 
+/* Owner-requested Quick Estimate Calculator (2026-11-04): new aesthetic
+   calculator card on the public gallery page with 3 inputs (monthly bill,
+   consumer type, place/city), 6 colored result cards (system, panels, cost,
+   savings, payback, roof space), WhatsApp share, PDF download and 5-year
+   savings chart. Exact paths only - no wildcard, so any future calculator
+   file still has to be reviewed. */
+const CALCULATOR_FILES = new Set([
+  'assets/js/estimate-calculator.js',
+  'assets/css/estimate-calculator.css'
+]);
+
 /* Owner-requested feedback loop (2026-11-03): one inbox that reads both the
    quotation ratings and the gallery notes, plus the two thank-you screens
    they land on. The list is exact paths only - a new backend module, a new
@@ -314,7 +325,7 @@ function deployConfigTouches(files) {
 function newAccessMigration(file,status){return file==='platform/migrations/011-workspace-access.sql'&&status==='A';}
 
 function scopeOffenders(files) {
-  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f) && !FEEDBACK_LOOP_PATHS.has(f));
+  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f) && !FEEDBACK_LOOP_PATHS.has(f) && !CALCULATOR_FILES.has(f));
 }
 
 /* The explicit golden baseline: HEAD's blob for every frozen file must
@@ -389,7 +400,7 @@ function verify(repoRoot, opts) {
 }
 
 module.exports = {
-  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, GALLERY_PAGE_PATHS, FEEDBACK_LOOP_PATHS, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
+  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, GALLERY_PAGE_PATHS, FEEDBACK_LOOP_PATHS, CALCULATOR_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
   resolveBase, changedFiles, worktreeStatus,
   frozenTouches, deployConfigTouches, scopeOffenders, newAccessMigration, baselineMatch, mainTip, verify, git
 };
