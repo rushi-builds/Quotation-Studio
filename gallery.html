@@ -16,14 +16,15 @@
 <title>Project Gallery | KTM Energy Experts</title>
 <link rel="icon" href="assets/images/ktm-logo-light.png">
 <link rel="stylesheet" href="assets/css/gallery.css?v=thanks-copy2">
-<link rel="stylesheet" href="assets/css/estimate-calculator.css?v=1">
+<link rel="stylesheet" href="assets/css/estimate-calculator.css?v=2">
 <link rel="preconnect" href="https://ktmenergyexperts.com" crossorigin>
 </head>
 <body>
 <header class="gallery-header">
   <a href="#top" aria-label="KTM project gallery"><img src="assets/images/ktm-logo-light.png" alt="KTM Energy Experts" width="304" height="180"></a>
   <span>SOLAR ENGINEERING · PROJECT PORTFOLIO</span>
-  <a href="#projects">Explore projects ↓</a>
+  <span class="header-links"><a href="#projects">Explore projects ↓</a>
+  <button type="button" class="calc-open-btn" id="calcOpen">⚡ Calculate your system</button></span>
 </header>
 <main id="top">
   <section class="gallery-hero">
@@ -50,7 +51,10 @@
     <noscript><p class="gallery-count">The project grid needs JavaScript. Every photograph is also available from the contact details in your proposal.</p></noscript>
   </section>
 
-  <section class="estimate-calculator" id="estimate">
+  <div class="calc-modal" id="estimate" hidden>
+  <div class="calc-backdrop" data-calc-close></div>
+  <div class="calc-sheet">
+    <button type="button" class="calc-close" data-calc-close aria-label="Close calculator">×</button>
     <div class="estimate-card">
       <div class="estimate-header">
         <span class="estimate-kicker">Quick solar estimate</span>
@@ -94,7 +98,7 @@
           <button type="button" id="estReset" class="btn-reset-calc">Reset</button>
           <button type="button" id="estPrint" class="btn-print-calc" style="display:none;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8H11V3H5v18h14V8h-6zM7 10h4v4H7zM13 10h4v4h-4z"/></svg>Download PDF</button>
           <div class="whatsapp-btn-wrap" id="estWhatsAppWrap" style="display:none;">
-            <button type="button" id="estWhatsApp" class="btn-whatsapp" title="WhatsApp for more details"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#25D366"/><path fill="#FFFFFF" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.41 15.82L9.5 13.62c-.21-.21-.33-.49-.35-.76-.02-.31.1-.57.29-.77l5-5c.18-.18.43-.29.71-.29s.53.11.71.29l1.92 1.91c.18.18.29.43.29.71s-.11.53-.29.71L9.71 14.25c-.19.19-.45.29-.71.29-.26 0-.52-.1-.71-.29-.18-.19-.29-.44-.29-.71 0-.27.11-.55.3-.75l2.64-2.65c.4-.4 1.05-.4 1.45 0l5 5c.4.4.4 1.05 0 1.45-.2.2-.47.3-.74.3-.24 0-.51-.1-.71-.3z"/></svg></button>
+            <button type="button" id="estWhatsApp" class="btn-whatsapp" title="WhatsApp for more details"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg></button>
             <div class="whatsapp-label">WhatsApp for more details</div>
           </div>
         </div>
@@ -117,12 +121,36 @@
             <p class="result-unit">550Wp each</p>
           </div>
         </div>
+        <div class="result-card" id="cardRoof">
+          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+          <div class="result-body">
+            <p class="result-label">Roof space needed</p>
+            <p class="result-value" id="estRoof">—</p>
+            <p class="result-unit">shadow-free</p>
+          </div>
+        </div>
         <div class="result-card" id="cardCost">
           <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></span>
           <div class="result-body">
             <p class="result-label">Estimated cost</p>
             <p class="result-value" id="estCost">—</p>
-            <p class="result-unit">(all-inclusive)</p>
+            <p class="result-unit">GST included</p>
+          </div>
+        </div>
+        <div class="result-card" id="cardSubsidy">
+          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M4 18h16M6 18v-7m4 7v-7m4 7v-7m4 7v-7M2 10l10-7 10 7H2z"/></svg></span>
+          <div class="result-body">
+            <p class="result-label">Govt subsidy</p>
+            <p class="result-value" id="estSubsidy">—</p>
+            <p class="result-unit" id="estSubsidyUnit">PM Surya Ghar</p>
+          </div>
+        </div>
+        <div class="result-card" id="cardNet">
+          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7H5a2 2 0 0 1 0-4h14v4"/><path d="M21 7v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/><circle cx="16" cy="13" r="1.2"/></svg></span>
+          <div class="result-body">
+            <p class="result-label">Your net cost</p>
+            <p class="result-value" id="estNet">—</p>
+            <p class="result-unit">after subsidy</p>
           </div>
         </div>
         <div class="result-card" id="cardSavings">
@@ -141,14 +169,6 @@
               <p class="result-unit">approx.</p>
             </div>
           </div>
-        <div class="result-card" id="cardRoof">
-          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
-          <div class="result-body">
-            <p class="result-label">Roof space needed</p>
-            <p class="result-value" id="estRoof">—</p>
-            <p class="result-unit">shadow-free</p>
-          </div>
-        </div>
       </div>
       <div class="estimate-chart-wrap" id="estChartWrap" hidden>
         <h3>5-Year Cumulative Savings</h3>
@@ -157,7 +177,8 @@
     </div>
     </div>
     <p class="estimate-disclaimer"><strong>Indicative only.</strong> All prices, system sizes and savings figures may vary as per site conditions, roof orientation, shading, structure, equipment selection and local DISCOM tariff. A site visit and proposal confirm the real design and price. This is not a commercial offer.</p>
-  </section>
+  </div>
+</div>
 </main>
 <footer class="gallery-footer">
   <div class="foot-grid">
@@ -212,6 +233,6 @@
 <script src="assets/js/gallery-details.js"></script>
 <script src="assets/js/gallery-likes.js"></script>
 <script src="assets/js/gallery.js?v=thanks-copy2"></script>
-<script src="assets/js/estimate-calculator.js?v=1"></script>
+<script src="assets/js/estimate-calculator.js?v=2"></script>
 </body>
 </html>
