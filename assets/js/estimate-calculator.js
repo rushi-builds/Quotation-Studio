@@ -138,10 +138,14 @@
     var rect = canvas.parentElement.getBoundingClientRect();
     var width = rect.width || 300;
     var height = 180;
-    canvas.width = width;
-    canvas.height = height;
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
 
     var ctx = chartCtx;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
     var years = 5;
@@ -149,59 +153,62 @@
     var maxVal = annualSavings * years;
     var padding = 40;
     var chartWidth = width - padding * 2;
-    var chartHeight = height - padding - 30;
-    var barWidth = (chartWidth / years) * 0.55;
-    var gap = (chartWidth / years) * 0.45;
+    var chartHeight = height - padding - 34;
+    var barWidth = (chartWidth / years) * 0.5;
+    var gap = (chartWidth / years) * 0.5;
 
     /* Grid lines + Y labels. */
-    ctx.strokeStyle = '#E8EEF4';
+    ctx.strokeStyle = '#EDF1F6';
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#8A90A2';
-    ctx.font = '10px Inter, sans-serif';
+    ctx.fillStyle = '#9AA5B2';
+    ctx.font = '11px Inter, sans-serif';
     ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
     for (var i = 0; i <= 4; i++) {
       var y = padding + chartHeight - (chartHeight * i / 4);
       ctx.beginPath();
       ctx.moveTo(padding, y);
       ctx.lineTo(padding + chartWidth, y);
       ctx.stroke();
-      ctx.fillText(fmt(Math.round(maxVal * i / 4)), padding - 8, y + 4);
+      ctx.fillText(fmt(Math.round(maxVal * i / 4)), padding - 8, y);
     }
 
-    /* Bars: cumulative savings per year. */
+    /* Bars: cumulative savings per year - flat solid color, crisp edges. */
     for (var i = 0; i < years; i++) {
       var cumulative = annualSavings * (i + 1);
       var barHeight = (cumulative / maxVal) * chartHeight;
       var x = padding + gap + i * (barWidth + gap);
       var y = padding + chartHeight - barHeight;
 
-      var grad = ctx.createLinearGradient(0, y, 0, padding + chartHeight);
-      grad.addColorStop(0, '#F2811D');
-      grad.addColorStop(1, '#D96A0E');
-      ctx.fillStyle = grad;
+      ctx.fillStyle = '#F2811D';
       ctx.beginPath();
-      if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, barWidth, barHeight, 8);
-      else ctx.rect(x, y, barWidth, barHeight);
+      ctx.roundRect(x, y, barWidth, barHeight, 10);
       ctx.fill();
+
+      /* Subtle bar shadow for depth. */
+      ctx.shadowColor = 'rgba(242,129,29,0.25)';
+      ctx.shadowBlur = 8;
+      ctx.fillRect(x, y, barWidth, barHeight);
+      ctx.shadowBlur = 0;
 
       /* Year label. */
       ctx.fillStyle = '#8A90A2';
       ctx.font = '11px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, padding + chartHeight + 16);
+      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, padding + chartHeight + 20);
 
       /* Value label on top of bar. */
       ctx.fillStyle = '#0F1E2A';
       ctx.font = '10px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('₹' + fmt(Math.round(cumulative)), x + barWidth / 2, y - 7);
+      ctx.fillText('₹' + fmt(Math.round(cumulative)), x + barWidth / 2, y - 8);
     }
 
     /* Chart title. */
     ctx.fillStyle = '#0F1E2A';
-    ctx.font = '12px Inter, sans-serif';
+    ctx.font = 'bold 13px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('5-Year Cumulative Savings', width / 2, 16);
+    ctx.fillText('5-Year Cumulative Savings', width / 2, 18);
   }
 
   function paint(res) {
