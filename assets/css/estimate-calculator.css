@@ -1,0 +1,69 @@
+/* Quick solar estimate calculator — professional, clean, readable. */
+.estimate-calculator{
+  margin:clamp(34px,5vw,64px) clamp(16px,4vw,54px);
+  max-width:900px;
+}
+.estimate-calculator h2{
+  margin:0 0 8px;font-size:clamp(24px,2.6vw,34px);line-height:1.12;letter-spacing:-.8px;color:#071A2E;font-weight:700;
+}
+.estimate-calculator p.sub{
+  margin:0 0 24px;color:#5B6B80;font-size:13.5px;line-height:1.6;max-width:62ch;
+}
+.estimate-card{
+  display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(20px,3vw,34px);
+  background:#fff;border:1px solid #E4E8EE;border-radius:24px;padding:clamp(24px,3vw,36px);box-shadow:0 14px 34px rgba(7,26,46,.08);
+}
+.estimate-form{display:flex;flex-direction:column;gap:16px;}
+.estimate-field{display:flex;flex-direction:column;gap:8px;}
+.estimate-field label{font-size:12px;font-weight:600;letter-spacing:.12em;color:#6B7A85;text-transform:uppercase;}
+.estimate-field input,.estimate-field select{
+  font:inherit;font-size:14px;padding:13px 15px;border-radius:12px;border:1px solid #D7DEE7;background:#FAFBFC;color:#17354A;
+  transition:border-color .2s,box-shadow .2s,background .2s;
+}
+.estimate-field input:focus,.estimate-field select:focus{
+  outline:none;border-color:#F2811D;background:#fff;box-shadow:0 0 0 4px rgba(242,129,29,.14);
+}
+.estimate-field input::placeholder{color:#A8B2C3;}
+.estimate-hint{font-size:11px;color:#8A90A2;line-height:1.5;margin-top:2px;}
+.estimate-actions{display:flex;gap:12px;margin-top:8px;}
+.btn-primary-calc{
+  flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 22px;border-radius:12px;border:1px solid #F2811D;background:linear-gradient(135deg,#F2811D,#D96A0E);
+  color:#fff;font:600 14px/1.4 Inter,sans-serif;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s;
+  box-shadow:0 8px 20px rgba(242,129,29,.3);
+}
+.btn-primary-calc:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(242,129,29,.42);}
+.btn-primary-calc:disabled{opacity:.65;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn-reset-calc{
+  display:inline-flex;align-items:center;gap:8px;padding:14px 20px;border-radius:12px;border:1px solid #D7DEE7;background:#fff;
+  color:#5B6B80;font:600 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
+}
+.btn-reset-calc:hover{border-color:#B9C4D1;color:#17354A;background:#F5F7FA;}
+.estimate-results{display:flex;flex-direction:column;gap:14px;min-width:0;}
+.result-card{
+  display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:16px;border:1px solid #E8EEF4;background:#F6F8FB;
+  transition:transform .2s,border-color .2s,box-shadow .2s;
+}
+.result-card:hover{border-color:#D3DCE6;transform:translateY(-1px);box-shadow:0 8px 20px rgba(7,26,46,.06);}
+.result-ico{
+  flex:0 0 auto;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
+  background:#fff;border:1px solid #E4E8EE;box-shadow:0 4px 10px rgba(7,26,46,.04);
+}
+.result-ico svg{width:22px;height:22px;color:#F2811D;}
+.result-body{min-width:0;}
+.result-label{font-size:11px;font-weight:600;letter-spacing:.1em;color:#8A90A2;text-transform:uppercase;margin:0 0 2px;}
+.result-value{font-size:18px;font-weight:700;letter-spacing:-.4px;color:#071A2E;margin:0;}
+.result-unit{font-size:12px;color:#5B6B80;margin:0;}
+.estimate-disclaimer{
+  margin-top:20px;padding-top:16px;border-top:1px solid #EDEEF3;font-size:11px;color:#8A90A2;line-height:1.6;max-width:62ch;
+}
+.estimate-disclaimer strong{color:#17354A;font-weight:600;}
+.estimate-hidden{display:none!important;}
+@media (max-width:700px){
+  .estimate-card{grid-template-columns:1fr;padding:20px 18px;}
+  .estimate-actions{flex-direction:column;}
+  .btn-primary-calc,.btn-reset-calc{width:100%;justify-content:center;}
+}
+@media (prefers-reduced-motion:reduce){
+  .estimate-card,.result-card{transition:none;}
+}
