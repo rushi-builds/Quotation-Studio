@@ -84,6 +84,12 @@
   color:#5B6B80;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
 }
 .btn-reset-calc:hover{border-color:#B9C4D1;color:#17354A;background:#F5F7FA;}
+.btn-print-calc{
+  display:inline-flex;align-items:center;gap:8px;padding:14px 20px;border-radius:14px;border:1px solid #D7DEE7;background:#fff;
+  color:#17354A;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
+}
+.btn-print-calc:hover{border-color:#B9C4D1;color:#0F1E2A;background:#F5F7FA;}
+.btn-print-calc svg{width:16px;height:16px;flex:0 0 auto;}
 /* Results section - one grid of aesthetic cards. */
 .estimate-results{
   margin-top:clamp(24px,4vw,36px);
@@ -98,7 +104,7 @@
 @media (max-width:700px){
   .results-grid{grid-template-columns:1fr;}
   .estimate-actions{flex-direction:column;}
-  .btn-primary-calc,.btn-reset-calc{width:100%;justify-content:center;}
+  .btn-primary-calc,.btn-reset-calc,.btn-print-calc{width:100%;justify-content:center;}
 }
 .result-card{
   display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.45);
@@ -129,6 +135,45 @@
 .payback-high{ border-color:#C62828; background:rgba(198,40,40,0.08); }
 .payback-high .result-value{ color:#B71C1C; }
 .payback-high .result-ico svg{ color:#C62828; }
+/* 5-Year savings chart container. */
+.estimate-chart-wrap{
+  margin-top:clamp(24px,4vw,36px);
+  padding-top:clamp(24px,4vw,36px);
+  border-top:1px solid rgba(255,255,255,0.5);
+}
+.estimate-chart-wrap h3{
+  font-size:14px;font-weight:700;letter-spacing:.1em;color:#0F1E2A;text-transform:uppercase;margin:0 0 12px;
+}
+.estimate-chart-wrap canvas{
+  width:100%;
+  max-height:220px;
+}
+/* Saved estimates section. */
+.estimate-saved-wrap{
+  margin-top:clamp(24px,4vw,36px);
+  padding-top:clamp(24px,4vw,36px);
+  border-top:1px solid rgba(255,255,255,0.5);
+}
+.estimate-saved-wrap h3{
+  font-size:14px;font-weight:700;letter-spacing:.1em;color:#0F1E2A;text-transform:uppercase;margin:0 0 12px;
+}
+.saved-list{
+  display:flex;flex-direction:column;gap:10px;
+}
+.saved-item{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.4);
+  backdrop-filter:blur(10px);
+}
+.saved-info{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.saved-date{font-size:11px;font-weight:700;color:#8A90A2;}
+.saved-city{font-size:11px;color:#5B6B80;}
+.saved-value{font-size:15px;font-weight:800;color:#0F1E2A;white-space:nowrap;}
+.saved-load{
+  font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;border:1px solid #F2811D;background:#fff;color:#F2811D;cursor:pointer;
+}
+.saved-load:hover{background:#F2811D;color:#fff;}
+.saved-empty{font-size:12px;color:#8A90A2;text-align:center;padding:20px;}
 .estimate-disclaimer{
   margin-top:clamp(24px,4vw,32px);
   padding-top:18px;

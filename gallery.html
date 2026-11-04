@@ -92,6 +92,7 @@
         <div class="estimate-actions">
           <button type="button" id="estCalculate" class="btn-primary-calc" disabled>Calculate estimate</button>
           <button type="button" id="estReset" class="btn-reset-calc">Reset</button>
+          <button type="button" id="estPrint" class="btn-print-calc" style="display:none;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8H11V3H5v18h14V8h-6zM7 10h4v4H7zM13 10h4v4h-4z"/></svg>Download PDF</button>
         </div>
       </form>
       <div class="estimate-results" id="estimateResult">
@@ -136,15 +137,25 @@
               <p class="result-unit">approx.</p>
             </div>
           </div>
-          <div class="result-card">
-            <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
-            <div class="result-body">
-              <p class="result-label">Roof space needed</p>
-              <p class="result-value" id="estRoof">—</p>
-              <p class="result-unit">shadow-free</p>
-            </div>
+        <div class="result-card">
+          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+          <div class="result-body">
+            <p class="result-label">Roof space needed</p>
+            <p class="result-value" id="estRoof">—</p>
+            <p class="result-unit">shadow-free</p>
           </div>
         </div>
+      </div>
+      <div class="estimate-chart-wrap">
+        <h3>5-Year Cumulative Savings</h3>
+        <canvas id="estChart"></canvas>
+      </div>
+    </div>
+    </div>
+    <div class="estimate-saved-wrap">
+      <h3>Saved Estimates</h3>
+      <div id="savedEstimatesWrap" class="saved-list">
+        <div id="savedEstimatesList"></div>
       </div>
     </div>
     <p class="estimate-disclaimer"><strong>Indicative only.</strong> Figures use Maharashtra-average solar yield (≈4.2 kWh/kWp/day), ₹7.50/kWh grid rate and ₹52,000/kWp installed cost. Actual output depends on roof orientation, shading, structure and local DISCOM tariff. A site visit and proposal confirm the real design and price.</p>
