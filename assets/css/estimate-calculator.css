@@ -84,14 +84,14 @@
   color:#5B6B80;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
 }
 .btn-reset-calc:hover{border-color:#B9C4D1;color:#17354A;background:#F5F7FA;}
-/* WhatsApp icon button - proper WhatsApp green circle logo + small text label. */
+/* WhatsApp icon button - SVG has green circle + white phone (self-contained logo). */
 .btn-whatsapp{
   display:inline-flex;align-items:center;justify-content:center;
-  width:44px;height:44px;border-radius:50%;border:none;background:#25D366;color:#fff;
-  font-size:20px;cursor:pointer;transition:all .2s;box-shadow:0 4px 10px rgba(37,211,102,0.35);
+  width:44px;height:44px;border-radius:50%;border:none;background:transparent;color:#fff;
+  cursor:pointer;transition:transform .2s;
 }
-.btn-whatsapp:hover{background:#1EB855;transform:translateY(-1px);box-shadow:0 6px 14px rgba(37,211,102,0.45);}
-.btn-whatsapp svg{width:22px;height:22px;flex:0 0 auto;display:block;}
+.btn-whatsapp:hover{transform:scale(1.05);}
+.btn-whatsapp svg{width:28px;height:28px;flex:0 0 auto;display:block;}
 .whatsapp-btn-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
 .whatsapp-label{font-size:11px;font-weight:600;color:#25D366;letter-spacing:.02em;text-align:center;white-space:nowrap;}
 @media (max-width:700px){
