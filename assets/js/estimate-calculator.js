@@ -1,8 +1,8 @@
 /* Quick solar estimate calculator.
 
-   Public-facing tool: enter roof area, monthly electricity bill, consumer
-   type and location - get an instant estimate of recommended system size,
-   panel count, cost, annual savings and payback period. All figures are
+   Public-facing tool: enter monthly electricity bill, consumer type and
+   location - get an instant estimate of recommended system size, panel
+   count, cost, annual savings and payback period. All figures are
    indicative only - a real proposal follows after a site visit. No data
    leaves the browser.
  */
@@ -47,7 +47,6 @@
   if (!form) return;
 
   var inputs = {
-    area: el('estArea'),
     bill: el('estBill'),
     type: el('estType'),
     city: el('estCity')
@@ -64,16 +63,14 @@
   var calculateBtn = el('estCalculate');
 
   function allFilled() {
-    return inputs.area.value && inputs.bill.value &&
-           inputs.type.value && inputs.city.value;
+    return inputs.bill.value && inputs.type.value && inputs.city.value;
   }
 
   function compute() {
-    var area = Number(inputs.area.value) || 0;
     var bill = Number(inputs.bill.value) || 0;
     var type = inputs.type ? inputs.type.value : 'residential';
     var city = inputs.city ? inputs.city.value : 'Pune';
-    if (!area || !bill || !type || !city) return null;
+    if (!bill || !type || !city) return null;
 
     var adj = TYPE_ADJUST[type] || TYPE_ADJUST.residential;
 
@@ -83,18 +80,11 @@
 
     /* System size needed to cover annual consumption. */
     var annualYieldPerKwp = DEFAULTS.solarYield * 365 * DEFAULTS.performanceRatio * adj.yieldMult;
-    var systemByUsage = annualUnits / annualYieldPerKwp;
-
-    /* System size limited by roof area. */
-    var systemByRoof = area / DEFAULTS.areaPerKwp;
-
-    /* Recommend the smaller of the two - don't oversize past roof or need. */
-    var systemKwp = Math.min(systemByUsage, systemByRoof);
+    var systemKwp = annualUnits / annualYieldPerKwp;
     systemKwp = Math.max(systemKwp, 1); /* minimum 1 kWp */
 
-    var roofLimited = systemByRoof < systemByUsage;
-    var roofNeeded = systemKwp * DEFAULTS.areaPerKwp;
     var panelCount = Math.round((systemKwp * 1000) / PANEL_WP);
+    var roofNeeded = systemKwp * DEFAULTS.areaPerKwp;
 
     var costPerKwp = DEFAULTS.costPerKwp * adj.costMult;
     var cost = systemKwp * costPerKwp;
@@ -109,12 +99,10 @@
     return {
       type: type,
       city: city,
-      area: area,
       bill: bill,
       systemKwp: systemKwp,
       panelCount: panelCount,
       roofNeeded: roofNeeded,
-      roofLimited: roofLimited,
       cost: cost,
       annualSavings: annualSavings,
       payback: payback,
@@ -134,11 +122,9 @@
     outputs.cost.textContent = money(res.cost);
     outputs.savings.textContent = money(Math.round(res.annualSavings)) + ' / yr';
     outputs.payback.textContent = res.payback.toFixed(1) + ' years';
-    var roofLabel = Math.round(res.roofNeeded) + ' sq ft';
-    if (res.roofLimited) roofLabel += ' · roof-limited';
-    outputs.roof.textContent = roofLabel;
+    outputs.roof.textContent = Math.round(res.roofNeeded) + ' sq ft';
 
-    /* Color coding: payback bar indicator. */
+    /* Color coding: payback card. */
     var paybackCard = document.getElementById('estPaybackCard');
     if (paybackCard) {
       paybackCard.className = 'result-card';
@@ -166,7 +152,6 @@
   var resetBtn = el('estReset');
   if (resetBtn) {
     resetBtn.addEventListener('click', function () {
-      inputs.area.value = '';
       inputs.bill.value = '';
       if (inputs.type) inputs.type.selectedIndex = 0;
       if (inputs.city) inputs.city.selectedIndex = 0;
@@ -174,7 +159,7 @@
       paint(null);
     });
   }
-  [inputs.area, inputs.bill, inputs.type, inputs.city].forEach(function (i) {
+  [inputs.bill, inputs.type, inputs.city].forEach(function (i) {
     if (i) i.addEventListener('input', onInput);
   });
 
