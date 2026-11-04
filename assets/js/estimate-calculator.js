@@ -42,6 +42,32 @@
      allowance stays at 80 sq ft/kWp (areaPerKwp above). */
   var PANEL_WP = 550;
 
+  /* Government subsidy, matching the quotation engine's treatment.
+     - Residential: PM Surya Ghar — ₹30,000/kW for the first 2 kW, ₹18,000 for
+       the 3rd kW, capped at ₹78,000.
+     - Housing society: ₹18,000/kWp (common-facility/RWA rate).
+     - Commercial and industrial: no subsidy — the card shows a dash. */
+  function calcSubsidy(type, kwp) {
+    if (type === 'residential') {
+      if (!isFinite(kwp) || kwp <= 0) return 0;
+      if (kwp <= 2) return kwp * 30000;
+      if (kwp <= 3) return 60000 + (kwp - 2) * 18000;
+      return 78000;
+    }
+    if (type === 'society') {
+      if (!isFinite(kwp) || kwp <= 0) return 0;
+      return Math.min(kwp, 500) * 18000;
+    }
+    return null; /* commercial / industrial — not applicable */
+  }
+
+  var SUBSIDY_CAPTION = {
+    residential: 'PM Surya Ghar',
+    society: 'RWA scheme',
+    commercial: 'not applicable',
+    industrial: 'not applicable'
+  };
+
   function el(id) { return document.getElementById(id); }
   function fmt(n, decimals) {
     if (n == null || !isFinite(n)) return '—';
@@ -61,6 +87,9 @@
     system: el('estSystem'),
     panels: el('estPanels'),
     cost: el('estCost'),
+    subsidy: el('estSubsidy'),
+    subsidyUnit: el('estSubsidyUnit'),
+    net: el('estNet'),
     savings: el('estSavings'),
     payback: el('estPayback'),
     roof: el('estRoof')
@@ -78,10 +107,12 @@
   var CARD_COLORS = {
     system: '#16405F',
     panels: '#2E7D32',
+    roof: '#00838F',
     cost: '#F2811D',
+    subsidy: '#1B5E20',
+    net: '#0D47A1',
     savings: '#6A1B9A',
-    payback: '#C62828',
-    roof: '#00838F'
+    payback: '#C62828'
   };
 
   function allFilled() {
@@ -118,6 +149,8 @@
     var annualSavings = offsetUnits * DEFAULTS.gridRate;
     var payback = annualSavings > 0 ? cost / annualSavings : 99;
 
+    var subsidy = calcSubsidy(type, systemKwp);
+
     return {
       type: type,
       city: city,
@@ -126,6 +159,8 @@
       panelCount: panelCount,
       roofNeeded: roofNeeded,
       cost: cost,
+      subsidy: subsidy,
+      net: cost - (subsidy || 0),
       annualSavings: annualSavings,
       payback: payback,
       monthlyUnits: monthlyUnits
@@ -135,9 +170,9 @@
   function drawChart(res) {
     if (!chartCtx || !res) return;
     var canvas = chartCanvas;
-    var rect = canvas.parentElement.getBoundingClientRect();
-    var width = rect.width || 300;
-    var height = 200;
+    var wrap = canvas.parentElement;
+    var width = (wrap && wrap.clientWidth) || canvas.clientWidth || 320;
+    var height = 240;
     var dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -151,11 +186,12 @@
     var years = 5;
     var annualSavings = res.annualSavings;
     var maxVal = annualSavings * years;
-    var padding = 16;
-    var chartWidth = width - padding * 2;
-    var chartHeight = height - padding - 40;
-    var barWidth = (chartWidth / years) * 0.82;
-    var gap = (chartWidth / years) * 0.18;
+    var leftPad = 58, rightPad = 16, topPad = 24, bottomPad = 40;
+    var chartWidth = width - leftPad - rightPad;
+    var chartHeight = height - topPad - bottomPad;
+    var slot = chartWidth / years;
+    var barWidth = slot * 0.64; /* even gaps between the bars */
+    var gap = slot - barWidth;
 
     /* Grid lines + Y labels. */
     ctx.strokeStyle = '#EDF1F6';
@@ -165,20 +201,20 @@
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     for (var i = 0; i <= 4; i++) {
-      var y = padding + chartHeight - (chartHeight * i / 4);
+      var y = topPad + chartHeight - (chartHeight * i / 4);
       ctx.beginPath();
-      ctx.moveTo(padding, y);
-      ctx.lineTo(padding + chartWidth, y);
+      ctx.moveTo(leftPad, y);
+      ctx.lineTo(leftPad + chartWidth, y);
       ctx.stroke();
-      ctx.fillText(fmt(Math.round(maxVal * i / 4)), padding - 8, y);
+      ctx.fillText(fmt(Math.round(maxVal * i / 4)), leftPad - 8, y);
     }
 
     /* Bars: cumulative savings per year - wide flat solid orange, clean rounded corners. */
     for (var i = 0; i < years; i++) {
       var cumulative = annualSavings * (i + 1);
       var barHeight = (cumulative / maxVal) * chartHeight;
-      var x = padding + gap + i * (barWidth + gap);
-      var y = padding + chartHeight - barHeight;
+      var x = leftPad + i * slot + gap / 2;
+      var y = topPad + chartHeight - barHeight;
 
       ctx.fillStyle = '#F2811D';
       ctx.beginPath();
@@ -189,7 +225,7 @@
       ctx.fillStyle = '#8A90A2';
       ctx.font = '11px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, padding + chartHeight + 18);
+      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, topPad + chartHeight + 18);
 
       /* Value label on top of bar. */
       ctx.fillStyle = '#0F1E2A';
@@ -212,6 +248,15 @@
       outputs.panels.textContent = res ? '≈' + res.panelCount + ' panels (550Wp)' : '—';
     }
     outputs.cost.textContent = res ? money(res.cost) : '—';
+    if (outputs.subsidy) {
+      outputs.subsidy.textContent = res ? (res.subsidy == null ? '—' : money(res.subsidy)) : '—';
+    }
+    if (outputs.subsidyUnit) {
+      outputs.subsidyUnit.textContent = res ? (SUBSIDY_CAPTION[res.type] || 'PM Surya Ghar') : 'PM Surya Ghar';
+    }
+    if (outputs.net) {
+      outputs.net.textContent = res ? money(res.net) : '—';
+    }
     outputs.savings.textContent = res ? money(Math.round(res.annualSavings)) + ' / yr' : '—';
     outputs.payback.textContent = res ? res.payback.toFixed(1) + ' years' : '—';
     outputs.roof.textContent = res ? Math.round(res.roofNeeded) + ' sq ft' : '—';
@@ -220,10 +265,12 @@
     var cardMap = {
       system: document.getElementById('cardSystem'),
       panels: document.getElementById('cardPanels'),
+      roof: document.getElementById('cardRoof'),
       cost: document.getElementById('cardCost'),
+      subsidy: document.getElementById('cardSubsidy'),
+      net: document.getElementById('cardNet'),
       savings: document.getElementById('cardSavings'),
-      payback: document.getElementById('estPaybackCard'),
-      roof: document.getElementById('cardRoof')
+      payback: document.getElementById('estPaybackCard')
     };
     Object.keys(cardMap).forEach(function (key) {
       var card = cardMap[key];
@@ -288,7 +335,8 @@
   if (whatsappBtn) {
     whatsappBtn.addEventListener('click', function () {
       if (!lastRes) return;
-      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (550Wp) · Cost ' + money(lastRes.cost) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + lastRes.payback.toFixed(1) + ' years · Roof ' + Math.round(lastRes.roofNeeded) + ' sq ft.\nGet in touch for a detailed proposal.';
+      var subsidyText = lastRes.subsidy == null ? 'Not applicable' : 'Govt subsidy ' + money(lastRes.subsidy);
+      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (550Wp) · Cost ' + money(lastRes.cost) + ' (GST included) · ' + subsidyText + ' · Net cost ' + money(lastRes.net) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + lastRes.payback.toFixed(1) + ' years.\nGet in touch for a detailed proposal.';
       var waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
       var win = window.open(waUrl, '_blank');
       if (!win) alert('Could not open WhatsApp — please allow pop-ups for this site.');
@@ -315,7 +363,9 @@
       '<div class="card grid">' +
       '<div><div class="label">Recommended System</div><div class="value">' + res.systemKwp.toFixed(1) + '</div><div class="unit">kWp</div></div>' +
       '<div><div class="label">Solar Panels</div><div class="value">' + res.panelCount + '</div><div class="unit">550Wp each</div></div>' +
-      '<div><div class="label">Estimated Cost</div><div class="value">' + money(res.cost) + '</div><div class="unit">(all-inclusive)</div></div>' +
+      '<div><div class="label">Estimated Cost</div><div class="value">' + money(res.cost) + '</div><div class="unit">(GST included)</div></div>' +
+      '<div><div class="label">Govt Subsidy</div><div class="value">' + (res.subsidy == null ? '—' : money(res.subsidy)) + '</div><div class="unit">' + (SUBSIDY_CAPTION[res.type] || '') + '</div></div>' +
+      '<div><div class="label">Your Net Cost</div><div class="value">' + money(res.net) + '</div><div class="unit">after subsidy</div></div>' +
       '<div><div class="label">Annual Savings</div><div class="value">' + money(Math.round(res.annualSavings)) + '</div><div class="unit">/ yr</div></div>' +
       '<div><div class="label">Payback Period</div><div class="value">' + res.payback.toFixed(1) + '</div><div class="unit">years</div></div>' +
       '<div><div class="label">Roof Space</div><div class="value">' + Math.round(res.roofNeeded) + '</div><div class="unit">sq ft</div></div>' +
@@ -331,6 +381,32 @@
       printEstimate(lastRes);
     });
   }
+
+  /* ---------- Modal open / close ---------- */
+  var modal = el('estimate');
+  function openCalc() {
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    /* Repaint once the modal is laid out so the chart spans the full card. */
+    if (lastRes) window.setTimeout(function () { drawChart(lastRes); }, 30);
+  }
+  function closeCalc() {
+    if (!modal) return;
+    modal.hidden = true;
+    document.body.style.overflow = '';
+  }
+  var openBtn = el('calcOpen');
+  if (openBtn) openBtn.addEventListener('click', openCalc);
+  Array.prototype.forEach.call(document.querySelectorAll('[data-calc-close]'), function (node) {
+    node.addEventListener('click', closeCalc);
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && modal && !modal.hidden) closeCalc();
+  });
+  window.addEventListener('resize', function () {
+    if (lastRes && modal && !modal.hidden) drawChart(lastRes);
+  });
 
   /* Start with results hidden - calculate only on button click. */
   if (calculateBtn) calculateBtn.disabled = true;

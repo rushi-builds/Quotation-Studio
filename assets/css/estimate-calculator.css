@@ -170,3 +170,66 @@
 .estimate-disclaimer strong{color:#17354A;font-weight:700;}
 .estimate-hidden{display:none!important;}
 @media (prefers-reduced-motion:reduce){\n  .result-card{transition:none;}\n}
+/* ---------- v2: modal presentation + 8-card grid ---------- */
+
+/* Header shortcut button - opens the calculator modal. */
+.calc-open-btn{
+  border:1px solid var(--navy,#0C1E30);background:var(--navy,#0C1E30);color:#fff;
+  font:inherit;font-size:12.5px;font-weight:700;letter-spacing:.02em;
+  padding:9px 16px;border-radius:999px;cursor:pointer;text-decoration:none;
+  transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+.calc-open-btn:hover{background:#F2811D;border-color:#F2811D;transform:translateY(-1px);}
+.header-links{display:flex;align-items:center;gap:16px;white-space:nowrap;}
+@media (max-width:820px){
+  .gallery-header{flex-wrap:wrap;}
+  .header-links{gap:10px;}
+}
+
+/* Modal: calculator over a blurred page. */
+.calc-modal{
+  position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-start;justify-content:center;
+  padding:clamp(12px,4vw,40px);overflow-y:auto;
+}
+.calc-modal[hidden]{display:none;}
+.calc-backdrop{
+  position:fixed;inset:0;background:rgba(7,26,44,.55);
+  backdrop-filter:blur(18px) saturate(120%);
+  -webkit-backdrop-filter:blur(18px) saturate(120%);
+}
+.calc-sheet{
+  position:relative;width:min(980px,100%);margin:auto;animation:sheetIn .28s ease;
+}
+@keyframes sheetIn{
+  from{opacity:0;transform:translateY(18px) scale(.985);}
+  to{opacity:1;transform:none;}
+}
+.calc-close{
+  position:absolute;top:14px;right:16px;z-index:5;width:38px;height:38px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.75);color:#0F1E2A;
+  font-size:20px;line-height:1;font-weight:700;cursor:pointer;
+  transition:background .18s ease,transform .18s ease;
+}
+.calc-close:hover{background:#fff;transform:scale(1.06);}
+
+/* 8 result cards: 4 up + 4 down on desktop. */
+.results-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+}
+@media (max-width:1024px){
+  .results-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media (max-width:700px){
+  .results-grid{grid-template-columns:1fr;}
+  .estimate-actions{flex-direction:column;}
+  .btn-primary-calc,.btn-reset-calc,.btn-print-calc,.btn-whatsapp{width:100%;justify-content:center;}
+}
+
+/* Chart fills the card width, taller bars, no clipping. */
+.estimate-chart-wrap canvas{
+  width:100%;
+  max-height:none;
+  display:block;
+}
