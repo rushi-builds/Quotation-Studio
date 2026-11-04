@@ -192,4 +192,126 @@ t('no ₹/Wp rate is shown to the customer in the result card', () => {
   assert.doesNotMatch(r.text, /per\s*Wp/i);
 });
 
+/* ---------------------------------------------------------------------------
+   6. THE RATE CURVE ITSELF — percentage model, two bands, hard floors.
+      Swept against the shipped curve (window.EstimateCalculator.ratePerWp), not
+      a copy of it, so a future edit to the maths has to satisfy these too.
+   --------------------------------------------------------------------------- */
+console.log('\nestimate calculator — rate curve (percentage model)');
+
+const curve = w.EstimateCalculator;
+const ANCHOR = curve.rateAnchor;
+const BANDS = curve.rateBands;
+const rate = curve.ratePerWp;
+
+t('anchor is ₹63.6/Wp and both bands are declared with a floor + breakpoint', () => {
+  assert.equal(ANCHOR, 63.6);
+  assert.deepEqual(Object.keys(BANDS).sort(), ['nonsubsidy', 'subsidy']);
+  assert.equal(BANDS.subsidy.floor, 60);
+  assert.equal(BANDS.subsidy.reachesFloorAtKwp, 3);
+  assert.equal(BANDS.nonsubsidy.floor, 45);
+  assert.equal(BANDS.nonsubsidy.reachesFloorAtKwp, 20);
+});
+
+t('the documented table is exact: 1/2/3 kW subsidy and 10/20 kW non-subsidy', () => {
+  const close = (got, want, label) => assert.ok(Math.abs(got - want) < 0.005, label + ': ' + got);
+  close(rate('residential', 1), 63.6, 'residential 1 kW');
+  close(rate('residential', 2), 61.77, 'residential 2 kW');
+  close(rate('residential', 3), 60.0, 'residential 3 kW');
+  close(rate('commercial', 10), 53.99, 'commercial 10 kW');
+  close(rate('commercial', 20), 45.0, 'commercial 20 kW');
+});
+
+/* The failure mode the owner called out: a mis-tuned percentage that lands on
+   ₹30 or ₹20 for a big system. 500 kW, 100 kW and 1 GW must all sit on the floor. */
+for (const [type, floor] of [['residential', 60], ['society', 60], ['commercial', 45], ['industrial', 45]]) {
+  t(`${type}: 100 kW, 500 kW and 1000 MW all sit exactly on the ₹${floor} floor`, () => {
+    for (const kwp of [100, 500, 1000, 1e6]) {
+      assert.equal(rate(type, kwp), floor, type + ' at ' + kwp + ' kWp was ' + rate(type, kwp));
+    }
+  });
+}
+
+/* Property sweep: 0.25 kW → 1000 kW in fine steps. Three invariants at once. */
+t('sweep 0.25–1000 kW: never outside [floor, anchor], never rises, never NaN', () => {
+  const sizes = [];
+  for (let k = 0.25; k <= 100; k += 0.25) sizes.push(Number(k.toFixed(2)));
+  for (let k = 101; k <= 1000; k += 1) sizes.push(k);
+  let samples = 0;
+  for (const type of ['residential', 'society', 'commercial', 'industrial']) {
+    const band = BANDS[(type === 'residential' || type === 'society') ? 'subsidy' : 'nonsubsidy'];
+    let prev = Infinity;
+    for (const kwp of sizes) {
+      const r = rate(type, kwp);
+      samples++;
+      assert.ok(Number.isFinite(r), type + ' at ' + kwp + ' kWp was not finite');
+      assert.ok(r <= ANCHOR + 1e-9, type + ' at ' + kwp + ' kWp exceeded the anchor: ' + r);
+      assert.ok(r >= band.floor - 1e-9, type + ' at ' + kwp + ' kWp fell below ₹' + band.floor + ': ' + r);
+      assert.ok(r <= prev + 1e-9, type + ' at ' + kwp + ' kWp went UP from ' + prev + ' to ' + r);
+      prev = r;
+    }
+  }
+  assert.ok(samples > 4000, 'expected a dense sweep, got ' + samples + ' samples');
+});
+
+t('no cliff: the drop between neighbouring capacities stays a percentage, not a step', () => {
+  for (const type of ['residential', 'commercial']) {
+    let prev = rate(type, 1);
+    for (let k = 1.1; k <= 60; k += 0.1) {
+      const r = rate(type, Number(k.toFixed(1)));
+      assert.ok(prev - r <= 0.3, type + ' dropped ' + (prev - r).toFixed(3) + ' ₹/Wp at ' + k.toFixed(1) + ' kW');
+      prev = r;
+    }
+  }
+});
+
+t('hostile capacities price at the anchor instead of returning NaN', () => {
+  for (const bad of [undefined, null, NaN, -5, 0, '', 'abc', {}, []]) {
+    const r = rate('residential', bad);
+    assert.ok(Number.isFinite(r), 'rate(' + String(bad) + ') = ' + r);
+    assert.equal(r, ANCHOR, 'rate(' + String(bad) + ') should be the anchor, got ' + r);
+  }
+});
+
+t('the band is a percentage curve, not a straight line', () => {
+  const one = rate('commercial', 1);
+  const two = rate('commercial', 2);
+  const twenty = rate('commercial', 20);
+  /* A straight line would put 2 kW on the chord (1 kW → 20 kW). Compounding
+     softens MORE at the start and flattens towards the floor, so the curve sits
+     below the chord — that is the signature of percentage logic. */
+  const chordAt2 = one - (one - twenty) / 19;
+  assert.ok(two < chordAt2 - 0.05, '2 kW should sit BELOW the linear chord: ' + two + ' vs ' + chordAt2);
+
+  /* …and every extra kW multiplies by the SAME factor: a constant percentage. */
+  const ratio1 = rate('commercial', 3) / rate('commercial', 2);
+  const ratio2 = rate('commercial', 11) / rate('commercial', 10);
+  const ratio3 = rate('commercial', 16) / rate('commercial', 15);
+  assert.ok(Math.abs(ratio1 - ratio2) < 1e-9, 'multiplicative factor changed: ' + ratio1 + ' vs ' + ratio2);
+  assert.ok(Math.abs(ratio2 - ratio3) < 1e-9, 'multiplicative factor changed: ' + ratio2 + ' vs ' + ratio3);
+  assert.ok(Math.abs(ratio1 - 1 + (1 - Math.pow(45 / 63.6, 1 / 19))) < 1e-9,
+    'per-kW percentage is not the one derived from floor/anchor/breakpoint');
+
+  /* Absolute ₹ drops must shrink with size — front-loaded, not even. */
+  const dropEarly = rate('commercial', 1) - rate('commercial', 2);
+  const dropLate = rate('commercial', 15) - rate('commercial', 16);
+  assert.ok(dropEarly > dropLate, 'early drop ' + dropEarly + ' should exceed late drop ' + dropLate);
+});
+
+t('end-to-end: a 500 kW-class residential bill still prices at ₹60/Wp, not ₹30', () => {
+  const r = run(5000000, 'residential');
+  assert.ok(r.kwp > 100, 'expected a very large system, got ' + r.kwp + ' kWp');
+  const endToEnd = r.cost / (r.kwp * 1000);
+  assert.ok(Math.abs(endToEnd - 60) < 0.5, 'rendered rate was ₹' + endToEnd.toFixed(2) + '/Wp');
+  assert.doesNotMatch(r.text, /NaN/i);
+});
+
+t('end-to-end: a 100 kW-class commercial bill prices at ₹45/Wp', () => {
+  const r = run(5000000, 'commercial');
+  assert.ok(r.kwp > 100, 'expected a very large system, got ' + r.kwp + ' kWp');
+  const endToEnd = r.cost / (r.kwp * 1000);
+  assert.ok(Math.abs(endToEnd - 45) < 0.5, 'rendered rate was ₹' + endToEnd.toFixed(2) + '/Wp');
+});
+
 console.log(`\n${pass} calculator checks passed.`);
+

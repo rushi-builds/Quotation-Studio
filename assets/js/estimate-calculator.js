@@ -20,32 +20,59 @@
     performanceRatio: 0.81
   };
 
-  /* Installed cost rate, sliding by capacity — matches the quotation engine's
-     ₹63.6/Wp anchor at 1 kW (owner decision, 2026-11-05). Percentage model,
-     degradation-style: each extra kW softens the rate by a fixed percentage,
-     then a hard floor clamps the band. However large the system (100 or
-     500 kW), the rate can never leave ₹45–₹63.6/Wp.
-     - Residential / society (subsidy band): floor ₹60/Wp — reached by 3 kW.
-     - Commercial / industrial (no subsidy): floor ₹45/Wp — reached by 20 kW.
-     Retune = edit these five numbers, nothing else. */
-  var RATE_BASE = 63.6;         /* ₹/Wp at 1 kW, GST inclusive as this band is
-                                 defined. NOTE: the quotation's own default is
-                                 also the numeral 63.6 but THAT one is ex-GST
-                                 (finance.js adds gstPercent on top), so a
-                                 quotation at 3 kW grosses up to ~₹69.3/Wp.
-                                 Owner decision still open: see PR body. */
-  var RATE_STEP_SUBSIDY = 2.87; /* % softening per extra kW → ₹60 by 3 kW */
-  var RATE_FLOOR_SUBSIDY = 60;  /* subsidy band floor */
-  var RATE_STEP_OTHER = 1.80;   /* % softening per extra kW → ₹45 by 20 kW */
-  var RATE_FLOOR_OTHER = 45;    /* non-subsidy band floor */
+  /* Installed cost rate, sliding by capacity — one percentage curve, two bands.
+     The percentage is DERIVED, never hand-typed.
 
-  function ratePerWp(type, kwp) {
-    var isSubsidy = (type === 'residential' || type === 'society');
-    var floor = isSubsidy ? RATE_FLOOR_SUBSIDY : RATE_FLOOR_OTHER;
-    var step = (isSubsidy ? RATE_STEP_SUBSIDY : RATE_STEP_OTHER) / 100;
-    var rate = RATE_BASE * Math.pow(1 - step, Math.max(kwp, 1) - 1);
-    return Math.max(rate, floor);
+     A band is described only by the two numbers the business actually owns:
+       floor               the lowest ₹/Wp this band may ever reach
+       reachesFloorAtKwp   the capacity at which it reaches that floor
+     and the curve between them is exponential (degradation-style): every extra
+     kW multiplies the rate by the same factor, so the softening is a constant
+     percentage and never a straight line.
+
+     Because the step is solved FROM the floor and the breakpoint —
+         step = 1 - (floor / anchor) ^ (1 / (breakpoint - 1))
+     the curve lands exactly on its floor at the breakpoint. Nothing can drift:
+     a retune means editing a floor or a breakpoint, and the percentage follows
+     on its own. That is what stops the failure mode a hand-typed percentage
+     allows — "3 kW priced at 63, 500 kW quietly landing on 30 or 20".
+     A belt-and-braces clamp then pins the result inside [floor, anchor] for
+     every possible input, including a broken or missing capacity.
+
+     Bands (owner decision, 2026-11-05):
+       - Residential / society (subsidy):    ₹60/Wp floor, reached by 3 kW
+       - Commercial / industrial (no subsidy): ₹45/Wp floor, reached by 20 kW
+     So 100 kW and 500 kW both sit on 45 (or 60) — never below. */
+  var RATE_ANCHOR = 63.6;       /* ₹/Wp at 1 kW — top of the band, both bands.
+                                 NOTE: the quotation's own default is the same
+                                 numeral but THAT one is ex-GST (finance.js adds
+                                 gstPercent on top), so a quotation at 3 kW
+                                 grosses up to ~₹69.3/Wp. This band is the
+                                 owner's all-inclusive estimate rate; the two
+                                 stay deliberately separate (see PR body). */
+  var RATE_BANDS = {
+    subsidy:    { floor: 60, reachesFloorAtKwp: 3  },  /* residential + society */
+    nonsubsidy: { floor: 45, reachesFloorAtKwp: 20 }   /* commercial + industrial */
+  };
+
+  function rateBandOf(type) {
+    return (type === 'residential' || type === 'society') ? 'subsidy' : 'nonsubsidy';
   }
+
+  /** ₹/Wp for a capacity in kWp, inside the band's floor..anchor forever. */
+  function ratePerWp(type, kwp) {
+    var band = RATE_BANDS[rateBandOf(type)];
+    var size = Number(kwp);
+    /* An unknown, negative or sub-1 capacity prices at the anchor, never NaN. */
+    if (!isFinite(size) || size < 1) size = 1;
+    var span = Math.max(band.reachesFloorAtKwp - 1, 1);   /* 1 kW is the anchor */
+    var step = 1 - Math.pow(band.floor / RATE_ANCHOR, 1 / span);
+    var rate = RATE_ANCHOR * Math.pow(1 - step, size - 1);
+    /* Hard band: whatever the size, whatever the band, whatever a future edit
+       does to the maths above, the rate cannot leave [floor, anchor]. */
+    return Math.min(Math.max(rate, band.floor), RATE_ANCHOR);
+  }
+
 
   /* Yield adjustment by consumer type. */
   var YIELD_MULT = {
@@ -442,5 +469,13 @@
   if (calculateBtn) calculateBtn.disabled = true;
   paint(null);
 
-  root.EstimateCalculator = { compute: compute };
+  /* Public surface. ratePerWp/rateBands exist so qa/estimate-calculator.test.cjs
+     can sweep thousands of capacities against the REAL curve instead of a copy of
+     it inside the test. Nothing on the page reads them. */
+  root.EstimateCalculator = {
+    compute: compute,
+    ratePerWp: ratePerWp,
+    rateAnchor: RATE_ANCHOR,
+    rateBands: RATE_BANDS
+  };
 })(window);
