@@ -137,7 +137,7 @@
     var canvas = chartCanvas;
     var rect = canvas.parentElement.getBoundingClientRect();
     var width = rect.width || 300;
-    var height = 170;
+    var height = 160;
     var dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -151,11 +151,11 @@
     var years = 5;
     var annualSavings = res.annualSavings;
     var maxVal = annualSavings * years;
-    var padding = 36;
+    var padding = 34;
     var chartWidth = width - padding * 2;
-    var chartHeight = height - padding - 30;
-    var barWidth = (chartWidth / years) * 0.55;
-    var gap = (chartWidth / years) * 0.45;
+    var chartHeight = height - padding - 28;
+    var barWidth = (chartWidth / years) * 0.6;
+    var gap = (chartWidth / years) * 0.4;
 
     /* Grid lines + Y labels. */
     ctx.strokeStyle = '#EDF1F6';
@@ -189,20 +189,20 @@
       ctx.fillStyle = '#8A90A2';
       ctx.font = '11px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, padding + chartHeight + 18);
+      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, padding + chartHeight + 16);
 
       /* Value label on top of bar. */
       ctx.fillStyle = '#0F1E2A';
       ctx.font = 'bold 10px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('₹' + fmt(Math.round(cumulative)), x + barWidth / 2, y - 8);
+      ctx.fillText('₹' + fmt(Math.round(cumulative)), x + barWidth / 2, y - 7);
     }
 
     /* Chart title. */
     ctx.fillStyle = '#0F1E2A';
     ctx.font = 'bold 13px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('5-Year Cumulative Savings', width / 2, 16);
+    ctx.fillText('5-Year Cumulative Savings', width / 2, 14);
   }
 
   function paint(res) {
