@@ -3,7 +3,7 @@
    Public-facing tool: enter monthly electricity bill, consumer type and
    place - get an instant estimate of recommended system size, panel count,
    cost, annual savings and payback period. Includes 5-year savings chart,
-   save/load to localStorage and print/download PDF. All figures are
+   customer activity (lead capture) and print/download PDF. All figures are
    indicative only - a real proposal follows after a site visit. No data
    leaves the browser.
  */
@@ -43,8 +43,8 @@
      allowance stays at 80 sq ft/kWp (areaPerKwp above). */
   var PANEL_WP = 550;
 
-  /* localStorage key for saved estimates. */
-  var STORAGE_KEY = 'qs_estimates';
+  /* localStorage key for customer activity (lead capture). */
+  var ACTIVITY_KEY = 'qs_customer_activity';
 
   function el(id) { return document.getElementById(id); }
   function fmt(n, decimals) {
@@ -76,6 +76,16 @@
   var chartCtx = chartCanvas ? chartCanvas.getContext('2d') : null;
 
   var lastRes = null;
+
+  /* Card color map - every result card gets its own colored border. */
+  var CARD_COLORS = {
+    system: '#16405F',
+    panels: '#2E7D32',
+    cost: '#F2811D',
+    savings: '#6A1B9A',
+    payback: '#C62828',
+    roof: '#00838F'
+  };
 
   function allFilled() {
     return inputs.bill.value && inputs.type.value && inputs.city.value;
@@ -208,14 +218,36 @@
     outputs.payback.textContent = res ? res.payback.toFixed(1) + ' years' : '—';
     outputs.roof.textContent = res ? Math.round(res.roofNeeded) + ' sq ft' : '—';
 
-    var paybackCard = document.getElementById('estPaybackCard');
-    if (paybackCard) {
-      paybackCard.className = 'result-card';
+    /* Colored borders on ALL result cards. */
+    var cardMap = {
+      system: document.getElementById('cardSystem'),
+      panels: document.getElementById('cardPanels'),
+      cost: document.getElementById('cardCost'),
+      savings: document.getElementById('cardSavings'),
+      payback: document.getElementById('estPaybackCard'),
+      roof: document.getElementById('cardRoof')
+    };
+    Object.keys(cardMap).forEach(function (key) {
+      var card = cardMap[key];
+      if (!card) return;
+      card.className = 'result-card';
       if (res) {
-        if (res.payback <= 4) paybackCard.classList.add('payback-excellent');
-        else if (res.payback <= 6) paybackCard.classList.add('payback-good');
-        else if (res.payback <= 8) paybackCard.classList.add('payback-average');
-        else paybackCard.classList.add('payback-high');
+        card.style.borderColor = CARD_COLORS[key];
+        card.style.background = 'rgba(255,255,255,0.5)';
+      }
+    });
+
+    /* Special payback color coding overrides border. */
+    if (res) {
+      var paybackCard = cardMap.payback;
+      if (res.payback <= 4) {
+        paybackCard.classList.add('payback-excellent');
+      } else if (res.payback <= 6) {
+        paybackCard.classList.add('payback-good');
+      } else if (res.payback <= 8) {
+        paybackCard.classList.add('payback-average');
+      } else {
+        paybackCard.classList.add('payback-high');
       }
     }
 
@@ -223,6 +255,10 @@
 
     var printBtnEl = el('estPrint');
     if (printBtnEl) printBtnEl.style.display = res ? 'inline-flex' : 'none';
+
+    /* Customer activity (lead capture). */
+    if (res) saveActivity(res);
+    renderActivityList();
   }
 
   function onInput() {
@@ -234,7 +270,7 @@
       event.preventDefault();
       var res = compute();
       paint(res);
-      if (res) saveEstimate(res);
+      if (res) saveActivity(res);
     });
   }
 
@@ -252,85 +288,48 @@
     if (i) i.addEventListener('input', onInput);
   });
 
-  /* ---------- Save & Load ---------- */
-  function saveEstimate(res) {
+  /* ---------- Customer Activity (Lead Capture) ---------- */
+  function saveActivity(res) {
     try {
-      var stored = localStorage.getItem(STORAGE_KEY);
-      var estimates = stored ? JSON.parse(stored) : [];
+      var stored = localStorage.getItem(ACTIVITY_KEY);
+      var activities = stored ? JSON.parse(stored) : [];
       var entry = {
         id: Date.now(),
         date: new Date().toISOString(),
-        bill: res.bill,
-        type: res.type,
-        city: res.city,
         systemKwp: res.systemKwp,
-        panelCount: res.panelCount,
-        cost: res.cost,
-        annualSavings: res.annualSavings,
-        payback: res.payback,
-        roofNeeded: res.roofNeeded
+        type: res.type,
+        city: res.city
       };
-      estimates.unshift(entry);
-      estimates = estimates.slice(0, 10);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(estimates));
-      renderSavedList();
+      activities.unshift(entry);
+      activities = activities.slice(0, 10);
+      localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activities));
     } catch (e) { /* localStorage may be blocked */ }
   }
 
-  function renderSavedList() {
-    var list = el('savedEstimatesList');
+  function renderActivityList() {
+    var list = el('activityList');
     if (!list) return;
     try {
-      var stored = localStorage.getItem(STORAGE_KEY);
-      var estimates = stored ? JSON.parse(stored) : [];
-      var wrap = el('savedEstimatesWrap');
-      if (estimates.length === 0) {
+      var stored = localStorage.getItem(ACTIVITY_KEY);
+      var activities = stored ? JSON.parse(stored) : [];
+      var wrap = el('activityWrap');
+      if (activities.length === 0) {
         if (wrap) wrap.style.display = 'none';
-        list.innerHTML = '<p class="saved-empty">No saved estimates yet.</p>';
+        list.innerHTML = '<p class="activity-empty">No calculations yet.</p>';
         return;
       }
       if (wrap) wrap.style.display = 'block';
-      var html = estimates.map(function (e) {
-        return '<div class="saved-item">' +
-          '<div class="saved-info">' +
-          '<span class="saved-date">' + new Date(e.date).toLocaleDateString('en-IN') + '</span>' +
-          '<span class="saved-city">' + e.city + ' · ' + e.type + '</span>' +
+      var html = activities.map(function (a) {
+        var label = Math.round(a.systemKwp * 10) / 10 + ' kWp';
+        return '<div class="activity-item">' +
+          '<div class="activity-info">' +
+          '<span class="activity-kwp">' + label + '</span>' +
+          '<span class="activity-meta">' + a.city + ' · ' + a.type + '</span>' +
           '</div>' +
-          '<div class="saved-value">' + money(Math.round(e.cost)) + '</div>' +
-          '<button class="saved-load" type="button">Load</button>' +
+          '<button class="activity-whatsapp" type="button" title="Contact via WhatsApp">📱</button>' +
           '</div>';
       }).join('');
       list.innerHTML = html;
-      list.querySelectorAll('.saved-load').forEach(function (btn, index) {
-        btn.addEventListener('click', function () {
-          loadSaved(estimates[index].id);
-        });
-      });
-    } catch (e) {}
-  }
-
-  function loadSaved(id) {
-    try {
-      var stored = localStorage.getItem(STORAGE_KEY);
-      var estimates = stored ? JSON.parse(stored) : [];
-      var entry = estimates.find(function (e) { return e.id === id; });
-      if (!entry) return;
-      inputs.bill.value = entry.bill;
-      inputs.type.value = entry.type;
-      inputs.city.value = entry.city;
-      if (calculateBtn) calculateBtn.disabled = !allFilled();
-      var res = {
-        type: entry.type,
-        city: entry.city,
-        bill: entry.bill,
-        systemKwp: entry.systemKwp,
-        panelCount: entry.panelCount,
-        cost: entry.cost,
-        annualSavings: entry.annualSavings,
-        payback: entry.payback,
-        roofNeeded: entry.roofNeeded
-      };
-      paint(res);
     } catch (e) {}
   }
 
@@ -374,7 +373,7 @@
   /* Start with results hidden - calculate only on button click. */
   if (calculateBtn) calculateBtn.disabled = true;
   paint(null);
-  renderSavedList();
+  renderActivityList();
 
-  root.EstimateCalculator = { compute: compute, loadSaved: loadSaved };
+  root.EstimateCalculator = { compute: compute };
 })(window);
