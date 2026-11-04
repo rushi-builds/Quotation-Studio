@@ -28,7 +28,12 @@
      - Residential / society (subsidy band): floor ₹60/Wp — reached by 3 kW.
      - Commercial / industrial (no subsidy): floor ₹45/Wp — reached by 20 kW.
      Retune = edit these five numbers, nothing else. */
-  var RATE_BASE = 63.6;         /* ₹/Wp at 1 kW (GST inclusive) */
+  var RATE_BASE = 63.6;         /* ₹/Wp at 1 kW, GST inclusive as this band is
+                                 defined. NOTE: the quotation's own default is
+                                 also the numeral 63.6 but THAT one is ex-GST
+                                 (finance.js adds gstPercent on top), so a
+                                 quotation at 3 kW grosses up to ~₹69.3/Wp.
+                                 Owner decision still open: see PR body. */
   var RATE_STEP_SUBSIDY = 2.87; /* % softening per extra kW → ₹60 by 3 kW */
   var RATE_FLOOR_SUBSIDY = 60;  /* subsidy band floor */
   var RATE_STEP_OTHER = 1.80;   /* % softening per extra kW → ₹45 by 20 kW */
@@ -139,7 +144,6 @@
     var city = inputs.city ? inputs.city.value : 'Pune';
     if (!bill || !type || !city) return null;
 
-    var costPerKwp = ratePerWp(type, systemKwp) * 1000;
     var yieldMult = YIELD_MULT[type] || YIELD_MULT.residential;
 
     /* Monthly units from bill: units = bill / rate. */
@@ -150,6 +154,15 @@
     var annualYieldPerKwp = DEFAULTS.solarYield * 365 * DEFAULTS.performanceRatio * yieldMult;
     var systemKwp = annualUnits / annualYieldPerKwp;
     systemKwp = Math.max(systemKwp, 1); /* minimum 1 kWp */
+
+    /* The rate depends on the system size, so it MUST be read after the size is
+       known. These two lines used to be swapped: `var` hoisting then handed
+       ratePerWp() an `undefined` size, Math.max(undefined, 1) returned NaN and
+       every cost on the card, in the WhatsApp message and in the PDF came out
+       as "₹—" / "NaN years". The guard below turns any future reordering into
+       an honest "—" instead of a NaN that reaches a customer document. */
+    var costPerKwp = ratePerWp(type, systemKwp) * 1000;
+    if (!isFinite(costPerKwp) || costPerKwp <= 0) return null;
 
     var panelCount = Math.round((systemKwp * 1000) / PANEL_WP);
     var roofNeeded = systemKwp * DEFAULTS.areaPerKwp;
@@ -261,7 +274,7 @@
       outputs.net.textContent = res ? money(res.net) : '—';
     }
     outputs.savings.textContent = res ? money(Math.round(res.annualSavings)) + ' / yr' : '—';
-    outputs.payback.textContent = res ? res.payback.toFixed(1) + ' years' : '—';
+    outputs.payback.textContent = res ? fmt(res.payback, 1) + ' years' : '—';
     outputs.roof.textContent = res ? Math.round(res.roofNeeded) + ' sq ft' : '—';
 
     /* Colored borders on ALL result cards. */
@@ -343,7 +356,7 @@
     whatsappBtn.addEventListener('click', function () {
       if (!lastRes) return;
       var subsidyText = lastRes.subsidy == null ? 'Not applicable' : 'Govt subsidy ' + money(lastRes.subsidy);
-      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (550Wp) · Cost ' + money(lastRes.cost) + ' (GST included) · ' + subsidyText + ' · Net cost ' + money(lastRes.net) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + lastRes.payback.toFixed(1) + ' years.\nGet in touch for a detailed proposal.';
+      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (550Wp) · Cost ' + money(lastRes.cost) + ' (GST included) · ' + subsidyText + ' · Net cost ' + money(lastRes.net) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + fmt(lastRes.payback, 1) + ' years.\nGet in touch for a detailed proposal.';
       var waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
       var win = window.open(waUrl, '_blank');
       if (!win) alert('Could not open WhatsApp — please allow pop-ups for this site.');
@@ -374,7 +387,7 @@
       '<div><div class="label">Govt Subsidy</div><div class="value">' + (res.subsidy == null ? '—' : money(res.subsidy)) + '</div><div class="unit">' + (SUBSIDY_CAPTION[res.type] || '') + '</div></div>' +
       '<div><div class="label">Your Net Cost</div><div class="value">' + money(res.net) + '</div><div class="unit">after subsidy</div></div>' +
       '<div><div class="label">Annual Savings</div><div class="value">' + money(Math.round(res.annualSavings)) + '</div><div class="unit">/ yr</div></div>' +
-      '<div><div class="label">Payback Period</div><div class="value">' + res.payback.toFixed(1) + '</div><div class="unit">years</div></div>' +
+      '<div><div class="label">Payback Period</div><div class="value">' + fmt(res.payback, 1) + '</div><div class="unit">years</div></div>' +
       '<div><div class="label">Roof Space</div><div class="value">' + Math.round(res.roofNeeded) + '</div><div class="unit">sq ft</div></div>' +
       '</div>' +
       '<div class="disclaimer"><strong>Indicative only.</strong> All prices and figures may vary as per site conditions and equipment. A site visit confirms the real design and price.</div>' +
