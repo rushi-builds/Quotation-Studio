@@ -1,41 +1,53 @@
-/* Quick solar estimate calculator — glass type, light, professional. */
+/* Quick solar estimate calculator — one aesthetic glass card. */
 .estimate-calculator{
   margin:clamp(34px,5vw,64px) clamp(16px,4vw,54px);
   max-width:900px;
 }
-.estimate-calculator h2{
-  margin:0 0 8px;font-size:clamp(24px,2.6vw,34px);line-height:1.12;letter-spacing:-.8px;color:#0F1E2A;font-weight:700;
-}
-.estimate-calculator p.sub{
-  margin:0 0 24px;color:#5B6B80;font-size:13.5px;line-height:1.6;max-width:62ch;
-}
-
-/* Two-column layout: inputs left, results right. */
-.estimate-layout{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:clamp(24px,4vw,48px);
-  align-items:start;
-}
-@media (max-width:700px){
-  .estimate-layout{grid-template-columns:1fr;}
-}
-
-/* Left: inputs card - glass, light. */
-.estimate-inputs{
+/* Main aesthetic card - glass, light, professional. */
+.estimate-card{
+  position:relative;
   background:rgba(255,255,255,0.55);
   border:1px solid rgba(255,255,255,0.6);
-  border-radius:20px;
-  padding:clamp(20px,3vw,28px);
-  backdrop-filter:blur(16px) saturate(1.3);
-  -webkit-backdrop-filter:blur(16px) saturate(1.3);
-  box-shadow:0 10px 26px rgba(7,26,46,0.05);
+  border-radius:30px;
+  padding:clamp(30px,4vw,48px);
+  backdrop-filter:blur(24px) saturate(1.4);
+  -webkit-backdrop-filter:blur(24px) saturate(1.4);
+  box-shadow:0 20px 48px rgba(7,26,46,0.06);
+  overflow:hidden;
 }
-.estimate-form{display:flex;flex-direction:column;gap:14px;}
+.estimate-card::before{
+  content:"";
+  position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,#F2811D,#D96A0E,#2E7D32,#16405F);
+}
+.estimate-header{
+  margin-bottom:clamp(24px,4vw,36px);
+}
+.estimate-kicker{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:700;letter-spacing:.16em;color:#F2811D;text-transform:uppercase;margin:0 0 10px;
+}
+.estimate-kicker::before{
+  content:"☀";
+  font-size:13px;
+}
+.estimate-card h2{
+  margin:0 0 10px;font-size:clamp(26px,3vw,34px);line-height:1.15;letter-spacing:-.8px;color:#0F1E2A;font-weight:800;
+}
+.estimate-sub{
+  margin:0;color:#5B6B80;font-size:13.5px;line-height:1.6;max-width:62ch;
+}
+/* Input fields section. */
+.estimate-fields{
+  display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:clamp(20px,3vw,28px);
+}
+@media (min-width:600px){
+  .estimate-fields{grid-template-columns:repeat(3,1fr);}
+}
 .estimate-field{display:flex;flex-direction:column;gap:8px;}
-.estimate-field label{font-size:12px;font-weight:700;letter-spacing:.12em;color:#6B7A85;text-transform:uppercase;}
+.estimate-field label{font-size:11px;font-weight:700;letter-spacing:.14em;color:#6B7A85;text-transform:uppercase;}
 .estimate-field input,.estimate-field select{
-  font:inherit;font-size:14px;padding:12px 14px;border-radius:12px;border:1px solid #D7DEE7;background:rgba(255,255,255,0.5);color:#17354A;
+  font:inherit;font-size:14px;padding:13px 15px;border-radius:12px;border:1px solid #D7DEE7;background:rgba(255,255,255,0.5);color:#17354A;
   transition:border-color .2s,box-shadow .2s,background .2s;
 }
 .estimate-field input:focus,.estimate-field select:focus{
@@ -43,40 +55,54 @@
 }
 .estimate-field input::placeholder{color:#A8B2C3;}
 .estimate-hint{font-size:11px;color:#8A90A2;line-height:1.5;margin-top:2px;}
-.estimate-actions{display:flex;gap:12px;margin-top:6px;}
+.estimate-actions{
+  display:flex;gap:12px;margin-top:4px;
+}
 .btn-primary-calc{
   flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  padding:12px 20px;border-radius:12px;border:1px solid #F2811D;background:linear-gradient(135deg,#F2811D,#D96A0E);
-  color:#fff;font:600 14px/1.4 Inter,sans-serif;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s;
-  box-shadow:0 8px 20px rgba(242,129,29,0.3);
+  padding:14px 22px;border-radius:14px;border:1px solid #F2811D;background:linear-gradient(135deg,#F2811D,#D96A0E);
+  color:#fff;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s;
+  box-shadow:0 10px 24px rgba(242,129,29,0.3);
 }
-.btn-primary-calc:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(242,129,29,0.42);}
+.btn-primary-calc:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(242,129,29,0.42);}
 .btn-primary-calc:disabled{opacity:.65;cursor:not-allowed;transform:none;box-shadow:none;}
 .btn-reset-calc{
-  display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:12px;border:1px solid #D7DEE7;background:rgba(255,255,255,0.6);
-  color:#5B6B80;font:600 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
+  display:inline-flex;align-items:center;gap:8px;padding:14px 20px;border-radius:14px;border:1px solid #D7DEE7;background:rgba(255,255,255,0.6);
+  color:#5B6B80;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
 }
 .btn-reset-calc:hover{border-color:#B9C4D1;color:#17354A;background:#F5F7FA;}
-
-/* Right: results cards - glass, light. */
-.estimate-results{display:flex;flex-direction:column;gap:12px;min-width:0;}
+/* Results section - one grid of aesthetic cards. */
+.estimate-results{
+  margin-top:clamp(24px,4vw,36px);
+  padding-top:clamp(24px,4vw,36px);
+  border-top:1px solid rgba(255,255,255,0.5);
+}
+.results-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+}
+@media (max-width:700px){
+  .results-grid{grid-template-columns:1fr;}
+  .estimate-actions{flex-direction:column;}
+  .btn-primary-calc,.btn-reset-calc{width:100%;justify-content:center;}
+}
 .result-card{
-  display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;border:1px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.5);
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
+  display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,0.6);background:rgba(255,255,255,0.45);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
   transition:transform .2s,border-color .2s,box-shadow .2s;
 }
-.result-card:hover{border-color:#D3DCE6;transform:translateY(-1px);box-shadow:0 8px 20px rgba(7,26,46,0.05);}
+.result-card:hover{border-color:#D3DCE6;transform:translateY(-1px);box-shadow:0 10px 24px rgba(7,26,46,0.05);}
 .result-ico{
-  flex:0 0 auto;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;
-  background:rgba(255,255,255,0.65);border:1px solid rgba(255,255,255,0.6);box-shadow:0 4px 10px rgba(7,26,46,0.04);
+  flex:0 0 auto;width:40px;height:40px;border-radius:14px;display:grid;place-items:center;
+  background:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.55);box-shadow:0 4px 10px rgba(7,26,46,0.04);
 }
 .result-ico svg{width:20px;height:20px;color:#F2811D;}
 .result-body{min-width:0;}
-.result-label{font-size:10.5px;font-weight:700;letter-spacing:.1em;color:#8A90A2;text-transform:uppercase;margin:0 0 2px;}
-.result-value{font-size:16px;font-weight:800;letter-spacing:-.4px;color:#0F1E2A;margin:0;}
+.result-label{font-size:10px;font-weight:700;letter-spacing:.12em;color:#8A90A2;text-transform:uppercase;margin:0 0 2px;}
+.result-value{font-size:17px;font-weight:800;letter-spacing:-.4px;color:#0F1E2A;margin:0;}
 .result-unit{font-size:11px;color:#5B6B80;margin:0;}
-
 /* Payback color coding. */
 .payback-excellent{ border-color:#2E7D32; background:rgba(46,125,50,0.08); }
 .payback-excellent .result-value{ color:#1B5E20; }
@@ -90,11 +116,13 @@
 .payback-high{ border-color:#C62828; background:rgba(198,40,40,0.08); }
 .payback-high .result-value{ color:#B71C1C; }
 .payback-high .result-ico svg{ color:#C62828; }
-
 .estimate-disclaimer{
-  margin-top:20px;padding-top:16px;border-top:1px solid #EDEEF3;font-size:11px;color:#8A90A2;line-height:1.6;max-width:62ch;
+  margin-top:clamp(24px,4vw,32px);
+  padding-top:18px;
+  border-top:1px solid rgba(255,255,255,0.5);
+  font-size:10.5px;color:#8A90A2;line-height:1.7;max-width:62ch;
 }
-.estimate-disclaimer strong{color:#17354A;font-weight:600;}
+.estimate-disclaimer strong{color:#17354A;font-weight:700;}
 .estimate-hidden{display:none!important;}
 .estimate-input-wrap{position:relative;display:inline-block;width:100%;}
 .estimate-input-wrap input{padding-right:64px;}

@@ -50,18 +50,15 @@
     <noscript><p class="gallery-count">The project grid needs JavaScript. Every photograph is also available from the contact details in your proposal.</p></noscript>
   </section>
 
-  <section class="gallery-context">
-    <h2>Your property deserves its own assessment.</h2>
-    <p>These are portfolio references, not a customer-specific layout, simulation or performance guarantee. Site measurements, shading, structural suitability and electricity data must be reviewed for your site.</p>
-    <p>To discuss your proposal, use the contact details printed in it. This public gallery does not collect or display your quotation, address or financial information.</p>
-  </section>
-
   <section class="estimate-calculator" id="estimate">
-    <h2>Quick solar estimate</h2>
-    <p class="sub">Enter your monthly electricity bill, consumer type and place for an indicative system size, cost and savings figure. A site visit confirms the real numbers.</p>
-    <div class="estimate-layout">
-      <div class="estimate-inputs">
-        <form id="estimateForm">
+    <div class="estimate-card">
+      <div class="estimate-header">
+        <span class="estimate-kicker">Quick solar estimate</span>
+        <h2>Find your ideal system size.</h2>
+        <p class="estimate-sub">Enter your monthly electricity bill, consumer type and place for an indicative system size, cost and savings figure.</p>
+      </div>
+      <form id="estimateForm">
+        <div class="estimate-fields">
           <div class="estimate-field">
             <label for="estBill">Monthly electricity bill</label>
             <div class="estimate-input-wrap">
@@ -91,59 +88,61 @@
               <option value="Other">Other (Maharashtra average)</option>
             </select>
           </div>
-          <div class="estimate-actions">
-            <button type="button" id="estCalculate" class="btn-primary-calc" disabled>Calculate estimate</button>
-            <button type="button" id="estReset" class="btn-reset-calc">Reset</button>
-          </div>
-        </form>
-      </div>
+        </div>
+        <div class="estimate-actions">
+          <button type="button" id="estCalculate" class="btn-primary-calc" disabled>Calculate estimate</button>
+          <button type="button" id="estReset" class="btn-reset-calc">Reset</button>
+        </div>
+      </form>
       <div class="estimate-results" id="estimateResult" hidden>
-        <div class="result-card">
-          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z"/></svg></span>
-          <div class="result-body">
-            <p class="result-label">Recommended system</p>
-            <p class="result-value" id="estSystem">—</p>
-            <p class="result-unit">kWp</p>
+        <div class="results-grid">
+          <div class="result-card">
+            <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z"/></svg></span>
+            <div class="result-body">
+              <p class="result-label">Recommended system</p>
+              <p class="result-value" id="estSystem">—</p>
+              <p class="result-unit">kWp</p>
+            </div>
           </div>
-        </div>
-        <div class="result-card">
-          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v3m0 13v-3M4 12H2m17 8h-2M5.94 6.66l1.41-1.41m12.73 12.73-1.41 1.41M17.34 17.34l-1.41 1.41M5.94 17.34l1.41 1.41M17.34 6.66l-1.41-1.41"/></svg></span>
-          <div class="result-body">
-            <p class="result-label">Solar panels needed</p>
-            <p class="result-value" id="estPanels">—</p>
-            <p class="result-unit">550Wp each</p>
+          <div class="result-card">
+            <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v3m0 13v-3M4 12H2m17 8h-2M5.94 6.66l1.41-1.41m12.73 12.73-1.41 1.41M17.34 17.34l-1.41 1.41M5.94 17.34l1.41 1.41M17.34 6.66l-1.41-1.41"/></svg></span>
+            <div class="result-body">
+              <p class="result-label">Solar panels needed</p>
+              <p class="result-value" id="estPanels">—</p>
+              <p class="result-unit">550Wp each</p>
+            </div>
           </div>
-        </div>
-        <div class="result-card">
-          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></span>
-          <div class="result-body">
-            <p class="result-label">Estimated cost</p>
-            <p class="result-value" id="estCost">—</p>
-            <p class="result-unit">(all-inclusive)</p>
+          <div class="result-card">
+            <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+            <div class="result-body">
+              <p class="result-label">Estimated cost</p>
+              <p class="result-value" id="estCost">—</p>
+              <p class="result-unit">(all-inclusive)</p>
+            </div>
           </div>
-        </div>
-        <div class="result-card">
-          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l3 3 4-4-8-8-8 8 3 -3 4 4"/></svg></span>
-          <div class="result-body">
-            <p class="result-label">Annual savings</p>
-            <p class="result-value" id="estSavings">—</p>
-            <p class="result-unit">on electricity</p>
+          <div class="result-card">
+            <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l3 3 4-4-8-8-8 8 3 -3 4 4"/></svg></span>
+            <div class="result-body">
+              <p class="result-label">Annual savings</p>
+              <p class="result-value" id="estSavings">—</p>
+              <p class="result-unit">on electricity</p>
+            </div>
           </div>
-        </div>
-        <div class="result-card" id="estPaybackCard">
-          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
-          <div class="result-body">
-            <p class="result-label">Payback period</p>
-            <p class="result-value" id="estPayback">—</p>
-            <p class="result-unit">approx.</p>
+          <div class="result-card" id="estPaybackCard">
+            <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <div class="result-body">
+              <p class="result-label">Payback period</p>
+              <p class="result-value" id="estPayback">—</p>
+              <p class="result-unit">approx.</p>
+            </div>
           </div>
-        </div>
-        <div class="result-card">
-          <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
-          <div class="result-body">
-            <p class="result-label">Roof space needed</p>
-            <p class="result-value" id="estRoof">—</p>
-            <p class="result-unit">shadow-free</p>
+          <div class="result-card">
+            <span class="result-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+            <div class="result-body">
+              <p class="result-label">Roof space needed</p>
+              <p class="result-value" id="estRoof">—</p>
+              <p class="result-unit">shadow-free</p>
+            </div>
           </div>
         </div>
       </div>
