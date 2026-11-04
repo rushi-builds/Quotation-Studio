@@ -116,31 +116,27 @@
   }
 
   function paint(res) {
-    if (!res) {
-      if (resultPanel) resultPanel.hidden = true;
-      return;
-    }
-    outputs.system.textContent = res.systemKwp.toFixed(1) + ' kWp';
+    /* Always keep result panel visible - only numbers change. */
+    outputs.system.textContent = res ? res.systemKwp.toFixed(1) + ' kWp' : '—';
     if (outputs.panels) {
-      outputs.panels.textContent = '≈' + res.panelCount + ' panels (550Wp)';
+      outputs.panels.textContent = res ? '≈' + res.panelCount + ' panels (550Wp)' : '—';
     }
-    outputs.cost.textContent = money(res.cost);
-    outputs.savings.textContent = money(Math.round(res.annualSavings)) + ' / yr';
-    outputs.payback.textContent = res.payback.toFixed(1) + ' years';
-    outputs.roof.textContent = Math.round(res.roofNeeded) + ' sq ft';
+    outputs.cost.textContent = res ? money(res.cost) : '—';
+    outputs.savings.textContent = res ? money(Math.round(res.annualSavings)) + ' / yr' : '—';
+    outputs.payback.textContent = res ? res.payback.toFixed(1) + ' years' : '—';
+    outputs.roof.textContent = res ? Math.round(res.roofNeeded) + ' sq ft' : '—';
 
-    /* Color coding: payback card. */
+    /* Color coding: payback card - reset when no result. */
     var paybackCard = document.getElementById('estPaybackCard');
     if (paybackCard) {
       paybackCard.className = 'result-card';
-      if (res.payback <= 4) paybackCard.classList.add('payback-excellent');
-      else if (res.payback <= 6) paybackCard.classList.add('payback-good');
-      else if (res.payback <= 8) paybackCard.classList.add('payback-average');
-      else paybackCard.classList.add('payback-high');
+      if (res) {
+        if (res.payback <= 4) paybackCard.classList.add('payback-excellent');
+        else if (res.payback <= 6) paybackCard.classList.add('payback-good');
+        else if (res.payback <= 8) paybackCard.classList.add('payback-average');
+        else paybackCard.classList.add('payback-high');
+      }
     }
-
-    if (resultPanel) resultPanel.hidden = false;
-    resultPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function onInput() {
