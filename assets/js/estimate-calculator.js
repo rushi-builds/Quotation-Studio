@@ -137,7 +137,7 @@
     var canvas = chartCanvas;
     var rect = canvas.parentElement.getBoundingClientRect();
     var width = rect.width || 300;
-    var height = 180;
+    var height = 170;
     var dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -151,11 +151,11 @@
     var years = 5;
     var annualSavings = res.annualSavings;
     var maxVal = annualSavings * years;
-    var padding = 40;
+    var padding = 36;
     var chartWidth = width - padding * 2;
-    var chartHeight = height - padding - 34;
-    var barWidth = (chartWidth / years) * 0.5;
-    var gap = (chartWidth / years) * 0.5;
+    var chartHeight = height - padding - 30;
+    var barWidth = (chartWidth / years) * 0.55;
+    var gap = (chartWidth / years) * 0.45;
 
     /* Grid lines + Y labels. */
     ctx.strokeStyle = '#EDF1F6';
@@ -173,7 +173,7 @@
       ctx.fillText(fmt(Math.round(maxVal * i / 4)), padding - 8, y);
     }
 
-    /* Bars: cumulative savings per year - flat solid color, crisp edges. */
+    /* Bars: cumulative savings per year - flat solid orange, clean rounded corners. */
     for (var i = 0; i < years; i++) {
       var cumulative = annualSavings * (i + 1);
       var barHeight = (cumulative / maxVal) * chartHeight;
@@ -185,21 +185,15 @@
       ctx.roundRect(x, y, barWidth, barHeight, 10);
       ctx.fill();
 
-      /* Subtle bar shadow for depth. */
-      ctx.shadowColor = 'rgba(242,129,29,0.25)';
-      ctx.shadowBlur = 8;
-      ctx.fillRect(x, y, barWidth, barHeight);
-      ctx.shadowBlur = 0;
-
       /* Year label. */
       ctx.fillStyle = '#8A90A2';
       ctx.font = '11px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, padding + chartHeight + 20);
+      ctx.fillText('Year ' + (i + 1), x + barWidth / 2, padding + chartHeight + 18);
 
       /* Value label on top of bar. */
       ctx.fillStyle = '#0F1E2A';
-      ctx.font = '10px Inter, sans-serif';
+      ctx.font = 'bold 10px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('₹' + fmt(Math.round(cumulative)), x + barWidth / 2, y - 8);
     }
@@ -208,7 +202,7 @@
     ctx.fillStyle = '#0F1E2A';
     ctx.font = 'bold 13px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('5-Year Cumulative Savings', width / 2, 18);
+    ctx.fillText('5-Year Cumulative Savings', width / 2, 16);
   }
 
   function paint(res) {
@@ -241,18 +235,10 @@
       }
     });
 
-    /* Special payback color coding overrides border. */
+    /* Payback card - always green with green text and icon. */
     if (res) {
       var paybackCard = cardMap.payback;
-      if (res.payback <= 4) {
-        paybackCard.classList.add('payback-excellent');
-      } else if (res.payback <= 6) {
-        paybackCard.classList.add('payback-good');
-      } else if (res.payback <= 8) {
-        paybackCard.classList.add('payback-average');
-      } else {
-        paybackCard.classList.add('payback-high');
-      }
+      paybackCard.classList.add('payback-green');
     }
 
     drawChart(res);

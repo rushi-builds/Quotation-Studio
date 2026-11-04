@@ -84,13 +84,20 @@
   color:#5B6B80;font:700 14px/1.4 Inter,sans-serif;cursor:pointer;transition:all .2s;
 }
 .btn-reset-calc:hover{border-color:#B9C4D1;color:#17354A;background:#F5F7FA;}
-/* WhatsApp icon button - small, proper WhatsApp green circle logo. */
+/* WhatsApp icon button - proper WhatsApp green circle logo + small text label. */
 .btn-whatsapp{
   display:inline-flex;align-items:center;justify-content:center;
   width:44px;height:44px;border-radius:50%;border:none;background:#25D366;color:#fff;
   font-size:20px;cursor:pointer;transition:all .2s;box-shadow:0 4px 10px rgba(37,211,102,0.35);
 }
 .btn-whatsapp:hover{background:#1EB855;transform:translateY(-1px);box-shadow:0 6px 14px rgba(37,211,102,0.45);}
+.btn-whatsapp svg{width:22px;height:22px;flex:0 0 auto;display:block;}
+.whatsapp-btn-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.whatsapp-label{font-size:11px;font-weight:600;color:#25D366;letter-spacing:.02em;text-align:center;white-space:nowrap;}
+@media (max-width:700px){
+  .whatsapp-btn-wrap{width:100%;flex-direction:row;justify-content:center;}
+  .whatsapp-label{white-space:normal;}
+}
 /* Print button - small icon. */
 .btn-print-calc{
   display:inline-flex;align-items:center;gap:8px;padding:14px 20px;border-radius:14px;border:1px solid #D7DEE7;background:#fff;
@@ -130,19 +137,10 @@
 .result-label{font-size:10px;font-weight:700;letter-spacing:.12em;color:#8A90A2;text-transform:uppercase;margin:0 0 2px;}
 .result-value{font-size:17px;font-weight:800;letter-spacing:-.4px;color:#0F1E2A;margin:0;}
 .result-unit{font-size:11px;color:#5B6B80;margin:0;}
-/* Payback color coding. */
-.payback-excellent{ border-color:#2E7D32; background:rgba(46,125,50,0.08); }
-.payback-excellent .result-value{ color:#1B5E20; }
-.payback-excellent .result-ico svg{ color:#2E7D32; }
-.payback-good{ border-color:#388E3C; background:rgba(56,142,60,0.08); }
-.payback-good .result-value{ color:#2E7D32; }
-.payback-good .result-ico svg{ color:#388E3C; }
-.payback-average{ border-color:#F9A825; background:rgba(249,168,37,0.08); }
-.payback-average .result-value{ color:#F57F17; }
-.payback-average .result-ico svg{ color:#F9A825; }
-.payback-high{ border-color:#C62828; background:rgba(198,40,40,0.08); }
-.payback-high .result-value{ color:#B71C1C; }
-.payback-high .result-ico svg{ color:#C62828; }
+/* Payback card - always green. */
+.payback-green{ border-color:#2E7D32; background:rgba(46,125,50,0.08); }
+.payback-green .result-value{ color:#1B5E20; }
+.payback-green .result-ico svg{ color:#2E7D32; }
 /* 5-Year savings chart container - hidden until calculation. */
 .estimate-chart-wrap{
   margin-top:clamp(24px,4vw,36px);
