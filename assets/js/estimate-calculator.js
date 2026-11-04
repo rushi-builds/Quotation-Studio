@@ -256,6 +256,12 @@
     var printBtnEl = el('estPrint');
     if (printBtnEl) printBtnEl.style.display = res ? 'inline-flex' : 'none';
 
+    /* Show chart + activity sections only after a calculation. */
+    var estChartWrap = el('estChartWrap');
+    var estActivityWrap = el('estActivityWrap');
+    if (estChartWrap) estChartWrap.hidden = !res;
+    if (estActivityWrap) estActivityWrap.hidden = !res;
+
     /* Customer activity (lead capture). */
     if (res) saveActivity(res);
     renderActivityList();
@@ -370,10 +376,9 @@
     });
   }
 
-  /* Start with results hidden - calculate only on button click. */
+    /* Start with results hidden - calculate only on button click. */
   if (calculateBtn) calculateBtn.disabled = true;
   paint(null);
-  renderActivityList();
 
   root.EstimateCalculator = { compute: compute };
 })(window);
