@@ -75,9 +75,9 @@
        Roof clearance is no longer a fixed 1.4x assumption: engineering.js
        derives it from the tilt and latitude (see the block below). */
     /* Quoted as ₹ per Wp - the rate customers and sales teams actually quote.
-       The calculation engine keeps working in ₹/kWp; state.js and render.js
-       convert at the boundary. */
-    costPerWp: '63.6',
+       Default non-subsidy rate: ₹45/Wp. The calculation engine keeps working
+       in ₹/kWp; state.js and render.js convert at the boundary. */
+    costPerWp: '45',
     corpTaxRate: '25',
     depreciationRate: '40',
     gstPercent: '8.9',

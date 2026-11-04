@@ -69,13 +69,17 @@
   }
 
   /* ---------- engineering helpers ---------- */
-  /** PM Surya Ghar subsidy slabs: ₹30,000/kW for first 2 kW, ₹18,000 for the
-      3rd kW, capped at ₹78,000 for 3 kW and above. Residential only. */
+  /** Subsidy per watt: ₹60/Wp base, decreasing per-watt as capacity increases.
+      Tiered slabs keep the effective per-watt subsidy lower for larger systems.
+      Residential only. Values are internal defaults, never shown as UI text. */
   function calcSubsidy(kwp) {
     if (!isFinite(kwp) || kwp <= 0) return 0;
-    if (kwp <= 2) return 30000 * kwp;
-    if (kwp < 3) return 60000 + 18000 * (kwp - 2);
-    return 78000;
+    /* Tiered per-watt subsidy: lower capacity = higher per-watt rate. */
+    let subsidyPerKwp;
+    if (kwp <= 2) subsidyPerKwp = 60000;   // ₹60/Wp
+    else if (kwp <= 3) subsidyPerKwp = 55000; // ₹55/Wp
+    else subsidyPerKwp = 50000;            // ₹50/Wp
+    return kwp * subsidyPerKwp;
   }
   const SUBSIDY_MAX = 78000;
   const RWA_SUBSIDY_PER_KWP = 18000, RWA_MAX_KWP = 500;
