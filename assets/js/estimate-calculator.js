@@ -21,20 +21,25 @@
   };
 
   /* Installed cost rate, sliding by capacity — matches the quotation engine's
-     ₹63.6/Wp anchor at 1 kW (owner decision, 2026-11-05):
-     - Residential / society (subsidy band): ₹63.6/Wp at 1 kW sliding to
-       ₹60/Wp by 3 kW, flat ₹60 above — small systems carry fixed costs.
-     - Commercial / industrial (no subsidy): ₹63.6/Wp at 1 kW sliding
-       linearly to ₹45/Wp at 20 kW, flat ₹45 above — economies of scale.
-     All rates GST-inclusive, same treatment as the quotation. */
+     ₹63.6/Wp anchor at 1 kW (owner decision, 2026-11-05). Percentage model,
+     degradation-style: each extra kW softens the rate by a fixed percentage,
+     then a hard floor clamps the band. However large the system (100 or
+     500 kW), the rate can never leave ₹45–₹63.6/Wp.
+     - Residential / society (subsidy band): floor ₹60/Wp — reached by 3 kW.
+     - Commercial / industrial (no subsidy): floor ₹45/Wp — reached by 20 kW.
+     Retune = edit these five numbers, nothing else. */
+  var RATE_BASE = 63.6;         /* ₹/Wp at 1 kW (GST inclusive) */
+  var RATE_STEP_SUBSIDY = 2.87; /* % softening per extra kW → ₹60 by 3 kW */
+  var RATE_FLOOR_SUBSIDY = 60;  /* subsidy band floor */
+  var RATE_STEP_OTHER = 1.80;   /* % softening per extra kW → ₹45 by 20 kW */
+  var RATE_FLOOR_OTHER = 45;    /* non-subsidy band floor */
+
   function ratePerWp(type, kwp) {
-    if (type === 'residential' || type === 'society') {
-      if (kwp >= 3) return 60;
-      return 63.6 - 3.6 * ((kwp - 1) / 2); /* 63.6 → 60 across 1–3 kW */
-    }
-    if (kwp <= 1) return 63.6;
-    if (kwp >= 20) return 45;
-    return 63.6 - 18.6 * ((kwp - 1) / 19); /* 63.6 → 45 across 1–20 kW */
+    var isSubsidy = (type === 'residential' || type === 'society');
+    var floor = isSubsidy ? RATE_FLOOR_SUBSIDY : RATE_FLOOR_OTHER;
+    var step = (isSubsidy ? RATE_STEP_SUBSIDY : RATE_STEP_OTHER) / 100;
+    var rate = RATE_BASE * Math.pow(1 - step, Math.max(kwp, 1) - 1);
+    return Math.max(rate, floor);
   }
 
   /* Yield adjustment by consumer type. */
