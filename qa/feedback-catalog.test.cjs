@@ -17,6 +17,22 @@ assert.equal(current, expected, 'gallery-catalog.mjs is stale - run node scripts
 const { projects } = builder.readProjects();
 assert.ok(projects.length >= 10, 'the gallery publishes every project');
 
+/* The gallery feedback card asks for an optional name plus an email or
+   WhatsApp number in the same single field, end to end at a 120-character
+   cap: page copy, client payload slice and the Worker's server-side slice
+   must agree, or a contact typed by a visitor is silently truncated. */
+const galleryPage = fs.readFileSync(path.join(root, 'gallery.html'), 'utf8');
+assert.ok(galleryPage.includes('Your name, email or WhatsApp no. <em>(optional)</em>'),
+  'the gallery feedback name field must offer the email / WhatsApp option in its label');
+assert.ok(galleryPage.includes('id="feedbackName" name="name" maxlength="120"'),
+  'the gallery feedback name field must allow 120 characters');
+const galleryLikes = fs.readFileSync(path.join(root, 'assets/js/gallery-likes.js'), 'utf8');
+assert.match(galleryLikes, /name: String\(\(payload && payload\.name\) \|\| ''\)\.slice\(0, 120\)/,
+  'the gallery feedback client payload must keep up to 120 name characters');
+const workerSrc = fs.readFileSync(path.join(root, 'platform/cloudflare/src/worker.js'), 'utf8');
+assert.match(workerSrc, /const name = String\(\(body && body\.name\) \|\| ''\)\.replace\(\/\\s\+\/g, ' '\)\.trim\(\)\.slice\(0, 120\)/,
+  'the Worker must keep up to 120 gallery feedback name characters');
+
 /* The catalogue is loaded as a module by both backends; check it really parses
    and resolves ids the same way the browser does. */
 import(path.join('file://', target)).then((catalog) => {

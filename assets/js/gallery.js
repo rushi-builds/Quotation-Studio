@@ -549,7 +549,7 @@
       }
       if (feedbackSend) { feedbackSend.disabled = true; feedbackSend.textContent = 'Sending…'; }
       var savedRating = feedbackRating;
-      L.feedback({ message: message, name: feedbackName ? feedbackName.value : '', project: feedbackTarget, rating: feedbackRating })
+      L.feedback({ message: message, name: feedbackName ? feedbackName.value.trim() : '', project: feedbackTarget, rating: feedbackRating })
         .then(function (res) {
           if (feedbackSend) { feedbackSend.disabled = false; feedbackSend.textContent = 'Send feedback'; }
           if (!res.ok) {
