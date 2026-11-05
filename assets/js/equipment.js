@@ -486,8 +486,16 @@
     FIELDS.forEach((id) => {
       const sel = $(id);
       if (!sel) return;
-      if (MODEL_OF[id]) syncModelSelect(id, { value: sel.value, auto: false });
-      else fillSelect(sel, sel.value, isCustom(sel), false);
+      if (MODEL_OF[id]) { syncModelSelect(id, { value: sel.value, auto: false }); return; }
+      const input = $(id + 'Custom');
+      const custom = isCustom(sel);
+      /* In custom mode the TYPED TEXT is the source of truth, not the select.
+         The preview renders on a trailing debounce, so the select's value can
+         sit a keystroke (or a whole sync) behind the box the user is typing in;
+         rebuilding the list from the stale value used to paste the old name
+         back over the new one. An empty box still falls back to the select. */
+      const value = custom && input && input.value !== '' ? input.value : sel.value;
+      fillSelect(sel, value, custom, false);
     });
   }
 
