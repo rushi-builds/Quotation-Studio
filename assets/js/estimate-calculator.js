@@ -499,11 +499,30 @@
   }
 
   /* ---------- Modal open / close ---------- */
+  /* The card is a dialog, so it says so (role + aria-modal + a labelledby that
+     points at its own heading), moves the keyboard INTO it on open, keeps Tab
+     inside it while it is open, and hands focus back to the button that opened
+     it on close. Escape already closed it; it now also returns the focus. */
   var modal = el('estimate');
+  var returnFocusTo = null;
+  var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+  /* Visibility without layout: jsdom (and any hidden ancestor) reports zero
+     client rects, so the modal's own hidden flag decides instead. */
+  function focusables() {
+    if (!modal) return [];
+    return Array.prototype.filter.call(modal.querySelectorAll(FOCUSABLE), function (node) {
+      return !node.disabled && !node.closest('[hidden]');
+    });
+  }
+
   function openCalc() {
     if (!modal) return;
+    returnFocusTo = document.activeElement;
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
+    var first = focusables()[0];
+    if (first && typeof first.focus === 'function') first.focus();
     /* Repaint once the modal is laid out so the chart spans the full card. */
     if (lastRes) {
       window.requestAnimationFrame(function () { drawChart(lastRes); });
@@ -514,6 +533,10 @@
     if (!modal) return;
     modal.hidden = true;
     document.body.style.overflow = '';
+    if (returnFocusTo && document.contains(returnFocusTo) && typeof returnFocusTo.focus === 'function') {
+      returnFocusTo.focus();
+    }
+    returnFocusTo = null;
   }
   var openBtn = el('calcOpen');
   if (openBtn) openBtn.addEventListener('click', openCalc);
@@ -521,7 +544,18 @@
     node.addEventListener('click', closeCalc);
   });
   document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && modal && !modal.hidden) closeCalc();
+    if (!modal || modal.hidden) return;
+    if (event.key === 'Escape') { closeCalc(); return; }
+    if (event.key !== 'Tab') return;
+    var list = focusables();
+    if (!list.length) return;
+    var first = list[0], last = list[list.length - 1];
+    var active = document.activeElement;
+    if (event.shiftKey) {
+      if (active === first || !modal.contains(active)) { event.preventDefault(); last.focus(); }
+      return;
+    }
+    if (active === last || !modal.contains(active)) { event.preventDefault(); first.focus(); }
   });
   window.addEventListener('resize', function () {
     if (lastRes && modal && !modal.hidden) drawChart(lastRes);
@@ -543,6 +577,7 @@
      it inside the test. Nothing on the page reads them. */
   root.EstimateCalculator = {
     compute: compute,
+    focusables: focusables,
     quote: quote,
     ratePerWp: ratePerWp,
     rateAnchor: RATE_ANCHOR,

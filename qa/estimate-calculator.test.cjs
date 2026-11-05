@@ -446,5 +446,61 @@ t('annual savings never claim more than the bill they replace', () => {
   assert.ok(savings <= 5000 * 12 + 1, 'savings ' + savings + ' exceed the annual bill 60000');
 });
 
+/* ---------------------------------------------------------------------------
+   8. THE MODAL IS A DIALOG.
+
+   It covers the page and traps the eye, so it has to trap the keyboard too and
+   say what it is. Before this, a screen reader read the card as a plain region
+   and Tab walked straight out into the gallery behind it.
+   --------------------------------------------------------------------------- */
+console.log('\nestimate calculator — modal accessibility');
+
+const modalEl = $('estimate');
+
+t('the card declares itself a labelled dialog', () => {
+  assert.equal(modalEl.getAttribute('role'), 'dialog');
+  assert.equal(modalEl.getAttribute('aria-modal'), 'true');
+  const labelledBy = modalEl.getAttribute('aria-labelledby');
+  assert.ok(labelledBy, 'aria-labelledby must point at the heading');
+  const heading = d.getElementById(labelledBy);
+  assert.ok(heading, 'aria-labelledby points at ' + labelledBy + ', which does not exist');
+  assert.match(heading.textContent.trim(), /ideal system size/i);
+});
+
+t('opening moves the keyboard inside and closing hands it back', () => {
+  const opener = $('calcOpen');
+  opener.focus();
+  assert.equal(d.activeElement, opener, 'the opener must be focusable');
+  opener.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  assert.equal(modalEl.hidden, false, 'the dialog did not open');
+  assert.ok(modalEl.contains(d.activeElement), 'focus stayed behind the backdrop');
+  assert.equal(d.body.style.overflow, 'hidden', 'the page behind still scrolls');
+  d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  assert.equal(modalEl.hidden, true, 'Escape must close the dialog');
+  assert.equal(d.body.style.overflow, '', 'the page behind stays locked after close');
+  assert.equal(d.activeElement, opener, 'focus must return to the button that opened the dialog');
+});
+
+t('Tab and Shift+Tab cycle inside the dialog instead of escaping to the gallery', () => {
+  const opener = $('calcOpen');
+  opener.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  const list = w.EstimateCalculator.focusables();
+  assert.ok(list.length > 3, 'expected a focusable list, got ' + list.length);
+  list[list.length - 1].focus();
+  d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+  assert.equal(d.activeElement, list[0], 'Tab off the last control must wrap to the first');
+  list[0].focus();
+  d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+  assert.equal(d.activeElement, list[list.length - 1], 'Shift+Tab off the first control must wrap to the last');
+  d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+});
+
+t('the backdrop closes the dialog too', () => {
+  $('calcOpen').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  assert.equal(modalEl.hidden, false);
+  d.querySelector('[data-calc-close]').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  assert.equal(modalEl.hidden, true);
+});
+
 console.log(`\n${pass} calculator checks passed.`);
 
