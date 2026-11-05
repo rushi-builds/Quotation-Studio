@@ -345,7 +345,13 @@ own presets sat inside it. **On 2026-09-28 the default was set to ₹63.63/Wp.**
 | Preset 3 kW | 62 | 62,000 |
 | Preset 5 kW | 58 | 58,000 |
 | Preset 25 kW | 48 | 48,000 |
-| Preset 100 kW | 42 | 42,000 |
+| Preset 100 kW | 45 | 45,000 |
+
+**₹45/Wp is the hard floor.** Nothing the app prices may sit below it: the
+capacity curve stops on it (`assets/js/rate-model.js`, absolute floor), every
+quick preset is clamped to it, and a rate typed by hand is flagged when it goes
+under. The 100 kW preset used to read ₹42/Wp — ₹3,26,700 under the floor on a
+100 kW job — and was moved onto it on 2026-11-05.
 
 Reference points behind the number — residential rooftop around Pune, 2026:
 

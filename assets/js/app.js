@@ -900,8 +900,11 @@
         tariff: '12.5', moduleWattage: '550', moduleMake: 'Adani Solar',
         moduleTech: 'Bifacial Mono PERC', inverterKw: '25', inverterMake: 'Sungrow'
       },
+      /* ₹45/Wp is the floor of the non-subsidy band (assets/js/rate-model.js,
+         100 kWp). A preset is a curated offer, but no offer may sit below the
+         band - this one was ₹42, i.e. ₹3,26,700 under the floor on a 100 kW job. */
       '100kw': {
-        capacity: '100', customerType: 'industrial', costPerWp: '42',
+        capacity: '100', customerType: 'industrial', costPerWp: '45',
         tariff: '14.0', moduleWattage: '550', moduleMake: 'Goldi Solar',
         moduleTech: 'TopCon Bifacial', inverterKw: '100', inverterMake: 'Sungrow'
       }
@@ -917,7 +920,14 @@
           bomModules: '', bomInverter: '', bomStructure: '', bomBos: '', bomInstall: '', bomLiaison: '',
           loanAmt: '', loanRate: '', loanYears: '', moduleLengthMm: '', moduleWidthMm: ''
         };
-        window.StateStore.applyForm(Object.assign({}, resetDesign, p));
+        /* Never sell below the absolute floor (Rs 45/Wp), whatever a preset says.
+           The model owns that number, so a future edit here cannot re-introduce
+           a Rs 42 offer. A preset may still undercut the band's own floor - they
+           are curated offers - but never the absolute one. */
+        const rate = window.RateModel
+          ? String(Math.max(parseFloat(p.costPerWp) || 0, window.RateModel.absoluteFloor))
+          : p.costPerWp;
+        window.StateStore.applyForm(Object.assign({}, resetDesign, p, { costPerWp: rate }));
         window.Render.renderAll();
         scheduleSave();
       });

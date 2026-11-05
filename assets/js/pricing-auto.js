@@ -104,9 +104,18 @@
 
     /* #hintCostPerWp belongs to the control panel (project cost, GST); this
        block owns its own line so the two never overwrite each other. */
+    /* The floor is not negotiable. A typed rate is never overwritten - the
+       dealer may know something the model does not - but it cannot pass
+       unnoticed either. */
+    var floor = root.RateModel ? root.RateModel.absoluteFloor : null;
+    var typed = field ? parseFloat(field.value) : NaN;
+    var belowFloor = floor !== null && Number.isFinite(typed) && typed < floor - 0.005;
+    if (box) box.dataset.warn = belowFloor ? 'below-floor' : '';
+
     var hint = $('rateAutoHint');
     if (hint) {
       if (rate === null) hint.textContent = 'The rate band could not be loaded.';
+      else if (belowFloor) hint.textContent = 'Below the ' + money(floor) + ' floor - the band never sells lower.';
       else if (mode === 'manual') hint.textContent = 'Your rate. "Reset to auto" returns to ' + money(rate) + '.';
       else if (onBand) hint.textContent = 'Following the capacity band. Type your own rate here to take over.';
       /* A fresh proposal keeps the template's declared rate until a capacity is

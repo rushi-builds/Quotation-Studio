@@ -141,6 +141,8 @@ legend{
 .rate-auto[data-mode="auto"] .rate-auto-price{color:var(--orange-dark);}
 .rate-auto-hint{flex:1 1 100%;font-size:9.5px;color:#8A93A0;line-height:1.45;}
 .rate-auto .link-btn{flex:0 0 auto;padding:1px 7px;font-size:9.5px;border-radius:20px;background:#FFF6EE;border-color:#F6D3B4;color:var(--orange-dark);}
+.rate-auto[data-warn="below-floor"] .rate-auto-price{color:var(--red);}
+.rate-auto[data-warn="below-floor"] .rate-auto-hint{color:var(--red);font-weight:600;}
 .upload-btn{
   display:inline-block;font-size:11.5px;padding:6px 10px;border:1px dashed #C9CFD6;
   border-radius:6px;color:var(--gray);cursor:pointer;width:100%;text-align:center;

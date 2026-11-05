@@ -152,4 +152,32 @@ t('both surfaces read this one model — no second copy of the curve', () => {
   assert.doesNotMatch(auto, /45|63\.6/, 'the quotation auto rate must not carry its own literals');
 });
 
+t('the absolute floor is the lowest number the business sells at', () => {
+  assert.equal(Model.absoluteFloor, 45);
+  assert.equal(Model.absoluteFloor, Math.min(...Object.values(Model.bands).map((b) => b.floor)));
+  assert.ok(Model.absoluteFloor < Model.bands.subsidy.floor, 'the subsidy band has its own higher floor');
+});
+
+t('no quick preset prices below the absolute floor', () => {
+  /* The presets are the owner's curated offers, so they are not re-derived from
+     the curve and may undercut a band's own floor - but never the absolute one.
+     The 100 kW preset used to sit at Rs 42/Wp. */
+  const vm = require('node:vm');
+  const app = fs.readFileSync(path.join(ROOT, 'assets/js/app.js'), 'utf8');
+  const presets = vm.runInNewContext('(' + app.match(/const PRESETS = (\{[\s\S]*?\n    \});/)[1] + ')');
+  const names = Object.keys(presets);
+  assert.ok(names.length >= 4, 'expected the quick presets, found ' + names.length);
+  for (const name of names) {
+    const p = presets[name];
+    assert.ok(parseFloat(p.costPerWp) >= Model.absoluteFloor,
+      name + ' preset prices at Rs ' + p.costPerWp + '/Wp, below the Rs ' + Model.absoluteFloor + ' floor');
+  }
+  assert.equal(presets['100kw'].costPerWp, '45', 'the 100 kW preset must sit on the Rs 45 floor it used to undercut');
+});
+
+t('the preset handler clamps to the model floor at apply time', () => {
+  const app = fs.readFileSync(path.join(ROOT, 'assets/js/app.js'), 'utf8');
+  assert.match(app, /RateModel\.absoluteFloor/, 'the preset handler must take the floor from the model, not from a literal');
+});
+
 console.log(`\n${pass} rate model checks passed.`);

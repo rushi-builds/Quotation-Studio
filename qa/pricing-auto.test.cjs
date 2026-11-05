@@ -120,6 +120,24 @@ t('reset puts the percentage logic back in charge', () => {
   assert.ok(Math.abs(parseFloat(field().value) - rate(w, 'commercial', 50)) < 0.01, 'auto must keep following after a reset');
 });
 
+t('a rate typed below ₹45 is flagged, not silently kept', () => {
+  set(ctx, 'customerType', 'commercial');
+  set(ctx, 'capacity', '100');
+  set(ctx, 'costPerWp', '40');
+  assert.equal(field().value, '40', 'the dealer\'s number is never overwritten');
+  assert.equal(d.getElementById('rateAutoBox').dataset.warn, 'below-floor');
+  assert.match(d.getElementById('rateAutoHint').textContent, /Below the ₹45\.00\/Wp floor/);
+  set(ctx, 'costPerWp', '45.5');
+  assert.equal(d.getElementById('rateAutoBox').dataset.warn, '', 'a rate back inside the band clears the warning');
+  /* A curated residential rate under the band's own ₹60 floor is the dealer's
+     call - only ₹45 is hard. */
+  set(ctx, 'customerType', 'residential');
+  set(ctx, 'costPerWp', '58');
+  assert.equal(d.getElementById('rateAutoBox').dataset.warn, '', '₹58 is above the absolute floor');
+  d.getElementById('rateAutoReset').click();
+  assert.equal(mode(), 'auto', 'back on the band for the next check');
+});
+
 t('the button only offers itself when the field is off the band', () => {
   const button = d.getElementById('rateAutoReset');
   set(ctx, 'customerType', 'commercial');

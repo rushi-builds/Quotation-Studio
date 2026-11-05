@@ -52,6 +52,11 @@
     nonsubsidy: { floor: 45, reachesFloorAtKwp: 100 }
   };
 
+  /* The one number that is never crossed anywhere: the lowest rate the business
+     sells at, whichever band and whichever surface. Presets and hand-typed
+     prices are allowed to sit anywhere above it. */
+  const ABSOLUTE_FLOOR = Math.min.apply(null, Object.keys(BANDS).map(function (k) { return BANDS[k].floor; }));
+
   /* The quotation spells the housing society as `rwa`; the gallery spells it
      `society`. Both are subsidy band. */
   function bandOf(type) {
@@ -75,5 +80,5 @@
     return Math.min(Math.max(rate, band.floor), ANCHOR);
   }
 
-  return { anchor: ANCHOR, bands: BANDS, bandOf: bandOf, ratePerWp: ratePerWp };
+  return { anchor: ANCHOR, absoluteFloor: ABSOLUTE_FLOOR, bands: BANDS, bandOf: bandOf, ratePerWp: ratePerWp };
 }));

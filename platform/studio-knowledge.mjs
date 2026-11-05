@@ -233,7 +233,7 @@ export default {
     "100kw": {
       "capacity": "100",
       "customerType": "industrial",
-      "costPerWp": "42",
+      "costPerWp": "45",
       "tariff": "14.0",
       "moduleWattage": "550",
       "moduleMake": "Goldi Solar",
