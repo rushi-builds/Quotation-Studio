@@ -8,71 +8,120 @@
  */
 'use strict';
 (function (root) {
-  /* India-centric default assumptions, stated plainly. */
-  var DEFAULTS = {
-    /* kWh per kWp per day, averaged over a year for Pune/Maharashtra. */
-    solarYield: 4.2,
-    /* ₹ per kWh grid electricity (Maharashtra average). */
-    gridRate: 7.50,
-    /* Roof area needed per kWp (sq ft) - practical allowance incl. spacing. */
-    areaPerKwp: 80,
-    /* Annual degradation and performance ratio already baked into yield. */
-    performanceRatio: 0.81
+  /* ------------------------------------------------------------------------
+     THE SAME NUMBERS THE QUOTATION USES. Not a copy of them - a mirror that CI
+     holds against the source.
+
+     This card sits in front of a customer and so does the quotation sheet. Both
+     must answer the same question with the same arithmetic, otherwise a customer
+     reads one price here and a different one on the proposal and the only thing
+     that changed is which file did the maths.
+
+     Every value below therefore equals a default in assets/js/state.js, and
+     qa/estimate-calculator.test.cjs loads the real state.js and the real
+     finance.js and fails if any of them ever drifts apart:
+
+       costPerWp      state.js costPerWp      - ₹/Wp, EX-GST
+       gstPercent     state.js gstPercent     - finance.js: gst = cost * pct/100
+       moduleWattage  state.js moduleWattage  - modules on the roof
+       genFactor      state.js genFactor      - kWh per kWp per year, net of
+                                                every loss (the quotation's
+                                                annualGen = kWp * genFactor)
+       tariff         state.js tariff         - ₹ per unit, blended
+
+     `areaPerKwp` is the only assumption this card owns: it is a roof-practical
+     allowance (modules + walkways + inter-row shadow), not a price.          */
+  var SHARED = {
+    costPerWp: 63.6,        /* ₹/Wp ex-GST - also the top of the rate band */
+    gstPercent: 8.9,        /* finance.js applies it to the ex-GST cost */
+    moduleWattage: 545,     /* Wp per module */
+    genFactor: 1460,        /* kWh per kWp per year */
+    tariff: 10              /* ₹ per unit */
   };
 
-  /* Installed cost rate, sliding by capacity — matches the quotation engine's
-     ₹63.6/Wp anchor at 1 kW (owner decision, 2026-11-05). Percentage model,
-     degradation-style: each extra kW softens the rate by a fixed percentage,
-     then a hard floor clamps the band. However large the system (100 or
-     500 kW), the rate can never leave ₹45–₹63.6/Wp.
-     - Residential / society (subsidy band): floor ₹60/Wp — reached by 3 kW.
-     - Commercial / industrial (no subsidy): floor ₹45/Wp — reached by 20 kW.
-     Retune = edit these five numbers, nothing else. */
-  var RATE_BASE = 63.6;         /* ₹/Wp at 1 kW (GST inclusive) */
-  var RATE_STEP_SUBSIDY = 2.87; /* % softening per extra kW → ₹60 by 3 kW */
-  var RATE_FLOOR_SUBSIDY = 60;  /* subsidy band floor */
-  var RATE_STEP_OTHER = 1.80;   /* % softening per extra kW → ₹45 by 20 kW */
-  var RATE_FLOOR_OTHER = 45;    /* non-subsidy band floor */
+  var DEFAULTS = {
+    /* Roof area needed per kWp (sq ft) - practical allowance incl. spacing. */
+    areaPerKwp: 80
+  };
 
-  function ratePerWp(type, kwp) {
-    var isSubsidy = (type === 'residential' || type === 'society');
-    var floor = isSubsidy ? RATE_FLOOR_SUBSIDY : RATE_FLOOR_OTHER;
-    var step = (isSubsidy ? RATE_STEP_SUBSIDY : RATE_STEP_OTHER) / 100;
-    var rate = RATE_BASE * Math.pow(1 - step, Math.max(kwp, 1) - 1);
-    return Math.max(rate, floor);
+  /* Installed cost rate, sliding by capacity — one percentage curve, two bands.
+     The percentage is DERIVED, never hand-typed.
+
+     A band is described only by the two numbers the business actually owns:
+       floor               the lowest ₹/Wp this band may ever reach
+       reachesFloorAtKwp   the capacity at which it reaches that floor
+     and the curve between them is exponential (degradation-style): every extra
+     kW multiplies the rate by the same factor, so the softening is a constant
+     percentage and never a straight line.
+
+     Because the step is solved FROM the floor and the breakpoint —
+         step = 1 - (floor / anchor) ^ (1 / (breakpoint - 1))
+     the curve lands exactly on its floor at the breakpoint. Nothing can drift:
+     a retune means editing a floor or a breakpoint, and the percentage follows
+     on its own. That is what stops the failure mode a hand-typed percentage
+     allows — "3 kW priced at 63, 500 kW quietly landing on 30 or 20".
+     A belt-and-braces clamp then pins the result inside [floor, anchor] for
+     every possible input, including a broken or missing capacity.
+
+     Bands (owner decision, 2026-11-05):
+       - Residential / society (subsidy):    ₹60/Wp floor, reached by 3 kW
+       - Commercial / industrial (no subsidy): ₹45/Wp floor, reached by 20 kW
+     So 100 kW and 500 kW both sit on 45 (or 60) — never below. */
+  var RATE_ANCHOR = SHARED.costPerWp;  /* ₹/Wp at 1 kW, ex-GST - top of the band. */
+  var RATE_BANDS = {
+    subsidy:    { floor: 60, reachesFloorAtKwp: 3  },  /* residential + society */
+    nonsubsidy: { floor: 45, reachesFloorAtKwp: 20 }   /* commercial + industrial */
+  };
+
+  function rateBandOf(type) {
+    return (type === 'residential' || type === 'society') ? 'subsidy' : 'nonsubsidy';
   }
 
-  /* Yield adjustment by consumer type. */
-  var YIELD_MULT = {
-    residential: 1.00,
-    commercial:  1.05,
-    industrial:  1.10,
-    society:     1.00
-  };
+  /** ₹/Wp for a capacity in kWp, inside the band's floor..anchor forever. */
+  function ratePerWp(type, kwp) {
+    var band = RATE_BANDS[rateBandOf(type)];
+    var size = Number(kwp);
+    /* An unknown, negative or sub-1 capacity prices at the anchor, never NaN. */
+    if (!isFinite(size) || size < 1) size = 1;
+    var span = Math.max(band.reachesFloorAtKwp - 1, 1);   /* 1 kW is the anchor */
+    var step = 1 - Math.pow(band.floor / RATE_ANCHOR, 1 / span);
+    var rate = RATE_ANCHOR * Math.pow(1 - step, size - 1);
+    /* Hard band: whatever the size, whatever the band, whatever a future edit
+       does to the maths above, the rate cannot leave [floor, anchor]. */
+    return Math.min(Math.max(rate, band.floor), RATE_ANCHOR);
+  }
 
-  /* Standard commercial panel used for the panel-count estimate:
-     ~2278 mm × 1134 mm ≈ 27.8 sq ft per 550Wp panel (~50.5 sq ft/kWp panel-only).
-     Real roofs need spacing, tilt rows and access, so the practical roof
-     allowance stays at 80 sq ft/kWp (areaPerKwp above). */
-  var PANEL_WP = 550;
 
-  /* Government subsidy, matching the quotation engine's treatment.
-     - Residential: PM Surya Ghar — ₹30,000/kW for the first 2 kW, ₹18,000 for
-       the 3rd kW, capped at ₹78,000.
-     - Housing society: ₹18,000/kWp (common-facility/RWA rate).
-     - Commercial and industrial: no subsidy — the card shows a dash. */
-  function calcSubsidy(type, kwp) {
+  /* The panel used for the module count. Inline figures for the roof note:
+     ~2272 mm × 1133 mm ≈ 27.7 sq ft per 545 Wp module. Real roofs need
+     spacing, tilt rows and access, so the practical roof allowance stays at
+     80 sq ft/kWp (areaPerKwp above). */
+
+  /* Government subsidy, on the SAME basis the quotation engine uses.
+     finance.js assesses CFA on the capacity actually installed (modules on the
+     roof), not the contracted figure, because that is what the DISCOM
+     registers - so 3 kWp contracted at 545 Wp is 6 modules = 3.27 kWp and the
+     subsidy follows 3.27, exactly as the proposal does. Slabs are Finance's:
+       - Residential: ₹30,000/kW for the first 2 kW, ₹18,000 for the 3rd kW,
+         flat ₹78,000 from 3 kW up.
+       - Housing society: ₹18,000/kWp, RWA capped at 500 kWp.
+       - Commercial / industrial: no subsidy - the card shows a dash.
+     qa/estimate-calculator.test.cjs sweeps this against Finance.calcSubsidy. */
+  var RWA_SUBSIDY_PER_KWP = 18000;
+  var RWA_MAX_KWP = 500;
+
+  function calcSubsidy(type, installedKwp) {
+    var kwp = Number(installedKwp);
+    if (!isFinite(kwp) || kwp <= 0) return type === 'commercial' || type === 'industrial' ? null : 0;
     if (type === 'residential') {
-      if (!isFinite(kwp) || kwp <= 0) return 0;
-      if (kwp <= 2) return kwp * 30000;
-      if (kwp <= 3) return 60000 + (kwp - 2) * 18000;
+      if (kwp <= 2) return 30000 * kwp;
+      if (kwp < 3) return 60000 + 18000 * (kwp - 2);
       return 78000;
     }
     if (type === 'society') {
-      if (!isFinite(kwp) || kwp <= 0) return 0;
-      return Math.min(kwp, 500) * 18000;
+      return Math.min(kwp, RWA_MAX_KWP) * RWA_SUBSIDY_PER_KWP;
     }
-    return null; /* commercial / industrial — not applicable */
+    return null; /* commercial / industrial - not applicable */
   }
 
   var SUBSIDY_CAPTION = {
@@ -133,52 +182,112 @@
     return inputs.bill.value && inputs.type.value && inputs.city.value;
   }
 
+  /* The price block, in the quotation engine's order of operations:
+       rate        ₹/Wp for this capacity - ex-GST, hard 45-63.6 band
+       projectCost capacity x rate x 1000                       (ex-GST)
+       gstAmount   projectCost x gstPercent / 100               (finance.js)
+       cost        projectCost + gstAmount                      (what the card
+                                                                 calls "GST
+                                                                 included")
+       subsidy     on the INSTALLED capacity, Finance's slabs
+       net         cost - subsidy
+
+     Pure: capacity and type in, numbers out, no DOM. That is what lets the QA
+     suite price a capacity here and hand the same capacity + rate to the real
+     finance.js, then compare the two answers to the rupee. */
+  function quote(capacityKwp, type) {
+    var size = Number(capacityKwp);
+    if (!isFinite(size) || size <= 0) return null;
+
+    var rateWp = ratePerWp(type, size);
+    if (!isFinite(rateWp) || rateWp <= 0) return null;
+
+    /* Module count and installed capacity exactly as finance.js derives them
+       from the contracted capacity, including the epsilon guard that keeps
+       8.175 kWp / 545 Wp from evaluating as 15.000000000000002 modules. */
+    var requiredModules = (size * 1000) / SHARED.moduleWattage;
+    var panelCount = Math.ceil(requiredModules - 2 * Number.EPSILON * requiredModules);
+    if (!(panelCount > 0) || !isFinite(panelCount)) panelCount = 1;
+    var installedKwp = (panelCount * SHARED.moduleWattage) / 1000;
+
+    var projectCost = size * rateWp * 1000;
+    var gstAmount = projectCost * SHARED.gstPercent / 100;
+    var cost = projectCost + gstAmount;
+    var subsidy = calcSubsidy(type, installedKwp);
+    var net = cost - (subsidy || 0);
+
+    return {
+      rateWp: rateWp,
+      capacityKwp: size,
+      panelCount: panelCount,
+      installedKwp: installedKwp,
+      projectCost: projectCost,
+      gstAmount: gstAmount,
+      cost: cost,
+      subsidy: subsidy,
+      net: net,
+      /* Year-1 generation, the same installed x genFactor the quotation uses. */
+      annualGen: installedKwp * SHARED.genFactor
+    };
+  }
+
   function compute() {
     var bill = Number(inputs.bill.value) || 0;
     var type = inputs.type ? inputs.type.value : 'residential';
     var city = inputs.city ? inputs.city.value : 'Pune';
     if (!bill || !type || !city) return null;
 
-    var costPerKwp = ratePerWp(type, systemKwp) * 1000;
-    var yieldMult = YIELD_MULT[type] || YIELD_MULT.residential;
-
-    /* Monthly units from bill: units = bill / rate. */
-    var monthlyUnits = bill / DEFAULTS.gridRate;
+    /* Units the bill buys in a month, at the quoted tariff, then the year. */
+    var monthlyUnits = bill / SHARED.tariff;
     var annualUnits = monthlyUnits * 12;
 
-    /* System size needed to cover annual consumption. */
-    var annualYieldPerKwp = DEFAULTS.solarYield * 365 * DEFAULTS.performanceRatio * yieldMult;
-    var systemKwp = annualUnits / annualYieldPerKwp;
-    systemKwp = Math.max(systemKwp, 1); /* minimum 1 kWp */
+    /* Size the array at the quotation's own specific yield (genFactor), so a
+       bill and a capacity mean the same thing on both surfaces. No per-type
+       multiplier here: the engine has one yield assumption, and a second one
+       invented for this card is how the two surfaces drift apart. */
+    var systemKwp = Math.max(annualUnits / SHARED.genFactor, 1);
 
-    var panelCount = Math.round((systemKwp * 1000) / PANEL_WP);
+    /* The rate depends on the size, so it MUST be read after the size is
+       known. These two lines were once swapped: `var` hoisting handed
+       ratePerWp() an `undefined` size, Math.max(undefined, 1) returned NaN and
+       every cost on the card, in the WhatsApp message and in the PDF came out
+       as "₹—" / "NaN years". quote() returns null on a non-finite rate, so a
+       future reordering degrades to an honest "—" instead of a NaN that
+       reaches a customer document. */
+    var priced = quote(systemKwp, type);
+    if (!priced) return null;
+
     var roofNeeded = systemKwp * DEFAULTS.areaPerKwp;
 
-    var cost = systemKwp * costPerKwp;
+    /* Solar offsets the customer's consumption, and only up to consumption.
+       finance.js does not need the cap because a quotation starts from a
+       capacity the dealer chose; here the size comes from the bill. */
+    var offsetUnits = Math.min(priced.annualGen, annualUnits);
+    var annualSavings = offsetUnits * SHARED.tariff;
 
-    /* Annual solar generation. */
-    var annualSolar = systemKwp * annualYieldPerKwp;
-    /* Offset: solar covers generation, capped at 100% of consumption. */
-    var offsetUnits = Math.min(annualSolar, annualUnits);
-    var annualSavings = offsetUnits * DEFAULTS.gridRate;
-    var payback = annualSavings > 0 ? cost / annualSavings : 99;
-
-    var subsidy = calcSubsidy(type, systemKwp);
+    /* Payback on the money the customer actually puts in, after subsidy -
+       which is how finance.js defines it (netInvestment / year-1 saving). */
+    var payback = annualSavings > 0 ? priced.net / annualSavings : 99;
 
     return {
       type: type,
       city: city,
       bill: bill,
       systemKwp: systemKwp,
-      panelCount: panelCount,
+      installedKwp: priced.installedKwp,
+      panelCount: priced.panelCount,
       roofNeeded: roofNeeded,
-      cost: cost,
-      rateWp: costPerKwp / 1000,
-      subsidy: subsidy,
-      net: cost - (subsidy || 0),
+      rateWp: priced.rateWp,
+      projectCost: priced.projectCost,
+      gstAmount: priced.gstAmount,
+      gstPercent: SHARED.gstPercent,
+      cost: priced.cost,
+      subsidy: priced.subsidy,
+      net: priced.net,
       annualSavings: annualSavings,
       payback: payback,
-      monthlyUnits: monthlyUnits
+      monthlyUnits: monthlyUnits,
+      annualUnits: annualUnits
     };
   }
 
@@ -248,7 +357,7 @@
     lastRes = res;
     outputs.system.textContent = res ? res.systemKwp.toFixed(1) + ' kWp' : '—';
     if (outputs.panels) {
-      outputs.panels.textContent = res ? '≈' + res.panelCount + ' panels (550Wp)' : '—';
+      outputs.panels.textContent = res ? '≈' + res.panelCount + ' panels (' + SHARED.moduleWattage + 'Wp)' : '—';
     }
     outputs.cost.textContent = res ? money(res.cost) : '—';
     if (outputs.subsidy) {
@@ -261,7 +370,7 @@
       outputs.net.textContent = res ? money(res.net) : '—';
     }
     outputs.savings.textContent = res ? money(Math.round(res.annualSavings)) + ' / yr' : '—';
-    outputs.payback.textContent = res ? res.payback.toFixed(1) + ' years' : '—';
+    outputs.payback.textContent = res ? fmt(res.payback, 1) + ' years' : '—';
     outputs.roof.textContent = res ? Math.round(res.roofNeeded) + ' sq ft' : '—';
 
     /* Colored borders on ALL result cards. */
@@ -343,7 +452,7 @@
     whatsappBtn.addEventListener('click', function () {
       if (!lastRes) return;
       var subsidyText = lastRes.subsidy == null ? 'Not applicable' : 'Govt subsidy ' + money(lastRes.subsidy);
-      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (550Wp) · Cost ' + money(lastRes.cost) + ' (GST included) · ' + subsidyText + ' · Net cost ' + money(lastRes.net) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + lastRes.payback.toFixed(1) + ' years.\nGet in touch for a detailed proposal.';
+      var text = 'Solar Estimate — ' + lastRes.city + ' · ' + lastRes.type + ' · Monthly bill ₹' + fmt(lastRes.bill) + '/month.\nRecommended: ' + lastRes.systemKwp.toFixed(1) + ' kWp · ≈' + lastRes.panelCount + ' panels (' + SHARED.moduleWattage + 'Wp) · Cost ' + money(lastRes.cost) + ' (GST included) · ' + subsidyText + ' · Net cost ' + money(lastRes.net) + ' · Savings ' + money(Math.round(lastRes.annualSavings)) + '/yr · Payback ' + fmt(lastRes.payback, 1) + ' years.\nGet in touch for a detailed proposal.';
       var waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
       var win = window.open(waUrl, '_blank');
       if (!win) alert('Could not open WhatsApp — please allow pop-ups for this site.');
@@ -369,12 +478,12 @@
       '<p class="sub"><strong>' + res.city + '</strong> · ' + res.type + ' · Bill ₹' + fmt(res.bill) + '/month</p>' +
       '<div class="card grid">' +
       '<div><div class="label">Recommended System</div><div class="value">' + res.systemKwp.toFixed(1) + '</div><div class="unit">kWp</div></div>' +
-      '<div><div class="label">Solar Panels</div><div class="value">' + res.panelCount + '</div><div class="unit">550Wp each</div></div>' +
+      '<div><div class="label">Solar Panels</div><div class="value">' + res.panelCount + '</div><div class="unit">' + SHARED.moduleWattage + 'Wp each</div></div>' +
       '<div><div class="label">Estimated Cost</div><div class="value">' + money(res.cost) + '</div><div class="unit">(GST included)</div></div>' +
       '<div><div class="label">Govt Subsidy</div><div class="value">' + (res.subsidy == null ? '—' : money(res.subsidy)) + '</div><div class="unit">' + (SUBSIDY_CAPTION[res.type] || '') + '</div></div>' +
       '<div><div class="label">Your Net Cost</div><div class="value">' + money(res.net) + '</div><div class="unit">after subsidy</div></div>' +
       '<div><div class="label">Annual Savings</div><div class="value">' + money(Math.round(res.annualSavings)) + '</div><div class="unit">/ yr</div></div>' +
-      '<div><div class="label">Payback Period</div><div class="value">' + res.payback.toFixed(1) + '</div><div class="unit">years</div></div>' +
+      '<div><div class="label">Payback Period</div><div class="value">' + fmt(res.payback, 1) + '</div><div class="unit">years</div></div>' +
       '<div><div class="label">Roof Space</div><div class="value">' + Math.round(res.roofNeeded) + '</div><div class="unit">sq ft</div></div>' +
       '</div>' +
       '<div class="disclaimer"><strong>Indicative only.</strong> All prices and figures may vary as per site conditions and equipment. A site visit confirms the real design and price.</div>' +
@@ -429,5 +538,16 @@
   if (calculateBtn) calculateBtn.disabled = true;
   paint(null);
 
-  root.EstimateCalculator = { compute: compute };
+  /* Public surface. ratePerWp/rateBands exist so qa/estimate-calculator.test.cjs
+     can sweep thousands of capacities against the REAL curve instead of a copy of
+     it inside the test. Nothing on the page reads them. */
+  root.EstimateCalculator = {
+    compute: compute,
+    quote: quote,
+    ratePerWp: ratePerWp,
+    rateAnchor: RATE_ANCHOR,
+    rateBands: RATE_BANDS,
+    assumptions: SHARED,
+    calcSubsidy: calcSubsidy
+  };
 })(window);
