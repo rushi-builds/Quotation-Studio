@@ -73,7 +73,12 @@ const GALLERY_PAGE_PATHS = new Set([
    file still has to be reviewed. */
 const CALCULATOR_FILES = new Set([
   'assets/js/estimate-calculator.js',
-  'assets/css/estimate-calculator.css'
+  'assets/css/estimate-calculator.css',
+  /* The one rate model the card prices with and the quotation offers as its
+     auto rate, plus the block that offers it. Exact paths only: a new module
+     in this family still has to be named and reviewed here. */
+  'assets/js/rate-model.js',
+  'assets/js/pricing-auto.js'
 ]);
 
 /* Owner-requested feedback loop (2026-11-03): one inbox that reads both the
