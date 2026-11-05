@@ -1707,6 +1707,19 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
    squashing it, and the note under it still explains it. */
 #pageTechSpec.is-diagram-spec #v_tsDiagram svg{max-width:90%;margin-left:auto;margin-right:auto;}
 #pageTechSpec.is-diagram-tighter #v_tsDiagram svg{max-width:72%;margin-left:auto;margin-right:auto;}
+/* The page's own decoration goes before the drawing does. The intro paragraph
+   and the subtitle are marketing copy - no figure, unit, clause citation or
+   honesty note lives there - and the diagram is the one block a customer
+   actually reads on this page. Trimming these is worth more height than
+   shrinking the drawing to 72%, so the ladder takes this step first and the
+   drawing keeps its full width. */
+#pageTechSpec.is-lead-trim .pg-sub{display:none;}
+#pageTechSpec.is-lead-trim .body-para{display:none;}
+#pageTechSpec.is-lead-trim .rule-orange{margin:7px 0;}
+#pageTechSpec.is-lead-trim .diagram-box{padding:6px 10px 2px;}
+#pageTechSpec.is-lead-trim .sec-label.tight{margin-bottom:4px;padding:5px 10px;}
+#pageTechSpec.is-lead-trim .note-box{margin-top:6px;padding:5px 9px;font-size:9px;}
+
 /* Two further steps exist for the one page that carries everything at once:
    site-area rows, reference pills and the full design basis. They scale the
    drawing, never a figure; every number and every clause citation stays at

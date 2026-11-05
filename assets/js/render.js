@@ -1255,12 +1255,18 @@
     ['is-tight-spec'],
     ['is-tighter-spec'],
     ['is-tighter-spec', 'is-table-min'],
-    ['is-tighter-spec', 'is-table-min', 'is-diagram-spec'],
-    ['is-tighter-spec', 'is-table-min', 'is-diagram-tighter'],
-    ['is-tighter-spec', 'is-table-min', 'is-diagram-tiny'],
-    ['is-tighter-spec', 'is-table-min', 'is-diagram-min']
+    /* Before the drawing gives up a single pixel, the page gives up its own
+       decoration: the two intro lines are marketing copy, not a figure. The
+       drawing is what a customer actually reads on this page, and scaling it to
+       42% makes its labels smaller than the fine print. Every number, unit,
+       clause citation and the honesty note are untouched by this step. */
+    ['is-tighter-spec', 'is-table-min', 'is-lead-trim'],
+    ['is-tighter-spec', 'is-table-min', 'is-lead-trim', 'is-diagram-spec'],
+    ['is-tighter-spec', 'is-table-min', 'is-lead-trim', 'is-diagram-tighter'],
+    ['is-tighter-spec', 'is-table-min', 'is-lead-trim', 'is-diagram-tiny'],
+    ['is-tighter-spec', 'is-table-min', 'is-lead-trim', 'is-diagram-min']
   ];
-  const SPEC_FIT_CLASSES = ['is-tight-spec', 'is-tighter-spec', 'is-diagram-spec',
+  const SPEC_FIT_CLASSES = ['is-tight-spec', 'is-tighter-spec', 'is-lead-trim', 'is-diagram-spec',
     'is-diagram-tighter', 'is-diagram-tiny', 'is-diagram-min', 'is-table-min'];
   let lastSpecFit = null;
   function fitPages() {

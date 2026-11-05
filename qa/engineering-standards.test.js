@@ -669,6 +669,27 @@ check('the engineering basis is kept inside its page, and an overflowing page is
     'only after every step has been tried, the smallest drawing included');
   page.className = 'page';
 
+  /* The drawing is the one block a customer reads on this page; shrinking it to
+     42% makes its labels smaller than the fine print. The ladder therefore gives
+     up the page's own decoration first - the intro paragraph and the subtitle,
+     which carry no figure, unit, clause citation or honesty note. */
+  const renderSrc = fs.readFileSync(path.join(ROOT, 'assets/js/render.js'), 'utf8');
+  const cssSrc = fs.readFileSync(path.join(ROOT, 'assets/css/app.css'), 'utf8');
+  const stepsSrc = renderSrc.slice(renderSrc.indexOf('const SPEC_FIT_STEPS'), renderSrc.indexOf('const SPEC_FIT_CLASSES'));
+  assert.ok(stepsSrc.includes('is-lead-trim'), 'the ladder needs a step that trims the page\'s own lead copy');
+  assert.ok(stepsSrc.indexOf('is-lead-trim') < stepsSrc.indexOf('is-diagram-spec'),
+    'lead copy goes before the drawing loses any width');
+  assert.ok(cssSrc.includes('#pageTechSpec.is-lead-trim .body-para{display:none;}'),
+    'lead-trim hides the intro paragraph');
+  assert.ok(cssSrc.includes('#pageTechSpec.is-lead-trim .pg-sub{display:none;}'),
+    'lead-trim hides the subtitle');
+  assert.ok(!/#pageTechSpec\.is-lead-trim[^{]*\.spec-table/.test(cssSrc),
+    'lead-trim never touches the specification rows');
+  assert.ok(!/#pageTechSpec\.is-lead-trim[^{]*\.ts-diagram-note/.test(cssSrc),
+    'lead-trim never touches the honesty note');
+  assert.ok(!/#pageTechSpec\.is-lead-trim[^{]*#v_tsDiagram/.test(cssSrc),
+    'lead-trim never resizes the drawing itself');
+
   const other = w.document.getElementById('pageExec');
   Object.defineProperty(other, 'scrollHeight', { get: () => 1300, configurable: true });
   const over = w.Render.fitPages();
