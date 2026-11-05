@@ -124,6 +124,7 @@ export default {
     "qrDestinationType": "gallery",
     "briefingEnabled": true,
     "costPerWp": "63.6",
+    "rateMode": "auto",
     "corpTaxRate": "25",
     "depreciationRate": "40",
     "gstPercent": "8.9",

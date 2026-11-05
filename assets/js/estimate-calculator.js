@@ -44,53 +44,29 @@
     areaPerKwp: 80
   };
 
-  /* Installed cost rate, sliding by capacity — one percentage curve, two bands.
-     The percentage is DERIVED, never hand-typed.
+  /* Installed cost rate, sliding by capacity.
 
-     A band is described only by the two numbers the business actually owns:
-       floor               the lowest ₹/Wp this band may ever reach
-       reachesFloorAtKwp   the capacity at which it reaches that floor
-     and the curve between them is exponential (degradation-style): every extra
-     kW multiplies the rate by the same factor, so the softening is a constant
-     percentage and never a straight line.
+     THE CURVE IS NOT HERE. It lives in assets/js/rate-model.js, because the
+     quotation editor offers the same rate (editable, resettable) and two copies
+     of a pricing rule are two prices waiting to disagree. This card only prices
+     against it, and qa/rate-model.test.cjs holds the band itself:
 
-     Because the step is solved FROM the floor and the breakpoint —
-         step = 1 - (floor / anchor) ^ (1 / (breakpoint - 1))
-     the curve lands exactly on its floor at the breakpoint. Nothing can drift:
-     a retune means editing a floor or a breakpoint, and the percentage follows
-     on its own. That is what stops the failure mode a hand-typed percentage
-     allows — "3 kW priced at 63, 500 kW quietly landing on 30 or 20".
-     A belt-and-braces clamp then pins the result inside [floor, anchor] for
-     every possible input, including a broken or missing capacity.
-
-     Bands (owner decision, 2026-11-05):
-       - Residential / society (subsidy):    ₹60/Wp floor, reached by 3 kW
-       - Commercial / industrial (no subsidy): ₹45/Wp floor, reached by 20 kW
-     So 100 kW and 500 kW both sit on 45 (or 60) — never below. */
-  var RATE_ANCHOR = SHARED.costPerWp;  /* ₹/Wp at 1 kW, ex-GST - top of the band. */
-  var RATE_BANDS = {
-    subsidy:    { floor: 60, reachesFloorAtKwp: 3  },  /* residential + society */
-    nonsubsidy: { floor: 45, reachesFloorAtKwp: 20 }   /* commercial + industrial */
-  };
-
-  function rateBandOf(type) {
-    return (type === 'residential' || type === 'society') ? 'subsidy' : 'nonsubsidy';
+       - one derived percentage per band (never a hand-typed one)
+       - hard band ₹45-63.6/Wp, floors exact at 100 kW and beyond
+       - subsidy and non-subsidy on their own curves
+     */
+  var MODEL = root.RateModel;
+  if (!MODEL) {
+    /* Loud, not silent: without the model this page would price at nothing. */
+    if (root.console && root.console.error) {
+      root.console.error('estimate-calculator.js needs assets/js/rate-model.js loaded first.');
+    }
+    return;
   }
+  var RATE_ANCHOR = MODEL.anchor;
+  var RATE_BANDS = MODEL.bands;
 
-  /** ₹/Wp for a capacity in kWp, inside the band's floor..anchor forever. */
-  function ratePerWp(type, kwp) {
-    var band = RATE_BANDS[rateBandOf(type)];
-    var size = Number(kwp);
-    /* An unknown, negative or sub-1 capacity prices at the anchor, never NaN. */
-    if (!isFinite(size) || size < 1) size = 1;
-    var span = Math.max(band.reachesFloorAtKwp - 1, 1);   /* 1 kW is the anchor */
-    var step = 1 - Math.pow(band.floor / RATE_ANCHOR, 1 / span);
-    var rate = RATE_ANCHOR * Math.pow(1 - step, size - 1);
-    /* Hard band: whatever the size, whatever the band, whatever a future edit
-       does to the maths above, the rate cannot leave [floor, anchor]. */
-    return Math.min(Math.max(rate, band.floor), RATE_ANCHOR);
-  }
-
+  function ratePerWp(type, kwp) { return MODEL.ratePerWp(type, kwp); }
 
   /* The panel used for the module count. Inline figures for the roof note:
      ~2272 mm × 1133 mm ≈ 27.7 sq ft per 545 Wp module. Real roofs need
@@ -582,6 +558,7 @@
     ratePerWp: ratePerWp,
     rateAnchor: RATE_ANCHOR,
     rateBands: RATE_BANDS,
+    rateModel: MODEL,
     assumptions: SHARED,
     calcSubsidy: calcSubsidy
   };

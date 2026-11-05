@@ -43,6 +43,9 @@ w.ResizeObserver = class { observe() {} disconnect() {} };
 w.console.error = () => {};
 w.alert = () => {};                /* jsdom has no alert(); the WhatsApp handler may call it */
 w.print = () => {};
+/* The curve lives in rate-model.js and the card prices against it, so the
+   model has to be on the page first — exactly as gallery.html loads it. */
+w.eval(fs.readFileSync(path.join(ROOT, 'assets/js/rate-model.js'), 'utf8'));
 w.eval(fs.readFileSync(path.join(ROOT, 'assets/js/estimate-calculator.js'), 'utf8'));
 w.document.dispatchEvent(new w.Event('DOMContentLoaded', { bubbles: true }));
 
@@ -131,12 +134,12 @@ t('1 kW (floor of the size clamp): rate is the ₹63.6/Wp anchor', () => {
 });
 
 t('residential large system: rate settles on the ₹60/Wp subsidy floor', () => {
-  const r = run(100000, 'residential');
+  const r = run(800000, 'residential');
   assert.ok(Math.abs(rateOf(r) - 60) < 0.5, 'rate was ' + rateOf(r) + ' at ' + r.kwp + ' kWp');
 });
 
 t('commercial large system: rate settles on the ₹45/Wp non-subsidy floor', () => {
-  const r = run(100000, 'commercial');
+  const r = run(800000, 'commercial');
   assert.ok(Math.abs(rateOf(r) - 45) < 0.5, 'rate was ' + rateOf(r) + ' at ' + r.kwp + ' kWp');
 });
 
@@ -211,18 +214,22 @@ t('anchor is ₹63.6/Wp and both bands are declared with a floor + breakpoint', 
   assert.equal(ANCHOR, 63.6);
   assert.deepEqual(Object.keys(BANDS).sort(), ['nonsubsidy', 'subsidy']);
   assert.equal(BANDS.subsidy.floor, 60);
-  assert.equal(BANDS.subsidy.reachesFloorAtKwp, 3);
+  assert.equal(BANDS.subsidy.reachesFloorAtKwp, 100);
   assert.equal(BANDS.nonsubsidy.floor, 45);
-  assert.equal(BANDS.nonsubsidy.reachesFloorAtKwp, 20);
+  assert.equal(BANDS.nonsubsidy.reachesFloorAtKwp, 100);
 });
 
-t('the documented table is exact: 1/2/3 kW subsidy and 10/20 kW non-subsidy', () => {
+t('the documented table is exact: 1/3/20/100 kW on both bands', () => {
   const close = (got, want, label) => assert.ok(Math.abs(got - want) < 0.005, label + ': ' + got);
   close(rate('residential', 1), 63.6, 'residential 1 kW');
-  close(rate('residential', 2), 61.77, 'residential 2 kW');
-  close(rate('residential', 3), 60.0, 'residential 3 kW');
-  close(rate('commercial', 10), 53.99, 'commercial 10 kW');
-  close(rate('commercial', 20), 45.0, 'commercial 20 kW');
+  close(rate('residential', 3), 63.525, 'residential 3 kW');
+  close(rate('residential', 100), 60.0, 'residential 100 kW');
+  close(rate('commercial', 1), 63.6, 'commercial 1 kW');
+  close(rate('commercial', 20), 59.514, 'commercial 20 kW');
+  close(rate('commercial', 100), 45.0, 'commercial 100 kW');
+  /* The owner's second pass on the model: reaching ₹45 by 20 kW was too steep a
+     drop, so a 20 kW commercial system must still sit far above the floor. */
+  assert.ok(rate('commercial', 20) > 55, 'the runway to ₹45 was steepened again: ' + rate('commercial', 20));
 });
 
 /* The failure mode the owner called out: a mis-tuned percentage that lands on
@@ -278,13 +285,15 @@ t('hostile capacities price at the anchor instead of returning NaN', () => {
 
 t('the band is a percentage curve, not a straight line', () => {
   const one = rate('commercial', 1);
-  const two = rate('commercial', 2);
-  const twenty = rate('commercial', 20);
-  /* A straight line would put 2 kW on the chord (1 kW → 20 kW). Compounding
-     softens MORE at the start and flattens towards the floor, so the curve sits
-     below the chord — that is the signature of percentage logic. */
-  const chordAt2 = one - (one - twenty) / 19;
-  assert.ok(two < chordAt2 - 0.05, '2 kW should sit BELOW the linear chord: ' + two + ' vs ' + chordAt2);
+  const ten = rate('commercial', 10);
+  const hundred = rate('commercial', BANDS.nonsubsidy.reachesFloorAtKwp);
+  assert.ok(rate('commercial', 20) > BANDS.nonsubsidy.floor, '20 kW is no longer the floor point');
+  const far = BANDS.nonsubsidy.reachesFloorAtKwp;
+  /* A straight line from 1 kW to the breakpoint would pass through this value at
+     10 kW. Compounding softens MORE at the start and flattens towards the floor,
+     so the curve sits below that chord - the signature of percentage logic. */
+  const chordAt10 = one - (one - hundred) * (9 / (far - 1));
+  assert.ok(ten < chordAt10 - 0.05, '10 kW should sit BELOW the linear chord: ' + ten + ' vs ' + chordAt10);
 
   /* …and every extra kW multiplies by the SAME factor: a constant percentage. */
   const ratio1 = rate('commercial', 3) / rate('commercial', 2);
@@ -292,7 +301,8 @@ t('the band is a percentage curve, not a straight line', () => {
   const ratio3 = rate('commercial', 16) / rate('commercial', 15);
   assert.ok(Math.abs(ratio1 - ratio2) < 1e-9, 'multiplicative factor changed: ' + ratio1 + ' vs ' + ratio2);
   assert.ok(Math.abs(ratio2 - ratio3) < 1e-9, 'multiplicative factor changed: ' + ratio2 + ' vs ' + ratio3);
-  assert.ok(Math.abs(ratio1 - 1 + (1 - Math.pow(45 / 63.6, 1 / 19))) < 1e-9,
+  const span = BANDS.nonsubsidy.reachesFloorAtKwp - 1;
+  assert.ok(Math.abs(ratio1 - 1 + (1 - Math.pow(BANDS.nonsubsidy.floor / ANCHOR, 1 / span))) < 1e-9,
     'per-kW percentage is not the one derived from floor/anchor/breakpoint');
 
   /* Absolute ₹ drops must shrink with size — front-loaded, not even. */
