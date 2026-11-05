@@ -236,7 +236,7 @@
     if (!canReachApi()) return Promise.resolve({ ok: false, error: 'Feedback needs the live site.' });
     var body = {
       message: String((payload && payload.message) || '').slice(0, 1000),
-      name: String((payload && payload.name) || '').slice(0, 60),
+      name: String((payload && payload.name) || '').slice(0, 120),
       project: (payload && payload.project) || '',
       rating: payload && payload.rating ? payload.rating : null
     };

@@ -1864,7 +1864,7 @@ async function handleGalleryFeedback(request, db, body) {
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(raw)) return json({ error: 'Use plain text only.' }, 400);
   const project = String((body && body.project) || '').trim().toLowerCase();
   if (project && !GALLERY_PROJECT_ID.test(project)) return json({ error: 'Unknown project.' }, 400);
-  const name = String((body && body.name) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const name = String((body && body.name) || '').replace(/\s+/g, ' ').trim().slice(0, 120);
   const rating = Number.isInteger(body && body.rating) && body.rating >= 1 && body.rating <= 5 ? body.rating : null;
   const since = new Date(Date.now() - 3600000).toISOString();
   const recent = await one(db,
