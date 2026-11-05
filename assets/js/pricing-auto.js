@@ -91,19 +91,27 @@
     var box = $('rateAutoBox');
     if (box) box.dataset.mode = mode;
 
-    var reset = $('rateAutoReset');
-    if (reset) {
-      reset.hidden = mode === 'auto';
-      reset.disabled = rate === null;
+    /* The button is the way back to the band, so it is pointless only while the
+       field already holds the band's number. */
+    var field = $('costPerWp');
+    var onBand = rate !== null && field && Math.abs(parseFloat(field.value) - rate) < 0.005;
+    var button = $('rateAutoReset');
+    if (button) {
+      button.hidden = onBand;
+      button.disabled = rate === null;
+      button.textContent = mode === 'manual' ? 'Reset to auto' : 'Use auto';
     }
 
     /* #hintCostPerWp belongs to the control panel (project cost, GST); this
        block owns its own line so the two never overwrite each other. */
     var hint = $('rateAutoHint');
     if (hint) {
-      hint.textContent = mode === 'auto'
-        ? 'Following the capacity band. Type your own rate here to take over.'
-        : 'Your rate. "Reset to auto" returns to ' + (rate === null ? 'the band' : money(rate)) + '.';
+      if (rate === null) hint.textContent = 'The rate band could not be loaded.';
+      else if (mode === 'manual') hint.textContent = 'Your rate. "Reset to auto" returns to ' + money(rate) + '.';
+      else if (onBand) hint.textContent = 'Following the capacity band. Type your own rate here to take over.';
+      /* A fresh proposal keeps the template's declared rate until a capacity is
+         chosen - opening the page must not reprice an untouched number. */
+      else hint.textContent = 'The band rate applies as soon as you pick a capacity or customer type.';
     }
   }
 
@@ -114,8 +122,11 @@
     render();
   }
 
-  /** Called by StateStore.applyForm after a proposal loads or the form resets. */
-  function refresh() { sync(); }
+  /** Called by StateStore.applyForm after a proposal loads or the form resets.
+      Repaints only: loading or resetting a proposal must never rewrite its
+      price. The band writes to the field on an explicit capacity/type edit or
+      when the dealer clicks the button - nothing else. */
+  function refresh() { render(); }
 
   function mount() {
     var field = $('costPerWp');
@@ -135,11 +146,14 @@
       render();
     });
 
-    var reset = $('rateAutoReset');
-    if (reset) reset.addEventListener('click', function () { setMode('auto'); sync(); });
+    var button = $('rateAutoReset');
+    if (button) button.addEventListener('click', function () { setMode('auto'); sync(); });
 
-    /* A fresh proposal starts on the band; a reopened one is already manual. */
-    sync();
+    /* Render only. A brand-new proposal keeps the declared template rate until
+       the capacity or customer type is actually chosen - opening the page must
+       not reprice a number the dealer has not touched yet - and a reopened
+       proposal arrives as manual (see StateStore.applyForm). */
+    render();
   }
 
   root.PricingAuto = { mount: mount, refresh: refresh, autoRate: autoRate, mode: modeOf };

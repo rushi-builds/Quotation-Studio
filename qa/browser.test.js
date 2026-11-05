@@ -23,6 +23,16 @@ const OUT = __dirname + '/shots';
 
   await page.goto(BASE + '/quotation.html', { waitUntil: 'networkidle0', timeout: 60000 });
   await page.evaluate(() => document.fonts.ready);
+  /* Pin the rate. These checks compare layout and totals against the shipped
+     ₹63.60/Wp template; the quotation's capacity band (assets/js/pricing-auto.js)
+     only re-prices when a capacity or consumer type is edited, and this file
+     does edit them. Pinning keeps the numbers deterministic without changing
+     what is being tested. */
+  await page.evaluate(() => {
+    const el = document.getElementById('costPerWp');
+    el.value = '63.6';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   await new Promise((r) => setTimeout(r, 900));
 
   let failed = 0;

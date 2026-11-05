@@ -59,11 +59,13 @@ const { w, d } = ctx;
 const field = () => d.getElementById('costPerWp');
 const mode = () => d.getElementById('rateMode').value;
 
-t('a new proposal starts on the band, not on a stale literal', () => {
+t('a new proposal is not repriced before a capacity is chosen', () => {
+  /* The template ships ₹63.6/Wp; opening the page must not move it. The band is
+     shown beside the field and takes over on the first capacity/type edit. */
   assert.equal(mode(), 'auto');
+  assert.equal(field().value, '63.6');
   const expected = rate(w, 'residential', d.getElementById('capacity').value);
-  assert.ok(Math.abs(parseFloat(field().value) - expected) < 0.01,
-    'expected the band rate ' + expected.toFixed(2) + ', got ' + field().value);
+  assert.match(d.getElementById('rateAutoPrice').textContent, new RegExp('₹' + expected.toFixed(2)));
 });
 
 t('the block states the auto price, its capacity and its band', () => {
@@ -118,10 +120,15 @@ t('reset puts the percentage logic back in charge', () => {
   assert.ok(Math.abs(parseFloat(field().value) - rate(w, 'commercial', 50)) < 0.01, 'auto must keep following after a reset');
 });
 
-t('the reset control only offers itself when there is something to reset', () => {
-  assert.equal(d.getElementById('rateAutoReset').hidden, true, 'while on auto the reset button is pointless');
+t('the button only offers itself when the field is off the band', () => {
+  const button = d.getElementById('rateAutoReset');
+  set(ctx, 'customerType', 'commercial');
+  set(ctx, 'capacity', '100');
+  assert.ok(Math.abs(parseFloat(field().value) - 45) < 0.01, 'precondition: on the band');
+  assert.equal(button.hidden, true, 'a field already on the band has nothing to reset');
   set(ctx, 'costPerWp', '61');
-  assert.equal(d.getElementById('rateAutoReset').hidden, false, 'a manual rate must offer the way back');
+  assert.equal(button.hidden, false, 'a manual rate must offer the way back');
+  assert.equal(button.textContent, 'Reset to auto');
 });
 
 t('a proposal saved before auto existed opens as manual and is never re-priced', () => {
@@ -133,12 +140,13 @@ t('a proposal saved before auto existed opens as manual and is never re-priced',
   assert.equal(field().value, '63.6', 'opening an old quotation must never re-price it');
 });
 
-t('a proposal saved on auto reopens on auto', () => {
+t('a proposal saved on auto reopens on auto, on the price it was saved with', () => {
   w.StateStore.applyForm({ capacity: '100', customerType: 'industrial', costPerWp: '45.00', rateMode: 'auto' });
   assert.equal(mode(), 'auto');
-  assert.ok(Math.abs(parseFloat(field().value) - 45) < 0.01, 'got ' + field().value);
+  assert.equal(field().value, '45.00', 'loading a proposal must not rewrite its price');
   set(ctx, 'capacity', '20');
-  assert.ok(Math.abs(parseFloat(field().value) - rate(w, 'industrial', 20)) < 0.01, 'auto must follow the reopened proposal too');
+  assert.ok(Math.abs(parseFloat(field().value) - rate(w, 'industrial', 20)) < 0.01,
+    'the next capacity edit must apply the band, got ' + field().value);
 });
 
 t('the mode travels with the proposal, so a save keeps it', () => {
