@@ -78,6 +78,10 @@
        Default quotation rate unchanged. The calculation engine keeps working
        in ₹/kWp; state.js and render.js convert at the boundary. */
     costPerWp: '63.6',
+    /* auto = the rate follows the capacity band (assets/js/rate-model.js);
+       manual = the dealer typed his own price. Pricing-auto.js owns the
+       behaviour; this default only decides what a NEW proposal starts on. */
+    rateMode: 'auto',
     corpTaxRate: '25',
     depreciationRate: '40',
     gstPercent: '8.9',
@@ -200,6 +204,13 @@
     if (vals && vals.costPerWp === undefined && vals.costPerKwp !== undefined && vals.costPerKwp !== '') {
       vals = Object.assign({}, vals, { costPerWp: String((parseFloat(vals.costPerKwp) || 0) / 1000) });
     }
+    /* Same rule for the rate itself: a proposal saved before the auto rate
+       existed already carries the price that was sent, so it opens as MANUAL.
+       Without this, opening an old quotation and touching the capacity would
+       silently re-price it. */
+    if (vals && vals.rateMode === undefined && 'costPerWp' in vals) {
+      vals = Object.assign({}, vals, { rateMode: 'manual' });
+    }
     Object.keys(vals || {}).forEach((id) => {
       const el = document.getElementById(id);
       if (!el || el.hasAttribute('data-equipment-custom')||el.hasAttribute('data-system-picker')||el.closest('#documentStudio')) return;
@@ -219,6 +230,9 @@
        models win, otherwise the closest catalogue model fills the datasheet
        fields exactly like the Excel INPUT sheet. */
     if (typeof root.EquipmentStore?.syncModels === 'function') root.EquipmentStore.syncModels(vals || {});
+    /* The pricing block repaints from whatever mode the form now holds, and
+       follows the band again if the proposal was saved on auto. */
+    if (root.PricingAuto && typeof root.PricingAuto.refresh === 'function') root.PricingAuto.refresh();
   }
 
   /* ---------- proposal file export / import (through Proposals) ---------- */

@@ -134,6 +134,15 @@ legend{
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;}
 .hint{font-size:9.8px;color:#8A93A0;margin-top:3px;line-height:1.45;}
+/* Pricing block: the band's own rate, offered under the field it can fill in.
+   Faint while it is only a suggestion, brighter when the field follows it. */
+.rate-auto{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.rate-auto-price{font-size:10px;font-weight:600;color:#9AA3AF;}
+.rate-auto[data-mode="auto"] .rate-auto-price{color:var(--orange-dark);}
+.rate-auto-hint{flex:1 1 100%;font-size:9.5px;color:#8A93A0;line-height:1.45;}
+.rate-auto .link-btn{flex:0 0 auto;padding:1px 7px;font-size:9.5px;border-radius:20px;background:#FFF6EE;border-color:#F6D3B4;color:var(--orange-dark);}
+.rate-auto[data-warn="below-floor"] .rate-auto-price{color:var(--red);}
+.rate-auto[data-warn="below-floor"] .rate-auto-hint{color:var(--red);font-weight:600;}
 .upload-btn{
   display:inline-block;font-size:11.5px;padding:6px 10px;border:1px dashed #C9CFD6;
   border-radius:6px;color:var(--gray);cursor:pointer;width:100%;text-align:center;

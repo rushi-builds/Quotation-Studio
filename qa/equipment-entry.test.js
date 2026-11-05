@@ -113,6 +113,11 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
   await page.evaluate(()=>EquipmentStore.refreshSelects());
   check('catalog refresh preserves explicitly selected Custom mode',await page.evaluate(()=>moduleMake.selectedOptions[0].hasAttribute('data-custom')&&!moduleMakeCustomWrap.hidden));
   await type('moduleMake',custom.moduleMake);
+  /* Keystrokes render on a 120 ms trailing debounce, so the preview still holds
+     the PREVIOUS name for a moment. Wait for the render to land before asking
+     whether the state and the form agree - otherwise this measures the debounce,
+     not the refresh. */
+  await settle('moduleMake',custom.moduleMake);
   check('unknown names do not invent or overwrite technical ratings',await page.evaluate(()=>moduleWattage.value==='620'&&moduleLengthMm.value==='2300'&&inverterKw.value==='8'));
   check('markup-like brand text is rendered literally, not as elements',await page.$eval('#v_tsTable',el=>!el.querySelector('series')&&el.textContent.includes('Custom cable <series>')));
   check('pricing is unchanged by custom makes',await page.evaluate(()=>Math.abs(Finance.compute(Render.lastState).netInvestment-379380)<1e-8));

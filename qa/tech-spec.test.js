@@ -34,6 +34,17 @@ const t = (name, condition) => {
     // Instant scrolling only in this capture harness; no application style changes.
     await page.addStyleTag({ content: '*{scroll-behavior:auto!important}' });
 
+    /* Pin the rate. These checks compare layout and totals against the shipped
+       ₹63.60/Wp template; the quotation's capacity band (assets/js/pricing-auto.js)
+       only re-prices when a capacity or consumer type is edited, and this file
+       does edit them. Pinning makes the numbers deterministic without changing
+       what is being tested. */
+    await page.evaluate(() => {
+      const el = document.getElementById('costPerWp');
+      el.value = '63.6';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
     const setLinks = (pvsyst, arka) => page.evaluate(([p, a]) => {
       document.getElementById('pvsystUrl').value = p;
       document.getElementById('arkaUrl').value = a;

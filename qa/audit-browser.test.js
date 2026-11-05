@@ -27,6 +27,10 @@ function check(name, condition) { assert(condition, name); passed++; console.log
     check('after bar follows real ratio', parseFloat(await page.$eval('#v_bscAfterBar',e=>e.style.width))>50);
     await edit({tariff:'0'});
     check('zero tariff gives no bill savings', (await page.$eval('#v_bscSavedVal',e=>e.textContent)).includes('₹0'));
+    /* Pin the rate before switching consumer type: the quotation's capacity
+       band (assets/js/pricing-auto.js) re-prices a commercial quotation, and
+       these checks are about the tax arithmetic, not about the band. */
+    await edit({costPerWp:'63.6'});
     await edit({customerType:'commercial',tariff:'15',corpTaxRate:'30',depreciationRate:'20'});
     /* 7 kWp default × ₹63,600/kWp × 20% depreciation × 30% corp tax = ₹26,712 */
     check('tax assumptions render live', (await page.$eval('#v_inTaxSaved',e=>e.textContent))==='₹26,712');

@@ -52,14 +52,14 @@
     <noscript><p class="gallery-count">The project grid needs JavaScript. Every photograph is also available from the contact details in your proposal.</p></noscript>
   </section>
 
-  <div class="calc-modal" id="estimate" hidden>
+  <div class="calc-modal" id="estimate" role="dialog" aria-modal="true" aria-labelledby="estimateTitle" hidden>
   <div class="calc-backdrop" data-calc-close></div>
   <div class="calc-sheet">
     <button type="button" class="calc-close" data-calc-close aria-label="Close calculator">×</button>
     <div class="estimate-card">
       <div class="estimate-header">
         <span class="estimate-kicker">Quick solar estimate</span>
-        <h2>Find your ideal system size.</h2>
+        <h2 id="estimateTitle">Find your ideal system size.</h2>
         <p class="estimate-sub">Enter your monthly electricity bill, consumer type and place for an indicative system size, cost and savings figure.</p>
       </div>
       <form id="estimateForm">
@@ -234,6 +234,7 @@
 <script src="assets/js/gallery-details.js"></script>
 <script src="assets/js/gallery-likes.js"></script>
 <script src="assets/js/gallery.js?v=thanks-copy2"></script>
-<script src="assets/js/estimate-calculator.js?v=8"></script>
+<script src="assets/js/rate-model.js?v=1"></script>
+<script src="assets/js/estimate-calculator.js?v=10"></script>
 </body>
 </html>

@@ -124,6 +124,7 @@ export default {
     "qrDestinationType": "gallery",
     "briefingEnabled": true,
     "costPerWp": "63.6",
+    "rateMode": "auto",
     "corpTaxRate": "25",
     "depreciationRate": "40",
     "gstPercent": "8.9",
@@ -232,7 +233,7 @@ export default {
     "100kw": {
       "capacity": "100",
       "customerType": "industrial",
-      "costPerWp": "42",
+      "costPerWp": "45",
       "tariff": "14.0",
       "moduleWattage": "550",
       "moduleMake": "Goldi Solar",

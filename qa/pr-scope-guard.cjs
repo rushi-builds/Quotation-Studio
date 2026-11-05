@@ -73,7 +73,12 @@ const GALLERY_PAGE_PATHS = new Set([
    file still has to be reviewed. */
 const CALCULATOR_FILES = new Set([
   'assets/js/estimate-calculator.js',
-  'assets/css/estimate-calculator.css'
+  'assets/css/estimate-calculator.css',
+  /* The one rate model the card prices with and the quotation offers as its
+     auto rate, plus the block that offers it. Exact paths only: a new module
+     in this family still has to be named and reviewed here. */
+  'assets/js/rate-model.js',
+  'assets/js/pricing-auto.js'
 ]);
 
 /* Owner-requested feedback loop (2026-11-03): one inbox that reads both the
@@ -229,7 +234,7 @@ const REENCODED_IMAGE_PATHS=new Set([
   'assets/images/system-pfc-concept.jpg',
   'assets/images/system-zero-concept.jpg'
 ]);
-const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|proposal-feedback|experience|export|engineering)\.js|assets\/css\/(dashboard|experience|app)\.css|quotation\.html|dashboard\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|\.vercelignore|vercel\.json|\.github\/workflows\/qa\.yml|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
+const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|proposal-feedback|experience|export|engineering)\.js|assets\/css\/(dashboard|experience|app)\.css|quotation\.html|dashboard\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|\.vercelignore|vercel\.json|\.github\/workflows\/(qa|deploy-guard)\.yml|scripts\/check-live\.cjs|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
 
 function git(repoRoot, args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' });

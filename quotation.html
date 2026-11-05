@@ -16,7 +16,7 @@
 <meta name="twitter:description" content="Build a premium 15-page rooftop solar EPC proposal with live A4 preview, financial analytics and one-click PDF export.">
 <meta name="twitter:image" content="assets/images/page-cover-v2-portrait.jpg">
 <link rel="icon" href="assets/images/ktm-logo-light.png" type="image/png">
-<link rel="stylesheet" href="assets/css/app.css?v=sysdiagram1">
+<link rel="stylesheet" href="assets/css/app.css?v=autorate1">
 <link rel="stylesheet" href="assets/css/bess.css">
 <link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1">
 <link rel="stylesheet" href="assets/css/control-panel.css?v=start-first-fold2">
@@ -224,7 +224,13 @@
           <div class="field">
             <label>Cost per Wp (₹)</label>
             <input type="number" id="costPerWp" value="63.6" step="0.01" min="0">
+            <input type="hidden" id="rateMode" value="auto">
             <div class="hint" id="hintCostPerWp"></div>
+            <div class="rate-auto" id="rateAutoBox" data-mode="auto">
+              <span class="rate-auto-price" id="rateAutoPrice"></span>
+              <span class="rate-auto-hint" id="rateAutoHint"></span>
+              <button type="button" class="link-btn" id="rateAutoReset" hidden>Reset to auto</button>
+            </div>
           </div>
           <div class="field"><label>GST (%)</label><input type="number" id="gstPercent" value="8.9" step="0.1" min="0"></div>
         </div>
@@ -251,9 +257,10 @@
           <div class="hint" style="margin-top:8px;line-height:1.7">
             <b>Anchor:</b> ₹63.6/Wp at 1 kW (GST included) — the same default this input starts with.<br>
             <b>Percentage logic:</b> every extra kW of capacity softens the rate by a fixed percentage (degradation-style), so bigger systems price lower.<br>
-            <b>Subsidy projects (residential / society):</b> the rate slides to ₹60/Wp by 3 kW and stays there — it never drops below ₹60.<br>
-            <b>Non-subsidy projects (commercial / industrial):</b> the rate slides to ₹45/Wp by 20 kW and stays there — it never drops below ₹45.<br>
+            <b>Subsidy projects (residential / society):</b> the rate slides to ₹60/Wp by 100 kW and stays there — it never drops below ₹60.<br>
+            <b>Non-subsidy projects (commercial / industrial):</b> the rate slides to ₹45/Wp by 100 kW and stays there — it never drops below ₹45.<br>
             <b>Hard band:</b> whatever the capacity (even 100 kW or 500 kW), the rate always lands inside ₹45–₹63.6/Wp.<br>
+            <b>Auto or your own:</b> a new proposal starts on the band ("Auto ₹…/Wp" above). Type a rate and it is yours — nothing overwrites it. <b>Reset to auto</b> puts it back on the band. The saved proposal keeps the rate you actually sent.<br>
             <b>Per proposal:</b> this input is the per-proposal rate — set exactly what you agree after the site visit. The gallery quick-estimate follows the same band automatically and never shows the rate to customers.
           </div>
         </details>
@@ -1529,6 +1536,7 @@ fill="#fff"/><path fill="#25d366" d="m79 434 25.7-93.9a181.1 181.2 0 1170.3 68.7
 <script src="assets/js/icons.js?v=terms-icons1"></script>
 <script src="assets/js/charts.js?v=finance-fixes1"></script>
 <script src="assets/js/model.js"></script>
+<script src="assets/js/rate-model.js?v=1"></script>
 <script src="assets/js/state.js?v=document-editor-state1"></script>
 <script src="assets/js/catalogue-data.js?v=excel-v37"></script>
 <script src="assets/js/equipment.js?v=excel-catalogue1"></script>
@@ -1543,6 +1551,7 @@ fill="#fff"/><path fill="#25d366" d="m79 434 25.7-93.9a181.1 181.2 0 1170.3 68.7
 <script src="assets/js/platform-api.js?v=excel-workbook2"></script>
 <script src="assets/js/cloud-bridge.js?v=start-first-fold1"></script>
 <script src="assets/js/app.js?v=feedback-preview2"></script>
+<script src="assets/js/pricing-auto.js?v=1"></script>
 <script src="assets/js/control-panel.js?v=review-notes1"></script>
 <script src="assets/js/excel-catalogue.js?v=excel-lock-info1"></script>
 <script src="assets/js/assistant-actions.js?v=knowledge3"></script>
