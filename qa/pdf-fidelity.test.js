@@ -78,6 +78,20 @@ check('a chart or QR canvas cannot print wider than its column', () => {
   assert.ok(/maxWidth='100%'/.test(swap), 'and CSS cannot stretch it past the column either');
 });
 
+check('a cover-cropped photo prints the crop, not a squashed stretch', () => {
+  const fn = EXPORT.slice(EXPORT.indexOf('function refitImage'), EXPORT.indexOf('async function paintShapes'));
+  assert.ok(/objectFit/.test(fn), 'the image element\'s own object-fit is read');
+  assert.ok(/fit!=='cover'&&fit!=='contain'/.test(fn), 'only cropped/fitted photos are repainted');
+  assert.ok(/Math\.abs\(target-source\)<0\.01/.test(fn), 'a photo that already matches its box is left alone');
+  assert.ok(/sw=nh\*target/.test(fn) && /sh=nw\/target/.test(fn), 'cover crops the overflow the way the browser does');
+  assert.ok(/canvas\.width=box\.width; canvas\.height=box\.height/.test(fn), 'the crop is painted at the box size');
+  assert.ok(/toDataURL\('image\/png'\):canvas\.toDataURL\('image\/jpeg'/.test(fn),
+    'thumbnails stay lossless while a full-bleed photo is re-encoded');
+  const paint = EXPORT.slice(EXPORT.indexOf('async function paintShapes'), EXPORT.indexOf('async function exportPdf'));
+  assert.ok(paint.indexOf("querySelectorAll('img')") < paint.indexOf("querySelectorAll('svg')"),
+    'photos are refitted before the drawings become images, so nothing is processed twice');
+});
+
 check('a shape that fails to load is put back, never printed as a hole', () => {
   assert.ok(/img\.replaceWith\(original\)/.test(EXPORT), 'the original element is restored on failure');
   assert.ok(/img\.naturalWidth/.test(EXPORT), 'a decoded image is required before it is trusted');
@@ -90,7 +104,7 @@ check('the editable-document exporter uses the same pass', () => {
 });
 
 check('browsers pick up the new exporter instead of a cached one', () => {
-  assert.ok(/assets\/js\/export\.js\?v=sharp-pdf1/.test(PAGE), 'export.js cache key is bumped');
+  assert.ok(/assets\/js\/export\.js\?v=sharp-pdf2/.test(PAGE), 'export.js cache key is bumped');
   assert.ok(/assets\/js\/document-studio\.js\?v=sharp-pdf1/.test(PAGE), 'document-studio.js cache key is bumped');
 });
 

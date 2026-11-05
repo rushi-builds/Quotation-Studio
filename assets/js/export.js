@@ -136,8 +136,45 @@
       setTimeout(done,4000);
     });
   }
+  /* html2canvas stretches a photo to fill its box and ignores object-fit, so a
+     cover-cropped thumbnail prints squashed. Repaint exactly the crop the
+     reader sees, at the box's own size. */
+  function refitImage(img, box) {
+    let fit='fill';
+    try { fit=(root.getComputedStyle(img).objectFit||'fill'); } catch(e) {}
+    if(fit!=='cover'&&fit!=='contain') return false;
+    const nw=img.naturalWidth||img.width, nh=img.naturalHeight||img.height;
+    if(!nw||!nh||box.width<1||box.height<1) return false;
+    const target=box.width/box.height, source=nw/nh;
+    if(Math.abs(target-source)<0.01) return false;
+    const canvas=document.createElement('canvas');
+    canvas.width=box.width; canvas.height=box.height;
+    const ctx=canvas.getContext('2d');
+    if(!ctx) return false;
+    if(fit==='cover') {
+      let sw=nw,sh=nh,sx=0,sy=0;
+      if(source>target) { sw=nh*target; sx=(nw-sw)/2; }
+      else { sh=nw/target; sy=(nh-sh)/2; }
+      ctx.drawImage(img,sx,sy,sw,sh,0,0,box.width,box.height);
+    } else {
+      const scale=Math.min(box.width/nw,box.height/nh), w=nw*scale, h=nh*scale;
+      ctx.drawImage(img,(box.width-w)/2,(box.height-h)/2,w,h);
+    }
+    /* Small thumbnails stay lossless; a full-bleed photo is re-encoded so the
+       page image does not balloon. */
+    img.src=box.width*box.height<=250000?canvas.toDataURL('image/png'):canvas.toDataURL('image/jpeg',.95);
+    img.style.width=box.width+'px'; img.style.height=box.height+'px';
+    return true;
+  }
   async function paintShapes(page) {
-    const swaps=[];
+    const swaps=[],loading=[];
+    /* Photographs first: the images this pass creates must not be re-processed. */
+    page.querySelectorAll('img').forEach(img=>{
+      const box=img.getBoundingClientRect();
+      if(box.width<1||box.height<1) return;
+      try { if(refitImage(img,{width:round(box.width),height:round(box.height)})) loading.push(decoded(img)); }
+      catch(e) { /* a photo that cannot be repainted prints as it is today */ }
+    });
     page.querySelectorAll('svg').forEach(svg=>{
       const box=svg.getBoundingClientRect(),size={width:round(box.width),height:round(box.height)};
       if(box.width<1||box.height<1) return;
@@ -154,7 +191,7 @@
         swaps.push({img,original:canvas});
       } catch(e) { /* a canvas that refuses to export stays as it is */ }
     });
-    await Promise.all(swaps.map(({img})=>decoded(img)));
+    await Promise.all([...loading,...swaps.map(({img})=>decoded(img))]);
     /* Never print a hole where artwork used to be. */
     swaps.forEach(({img,original})=>{ if(!img.isConnected) return; if(!img.naturalWidth) img.replaceWith(original); });
   }
