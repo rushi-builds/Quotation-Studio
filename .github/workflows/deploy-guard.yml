@@ -1,0 +1,122 @@
+name: Deploy guard
+
+# The production site is served by the Cloudflare Worker itself
+# (platform/cloudflare/wrangler.git.toml → [assets] run_worker_first), which
+# means a deploy is the only thing that publishes the front end. Two things went
+# wrong because nothing watched that:
+#
+#   1. The "Workers Builds: qs-studio-rushi" check has been red since PR #43 —
+#      on every commit, including merges to main. Nobody could see WHY: the
+#      Cloudflare build log lived behind a dashboard sign-in, so all GitHub ever
+#      showed was a red tick.
+#   2. A red build does not take the site down, it freezes it. The previous
+#      deployment keeps running, the dashboard keeps calling it "success", and
+#      the live site serves older bytes with no signal anywhere.
+#
+# So this workflow does the two jobs the opaque check cannot:
+#   deploy-config   rebuilds the Worker exactly as a deploy would, on a clean
+#                   runner, with --dry-run (uploads nothing) and a real log.
+#                   A config or asset problem now fails HERE, with the reason
+#                   in plain text.
+#   live-freshness  once a day, compares the bytes production serves against
+#                   the bytes in main. "Stale" is reported as stale, and an
+#                   unreachable site is reported as unreachable — never the
+#                   other way round.
+#
+# Nothing here deploys, publishes or writes to Cloudflare.
+
+on:
+  pull_request:
+    paths:
+      - 'platform/cloudflare/**'
+      - 'assets/**'
+      - 'scripts/**'
+      - '*.html'
+      - 'schema.sql'
+      - 'migrations/**'
+      - '.github/workflows/deploy-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'platform/cloudflare/**'
+      - 'assets/**'
+      - 'scripts/**'
+      - '*.html'
+  schedule:
+    # 03:15 UTC daily — after the nightly provider jobs, before the working day.
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-config:
+    name: Worker config builds (dry run)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Same dependency tree a deploy uses. package-lock.json is gitignored, so
+      # this is `npm install`, exactly like Workers Builds.
+      - name: Install Worker dependencies
+        working-directory: platform/cloudflare
+        run: npm install --no-audit --no-fund
+
+      # [build] in wrangler.git.toml runs this too; running it explicitly means a
+      # failure here names the build step instead of the deploy step.
+      - name: Build the static asset tree
+        working-directory: platform/cloudflare
+        run: |
+          node sync-public.js
+          test -f public/gallery.html
+          test -f public/assets/js/estimate-calculator.js
+          test -f public/assets/js/finance.js
+          echo "public/: $(find public -type f | wc -l) files, $(du -sh public | cut -f1)"
+
+      # --dry-run builds and validates the bundle without uploading or touching
+      # D1. It fails on a bad config, a missing binding, an unsupported field or
+      # an asset problem — the same class of failure Workers Builds reports.
+      - name: Validate the Worker bundle (no upload)
+        working-directory: platform/cloudflare
+        run: npx wrangler deploy -c wrangler.git.toml --dry-run --outdir "$RUNNER_TEMP/dist"
+
+      - name: Report what would be deployed
+        if: success()
+        working-directory: platform/cloudflare
+        run: |
+          {
+            echo "### Worker config builds"
+            echo ""
+            echo "- static assets: **$(find public -type f | wc -l)** files, $(du -sh public | cut -f1)"
+            echo "- worker bundle: $(du -sh "$RUNNER_TEMP/dist" | cut -f1)"
+            echo "- config: \`wrangler.git.toml\` (name \`qs-studio-rushi\`, ASSETS + D1 DB)"
+            echo ""
+            echo "A dry run proves the repo can build. It does not prove the Cloudflare"
+            echo "build can: that one also needs the account's root directory, build command"
+            echo "and API token to be right. See docs/cloudflare-deploy.md."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  live-freshness:
+    name: Production serves this commit
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Exit 1 = production is serving older bytes than main (silent staleness).
+      # Exit 2 = the site could not be reached, which is reported as itself.
+      - name: Compare live bytes with the repository
+        run: node scripts/check-live.cjs

@@ -366,3 +366,59 @@ Site-photo uploads are auto-compressed in the browser (max ~1400px, under ~900 K
 and stored as values in the free D1 database — no R2 subscription and no payment
 method needed, ever. The local server keeps full files on disk instead. Same
 dashboard UI works on both. D1 free tier (5 GB) holds thousands of site photos.
+
+---
+
+## When "the deploy is green" and the site is still old
+
+The Worker serves the front end itself
+(`wrangler.git.toml` → `[assets] directory = "./public"`, `run_worker_first = true`),
+so **a deploy is the only thing that publishes the pages**. Two consequences that
+cost us a week between PR #43 and PR #46:
+
+- A failed build does **not** take the site down. The previous deployment keeps
+  running and the Cloudflare dashboard keeps showing it as **success RUNNING**.
+  That green row is the *old* version, not the new one.
+- The `Workers Builds: qs-studio-rushi` check was red on **every** commit —
+  including merges to `main` — and the build log lived behind a dashboard
+  sign-in, so GitHub only ever showed a red tick with no reason.
+
+### What we now run instead
+
+| Command / job | What it proves |
+|---|---|
+| `cd platform/cloudflare && npm run build` | `sync-public.js` can produce `public/` from a clean checkout |
+| `npx wrangler deploy -c wrangler.git.toml --dry-run --outdir "$RUNNER_TEMP/dist"` | the bundle, the D1 binding, the ASSETS binding and the vars are all valid — **uploads nothing** |
+| `node scripts/check-live.cjs` | production is serving *these* bytes, file by file (exit 1 = stale, exit 2 = unreachable, never confused) |
+
+The `Deploy guard` workflow (`.github/workflows/deploy-guard.yml`) runs the first
+two on every PR/push that can affect a deploy, with a readable log, and the third
+once a day plus on demand. It never deploys.
+
+### If Workers Builds is still red
+
+The repo side is passing (the dry run above), so the difference is in the
+Cloudflare project settings, which only the account owner can see:
+
+1. **Root directory** must be `platform/cloudflare` (not the repo root). If it is
+   the root, `node sync-public.js` runs where that file does not exist and the
+   build dies instantly.
+2. **Build command** `node sync-public.js` (it is also in `[build]` of
+   `wrangler.git.toml`, so leaving the dashboard box empty is fine).
+3. **Deploy command** `npx wrangler deploy -c wrangler.git.toml`.
+4. **API token / account**: the service is `qs-studio-rushi` on the
+   `Ktmenergyexperts@gmail.com` account; a token minted on a different account
+   fails after a successful build, which looks identical in GitHub.
+5. Paste the failed build's log lines into the issue/PR — the stages above make
+   the cause visible in one read.
+
+### Deploying by hand (always works)
+
+```bash
+cd platform/cloudflare
+npm install
+node sync-public.js
+npx wrangler login          # once per machine
+npx wrangler deploy -c wrangler.git.toml
+node ../../scripts/check-live.cjs   # confirm production is now this code
+```
