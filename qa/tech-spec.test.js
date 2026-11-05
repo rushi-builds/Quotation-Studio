@@ -223,6 +223,41 @@ const t = (name, condition) => {
       pageTechSpec.querySelector('.pg-body').appendChild(extra);Render.fitPages();
       const reported=window.__qsPageOverflow.includes('pageTechSpec');extra.remove();Render.fitPages();return reported;
     }));
+    /* The download is a raster capture, and html2canvas paints an inline <svg>
+       at its own idea of its size unless it is handed an <img>. Page 6's
+       drawing printed cut in half for exactly that reason, so the cure is
+       pinned here on the real page. */
+    const painted = await page.evaluate(async () => {
+      const live = document.getElementById('pageTechSpec');
+      const host = document.createElement('div');
+      host.style.cssText = 'position:absolute;left:-12000px;top:0;width:794px;';
+      host.className = 'pdf-snapshot';
+      const copy = live.cloneNode(true);
+      copy.style.transform = 'none';
+      host.appendChild(copy);
+      document.body.appendChild(host);
+      const before = copy.querySelector('#v_tsDiagram svg');
+      const column = copy.querySelector('#v_tsDiagram').getBoundingClientRect().width;
+      const svgBefore = before ? before.getBoundingClientRect().width : 0;
+      await Exporter.paintShapes(copy);
+      const img = copy.querySelector('#v_tsDiagram img');
+      const result = {
+        column,
+        svgBefore,
+        replaced: !!img && !copy.querySelector('#v_tsDiagram svg'),
+        width: img ? img.getBoundingClientRect().width : 0,
+        sharp: img ? img.naturalWidth >= Math.round(Math.min(svgBefore || 1, column)) : false,
+        leftovers: [...copy.querySelectorAll('svg')].filter(s => s.getBoundingClientRect().width > 1).length
+      };
+      host.remove();
+      return result;
+    });
+    t('the PDF capture paints the system diagram as an image at its column width',
+      painted.replaced && painted.column > 0 && painted.width >= painted.column * 0.7);
+    t('the painted diagram keeps at least one pixel per point, so its labels stay sharp',
+      painted.sharp);
+    t('no visible inline drawing is left for html2canvas to crop', painted.leftovers === 0);
+
     t('no browser runtime errors', errors.length === 0);
     fs.writeFileSync(path.join(OUT, 'tech-spec-metrics.json'), JSON.stringify(results, null, 2) + '\n');
     console.log(JSON.stringify(results, null, 2));

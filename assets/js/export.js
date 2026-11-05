@@ -74,6 +74,90 @@
     });
     document.body.appendChild(host); return host;
   }
+  /* ---------- capture pre-pass: paint shapes at the size they are read ----------
+     html2canvas draws an inline <svg> from its own serialisation, without the
+     page's stylesheet, so an icon sized by CSS is painted at the SVG's
+     *intrinsic* size and then cropped by the box that holds it. That is what
+     printed the small icons as specks, the closing page's arrows outside their
+     pill, and page 6's system diagram cut in half with the last stages missing.
+     Painting every SVG into an <img> at the box the reader actually sees
+     removes that whole class of defect; the source stays vector, so the capture
+     rasterises it at full print resolution instead of upscaling a small bitmap.
+     Canvases (charts, QR codes) get the same treatment: an <img> carries its own
+     pixel size, so a chart can never print wider than the column it sits in. */
+  const PDF_SCALE=3, PDF_QUALITY=.9;
+  const shapeCache=new Map();
+  const round=n=>Math.max(1,Math.round(n||0));
+  function shapeUrl(svg, box) {
+    const key=box.width+'x'+box.height+(svg.outerHTML||'');
+    const cached=shapeCache.get(key);
+    if(cached) return cached;
+    const copy=svg.cloneNode(true);
+    copy.setAttribute('width',String(box.width));
+    copy.setAttribute('height',String(box.height));
+    if(!copy.getAttribute('viewBox')) copy.setAttribute('viewBox','0 0 '+box.width+' '+box.height);
+    let markup=new XMLSerializer().serializeToString(copy);
+    /* Exactly one namespace declaration: a second xmlns is a malformed XML
+       document, and the image would silently fail to load. */
+    if(!/<svg[^>]*\sxmlns=/.test(markup)) markup=markup.replace('<svg','<svg xmlns="http://www.w3.org/2000/svg"');
+    const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(markup);
+    shapeCache.set(key,url);
+    return url;
+  }
+  /* A drawing may not be laid out wider than the column that holds it. */
+  function columnWidth(el, fallback) {
+    const parent=el.parentElement;
+    if(!parent) return fallback;
+    let inner=parent.getBoundingClientRect().width;
+    try {
+      const style=root.getComputedStyle(parent);
+      inner-=parseFloat(style.paddingLeft)||0;
+      inner-=parseFloat(style.paddingRight)||0;
+    } catch(e) { /* no layout information: trust the element's own box */ }
+    return inner>0?Math.min(fallback,inner):fallback;
+  }
+  function swapIn(el, url, box) {
+    const img=document.createElement('img');
+    img.src=url;
+    if(el.getAttribute('class')) img.className=el.getAttribute('class');
+    if(el.getAttribute('style')) img.setAttribute('style',el.getAttribute('style'));
+    const fit=columnWidth(el,box.width);
+    const width=Math.min(box.width,fit), height=Math.round(box.height*width/box.width);
+    img.style.width=width+'px'; img.style.height=height+'px'; img.style.maxWidth='100%';
+    el.replaceWith(img);
+    return img;
+  }
+  function decoded(img) {
+    return new Promise(resolve=>{
+      const done=()=>{img.onload=null;img.onerror=null;resolve();};
+      if(typeof img.decode==='function') { img.decode().then(done,done); return; }
+      img.onload=done; img.onerror=done;
+      /* a source that never settles must not hold the download open */
+      setTimeout(done,4000);
+    });
+  }
+  async function paintShapes(page) {
+    const swaps=[];
+    page.querySelectorAll('svg').forEach(svg=>{
+      const box=svg.getBoundingClientRect(),size={width:round(box.width),height:round(box.height)};
+      if(box.width<1||box.height<1) return;
+      try {
+        const img=swapIn(svg,shapeUrl(svg,size),size);
+        swaps.push({img,original:svg});
+      } catch(e) { /* an unreadable drawing stays as it is */ }
+    });
+    page.querySelectorAll('canvas').forEach(canvas=>{
+      const box=canvas.getBoundingClientRect(),size={width:round(box.width),height:round(box.height)};
+      if(box.width<1||box.height<1||typeof canvas.toDataURL!=='function') return;
+      try {
+        const img=swapIn(canvas,canvas.toDataURL('image/png'),size);
+        swaps.push({img,original:canvas});
+      } catch(e) { /* a canvas that refuses to export stays as it is */ }
+    });
+    await Promise.all(swaps.map(({img})=>decoded(img)));
+    /* Never print a hole where artwork used to be. */
+    swaps.forEach(({img,original})=>{ if(!img.isConnected) return; if(!img.naturalWidth) img.replaceWith(original); });
+  }
   async function exportPdf(statusCb, options={}) {
     if(busy) throw new Error('A PDF export is already in progress.');
     busy=true; let snapshot;
@@ -139,9 +223,10 @@
       for(let i=0;i<pages.length;i++) {
         set('Rendering page '+(i+1)+' of '+pages.length+'…');
         const el=pages[i];
-        const canvas=await root.html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,onclone:doc=>doc.body.classList.add('qs-pdf-capture')});
+        await paintShapes(el);
+        const canvas=await root.html2canvas(el,{scale:PDF_SCALE,useCORS:true,backgroundColor:'#ffffff',logging:false,onclone:doc=>doc.body.classList.add('qs-pdf-capture')});
         if(i>0) pdf.addPage();
-        pdf.addImage(canvas.toDataURL('image/jpeg',.92),'JPEG',0,0,pageW,pageH,undefined,'FAST');
+        pdf.addImage(canvas.toDataURL('image/jpeg',PDF_QUALITY),'JPEG',0,0,pageW,pageH,undefined,'FAST');
         // QR destinations and supplied engineering references are also clickable.
         const bounds=el.getBoundingClientRect();
         el.querySelectorAll('a[href]').forEach(a=>{
@@ -291,5 +376,5 @@
     }));
     $('pdfFormat')?.addEventListener('change',updateLabel);updateLabel();
   }
-  root.Exporter={exportPdf,wire,updateLabel};
+  root.Exporter={exportPdf,wire,updateLabel,paintShapes};
 })(typeof self!=='undefined'?self:this);
