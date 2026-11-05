@@ -45,6 +45,16 @@ const t = (name, condition) => {
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
+    /* The drawing on this page is the one block a customer actually reads. It
+       must not be shrunk to a thumbnail to buy room: the page gives up its own
+       intro copy first (see the is-lead-trim step in render.js). */
+    const diagramShare = await page.$eval('#v_tsDiagram', (box) => {
+      const svg = box.querySelector('svg');
+      return svg && box.getBoundingClientRect().width
+        ? svg.getBoundingClientRect().width / box.getBoundingClientRect().width : 0;
+    });
+    t('system diagram keeps its width (' + Math.round(diagramShare * 100) + '% of the column)', diagramShare >= 0.7);
+
     const setLinks = (pvsyst, arka) => page.evaluate(([p, a]) => {
       document.getElementById('pvsystUrl').value = p;
       document.getElementById('arkaUrl').value = a;
