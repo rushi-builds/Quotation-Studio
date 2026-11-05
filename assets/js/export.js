@@ -85,7 +85,21 @@
      rasterises it at full print resolution instead of upscaling a small bitmap.
      Canvases (charts, QR codes) get the same treatment: an <img> carries its own
      pixel size, so a chart can never print wider than the column it sits in. */
-  const PDF_SCALE=3, PDF_QUALITY=.9;
+  /* html2canvas clones the entire document on every call, so the fifteen live
+     pages, the builder form and the dialogs were cloned fifteen times to paint
+     one page at a time. They are dropped from that clone: the captured page
+     lives in .pdf-snapshot, so nothing it needs is ever removed. */
+  function trimClone(doc) {
+    let keep=null;
+    try { keep=doc.querySelector('.pdf-snapshot'); } catch(e) {}
+    const spare=el=>!keep||!keep.contains(el);
+    try {
+      doc.querySelectorAll('.page-wrap,[data-builder-only],dialog,.qs-toast,.qs-dialog').forEach(el=>{
+        if(spare(el)) el.remove();
+      });
+    } catch(e) { /* a clone we cannot trim still captures correctly */ }
+  }
+  const PDF_SCALE=3, PDF_QUALITY=.85;
   const shapeCache=new Map();
   const round=n=>Math.max(1,Math.round(n||0));
   function shapeUrl(svg, box) {
@@ -257,13 +271,21 @@
       });
       const {jsPDF}=root.jspdf, pdf=new jsPDF({unit:'pt',format:'a4',compress:true});
       const pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight();
+      /* Ultra is print resolution; Fast halves the pixels for a download that
+         finishes in about half the time. The reader picks, because both cannot
+         be true at once. */
+      const scale=options.scale||(($('pdfQuality')?.value==='fast')?2:PDF_SCALE);
+      const clock=()=>root.performance?.now?.()??Date.now(), started=clock();
+      let bytes=0;
       for(let i=0;i<pages.length;i++) {
         set('Rendering page '+(i+1)+' of '+pages.length+'…');
         const el=pages[i];
         await paintShapes(el);
-        const canvas=await root.html2canvas(el,{scale:PDF_SCALE,useCORS:true,backgroundColor:'#ffffff',logging:false,onclone:doc=>doc.body.classList.add('qs-pdf-capture')});
+        const canvas=await root.html2canvas(el,{scale,useCORS:true,backgroundColor:'#ffffff',logging:false,onclone:doc=>{doc.body.classList.add('qs-pdf-capture');trimClone(doc);}});
         if(i>0) pdf.addPage();
-        pdf.addImage(canvas.toDataURL('image/jpeg',PDF_QUALITY),'JPEG',0,0,pageW,pageH,undefined,'FAST');
+        const jpeg=canvas.toDataURL('image/jpeg',PDF_QUALITY);
+        bytes+=Math.round(jpeg.length*0.75);
+        pdf.addImage(jpeg,'JPEG',0,0,pageW,pageH,undefined,'FAST');
         // QR destinations and supplied engineering references are also clickable.
         const bounds=el.getBoundingClientRect();
         el.querySelectorAll('a[href]').forEach(a=>{
@@ -272,6 +294,11 @@
             pdf.link((r.left-bounds.left)/bounds.width*pageW,(r.top-bounds.top)/bounds.height*pageH,r.width/bounds.width*pageW,r.height/bounds.height*pageH,{url});
         });
       }
+      /* One line the builder (and QA) can read instead of guessing how long a
+         download takes or how heavy the file is. */
+      const stats={pages:pages.length,ms:Math.round(clock()-started),bytes,scale};
+      if(root.Exporter) root.Exporter.stats=stats;
+      try { root.console?.info?.('[PDF] '+stats.pages+' pages · '+(stats.ms/1000).toFixed(1)+'s render · '+(stats.bytes/1048576).toFixed(1)+' MB'); } catch(e) {}
       const cust=(s.custName||'Customer').replace(/[^a-z0-9]+/gi,'_'),ref=(s.propRef||'').replace(/[^a-z0-9]+/gi,'-');
       pdf.setProperties({title:(reports[format]?.title||(format==='power'?'Power Proposal':'Solar Proposal'))+' - '+s.custName+' ('+s.capacity+' kWp)',subject:'Rooftop solar EPC proposal '+ref+' v'+s.propVersion,author:s.companyName,creator:s.companyName+' - Quotation Studio'});
       pdf.save((reports[format]?reports[format].title.replace(/[^a-z0-9_-]+/gi,'_')+'_':format==='power'?'Power_Proposal_':'Proposal_')+cust+'_'+s.capacity+'kWp_'+ref+'.pdf');
@@ -413,5 +440,5 @@
     }));
     $('pdfFormat')?.addEventListener('change',updateLabel);updateLabel();
   }
-  root.Exporter={exportPdf,wire,updateLabel,paintShapes};
+  root.Exporter={exportPdf,wire,updateLabel,paintShapes,trimClone};
 })(typeof self!=='undefined'?self:this);

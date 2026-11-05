@@ -53,8 +53,20 @@ check('the capture is made at print resolution, not screen resolution', () => {
   const scale = Number((EXPORT.match(/const PDF_SCALE=([\d.]+)/) || [])[1]);
   assert.ok(Number.isFinite(scale), 'PDF_SCALE is declared');
   assert.ok(scale >= 3, `capture scale is ${scale}: A4 at 3x is ~288 dpi, screen 1x is not printable`);
-  assert.ok(/scale:PDF_SCALE/.test(captureLoop), 'the loop passes PDF_SCALE to html2canvas');
+  assert.ok(/scale,useCORS:true/.test(captureLoop), 'the loop passes the chosen scale to html2canvas');
+  const quality = Number((EXPORT.match(/PDF_QUALITY=([\d.]+)/) || [])[1]);
+  assert.ok(quality >= 0.85, `page quality is ${quality}: 288 dpi at .85 is sharp and still light`);
   assert.ok(!/scale:2[,}]/.test(captureLoop), 'no page is still captured at scale 2');
+});
+
+check('the reader can trade resolution for speed, and Ultra stays the default', () => {
+  assert.ok(/id="pdfQuality"/.test(PAGE), 'the builder offers a quality choice');
+  assert.ok(/<option value="ultra" selected>/.test(PAGE), 'Ultra is selected by default');
+  assert.ok(/value="fast"/.test(PAGE), 'and Fast is available for a quick download');
+  assert.ok(/\$\(\'pdfQuality\'\)\?\.value===\'fast\'\)\?2:PDF_SCALE/.test(EXPORT),
+    'Fast halves the capture scale, Ultra keeps print resolution');
+  assert.ok(/\$\('pdfQuality'\)/.test(EXPORT), 'the exporter reads the choice at download time');
+  assert.ok(/stats=\{pages:pages\.length.*scale\}/.test(EXPORT), 'the scale used is reported with the stats');
 });
 
 check('an inline SVG is painted at the box the reader sees', () => {
@@ -104,8 +116,42 @@ check('the editable-document exporter uses the same pass', () => {
 });
 
 check('browsers pick up the new exporter instead of a cached one', () => {
-  assert.ok(/assets\/js\/export\.js\?v=sharp-pdf2/.test(PAGE), 'export.js cache key is bumped');
+  assert.ok(/assets\/js\/export\.js\?v=sharp-pdf3/.test(PAGE), 'export.js cache key is bumped');
   assert.ok(/assets\/js\/document-studio\.js\?v=sharp-pdf1/.test(PAGE), 'document-studio.js cache key is bumped');
+});
+
+check('the capture clone drops the live pages instead of repainting them', () => {
+  const fn = EXPORT.slice(EXPORT.indexOf('function trimClone'), EXPORT.indexOf('const PDF_SCALE'));
+  assert.ok(/querySelector\('\.pdf-snapshot'\)/.test(fn), 'the snapshot that holds the page being painted is located');
+  assert.ok(/spare=el=>!keep\|\|!keep\.contains\(el\)/.test(fn), 'nothing inside it is ever removed');
+  assert.ok(/page-wrap/.test(fn) && /\[data-builder-only\]/.test(fn), 'the live pages and builder chrome are dropped');
+  assert.ok(/onclone:doc=>\{doc\.body\.classList\.add\('qs-pdf-capture'\);trimClone\(doc\);\}/.test(captureLoop) ||
+    /trimClone\(doc\)/.test(captureLoop), 'the capture runs the trim before painting');
+});
+
+check('the export reports its own time and weight', () => {
+  assert.ok(/root\.Exporter\.stats=stats/.test(EXPORT), 'stats are published for the builder and QA');
+  assert.ok(/ms:Math\.round\(clock\(\)-started\)/.test(EXPORT) && /bytes/.test(EXPORT), 'both render time and page bytes are measured');
+  assert.ok(/\[PDF\] '\+stats\.pages/.test(EXPORT), 'and logged so a slow download can be diagnosed');
+});
+
+check('the trim never removes the page being captured', () => {
+  const { JSDOM } = require('jsdom');
+  const dom = new JSDOM(`<body>
+    <main><div class="page-wrap"><section class="page" id="pageCover"></section></div>
+      <button data-builder-only id="chrome">x</button><dialog id="dlg"></dialog></main>
+    <div class="pdf-snapshot"><section class="page" id="pageTechSpec">
+      <span data-builder-only id="inner">kept</span></section></div>
+  </body>`, { runScripts: 'outside-only' });
+  const w = dom.window;
+  w.eval(fs.readFileSync(path.join(ROOT, 'assets/js/export.js'), 'utf8'));
+  w.Exporter.trimClone(w.document);
+  const doc = w.document;
+  assert.equal(doc.querySelector('.page-wrap'), null, 'the live copy of the pages is gone');
+  assert.equal(doc.getElementById('chrome'), null, 'and so is the builder chrome');
+  assert.equal(doc.getElementById('dlg'), null, 'and the dialogs');
+  assert.ok(doc.querySelector('.pdf-snapshot #pageTechSpec'), 'the page being painted survives');
+  assert.ok(doc.getElementById('inner'), 'including anything the builder hides inside it');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

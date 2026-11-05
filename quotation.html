@@ -752,6 +752,8 @@
     <div class="form-actions">
       <label class="pdf-format-label" for="pdfFormat">PDF format</label>
       <select id="pdfFormat" class="pdf-format"><option value="full">Detailed Proposal - all applicable pages</option><option value="power">Power Proposal - 6-page report</option></select>
+      <label class="pdf-format-label" for="pdfQuality">PDF quality</label>
+      <select id="pdfQuality" class="pdf-format"><option value="ultra" selected>Ultra - print resolution (288 dpi)</option><option value="fast">Fast - screen resolution, quicker download</option></select>
       <button id="downloadBtn" type="button"><span id="downloadLabel">Generate &amp; Download PDF</span></button>
       <div class="form-links">
         <p class="hint" id="backupScope">Saves stay in this browser. Export backs up one proposal, not the whole workspace.</p>
@@ -1546,7 +1548,7 @@ fill="#fff"/><path fill="#25d366" d="m79 434 25.7-93.9a181.1 181.2 0 1170.3 68.7
 <script src="assets/js/experience.js?v=proposal-stage1"></script>
 <script src="assets/js/salutation.js"></script>
 <script src="assets/js/briefing.js"></script>
-<script src="assets/js/export.js?v=sharp-pdf2"></script>
+<script src="assets/js/export.js?v=sharp-pdf3"></script>
 <script src="assets/js/workspace-prefs.js"></script>
 <script src="assets/js/platform-api.js?v=excel-workbook2"></script>
 <script src="assets/js/cloud-bridge.js?v=start-first-fold1"></script>
