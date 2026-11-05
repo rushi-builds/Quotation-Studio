@@ -271,13 +271,11 @@
       });
       const {jsPDF}=root.jspdf, pdf=new jsPDF({unit:'pt',format:'a4',compress:true});
       const pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight();
-      /* Ultra is print resolution and keeps the best page quality; Fast halves
-         the pixels for a download that finishes in about half the time. The
-         reader picks, because both cannot be true at once. Ultra never gives
-         anything away for a mode that already exists. */
-      const fast=$('pdfQuality')?.value==='fast';
-      const scale=options.scale||(fast?2:PDF_SCALE);
-      const quality=options.quality||(fast?.85:PDF_QUALITY);
+      /* One quality, the best one: print resolution at high page quality. The
+         download is kept quick by the capture work itself (the clone trim and
+         the painted shapes), not by giving the customer a thinner page. */
+      const scale=options.scale||PDF_SCALE;
+      const quality=options.quality||PDF_QUALITY;
       const clock=()=>root.performance?.now?.()??Date.now(), started=clock();
       let bytes=0;
       for(let i=0;i<pages.length;i++) {
