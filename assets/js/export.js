@@ -99,7 +99,7 @@
       });
     } catch(e) { /* a clone we cannot trim still captures correctly */ }
   }
-  const PDF_SCALE=3, PDF_QUALITY=.85;
+  const PDF_SCALE=3, PDF_QUALITY=.92;
   const shapeCache=new Map();
   const round=n=>Math.max(1,Math.round(n||0));
   function shapeUrl(svg, box) {
@@ -271,10 +271,13 @@
       });
       const {jsPDF}=root.jspdf, pdf=new jsPDF({unit:'pt',format:'a4',compress:true});
       const pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight();
-      /* Ultra is print resolution; Fast halves the pixels for a download that
-         finishes in about half the time. The reader picks, because both cannot
-         be true at once. */
-      const scale=options.scale||(($('pdfQuality')?.value==='fast')?2:PDF_SCALE);
+      /* Ultra is print resolution and keeps the best page quality; Fast halves
+         the pixels for a download that finishes in about half the time. The
+         reader picks, because both cannot be true at once. Ultra never gives
+         anything away for a mode that already exists. */
+      const fast=$('pdfQuality')?.value==='fast';
+      const scale=options.scale||(fast?2:PDF_SCALE);
+      const quality=options.quality||(fast?.85:PDF_QUALITY);
       const clock=()=>root.performance?.now?.()??Date.now(), started=clock();
       let bytes=0;
       for(let i=0;i<pages.length;i++) {
@@ -283,7 +286,7 @@
         await paintShapes(el);
         const canvas=await root.html2canvas(el,{scale,useCORS:true,backgroundColor:'#ffffff',logging:false,onclone:doc=>{doc.body.classList.add('qs-pdf-capture');trimClone(doc);}});
         if(i>0) pdf.addPage();
-        const jpeg=canvas.toDataURL('image/jpeg',PDF_QUALITY);
+        const jpeg=canvas.toDataURL('image/jpeg',quality);
         bytes+=Math.round(jpeg.length*0.75);
         pdf.addImage(jpeg,'JPEG',0,0,pageW,pageH,undefined,'FAST');
         // QR destinations and supplied engineering references are also clickable.
@@ -296,7 +299,7 @@
       }
       /* One line the builder (and QA) can read instead of guessing how long a
          download takes or how heavy the file is. */
-      const stats={pages:pages.length,ms:Math.round(clock()-started),bytes,scale};
+      const stats={pages:pages.length,ms:Math.round(clock()-started),bytes,scale,quality};
       if(root.Exporter) root.Exporter.stats=stats;
       try { root.console?.info?.('[PDF] '+stats.pages+' pages · '+(stats.ms/1000).toFixed(1)+'s render · '+(stats.bytes/1048576).toFixed(1)+' MB'); } catch(e) {}
       const cust=(s.custName||'Customer').replace(/[^a-z0-9]+/gi,'_'),ref=(s.propRef||'').replace(/[^a-z0-9]+/gi,'-');

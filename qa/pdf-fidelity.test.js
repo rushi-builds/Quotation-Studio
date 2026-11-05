@@ -55,7 +55,10 @@ check('the capture is made at print resolution, not screen resolution', () => {
   assert.ok(scale >= 3, `capture scale is ${scale}: A4 at 3x is ~288 dpi, screen 1x is not printable`);
   assert.ok(/scale,useCORS:true/.test(captureLoop), 'the loop passes the chosen scale to html2canvas');
   const quality = Number((EXPORT.match(/PDF_QUALITY=([\d.]+)/) || [])[1]);
-  assert.ok(quality >= 0.85, `page quality is ${quality}: 288 dpi at .85 is sharp and still light`);
+  assert.ok(quality >= 0.9, `Ultra page quality is ${quality}: the print mode must not give anything away`);
+  assert.ok(/const quality=options\.quality\|\|\(fast\?\.85:PDF_QUALITY\)/.test(EXPORT),
+    'only Fast trades compression, and only when it is chosen');
+  assert.ok(/toDataURL\('image\/jpeg',quality\)/.test(EXPORT), 'the capture encodes with the chosen quality');
   assert.ok(!/scale:2[,}]/.test(captureLoop), 'no page is still captured at scale 2');
 });
 
@@ -63,10 +66,10 @@ check('the reader can trade resolution for speed, and Ultra stays the default', 
   assert.ok(/id="pdfQuality"/.test(PAGE), 'the builder offers a quality choice');
   assert.ok(/<option value="ultra" selected>/.test(PAGE), 'Ultra is selected by default');
   assert.ok(/value="fast"/.test(PAGE), 'and Fast is available for a quick download');
-  assert.ok(/\$\(\'pdfQuality\'\)\?\.value===\'fast\'\)\?2:PDF_SCALE/.test(EXPORT),
+  assert.ok(/const scale=options\.scale\|\|\(fast\?2:PDF_SCALE\)/.test(EXPORT),
     'Fast halves the capture scale, Ultra keeps print resolution');
   assert.ok(/\$\('pdfQuality'\)/.test(EXPORT), 'the exporter reads the choice at download time');
-  assert.ok(/stats=\{pages:pages\.length.*scale\}/.test(EXPORT), 'the scale used is reported with the stats');
+  assert.ok(/stats=\{pages:pages\.length.*scale,quality\}/.test(EXPORT), 'the scale and quality used are reported with the stats');
 });
 
 check('an inline SVG is painted at the box the reader sees', () => {
@@ -116,7 +119,7 @@ check('the editable-document exporter uses the same pass', () => {
 });
 
 check('browsers pick up the new exporter instead of a cached one', () => {
-  assert.ok(/assets\/js\/export\.js\?v=sharp-pdf3/.test(PAGE), 'export.js cache key is bumped');
+  assert.ok(/assets\/js\/export\.js\?v=sharp-pdf4/.test(PAGE), 'export.js cache key is bumped');
   assert.ok(/assets\/js\/document-studio\.js\?v=sharp-pdf1/.test(PAGE), 'document-studio.js cache key is bumped');
 });
 
