@@ -186,4 +186,14 @@ t('the auto rate can never leave the band, whatever the capacity', () => {
   }
 });
 
+t('the pricing-info copy states the rate basis once, correctly', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'quotation.html'), 'utf8');
+  const start = html.indexOf('Pricing info');
+  const info = html.slice(start, html.indexOf('</details>', start));
+  assert.doesNotMatch(info, /GST included/);
+  assert.match(info, /ex-GST/);
+  assert.match(info, /100 kW/);
+  assert.doesNotMatch(info, /by 20 kW|by 3 kW/);
+});
+
 console.log(`\n${pass} pricing auto checks passed.`);
