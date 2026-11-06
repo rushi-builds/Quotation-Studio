@@ -1844,7 +1844,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageInvestment #chartBridge{width:100%!important;height:300px!important;}
 #pageInvestment .includes-grid{gap:6px 14px;}
 #pageInvestment .includes-grid .inc-item{padding:0;background:none;border:0;border-radius:0;gap:6px;}
-#pageInvestment .includes-grid .inc-img{display:block;width:24px;height:24px;flex:0 0 24px;object-fit:contain;border-radius:5px;}
+#pageInvestment .includes-grid .inc-img{display:block;width:24px;height:24px;flex:0 0 24px;/* the shared artwork is a wide render (256x140); contain shrank it to a 24x13 sliver - cover keeps the icon tile readable */object-fit:cover;border-radius:5px;}
 #pageInvestment .includes-grid .inc-item>svg{display:block;width:24px;height:24px;flex:0 0 24px;}
 #pageInvestment .includes-grid .inc-t{font-size:10px;line-height:1.4;}
 #pageInvestment .sec-label{font-size:9.5px;line-height:1.4;padding:0;background:none;border-radius:0;margin-bottom:6px;color:#526a7e;}

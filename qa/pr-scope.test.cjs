@@ -106,6 +106,11 @@ async function main() {
     guard.scopeOffenders(['assets/js/settings-connections-extra.js', 'assets/css/settings-connections-extra.css',
       'assets/js/pulse/provider-adapter.js', 'assets/js/pulse/settings-connections.js']).length === 4);
 
+  t('PDF-capture allowance covers exactly the chart engine and the two proposal stylesheets',
+    guard.scopeOffenders(['assets/js/charts.js', 'assets/css/closing.css', 'assets/css/app.css']).length === 0);
+  t('NEGATIVE: PDF-capture allowance does not admit neighbouring scripts or styles',
+    guard.scopeOffenders(['assets/js/charts-extra.js', 'assets/css/closing-extra.css']).length === 2);
+
   t('workspace presentation allowance admits the exact label UI file and four named correction/review paths',
     guard.scopeOffenders(['assets/js/pulse/pulse-ui.js', 'assets/css/workspace-fit.css', 'assets/images/pulse-solar-horizon.jpg',
       'review/workspace-fit/index.html', 'review/workspace-fit/fixtures.js']).length === 0);

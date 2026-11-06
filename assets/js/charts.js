@@ -67,10 +67,21 @@
     ctx.fillText(msg, ctx.__W / 2, ctx.__H / 2);
   }
 
-  function niceCeil(v) {
-    if (v <= 0) return 1;
-    const mag = Math.pow(10, Math.floor(Math.log10(v)));
-    return Math.ceil(v / (mag / 2)) * (mag / 2);
+  /* Round money steps for axis gridlines. Splitting a raw maximum into 3 or 4
+     equal parts prints labels like ₹83.33k or ₹33.75L; picking a clean step
+     (1 / 1.25 / 1.5 / 2 / 2.5 / 5 × 10^k) and counting how many fit keeps
+     every label readable. The top line always stays above the data because
+     the tick count is rounded up, and a 3% tolerance avoids doubling the step
+     when the target sits just above a clean value. */
+  function niceSteps(rawMax, prefTicks) {
+    const target = rawMax / prefTicks;
+    const mag = Math.pow(10, Math.floor(Math.log10(target)));
+    let step = mag * 10;
+    for (const m of [1, 1.25, 1.5, 2, 2.5, 5]) {
+      if (mag * m >= target * 0.97) { step = mag * m; break; }
+    }
+    const ticks = Math.max(1, Math.ceil(rawMax / step - 1e-9));
+    return { step, ticks, maxY: step * ticks };
   }
 
   /* ------------------------------------------------------------------ */
@@ -88,7 +99,8 @@
     const pad = { l: 58, r: 18, t: 26, b: 30 };
     const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
     const years = s.years.length;
-    const maxY = niceCeil(Math.max(s.cumSaving[years - 1], f.netInvestment) * 1.06);
+    const grid = niceSteps(Math.max(s.cumSaving[years - 1], f.netInvestment) * 1.06, 4);
+    const maxY = grid.maxY;
     const X = (i) => pad.l + (iw * i) / (years - 1);
     const Y = (v) => pad.t + ih - (ih * v) / maxY;
 
@@ -96,9 +108,9 @@
     ctx.font = '500 10px ' + FONT;
     ctx.fillStyle = TEXT;
     ctx.textAlign = 'right';
-    const ticks = 4;
+    const ticks = grid.ticks;
     for (let i = 0; i <= ticks; i++) {
-      const v = (maxY / ticks) * i;
+      const v = grid.step * i;
       const y = Y(v) + 3;
       ctx.strokeStyle = GRID; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(W - pad.r, Y(v)); ctx.stroke();
@@ -107,13 +119,14 @@
     /* x labels */
     ctx.textAlign = 'center';
     for (let yv = 0; yv <= years; yv += 5) {
-      if (yv === years && yv > 0) {
-        /* keep the final label inside the canvas */
-        ctx.textAlign = 'right';
-        ctx.fillText('Yr ' + yv, X(yv) + 2, H - 10);
-        ctx.textAlign = 'center';
-      } else {
+      if (yv < years) {
         ctx.fillText('Yr ' + yv, X(yv), H - 10);
+      } else {
+        /* the axis ends at the last data point (years-1); the old loop placed
+           this label one slot past the plot at X(years), off the canvas edge */
+        ctx.textAlign = 'right';
+        ctx.fillText('Yr ' + yv, X(years - 1) + 4, H - 10);
+        ctx.textAlign = 'center';
       }
     }
 
@@ -200,16 +213,17 @@
     const pad = { l: 56, r: 14, t: 24, b: 26 };
     const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
     const n = s.years.length;
-    const maxY = niceCeil(s.saving[n - 1] * 1.12);
+    const grid = niceSteps(s.saving[n - 1] * 1.12, 3);
+    const maxY = grid.maxY;
     const slot = iw / n;
     const bw = Math.min(slot * 0.62, 18);
 
     /* grid */
     ctx.font = '500 10px ' + FONT;
     ctx.textAlign = 'right';
-    const ticks = 3;
+    const ticks = grid.ticks;
     for (let i = 0; i <= ticks; i++) {
-      const v = (maxY / ticks) * i;
+      const v = grid.step * i;
       const y = pad.t + ih - (ih * v) / maxY;
       ctx.strokeStyle = GRID; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
@@ -265,22 +279,24 @@
     const pad = { l: 16, r: 16, t: 34, b: 42 };
     const ih = H - pad.t - pad.b;
     // Include both negative investment and an override larger than gross.
-    const maxY = niceCeil(Math.max(1, f.grossTotal, f.projectCost, Math.abs(f.subsidy), f.netInvestment) * 1.08);
-    const minY = f.netInvestment < 0 ? -niceCeil(Math.abs(f.netInvestment) * 1.08) : 0;
+    const grid = niceSteps(Math.max(1, f.grossTotal, f.projectCost, Math.abs(f.subsidy), f.netInvestment) * 1.08, 3);
+    const maxY = grid.maxY;
+    const minY = f.netInvestment < 0 ? -grid.step * Math.ceil(Math.abs(f.netInvestment) * 1.08 / grid.step - 1e-9) : 0;
     const yOf = (v) => pad.t + ih * (maxY - v) / (maxY - minY);
     // Reserve a separate measured gutter: the first bar must never paint over
     // currency suffixes (for example the k in ₹83.33k).
     ctx.font = '500 10.5px ' + FONT;
-    const tickLabels = Array.from({length:4}, (_,i)=>shortINR(minY+(maxY-minY)*i/3));
+    /* gridlines every clean step from minY up to maxY */
+    const lines = Math.round((maxY - minY) / grid.step);
+    const tickLabels = Array.from({length: lines + 1}, (_, i) => shortINR(minY + grid.step * i));
     pad.l = Math.ceil(Math.max(...tickLabels.map(label=>ctx.measureText(label).width))) + 16;
     const iw = W - pad.l - pad.r;
     const slot = iw / steps.length;
     const bw = Math.min(slot * 0.55, 104);
 
     ctx.font = '500 10.5px ' + FONT;
-    const ticks = 3;
-    for (let i = 0; i <= ticks; i++) {
-      const v = minY + ((maxY - minY) / ticks) * i;
+    for (let i = 0; i <= lines; i++) {
+      const v = minY + grid.step * i;
       const y = yOf(v);
       ctx.strokeStyle = GRID;
       ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
@@ -421,15 +437,16 @@
     const n = ms.length;
     const pad = { l: 56, r: 16, t: 26, b: 28 };
     const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
-    const maxY = niceCeil(Math.max(ms[n - 1], fin.emi) * 1.12);
+    const grid = niceSteps(Math.max(ms[n - 1], fin.emi) * 1.12, 3);
+    const maxY = grid.maxY;
     const X = (m) => pad.l + (iw * m) / (n - 1);
     const Y = (v) => pad.t + ih - (ih * v) / maxY;
 
     /* grid */
     ctx.font = '500 10px ' + FONT;
-    const ticks = 3;
+    const ticks = grid.ticks;
     for (let i = 0; i <= ticks; i++) {
-      const v = (maxY / ticks) * i;
+      const v = grid.step * i;
       ctx.strokeStyle = GRID; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(W - pad.r, Y(v)); ctx.stroke();
       ctx.fillStyle = TEXT; ctx.textAlign = 'right';
