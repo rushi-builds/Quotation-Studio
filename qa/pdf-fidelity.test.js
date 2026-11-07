@@ -41,27 +41,45 @@ const captureLoop = (() => {
   return EXPORT.slice(start, EXPORT.indexOf('const cust=', start));
 })();
 
-check('every page is painted before it is captured', () => {
-  const paint = captureLoop.indexOf('await paintShapes(el)');
-  const capture = captureLoop.indexOf('root.html2canvas(el');
-  assert.ok(paint > 0, 'the capture loop runs the shape pass');
-  assert.ok(capture > 0, 'the capture loop still calls html2canvas');
-  assert.ok(paint < capture, 'the shape pass runs before the capture, not after it');
+check('the browser draws the page, html2canvas is only the fallback', () => {
+  const fn = EXPORT.slice(EXPORT.indexOf('async function capturePage'), EXPORT.indexOf('async function exportPdf'));
+  assert.ok(/root\.html2canvas===vendorCapture/.test(fn), 'a host-supplied capture keeps control');
+  assert.ok(/nativeCapture\(page,scale\)/.test(fn), 'otherwise the browser renders the page itself');
+  assert.ok(fn.indexOf('nativeCapture(page,scale)') < fn.indexOf('await paintShapes(page)'),
+    'the old shape pass runs only when the native render failed');
+  assert.ok(/root\.html2canvas\(page,html2canvasOptions\(scale\)\)/.test(fn), 'and the fallback is still wired');
+  assert.ok(/trimClone\(doc\)/.test(EXPORT), 'the fallback still trims its clone');
 });
 
 check('the capture is made at print resolution, not screen resolution', () => {
-  const scale = Number((EXPORT.match(/const PDF_SCALE=([\d.]+)/) || [])[1]);
+  const scale = Number((EXPORT.match(/PDF_SCALE=(\d+)/) || [])[1]);
   assert.ok(Number.isFinite(scale), 'PDF_SCALE is declared');
   assert.ok(scale >= 3, `capture scale is ${scale}: A4 at 3x is ~288 dpi, screen 1x is not printable`);
-  assert.ok(/scale,useCORS:true/.test(captureLoop), 'the loop passes the chosen scale to html2canvas');
   const quality = Number((EXPORT.match(/PDF_QUALITY=([\d.]+)/) || [])[1]);
   assert.ok(quality >= 0.9, `Ultra page quality is ${quality}: the print mode must not give anything away`);
-  assert.ok(/const scale=options\.scale\|\|PDF_SCALE/.test(captureLoop.replace(/\n/g,'\n')) || /const scale=options\.scale\|\|PDF_SCALE/.test(EXPORT),
-    'every page is captured at print resolution - there is nothing to trade');
-  assert.ok(!/pdfQuality/.test(EXPORT) && !/pdfQuality/.test(PAGE),
-    'no quality switch is offered: the download is always the print document');
+  assert.ok(/canvas\.width=Math\.round\(width\*scale\); canvas\.height=Math\.round\(height\*scale\)/.test(EXPORT),
+    'the native render rasterises the page at the print scale, not at screen size');
+  assert.ok(/const scale=options\.scale\|\|PDF_SCALE/.test(EXPORT), 'the loop drives the scale from one constant');
+  assert.ok(!/pdfQuality/.test(EXPORT) && !/pdfQuality/.test(PAGE), 'and offers the reader no thinner choice');
   assert.ok(/toDataURL\('image\/jpeg',quality\)/.test(EXPORT), 'the capture encodes with the chosen quality');
-  assert.ok(!/scale:2[,}]/.test(captureLoop), 'no page is still captured at scale 2');
+});
+
+check('the page is handed to the browser with its own stylesheets and pictures', () => {
+  const fn = EXPORT.slice(EXPORT.indexOf('async function inlinedCss'), EXPORT.indexOf('const html2canvasOptions'));
+  assert.ok(/foreignObject/.test(fn), 'the page travels inside an SVG foreignObject');
+  assert.ok(/data:image\/svg\+xml;base64,/.test(fn), 'so the browser rasterises it with its own layout engine');
+  assert.ok(/document\.styleSheets/.test(fn) && /matchAll\(\/url/.test(fn), 'every stylesheet is inlined, fonts and artwork included');
+  assert.ok(!/qs-pdf-capture/.test(fn), 'no print-only override changes how the page is drawn');
+  assert.ok(/querySelectorAll\('canvas'\)/.test(fn) && /toDataURL\('image\/png'\)/.test(EXPORT),
+    'a chart carries its pixels');
+  assert.ok(!/querySelectorAll\('svg'\)/.test(fn), 'a drawing stays vector - it is markup the browser can draw');
+});
+
+check('every asset is fetched once for the whole export', () => {
+  const fn = EXPORT.slice(EXPORT.indexOf('async function inlineAsset'), EXPORT.indexOf('async function inlinedCss'));
+  assert.ok(/assetCache\.has\(url\)/.test(fn), 'a fetched asset is remembered');
+  assert.ok(/\/\^data:\/i\.test\(uri\)/.test(fn), 'an inline picture is not fetched at all');
+  assert.ok(/credentials:'same-origin'/.test(fn), 'the export never reaches outside the app');
 });
 
 check('an inline SVG is painted at the box the reader sees', () => {
@@ -106,13 +124,14 @@ check('a shape that fails to load is put back, never printed as a hole', () => {
 });
 
 check('the editable-document exporter uses the same pass', () => {
-  assert.ok(/Exporter\?\.paintShapes\?\.\(page\)/.test(STUDIO), 'document-studio paints shapes too');
-  assert.ok(!/html2canvas\(page,\{scale:2/.test(STUDIO), 'and no longer captures that path at scale 2');
+  assert.ok(/root\.Exporter\?\.capturePage/.test(STUDIO), 'document-studio captures with the same renderer');
+  assert.ok(/capturePage\(page,3\)/.test(STUDIO), 'at the same print scale');
+  assert.ok(!/html2canvas\(page,\{scale:2/.test(STUDIO), 'and not at scale 2');
 });
 
 check('browsers pick up the new exporter instead of a cached one', () => {
-  assert.ok(/assets\/js\/export\.js\?v=sharp-pdf5/.test(PAGE), 'export.js cache key is bumped');
-  assert.ok(/assets\/js\/document-studio\.js\?v=sharp-pdf1/.test(PAGE), 'document-studio.js cache key is bumped');
+  assert.ok(/assets\/js\/export\.js\?v=vivid-pdf1/.test(PAGE), 'export.js cache key is bumped');
+  assert.ok(/assets\/js\/document-studio\.js\?v=vivid-doc1/.test(PAGE), 'document-studio.js cache key is bumped');
 });
 
 check('the capture clone drops the live pages instead of repainting them', () => {
@@ -120,8 +139,20 @@ check('the capture clone drops the live pages instead of repainting them', () =>
   assert.ok(/querySelector\('\.pdf-snapshot'\)/.test(fn), 'the snapshot that holds the page being painted is located');
   assert.ok(/spare=el=>!keep\|\|!keep\.contains\(el\)/.test(fn), 'nothing inside it is ever removed');
   assert.ok(/page-wrap/.test(fn) && /\[data-builder-only\]/.test(fn), 'the live pages and builder chrome are dropped');
-  assert.ok(/onclone:doc=>\{doc\.body\.classList\.add\('qs-pdf-capture'\);trimClone\(doc\);\}/.test(captureLoop) ||
-    /trimClone\(doc\)/.test(captureLoop), 'the capture runs the trim before painting');
+  assert.ok(/onclone:doc=>\{doc\.body\.classList\.add\('qs-pdf-capture'\);trimClone\(doc\);\}/.test(EXPORT),
+    'the fallback capture runs the trim before painting');
+});
+
+check('the live pages stay mounted while a page is captured', () => {
+  assert.ok(!/stage\.appendChild\(el\)/.test(captureLoop), 'no page is reparented mid-export');
+  assert.ok(!/bench\.remove\(\)/.test(EXPORT), 'and the snapshot bench stays where the styles expect it');
+});
+
+check('the time is attributed, not just totalled', () => {
+  assert.ok(/perPage\.push\(\{id:el\.id\|\|\('page'\+\(i\+1\)\),renderer:captured\.renderer,render:/.test(EXPORT),
+    'every page reports its own render and encode cost');
+  assert.ok(/renderer:perPage\[0\]\?\.renderer\|\|'html2canvas'/.test(EXPORT), 'and which renderer drew it');
+  assert.ok(/encode:Math\.round\(encodeTotal\)/.test(EXPORT), 'the encode total reaches Exporter.stats');
 });
 
 check('the export reports its own time and weight', () => {

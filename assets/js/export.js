@@ -209,6 +209,152 @@
     /* Never print a hole where artwork used to be. */
     swaps.forEach(({img,original})=>{ if(!img.isConnected) return; if(!img.naturalWidth) img.replaceWith(original); });
   }
+  /* ---- native capture: let the browser draw its own document ------------
+     html2canvas re-implements CSS in JavaScript, so a page that looks one way
+     in the preview can print another way: an icon painted at its intrinsic
+     size, a photo stretched, a gradient that bands. The browser already draws
+     this document perfectly - it is what the reader is looking at. So it is
+     asked to draw it: the page is serialised with its stylesheets, fonts and
+     pictures inlined and handed to an <img> as an SVG <foreignObject>. That
+     image is rasterised at print resolution by the same layout engine, so the
+     file matches the preview by construction instead of by imitation.
+     Every asset is fetched once per export, never once per page. */
+  const vendorCapture=root.html2canvas;
+  const assetCache=new Map();
+  let cssCache=null;
+  const absoluteUrl=url=>{ try{ return new URL(url,document.baseURI).href; }catch(e){ return url; } };
+  const readAsDataUrl=blob=>new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result));
+    reader.onerror=()=>reject(reader.error||new Error('unreadable asset'));
+    reader.readAsDataURL(blob);
+  });
+  function toBase64(text) {
+    const bytes=new TextEncoder().encode(text);
+    let binary='';
+    for(let i=0;i<bytes.length;i+=8192) binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+8192));
+    return btoa(binary);
+  }
+  async function inlineAsset(uri) {
+    if(!uri) return null;
+    if(/^data:/i.test(uri)) return uri;
+    const url=absoluteUrl(uri);
+    if(assetCache.has(url)) return assetCache.get(url);
+    let value=null;
+    try {
+      const response=await fetch(url,{credentials:'same-origin'});
+      if(!response.ok) throw new Error('asset '+response.status);
+      value=await readAsDataUrl(await response.blob());
+    } catch(e) { value=null; }
+    cacheSet(url,value);
+    return value;
+  }
+  function cacheSet(key,value) { assetCache.set(key,value); }
+  /* Fonts and background artwork live inside the stylesheets, so the sheets
+     themselves are inlined: an SVG image may not fetch anything. */
+  async function inlinedCss() {
+    if(cssCache!==null) return cssCache;
+    const parts=[];
+    for(const sheet of [...document.styleSheets]) {
+      const base=sheet.href||document.baseURI;
+      let text='';
+      try {
+        text=sheet.href
+          ? await (await fetch(sheet.href,{credentials:'same-origin'})).text()
+          : [...sheet.cssRules].map(rule=>rule.cssText).join('\n');
+      } catch(e) { continue; }
+      const refs=[...new Set([...text.matchAll(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g)].map(m=>m[2]))];
+      for(const ref of refs) {
+        if(/^data:/i.test(ref)) continue;
+        const data=await inlineAsset(new URL(ref,base).href);
+        if(data) text=text.split(ref).join(data);
+      }
+      parts.push(text);
+    }
+    cssCache=parts.join('\n');
+    return cssCache;
+  }
+  /* XML serialisation cannot carry named HTML entities. */
+  const NAMED={nbsp:'&#160;',copy:'&#169;',reg:'&#174;',middot:'&#183;',bull:'&#8226;',ndash:'&#8211;',mdash:'&#8212;',lsquo:'&#8216;',rsquo:'&#8217;',ldquo:'&#8220;',rdquo:'&#8221;',hellip:'&#8230;',times:'&#215;',deg:'&#176;',rarr:'&#8594;',larr:'&#8592;',uarr:'&#8593;',darr:'&#8595;',euro:'&#8364;',pound:'&#163;',yen:'&#165;',laquo:'&#171;',raquo:'&#187;'};
+  const xmlSafe=markup=>markup.replace(/&([a-z][a-z0-9]*);/gi,(all,name)=>NAMED[name.toLowerCase()]||all);
+  function svgDocument(page, css, width, height) {
+    const holder=document.implementation.createHTMLDocument('');
+    const sheet=holder.createElement('style');
+    sheet.textContent=css;
+    const frame=holder.createElement('div');
+    frame.setAttribute('xmlns','http://www.w3.org/1999/xhtml');
+    frame.appendChild(sheet);
+    frame.appendChild(holder.importNode(page,true));
+    holder.body.appendChild(frame);
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'" viewBox="0 0 '+width+' '+height+'">'
+      +'<foreignObject x="0" y="0" width="'+width+'" height="'+height+'">'
+      +xmlSafe(new XMLSerializer().serializeToString(frame))
+      +'</foreignObject></svg>';
+  }
+  const URL_IN_STYLE=/url\(\s*(['"]?)([^'")]+)\1\s*\)/g;
+  async function inlineStyleAttribute(el) {
+    let style=el.getAttribute('style')||'';
+    if(style.indexOf('url(')<0) return;
+    for(const match of [...style.matchAll(URL_IN_STYLE)]) {
+      const data=await inlineAsset(match[2]);
+      if(data) style=style.split(match[2]).join(data);
+    }
+    el.setAttribute('style',style);
+  }
+  /* A canvas carries pixels, not markup: it travels as a picture. Everything
+     else - including every <svg> - travels as itself and is drawn as vector. */
+  async function prepareForNative(page, copy) {
+    const live=[...page.querySelectorAll('canvas')];
+    [...copy.querySelectorAll('canvas')].forEach((canvas,index)=>{
+      const source=live[index];
+      let url='';
+      try { url=source&&typeof source.toDataURL==='function'?source.toDataURL('image/png'):''; } catch(e) { url=''; }
+      if(!url) { canvas.remove(); return; }
+      const box=source.getBoundingClientRect();
+      const img=document.createElement('img');
+      img.setAttribute('src',url);
+      img.setAttribute('style','display:block;width:'+Math.round(box.width)+'px;height:'+Math.round(box.height)+'px');
+      if(canvas.getAttribute('class')) img.setAttribute('class',canvas.getAttribute('class'));
+      canvas.replaceWith(img);
+    });
+    for(const img of [...copy.querySelectorAll('img')]) {
+      const data=await inlineAsset(img.getAttribute('src')||'');
+      if(data) img.setAttribute('src',data); else img.removeAttribute('src');
+    }
+    for(const el of [...copy.querySelectorAll('[style*="url("]')]) await inlineStyleAttribute(el);
+  }
+  async function nativeCapture(page, scale) {
+    const box=page.getBoundingClientRect();
+    const width=Math.round(box.width)||794, height=Math.round(box.height)||1123;
+    const css=await inlinedCss();
+    const copy=page.cloneNode(true);
+    await prepareForNative(page,copy);
+    const svg=svgDocument(copy,css,width,height);
+    const image=new Image();
+    image.src='data:image/svg+xml;base64,'+toBase64(svg);
+    await decoded(image);
+    if(!image.naturalWidth||!image.naturalHeight) throw new Error('the browser refused to draw this page');
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.round(width*scale); canvas.height=Math.round(height*scale);
+    const ctx=canvas.getContext('2d');
+    if(!ctx) throw new Error('no canvas context');
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(image,0,0,canvas.width,canvas.height);
+    return canvas;
+  }
+  const html2canvasOptions=scale=>({scale,useCORS:true,backgroundColor:'#ffffff',logging:false,
+    onclone:doc=>{doc.body.classList.add('qs-pdf-capture');trimClone(doc);}});
+  /* A host page that supplies its own capture (an embed, the QA harness) keeps
+     it. Otherwise the browser draws the page, and only if that fails does the
+     old capture take over. */
+  async function capturePage(page, scale) {
+    if(root.html2canvas===vendorCapture) {
+      try { return {canvas:await nativeCapture(page,scale),renderer:'native'}; }
+      catch(e) { try { root.console?.warn?.('[PDF] native render fell back:',e&&e.message||e); } catch(ignore) {} }
+      await paintShapes(page);
+    }
+    return {canvas:await root.html2canvas(page,html2canvasOptions(scale)),renderer:'html2canvas'};
+  }
   async function exportPdf(statusCb, options={}) {
     if(busy) throw new Error('A PDF export is already in progress.');
     busy=true; let snapshot;
@@ -278,15 +424,22 @@
       const quality=options.quality||PDF_QUALITY;
       const clock=()=>root.performance?.now?.()??Date.now(), started=clock();
       let bytes=0;
+      let encodeTotal=0;
+      const perPage=[];
       for(let i=0;i<pages.length;i++) {
         set('Rendering page '+(i+1)+' of '+pages.length+'…');
         const el=pages[i];
-        await paintShapes(el);
-        const canvas=await root.html2canvas(el,{scale,useCORS:true,backgroundColor:'#ffffff',logging:false,onclone:doc=>{doc.body.classList.add('qs-pdf-capture');trimClone(doc);}});
+        const t0=clock();
+        const captured=await capturePage(el,scale);
+        const canvas=captured.canvas;
+        const t1=clock();
         if(i>0) pdf.addPage();
         const jpeg=canvas.toDataURL('image/jpeg',quality);
         bytes+=Math.round(jpeg.length*0.75);
         pdf.addImage(jpeg,'JPEG',0,0,pageW,pageH,undefined,'FAST');
+        const t2=clock();
+        encodeTotal+=t2-t1;
+        perPage.push({id:el.id||('page'+(i+1)),renderer:captured.renderer,render:Math.round(t1-t0),encode:Math.round(t2-t1)});
         // QR destinations and supplied engineering references are also clickable.
         const bounds=el.getBoundingClientRect();
         el.querySelectorAll('a[href]').forEach(a=>{
@@ -297,9 +450,10 @@
       }
       /* One line the builder (and QA) can read instead of guessing how long a
          download takes or how heavy the file is. */
-      const stats={pages:pages.length,ms:Math.round(clock()-started),bytes,scale,quality};
+      const stats={pages:pages.length,ms:Math.round(clock()-started),bytes,scale,quality,
+        renderer:perPage[0]?.renderer||'html2canvas',encode:Math.round(encodeTotal),perPage};
       if(root.Exporter) root.Exporter.stats=stats;
-      try { root.console?.info?.('[PDF] '+stats.pages+' pages · '+(stats.ms/1000).toFixed(1)+'s render · '+(stats.bytes/1048576).toFixed(1)+' MB'); } catch(e) {}
+      try { root.console?.info?.('[PDF] '+stats.pages+' pages · '+(stats.ms/1000).toFixed(1)+'s render · '+(stats.bytes/1048576).toFixed(1)+' MB · '+stats.renderer); } catch(e) {}
       const cust=(s.custName||'Customer').replace(/[^a-z0-9]+/gi,'_'),ref=(s.propRef||'').replace(/[^a-z0-9]+/gi,'-');
       pdf.setProperties({title:(reports[format]?.title||(format==='power'?'Power Proposal':'Solar Proposal'))+' - '+s.custName+' ('+s.capacity+' kWp)',subject:'Rooftop solar EPC proposal '+ref+' v'+s.propVersion,author:s.companyName,creator:s.companyName+' - Quotation Studio'});
       pdf.save((reports[format]?reports[format].title.replace(/[^a-z0-9_-]+/gi,'_')+'_':format==='power'?'Power_Proposal_':'Proposal_')+cust+'_'+s.capacity+'kWp_'+ref+'.pdf');
@@ -441,5 +595,5 @@
     }));
     $('pdfFormat')?.addEventListener('change',updateLabel);updateLabel();
   }
-  root.Exporter={exportPdf,wire,updateLabel,paintShapes,trimClone};
+  root.Exporter={exportPdf,wire,updateLabel,paintShapes,trimClone,nativeCapture,capturePage};
 })(typeof self!=='undefined'?self:this);
