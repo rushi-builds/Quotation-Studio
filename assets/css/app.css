@@ -1905,19 +1905,33 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 /* Section headers: a hairline band with the sheet's one accent. */
 #pageTechSpec .spec-table{border-collapse:collapse;}
 #pageTechSpec .spec-table tr.spec-group td{
-  background:#F7F4EE;color:var(--navy);font-size:9.1px;font-weight:700;
-  letter-spacing:.1em;padding:4px 12px;box-shadow:inset 2px 0 0 #E9A96A;
+  background:#EEEBE3;color:#12304A;font-size:8.9px;font-weight:700;
+  letter-spacing:.14em;padding:4.5px 12px 4px;box-shadow:inset 3px 0 0 #E08A2E;
+  border-top:1px solid #E4DFD3;
 }
 #pageTechSpec .spec-table td{
   padding:4.4px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
 }
-#pageTechSpec .spec-table .spec-k{width:31%;color:#68808F;font-weight:500;letter-spacing:.01em;}
-#pageTechSpec .spec-table .spec-v{color:#162E42;font-weight:600;}
+/* The label column reads as one quiet panel down the page; values stay on
+   white, so the eye can scan a column of labels or a column of figures. */
+#pageTechSpec .spec-table .spec-k{
+  width:31%;color:#5E7486;font-weight:600;letter-spacing:.035em;text-transform:uppercase;
+  font-size:8.7px;line-height:1.5;background:#F8F9FB;padding-left:14px;
+  border-right:1px solid #EDF0F3;
+}
+#pageTechSpec .spec-table .spec-v{color:#162E42;font-weight:600;padding-left:14px;}
 #pageTechSpec .spec-table tr.spec-group+tr td{padding-top:5px;}
 #pageTechSpec .spec-table tr:last-child td{border-bottom:none;padding-bottom:2px;}
 #pageTechSpec .spec-table tr.is-eng td{padding:3.4px 12px;font-size:9.9px;}
 
-#pageTechSpec #v_tsGroupsLabel{margin:10px 0 6px;}
+/* The section intro is a rule, not a pill: quiet, and it reads as the top of a
+   spec sheet rather than another button. */
+#pageTechSpec #v_tsGroupsLabel{
+  background:none;padding:0;margin:10px 0 7px;border-radius:0;
+  display:flex;align-items:center;gap:9px;
+  font-size:8.9px;letter-spacing:.16em;color:#8A93A0;font-weight:700;
+}
+#pageTechSpec #v_tsGroupsLabel::after{content:'';flex:1;height:1px;background:#E4DFD3;}
 
 /* References read as quiet chips, never as buttons. */
 #pageTechSpec .ts-refs{gap:7px;}
