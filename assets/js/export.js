@@ -278,15 +278,22 @@
       const quality=options.quality||PDF_QUALITY;
       const clock=()=>root.performance?.now?.()??Date.now(), started=clock();
       let bytes=0;
+      const phases={paint:0,capture:0,encode:0}, perPage=[];
       for(let i=0;i<pages.length;i++) {
         set('Rendering page '+(i+1)+' of '+pages.length+'…');
         const el=pages[i];
+        const t0=clock();
         await paintShapes(el);
+        const t1=clock();
         const canvas=await root.html2canvas(el,{scale,useCORS:true,backgroundColor:'#ffffff',logging:false,onclone:doc=>{doc.body.classList.add('qs-pdf-capture');trimClone(doc);}});
+        const t2=clock();
         if(i>0) pdf.addPage();
         const jpeg=canvas.toDataURL('image/jpeg',quality);
         bytes+=Math.round(jpeg.length*0.75);
         pdf.addImage(jpeg,'JPEG',0,0,pageW,pageH,undefined,'FAST');
+        const t3=clock();
+        phases.paint+=t1-t0; phases.capture+=t2-t1; phases.encode+=t3-t2;
+        perPage.push({id:el.id||('page'+(i+1)),paint:Math.round(t1-t0),capture:Math.round(t2-t1),encode:Math.round(t3-t2)});
         // QR destinations and supplied engineering references are also clickable.
         const bounds=el.getBoundingClientRect();
         el.querySelectorAll('a[href]').forEach(a=>{
@@ -297,7 +304,8 @@
       }
       /* One line the builder (and QA) can read instead of guessing how long a
          download takes or how heavy the file is. */
-      const stats={pages:pages.length,ms:Math.round(clock()-started),bytes,scale,quality};
+      const stats={pages:pages.length,ms:Math.round(clock()-started),bytes,scale,quality,
+        phases:{paint:Math.round(phases.paint),capture:Math.round(phases.capture),encode:Math.round(phases.encode)},perPage};
       if(root.Exporter) root.Exporter.stats=stats;
       try { root.console?.info?.('[PDF] '+stats.pages+' pages · '+(stats.ms/1000).toFixed(1)+'s render · '+(stats.bytes/1048576).toFixed(1)+' MB'); } catch(e) {}
       const cust=(s.custName||'Customer').replace(/[^a-z0-9]+/gi,'_'),ref=(s.propRef||'').replace(/[^a-z0-9]+/gi,'-');

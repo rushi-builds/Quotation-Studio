@@ -111,7 +111,7 @@ check('the editable-document exporter uses the same pass', () => {
 });
 
 check('browsers pick up the new exporter instead of a cached one', () => {
-  assert.ok(/assets\/js\/export\.js\?v=sharp-pdf5/.test(PAGE), 'export.js cache key is bumped');
+  assert.ok(/assets\/js\/export\.js\?v=sharp-pdf7/.test(PAGE), 'export.js cache key is bumped');
   assert.ok(/assets\/js\/document-studio\.js\?v=sharp-pdf1/.test(PAGE), 'document-studio.js cache key is bumped');
 });
 
@@ -122,6 +122,17 @@ check('the capture clone drops the live pages instead of repainting them', () =>
   assert.ok(/page-wrap/.test(fn) && /\[data-builder-only\]/.test(fn), 'the live pages and builder chrome are dropped');
   assert.ok(/onclone:doc=>\{doc\.body\.classList\.add\('qs-pdf-capture'\);trimClone\(doc\);\}/.test(captureLoop) ||
     /trimClone\(doc\)/.test(captureLoop), 'the capture runs the trim before painting');
+});
+
+check('the live pages stay mounted while a page is captured', () => {
+  assert.ok(!/stage\.appendChild\(el\)/.test(captureLoop), 'no page is reparented mid-export');
+  assert.ok(!/bench\.remove\(\)/.test(EXPORT), 'and the snapshot bench stays where the styles expect it');
+});
+
+check('the time is attributed, not just totalled', () => {
+  assert.ok(/phases=\{paint:0,capture:0,encode:0\}/.test(EXPORT), 'paint, capture and encode are timed apart');
+  assert.ok(/perPage\.push\(\{id:/.test(EXPORT), 'and every page reports its own cost');
+  assert.ok(/phases:\{paint:Math\.round\(phases\.paint\)/.test(EXPORT), 'the phases reach Exporter.stats');
 });
 
 check('the export reports its own time and weight', () => {
