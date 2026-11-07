@@ -1887,10 +1887,11 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec .pg-title{line-height:1.16;letter-spacing:-.2px;}
 #pageTechSpec .pg-sub{margin-top:4px;font-size:12px;letter-spacing:.1px;}
 #pageTechSpec .rule-orange{margin:8px 0 9px;}
-/* One note carries the whole caveat, so the page's own lead paragraph and the
-   separate caption under the drawing are gone - the sheet keeps its title, its
-   drawing, its table and one note. */
-#pageTechSpec .body-para{display:none;}
+/* One short line says what the sheet is and where its numbers come from, so a
+   customer at the site reads it without needing the seller in the room. */
+#pageTechSpec .body-para{margin:0 0 10px;line-height:1.5;color:#5E7486;}
+/* The cards below label themselves; the old section intro is redundant. */
+#pageTechSpec #v_tsGroupsLabel{display:none;}
 
 /* Diagram: a light plate with a labelled head, not a muddy box. */
 #pageTechSpec .diagram-box{
@@ -1906,21 +1907,52 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 }
 
 /* Section headers: a hairline band with the sheet's one accent. */
-#pageTechSpec .spec-table{border-collapse:collapse;counter-reset:specgroup;}
+/* Each group is its own card: a tinted head with a numbered badge and the
+   equipment brand, then its rows on white, then air before the next card. The
+   gap is a transparent top border on the head cell - no spacer row, no change
+   to the table's data, and it collapses to nothing when the ladder needs room. */
+#pageTechSpec .spec-table{
+  border-collapse:separate;border-spacing:0;counter-reset:specgroup;
+}
 #pageTechSpec .spec-table tr.spec-group td{
-  background:linear-gradient(90deg,#EDE8DE,#F8F6F1);color:#12304A;font-size:8.8px;
-  font-weight:700;letter-spacing:.15em;padding:4.2px 12px 3.6px;
-  box-shadow:inset 3px 0 0 #E08A2E;border-top:1px solid #E2DCCF;
-  counter-increment:specgroup;
+  border-top:11px solid transparent;background-clip:padding-box;
+  background-color:#F0EBE1;background-image:linear-gradient(90deg,#ECE5D8,#FAF8F4 78%);
+  color:#12304A;font-size:9.2px;font-weight:700;letter-spacing:.13em;
+  padding:5px 12px 4.5px;border-radius:22px 22px 0 0;counter-increment:specgroup;
+  vertical-align:middle;
 }
-/* Section numbers are decoration the sheet can afford: they come from CSS, so
-   no row, value or group name changes and the table stays the same data. */
+/* Section numbers and the brand are decoration the sheet can afford: both come
+   from CSS, so no row, value or group name changes and the table stays the data. */
 #pageTechSpec .spec-table tr.spec-group td::before{
-  content:counter(specgroup,decimal-leading-zero);color:#C08A57;font-weight:700;
-  letter-spacing:.04em;margin-right:9px;
+  content:counter(specgroup,decimal-leading-zero);
+  display:inline-block;min-width:17px;padding:2px 0 2.2px;margin-right:9px;
+  border-radius:5px;background:#E08A2E;color:#fff;font-size:8.2px;
+  letter-spacing:.02em;text-align:center;
 }
+#pageTechSpec .spec-table tr.spec-group td::after{
+  content:attr(data-brand);float:right;margin-top:-.5px;padding:2.5px 9px 2.8px;
+  border-radius:20px;background:#FCF4E7;border:1px solid #F0E1C9;
+  font-size:8.1px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:#B0702A;
+}
+#pageTechSpec .spec-table tr.spec-group td[data-brand=""]::after{display:none;}
 #pageTechSpec .spec-table td{
   padding:3.8px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
+  background:#fff;
+}
+#pageTechSpec .spec-table tr:not(.spec-group) td.spec-k{border-left:1px solid #EEF1F4;}
+#pageTechSpec .spec-table tr:not(.spec-group) td.spec-v{border-right:1px solid #EEF1F4;}
+/* The row that closes a card carries its bottom edge and its rounded feet. */
+#pageTechSpec .spec-table tr:not(.spec-group):has(+ tr.spec-group) td{
+  border-bottom:1px solid #E6E1D6;
+}
+#pageTechSpec .spec-table tr:not(.spec-group):has(+ tr.spec-group) td:first-child,
+#pageTechSpec .spec-table tr:not(.spec-group):last-child td:first-child{
+  border-bottom-left-radius:11px;
+}
+#pageTechSpec .spec-table tr:not(.spec-group):has(+ tr.spec-group) td:last-child,
+#pageTechSpec .spec-table tr:not(.spec-group):last-child td:last-child{
+  border-bottom-right-radius:11px;
 }
 /* The label column reads as one quiet panel down the page; values stay on
    white, so the eye can scan a column of labels or a column of figures. */
@@ -1930,7 +1962,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-right:1px solid #EDF0F3;
 }
 #pageTechSpec .spec-table .spec-v{color:#162E42;font-weight:600;padding-left:14px;}
-#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:4px;}
+#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:4.2px;}
 #pageTechSpec .spec-table tr:last-child td{border-bottom:none;padding-bottom:2px;}
 #pageTechSpec .spec-table tr.is-eng td{padding:3px 12px;font-size:9.9px;}
 
@@ -1954,7 +1986,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 #pageTechSpec .note-box{
   padding:7px 11px;border-radius:7px;background:#FAF7F1;border:1px solid #EDE5D8;
-  font-size:8.9px;line-height:1.5;color:#6B7A88;margin-top:9px;
+  font-size:8.9px;line-height:1.5;color:#6B7A88;margin-top:16px;
   box-shadow:inset 2px 0 0 #E0B486;
 }
 #pageTechSpec .note-box b{

@@ -21,8 +21,35 @@
  for(const def of Object.values(definitions))def.items=def.items.map(([icon,label])=>[icon,label.includes('\n')?label:label.replace(/ (\S+)$/,'\n$1')]);
  const palettes=['warm','sage','lavender','blue'];
  const visible=n=>n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden';
+ // Each technical-specification group is a card. The chip on its head names the
+ // equipment the customer is actually getting, read straight off the "Make" row
+ // (or the structure's make), so the sheet never has to be edited by hand and
+ // never shows a brand the quotation does not carry.
+ function decorateSpecCards(){
+  const page=document.getElementById('pageTechSpec');if(!page)return;
+  const table=page.querySelector('#v_tsTable');if(!table||!table.rows)return;
+  const rows=[...table.rows];
+  const read=(from,test)=>{for(let j=from+1;j<rows.length;j++){const r=rows[j];if(r.classList.contains('spec-group'))break;
+   const k=r.cells[0],v=r.cells[1];if(k&&v&&test(k.textContent.trim()))return v.textContent.trim();}return '';};
+  for(let i=0;i<rows.length;i++){
+   const row=rows[i];if(!row.classList.contains('spec-group'))continue;
+   const name=(row.textContent||'').toUpperCase();
+   const kind=/MODULE/.test(name)?'modules':/INVERTER/.test(name)?'inverter':/MOUNT|CABL/.test(name)?'mount':/DESIGN|ENGINEER/.test(name)?'design':'other';
+   row.dataset.kind=kind;
+   let brand='';
+   if(kind==='modules'||kind==='inverter')brand=read(i,k=>/^(MAKE|BRAND)$/i.test(k));
+   else if(kind==='mount'){
+    const structure=read(i,k=>/^STRUCTURE$/i.test(k));
+    const m=structure.match(/([A-Za-z][A-Za-z-]{2,})\s+make/i);brand=m?m[1]:'';
+   }else if(kind==='design')brand='As per applicable standards';
+   brand=brand.replace(/\s+/g,' ').trim();
+   if(brand)row.dataset.brand=brand.length>32?brand.slice(0,31).trim()+'\u2026':brand;
+   else delete row.dataset.brand;
+  }
+ }
  function sync(){
   if(!root.Render?.lastState||!root.ProposalMarks)return;
+  decorateSpecCards();
   for(const [id,def] of Object.entries(definitions)){
    const page=document.getElementById(id);if(!page)continue;
    let band=page.querySelector(':scope>.proposal-value-footer');

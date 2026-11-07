@@ -11512,7 +11512,7 @@ export default {
     "pageTechSpec": {
       "heading": "Technical System Specification",
       "sub": "The Components Behind Your Generation",
-      "para": "Every component is specified for compatibility, certified performance and long-term reliability - the exact equipment basis behind your generation estimate and quotation.",
+      "para": "Every value below comes from the manufacturer’s datasheet for the equipment proposed on your site.",
       "diagramTitle": "SYSTEM OVERVIEW",
       "diagramLabels": {
         "array": "Rooftop Solar",
