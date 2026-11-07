@@ -1887,11 +1887,15 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec .pg-title{line-height:1.16;letter-spacing:-.2px;}
 #pageTechSpec .pg-sub{margin-top:4px;font-size:12px;letter-spacing:.1px;}
 #pageTechSpec .rule-orange{margin:8px 0 9px;}
-#pageTechSpec .body-para{margin:0 0 10px;line-height:1.66;}
+/* One note carries the whole caveat, so the page's own lead paragraph and the
+   separate caption under the drawing are gone - the sheet keeps its title, its
+   drawing, its table and one note. */
+#pageTechSpec .body-para{display:none;}
+#pageTechSpec .ts-diagram-note:empty{display:none;}
 
 /* Diagram: a light plate with a labelled head, not a muddy box. */
 #pageTechSpec .diagram-box{
-  margin-top:2px;padding:9px 13px 6px;border:1px solid var(--line-cool);
+  margin-top:2px;padding:7px 12px 5px;border:1px solid var(--line-cool);
   border-radius:12px;background:linear-gradient(180deg,#FCFDFE,#F7F9FB);
 }
 #pageTechSpec .diagram-box .sec-label{
@@ -1903,14 +1907,21 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 }
 
 /* Section headers: a hairline band with the sheet's one accent. */
-#pageTechSpec .spec-table{border-collapse:collapse;}
+#pageTechSpec .spec-table{border-collapse:collapse;counter-reset:specgroup;}
 #pageTechSpec .spec-table tr.spec-group td{
-  background:#EEEBE3;color:#12304A;font-size:8.9px;font-weight:700;
-  letter-spacing:.14em;padding:4.5px 12px 4px;box-shadow:inset 3px 0 0 #E08A2E;
-  border-top:1px solid #E4DFD3;
+  background:linear-gradient(90deg,#EDE8DE,#F8F6F1);color:#12304A;font-size:8.8px;
+  font-weight:700;letter-spacing:.15em;padding:4.2px 12px 3.6px;
+  box-shadow:inset 3px 0 0 #E08A2E;border-top:1px solid #E2DCCF;
+  counter-increment:specgroup;
+}
+/* Section numbers are decoration the sheet can afford: they come from CSS, so
+   no row, value or group name changes and the table stays the same data. */
+#pageTechSpec .spec-table tr.spec-group td::before{
+  content:counter(specgroup,decimal-leading-zero);color:#C08A57;font-weight:700;
+  letter-spacing:.04em;margin-right:9px;
 }
 #pageTechSpec .spec-table td{
-  padding:4.4px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
+  padding:3.8px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
 }
 /* The label column reads as one quiet panel down the page; values stay on
    white, so the eye can scan a column of labels or a column of figures. */
@@ -1920,9 +1931,9 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-right:1px solid #EDF0F3;
 }
 #pageTechSpec .spec-table .spec-v{color:#162E42;font-weight:600;padding-left:14px;}
-#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:5px;}
+#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:4px;}
 #pageTechSpec .spec-table tr:last-child td{border-bottom:none;padding-bottom:2px;}
-#pageTechSpec .spec-table tr.is-eng td{padding:3.4px 12px;font-size:9.9px;}
+#pageTechSpec .spec-table tr.is-eng td{padding:3px 12px;font-size:9.9px;}
 
 /* The section intro is a rule, not a pill: quiet, and it reads as the top of a
    spec sheet rather than another button. */
@@ -1943,11 +1954,20 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec .ts-ref-note{margin-top:4px;font-size:7.9px;}
 
 #pageTechSpec .note-box{
-  padding:8px 11px;border-radius:8px;background:#F8F9FB;border-color:#E7EBEF;
-  font-size:9.3px;line-height:1.5;margin-top:8px;
+  padding:7px 11px;border-radius:7px;background:#FAF7F1;border:1px solid #EDE5D8;
+  font-size:8.9px;line-height:1.5;color:#6B7A88;margin-top:9px;
+  box-shadow:inset 2px 0 0 #E0B486;
+}
+#pageTechSpec .note-box b{
+  color:#B5732C;font-size:8.2px;letter-spacing:.12em;text-transform:uppercase;
+  margin-right:5px;
 }
 
-/* The bottom of the sheet: honesty note, then the value strip, then the
-   running footer. The 96px reserve is what the strip stands in. */
+/* The honesty note reads as the drawing's caption, where it belongs, so the
+   bottom of the sheet belongs to the four-icon strip alone: a 72px reserve is
+   the strip (42) plus the gap the band needs to stand clear of the table. */
 #pageTechSpec .pg-body{padding-bottom:96px;}
-#pageTechSpec .ts-diagram-note{bottom:52px;font-size:9px;line-height:1.45;color:#94A0AC;}
+#pageTechSpec .ts-diagram-note{
+  position:static;left:auto;right:auto;bottom:auto;width:auto;
+  margin:5px 0 0;text-align:center;font-size:8.6px;line-height:1.45;color:#94A0AC;
+}
