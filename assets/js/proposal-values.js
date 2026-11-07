@@ -5,7 +5,7 @@
   pageExec:{contentKey:'exec',items:[['target','System overview'],['sun','Generation basis'],['chart','Project summary'],['doc','Defined scope']]},
   pageOptions:{items:[['doc','Like-for-like scope'],['coins','Transparent comparison'],['target','Informed choice'],['shield','Scope alignment']]},
   pageSolution:{items:[['target','Site-fit design'],['gear','Specified equipment'],['shield','Design basis'],['check','Planned handover']]},
-  pageTechSpec:{items:[['doc','Technical clarity'],['target','Stated ratings'],['check','Traceable details'],['gear','Equipment basis']]},
+  pageTechSpec:{items:[['doc','Datasheet\nRatings'],['gear','Certified\nComponents'],['shield','Structure\nGuarantee'],['check','IS-Code\nCompliance']]},
   pageSavings:{items:[['sun','Generation estimate'],['rupee','Energy-value basis'],['chart','Long-term view'],['leaf','Clean energy']]},
   pageInvestment:{items:[['doc','Itemised scope'],['coins','Cost clarity'],['payment','Defined milestones'],['target','Agreed inclusions']]},
   pageFinance:{items:[['chart','Stated assumptions'],['coins','Finance illustration'],['doc','Informed decisions'],['target','Scenario basis']]},

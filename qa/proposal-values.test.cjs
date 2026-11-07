@@ -14,7 +14,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  await baselineContext.route('**/assets/js/proposal-values.js*',r=>r.fulfill({status:200,contentType:'application/javascript',body:'window.ProposalValueFooters={definitions:{},sync(){}};'}));
  const baseline=await baselineContext.newPage();await baseline.goto('http://127.0.0.1:8080/quotation.html');await baseline.waitForFunction(()=>window.Render?.lastState&&document.querySelector('.studio-ready'));await baseline.evaluate(()=>document.fonts.ready);await baseline.evaluate(()=>Promise.all([...document.images].map(i=>i.decode().catch(()=>{}))));
  assert.deepEqual(await page.evaluate(bodyGeometry),await baseline.evaluate(bodyGeometry),'original main text, photographs, cards and chart geometry stays unchanged; only closing notes move');await baselineContext.close();
- const expected=['pageAbout','pageWhySolar','pageSolution','pageScope','pageQuality','pageWhyKtm','pageWarranty','pageTerms'];
+ const expected=['pageAbout','pageWhySolar','pageSolution','pageScope','pageQuality','pageWhyKtm','pageWarranty','pageTerms','pageTechSpec'];
  const shown=await page.locator('.page>.proposal-value-footer:not([hidden])').evaluateAll(nodes=>nodes.map(n=>n.parentElement.id));console.log('Visible value footers:',shown.join(', '));assert.deepEqual(shown.slice().sort(),expected.slice().sort());
  assert.equal(await page.locator('#pageClosing .proposal-value-footer,#pageCover .proposal-value-footer').count(),0);
  assert.equal(await page.locator('.pv-petals').count(),0,'no standalone petal SVGs are attached to icon rows');

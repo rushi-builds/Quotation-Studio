@@ -1873,3 +1873,67 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageInvestment.has-bom .inv-card{padding-top:8px;padding-bottom:8px;}
 #pageInvestment .spacer{flex:0 0 8px;min-height:8px;max-height:8px;}
 #pageInvestment.has-tax .spacer,#pageInvestment.has-bom .spacer{flex-basis:4px;min-height:4px;max-height:4px;}
+
+/* =========================================================
+   PAGE 6 — TECHNICAL SPECIFICATION (clean spec-sheet pass)
+   ---------------------------------------------------------
+   The page has to carry a diagram, a 30-row table, references
+   and an honesty note in one A4 sheet. It used to buy that
+   room by squeezing type and never left the value strip any
+   space. The rows now breathe on hairlines instead of fat
+   paddings, the lead is tighter, and the bottom of the sheet
+   keeps a fixed quiet zone for the four-icon strip.
+   ========================================================= */
+#pageTechSpec .pg-title{line-height:1.16;letter-spacing:-.2px;}
+#pageTechSpec .pg-sub{margin-top:4px;font-size:12px;letter-spacing:.1px;}
+#pageTechSpec .rule-orange{margin:8px 0 9px;}
+#pageTechSpec .body-para{margin:0 0 10px;line-height:1.66;}
+
+/* Diagram: a light plate with a labelled head, not a muddy box. */
+#pageTechSpec .diagram-box{
+  margin-top:2px;padding:9px 13px 6px;border:1px solid var(--line-cool);
+  border-radius:12px;background:linear-gradient(180deg,#FCFDFE,#F7F9FB);
+}
+#pageTechSpec .diagram-box .sec-label{
+  background:none;padding:0;margin:0 0 4px;font-size:9px;letter-spacing:.13em;
+  color:#7A8794;display:flex;align-items:center;gap:7px;
+}
+#pageTechSpec .diagram-box .sec-label::before{
+  content:'';width:14px;height:2px;background:var(--orange);border-radius:2px;flex:none;
+}
+
+/* Section headers: a hairline band with the sheet's one accent. */
+#pageTechSpec .spec-table{border-collapse:collapse;}
+#pageTechSpec .spec-table tr.spec-group td{
+  background:#F7F4EE;color:var(--navy);font-size:9.1px;font-weight:700;
+  letter-spacing:.1em;padding:4px 12px;box-shadow:inset 2px 0 0 #E9A96A;
+}
+#pageTechSpec .spec-table td{
+  padding:4.4px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
+}
+#pageTechSpec .spec-table .spec-k{width:31%;color:#68808F;font-weight:500;letter-spacing:.01em;}
+#pageTechSpec .spec-table .spec-v{color:#162E42;font-weight:600;}
+#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:5px;}
+#pageTechSpec .spec-table tr:last-child td{border-bottom:none;padding-bottom:2px;}
+#pageTechSpec .spec-table tr.is-eng td{padding:3.4px 12px;font-size:9.9px;}
+
+#pageTechSpec #v_tsGroupsLabel{margin:10px 0 6px;}
+
+/* References read as quiet chips, never as buttons. */
+#pageTechSpec .ts-refs{gap:7px;}
+#pageTechSpec .ts-refs .ts-ref{
+  padding:4px 9px;border-radius:8px;border:1px solid #E7EBEF;background:#FCFDFE;
+}
+#pageTechSpec .ts-refs .ts-ref .tr-l{font-size:8px;}
+#pageTechSpec .ts-refs .ts-ref .tr-v{font-size:8.3px;}
+#pageTechSpec .ts-ref-note{margin-top:4px;font-size:7.9px;}
+
+#pageTechSpec .note-box{
+  padding:8px 11px;border-radius:8px;background:#F8F9FB;border-color:#E7EBEF;
+  font-size:9.3px;line-height:1.5;margin-top:8px;
+}
+
+/* The bottom of the sheet: honesty note, then the value strip, then the
+   running footer. The 96px reserve is what the strip stands in. */
+#pageTechSpec .pg-body{padding-bottom:96px;}
+#pageTechSpec .ts-diagram-note{bottom:52px;font-size:9px;line-height:1.45;color:#94A0AC;}
