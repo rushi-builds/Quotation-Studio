@@ -1891,7 +1891,6 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
    separate caption under the drawing are gone - the sheet keeps its title, its
    drawing, its table and one note. */
 #pageTechSpec .body-para{display:none;}
-#pageTechSpec .ts-diagram-note:empty{display:none;}
 
 /* Diagram: a light plate with a labelled head, not a muddy box. */
 #pageTechSpec .diagram-box{
@@ -1967,7 +1966,11 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
    bottom of the sheet belongs to the four-icon strip alone: a 72px reserve is
    the strip (42) plus the gap the band needs to stand clear of the table. */
 #pageTechSpec .pg-body{padding-bottom:96px;}
+/* The caption's text moved into the note box, but the element stays where the
+   fit ladder reads it: an invisible, zero-height floor above the value strip.
+   Hiding it outright reports a top of 0, which the ladder reads as "no room at
+   all" and answers by shrinking the drawing to 42%. */
 #pageTechSpec .ts-diagram-note{
-  position:static;left:auto;right:auto;bottom:auto;width:auto;
-  margin:5px 0 0;text-align:center;font-size:8.6px;line-height:1.45;color:#94A0AC;
+  position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:104px;
+  margin:0;height:0;overflow:hidden;font-size:0;line-height:0;color:transparent;
 }
