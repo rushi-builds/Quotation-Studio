@@ -376,10 +376,12 @@
    for(let i=0;i<pages.length;i++){
     const page=pages[i];if(page.scrollHeight>page.clientHeight+2)throw new Error('Content does not fit. Split the oversized section before exporting.');
     statusCb('Rendering page '+(i+1)+' of '+pages.length+'…');
-    /* Same shaped-artwork pass as the main exporter: an icon or a chart must
-       print at the size the page gives it, not at html2canvas' idea of it. */
-    await root.Exporter?.paintShapes?.(page);
-    const canvas=await root.html2canvas(page,{scale:3,useCORS:true,backgroundColor:'#fff',logging:false});if(i)pdf.addPage();pdf.addImage(canvas.toDataURL('image/jpeg',.92),'JPEG',0,0,w,h,undefined,'FAST');
+    /* The same capture as the main exporter: the browser draws the page, so an
+       edited document prints exactly as it is previewed. */
+    const capture=root.Exporter?.capturePage
+      ? await root.Exporter.capturePage(page,3)
+      : {canvas:await root.html2canvas(page,{scale:3,useCORS:true,backgroundColor:'#fff',logging:false})};
+    const canvas=capture.canvas;if(i)pdf.addPage();pdf.addImage(canvas.toDataURL('image/jpeg',.92),'JPEG',0,0,w,h,undefined,'FAST');
     const bounds=page.getBoundingClientRect();page.querySelectorAll('a[href]').forEach(a=>{const url=root.Render.safeHttpUrl(a.href),r=a.getBoundingClientRect();if(url&&r.width&&r.height)pdf.link((r.left-bounds.left)/bounds.width*w,(r.top-bounds.top)/bounds.height*h,r.width/bounds.width*w,r.height/bounds.height*h,{url});});
    }
    pdf.setProperties({title:'Solar Proposal — '+(savedState.custName||'Customer'),author:savedState.companyName,creator:'Quotation Studio'});
