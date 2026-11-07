@@ -11512,7 +11512,7 @@ export default {
     "pageTechSpec": {
       "heading": "Technical System Specification",
       "sub": "The Components Behind Your Generation",
-      "para": "Every component in your system is specified below - selected for compatibility, certified performance and long-term reliability. This is the exact equipment basis on which your generation estimate and quotation are built.",
+      "para": "Every component is specified for compatibility, certified performance and long-term reliability - the exact equipment basis behind your generation estimate and quotation.",
       "diagramTitle": "SYSTEM OVERVIEW",
       "diagramLabels": {
         "array": "Rooftop Solar",
