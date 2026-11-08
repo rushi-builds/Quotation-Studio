@@ -65,7 +65,13 @@
   'inverter:huawei':'huawei-inverter.webp',
   'inverter:fusionsolar':'huawei-inverter.webp',
   'inverter:huawei-fusionsolar':'huawei-inverter.webp',
-  'inverter:solis':'solis-inverter.webp'
+  'inverter:solis':'solis-inverter.webp',
+  /* Mounting structure - the make the sheet names on the STRUCTURE row. */
+  'mount:ars':'ars-structure.webp',
+  'mount:ars-solar-tech':'ars-structure.webp',
+  'mount:ars-solartech':'ars-structure.webp',
+  'mount:solartech':'ars-structure.webp',
+  'mount:solar-tech':'ars-structure.webp'
  };
  const PHOTO_FALLBACK={
   modules:'assets/images/inc-modules.png',
