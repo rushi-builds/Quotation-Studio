@@ -71,13 +71,20 @@
   'mount:ars-solar-tech':'ars-structure.webp',
   'mount:ars-solartech':'ars-structure.webp',
   'mount:solartech':'ars-structure.webp',
-  'mount:solar-tech':'ars-structure.webp'
+  'mount:solar-tech':'ars-structure.webp',
+  /* Cabling, earthing and protection. One card carries the whole "Mounting &
+     Cabling" group, so the card shows the structure when it has one and the
+     cable the sheet names when it does not; earthing is the quiet default. */
+  'other:havells':'havells-cable.webp',
+  'other:polycab':'polycab-cable.webp',
+  'other:earthing':'earthing.webp',
+  'other:acdb':'acdb-dcdb.webp'
  };
  const PHOTO_FALLBACK={
   modules:'assets/images/inc-modules.png',
   inverter:'assets/images/inc-inverter.png',
   mount:'assets/images/inc-mount.png',
-  other:'assets/images/inc-cables.png'
+  other:'assets/images/equipment/earthing.webp'
  };
  const slug=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
  function equipmentPhoto(kind,brand,model){
@@ -114,7 +121,15 @@
     let tile=head.querySelector('.spec-tile');
     if(!tile){tile=document.createElement('span');tile.className='spec-tile';tile.setAttribute('aria-hidden','true');head.prepend(tile);}
     const model=read(i,k=>/^(MODEL|MODULE)$/i.test(k));
-    const photo=equipmentPhoto(kind,brand,model);
+    let photo=equipmentPhoto(kind,brand,model);
+    /* The mounting card covers structure, cable, earthing and protection at
+       once. If the structure's make has no photo of its own, the cable the
+       quotation names is the next most useful picture on that card. */
+    if(kind==='mount'&&!PHOTO_MAP[kind+':'+slug(brand)]){
+     const cabling=slug(read(i,k=>/^CABLING/i.test(k))).split('-')[0];
+     const other=cabling&&equipmentPhoto('other',cabling,'');
+     if(other&&other.indexOf('equipment/')>=0)photo=other;
+    }
     if(photo)tile.style.backgroundImage='url("'+photo+'")';else tile.remove();
    }
   }
