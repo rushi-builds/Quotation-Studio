@@ -1885,17 +1885,17 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
    keeps a fixed quiet zone for the four-icon strip.
    ========================================================= */
 #pageTechSpec .pg-title{line-height:1.16;letter-spacing:-.2px;}
-#pageTechSpec .pg-sub{margin-top:4px;font-size:12px;letter-spacing:.1px;}
-#pageTechSpec .rule-orange{margin:8px 0 9px;}
+#pageTechSpec .pg-sub{margin-top:3px;font-size:12px;letter-spacing:.1px;}
+#pageTechSpec .rule-orange{margin:6px 0 7px;}
 /* One short line says what the sheet is and where its numbers come from, so a
    customer at the site reads it without needing the seller in the room. */
-#pageTechSpec .body-para{margin:0 0 10px;line-height:1.5;color:#5E7486;}
+#pageTechSpec .body-para{margin:0 0 7px;line-height:1.5;color:#5E7486;}
 /* The cards below label themselves; the old section intro is redundant. */
 #pageTechSpec #v_tsGroupsLabel{display:none;}
 
 /* Diagram: a light plate with a labelled head, not a muddy box. */
 #pageTechSpec .diagram-box{
-  margin-top:2px;padding:7px 12px 5px;border:1px solid var(--line-cool);
+  margin-top:2px;padding:6px 12px 4px;border:1px solid var(--line-cool);
   border-radius:12px;background:linear-gradient(180deg,#FCFDFE,#F7F9FB);
 }
 #pageTechSpec #v_tsDiagram svg{max-width:94%;margin-left:auto;margin-right:auto;display:block;}
@@ -1973,7 +1973,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-right:1px solid #EDF0F3;
 }
 #pageTechSpec .spec-table .spec-v{color:#162E42;font-weight:600;padding-left:14px;}
-#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:4.2px;}
+#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:3.8px;}
 #pageTechSpec .spec-table tr:last-child td{border-bottom:none;padding-bottom:2px;}
 #pageTechSpec .spec-table tr.is-eng td{padding:3px 12px;font-size:9.9px;}
 
@@ -1997,7 +1997,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 #pageTechSpec .note-box{
   padding:7px 11px;border-radius:7px;background:#FAF7F1;border:1px solid #EDE5D8;
-  font-size:8.9px;line-height:1.5;color:#6B7A88;margin-top:8px;
+  font-size:8.7px;line-height:1.45;color:#6B7A88;margin-top:8px;
   box-shadow:inset 2px 0 0 #E0B486;
 }
 #pageTechSpec .note-box b{
