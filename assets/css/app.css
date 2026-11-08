@@ -1939,7 +1939,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 /* The product shot sits on its own small plate beside the badge, so a brand
    photo and the neutral render both land on the same quiet chip. */
 #pageTechSpec .spec-tile{
-  display:inline-block;width:21px;height:21px;margin-right:8px;vertical-align:-6px;
+  display:inline-block;width:24px;height:24px;margin-right:8px;vertical-align:-7px;
   border-radius:6px;border:1px solid #EADFCB;background:#fff center/contain no-repeat;
   box-shadow:0 1px 1px rgba(18,48,74,.06);
 }

@@ -38,6 +38,25 @@
  // kind, then the neutral render that ships with the site.
  const PHOTO_BASE='assets/images/equipment/';
  const PHOTO_MAP={
+  /* Solar modules - one product shot per brand the quotation can carry. Every
+     entry is a file in assets/images/equipment/, cropped to the panel itself so
+     the sheet shows the product, not a marketing poster. */
+  'module:waaree':'waaree-module.webp',
+  'module:panasonic':'panasonic-module.webp',
+  'module:anchor':'panasonic-module.webp',
+  'module:renewsys':'renewsys-module.webp',
+  'module:tata':'tata-module.webp',
+  'module:tata-power':'tata-module.webp',
+  'module:tata-power-solar':'tata-module.webp',
+  'module:vikram':'vikram-module.webp',
+  'module:vikram-solar':'vikram-module.webp',
+  'module:adani':'adani-module.webp',
+  'module:adani-solar':'adani-module.webp',
+  'module:premier':'premier-module.webp',
+  'module:premier-energies':'premier-module.webp',
+  'module:renew':'renew-module.webp',
+  'module:renew-by-photovoltaic':'renew-module.webp',
+  'module:longi':'longi-module.webp'
  };
  const PHOTO_FALLBACK={
   modules:'assets/images/inc-modules.png',
