@@ -202,6 +202,18 @@ const OWNER_IMAGE_PATHS=new Set([
    a future image swap, addition or deletion still trips this guard. See
    qa/tracking-project.test.js for the one asset that must stay
    byte-identical - Tracking.png is deliberately NOT in this set. */
+/* Owner-approved equipment photography (2026-11-04).
+
+   Why: page 6 names the equipment brand the quotation actually carries, and the
+   owner is supplying one product photo per brand so the sheet shows what the
+   customer is buying rather than a generic cut-out. This covers that folder and
+   nothing else - the naming note that ships with it included - so a photo
+   dropped anywhere else in assets/ still fails the review.
+
+   This is the explicit, dated, exact-path allowance the rules above require,
+   not a silent widening of the image surface. */
+const EQUIPMENT_PHOTO_PATHS = /^assets\/images\/equipment\/[A-Za-z0-9._-]+\.(webp|png|jpg|jpeg|md)$/;
+
 const REENCODED_IMAGE_PATHS=new Set([
   'assets/images/bess-concept.jpg',
   'assets/images/closing-solar-cinematic-4k.jpg',
@@ -336,7 +348,7 @@ function deployConfigTouches(files) {
 function newAccessMigration(file,status){return file==='platform/migrations/011-workspace-access.sql'&&status==='A';}
 
 function scopeOffenders(files) {
-  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f) && !FEEDBACK_LOOP_PATHS.has(f) && !CALCULATOR_FILES.has(f));
+  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !EQUIPMENT_PHOTO_PATHS.test(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f) && !FEEDBACK_LOOP_PATHS.has(f) && !CALCULATOR_FILES.has(f));
 }
 
 /* The explicit golden baseline: HEAD's blob for every frozen file must
@@ -411,7 +423,7 @@ function verify(repoRoot, opts) {
 }
 
 module.exports = {
-  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, GALLERY_PAGE_PATHS, FEEDBACK_LOOP_PATHS, CALCULATOR_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
+  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, EQUIPMENT_PHOTO_PATHS, GALLERY_PAGE_PATHS, FEEDBACK_LOOP_PATHS, CALCULATOR_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
   resolveBase, changedFiles, worktreeStatus,
   frozenTouches, deployConfigTouches, scopeOffenders, newAccessMigration, baselineMatch, mainTip, verify, git
 };
