@@ -1915,7 +1915,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-collapse:separate;border-spacing:0;counter-reset:specgroup;
 }
 #pageTechSpec .spec-table tr.spec-group td{
-  border-top:11px solid transparent;background-clip:padding-box;
+  border-top:9px solid transparent;background-clip:padding-box;
   background-color:#F0EBE1;background-image:linear-gradient(90deg,#ECE5D8,#FAF8F4 78%);
   color:#12304A;font-size:9.2px;font-weight:700;letter-spacing:.13em;
   padding:5px 11px 5px 12px;border-radius:22px 22px 0 0;counter-increment:specgroup;
@@ -1942,7 +1942,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
    inside the cell, which establishes its own formatting context, so the head
    grows to the picture and never overlaps the first row. */
 #pageTechSpec .spec-tile{
-  float:right;display:block;width:96px;height:42px;margin:-1px 0 -1px 12px;
+  float:right;display:block;width:92px;height:38px;margin:-1px 0 -1px 12px;
   border-radius:7px;border:1px solid #E8DCC6;background:#fff center/contain no-repeat;
   box-shadow:0 1px 2px rgba(18,48,74,.07);
 }
@@ -1996,7 +1996,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 #pageTechSpec .note-box{
   padding:7px 11px;border-radius:7px;background:#FAF7F1;border:1px solid #EDE5D8;
-  font-size:8.9px;line-height:1.5;color:#6B7A88;margin-top:12px;
+  font-size:8.9px;line-height:1.5;color:#6B7A88;margin-top:8px;
   box-shadow:inset 2px 0 0 #E0B486;
 }
 #pageTechSpec .note-box b{
@@ -2007,7 +2007,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 /* The honesty note reads as the drawing's caption, where it belongs, so the
    bottom of the sheet belongs to the four-icon strip alone: a 72px reserve is
    the strip (42) plus the gap the band needs to stand clear of the table. */
-#pageTechSpec .pg-body{padding-bottom:90px;}
+#pageTechSpec .pg-body{padding-bottom:86px;}
 /* The caption's text moved into the note box, but the element stays where the
    fit ladder reads it: an invisible, zero-height floor above the value strip.
    Hiding it outright reports a top of 0, which the ladder reads as "no room at
