@@ -56,7 +56,16 @@
   'module:premier-energies':'premier-module.webp',
   'module:renew':'renew-module.webp',
   'module:renew-by-photovoltaic':'renew-module.webp',
-  'module:longi':'longi-module.webp'
+  'module:longi':'longi-module.webp',
+  /* Inverters - the brand's own range shot, cropped to the units themselves. */
+  'inverter:growatt':'growatt-inverter.webp',
+  'inverter:sungrow':'sungrow-inverter.webp',
+  'inverter:fronius':'fronius-inverter.webp',
+  'inverter:deye':'deye-inverter.webp',
+  'inverter:huawei':'huawei-inverter.webp',
+  'inverter:fusionsolar':'huawei-inverter.webp',
+  'inverter:huawei-fusionsolar':'huawei-inverter.webp',
+  'inverter:solis':'solis-inverter.webp'
  };
  const PHOTO_FALLBACK={
   modules:'assets/images/inc-modules.png',
