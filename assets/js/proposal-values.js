@@ -21,6 +21,37 @@
  for(const def of Object.values(definitions))def.items=def.items.map(([icon,label])=>[icon,label.includes('\n')?label:label.replace(/ (\S+)$/,'\n$1')]);
  const palettes=['warm','sage','lavender','blue'];
  const visible=n=>n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden';
+ // Equipment photos for the technical-specification cards.
+ //
+ // Drop the file into assets/images/equipment/ and add one line: the key is
+ // "kind:brand" (lower case, dashes), the value is the file name. Anything not
+ // listed falls back to the neutral render of its kind, so a brand that has no
+ // photo yet still gets a picture instead of a hole.
+ //
+ //   'module:waaree'   : 'waaree-module.webp',
+ //   'module:panasonic': 'panasonic-module.webp',
+ //   'inverter:sungrow': 'sungrow-inverter.webp',
+ //   'mount:solartech' : 'solartech-structure.webp',
+ //   'module'          : 'module-generic.webp',   // any brand
+ //
+ // Keys are tried most specific first: kind:brand:model, then kind:brand, then
+ // kind, then the neutral render that ships with the site.
+ const PHOTO_BASE='assets/images/equipment/';
+ const PHOTO_MAP={
+ };
+ const PHOTO_FALLBACK={
+  modules:'assets/images/inc-modules.png',
+  inverter:'assets/images/inc-inverter.png',
+  mount:'assets/images/inc-mount.png',
+  other:'assets/images/inc-cables.png'
+ };
+ const slug=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+ function equipmentPhoto(kind,brand,model){
+  const keys=[slug(brand)&&slug(model)&&(kind+':'+slug(brand)+':'+slug(model)),
+              slug(brand)&&(kind+':'+slug(brand)),kind].filter(Boolean);
+  for(const key of keys){const file=PHOTO_MAP[key];if(file)return PHOTO_BASE+file;}
+  return PHOTO_FALLBACK[kind]||PHOTO_FALLBACK.other||'';
+ }
  // Each technical-specification group is a card. The chip on its head names the
  // equipment the customer is actually getting, read straight off the "Make" row
  // (or the structure's make), so the sheet never has to be edited by hand and
@@ -45,6 +76,13 @@
    brand=brand.replace(/\s+/g,' ').trim();
    if(brand)row.dataset.brand=brand.length>32?brand.slice(0,31).trim()+'\u2026':brand;
    else delete row.dataset.brand;
+   const head=row.cells[0];if(head){
+    let tile=head.querySelector('.spec-tile');
+    if(!tile){tile=document.createElement('span');tile.className='spec-tile';tile.setAttribute('aria-hidden','true');head.prepend(tile);}
+    const model=read(i,k=>/^(MODEL|MODULE)$/i.test(k));
+    const photo=equipmentPhoto(kind,brand,model);
+    if(photo)tile.style.backgroundImage='url("'+photo+'")';else tile.remove();
+   }
   }
  }
  function sync(){
