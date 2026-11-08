@@ -1918,7 +1918,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-top:11px solid transparent;background-clip:padding-box;
   background-color:#F0EBE1;background-image:linear-gradient(90deg,#ECE5D8,#FAF8F4 78%);
   color:#12304A;font-size:9.2px;font-weight:700;letter-spacing:.13em;
-  padding:5px 12px 4.5px;border-radius:22px 22px 0 0;counter-increment:specgroup;
+  padding:5px 11px 5px 12px;border-radius:22px 22px 0 0;counter-increment:specgroup;
   vertical-align:middle;
 }
 /* Section numbers and the brand are decoration the sheet can afford: both come
@@ -1930,18 +1930,21 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   letter-spacing:.02em;text-align:center;
 }
 #pageTechSpec .spec-table tr.spec-group td::after{
-  content:attr(data-brand);float:right;margin-top:-.5px;padding:2.5px 9px 2.8px;
+  content:attr(data-brand);display:inline-block;vertical-align:middle;
+  margin-left:10px;padding:2.5px 9px 2.8px;
   border-radius:20px;background:#FCF4E7;border:1px solid #F0E1C9;
   font-size:8.1px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
   color:#B0702A;
 }
 #pageTechSpec .spec-table tr.spec-group td[data-brand=""]::after{display:none;}
-/* The product shot sits on its own small plate beside the badge, so a brand
-   photo and the neutral render both land on the same quiet chip. */
+/* The product shot is what the card leads with: a plate at the right of the
+   head, tall enough to read at print size, with the equipment on white. Floated
+   inside the cell, which establishes its own formatting context, so the head
+   grows to the picture and never overlaps the first row. */
 #pageTechSpec .spec-tile{
-  display:inline-block;width:24px;height:24px;margin-right:8px;vertical-align:-7px;
-  border-radius:6px;border:1px solid #EADFCB;background:#fff center/contain no-repeat;
-  box-shadow:0 1px 1px rgba(18,48,74,.06);
+  float:right;display:block;width:96px;height:42px;margin:-1px 0 -1px 12px;
+  border-radius:7px;border:1px solid #E8DCC6;background:#fff center/contain no-repeat;
+  box-shadow:0 1px 2px rgba(18,48,74,.07);
 }
 #pageTechSpec .spec-table td{
   padding:3.8px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
@@ -1993,7 +1996,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 #pageTechSpec .note-box{
   padding:7px 11px;border-radius:7px;background:#FAF7F1;border:1px solid #EDE5D8;
-  font-size:8.9px;line-height:1.5;color:#6B7A88;margin-top:16px;
+  font-size:8.9px;line-height:1.5;color:#6B7A88;margin-top:12px;
   box-shadow:inset 2px 0 0 #E0B486;
 }
 #pageTechSpec .note-box b{
@@ -2004,7 +2007,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 /* The honesty note reads as the drawing's caption, where it belongs, so the
    bottom of the sheet belongs to the four-icon strip alone: a 72px reserve is
    the strip (42) plus the gap the band needs to stand clear of the table. */
-#pageTechSpec .pg-body{padding-bottom:96px;}
+#pageTechSpec .pg-body{padding-bottom:90px;}
 /* The caption's text moved into the note box, but the element stays where the
    fit ladder reads it: an invisible, zero-height floor above the value strip.
    Hiding it outright reports a top of 0, which the ladder reads as "no room at
