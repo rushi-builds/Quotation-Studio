@@ -1950,7 +1950,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-collapse:separate;border-spacing:0;counter-reset:specgroup;
 }
 #pageTechSpec .spec-table tr.spec-group td{
-  border-top:8px solid transparent;background-clip:padding-box;
+  border-top:11px solid transparent;background-clip:padding-box;
   background-color:#fff;background-image:none;
   color:#12304A;font-size:10.4px;font-weight:700;letter-spacing:.075em;
   padding:3.5px 12px 4px 10px;border-radius:13px 13px 0 0;counter-increment:specgroup;
@@ -2050,7 +2050,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 #pageTechSpec .note-box{
   padding:6px 10px;border-radius:7px;background:#FAF7F1;border:1px solid #EDE5D8;
-  font-size:8.5px;line-height:1.45;color:#6B7A88;margin-top:8px;
+  font-size:8.5px;line-height:1.45;color:#6B7A88;margin-top:14px;
   box-shadow:inset 2px 0 0 #E0B486;
 }
 #pageTechSpec .note-box b{
