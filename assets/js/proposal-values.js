@@ -146,7 +146,8 @@
   let box=body.querySelector(':scope > .solution-system');
   if(!box){
    box=document.createElement('div');box.className='solution-system';
-   body.append(box);
+   /* Above the closing cross-reference, which stays the page's last line. */
+   body.insertBefore(box,body.querySelector('#v_soScopeNote')||null);
   }
   if(diagram.parentElement!==box){
    const title=document.getElementById('v_tsDiagramTitle');
