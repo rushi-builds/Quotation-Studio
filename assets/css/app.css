@@ -1950,7 +1950,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-collapse:separate;border-spacing:0;counter-reset:specgroup;
 }
 #pageTechSpec .spec-table tr.spec-group td{
-  border-top:11px solid transparent;background-clip:padding-box;
+  border-top:15px solid transparent;background-clip:padding-box;
   background-color:#fff;background-image:none;
   color:#12304A;font-size:10.4px;font-weight:700;letter-spacing:.075em;
   padding:3.5px 12px 4px 10px;border-radius:13px 13px 0 0;counter-increment:specgroup;
@@ -2001,7 +2001,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   background-size:contain;background-clip:content-box;
 }
 #pageTechSpec .spec-table td{
-  padding:4.4px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
+  padding:4px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
   background:#fff;
 }
 #pageTechSpec .spec-table tr:not(.spec-group) td.spec-k{border-left:1px solid #EEF1F4;}
@@ -2026,7 +2026,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-right:1px solid #EDF0F3;
 }
 #pageTechSpec .spec-table .spec-v{color:#162E42;font-weight:600;padding-left:14px;}
-#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:4.4px;}
+#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:4px;}
 #pageTechSpec .spec-table tr:last-child td{border-bottom:none;padding-bottom:2px;}
 #pageTechSpec .spec-table tr.is-eng td{padding:2.6px 12px;font-size:9.6px;}
 
@@ -2049,9 +2049,13 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec .ts-ref-note{margin-top:4px;font-size:7.9px;}
 
 #pageTechSpec .note-box{
-  padding:6px 10px;border-radius:7px;background:#FAF7F1;border:1px solid #EDE5D8;
-  font-size:8.5px;line-height:1.45;color:#6B7A88;margin-top:14px;
-  box-shadow:inset 2px 0 0 #E0B486;
+  padding:8px 12px;border-radius:10px;
+  background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(250,246,239,.58));
+  border:1px solid rgba(224,180,134,.42);
+  font-size:8.5px;line-height:1.45;color:#63727F;margin-top:26px;
+  -webkit-backdrop-filter:blur(6px) saturate(1.1);backdrop-filter:blur(6px) saturate(1.1);
+  box-shadow:0 6px 16px rgba(18,48,74,.07),0 1px 0 rgba(255,255,255,.95) inset,
+             inset 2px 0 0 rgba(224,180,134,.85);
 }
 #pageTechSpec .note-box b{
   color:#B5732C;font-size:8.2px;letter-spacing:.12em;text-transform:uppercase;
