@@ -153,6 +153,21 @@
    const title=document.getElementById('v_tsDiagramTitle');
    if(title)box.append(title);
    box.append(diagram);
+   /* Four short lines say what the drawing shows, in the order the power flows.
+      They are the page's own words - the specification sheet lists ratings, not
+      the route those ratings take. */
+   if(!box.querySelector('.solution-points')){
+    const list=document.createElement('ul');list.className='solution-points';
+    [['Array to DC','Modules, DC cabling, fuses and surge protection'],
+     ['Inverter','MPPT conversion to 230 / 415 V AC output'],
+     ['AC protection','ACDB, RCCB and surge protection before the load'],
+     ['Metering and grid','Bi-directional net meter, DISCOM approval and import/export']]
+     .forEach(([t,d])=>{const li=document.createElement('li');
+      const b=document.createElement('b');b.textContent=t;
+      const sp=document.createElement('span');sp.textContent=d;
+      li.append(b,sp);list.append(li);});
+    box.append(list);
+   }
    root.Render?.refreshDiagramScale?.();
   }
  }
