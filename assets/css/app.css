@@ -1964,28 +1964,33 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-radius:5px;background:#E08A2E;color:#fff;font-size:8.2px;
   letter-spacing:.02em;text-align:center;
 }
+#pageTechSpec .spec-table tr.spec-group td{position:relative;}
 #pageTechSpec .spec-table tr.spec-group td::after{
-  content:attr(data-brand);display:inline-block;vertical-align:middle;
-  margin-left:10px;padding:2.5px 9px 2.8px;
+  content:attr(data-brand);position:absolute;right:14px;top:50%;
+  transform:translateY(-50%);padding:2.5px 9px 2.8px;
   border-radius:20px;background:#FCF4E7;border:1px solid #F0E1C9;
   font-size:8.1px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
   color:#B0702A;
 }
 #pageTechSpec .spec-table tr.spec-group td[data-brand=""]::after{display:none;}
-/* The product shot is what the card leads with: a plate at the right of the
-   head, tall enough to read at print size, with the equipment on white. Floated
-   inside the cell, which establishes its own formatting context, so the head
-   grows to the picture and never overlaps the first row. */
-#pageTechSpec .spec-tile{
-  float:right;display:block;box-sizing:border-box;width:82px;height:34px;
-  margin:-1px 0 -1px 12px;padding:2px;
-  border-radius:7px;border:1px solid #E8DCC6;
-  background:#fff center no-repeat;background-size:contain;
-  background-origin:content-box;background-clip:content-box;
-  box-shadow:0 1px 2px rgba(18,48,74,.07);
+/* The equipment photograph is the card's own right column: one cell that spans
+   every row of its card, with the picture placed inside it, so the rows alone
+   set the card's height and the picture simply fills what they give it. The
+   photograph is shown whole, never cropped. */
+#pageTechSpec .spec-table{table-layout:fixed;}
+#pageTechSpec .spec-table col:first-child{width:25%;}
+#pageTechSpec .spec-table col.col-photo{width:202px;}
+#pageTechSpec td.spec-photo{
+  position:relative;padding:0;width:202px;vertical-align:middle;
+  background:#fff;
+}
+#pageTechSpec td.spec-photo img{
+  position:absolute;left:8px;top:6px;
+  width:calc(100% - 16px);height:calc(100% - 12px);
+  object-fit:contain;object-position:center;
 }
 #pageTechSpec .spec-table td{
-  padding:3.8px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
+  padding:5.2px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
   background:#fff;
 }
 #pageTechSpec .spec-table tr:not(.spec-group) td.spec-k{border-left:1px solid #EEF1F4;}
@@ -2010,7 +2015,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-right:1px solid #EDF0F3;
 }
 #pageTechSpec .spec-table .spec-v{color:#162E42;font-weight:600;padding-left:14px;}
-#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:3.8px;}
+#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:5.2px;}
 #pageTechSpec .spec-table tr:last-child td{border-bottom:none;padding-bottom:2px;}
 #pageTechSpec .spec-table tr.is-eng td{padding:2.6px 12px;font-size:9.6px;}
 

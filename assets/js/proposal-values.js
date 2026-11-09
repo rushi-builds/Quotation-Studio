@@ -82,12 +82,16 @@
  };
  const PHOTO_FALLBACK={
   modules:'assets/images/inc-modules.png',
+  module:'assets/images/inc-modules.png',
   inverter:'assets/images/inc-inverter.png',
   mount:'assets/images/inc-mount.png',
   other:'assets/images/equipment/earthing.webp'
  };
  const slug=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
  function equipmentPhoto(kind,brand,model){
+  /* The sheet groups modules as "modules"; the catalogue keys them as "module".
+     Without this the module card never found its own brand photograph. */
+  if(kind==='modules')kind='module';
   const keys=[slug(brand)&&slug(model)&&(kind+':'+slug(brand)+':'+slug(model)),
               slug(brand)&&(kind+':'+slug(brand)),kind].filter(Boolean);
   for(const key of keys){const file=PHOTO_MAP[key];if(file)return PHOTO_BASE+file;}
@@ -97,6 +101,32 @@
  // equipment the customer is actually getting, read straight off the "Make" row
  // (or the structure's make), so the sheet never has to be edited by hand and
  // never shows a brand the quotation does not carry.
+ // Each card leads with the equipment itself: a photograph as tall as the rows
+ // it stands beside. The cell spans every data row of its card and the picture
+ // is placed absolutely inside it, so the rows keep their exact heights and the
+ // page gains nothing from the picture.
+ function setCardPhoto(table,rows,headIndex,photo,alt){
+  const head=rows[headIndex];
+  let first=null,count=0;
+  for(let j=headIndex+1;j<rows.length;j++){const r=rows[j];
+   if(r.classList.contains('spec-group'))break;
+   if(!r.cells.length)continue;
+   if(!first)first=r;count++;}
+  if(!first||!count||!photo)return;
+  let cell=first.querySelector(':scope > td.spec-photo');
+  if(!cell){cell=document.createElement('td');cell.className='spec-photo';first.append(cell);}
+  cell.rowSpan=count;
+  let img=cell.querySelector('img');
+  if(!img){img=document.createElement('img');img.alt='';cell.append(img);}
+  img.setAttribute('alt',alt?alt+' equipment':'');
+  img.setAttribute('src',photo);
+  if(head&&head.cells[0])head.cells[0].colSpan=3;
+  if(!table.querySelector('colgroup')){
+   const cg=document.createElement('colgroup');
+   for(let k=0;k<3;k++){const c=document.createElement('col');if(k===2)c.className='col-photo';cg.append(c);}
+   table.insertBefore(cg,table.firstChild);
+  }
+ }
  function decorateSpecCards(){
   const page=document.getElementById('pageTechSpec');if(!page)return;
   const table=page.querySelector('#v_tsTable');if(!table||!table.rows)return;
@@ -113,13 +143,14 @@
    else if(kind==='mount'){
     const structure=read(i,k=>/^STRUCTURE$/i.test(k));
     const m=structure.match(/([A-Za-z][A-Za-z-]{2,})\s+make/i);brand=m?m[1]:'';
-   }else if(kind==='design')brand='As per applicable standards';
+   }else if(kind==='design')brand='IS / IEC';
    brand=brand.replace(/\s+/g,' ').trim();
    if(brand)row.dataset.brand=brand.length>32?brand.slice(0,31).trim()+'\u2026':brand;
    else delete row.dataset.brand;
+   /* The band carries the brand at its right end, level with the title. */
+   if(row.cells[0]){if(brand)row.cells[0].dataset.brand=row.dataset.brand||brand;
+    else delete row.cells[0].dataset.brand;}
    const head=row.cells[0];if(head){
-    let tile=head.querySelector('.spec-tile');
-    if(!tile){tile=document.createElement('span');tile.className='spec-tile';tile.setAttribute('aria-hidden','true');head.prepend(tile);}
     const model=read(i,k=>/^(MODEL|MODULE)$/i.test(k));
     let photo=equipmentPhoto(kind,brand,model);
     /* The mounting card covers structure, cable, earthing and protection at
@@ -130,7 +161,7 @@
      const other=cabling&&equipmentPhoto('other',cabling,'');
      if(other&&other.indexOf('equipment/')>=0)photo=other;
     }
-    if(photo)tile.style.backgroundImage='url("'+photo+'")';else tile.remove();
+    setCardPhoto(table,rows,i,photo,brand||row.textContent.trim());
    }
   }
  }
