@@ -137,10 +137,12 @@
   let cell=first.querySelector(':scope > td.spec-photo');
   if(!cell){cell=document.createElement('td');cell.className='spec-photo';first.append(cell);}
   cell.rowSpan=count;
-  let img=cell.querySelector('img');
-  if(!img){img=document.createElement('img');img.alt='';cell.append(img);}
-  img.setAttribute('alt',alt?alt+' equipment':'');
-  img.setAttribute('src',photo);
+  /* The picture is a background on the cell, not an <img>: a deferred image
+     inside a cell that has no height of its own is the one thing that can keep
+     a page's network busy indefinitely. Drawn this way it costs nothing. */
+  cell.style.backgroundImage='url("'+photo+'")';
+  cell.setAttribute('role','img');
+  cell.setAttribute('aria-label',(alt||'Equipment')+' equipment');
   if(head&&head.cells[0]){
    const look=cardLook(kind);
    head.cells[0].colSpan=3;

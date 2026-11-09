@@ -1993,14 +1993,12 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec .spec-table{table-layout:fixed;}
 #pageTechSpec .spec-table col:first-child{width:24%;}
 #pageTechSpec .spec-table col.col-photo{width:194px;}
-#pageTechSpec td.spec-photo{
-  position:relative;padding:0;width:194px;vertical-align:middle;
-  background:#fff;
-}
-#pageTechSpec td.spec-photo img{
-  position:absolute;left:8px;top:6px;
-  width:calc(100% - 16px);height:calc(100% - 12px);
-  object-fit:contain;object-position:center;
+/* Two class selectors, so the general `td` rule that follows cannot reset the
+   shorthand and drop the picture to its natural size. */
+#pageTechSpec .spec-table td.spec-photo{
+  padding:0;width:194px;vertical-align:middle;
+  background-color:#fff;background-repeat:no-repeat;background-position:center;
+  background-size:contain;background-clip:content-box;
 }
 #pageTechSpec .spec-table td{
   padding:4.4px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
