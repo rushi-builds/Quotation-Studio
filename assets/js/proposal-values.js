@@ -101,11 +101,32 @@
  // equipment the customer is actually getting, read straight off the "Make" row
  // (or the structure's make), so the sheet never has to be edited by hand and
  // never shows a brand the quotation does not carry.
+ // What each card leads with, in the language the sheet already speaks: an
+ // icon for the band, and three facts lifted from the card's own rows - never
+ // invented copy, and never a number that is not in the table beside it.
+ const CARD_LOOK={
+  modules:{icon:'panel',points:[['High Efficiency','MODULE EFFICIENCY','sun'],
+                                ['Rated Power','RATED POWER','panel'],
+                                ['Performance Cover','PERFORMANCE WARRANTY','shield']]},
+  inverter:{icon:'inverter',points:[['Conversion','MAX. DC INPUT & EFFICIENCY','bolt'],
+                                    ['Rated Output','RATED OUTPUT','chart'],
+                                    ['Protection','PROTECTION','shield']]},
+  mount:{icon:'wrench',points:[['Structure','STRUCTURE','wrench'],
+                               ['Cabling','CABLING','cable'],
+                               ['Earthing','EARTHING','shield']]},
+  design:{icon:'gear',points:[['Standards','DESIGN STANDARDS','badge'],
+                              ['Design Life','STRUCTURE LIFE','clock'],
+                              ['Wind Load','BASIC WIND SPEED','gear']]}
+ };
+ function cardLook(kind){return CARD_LOOK[kind==='modules'?'modules':kind]||CARD_LOOK.design;}
+ function iconSvg(name,size,color){
+  const I=root.Icons;return I&&I.get?I.get(name,size,color):'';
+ }
  // Each card leads with the equipment itself: a photograph as tall as the rows
  // it stands beside. The cell spans every data row of its card and the picture
  // is placed absolutely inside it, so the rows keep their exact heights and the
  // page gains nothing from the picture.
- function setCardPhoto(table,rows,headIndex,photo,alt){
+ function setCardPhoto(table,rows,headIndex,photo,alt,kind,read){
   const head=rows[headIndex];
   let first=null,count=0;
   for(let j=headIndex+1;j<rows.length;j++){const r=rows[j];
@@ -120,10 +141,18 @@
   if(!img){img=document.createElement('img');img.alt='';cell.append(img);}
   img.setAttribute('alt',alt?alt+' equipment':'');
   img.setAttribute('src',photo);
-  if(head&&head.cells[0])head.cells[0].colSpan=3;
+  if(head&&head.cells[0]){
+   const look=cardLook(kind);
+   head.cells[0].colSpan=3;
+   if(!head.cells[0].querySelector('.ts-ico')){
+    const chip=document.createElement('span');chip.className='ts-ico';chip.setAttribute('aria-hidden','true');
+    chip.innerHTML=iconSvg(look.icon,13,'#41627E');
+    head.cells[0].insertBefore(chip,head.cells[0].firstChild);
+   }
+  }
   if(!table.querySelector('colgroup')){
    const cg=document.createElement('colgroup');
-   for(let k=0;k<3;k++){const c=document.createElement('col');if(k===2)c.className='col-photo';cg.append(c);}
+   ['','','photo'].forEach((n)=>{const c=document.createElement('col');if(n)c.className='col-'+n;cg.append(c);});
    table.insertBefore(cg,table.firstChild);
   }
  }
@@ -161,7 +190,7 @@
      const other=cabling&&equipmentPhoto('other',cabling,'');
      if(other&&other.indexOf('equipment/')>=0)photo=other;
     }
-    setCardPhoto(table,rows,i,photo,brand||row.textContent.trim());
+    setCardPhoto(table,rows,i,photo,brand||row.textContent.trim(),kind,read);
    }
   }
  }

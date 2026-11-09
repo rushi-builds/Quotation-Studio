@@ -1950,38 +1950,51 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-collapse:separate;border-spacing:0;counter-reset:specgroup;
 }
 #pageTechSpec .spec-table tr.spec-group td{
-  border-top:7px solid transparent;background-clip:padding-box;
-  background-color:#F0EBE1;background-image:linear-gradient(90deg,#ECE5D8,#FAF8F4 78%);
-  color:#12304A;font-size:9.2px;font-weight:700;letter-spacing:.13em;
-  padding:3px 10px 3px 11px;border-radius:22px 22px 0 0;counter-increment:specgroup;
-  vertical-align:middle;
+  border-top:8px solid transparent;background-clip:padding-box;
+  background-color:#fff;background-image:none;
+  color:#12304A;font-size:10.4px;font-weight:700;letter-spacing:.075em;
+  padding:3.5px 12px 4px 10px;border-radius:13px 13px 0 0;counter-increment:specgroup;
+  vertical-align:middle;white-space:nowrap;
+  box-shadow:0 -1px 0 #EBEFF3,inset 0 -1px 0 #EDF1F5;
 }
 /* Section numbers and the brand are decoration the sheet can afford: both come
    from CSS, so no row, value or group name changes and the table stays the data. */
 #pageTechSpec .spec-table tr.spec-group td::before{
   content:counter(specgroup,decimal-leading-zero);
-  display:inline-block;min-width:17px;padding:2px 0 2.2px;margin-right:9px;
-  border-radius:5px;background:#E08A2E;color:#fff;font-size:8.2px;
-  letter-spacing:.02em;text-align:center;
+  display:inline-block;box-sizing:border-box;width:19px;height:19px;line-height:19px;
+  margin-right:9px;border-radius:5px;
+  background:linear-gradient(160deg,#F0A24A,#E07C22);color:#fff;font-size:8.4px;
+  letter-spacing:.01em;text-align:center;vertical-align:middle;
+  box-shadow:0 1px 2px rgba(224,124,34,.28);
 }
+/* The equipment's own glyph, in the quiet blue the sheet uses for detail. */
+#pageTechSpec .ts-ico{
+  display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;
+  width:22px;height:22px;border-radius:50%;margin-right:9px;
+  background:#EFF5FA;border:1px solid #DDE9F2;
+}
+#pageTechSpec .ts-ico svg{display:block;}
 #pageTechSpec .spec-table tr.spec-group td{position:relative;}
 #pageTechSpec .spec-table tr.spec-group td::after{
   content:attr(data-brand);position:absolute;right:14px;top:50%;
-  transform:translateY(-50%);padding:2.5px 9px 2.8px;
-  border-radius:20px;background:#FCF4E7;border:1px solid #F0E1C9;
-  font-size:8.1px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  color:#B0702A;
+  transform:translateY(-50%);padding:0;border:0;background:none;
+  font-size:9.6px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:#264A63;
 }
+/* A brand reads in its own colour when the sheet knows it, as a wordmark does. */
+#pageTechSpec .spec-table tr.spec-group[data-kind="modules"] td::after{color:#0F9D58;}
+#pageTechSpec .spec-table tr.spec-group[data-kind="inverter"] td::after{color:#E4741F;}
+#pageTechSpec .spec-table tr.spec-group[data-kind="mount"] td::after{color:#1F6FA8;}
 #pageTechSpec .spec-table tr.spec-group td[data-brand=""]::after{display:none;}
 /* The equipment photograph is the card's own right column: one cell that spans
    every row of its card, with the picture placed inside it, so the rows alone
    set the card's height and the picture simply fills what they give it. The
    photograph is shown whole, never cropped. */
 #pageTechSpec .spec-table{table-layout:fixed;}
-#pageTechSpec .spec-table col:first-child{width:25%;}
-#pageTechSpec .spec-table col.col-photo{width:202px;}
+#pageTechSpec .spec-table col:first-child{width:24%;}
+#pageTechSpec .spec-table col.col-photo{width:194px;}
 #pageTechSpec td.spec-photo{
-  position:relative;padding:0;width:202px;vertical-align:middle;
+  position:relative;padding:0;width:194px;vertical-align:middle;
   background:#fff;
 }
 #pageTechSpec td.spec-photo img{
@@ -1990,7 +2003,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   object-fit:contain;object-position:center;
 }
 #pageTechSpec .spec-table td{
-  padding:5.2px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
+  padding:4.4px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
   background:#fff;
 }
 #pageTechSpec .spec-table tr:not(.spec-group) td.spec-k{border-left:1px solid #EEF1F4;}
@@ -2015,7 +2028,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-right:1px solid #EDF0F3;
 }
 #pageTechSpec .spec-table .spec-v{color:#162E42;font-weight:600;padding-left:14px;}
-#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:5.2px;}
+#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:4.4px;}
 #pageTechSpec .spec-table tr:last-child td{border-bottom:none;padding-bottom:2px;}
 #pageTechSpec .spec-table tr.is-eng td{padding:2.6px 12px;font-size:9.6px;}
 
