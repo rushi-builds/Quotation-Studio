@@ -1914,8 +1914,13 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 }
 
 /* Page 5 - the proposed system, drawn: the same plate language as the sheet. */
+/* Page 5 keeps its copy, its four figures and the drawing. What it gives up is
+   the closing cross-reference - the specification sheet is the very next page -
+   and the two flexible spacers that were only there to fill air. */
+#pageSolution .spacer{display:none;}
+#pageSolution #v_soScopeNote{display:none;}
 #pageSolution .solution-system{
-  margin-top:9px;padding:6px 10px 4px;border:1px solid var(--line-cool);
+  margin-top:10px;padding:7px 10px 5px;border:1px solid var(--line-cool);
   border-radius:12px;background:linear-gradient(180deg,#FCFDFE,#F7F9FB);
 }
 #pageSolution .solution-system > .sec-label{
@@ -1925,7 +1930,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageSolution .solution-system > .sec-label::before{
   content:'';width:14px;height:2px;background:var(--orange);border-radius:2px;flex:none;
 }
-#pageSolution .solution-system .diagram svg{max-width:64%;margin:0 auto;display:block;}
+#pageSolution .solution-system .diagram svg{max-width:72%;margin:0 auto;display:block;}
 
 /* Section headers: a hairline band with the sheet's one accent. */
 /* Each group is its own card: a tinted head with a numbered badge and the
