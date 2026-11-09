@@ -1649,7 +1649,10 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
    two-column grid - only their shape changes. */
 #pageSolution .spec-card{
   min-height:0;padding:6px 10px;display:flex;align-items:center;gap:8px;
-  text-align:left;
+  text-align:left;border-radius:10px;
+  border:1px solid rgba(214,224,232,.9);
+  background:linear-gradient(180deg,#fff,#FCFDFE);
+  box-shadow:0 2px 6px rgba(18,48,74,.045);
 }
 #pageSolution .spec-card .icon-chip{margin-bottom:0;flex:none;transform:scale(.82);}
 #pageSolution .spec-card .spec-t{font-size:10.6px;font-weight:700;margin-bottom:1px;}
@@ -1919,16 +1922,23 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 }
 
 /* Page 5 - the proposed system, drawn, in the same plate language as the sheet. */
+/* The hero photograph is the page's one warm image: rounded and lifted, so it
+   reads as a print rather than a pasted rectangle. */
+#pageSolution .photo-top img{border-radius:12px;box-shadow:0 10px 24px rgba(18,48,74,.16);}
+
 #pageSolution .solution-system{
   margin-top:10px;padding:8px 12px 6px;border:1px solid var(--line-cool);
   border-radius:12px;background:linear-gradient(180deg,#FCFDFE,#F7F9FB);
 }
 #pageSolution .solution-system > .sec-label{
-  background:none;padding:0;margin:0 0 4px;font-size:9px;letter-spacing:.13em;
-  color:#7A8794;display:flex;align-items:center;gap:7px;
+  margin:0 0 6px;padding:4px 18px 4px 11px;font-size:8.8px;letter-spacing:.16em;
+  font-weight:700;color:#fff;display:inline-flex;align-items:center;gap:7px;
+  background:linear-gradient(100deg,#12304A,#1B4262);
+  border-radius:5px 0 5px 0;
+  clip-path:polygon(0 0,100% 0,calc(100% - 11px) 100%,0 100%);
 }
 #pageSolution .solution-system > .sec-label::before{
-  content:'';width:14px;height:2px;background:var(--orange);border-radius:2px;flex:none;
+  content:'';width:5px;height:5px;border-radius:50%;background:var(--orange);flex:none;
 }
 #pageSolution .solution-system .diagram svg{max-width:100%;margin:0 auto;display:block;}
 #pageSolution .solution-points{
