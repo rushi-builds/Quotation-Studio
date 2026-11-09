@@ -134,30 +134,8 @@
    }
   }
  }
- // The system drawing belongs to the page that proposes the system, not to the
- // specification sheet - and moving it there is what gives the sheet room for
- // the product photographs. The drawing keeps its id, so the renderer keeps
- // painting into it; only its parent changes.
- function relocateDiagram(){
-  const host=document.getElementById('pageSolution');
-  const body=host&&host.querySelector(':scope > .pg-body');
-  const diagram=document.getElementById('v_tsDiagram');
-  if(!body||!diagram)return;
-  let box=host.querySelector(':scope > .pg-body > .solution-system');
-  if(!box){
-   box=document.createElement('div');box.className='solution-system';
-   body.insertBefore(box,body.querySelector('#v_soScopeNote')||null);
-  }
-  if(diagram.parentElement!==box){
-   const title=document.getElementById('v_tsDiagramTitle');
-   if(title)box.append(title);
-   box.append(diagram);
-   root.Render?.refreshDiagramScale?.();
-  }
- }
  function sync(){
   if(!root.Render?.lastState||!root.ProposalMarks)return;
-  relocateDiagram();
   decorateSpecCards();
   for(const [id,def] of Object.entries(definitions)){
    const page=document.getElementById(id);if(!page)continue;

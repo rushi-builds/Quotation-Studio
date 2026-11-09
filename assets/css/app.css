@@ -1893,18 +1893,12 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 /* The cards below label themselves; the old section intro is redundant. */
 #pageTechSpec #v_tsGroupsLabel{display:none;}
 
-/* The drawing moved to the solution page. What stays here is an empty box and
-   the caption element, which the fit ladder still reads as this page's second
-   floor - so nothing else about the sheet has to change. */
-#pageTechSpec .diagram-box{border:0;background:none;padding:0;margin:0;height:0;overflow:visible;}
-#pageTechSpec .diagram-box > .sec-label{display:none;}
-#pageTechSpec .diagram-box > .diagram{display:none;}
-
 /* Diagram: a light plate with a labelled head, not a muddy box. */
 #pageTechSpec .diagram-box{
   margin-top:2px;padding:6px 12px 4px;border:1px solid var(--line-cool);
   border-radius:12px;background:linear-gradient(180deg,#FCFDFE,#F7F9FB);
 }
+#pageTechSpec #v_tsDiagram svg{max-width:88%;margin-left:auto;margin-right:auto;display:block;}
 #pageTechSpec .diagram-box .sec-label{
   background:none;padding:0;margin:0 0 4px;font-size:9px;letter-spacing:.13em;
   color:#7A8794;display:flex;align-items:center;gap:7px;
@@ -1912,20 +1906,6 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec .diagram-box .sec-label::before{
   content:'';width:14px;height:2px;background:var(--orange);border-radius:2px;flex:none;
 }
-
-/* Page 5 - the proposed system, drawn: the same plate language as the sheet. */
-#pageSolution .solution-system{
-  margin-top:14px;padding:10px 12px 8px;border:1px solid var(--line-cool);
-  border-radius:12px;background:linear-gradient(180deg,#FCFDFE,#F7F9FB);
-}
-#pageSolution .solution-system > .sec-label{
-  background:none;padding:0;margin:0 0 6px;font-size:9px;letter-spacing:.13em;
-  color:#7A8794;display:flex;align-items:center;gap:7px;
-}
-#pageSolution .solution-system > .sec-label::before{
-  content:'';width:14px;height:2px;background:var(--orange);border-radius:2px;flex:none;
-}
-#pageSolution .solution-system .diagram svg{max-width:100%;margin:0 auto;display:block;}
 
 /* Section headers: a hairline band with the sheet's one accent. */
 /* Each group is its own card: a tinted head with a numbered badge and the
@@ -1939,7 +1919,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   border-top:7px solid transparent;background-clip:padding-box;
   background-color:#F0EBE1;background-image:linear-gradient(90deg,#ECE5D8,#FAF8F4 78%);
   color:#12304A;font-size:9.2px;font-weight:700;letter-spacing:.13em;
-  padding:5px 10px 5px 11px;border-radius:22px 22px 0 0;counter-increment:specgroup;
+  padding:3px 10px 3px 11px;border-radius:22px 22px 0 0;counter-increment:specgroup;
   vertical-align:middle;
 }
 /* Section numbers and the brand are decoration the sheet can afford: both come
@@ -1963,7 +1943,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
    inside the cell, which establishes its own formatting context, so the head
    grows to the picture and never overlaps the first row. */
 #pageTechSpec .spec-tile{
-  float:right;display:block;box-sizing:border-box;width:104px;height:52px;
+  float:right;display:block;box-sizing:border-box;width:84px;height:32px;
   margin:-1px 0 -1px 12px;padding:2px;
   border-radius:7px;border:1px solid #E8DCC6;
   background:#fff center no-repeat;background-size:contain;
