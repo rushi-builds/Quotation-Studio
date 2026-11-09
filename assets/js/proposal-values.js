@@ -233,10 +233,24 @@
    root.Render?.refreshDiagramScale?.();
   }
  }
+ // The page's own heading ends on the one word the sheet is selling, so that
+ // word carries the accent - the same treatment the reference design gives it.
+ function accentHeading(){
+  const h=document.getElementById('v_soHeading');
+  if(!h||h.querySelector('em'))return;
+  const txt=(h.textContent||'').trim();
+  if(!txt)return;
+  const cut=txt.lastIndexOf(' ');
+  if(cut<0)return;
+  h.innerHTML='';
+  h.append(document.createTextNode(txt.slice(0,cut+1)));
+  const em=document.createElement('em');em.textContent=txt.slice(cut+1);h.append(em);
+ }
  function sync(){
   if(!root.Render?.lastState||!root.ProposalMarks)return;
   relocateDiagram();
   decorateSpecCards();
+  accentHeading();
   for(const [id,def] of Object.entries(definitions)){
    const page=document.getElementById(id);if(!page)continue;
    let band=page.querySelector(':scope>.proposal-value-footer');
