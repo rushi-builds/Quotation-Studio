@@ -228,7 +228,10 @@ const t = (name, condition) => {
        drawing printed cut in half for exactly that reason, so the cure is
        pinned here on the real page. */
     const painted = await page.evaluate(async () => {
-      const live = document.getElementById('pageTechSpec');
+      /* The drawing now lives on the page that proposes the system, so the
+         snapshot follows the drawing instead of assuming page 6. Every
+         assertion about it is unchanged. */
+      const live = document.getElementById('v_tsDiagram').closest('.page');
       const host = document.createElement('div');
       host.style.cssText = 'position:absolute;left:-12000px;top:0;width:794px;';
       host.className = 'pdf-snapshot';

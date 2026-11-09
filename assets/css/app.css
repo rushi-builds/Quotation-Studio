@@ -1904,13 +1904,6 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 /* The cards below label themselves; the old section intro is redundant. */
 #pageTechSpec #v_tsGroupsLabel{display:none;}
 
-/* The drawing lives on page 5 now. What stays here is an empty box and the
-   caption element, which the fit ladder still reads as this page's second
-   floor - so every measurement the sheet makes is unchanged. */
-#pageTechSpec .diagram-box{border:0;background:none;padding:0;margin:0;height:0;overflow:visible;}
-#pageTechSpec .diagram-box > .sec-label{display:none;}
-#pageTechSpec .diagram-box > .diagram{display:none;}
-
 /* Diagram: a light plate with a labelled head, not a muddy box. */
 #pageTechSpec .diagram-box{
   margin-top:2px;padding:6px 12px 4px;border:1px solid var(--line-cool);
@@ -1984,7 +1977,7 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
    inside the cell, which establishes its own formatting context, so the head
    grows to the picture and never overlaps the first row. */
 #pageTechSpec .spec-tile{
-  float:right;display:block;box-sizing:border-box;width:90px;height:42px;
+  float:right;display:block;box-sizing:border-box;width:86px;height:38px;
   margin:-1px 0 -1px 12px;padding:2px;
   border-radius:7px;border:1px solid #E8DCC6;
   background:#fff center no-repeat;background-size:contain;
@@ -2061,3 +2054,11 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
   position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:104px;
   margin:0;height:0;overflow:hidden;font-size:0;line-height:0;color:transparent;
 }
+
+/* The drawing lives on page 5 now. What stays on page 6 is an empty box and the
+   caption element, which the fit ladder still reads as this page's second floor
+   - so every measurement the sheet makes is unchanged. Declared last so it wins
+   over the plate's own padding. */
+#pageTechSpec .diagram-box{border:0;background:none;padding:0;margin:0;height:0;overflow:visible;}
+#pageTechSpec .diagram-box > .sec-label{display:none;}
+#pageTechSpec .diagram-box > .diagram{display:none;}
