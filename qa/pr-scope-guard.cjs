@@ -202,6 +202,18 @@ const OWNER_IMAGE_PATHS=new Set([
    a future image swap, addition or deletion still trips this guard. See
    qa/tracking-project.test.js for the one asset that must stay
    byte-identical - Tracking.png is deliberately NOT in this set. */
+/* Owner-approved equipment photography (2026-11-04).
+
+   Why: page 6 names the equipment brand the quotation actually carries, and the
+   owner is supplying one product photo per brand so the sheet shows what the
+   customer is buying rather than a generic cut-out. This covers that folder and
+   nothing else - the naming note that ships with it included - so a photo
+   dropped anywhere else in assets/ still fails the review.
+
+   This is the explicit, dated, exact-path allowance the rules above require,
+   not a silent widening of the image surface. */
+const EQUIPMENT_PHOTO_PATHS = /^assets\/images\/equipment\/[A-Za-z0-9._-]+\.(webp|png|jpg|jpeg|md)$/;
+
 const REENCODED_IMAGE_PATHS=new Set([
   'assets/images/bess-concept.jpg',
   'assets/images/closing-solar-cinematic-4k.jpg',
@@ -234,7 +246,13 @@ const REENCODED_IMAGE_PATHS=new Set([
   'assets/images/system-pfc-concept.jpg',
   'assets/images/system-zero-concept.jpg'
 ]);
-const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|charts|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|proposal-feedback|gallery|gallery-likes|experience|export|engineering)\.js|assets\/css\/(dashboard|closing|experience|app)\.css|quotation\.html|dashboard\.html|gallery\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|\.vercelignore|vercel\.json|\.github\/workflows\/(qa|deploy-guard)\.yml|scripts\/check-live\.cjs|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
+/* Owner-requested Tech Spec presentation round (2026-11-07): page 6 is the
+   sheet's densest page and it never had room for the four-icon strip. The
+   layout lives in app.css, its four values live in proposal-values.js and its
+   one-line lead lives in content.js - both files are named explicitly here
+   because this round is about that page's own copy and values, never about
+   another page's. Exact filenames only, no wildcard. */
+const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|charts|content|proposal-values|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|proposal-feedback|gallery|gallery-likes|experience|export|engineering)\.js|assets\/css\/(dashboard|closing|experience|app)\.css|quotation\.html|dashboard\.html|gallery\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|\.vercelignore|vercel\.json|\.github\/workflows\/(qa|deploy-guard)\.yml|scripts\/check-live\.cjs|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
 
 function git(repoRoot, args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
@@ -330,7 +348,7 @@ function deployConfigTouches(files) {
 function newAccessMigration(file,status){return file==='platform/migrations/011-workspace-access.sql'&&status==='A';}
 
 function scopeOffenders(files) {
-  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f) && !FEEDBACK_LOOP_PATHS.has(f) && !CALCULATOR_FILES.has(f));
+  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !EQUIPMENT_PHOTO_PATHS.test(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f) && !FEEDBACK_LOOP_PATHS.has(f) && !CALCULATOR_FILES.has(f));
 }
 
 /* The explicit golden baseline: HEAD's blob for every frozen file must
@@ -405,7 +423,7 @@ function verify(repoRoot, opts) {
 }
 
 module.exports = {
-  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, GALLERY_PAGE_PATHS, FEEDBACK_LOOP_PATHS, CALCULATOR_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
+  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, EQUIPMENT_PHOTO_PATHS, GALLERY_PAGE_PATHS, FEEDBACK_LOOP_PATHS, CALCULATOR_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
   resolveBase, changedFiles, worktreeStatus,
   frozenTouches, deployConfigTouches, scopeOffenders, newAccessMigration, baselineMatch, mainTip, verify, git
 };

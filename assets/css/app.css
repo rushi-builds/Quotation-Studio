@@ -1643,7 +1643,21 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 #pageSolution .spacer{max-height:32px;}
 #v_soSpecs{grid-template-columns:repeat(2,minmax(0,1fr));}
-#pageSolution .spec-card{padding:17px 18px;min-height:124px;}
+/* Page 5 carries eight figures before the drawing. As boxes they cost ~500px of
+   a 1020px page; as compact rows they cost ~140px and read faster, which is what
+   frees the room for the system drawing underneath. Same eight cards, same
+   two-column grid - only their shape changes. */
+#pageSolution .spec-card{
+  min-height:0;padding:6px 10px;display:flex;align-items:center;gap:8px;
+  text-align:left;border-radius:10px;
+  border:1px solid rgba(214,224,232,.9);
+  background:linear-gradient(180deg,#fff,#FCFDFE);
+  box-shadow:0 2px 6px rgba(18,48,74,.045);
+}
+#pageSolution .spec-card .icon-chip{margin-bottom:0;flex:none;transform:scale(.82);}
+#pageSolution .spec-card .spec-t{font-size:10.6px;font-weight:700;margin-bottom:1px;}
+#pageSolution .spec-card .card-desc{font-size:9.4px;line-height:1.45;}
+#pageSolution #v_soSpecs{gap:6px;row-gap:6px;}
 #pageSolution .spec-t{font-size:12px;}
 #pageSolution .spec-card .card-desc{font-size:11px;line-height:1.65;}
 
@@ -1873,3 +1887,225 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageInvestment.has-bom .inv-card{padding-top:8px;padding-bottom:8px;}
 #pageInvestment .spacer{flex:0 0 8px;min-height:8px;max-height:8px;}
 #pageInvestment.has-tax .spacer,#pageInvestment.has-bom .spacer{flex-basis:4px;min-height:4px;max-height:4px;}
+
+/* =========================================================
+   PAGE 6 — TECHNICAL SPECIFICATION (clean spec-sheet pass)
+   ---------------------------------------------------------
+   The page has to carry a diagram, a 30-row table, references
+   and an honesty note in one A4 sheet. It used to buy that
+   room by squeezing type and never left the value strip any
+   space. The rows now breathe on hairlines instead of fat
+   paddings, the lead is tighter, and the bottom of the sheet
+   keeps a fixed quiet zone for the four-icon strip.
+   ========================================================= */
+#pageTechSpec .pg-title{line-height:1.16;letter-spacing:-.2px;}
+#pageTechSpec .pg-sub{margin-top:3px;font-size:12px;letter-spacing:.1px;}
+#pageTechSpec .rule-orange{margin:6px 0 7px;}
+/* One short line says what the sheet is and where its numbers come from, so a
+   customer at the site reads it without needing the seller in the room. */
+#pageTechSpec .body-para{margin:0 0 7px;line-height:1.5;color:#5E7486;}
+/* The cards below label themselves; the old section intro is redundant. */
+#pageTechSpec #v_tsGroupsLabel{display:none;}
+
+/* Diagram: a light plate with a labelled head, not a muddy box. */
+#pageTechSpec .diagram-box{
+  margin-top:2px;padding:6px 12px 4px;border:1px solid var(--line-cool);
+  border-radius:12px;background:linear-gradient(180deg,#FCFDFE,#F7F9FB);
+}
+#pageTechSpec #v_tsDiagram svg{max-width:88%;margin-left:auto;margin-right:auto;display:block;}
+#pageTechSpec .diagram-box .sec-label{
+  background:none;padding:0;margin:0 0 4px;font-size:9px;letter-spacing:.13em;
+  color:#7A8794;display:flex;align-items:center;gap:7px;
+}
+#pageTechSpec .diagram-box .sec-label::before{
+  content:'';width:14px;height:2px;background:var(--orange);border-radius:2px;flex:none;
+}
+
+/* Page 5 - the proposed system, drawn, in the same plate language as the sheet. */
+/* The hero photograph is the page's one warm image: rounded and lifted, so it
+   reads as a print rather than a pasted rectangle. */
+#pageSolution .photo-top img{border-radius:12px;box-shadow:0 10px 24px rgba(18,48,74,.16);}
+
+#pageSolution .solution-system{
+  margin-top:10px;padding:8px 12px 6px;border:1px solid var(--line-cool);
+  border-radius:12px;background:linear-gradient(180deg,#FCFDFE,#F7F9FB);
+}
+#pageSolution .solution-system > .sec-label{
+  margin:0 0 6px;padding:4px 18px 4px 11px;font-size:8.8px;letter-spacing:.16em;
+  font-weight:700;color:#fff;display:inline-flex;align-items:center;gap:7px;
+  background:linear-gradient(100deg,#12304A,#1B4262);
+  border-radius:5px 0 5px 0;
+  clip-path:polygon(0 0,100% 0,calc(100% - 11px) 100%,0 100%);
+}
+#pageSolution .solution-system > .sec-label::before{
+  content:'';width:5px;height:5px;border-radius:50%;background:var(--orange);flex:none;
+}
+#pageSolution .solution-system .diagram svg{max-width:100%;margin:0 auto;display:block;}
+#pageSolution .solution-points{
+  list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid #E7EBEF;
+  display:grid;grid-template-columns:1fr 1fr;gap:5px 16px;
+}
+#pageSolution .solution-points li{position:relative;padding-left:11px;font-size:9px;line-height:1.4;color:#5E7486;}
+#pageSolution .solution-points li::before{
+  content:'';position:absolute;left:0;top:4px;width:5px;height:5px;border-radius:2px;background:#E08A2E;
+}
+#pageSolution .solution-points b{display:block;font-size:9.2px;color:#12304A;letter-spacing:.01em;}
+
+/* Section headers: a hairline band with the sheet's one accent. */
+/* Each group is its own card: a tinted head with a numbered badge and the
+   equipment brand, then its rows on white, then air before the next card. The
+   gap is a transparent top border on the head cell - no spacer row, no change
+   to the table's data, and it collapses to nothing when the ladder needs room. */
+#pageTechSpec .spec-table{
+  border-collapse:separate;border-spacing:0;counter-reset:specgroup;
+}
+#pageTechSpec .spec-table tr.spec-group td{
+  border-top:15px solid transparent;background-clip:padding-box;
+  background-color:#fff;background-image:none;
+  color:#12304A;font-size:10.4px;font-weight:700;letter-spacing:.075em;
+  padding:3.5px 12px 4px 10px;border-radius:13px 13px 0 0;counter-increment:specgroup;
+  vertical-align:middle;white-space:nowrap;
+  box-shadow:0 -1px 0 #EBEFF3,inset 0 -1px 0 #EDF1F5;
+}
+/* Section numbers and the brand are decoration the sheet can afford: both come
+   from CSS, so no row, value or group name changes and the table stays the data. */
+#pageTechSpec .spec-table tr.spec-group td::before{
+  content:counter(specgroup,decimal-leading-zero);
+  display:inline-block;box-sizing:border-box;width:19px;height:19px;line-height:19px;
+  margin-right:9px;border-radius:5px;
+  background:linear-gradient(160deg,#F0A24A,#E07C22);color:#fff;font-size:8.4px;
+  letter-spacing:.01em;text-align:center;vertical-align:middle;
+  box-shadow:0 1px 2px rgba(224,124,34,.28);
+}
+/* The equipment's own glyph, in the quiet blue the sheet uses for detail. */
+#pageTechSpec .ts-ico{
+  display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;
+  width:22px;height:22px;border-radius:50%;margin-right:9px;
+  background:#EFF5FA;border:1px solid #DDE9F2;
+}
+#pageTechSpec .ts-ico svg{display:block;}
+#pageTechSpec .spec-table tr.spec-group td{position:relative;}
+#pageTechSpec .spec-table tr.spec-group td::after{
+  content:attr(data-brand);position:absolute;right:14px;top:50%;
+  transform:translateY(-50%);padding:0;border:0;background:none;
+  font-size:9.6px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:#264A63;
+}
+/* A brand reads in its own colour when the sheet knows it, as a wordmark does. */
+#pageTechSpec .spec-table tr.spec-group[data-kind="modules"] td::after{color:#0F9D58;}
+#pageTechSpec .spec-table tr.spec-group[data-kind="inverter"] td::after{color:#E4741F;}
+#pageTechSpec .spec-table tr.spec-group[data-kind="mount"] td::after{color:#1F6FA8;}
+#pageTechSpec .spec-table tr.spec-group td[data-brand=""]::after{display:none;}
+/* The equipment photograph is the card's own right column: one cell that spans
+   every row of its card, with the picture placed inside it, so the rows alone
+   set the card's height and the picture simply fills what they give it. The
+   photograph is shown whole, never cropped. */
+#pageTechSpec .spec-table{table-layout:fixed;}
+#pageTechSpec .spec-table col:first-child{width:24%;}
+#pageTechSpec .spec-table col.col-photo{width:194px;}
+/* Two class selectors, so the general `td` rule that follows cannot reset the
+   shorthand and drop the picture to its natural size. */
+#pageTechSpec .spec-table td.spec-photo{
+  padding:0;width:194px;vertical-align:middle;
+  background-color:#fff;background-repeat:no-repeat;background-position:center;
+  background-size:contain;background-clip:content-box;
+}
+#pageTechSpec .spec-table td{
+  padding:4px 12px;border-bottom:1px solid #F1EFE9;vertical-align:top;
+  background:#fff;
+}
+#pageTechSpec .spec-table tr:not(.spec-group) td.spec-k{border-left:1px solid #EEF1F4;}
+#pageTechSpec .spec-table tr:not(.spec-group) td.spec-v{border-right:1px solid #EEF1F4;}
+/* The row that closes a card carries its bottom edge and its rounded feet. */
+#pageTechSpec .spec-table tr:not(.spec-group):has(+ tr.spec-group) td{
+  border-bottom:1px solid #E6E1D6;
+}
+#pageTechSpec .spec-table tr:not(.spec-group):has(+ tr.spec-group) td:first-child,
+#pageTechSpec .spec-table tr:not(.spec-group):last-child td:first-child{
+  border-bottom-left-radius:11px;
+}
+#pageTechSpec .spec-table tr:not(.spec-group):has(+ tr.spec-group) td:last-child,
+#pageTechSpec .spec-table tr:not(.spec-group):last-child td:last-child{
+  border-bottom-right-radius:11px;
+}
+/* The label column reads as one quiet panel down the page; values stay on
+   white, so the eye can scan a column of labels or a column of figures. */
+#pageTechSpec .spec-table .spec-k{
+  width:31%;color:#5E7486;font-weight:600;letter-spacing:.035em;text-transform:uppercase;
+  font-size:8.7px;line-height:1.5;background:#F8F9FB;padding-left:14px;
+  border-right:1px solid #EDF0F3;
+}
+#pageTechSpec .spec-table .spec-v{color:#162E42;font-weight:600;padding-left:14px;}
+#pageTechSpec .spec-table tr.spec-group+tr td{padding-top:4px;}
+#pageTechSpec .spec-table tr:last-child td{border-bottom:none;padding-bottom:2px;}
+#pageTechSpec .spec-table tr.is-eng td{padding:2.6px 12px;font-size:9.6px;}
+
+/* The section intro is a rule, not a pill: quiet, and it reads as the top of a
+   spec sheet rather than another button. */
+#pageTechSpec #v_tsGroupsLabel{
+  background:none;padding:0;margin:10px 0 7px;border-radius:0;
+  display:flex;align-items:center;gap:9px;
+  font-size:8.9px;letter-spacing:.16em;color:#8A93A0;font-weight:700;
+}
+#pageTechSpec #v_tsGroupsLabel::after{content:'';flex:1;height:1px;background:#E4DFD3;}
+
+/* References read as quiet chips, never as buttons. */
+#pageTechSpec .ts-refs{gap:7px;}
+#pageTechSpec .ts-refs .ts-ref{
+  padding:4px 9px;border-radius:8px;border:1px solid #E7EBEF;background:#FCFDFE;
+}
+#pageTechSpec .ts-refs .ts-ref .tr-l{font-size:8px;}
+#pageTechSpec .ts-refs .ts-ref .tr-v{font-size:8.3px;}
+#pageTechSpec .ts-ref-note{margin-top:4px;font-size:7.9px;}
+
+#pageTechSpec .note-box{
+  padding:8px 12px;border-radius:10px;
+  background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(250,246,239,.58));
+  border:1px solid rgba(224,180,134,.42);
+  font-size:8.5px;line-height:1.45;color:#63727F;margin-top:26px;
+  -webkit-backdrop-filter:blur(6px) saturate(1.1);backdrop-filter:blur(6px) saturate(1.1);
+  box-shadow:0 6px 16px rgba(18,48,74,.07),0 1px 0 rgba(255,255,255,.95) inset,
+             inset 2px 0 0 rgba(224,180,134,.85);
+}
+#pageTechSpec .note-box b{
+  color:#B5732C;font-size:8.2px;letter-spacing:.12em;text-transform:uppercase;
+  margin-right:5px;
+}
+
+/* The honesty note reads as the drawing's caption, where it belongs, so the
+   bottom of the sheet belongs to the four-icon strip alone: a 72px reserve is
+   the strip (42) plus the gap the band needs to stand clear of the table. */
+#pageTechSpec .pg-body{padding-bottom:86px;}
+/* The caption's text moved into the note box, but the element stays where the
+   fit ladder reads it: an invisible, zero-height floor above the value strip.
+   Hiding it outright reports a top of 0, which the ladder reads as "no room at
+   all" and answers by shrinking the drawing to 42%. */
+#pageTechSpec .ts-diagram-note{
+  position:absolute;left:var(--page-pad);right:var(--page-pad);bottom:104px;
+  margin:0;height:0;overflow:hidden;font-size:0;line-height:0;color:transparent;
+}
+
+/* The drawing lives on page 5 now. What stays on page 6 is an empty box and the
+   caption element, which the fit ladder still reads as this page's second floor
+   - so every measurement the sheet makes is unchanged. Declared last so it wins
+   over the plate's own padding. */
+#pageTechSpec .diagram-box{border:0;background:none;padding:0;margin:0;height:0;overflow:visible;}
+#pageTechSpec .diagram-box > .sec-label{display:none;}
+#pageTechSpec .diagram-box > .diagram{display:none;}
+
+/* The row chips are warm, not solid: a peach disc with the orange glyph, which
+   is what the reference sheet does and what keeps eight of them from shouting. */
+#pageSolution .spec-card .icon-chip{
+  background:#FDF0E3 !important;
+  box-shadow:inset 0 0 0 1px #F2DCC2 !important;
+}
+#pageSolution .spec-card .icon-chip svg *{stroke:#E07C22 !important;}
+#pageSolution .spec-card .icon-chip svg circle[fill-opacity]{fill:#E07C22 !important;}
+
+/* An orange corner peeks from behind the hero photograph. */
+#pageSolution .photo-top::before{
+  content:'';position:absolute;left:-7px;top:-7px;width:64px;height:64px;z-index:0;
+  border-radius:14px;background:linear-gradient(140deg,#F3A24B,#E0791F);
+}
+#pageSolution .photo-top img{position:relative;z-index:1;}
+#pageSolution .pg-title em{font-style:normal;color:var(--orange);}

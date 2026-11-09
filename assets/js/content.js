@@ -134,7 +134,7 @@ const CONTENT = {
   pageTechSpec: {
     heading: 'Technical System Specification',
     sub: 'The Components Behind Your Generation',
-    para: 'Every component in your system is specified below - selected for compatibility, certified performance and long-term reliability. This is the exact equipment basis on which your generation estimate and quotation are built.',
+    para: 'Every value below comes from the manufacturer\u2019s datasheet for the equipment proposed on your site.',
     diagramTitle: 'SYSTEM OVERVIEW',
     diagramLabels: {
       array: 'Rooftop Solar',
@@ -149,7 +149,7 @@ const CONTENT = {
       home: 'Your Property',
       arrayValue: '{moduleCount} × {moduleWattage} Wp modules',
       inverterValue: '{inverterRating}',
-      note: 'Conceptual grid-tied layout, not a wiring plan. Protection and import/export are subject to site design and DISCOM approval.'
+      note: ''
     },
     groupsLabel: 'DETAILED SPECIFICATION',
     refsLabel: 'DESIGN & SIMULATION REFERENCES',
@@ -157,7 +157,7 @@ const CONTENT = {
     refsArka: 'Arka 3D Shading & Layout Design',
     refsNote: 'Externally prepared engineering documents for this site. The proposal presents their conclusions; the linked reports remain the authoritative source.',
     noteLabel: 'NOTE',
-    note: 'Exact module and inverter models are confirmed at order confirmation. Substitutions, if any, are made only with equal or better certified products and communicated in writing.'
+    note: 'Conceptual grid-tied layout - site conditions, DISCOM approval and final equipment models can vary slightly.'
   },
 
   /* ------------------------------------------------------------------ */
