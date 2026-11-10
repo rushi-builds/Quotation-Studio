@@ -61,7 +61,7 @@
      cable the sheet names when it does not; earthing is the quiet default. */
   'other:havells':'havells-cable.webp',
   'other:polycab':'polycab-cable.webp',
-  'other:earthing':'earthing.webp',
+  'other:earthing':'../customer/earthing-system.webp',
   'other:acdb':'acdb-dcdb.webp'
  };
  const PHOTO_FALLBACK={
