@@ -19,8 +19,8 @@
         font:600 11.5px Inter;padding:7px 13px;border-right:1px solid var(--line)}
   .switch button:last-child{border-right:0}
   .switch button[aria-pressed="true"]{background:var(--ink);color:#fff}
-  .wrap{max-width:900px;margin:22px auto 60px;padding:0 16px}
-  .stage{background:#fff;border-radius:5px;box-shadow:0 6px 30px rgba(20,38,58,.16);overflow:hidden}
+  .wrap{max-width:840px;margin:22px auto 60px;padding:0 16px}
+  .stage{background:#fff;border-radius:5px;box-shadow:0 6px 30px rgba(20,38,58,.16);overflow:hidden;max-width:840px;margin:0 auto}
   iframe{display:block;width:100%;border:0;background:#fff}
   .note{max-width:900px;margin:14px auto 0;padding:0 16px;font:500 11px/1.6 Inter;color:var(--muted)}
   .note b{color:var(--ink)}
@@ -81,7 +81,21 @@
     const host = frame.contentWindow;
     host.scrollTo(0, host.scrollY + rect.top - 12);
 
-    const height = Math.ceil(1123 * scale) + 26;   /* A4 sheet at the live width */
+    /* Draw the sheet at 1:1. The iframe is 840px wide and the A4 sheet is 794,
+       so this preview used to scale the whole page to about 55% and then show
+       that - which is why every image and every label looked soft here while
+       staying sharp in the PDF. Force scale 1 and give the sheet its real
+       height; the stage is allowed to be 840px wide so nothing overflows. */
+    const style = doc.getElementById('pv1x') || doc.createElement('style');
+    style.id = 'pv1x';
+    style.textContent = ':root{--page-scale:1 !important}' +
+      '.page-wrap{width:794px !important;height:1123px !important;transform:none !important}' +
+      '.page{transform:none !important;transform-origin:top left !important}' +
+      '.preview-panel{width:794px !important}';
+    doc.head.appendChild(style);
+    host.dispatchEvent(new Event('resize'));
+
+    const height = 1123 + 26;   /* A4 at 1:1 */
     frame.style.height = height + 'px';
     stage.style.height = height + 'px';
   }

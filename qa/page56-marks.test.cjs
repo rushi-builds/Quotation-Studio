@@ -240,18 +240,44 @@ t('the system overview is the owner’s artwork, not a code-built diagram', () =
 });
 
 t('the artwork is not dressed a second time', () => {
-  /* The render carries its own ribbon, captions and note. Printing ours around it
-     is what made the page look like the render had been pasted over the old
-     layout - the same two things twice. */
-  assert.match(js, /ov\.innerHTML = '<div class="pv2-ov-box">' \+ overviewArt\(\) \+ '<\/div>';/,
-    'no label is emitted above the artwork');
-  assert.doesNotMatch(js, /label\(P\.diagramTitle/, 'the SYSTEM OVERVIEW ribbon comes from the render, not the page');
+  /* The render was cropped down to just the flow box, so the section keeps the
+     page's own ribbon - but must not print a second note under it, because the
+     render's note is still in the artwork. */
+  assert.match(js, /label\(P\.diagramTitle \|\| 'SYSTEM OVERVIEW'\) \+ '<div class="pv2-ov-box">'/,
+    'the ribbon is the page’s own again');
+  assert.doesNotMatch(js, /pv2-ov-box">' \+ overviewArt\(\) \+ '.*note/i, 'and no second note is printed');
   /* The scope note is suppressed only while it is boilerplate: the renderer puts
      a real scope sentence in that element when a battery or rainwater system is
      quoted, and that one must survive. */
   assert.match(js, /const basic = \/\^The exact equipment ratings are listed in Technical Specification/,
     'boilerplate is recognised by its own opening words');
   assert.match(js, /scopeNote\.hidden = basic\.test/, 'and only that is hidden');
+});
+
+t('the overview render is stored at full resolution', () => {
+  /* He caught the blur: the first version was downscaled to 1400px and then drawn
+     into a 718px box on a sheet that the preview also scaled down. It is now kept
+     at the source's own 2144px, so the sheet never has to stretch it. */
+  const buf = fs.readFileSync(path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp'));
+  const size = (() => {
+    /* WebP VP8X / VP8L / VP8 header dims, no decoder needed for a floor check. */
+    const i = buf.indexOf('WEBP');
+    if (i < 0) return { w: 0, h: 0 };
+    const kind = buf.slice(i + 4, i + 8).toString();
+    if (kind === 'VP8X') return { w: 1 + buf.readUIntLE(i + 12, 3), h: 1 + buf.readUIntLE(i + 15, 3) };
+    if (kind === 'VP8 ') return { w: buf.readUInt16LE(i + 14) & 0x3fff, h: buf.readUInt16LE(i + 16) & 0x3fff };
+    return { w: 0, h: 0 };
+  })();
+  assert.ok(size.w >= 2000, `the render must stay at source width, got ${size.w}px`);
+});
+
+t('the DC / AC pills are drawn by the page, outlined, in green and orange', () => {
+  assert.match(js, /class="pv2-pill is-dc"[^>]*>DC</, 'DC pill');
+  assert.match(js, /class="pv2-pill is-ac"[^>]*>AC</, 'AC pill');
+  assert.match(css, /\.pv2-solution \.pv2-pill\{[^}]*border:1\.6px solid currentColor/,
+    'outlined, as in the reference');
+  assert.match(css, /\.pv2-solution \.pv2-pill\.is-dc\{[^}]*color:#1E9E63/, 'DC is green');
+  assert.match(css, /\.pv2-solution \.pv2-pill\.is-ac\{[^}]*color:#F2811D/, 'AC is orange');
 });
 
 t('the overview box adds no frame of its own around that render', () => {

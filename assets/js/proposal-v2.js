@@ -125,11 +125,21 @@
     return 'check';
   }
   const OVERVIEW_ART = IMG + 'proposal/system-overview-flow.webp';
-  /* The owner supplied the finished overview - nodes, DC/AC badges, captions and
-     the Import / Export labels are all in the render - so the page shows his
-     artwork instead of a code-built diagram. */
+  /* The owner supplied the finished overview - nodes, captions, the DC/AC
+     grouping and the Import / Export labels are all in the render - so the page
+     shows his artwork instead of a code-built diagram. Its own DC / AC badges sat
+     above the flow box and were cropped away with it, so the page draws those:
+     outlined pills in green and orange, as the reference he sent. The meter <-> grid
+     link he asked to improve is patched into the raster itself - it is artwork,
+     not markup, so it cannot be overlaid. */
+  const FLOW_MARKS =
+    '<span class="pv2-pill is-dc" aria-hidden="true">DC</span>' +
+    '<span class="pv2-pill is-ac" aria-hidden="true">AC</span>';
   function overviewArt() {
-    return '<img class="pv2-ov-art" src="' + OVERVIEW_ART + '" alt="Solar to grid system overview" decoding="sync">';
+    const alt = 'Solar to grid system overview';
+    return '<span class="pv2-ov-stack">' +
+      '<img class="pv2-ov-art" src="' + OVERVIEW_ART + '" alt="' + alt + '" decoding="sync">' +
+      FLOW_MARKS + '</span>';
   }
   function flowDiagram(s, f) {
     const P = (root.CONTENT && root.CONTENT.pageTechSpec && root.CONTENT.pageTechSpec.diagramLabels) || {};
@@ -198,11 +208,10 @@
       body.insertBefore(ov, $('v_soScopeNote') || null);
     }
     const P = (root.CONTENT && root.CONTENT.pageTechSpec) || {};
-    /* No label and no note bar around the artwork: it already carries its own
-       ribbon, its captions and its own note. Printing ours as well was what made
-       the page look like the render had simply been pasted on top of the old
-       layout - the same two things twice. The artwork IS the section. */
-    ov.innerHTML = '<div class="pv2-ov-box">' + overviewArt() + '</div>';
+    /* The artwork was cropped down to just the flow box, so the section heading is
+       the page's own again. The box no longer prints a second note - the render
+       carries that - which is what stopped the section reading as duplication. */
+    ov.innerHTML = label(P.diagramTitle || 'SYSTEM OVERVIEW') + '<div class="pv2-ov-box">' + overviewArt() + '</div>';
     /* The artwork carries its own note, so the boilerplate scope note would print
        the same advice twice. It is only suppressed while it is boilerplate: when
        an additional system (battery, rainwater) is quoted, the renderer puts the
