@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Page 5 &amp; 6 — isolated preview</title>
+<style>
+  :root{--ink:#14263A;--muted:#5B6472;--line:#E3E7EE;--accent:#E5741A;}
+  *{box-sizing:border-box}
+  html,body{background:#e9edf2;margin:0;padding:0;font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--ink)}
+  .top{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);
+       display:flex;align-items:center;gap:12px;padding:11px 20px;box-shadow:0 2px 10px rgba(20,38,58,.05)}
+  .top b{font:700 14px Poppins,Inter,sans-serif}
+  .top span{font:500 11px Inter;color:var(--muted)}
+  .pill{font:700 8.5px Inter;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px;
+        border-radius:4px;background:#FFF1E3;color:var(--accent);margin-left:auto;white-space:nowrap}
+  .switch{display:flex;gap:0;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-left:14px}
+  .switch button{appearance:none;border:0;background:#fff;color:var(--muted);cursor:pointer;
+        font:600 11.5px Inter;padding:7px 13px;border-right:1px solid var(--line)}
+  .switch button:last-child{border-right:0}
+  .switch button[aria-pressed="true"]{background:var(--ink);color:#fff}
+  .wrap{max-width:900px;margin:22px auto 60px;padding:0 16px}
+  .stage{background:#fff;border-radius:5px;box-shadow:0 6px 30px rgba(20,38,58,.16);overflow:hidden}
+  iframe{display:block;width:100%;border:0;background:#fff}
+  .note{max-width:900px;margin:14px auto 0;padding:0 16px;font:500 11px/1.6 Inter;color:var(--muted)}
+  .note b{color:var(--ink)}
+  .loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+        font:600 12px Inter;color:var(--muted);background:#fff}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <b>Page 5 &amp; Page 6</b>
+  <span>live render from this branch</span>
+  <div class="switch">
+    <button id="b5" aria-pressed="true">Page 5</button>
+    <button id="b6" aria-pressed="false">Page 6</button>
+  </div>
+  <span class="pill">PR #59</span>
+</div>
+
+<div class="wrap">
+  <div class="stage" id="stage">
+    <iframe id="frame" title="Page preview" src="quotation.html"></iframe>
+  </div>
+</div>
+
+<div class="note">
+  <b>Kaise dekha ja raha hai:</b> ye page asli <code>quotation.html</code> ko load karta hai
+  (wahi CSS/JS jo PR #59 me hai) aur sirf target page tak scroll karke usko crop karta hai.
+  Isliye jo yahan dikh raha hai, bilkul wahi app me hai — koi mock nahi.
+</div>
+
+<script>
+/* The real studio is the only thing that can draw page 5/6 correctly: both
+   pages are produced by the live render pipeline, not by static markup. So this
+   preview loads quotation.html once and moves the viewport to the page being
+   asked for, then crops the iframe to exactly that sheet. */
+(function () {
+  const frame = document.getElementById('frame');
+  const stage = document.getElementById('stage');
+  const b5 = document.getElementById('b5');
+  const b6 = document.getElementById('b6');
+  const TARGETS = { 5: 'pageSolution', 6: 'pageTechSpec' };
+  let current = 5;
+  let ready = false;
+
+  function show(which) {
+    current = which;
+    b5.setAttribute('aria-pressed', String(which === 5));
+    b6.setAttribute('aria-pressed', String(which === 6));
+    if (!ready) return;
+    const doc = frame.contentDocument;
+    const page = doc && doc.getElementById(TARGETS[which]);
+    if (!page) return;
+
+    /* Let the studio finish measuring/fitting before we crop to the sheet. */
+    const rect = page.getBoundingClientRect();
+    const scale = rect.width / page.offsetWidth || 1;
+    const host = frame.contentWindow;
+    host.scrollTo(0, host.scrollY + rect.top - 12);
+
+    const height = Math.ceil(1123 * scale) + 26;   /* A4 sheet at the live width */
+    frame.style.height = height + 'px';
+    stage.style.height = height + 'px';
+  }
+
+  frame.addEventListener('load', function () {
+    const doc = frame.contentDocument;
+    const host = frame.contentWindow;
+    /* The studio announces itself with .studio-ready; wait for it, then render. */
+    let tries = 0;
+    (function wait() {
+      if (doc.querySelector('.studio-ready') || tries > 120) {
+        ready = true;
+        /* Keep the iframe's own layout from being affected by the crop. */
+        const style = doc.createElement('style');
+        style.textContent = '.page-wrap{scroll-margin-top:12px}';
+        doc.head.appendChild(style);
+        show(current);
+        return;
+      }
+      tries++;
+      setTimeout(wait, 100);
+    })();
+    /* Re-crop whenever the sheet resizes (fonts, images, fit steps). */
+    setTimeout(function () { show(current); }, 900);
+    setTimeout(function () { show(current); }, 2200);
+    host.addEventListener('resize', function () { show(current); });
+  });
+
+  b5.addEventListener('click', function () { show(5); });
+  b6.addEventListener('click', function () { show(6); });
+})();
+</script>
+</body>
+</html>
