@@ -6,12 +6,21 @@ not encoded in the file name:
 
     assets/images/equipment/cards/
       solar-module-card.webp        # card 01 - solar modules
-      solis-inverter.webp           # card 02 - inverter
+      solis-inverter.webp           # card 02 - inverter (fallback / Solis)
+      inverter-huawei.webp          # card 02 - Huawei make
+      inverter-sungrow.webp         # card 02 - Sungrow make
+      inverter-growatt.webp         # card 02 - Growatt make
+      inverter-fronius.webp         # card 02 - Fronius make
+      inverter-deye.webp            # card 02 - Deye make
       mount-structure-callouts.webp # card 03 - mounting & cabling
       earthing-safety-3pit.webp     # card 04 - electrical safety (LA / DC / AC)
 
-`assets/js/proposal-v2.js` maps each card kind to its file in `CARD_PHOTO`.
-Swapping a photo means replacing the file, not editing any code.
+`assets/js/proposal-v2.js` maps each card kind to its file in `CARD_PHOTO`; the
+inverter card first looks in `INVERTER_PHOTO` for the make the quotation names,
+because these studio renders print the maker's logo on the product itself. A
+make with no render here (Polycab, Waaree, a custom name) falls back to
+`solis-inverter.webp`. Swapping a photo means replacing the file, not editing
+any code.
 
 Everything in this folder comes from the owner's `5&6 pages` Drive folder. Do
 not add brand-wise spares here: whichever make a quotation names, the card keeps

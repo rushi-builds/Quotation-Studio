@@ -168,17 +168,29 @@
     solis: 'solis', sungrow: 'sungrow'
   };
   const slug = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  /* One photograph per card, taken from the owner's page 5/6 set. The four
-     cards are the four things the page shows, so there is nothing to switch on:
-     the make is printed on the card by brandMark(), and the inverter card's
-     own studio shot stands for whichever make the quotation names. */
+  /* One photograph per card, taken from the owner's page 5/6 set. Modules,
+     structure and safety keep a single shot each; the inverter card carries the
+     studio shot of the make the quotation actually names where the set has one,
+     because these renders print their own logo on the product. */
   const CARD_PHOTO = {
     module: IMG + 'equipment/cards/solar-module-card.webp',
     inverter: IMG + 'equipment/cards/solis-inverter.webp',
     mount: IMG + 'equipment/cards/mount-structure-callouts.webp',
     design: IMG + 'equipment/cards/earthing-safety-3pit.webp'
   };
-  function photoFor(kind) {
+  const INVERTER_PHOTO = {
+    huawei: IMG + 'equipment/cards/inverter-huawei.webp',
+    solis: IMG + 'equipment/cards/solis-inverter.webp',
+    sungrow: IMG + 'equipment/cards/inverter-sungrow.webp',
+    growatt: IMG + 'equipment/cards/inverter-growatt.webp',
+    fronius: IMG + 'equipment/cards/inverter-fronius.webp',
+    deye: IMG + 'equipment/cards/inverter-deye.webp'
+  };
+  function photoFor(kind, brand) {
+    if (kind === 'inverter' && brand) {
+      const key = slug(brand).split('-')[0];
+      if (INVERTER_PHOTO[key]) return INVERTER_PHOTO[key];
+    }
     return CARD_PHOTO[kind] || IMG + 'equipment/cards/earthing-safety-3pit.webp';
   }
   function rowIcon(k) {
@@ -248,7 +260,7 @@
       if (c.kind === 'module' || c.kind === 'inverter') brand = val(/^(make|brand)$/i);
       else if (c.kind === 'mount') brand = 'ARS';
       brand = brand.replace(/\s+/g, ' ').trim();
-      const photo = photoFor(c.kind);
+      const photo = photoFor(c.kind, brand);
       const title = c.name.charAt(0) + c.name.slice(1).toLowerCase();
       return '<article class="pv2-card is-' + c.kind + '">' +
         '<header class="pv2-card-head"><span class="pv2-num">' + String(i + 1).padStart(2, '0') + '</span>' +
