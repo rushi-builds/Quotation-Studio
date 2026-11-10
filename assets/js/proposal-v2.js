@@ -170,12 +170,12 @@
   const slug = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   /* One photograph per card, taken from the owner's page 5/6 set. The four
      cards are the four things the page shows, so there is nothing to switch on:
-     the brand is still printed on the card by brandMark(), and the inverter
-     card's own studio shot stands for whichever make the sheet names. */
+     the make is printed on the card by brandMark(), and the inverter card's
+     own studio shot stands for whichever make the quotation names. */
   const CARD_PHOTO = {
     module: IMG + 'equipment/cards/solar-module-card.webp',
     inverter: IMG + 'equipment/cards/solis-inverter.webp',
-    mount: IMG + 'equipment/cards/ars-structure.webp',
+    mount: IMG + 'equipment/cards/mount-structure-callouts.webp',
     design: IMG + 'equipment/cards/earthing-safety-3pit.webp'
   };
   function photoFor(kind) {
