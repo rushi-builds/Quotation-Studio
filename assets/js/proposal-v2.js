@@ -177,7 +177,10 @@
     waaree: 'waaree', adani: 'adani', longi: 'longi', tata: 'tata', vikram: 'vikram',
     premier: 'premier', renew: 'renew', renewsys: 'renewsys', panasonic: 'anchor', anchor: 'anchor',
     growatt: 'growatt', fronius: 'fronius', deye: 'deye', huawei: 'huawei', fusionsolar: 'huawei',
-    solis: 'solis', sungrow: 'sungrow'
+    solis: 'solis', sungrow: 'sungrow',
+    /* The structure card's own make. Drafted from the owner's mark, not a logo
+       of a foreign brand, so it rides the same badge as the rest. */
+    ars: 'ars-solartech'
   };
   const slug = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   /* One photograph per card, taken from the owner's page 5/6 set. Modules,
@@ -231,7 +234,7 @@
     if (kind === 'design') return '<div class="pv2-brand is-std"><b>IS / IEC</b><small>Lightning &amp; earthing</small></div>';
     if (!brand) return '';
     const key = slug(brand).split('-')[0];
-    if (key === 'ars' || key === 'solartech' || key === 'solar') return '<div class="pv2-brand is-ars"><b>ARS</b><small>Solar Tech</small></div>';
+    if (key === 'ars' || key === 'solartech' || key === 'solar') brand = 'ARS Solar Tech';
     const logo = BRAND_LOGOS[key] || BRAND_LOGOS[slug(brand)];
     if (logo) {
       return '<div class="pv2-brand is-logo"><img src="' + IMG + 'brands/' + logo + '.webp" alt="' + esc(brand) + '" decoding="sync"></div>';

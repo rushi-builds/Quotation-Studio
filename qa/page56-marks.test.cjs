@@ -145,7 +145,8 @@ t('REGRESSION: the note rule outweighs app.css `#pageTechSpec .note-box`', () =>
   const blocks = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)];
   assert.ok(blocks.length >= 2, 'the shared note-bar rule and the page-6 override both exist');
   const block = blocks[blocks.length - 1][1];
-  for (const prop of ['background:', 'border:', 'box-shadow:', 'backdrop-filter:none', 'padding:', 'font-size:']) {
+  /* font-size now rides the `font:` shorthand, which resets it just as well. */
+  for (const prop of ['background:', 'border:', 'box-shadow:', 'backdrop-filter:none', 'padding:', 'font:']) {
     assert.ok(block.includes(prop), `the override must re-set ${prop} instead of leaving app.css' value`);
   }
 });
@@ -215,6 +216,48 @@ t('the space came from padding and gaps, not from shrinking the body copy', () =
   const rowSize = Number((css.match(/\.pv2-tech \.pv2-k\{[^}]*font:(?:\d+ )?([\d.]+)px/) || [])[1]);
   assert.ok(noteSize >= 9.8, `note text ${noteSize}px would be smaller than the 9.8px it shipped at`);
   assert.ok(rowSize >= 10, `row text ${rowSize}px would be smaller than the 10.2px it shipped at`);
+});
+
+/* ------------------------------- page 6 note reads as a fifth specification row */
+t('the note is laid out as a row of the card (41% / 59%), not a floating box', () => {
+  const block = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)].pop()[1];
+  assert.match(block, /grid-template-columns:41% 59%/,
+    'same column split as .pv2-row, so Important lines up under Lightning Protection');
+  assert.match(block, /border:1px solid #E1E6ED/, 'same frame as a row');
+  assert.match(block, /border-radius:8px/, 'same corner radius as the row stack');
+});
+
+t('the Important label keeps the key-column tint and an orange bullet', () => {
+  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel\{[\s\S]{0,300}?background:#F2F4F8/,
+    'label sits on the same #F2F4F8 key column as Structure / Cabling / Earthing');
+  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel::before\{[^}]*background:#F2811D/,
+    'an orange square stands in for the row icons');
+  /* The old round "i" badge must not come back on this row. */
+  const before = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box::before\{([^}]*)\}/g)].pop()[1];
+  assert.match(before, /content:none/, 'the circular info dot is switched off for this row');
+});
+
+/* --------------------------------------------- ARS is a marked make now */
+t('ARS prints its own mark on the structure card instead of set type', () => {
+  assert.match(js, /ars: 'ars-solartech'/, 'BRAND_LOGOS carries the structure make');
+  assert.doesNotMatch(js, /is-ars"><b>ARS<\/b>/, 'the hand-built ARS wordmark is gone');
+  assert.match(js, /brand = 'ARS Solar Tech'/, 'and the typed fallback names the full make');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/brands/ars-solartech.webp')),
+    'the mark file exists');
+});
+
+/* --------------------------------------- page 5 overview got its room back */
+t('the system overview artwork is taller than it was', () => {
+  assert.match(css, /\.pv2 \.pv2-node-art\{height:108px/, 'node artwork 84px -> 108px');
+  assert.match(css, /\.pv2-solution\.pv2-fit-2 \.pv2-node-art\{height:92px;\}/,
+    'and the tight step keeps most of that gain (was 70px)');
+});
+
+t('overview, note and value band share one gap value on page 5', () => {
+  const gaps = [...css.matchAll(/\.pv2-solution (\.pv2-overview|#v_soScopeNote|\.pv2-values-wrap)\{margin-top:(\d+)px;\}/g)]
+    .map((m) => Number(m[2]));
+  assert.equal(gaps.length, 3, 'all three blocks declare their own gap');
+  assert.equal(new Set(gaps).size, 1, `all three must agree, got ${gaps.join(' / ')} px`);
 });
 
 /* ------------------------------------------------------------- CSS sanity */

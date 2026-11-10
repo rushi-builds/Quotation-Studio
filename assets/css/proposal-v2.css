@@ -29,22 +29,33 @@
    exactly what happened. The selectors below match or exceed that weight
    (0-2-1-0 and 0-2-2-0) and set every property the base rule sets, so nothing
    leaks through. */
+/* The note reads as a FIFTH ROW of the specification cards, not a floating
+   advice box: same frame, same 41% / 59% column split, same key column tint, so
+   "Important" sits directly under "Lightning Protection" and looks like part of
+   the same list. It stays a <div> because the copy is a single authored
+   sentence, not a key/value pair. */
 #pageTechSpec.pv2 .pg-body > .note-box{
-  display:flex;align-items:center;gap:9px;
-  padding:8px 14px;font-size:9.8px;line-height:1.45;margin-top:8px;text-align:left;
-  background:#FFF1E3;border:0;border-radius:10px;box-shadow:none;
-  -webkit-backdrop-filter:none;backdrop-filter:none;color:var(--pv2-ink);min-height:0;
+  position:relative;display:grid;grid-template-columns:41% 59%;align-items:stretch;
+  margin-top:8px;padding:0;text-align:left;min-height:0;
+  background:#fff;border:1px solid #E1E6ED;border-radius:8px;box-shadow:none;
+  -webkit-backdrop-filter:none;backdrop-filter:none;
+  font:500 10.2px/1.3 'Inter',sans-serif;color:#1F2A38;overflow:hidden;
 }
-#pageTechSpec.pv2 .pg-body > .note-box::before{
-  position:static;transform:none;left:auto;top:auto;flex:none;width:18px;height:18px;
-  border-radius:50%;background:#F2811D;color:#fff;font:700 11px/18px Georgia,serif;text-align:center;
-}
+#pageTechSpec.pv2 .pg-body > .note-box::before{content:none;display:none;}
 #pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel{
-  position:static;transform:none;letter-spacing:0;margin:0;text-transform:capitalize;
-  font:700 10.4px/1.45 'Poppins','Inter',sans-serif;color:#E5741A;white-space:nowrap;flex:none;
+  position:static;display:flex;align-items:center;gap:9px;
+  margin:0;padding:4px 8px 4px 9px;white-space:nowrap;
+  background:#F2F4F8;color:var(--pv2-navy);text-transform:none;
+  font:600 10.2px/1.25 'Inter',sans-serif;
+}
+/* An orange key bullet stands in for the row icons the other rows carry. */
+#pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel::before{
+  content:'';flex:none;width:8px;height:8px;border-radius:2px;background:#F2811D;
 }
 #pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel::after{content:':';}
-#pageTechSpec.pv2 .pg-body > .note-box #v_tsNote{flex:1 1 auto;color:var(--pv2-ink);}
+#pageTechSpec.pv2 .pg-body > .note-box #v_tsNote{
+  display:flex;align-items:center;padding:4px 9px 4px 12px;color:#1F2A38;
+}
 
 /* The white sheet and its bottom-right petal artwork come from the generic page
    rule (proposal-values.css). proposal-v2.css is loaded later, so its gradient
@@ -99,14 +110,14 @@
 .pv2-solution #v_soSpecs .pv2-feature .spec-t{grid-column:2;font:700 11.5px/1.25 'Poppins','Inter',sans-serif;color:var(--pv2-navy);margin:0;}
 .pv2-solution #v_soSpecs .pv2-feature .card-desc{grid-column:3;border-left:1px solid #DDE2E9;padding-left:12px;font-size:9.6px;line-height:1.38;color:#2D3846;margin:0;}
 
-.pv2-solution .pv2-overview{margin-top:16px;}
-.pv2-solution .pv2-ov-box{margin-top:-1px;background:#fff;border:1px solid #E4E8EE;border-radius:12px;box-shadow:0 2px 9px rgba(20,38,58,.05);padding:18px 10px 12px;}
+.pv2-solution .pv2-overview{margin-top:14px;}
+.pv2-solution .pv2-ov-box{margin-top:-1px;background:#fff;border:1px solid #E4E8EE;border-radius:12px;box-shadow:0 2px 9px rgba(20,38,58,.05);padding:20px 10px 14px;}
 .pv2 .pv2-flow{display:flex;align-items:flex-start;justify-content:space-between;}
 .pv2 .pv2-node{position:relative;flex:0 0 auto;width:66px;text-align:center;display:flex;flex-direction:column;align-items:center;}
 .pv2 .pv2-node.is-panel{width:98px;}.pv2 .pv2-node.is-house{width:76px;}
 .pv2 .pv2-node.is-meter{width:80px;}
 .pv2 .pv2-node.is-grid{width:96px;}
-.pv2 .pv2-node-art{height:84px;width:100%;display:flex;align-items:flex-end;justify-content:center;margin-bottom:6px;}
+.pv2 .pv2-node-art{height:108px;width:100%;display:flex;align-items:flex-end;justify-content:center;margin-bottom:7px;}
 .pv2 .pv2-node-art img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;filter:drop-shadow(0 3px 4px rgba(20,38,58,.12));}
 .pv2 .pv2-node.is-panel img{max-height:72px;}
 .pv2 .pv2-node.is-box img{max-height:58px;}
@@ -122,8 +133,8 @@
 .pv2 .pv2-badge.is-dc{background:#F2811D;}
 .pv2 .pv2-badge.is-ac{background:#3A7BC8;}
 .pv2 .pv2-arrow{flex:0 0 auto;margin-top:46px;display:flex;}.pv2 .pv2-arrow svg{width:24px;height:12px;}
-.pv2-solution #v_soScopeNote{margin-top:16px;}
-.pv2-solution .pv2-values-wrap{margin-top:16px;}
+.pv2-solution #v_soScopeNote{margin-top:14px;}
+.pv2-solution .pv2-values-wrap{margin-top:14px;}
 
 /* hide what the new layout replaces on page 5 */
 .pv2-solution .proposal-value-footer,.pv2-solution .solution-system{display:none!important;}
@@ -131,8 +142,8 @@
 /* tighter steps, applied only when the page is measured as full */
 .pv2-solution.pv2-fit-1 .spacer{max-height:10px;}
 .pv2-solution.pv2-fit-1 #v_soSpecs .spec-card{min-height:50px;padding-top:5px;padding-bottom:5px;}
-.pv2-solution.pv2-fit-2 .pv2-overview,.pv2-solution.pv2-fit-2 #v_soScopeNote,.pv2-solution.pv2-fit-2 .pv2-values-wrap{margin-top:10px;}
-.pv2-solution.pv2-fit-2 .pv2-node-art{height:70px;}
+.pv2-solution.pv2-fit-2 .pv2-overview,.pv2-solution.pv2-fit-2 #v_soScopeNote,.pv2-solution.pv2-fit-2 .pv2-values-wrap{margin-top:11px;}
+.pv2-solution.pv2-fit-2 .pv2-node-art{height:92px;}
 .pv2-solution.pv2-fit-3 .pv2-values-wrap{display:none;}
 
 /* ================= PAGE 6 ================= */
@@ -144,7 +155,6 @@
 .pv2-tech .pv2-card-head{margin:0 2px 4px 0;min-height:26px;}
 .pv2-tech .pv2-card{padding:6px 8px 6px 10px;}
 .pv2-tech .pv2-row .pv2-k,.pv2-tech .pv2-row .pv2-v{padding-top:3px;padding-bottom:3px;}
-.pv2-tech .pg-body > .note-box{margin-top:8px;padding-top:8px;padding-bottom:8px;}
 .pv2-tech #v_tsPara{margin-bottom:0;}
 .pv2-tech #v_tsHeading{font:800 32px/1.12 'Poppins','Inter',sans-serif;color:var(--pv2-navy);letter-spacing:-.5px;margin:0;}
 .pv2-tech #v_tsSub{font:600 15px/1.3 'Poppins','Inter',sans-serif;color:#F2811D;margin:4px 0 0;}
@@ -191,7 +201,7 @@
   background:radial-gradient(circle at 0 0,transparent 29px,#F2811D 30px);}
 .pv2-tech #v_tsRefsWrap{margin-top:8px;}
 .pv2-tech #v_tsRefsWrap .sec-label{margin-top:0;}
-.pv2-tech .pg-body > .note-box{margin-top:12px;}
+
 .pv2-tech .proposal-value-footer{display:none!important;}
 
 .pv2-tech.pv2-fit-1 .pv2-k,.pv2-tech.pv2-fit-1 .pv2-v{padding-top:3px;padding-bottom:3px;font-size:9.8px;}
