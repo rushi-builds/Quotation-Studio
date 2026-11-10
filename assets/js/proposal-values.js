@@ -23,7 +23,7 @@
  const visible=n=>n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden';
  // Equipment photos for the technical-specification cards.
  //
- // Drop the file into assets/images/equipment/ and add one line: the key is
+ // Drop the file into assets/images/equipment/cards/ and add one line: the key is
  // "kind:brand" (lower case, dashes), the value is the file name. Anything not
  // listed falls back to the neutral render of its kind, so a brand that has no
  // photo yet still gets a picture instead of a hole.
@@ -36,10 +36,10 @@
  //
  // Keys are tried most specific first: kind:brand:model, then kind:brand, then
  // kind, then the neutral render that ships with the site.
- const PHOTO_BASE='assets/images/equipment/';
+ const PHOTO_BASE='assets/images/equipment/cards/';
  const PHOTO_MAP={
   /* Solar modules - one product shot per brand the quotation can carry. Every
-     entry is a file in assets/images/equipment/, cropped to the panel itself so
+     entry is a file in assets/images/equipment/cards/, cropped to the panel itself so
      the sheet shows the product, not a marketing poster. */
   'module:waaree':'waaree-module.webp',
   'module:panasonic':'panasonic-module.webp',
@@ -85,7 +85,7 @@
   module:'assets/images/inc-modules.png',
   inverter:'assets/images/inc-inverter.png',
   mount:'assets/images/inc-mount.png',
-  other:'assets/images/equipment/earthing.webp'
+  other:'assets/images/equipment/cards/earthing.webp'
  };
  const slug=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
  function equipmentPhoto(kind,brand,model){

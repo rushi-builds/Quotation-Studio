@@ -4,7 +4,7 @@ One file per brand, per kind. The page picks them up by itself; a brand without
 a photo falls back to the neutral render of its kind, so nothing ever shows a
 hole.
 
-    assets/images/equipment/
+    assets/images/equipment/cards/
       waaree-module.webp
       panasonic-module.webp
       sungrow-inverter.webp
