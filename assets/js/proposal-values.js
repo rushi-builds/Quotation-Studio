@@ -36,50 +36,60 @@
  //
  // Keys are tried most specific first: kind:brand:model, then kind:brand, then
  // kind, then the neutral render that ships with the site.
- const PHOTO_BASE='assets/images/equipment/crops/';
+ const PHOTO_BASE='assets/images/equipment/';
  const PHOTO_MAP={
-  /* User-supplied product photography: inverter makes select their own range. */
-  /* Solar modules intentionally share one common product photograph, returned
-     by equipmentPhoto(); the selected make stays visible in each card header. */
-  /* Inverters - the brand's own range shot, cropped to the units themselves. */
-  'inverter:growatt':'../customer/inverter-growatt.webp',
-  'inverter:sungrow':'../customer/inverter-sungrow.webp',
-  'inverter:fronius':'../customer/inverter-fronius.webp',
-  'inverter:deye':'../customer/inverter-deye.webp',
+  /* The selected make controls the product photo as well as its name. */
+  'module:waaree':'waaree-module.webp',
+  'module:panasonic':'panasonic-module.webp',
+  'module:anchor':'panasonic-module.webp',
+  'module:renewsys':'renewsys-module.webp',
+  'module:tata':'tata-module.webp',
+  'module:tata-power':'tata-module.webp',
+  'module:tata-power-solar':'tata-module.webp',
+  'module:vikram':'vikram-module.webp',
+  'module:vikram-solar':'vikram-module.webp',
+  'module:adani':'adani-module.webp',
+  'module:adani-solar':'adani-module.webp',
+  'module:premier':'premier-module.webp',
+  'module:premier-energies':'premier-module.webp',
+  'module:renew':'renew-module.webp',
+  'module:renew-by-photovoltaic':'renew-module.webp',
+  'module:longi':'longi-module.webp',
+  'inverter:growatt':'growatt-inverter.webp',
+  'inverter:sungrow':'sungrow-inverter.webp',
+  'inverter:fronius':'fronius-inverter.webp',
+  'inverter:deye':'deye-inverter.webp',
   'inverter:huawei':'huawei-inverter.webp',
   'inverter:fusionsolar':'huawei-inverter.webp',
   'inverter:huawei-fusionsolar':'huawei-inverter.webp',
   'inverter:solis':'solis-inverter.webp',
   /* Mounting structure - the make the sheet names on the STRUCTURE row. */
-  'mount:ars':'../customer/structure-installation.webp',
-  'mount:ars-solar-tech':'../customer/structure-installation.webp',
-  'mount:ars-solartech':'../customer/structure-installation.webp',
-  'mount:solartech':'../customer/structure-installation.webp',
-  'mount:solar-tech':'../customer/structure-installation.webp',
+  'mount:ars':'customer/structure-installation.webp',
+  'mount:ars-solar-tech':'customer/structure-installation.webp',
+  'mount:ars-solartech':'customer/structure-installation.webp',
+  'mount:solartech':'customer/structure-installation.webp',
+  'mount:solar-tech':'customer/structure-installation.webp',
   /* Cabling, earthing and protection. One card carries the whole "Mounting &
      Cabling" group, so the card shows the structure when it has one and the
      cable the sheet names when it does not; earthing is the quiet default. */
   'other:havells':'havells-cable.webp',
   'other:polycab':'polycab-cable.webp',
-  'other:earthing':'../customer/earthing-system.webp',
+  'other:earthing':'customer/earthing-system.webp',
   'other:acdb':'acdb-dcdb.webp'
  };
  const PHOTO_FALLBACK={
-  modules:PHOTO_BASE+'../customer/module-universal.webp',
-  module:PHOTO_BASE+'../customer/module-universal.webp',
+  modules:PHOTO_BASE+'waaree-module.webp',
+  module:PHOTO_BASE+'waaree-module.webp',
   inverter:'assets/images/inc-inverter.png',
-  mount:PHOTO_BASE+'../customer/structure-installation.webp',
-  design:PHOTO_BASE+'../customer/earthing-system.webp',
-  other:PHOTO_BASE+'../customer/earthing-system.webp'
+  mount:PHOTO_BASE+'customer/structure-installation.webp',
+  design:PHOTO_BASE+'customer/earthing-system.webp',
+  other:PHOTO_BASE+'customer/earthing-system.webp'
  };
  const slug=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
  function equipmentPhoto(kind,brand,model){
   /* The sheet groups modules as "modules"; the catalogue keys them as "module".
      Without this the module card never found its own brand photograph. */
   if(kind==='modules')kind='module';
-  /* One shared panel photograph by design; the brand itself remains live in
-     the card header strip. Inverters retain brand-specific product imagery. */
-  if(kind==='module')return PHOTO_FALLBACK.module;
   const keys=[slug(brand)&&slug(model)&&(kind+':'+slug(brand)+':'+slug(model)),
               slug(brand)&&(kind+':'+slug(brand)),kind].filter(Boolean);
   for(const key of keys){const file=PHOTO_MAP[key];if(file)return PHOTO_BASE+file;}
@@ -165,7 +175,7 @@
    if(kind==='modules'||kind==='inverter')brand=read(i,k=>/^(MAKE|BRAND)$/i.test(k));
    else if(kind==='mount'){
     const structure=read(i,k=>/^STRUCTURE$/i.test(k));
-    const m=structure.match(/([A-Za-z][A-Za-z-]{2,})\s+make/i);brand=m?m[1]:'';
+    brand=structure.replace(/^.*[-/]/,'').replace(/\s*make\s*$/i,'').trim();
    }else if(kind==='design')brand='IS / IEC';
    brand=brand.replace(/\s+/g,' ').trim();
    if(brand)row.dataset.brand=brand.length>32?brand.slice(0,31).trim()+'\u2026':brand;
