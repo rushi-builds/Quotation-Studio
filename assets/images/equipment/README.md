@@ -1,21 +1,26 @@
 # Equipment photos (page 6 — Technical Specification)
 
-One file per brand, per kind. The page picks them up by itself; a brand without
-a photo falls back to the neutral render of its kind, so nothing ever shows a
-hole.
+The proposal uses one shared solar-module image, brand-specific inverter images
+where supplied, and shared structure/engineering imagery. The card header keeps
+the selected make live; inverter photos resolve through `PHOTO_MAP` and missing
+brands fall back to a clean, neutral inverter image. All displayed crops use a
+consistent 4:3 frame.
 
-    assets/images/equipment/
-      waaree-module.webp
-      panasonic-module.webp
-      sungrow-inverter.webp
-      growatt-inverter.webp
-      solartech-structure.webp
-      polycab-cable.webp
+    assets/images/equipment/customer/
+      module-universal.webp
+      inverter-sungrow.webp
+      inverter-growatt.webp
+      inverter-fronius.webp
+      inverter-deye.webp
+      structure-installation.webp
+      earthing-system.webp
+    assets/images/equipment/crops/
+      (legacy product crops and brand-specific cable images)
 
 Register each file in `PHOTO_MAP` in `assets/js/proposal-values.js`:
 
-    'module:waaree'   : 'waaree-module.webp',
-    'inverter:sungrow': 'sungrow-inverter.webp',
+    'inverter:sungrow': '../customer/inverter-sungrow.webp',
+    'inverter:growatt': '../customer/inverter-growatt.webp',
 
 Keys are tried most specific first: `kind:brand:model` → `kind:brand` → `kind`,
 so one photo can cover a whole brand, or a single model can have its own.

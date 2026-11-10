@@ -36,42 +36,26 @@
  //
  // Keys are tried most specific first: kind:brand:model, then kind:brand, then
  // kind, then the neutral render that ships with the site.
- const PHOTO_BASE='assets/images/equipment/';
+ const PHOTO_BASE='assets/images/equipment/crops/';
  const PHOTO_MAP={
-  /* Solar modules - one product shot per brand the quotation can carry. Every
-     entry is a file in assets/images/equipment/, cropped to the panel itself so
-     the sheet shows the product, not a marketing poster. */
-  'module:waaree':'waaree-module.webp',
-  'module:panasonic':'panasonic-module.webp',
-  'module:anchor':'panasonic-module.webp',
-  'module:renewsys':'renewsys-module.webp',
-  'module:tata':'tata-module.webp',
-  'module:tata-power':'tata-module.webp',
-  'module:tata-power-solar':'tata-module.webp',
-  'module:vikram':'vikram-module.webp',
-  'module:vikram-solar':'vikram-module.webp',
-  'module:adani':'adani-module.webp',
-  'module:adani-solar':'adani-module.webp',
-  'module:premier':'premier-module.webp',
-  'module:premier-energies':'premier-module.webp',
-  'module:renew':'renew-module.webp',
-  'module:renew-by-photovoltaic':'renew-module.webp',
-  'module:longi':'longi-module.webp',
+  /* User-supplied product photography: inverter makes select their own range. */
+  /* Solar modules intentionally share one common product photograph, returned
+     by equipmentPhoto(); the selected make stays visible in each card header. */
   /* Inverters - the brand's own range shot, cropped to the units themselves. */
-  'inverter:growatt':'growatt-inverter.webp',
-  'inverter:sungrow':'sungrow-inverter.webp',
-  'inverter:fronius':'fronius-inverter.webp',
-  'inverter:deye':'deye-inverter.webp',
+  'inverter:growatt':'../customer/inverter-growatt.webp',
+  'inverter:sungrow':'../customer/inverter-sungrow.webp',
+  'inverter:fronius':'../customer/inverter-fronius.webp',
+  'inverter:deye':'../customer/inverter-deye.webp',
   'inverter:huawei':'huawei-inverter.webp',
   'inverter:fusionsolar':'huawei-inverter.webp',
   'inverter:huawei-fusionsolar':'huawei-inverter.webp',
   'inverter:solis':'solis-inverter.webp',
   /* Mounting structure - the make the sheet names on the STRUCTURE row. */
-  'mount:ars':'ars-structure.webp',
-  'mount:ars-solar-tech':'ars-structure.webp',
-  'mount:ars-solartech':'ars-structure.webp',
-  'mount:solartech':'ars-structure.webp',
-  'mount:solar-tech':'ars-structure.webp',
+  'mount:ars':'../customer/structure-installation.webp',
+  'mount:ars-solar-tech':'../customer/structure-installation.webp',
+  'mount:ars-solartech':'../customer/structure-installation.webp',
+  'mount:solartech':'../customer/structure-installation.webp',
+  'mount:solar-tech':'../customer/structure-installation.webp',
   /* Cabling, earthing and protection. One card carries the whole "Mounting &
      Cabling" group, so the card shows the structure when it has one and the
      cable the sheet names when it does not; earthing is the quiet default. */
@@ -81,17 +65,21 @@
   'other:acdb':'acdb-dcdb.webp'
  };
  const PHOTO_FALLBACK={
-  modules:'assets/images/inc-modules.png',
-  module:'assets/images/inc-modules.png',
+  modules:PHOTO_BASE+'../customer/module-universal.webp',
+  module:PHOTO_BASE+'../customer/module-universal.webp',
   inverter:'assets/images/inc-inverter.png',
-  mount:'assets/images/inc-mount.png',
-  other:'assets/images/equipment/earthing.webp'
+  mount:PHOTO_BASE+'../customer/structure-installation.webp',
+  design:PHOTO_BASE+'../customer/earthing-system.webp',
+  other:PHOTO_BASE+'../customer/earthing-system.webp'
  };
  const slug=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
  function equipmentPhoto(kind,brand,model){
   /* The sheet groups modules as "modules"; the catalogue keys them as "module".
      Without this the module card never found its own brand photograph. */
   if(kind==='modules')kind='module';
+  /* One shared panel photograph by design; the brand itself remains live in
+     the card header strip. Inverters retain brand-specific product imagery. */
+  if(kind==='module')return PHOTO_FALLBACK.module;
   const keys=[slug(brand)&&slug(model)&&(kind+':'+slug(brand)+':'+slug(model)),
               slug(brand)&&(kind+':'+slug(brand)),kind].filter(Boolean);
   for(const key of keys){const file=PHOTO_MAP[key];if(file)return PHOTO_BASE+file;}
@@ -143,6 +131,10 @@
   cell.style.backgroundImage='url("'+photo+'")';
   cell.setAttribute('role','img');
   cell.setAttribute('aria-label',(alt||'Equipment')+' equipment');
+  if(alt && !cell.querySelector('.spec-photo-brand')){
+   const tag=document.createElement('span');tag.className='spec-photo-brand';
+   tag.textContent=alt;tag.setAttribute('aria-hidden','true');cell.append(tag);
+  }
   if(head&&head.cells[0]){
    const look=cardLook(kind);
    head.cells[0].colSpan=3;

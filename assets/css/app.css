@@ -2109,3 +2109,83 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 }
 #pageSolution .photo-top img{position:relative;z-index:1;}
 #pageSolution .pg-title em{font-style:normal;color:var(--orange);}
+
+/* Page 5 — premium solution summary: editorial hero, measured spec tiles,
+   then the system flow. Keep all supplied photos and values live. */
+#pageSolution .solution-body{gap:8px;padding-top:10px;}
+#pageSolution .solution-hero{display:grid;grid-template-columns:1.06fr .94fr;gap:20px;align-items:center;min-height:206px;}
+#pageSolution .solution-hero .intro-col{min-width:0;}
+#pageSolution .solution-hero .pg-title{font-size:27px;line-height:1.12;max-width:390px;}
+#pageSolution .solution-hero .pg-sub{font-size:12px;}
+#pageSolution .solution-hero .body-para{font-size:10.2px;line-height:1.52;margin:8px 0 0;color:#43576a;}
+#pageSolution .solution-photo{position:relative;width:100%;height:194px;margin:0;overflow:visible;}
+#pageSolution .solution-photo img{width:100%;height:100%;object-fit:cover;object-position:center;border:3px solid #fff;border-radius:16px;}
+#pageSolution .solution-specs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 10px;}
+#pageSolution .solution-specs .spec-card{min-height:58px;box-sizing:border-box;display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:10px;padding:7px 10px;border:1px solid #e2e7ec;border-radius:12px;background:linear-gradient(120deg,#fff,#fafbfd);box-shadow:0 3px 10px rgba(22,46,66,.055);}
+#pageSolution .solution-specs .icon-chip{grid-row:1 / span 2;width:42px;height:42px;border-radius:11px!important;display:flex;align-items:center;justify-content:center;}
+#pageSolution .solution-specs .spec-t{font-size:11.5px;line-height:1.22;font-weight:750;color:#18344d;align-self:end;}
+#pageSolution .solution-specs .card-desc{font-size:8.7px;line-height:1.32;color:#556779;align-self:start;margin-top:2px;}
+#pageSolution .solution-system{margin-top:2px;padding:7px 11px 5px;border-radius:13px;}
+#pageSolution .solution-system .diagram svg{max-height:164px;}
+#pageSolution .solution-points{margin-top:5px;padding-top:5px;gap:3px 12px;}
+#pageSolution .solution-points li{font-size:8px;line-height:1.27;}
+#pageSolution .solution-points b{font-size:8.3px;}
+#pageSolution #v_soScopeNote{font-size:8.1px;line-height:1.35;margin:0;padding:7px 10px;border-radius:9px;}
+#pageSolution .photo-top::before{left:-5px;top:-5px;width:52px;height:52px;border-radius:12px;}
+@media print{
+ #pageSolution .solution-hero{grid-template-columns:1.06fr .94fr;}
+ #pageSolution .solution-specs{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+/* Page 6 equipment imagery: every supplier crop uses the same 4:3 source
+   canvas and the same quiet product window. The card crops to its own row span,
+   never distorts the image, and brand changes still resolve through PHOTO_MAP. */
+#pageTechSpec .spec-table td.spec-photo{
+  background-color:#f6f9fc;
+  background-position:center;
+  background-size:cover;
+  background-repeat:no-repeat;
+  border-left:8px solid #fff;
+  border-right:8px solid #fff;
+  box-shadow:inset 0 0 0 1px rgba(219,228,236,.55);
+}
+#pageTechSpec .spec-table tr:not(.spec-group) td.spec-photo{
+  border-top:0;
+  border-bottom:0;
+}
+#pageTechSpec .spec-table tr.spec-group td::after{
+  letter-spacing:.08em;
+  font-size:9px;
+}
+#pageTechSpec .spec-table tr.spec-group[data-kind="design"] td::after{color:#274e68;}
+/* Technical-spec opening: a small, clipped solar-roof photograph balances the
+   title like the supplied reference without consuming another content row. */
+#pageTechSpec .pg-body::before{
+  content:'';position:absolute;z-index:0;right:var(--page-pad);top:70px;
+  width:226px;height:98px;border-radius:15px 5px 15px 5px;
+  background:#eaf1f7 url('../images/page-why-solar.jpg') center 42%/cover no-repeat;
+  clip-path:polygon(16% 0,100% 0,100% 100%,0 100%);
+  box-shadow:0 8px 18px rgba(18,48,74,.11);
+}
+#pageTechSpec .pg-body::after{
+  content:'';position:absolute;z-index:0;right:calc(var(--page-pad) + 205px);top:154px;
+  width:25px;height:20px;border-radius:4px 0 0 4px;background:#ef851f;
+  transform:skewX(-28deg);pointer-events:none;
+}
+#pageTechSpec #v_tsHeading,
+#pageTechSpec #v_tsSub,
+#pageTechSpec .rule-orange,
+#pageTechSpec #v_tsPara{position:relative;z-index:1;max-width:470px;}
+#pageTechSpec #v_tsPara{max-width:455px;}
+#pageTechSpec .spec-table td.spec-photo{position:relative;}
+#pageTechSpec .spec-photo-brand{
+  position:absolute;top:9px;left:9px;z-index:2;max-width:calc(100% - 18px);
+  padding:4px 8px;border:1px solid rgba(226,232,238,.92);border-radius:5px;
+  background:rgba(255,255,255,.94);box-shadow:0 2px 7px rgba(18,48,74,.09);
+  color:#18344d;font:800 9px/1.1 'Inter',sans-serif;letter-spacing:.07em;
+  text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* The real make strip sits on the product frame; avoid printing the name twice. */
+#pageTechSpec .spec-table tr.spec-group[data-kind="modules"] td::after,
+#pageTechSpec .spec-table tr.spec-group[data-kind="inverter"] td::after,
+#pageTechSpec .spec-table tr.spec-group[data-kind="mount"] td::after{display:none;}
