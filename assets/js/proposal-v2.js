@@ -198,7 +198,20 @@
       body.insertBefore(ov, $('v_soScopeNote') || null);
     }
     const P = (root.CONTENT && root.CONTENT.pageTechSpec) || {};
-    ov.innerHTML = label(P.diagramTitle || 'SYSTEM OVERVIEW') + '<div class="pv2-ov-box">' + overviewArt() + '</div>';
+    /* No label and no note bar around the artwork: it already carries its own
+       ribbon, its captions and its own note. Printing ours as well was what made
+       the page look like the render had simply been pasted on top of the old
+       layout - the same two things twice. The artwork IS the section. */
+    ov.innerHTML = '<div class="pv2-ov-box">' + overviewArt() + '</div>';
+    /* The artwork carries its own note, so the boilerplate scope note would print
+       the same advice twice. It is only suppressed while it is boilerplate: when
+       an additional system (battery, rainwater) is quoted, the renderer puts the
+       real scope sentence in that same element, and that must still show. */
+    const scopeNote = $('v_soScopeNote');
+    if (scopeNote) {
+      const basic = /^The exact equipment ratings are listed in Technical Specification\./;
+      scopeNote.hidden = basic.test((scopeNote.textContent || '').trim());
+    }
     let vals = body.querySelector(':scope > .pv2-values-wrap');
     if (!vals) {
       vals = doc.createElement('div'); vals.className = 'pv2-values-wrap'; vals.dataset.docAdded = 'true';

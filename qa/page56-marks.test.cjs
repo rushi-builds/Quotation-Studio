@@ -239,6 +239,21 @@ t('the system overview is the owner’s artwork, not a code-built diagram', () =
     'the file is there');
 });
 
+t('the artwork is not dressed a second time', () => {
+  /* The render carries its own ribbon, captions and note. Printing ours around it
+     is what made the page look like the render had been pasted over the old
+     layout - the same two things twice. */
+  assert.match(js, /ov\.innerHTML = '<div class="pv2-ov-box">' \+ overviewArt\(\) \+ '<\/div>';/,
+    'no label is emitted above the artwork');
+  assert.doesNotMatch(js, /label\(P\.diagramTitle/, 'the SYSTEM OVERVIEW ribbon comes from the render, not the page');
+  /* The scope note is suppressed only while it is boilerplate: the renderer puts
+     a real scope sentence in that element when a battery or rainwater system is
+     quoted, and that one must survive. */
+  assert.match(js, /const basic = \/\^The exact equipment ratings are listed in Technical Specification/,
+    'boilerplate is recognised by its own opening words');
+  assert.match(js, /scopeNote\.hidden = basic\.test/, 'and only that is hidden');
+});
+
 t('the overview box adds no frame of its own around that render', () => {
   const box = css.match(/\.pv2-solution \.pv2-ov-box\{([^}]*)\}/)[1];
   assert.match(box, /border:0/, 'the render already has its rounded frame');
