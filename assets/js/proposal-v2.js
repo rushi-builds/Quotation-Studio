@@ -157,13 +157,15 @@
   }
 
   /* --------------------------- PAGE 6 ------------------------------------- */
-  const BRANDS = {
-    waaree: { cls: 'waaree', tag: 'One with the Sun' },
-    sungrow: { cls: 'sungrow', tag: 'Clean power for all' },
-    adani: { cls: 'adani' }, longi: { cls: 'longi' }, panasonic: { cls: 'panasonic' }, anchor: { cls: 'panasonic' },
-    tata: { cls: 'tata' }, vikram: { cls: 'vikram' }, premier: { cls: 'premier' }, renew: { cls: 'renew' }, renewsys: { cls: 'renewsys' },
-    growatt: { cls: 'growatt' }, fronius: { cls: 'fronius' }, deye: { cls: 'deye' }, huawei: { cls: 'huawei' }, solis: { cls: 'solis' },
-    solartech: { cls: 'ars' }, ars: { cls: 'ars' }
+  /* Manufacturer marks, cut from the owner's brand sheet into
+     assets/images/brands/<name>.webp. A make the sheet does not carry (or a
+     custom make the user typed) still gets its name set in type, so the card
+     never shows an empty badge. */
+  const BRAND_LOGOS = {
+    waaree: 'waaree', adani: 'adani', longi: 'longi', tata: 'tata', vikram: 'vikram',
+    premier: 'premier', renew: 'renew', renewsys: 'renewsys', panasonic: 'anchor', anchor: 'anchor',
+    growatt: 'growatt', fronius: 'fronius', deye: 'deye', huawei: 'huawei', fusionsolar: 'huawei',
+    solis: 'solis', sungrow: 'sungrow'
   };
   const slug = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   /* One photograph per card, taken from the owner's page 5/6 set. The four
@@ -205,10 +207,12 @@
     if (kind === 'design') return '<div class="pv2-brand is-std"><b>IS / IEC</b><small>Lightning &amp; earthing</small></div>';
     if (!brand) return '';
     const key = slug(brand).split('-')[0];
-    const look = BRANDS[key] || BRANDS[slug(brand)] || null;
-    if (look && look.cls === 'ars') return '<div class="pv2-brand is-ars"><b>ARS</b><small>Solar Tech</small></div>';
-    const word = brand;
-    return '<div class="pv2-brand is-' + (look ? look.cls : 'plain') + '"><b>' + esc(word) + '</b>' + (look && look.tag ? '<small>' + esc(look.tag) + '</small>' : '') + '</div>';
+    if (key === 'ars' || key === 'solartech' || key === 'solar') return '<div class="pv2-brand is-ars"><b>ARS</b><small>Solar Tech</small></div>';
+    const logo = BRAND_LOGOS[key] || BRAND_LOGOS[slug(brand)];
+    if (logo) {
+      return '<div class="pv2-brand is-logo"><img src="' + IMG + 'brands/' + logo + '.webp" alt="' + esc(brand) + '" decoding="sync"></div>';
+    }
+    return '<div class="pv2-brand is-plain"><b>' + esc(brand) + '</b></div>';
   }
   function techSpec() {
     const page = $('pageTechSpec'); if (!page) return;

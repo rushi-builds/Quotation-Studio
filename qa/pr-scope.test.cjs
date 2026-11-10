@@ -133,6 +133,15 @@ async function main() {
   t('NEGATIVE: the cards allowance cannot smuggle a script or a stylesheet in as a photo',
     guard.scopeOffenders(['assets/images/equipment/cards/app.js',
       'assets/images/equipment/cards/closing.css']).length === 2);
+  t('brand mark allowance admits the fifteen cuts and nothing beside them',
+    guard.scopeOffenders(['assets/images/brands/waaree.webp', 'assets/images/brands/solis.webp',
+      'assets/images/brands/tata.webp']).length === 0);
+  t('NEGATIVE: brand mark allowance excludes other folders, extensions and nesting',
+    guard.scopeOffenders(['assets/images/brand/waaree.webp',
+      'assets/images/brands/waaree.png', 'assets/images/brands/waaree.svg',
+      'assets/images/brands/sub/waaree.webp',
+      'assets/images/brands/waaree.webp.js']).length === 5);
+
 
 
   t('workspace presentation allowance admits the exact label UI file and four named correction/review paths',

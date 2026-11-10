@@ -224,6 +224,12 @@ const EQUIPMENT_PHOTO_PATHS = /^assets\/images\/equipment\/[A-Za-z0-9._-]+\.(web
    equipment/cards/ still fails the review the same way it did before. */
 const EQUIPMENT_CARD_PATHS = /^assets\/images\/equipment\/cards\/[A-Za-z0-9._-]+\.(webp|png|jpg|jpeg|md)$/;
 
+/* Manufacturer marks (2026-11-10, page 5/6 round). The owner supplied one brand
+   sheet and the page 6 cards print the real logo of the make the quotation
+   names instead of a coloured wordmark, so these fifteen files are cut from it.
+   One folder, webp only, exact-name shape - any other image still fails. */
+const BRAND_LOGO_PATHS = /^assets\/images\/brands\/[a-z0-9-]+\.webp$/;
+
 /* Page 5/6 presentation round (2026-11-10). The redesign touches exactly these
    two stylesheets and one page-6 script: proposal-v2.css/app.css carry the card
    grid, the running footer height and the four-value band, while
@@ -369,7 +375,7 @@ function deployConfigTouches(files) {
 function newAccessMigration(file,status){return file==='platform/migrations/011-workspace-access.sql'&&status==='A';}
 
 function scopeOffenders(files) {
-  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !EQUIPMENT_PHOTO_PATHS.test(f) && !EQUIPMENT_CARD_PATHS.test(f) && !PAGE56_PATHS.has(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f) && !FEEDBACK_LOOP_PATHS.has(f) && !CALCULATOR_FILES.has(f));
+  return files.filter((f) => !ALLOWED_SCOPE_RE.test(f) && !WORKSPACE_PRESENTATION_PATHS.has(f) && !WORKSPACE_ACCESS_PATHS.has(f) && !OWNER_IMAGE_PATHS.has(f) && !REENCODED_IMAGE_PATHS.has(f) && !EQUIPMENT_PHOTO_PATHS.test(f) && !EQUIPMENT_CARD_PATHS.test(f) && !BRAND_LOGO_PATHS.test(f) && !PAGE56_PATHS.has(f) && !FROZEN_EDIT_ALLOWANCE.has(f) && !GALLERY_PAGE_PATHS.has(f) && !FEEDBACK_LOOP_PATHS.has(f) && !CALCULATOR_FILES.has(f));
 }
 
 /* The explicit golden baseline: HEAD's blob for every frozen file must
@@ -444,7 +450,7 @@ function verify(repoRoot, opts) {
 }
 
 module.exports = {
-  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, EQUIPMENT_PHOTO_PATHS, EQUIPMENT_CARD_PATHS, PAGE56_PATHS, GALLERY_PAGE_PATHS, FEEDBACK_LOOP_PATHS, CALCULATOR_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
+  GOLDEN_BASE_REF, FROZEN_FILES, FROZEN_EDIT_ALLOWANCE, EQUIPMENT_PHOTO_PATHS, EQUIPMENT_CARD_PATHS, BRAND_LOGO_PATHS, PAGE56_PATHS, GALLERY_PAGE_PATHS, FEEDBACK_LOOP_PATHS, CALCULATOR_FILES, DEPLOY_CONFIG_RE, ALLOWED_SCOPE_RE,
   resolveBase, changedFiles, worktreeStatus,
   frozenTouches, deployConfigTouches, scopeOffenders, newAccessMigration, baselineMatch, mainTip, verify, git
 };
