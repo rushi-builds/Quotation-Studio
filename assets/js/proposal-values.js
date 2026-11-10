@@ -248,10 +248,11 @@
  }
  function sync(){
   if(!root.Render?.lastState||!root.ProposalMarks)return;
-  relocateDiagram();
-  decorateSpecCards();
-  accentHeading();
+  /* Pages 5 and 6 have their own layout (proposal-v2.js), which draws its own
+     system overview, specification cards, heading accent and value row. */
+  if(!root.ProposalV2){relocateDiagram();decorateSpecCards();accentHeading();}
   for(const [id,def] of Object.entries(definitions)){
+   if(root.ProposalV2&&(id==='pageSolution'||id==='pageTechSpec'))continue;
    const page=document.getElementById(id);if(!page)continue;
    let band=page.querySelector(':scope>.proposal-value-footer');
    if(!band){band=document.createElement('aside');band.className='proposal-value-footer pv-quiet';band.setAttribute('aria-label','Our approach');band.dataset.docAdded='true';page.append(band);}

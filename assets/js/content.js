@@ -134,7 +134,7 @@ const CONTENT = {
   pageTechSpec: {
     heading: 'Technical System Specification',
     sub: 'The Components Behind Your Generation',
-    para: 'Every value below comes from the manufacturer\u2019s datasheet for the equipment proposed on your site.',
+    para: 'Every component is specified for compatibility, certified performance and long-term reliability \u2013 the exact equipment basis behind your generation estimate and quotation.',
     diagramTitle: 'SYSTEM OVERVIEW',
     diagramLabels: {
       array: 'Rooftop Solar',
@@ -156,8 +156,8 @@ const CONTENT = {
     refsPvsyst: 'PVsyst Performance Simulation',
     refsArka: 'Arka 3D Shading & Layout Design',
     refsNote: 'Externally prepared engineering documents for this site. The proposal presents their conclusions; the linked reports remain the authoritative source.',
-    noteLabel: 'NOTE',
-    note: 'Conceptual grid-tied layout - site conditions, DISCOM approval and final equipment models can vary slightly.'
+    noteLabel: 'Note',
+    note: 'Exact module and inverter models are confirmed at order confirmation. Substitutions, if any, are made only with equal or better certified products and communicated in writing.'
   },
 
   /* ------------------------------------------------------------------ */
