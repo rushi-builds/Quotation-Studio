@@ -1,30 +1,21 @@
 # Equipment photos (page 6 — Technical Specification)
 
-One file per brand, per kind. The page picks them up by itself; a brand without
-a photo falls back to the neutral render of its kind, so nothing ever shows a
-hole.
+One photograph per card, in `cards/`. Page 6 shows four cards, so exactly four
+photos are needed - the brand is printed on the card itself, not encoded in the
+file name:
 
     assets/images/equipment/cards/
-      waaree-module.webp
-      panasonic-module.webp
-      sungrow-inverter.webp
-      growatt-inverter.webp
-      solartech-structure.webp
-      polycab-cable.webp
+      solar-module-card.webp      # card 01 - solar modules
+      solis-inverter.webp         # card 02 - inverter
+      ars-structure.webp          # card 03 - mounting & cabling
+      earthing-safety-3pit.webp   # card 04 - electrical safety (LA / DC / AC)
 
-Register each file in `PHOTO_MAP` in `assets/js/proposal-values.js`:
-
-    'module:waaree'   : 'waaree-module.webp',
-    'inverter:sungrow': 'sungrow-inverter.webp',
-
-Keys are tried most specific first: `kind:brand:model` → `kind:brand` → `kind`,
-so one photo can cover a whole brand, or a single model can have its own.
+`assets/js/proposal-v2.js` maps each card kind to its file in `CARD_PHOTO`.
+Swapping a photo means replacing the file, not editing any code.
 
 ## How a photo should look
 
-- product alone, centred, plain white or transparent background
-- no text, no watermark, no screenshot borders, no price tags
-- at least 600 × 600 px; we downscale to 480 px and WebP (quality 82)
-- aim for under 40 KB per file — the page loads only the four it shows
-
-Kinds in use: `modules`, `inverter`, `mount`, `other` (cabling/earthing).
+- the product alone, centred, plain light background
+- no text overlay, no watermark, no screenshot borders, no price tags
+- 4:3 landscape reads best on the card; 900 x 675 is what ships today
+- keep each file under ~120 KB - the page loads only the four it shows

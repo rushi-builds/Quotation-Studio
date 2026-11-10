@@ -166,29 +166,18 @@
     solartech: { cls: 'ars' }, ars: { cls: 'ars' }
   };
   const slug = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  /* One photograph per card, taken from the owner's page 5/6 set. The four
+     cards are the four things the page shows, so there is nothing to switch on:
+     the brand is still printed on the card by brandMark(), and the inverter
+     card's own studio shot stands for whichever make the sheet names. */
   const CARD_PHOTO = {
-    module: { waaree: 'waaree-module', panasonic: 'panasonic-module', anchor: 'panasonic-module', renewsys: 'renewsys-module', tata: 'tata-module',
-      vikram: 'vikram-module', adani: 'adani-module', premier: 'premier-module', renew: 'renew-module', longi: 'longi-module' },
-    inverter: { growatt: 'growatt-inverter', sungrow: 'sungrow-inverter', fronius: 'fronius-inverter', deye: 'deye-inverter', huawei: 'huawei-inverter',
-      fusionsolar: 'huawei-inverter', solis: 'solis-inverter' },
-    mount: { ars: 'ars-structure', solartech: 'ars-structure', 'solar-tech': 'ars-structure' },
-    other: { havells: 'havells-cable', polycab: 'polycab-cable' }
+    module: IMG + 'equipment/cards/solar-module-card.webp',
+    inverter: IMG + 'equipment/cards/solis-inverter.webp',
+    mount: IMG + 'equipment/cards/ars-structure.webp',
+    design: IMG + 'equipment/cards/earthing-safety-3pit.webp'
   };
-  function photoFor(kind, brand, cable) {
-    const first = slug(brand).split('-')[0];
-    const table = CARD_PHOTO[kind] || {};
-    if (kind === 'module') return IMG + 'equipment/cards/solar-module-card.webp';
-    if (kind === 'mount') return IMG + 'equipment/cards/ars-structure.webp';
-    if (kind === 'design') return IMG + 'equipment/cards/earthing-safety-3pit.webp';
-    const hit = table[slug(brand)] || table[first];
-    if (hit) return IMG + 'equipment/cards/' + hit + '.webp';
-    if (kind === 'mount') {
-      const c = CARD_PHOTO.other[slug(cable).split('-')[0]];
-      return c ? IMG + 'equipment/cards/' + c + '.webp' : IMG + 'inc-mount.png';
-    }
-    if (kind === 'module') return IMG + 'inc-modules.png';
-    if (kind === 'inverter') return IMG + 'inc-inverter.png';
-    return IMG + 'equipment/cards/earthing.webp';
+  function photoFor(kind) {
+    return CARD_PHOTO[kind] || IMG + 'equipment/cards/earthing-safety-3pit.webp';
   }
   function rowIcon(k) {
     const t = String(k || '').toLowerCase();
@@ -255,7 +244,7 @@
       if (c.kind === 'module' || c.kind === 'inverter') brand = val(/^(make|brand)$/i);
       else if (c.kind === 'mount') brand = 'ARS';
       brand = brand.replace(/\s+/g, ' ').trim();
-      const photo = photoFor(c.kind, brand, val(/^cabling/i));
+      const photo = photoFor(c.kind);
       const title = c.name.charAt(0) + c.name.slice(1).toLowerCase();
       return '<article class="pv2-card is-' + c.kind + '">' +
         '<header class="pv2-card-head"><span class="pv2-num">' + String(i + 1).padStart(2, '0') + '</span>' +

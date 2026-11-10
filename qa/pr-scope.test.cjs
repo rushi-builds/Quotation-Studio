@@ -116,7 +116,7 @@ async function main() {
      (a third stylesheet, a script next door, an image outside cards/) must
      still be reported, so this cannot silently widen the asset surface. */
   t('page 5/6 allowance admits the equipment cards folder, its naming note and the three named files',
-    guard.scopeOffenders(['assets/images/equipment/cards/waaree-module.webp',
+    guard.scopeOffenders(['assets/images/equipment/cards/solis-inverter.webp',
       'assets/images/equipment/cards/earthing-safety-3pit.webp',
       'assets/images/equipment/cards/solar-module-card.webp',
       'assets/images/equipment/README.md',
