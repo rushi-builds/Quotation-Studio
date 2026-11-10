@@ -177,12 +177,11 @@
   function photoFor(kind, brand, cable) {
     const first = slug(brand).split('-')[0];
     const table = CARD_PHOTO[kind] || {};
-    if (kind === 'module') return IMG + 'proposal/flow-panel.webp';
+    if (kind === 'module') return IMG + 'equipment/cards/solar-module-card.webp';
     if (kind === 'mount') return IMG + 'equipment/cards/ars-structure.webp';
-    if (kind === 'design') return IMG + 'equipment/cards/earthing-system.webp';
+    if (kind === 'design') return IMG + 'equipment/cards/earthing-safety-3pit.webp';
     const hit = table[slug(brand)] || table[first];
     if (hit) return IMG + 'equipment/cards/' + hit + '.webp';
-    if (kind === 'design') return IMG + 'proposal/spec-engineering.webp';
     if (kind === 'mount') {
       const c = CARD_PHOTO.other[slug(cable).split('-')[0]];
       return c ? IMG + 'equipment/cards/' + c + '.webp' : IMG + 'inc-mount.png';
