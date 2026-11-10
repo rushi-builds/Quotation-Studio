@@ -246,6 +246,28 @@ t('ARS prints its own mark on the structure card instead of set type', () => {
     'the mark file exists');
 });
 
+/* ---------------------- page 5's value row sits on the footer's rule, flush */
+t('the value row is glued to the footer rule, not stranded above it', () => {
+  /* The band on the other pages is absolutely positioned flush to the rule.
+     Page 5 keeps the row in flow, so it needs margin-top:auto to fall onto the
+     footer and a -12px bottom margin (46px body padding - 34px footer) to meet
+     the rule exactly. */
+  const decl = [...css.matchAll(/\.pv2-solution(?:\.pv2-fit-\d)? \.pv2-values-wrap([^{]*)\{([^}]*)\}/g)]
+    .map((m) => m[2]).filter((b) => /margin-top:auto/.test(b)).pop();
+  assert.ok(decl, 'a rule gives the row margin-top:auto so no slack is left under it');
+  assert.match(decl, /margin-bottom:-12px/,
+    'and pulls it down by 12px to land on the rule (46px body padding - 34px footer)');
+  /* and it must outrank the tighten steps that set an explicit 11px top margin */
+  const guards = [...css.matchAll(/\.[^{}]*pv2-values-wrap[^{}]*\{[^}]*margin-top:auto[^}]*\}/g)].pop()[0];
+  assert.match(guards, /\.pv2-solution\.pv2-fit-2 \.pv2-values-wrap/,
+    'the tight step is re-declared too, or its 11px would win');
+});
+
+t('the value row has a definite height, so its lower edge meets the rule', () => {
+  assert.match(css, /\.pv2 \.pv2-values\{[^}]*min-height:26px/, 'one icon tall, like the other pages');
+  assert.match(css, /margin-bottom:-12px/, 'the row, not the label leading, lands on the rule');
+});
+
 /* --------------------------------------- page 5 overview got its room back */
 t('the system overview artwork is taller than it was', () => {
   assert.match(css, /\.pv2 \.pv2-node-art\{height:108px/, 'node artwork 84px -> 108px');
@@ -253,11 +275,19 @@ t('the system overview artwork is taller than it was', () => {
     'and the tight step keeps most of that gain (was 70px)');
 });
 
-t('overview, note and value band share one gap value on page 5', () => {
-  const gaps = [...css.matchAll(/\.pv2-solution (\.pv2-overview|#v_soScopeNote|\.pv2-values-wrap)\{margin-top:(\d+)px;\}/g)]
+t('overview and note share one gap value on page 5', () => {
+  /* The row no longer joins this rhythm: it is pulled onto the footer rule, so
+     it carries an explicit gap only as a floor and then `auto` overrides it.
+     These two are the pair that sits in the flow together. */
+  const gaps = [...css.matchAll(/\.pv2-solution (\.pv2-overview|#v_soScopeNote)\{margin-top:(\d+)px;\}/g)]
     .map((m) => Number(m[2]));
-  assert.equal(gaps.length, 3, 'all three blocks declare their own gap');
-  assert.equal(new Set(gaps).size, 1, `all three must agree, got ${gaps.join(' / ')} px`);
+  assert.equal(gaps.length, 2, 'both blocks declare their own gap');
+  assert.equal(new Set(gaps).size, 1, `both must agree, got ${gaps.join(' / ')} px`);
+});
+
+t('the value row still keeps a floor gap for the tight steps', () => {
+  const floor = [...css.matchAll(/\.pv2-solution\.pv2-fit-2 #v_soScopeNote,\.pv2-solution\.pv2-fit-2 \.pv2-values-wrap\{margin-top:(\d+)px;\}/g)];
+  assert.equal(floor.length, 1, 'the tight step sets the note and the row together');
 });
 
 /* ------------------------------------------------------------- CSS sanity */

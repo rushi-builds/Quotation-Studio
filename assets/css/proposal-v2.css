@@ -72,7 +72,7 @@
    cells, inline 26px mark, 11px gap, 15px left padding per cell after the first,
    a faint 18px divider at -9px, 9px copy. These numbers are copied from
    proposal-values.css on purpose - if that band changes, change both. */
-.pv2 .pv2-values{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;gap:18px;}
+.pv2 .pv2-values{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;gap:18px;min-height:26px;}
 .pv2 .pv2-values li{position:relative;display:flex;align-items:center;justify-content:flex-start;gap:11px;min-width:0;
   color:#4d667b;font:500 9px/1.5 'Inter',sans-serif;}
 .pv2 .pv2-values li + li{padding-left:15px;}
@@ -97,7 +97,7 @@
 .pv2-solution .pv2-strip{position:absolute;z-index:1;background:#F2811D;border-radius:6px;}
 .pv2-solution .pv2-strip.a{left:-14px;top:52px;width:46px;height:132px;clip-path:polygon(60% 0,100% 0,40% 100%,0 100%);}
 .pv2-solution .pv2-strip.b{right:6px;bottom:-12px;width:60px;height:98px;clip-path:polygon(70% 0,100% 0,30% 100%,0 100%);}
-.pv2-solution .spacer{flex:1 1 0;min-height:8px;max-height:26px;}
+.pv2-solution .spacer{flex:1 1 0;min-height:8px;max-height:16px;}
 .pv2-solution #v_soSpecs{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin:0;width:auto;}
 .pv2-solution #v_soSpecs .spec-card{display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto auto;align-content:center;align-items:center;column-gap:13px;
   background:#fff;border:1px solid #E4E8EE;border-radius:11px;box-shadow:0 2px 9px rgba(20,38,58,.06);padding:7px 12px 7px 10px;min-height:56px;margin:0;text-align:left;}
@@ -134,7 +134,6 @@
 .pv2 .pv2-badge.is-ac{background:#3A7BC8;}
 .pv2 .pv2-arrow{flex:0 0 auto;margin-top:46px;display:flex;}.pv2 .pv2-arrow svg{width:24px;height:12px;}
 .pv2-solution #v_soScopeNote{margin-top:14px;}
-.pv2-solution .pv2-values-wrap{margin-top:14px;}
 
 /* hide what the new layout replaces on page 5 */
 .pv2-solution .proposal-value-footer,.pv2-solution .solution-system{display:none!important;}
@@ -145,6 +144,19 @@
 .pv2-solution.pv2-fit-2 .pv2-overview,.pv2-solution.pv2-fit-2 #v_soScopeNote,.pv2-solution.pv2-fit-2 .pv2-values-wrap{margin-top:11px;}
 .pv2-solution.pv2-fit-2 .pv2-node-art{height:92px;}
 .pv2-solution.pv2-fit-3 .pv2-values-wrap{display:none;}
+
+/* The value row must sit ON the footer's horizontal rule, edge to edge, exactly
+   like the band on every other page. Those pages position their band absolutely;
+   here the row is the last flex child of .pg-body, so the page can still measure
+   itself for the tighten steps. That means two declarations, and they have to
+   outrank those steps:
+     - `margin-top:auto` lets the row fall until it touches the footer, instead of
+       leaving the spare height under it (that was the gap he could see), and
+     - `margin-bottom:-12px` cancels the .pg-body's 46px bottom padding down to the
+       footer's 34px height, so the row's lower edge meets the rule exactly. */
+.pv2-solution .pv2-values-wrap,
+.pv2-solution.pv2-fit-1 .pv2-values-wrap,
+.pv2-solution.pv2-fit-2 .pv2-values-wrap{margin-top:auto;margin-bottom:-12px;}
 
 /* ================= PAGE 6 ================= */
 .page.pv2:not(#pageCover):not(#pageClosing).pv2-tech > .pg-body{display:block;padding-top:78px;padding-bottom:92px;}
