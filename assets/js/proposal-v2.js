@@ -56,7 +56,21 @@
     return '<svg class="' + (cls || 'pv2-svg') + '" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' +
       (sw || 1.7) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICON[name] || ICON.check) + '</svg>';
   }
-  const ARROW = '<svg width="30" height="14" viewBox="0 0 30 14" aria-hidden="true"><path d="M1 7h24" stroke="#F2811D" stroke-width="2.2" stroke-linecap="round"/><path d="M21 2.5 27.5 7 21 11.5" fill="none" stroke="#F2811D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  /* One arrow, three meanings. DC runs green and AC runs orange, the same pair the
+     badges use, so a reader can follow the colour across the page. The meter and
+     the grid send power both ways, so that link is drawn two-headed and carries
+     Import / Export under it. */
+  const ARROW_COLOUR = { dc: '#1E9E63', ac: '#F2811D', bi: '#3A7BC8' };
+  function arrow(dir, tone) {
+    const c = ARROW_COLOUR[tone] || ARROW_COLOUR.ac;
+    const head = (x1, x2) => '<path d="' + x1 + ' 2.5 ' + x2 + ' 7 ' + x1 + ' 11.5" fill="none" stroke="' + c +
+      '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
+    /* Both heads point outward from the shaft's ends: right at the far end, left
+       at the near one. */
+    const heads = dir === 'both' ? head(26.5, 20) + head(5.5, 12) : head(21, 27.5);
+    return '<svg width="30" height="14" viewBox="0 0 30 14" aria-hidden="true">' +
+      '<path d="M2 7h26" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round"/>' + heads + '</svg>';
+  }
   const SWOOSH = '<svg class="pv2-swoosh" viewBox="0 0 794 88" preserveAspectRatio="none" aria-hidden="true">' +
     '<path d="M0 40C0 28 10 22 26 22H470C600 22 700 16 794 2V88H0Z" fill="#14263A"/>' +
     '<path d="M430 22.5C590 21 700 14 794 0V7C700 21 600 27 470 26.5Z" fill="#F2811D"/></svg>';
@@ -122,12 +136,27 @@
       { img: 'flow-meter.webp', cls: 'is-meter', t: P.meter || 'Bi-Directional Meter', d: 'Net Metering' },
       { svg: 'tower', cls: 'is-grid', t: 'Utility Grid', d: P.grid ? '(' + String(P.grid).replace(/\s*\(([^)]*)\)\s*$/, ' / $1') + ')' : '(DISCOM)' }
     ];
-    return '<div class="pv2-flow">' + nodes.map((n, i) =>
-      (i ? '<span class="pv2-arrow">' + ARROW + '</span>' : '') +
+    /* Link i joins node i-1 to node i. DCDB -> inverter is still DC, so the first
+       two links are green; everything from the inverter outwards is AC. The meter
+       and the grid trade power in both directions. */
+    const links = [
+      { tone: 'dc' },
+      { tone: 'dc' },
+      { tone: 'ac' },
+      { tone: 'ac' },
+      { tone: 'ac' },
+      { tone: 'bi', dir: 'both', note: 'Import / Export' }
+    ];
+    return '<div class="pv2-flow">' + nodes.map((n, i) => {
+      const link = i ? links[i - 1] || {} : null;
+      return (link ? '<span class="pv2-arrow' + (link.note ? ' has-note' : '') + '">' +
+        arrow(link.dir || 'right', link.tone) +
+        (link.note ? '<i>' + esc(link.note) + '</i>' : '') + '</span>' : '') +
       '<div class="pv2-node ' + n.cls + '">' +
       (n.badge ? '<span class="pv2-badge is-' + n.badge.toLowerCase() + '">' + n.badge + '</span>' : '') +
       '<div class="pv2-node-art">' + (n.svg ? icon(n.svg, 62, 'pv2-tower', 1.25) : '<img src="' + IMG + 'proposal/' + n.img + '" alt="" decoding="sync">') + '</div>' +
-      '<b>' + esc(n.t) + '</b>' + (n.d ? '<small>' + esc(n.d) + '</small>' : '') + '</div>').join('') + '</div>';
+      '<b>' + esc(n.t) + '</b>' + (n.d ? '<small>' + esc(n.d) + '</small>' : '') + '</div>';
+    }).join('') + '</div>';
   }
   function solution(s, f) {
     const page = $('pageSolution'); if (!page) return;
@@ -239,12 +268,11 @@
   }
   const kindOf = (name) => /MODULE/i.test(name) ? 'module' : /INVERTER/i.test(name) ? 'inverter' : /MOUNT|CABL/i.test(name) ? 'mount'
     : /DESIGN|ENGINEER/i.test(name) ? 'design' : /^SITE DATA/i.test(name) ? 'sitedata' : /^SITE/i.test(name) ? 'site' : 'other';
-  const HEAD_ICON = { module: 'globe', inverter: 'inverter', mount: 'structure', design: 'gear', other: 'doc' };
   function brandMark(kind, brand) {
-    /* Card 04 is the card of codes, so its badge states the two families of
-       standard it is built from. Plain type, not a manufacturer logo: no make
-       belongs there. */
-    if (kind === 'design') return '<div class="pv2-brand is-std"><b>IS / IEC</b><small>Standards &amp; codes</small></div>';
+    /* Card 04 is the card of codes: it has no manufacturer, so it carries no
+       badge. The IS / IEC badge that used to sit here was read as noise - the
+       card title and its own rows already say what it is. */
+    if (kind === 'design') return '';
     if (!brand) return '';
     const key = slug(brand).split('-')[0];
     if (key === 'ars' || key === 'solartech' || key === 'solar') brand = 'ARS Solar Tech';
@@ -296,8 +324,9 @@
       const photo = photoFor(c.kind, brand);
       const title = c.name.charAt(0) + c.name.slice(1).toLowerCase();
       return '<article class="pv2-card is-' + c.kind + '">' +
+        /* Number OR icon, not both - two devices side by side read as decoration.
+           The number is quiet set type, so it orders the cards without shouting. */
         '<header class="pv2-card-head"><span class="pv2-num">' + String(i + 1).padStart(2, '0') + '</span>' +
-        '<span class="pv2-hic">' + icon(HEAD_ICON[c.kind] || 'doc', 20, 'pv2-svg', 1.5) + '</span>' +
         '<h3>' + esc(c.name.toUpperCase() === c.name ? c.name : title) + '</h3>' + brandMark(c.kind, brand) + '</header>' +
         '<div class="pv2-card-body"><div class="pv2-rows">' + c.rows.map(([k, v]) =>
           '<div class="pv2-row"><div class="pv2-k">' + icon(rowIcon(k), 14, 'pv2-svg', 1.6) + '<span>' + esc(k) + '</span></div><div class="pv2-v">' + esc(v) + '</div></div>').join('') +

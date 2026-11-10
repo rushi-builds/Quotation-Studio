@@ -142,9 +142,12 @@ t('REGRESSION: the note rule outweighs app.css `#pageTechSpec .note-box`', () =>
   assert.ok(mine > base, `our rule (${mine}) must outrank app.css (${base}) or the old box returns`);
   /* And it must set every property the base rule sets, so nothing leaks through. */
   /* Several rules target this box; the LAST one is the one that wins the
-     cascade at equal-or-higher specificity, so that is the one to assert on. */
+     cascade at equal-or-higher specificity, so that is the one to assert on.
+     (Page 5's scope note no longer rides this selector: page 6's note is now a
+     pill of its own, so the base layout lives in ONE rule and the fit step adds
+     the padding tweak.) */
   const blocks = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)];
-  assert.ok(blocks.length >= 2, 'the shared note-bar rule and the page-6 override both exist');
+  assert.ok(blocks.length >= 1, 'the base layout rule exists');
   const block = blocks[blocks.length - 1][1];
   /* font-size now rides the `font:` shorthand, which resets it just as well. */
   for (const prop of ['background:', 'border:', 'box-shadow:', 'backdrop-filter:none', 'padding:', 'font:']) {
@@ -205,44 +208,96 @@ t('page 6 reclaimed vertical space on the card grid and the label', () => {
 });
 
 t('the space came from padding and gaps, not from shrinking the body copy', () => {
-  /* The reclaimed 54px is margins/gaps/padding only. The two sizes the reader
-     actually reads (row text and the note) must not drop below what the page
-     already shipped at its tightest fit step (9.4px / 9.8px). */
+  /* The card text must not drop below what the page already shipped at its
+     tightest fit step (9.4px / 9.8px).
+     The note is the one deliberate exception: the owner sent a reference and asked
+     for it "chhota ... neat clean"; it is a footnote pill now, set at 9.4px, which
+     is the same size the fit ladder already used for it. */
   /* The compress rule touches padding only - no font declarations in it. */
   const compress = css.match(/\.pv2-tech \.pv2-row \.pv2-k,\.pv2-tech \.pv2-row \.pv2-v\{([^}]*)\}/);
   assert.ok(compress, 'the row-compression rule must exist');
   assert.doesNotMatch(compress[1], /font/, 'it must change padding only, never the type');
   assert.match(compress[1], /padding-top:3px;padding-bottom:3px/, 'row padding 4 -> 3');
-  const noteSize = Number((css.match(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{[^}]*font-size:([\d.]+)px/) || [])[1]);
+  /* The pill sets its type with the `font:` shorthand, so read the size from
+     there; fall back to a longhand if one is ever reintroduced. */
+  const noteBlock = (css.match(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([^}]*)\}/) || [])[1] || '';
+  const noteSize = Number((noteBlock.match(/font-size:([\d.]+)px/) ||
+    noteBlock.match(/font:(?:\d+ )?([\d.]+)px/) || [])[1]);
   const rowSize = Number((css.match(/\.pv2-tech \.pv2-k\{[^}]*font:(?:\d+ )?([\d.]+)px/) || [])[1]);
-  assert.ok(noteSize >= 9.8, `note text ${noteSize}px would be smaller than the 9.8px it shipped at`);
+  assert.ok(noteSize >= 9.4, `note text ${noteSize}px would be smaller than the 9.4px it shipped at`);
   assert.ok(rowSize >= 10, `row text ${rowSize}px would be smaller than the 10.2px it shipped at`);
 });
 
-/* ------------------------------- page 6 note reads as a fifth specification row */
-t('the note is laid out as a row of the card (41% / 59%), not a floating box', () => {
-  const block = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)].pop()[1];
-  assert.match(block, /grid-template-columns:41% 59%/,
-    'same column split as .pv2-row, so Important lines up under Lightning Protection');
-  assert.match(block, /border-radius:8px/, 'same corner radius as the row stack');
-  /* and it still reads as advice: warm paper with an orange spine, not a plain
-     sheet (he asked for the note to look properly designed again). */
-  assert.match(block, /background:#FFFBF6/, 'warm paper, so it is not mistaken for a spec row');
-  assert.match(block, /border-left:3px solid #F2811D/, 'an orange spine marks it as the note');
+/* ------------------------------- page 5 flow: colours, and the two-way link */
+t('DC runs green and AC runs orange, from DCDB through to the meter', () => {
+  assert.match(js, /ARROW_COLOUR = \{ dc: '#1E9E63', ac: '#F2811D'/,
+    'the two tones are declared once, green for DC and orange for AC');
+  /* DCDB -> inverter is still DC, so the first two links are green and the rest
+     of the chain is AC. Asserted on the link table, not on a rendered pixel. */
+  const links = js.match(/const links = \[([\s\S]*?)\];/)[1];
+  const tones = [...links.matchAll(/tone: '(\w+)'/g)].map((m) => m[1]);
+  assert.deepEqual(tones, ['dc', 'dc', 'ac', 'ac', 'ac', 'bi'],
+    'module->DCDB and DCDB->inverter green, inverter outwards orange');
+  /* The DC / AC badges carry the same pair, or the colour means nothing. */
+  assert.match(css, /\.pv2 \.pv2-badge\.is-dc\{background:#1E9E63;\}/, 'the DC badge is green');
+  assert.match(css, /\.pv2 \.pv2-badge\.is-ac\{background:#F2811D;\}/, 'the AC badge is orange');
 });
 
-t('the Important label keeps the key-column tint and an orange bullet', () => {
-  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel\{[\s\S]{0,300}?background:#FDF3E7/,
-    'the label is a tinted key cell, like the key cells the rows above use');
-  /* A real icon, not a bare square: the label carries a round orange badge with a
-     line icon in it, so it matches the icon-led rows. */
-  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel::before\{[^}]*border-radius:50%/,
-    'the badge is round');
-  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel::before\{[^}]*data:image\/svg\+xml/,
-    'and it carries an inline line icon');
-  /* The old round "i" badge must not come back on this row. */
+t('the meter and the grid trade both ways, and say so', () => {
+  assert.match(js, /dir: 'both', note: 'Import \/ Export'/,
+    'the meter <-> grid link is two-headed and labelled');
+  /* Two arrowheads, pointing outward from both ends of the shaft. */
+  assert.match(js, /const heads = dir === 'both' \? head\(26\.5, 20\) \+ head\(5\.5, 12\) : head\(21, 27\.5\)/,
+    'a second, left-pointing head is drawn only for the two-way link');
+  assert.match(css, /\.pv2 \.pv2-arrow\.has-note i\{[^}]*text-transform:uppercase/,
+    'the label is set under the shaft');
+});
+
+/* ------------------------------- page 6 cards: number OR icon, not both */
+t('the card head carries the number instead of a number and an icon', () => {
+  assert.match(js, /<span class="pv2-num">' \+ String\(i \+ 1\)\.padStart\(2, '0'\)/,
+    'the ordinal is still emitted');
+  assert.doesNotMatch(js, /pv2-hic/, 'the icon circle is gone from the head');
+  assert.doesNotMatch(js, /HEAD_ICON/, 'and so is its lookup table');
+  /* The number is quiet set type, not a filled orange tile. */
+  const num = css.match(/\.pv2-tech \.pv2-num\{([^}]*)\}/)[1];
+  assert.match(num, /background:none/, 'no filled tile');
+  assert.match(num, /color:#9AA5B4/, 'a muted ink instead of white-on-orange');
+});
+
+t('the right-hand column is the one that carries the weight', () => {
+  const v = css.match(/\.pv2-tech \.pv2-v\{([^}]*)\}/)[1];
+  assert.match(v, /font-weight:600/, 'the value is bold - he could not read it before');
+  assert.match(v, /color:#16202C/, 'and darker than the label');
+  /* The key column keeps its 600; the value must now match or beat it. */
+  const k = css.match(/\.pv2-tech \.pv2-k\{([^}]*)\}/)[1];
+  assert.match(k, /font:600 /, 'the key cell has not been lightened below the value');
+});
+
+/* --------------------- page 6 note: the owner's reference shape, compact */
+t('the note is a single compact pill, not a fifth specification row', () => {
+  const block = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)].pop()[1];
+  /* He sent the target: one short rounded pill with a flag, a divider and a folded
+     corner. The 41%/59% grid that made it a grid row is gone. */
+  assert.match(block, /border-radius:999px/, 'a pill, not a table row');
+  assert.doesNotMatch(block, /grid-template-columns:41% 59%/, 'it no longer copies the card columns');
+  assert.match(block, /grid-template-columns:auto minmax\(0,1fr\)/, 'flag, then the sentence');
+  assert.match(block, /padding:3px 24px 3px 4px/, 'and it is short - it is a footnote');
+});
+
+t('the note keeps the reference details: flag, divider, drawn corner, icon', () => {
+  /* The pale-blue flag carrying the icon and the caps word. */
+  assert.match(css, /#v_tsNoteLabel\{[^}]*background:#DCE7F5/, 'the flag is pale blue');
+  assert.match(css, /#v_tsNoteLabel\{[^}]*text-transform:uppercase/, 'and the word is set in caps');
+  assert.match(css, /#v_tsNoteLabel::after\{[^}]*data:image\/svg\+xml/, 'the icon is drawn, not a glyph');
+  /* An orange divider between the flag and the sentence. */
+  assert.match(css, /#v_tsNote\{[^}]*border-left:1px solid #F2811D/, 'orange divider');
+  /* The folded corner. */
+  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box::after\{[^}]*linear-gradient\(135deg/,
+    'the corner is folded, in orange');
+  /* The old round info dot must not come back. */
   const before = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box::before\{([^}]*)\}/g)].pop()[1];
-  assert.match(before, /content:none/, 'the circular info dot is switched off for this row');
+  assert.match(before, /content:none/, 'the circular info dot stays off');
 });
 
 /* --------------------------------------------- ARS is a marked make now */
@@ -310,10 +365,11 @@ t('card 04 shows the standards render and states what it is', () => {
     'and photoFor actually routes the design card to it');
   assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/equipment/cards/design-is-standards.webp')),
     'the file is there');
-  /* The badge used to read "Lightning & earthing", which describes card 03's rows
-     and not the card of codes it sits on. */
-  assert.match(js, /<small>Standards &amp; codes<\/small>/, 'the card says what it is');
-  assert.doesNotMatch(js, /Lightning &amp; earthing/, 'the old badge copy is gone');
+  /* The badge is gone entirely: card 04 has no manufacturer, and the IS / IEC
+     badge was read as noise on a card that already states its own name. */
+  assert.match(js, /if \(kind === 'design'\) return '';/, 'the design card carries no badge');
+  assert.doesNotMatch(js, /Standards &amp; codes/, 'the badge copy is gone');
+  assert.doesNotMatch(js, /Lightning &amp; earthing/, 'and so is the one before it');
 });
 
 /* --------------------------------------- page 5 overview got its room back */
