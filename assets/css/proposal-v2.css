@@ -18,9 +18,24 @@
 .pv2-solution #v_soScopeNote::before,#pageTechSpec.pv2 .pg-body > .note-box::before{content:'i';position:absolute;left:18px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;
   background:#F2811D;color:#fff;font:700 14px/22px Georgia,serif;text-align:center;}
 .pv2-solution #v_soScopeNote::after{content:'Note:';position:absolute;left:48px;top:50%;transform:translateY(-50%);color:#E5741A;font:700 13px/1 'Poppins','Inter',sans-serif;}
-#pageTechSpec.pv2 .pg-body > .note-box{display:block;padding-top:11px;padding-bottom:11px;font-size:10.4px;margin-top:12px;}
-#pageTechSpec.pv2 .note-box #v_tsNoteLabel{letter-spacing:0;font-size:13px!important;position:absolute;left:48px;top:50%;transform:translateY(-50%);color:#E5741A;font:700 13px/1 'Poppins','Inter',sans-serif;text-transform:capitalize;}
+/* One compact line: the label sits inline with the copy instead of on an
+   absolute overlay, which needed 48px of left padding and made the box taller
+   than its two lines of text. */
+#pageTechSpec.pv2 .pg-body > .note-box{display:flex;align-items:center;gap:9px;padding:8px 14px;font-size:9.8px;line-height:1.45;margin-top:8px;text-align:left;}
+#pageTechSpec.pv2 .note-box::before{position:static;transform:none;flex:none;width:18px;height:18px;font-size:11px;}
+#pageTechSpec.pv2 .note-box #v_tsNoteLabel{position:static;transform:none;letter-spacing:0;font:700 10.4px/1.45 'Poppins','Inter',sans-serif;color:#E5741A;text-transform:capitalize;white-space:nowrap;flex:none;}
 #pageTechSpec.pv2 .note-box #v_tsNoteLabel::after{content:':';}
+#pageTechSpec.pv2 .note-box #v_tsNote{flex:1 1 auto;}
+
+/* The white sheet and its bottom-right petal artwork come from the generic page
+   rule (proposal-values.css). proposal-v2.css is loaded later, so its gradient
+   was painting over both - the page 5/6 sheets went grey and the petals
+   disappeared. Keep the artwork, drop the gradient for these two pages. */
+.page.pv2.pv2-solution:not(#pageCover):not(#pageClosing),
+.page.pv2.pv2-tech:not(#pageCover):not(#pageClosing){
+ background:#fff;background-image:url('../images/proposal-corner-petals.svg');
+ background-repeat:no-repeat;background-position:100% 100%;background-size:170px 170px;
+}
 
 .pv2 .pv2-values{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);}
 .pv2 .pv2-values li{display:flex;align-items:center;justify-content:center;gap:14px;color:var(--pv2-ink);font:600 12px/1.3 'Poppins','Inter',sans-serif;position:relative;}
@@ -92,6 +107,16 @@
 
 /* ================= PAGE 6 ================= */
 .page.pv2:not(#pageCover):not(#pageClosing).pv2-tech > .pg-body{display:block;padding-top:78px;padding-bottom:92px;}
+/* Page 6 was overflowing: the title block measured 22px taller than it needed to
+   and every card carried a 10px gap. Pulled in here (heading -2, sub -2, para
+   -1px line, label -6, cards -4, note -4) so the four cards and the note fit
+   above the footer with air to spare. */
+.pv2-tech #v_tsGroupsLabel.pv2-label{margin:10px 0 8px -12px;height:24px;}
+.pv2-tech .pv2-card-head{margin:0 2px 4px 0;min-height:26px;}
+.pv2-tech .pv2-card{padding:6px 8px 6px 10px;}
+.pv2-tech .pv2-row .pv2-k,.pv2-tech .pv2-row .pv2-v{padding-top:3px;padding-bottom:3px;}
+.pv2-tech .pg-body > .note-box{margin-top:8px;padding-top:8px;padding-bottom:8px;}
+.pv2-tech #v_tsPara{margin-bottom:0;}
 .pv2-tech #v_tsHeading{font:800 32px/1.12 'Poppins','Inter',sans-serif;color:var(--pv2-navy);letter-spacing:-.5px;margin:0;}
 .pv2-tech #v_tsSub{font:600 15px/1.3 'Poppins','Inter',sans-serif;color:#F2811D;margin:4px 0 0;}
 .pv2-tech .pg-body > .rule-orange{width:58px;height:3px;border-radius:2px;background:#F2811D;margin:5px 0 8px;}
@@ -101,7 +126,7 @@
 .pv2-tech #v_tsGroupsLabel.pv2-label{display:flex;align-items:stretch;height:28px;margin:14px 0 10px -12px;padding:0;background:none;border:0;}
 .pv2-tech #v_tsGroupsLabel.pv2-label::after{content:'';flex:1 1 auto;align-self:center;height:1px;background:#C3CBD6;margin-left:12px;}
 .pv2-tech #v_tsGroupsLabel.pv2-label::before{display:none;}
-.pv2-tech .pv2-spec{display:flex;flex-direction:column;gap:10px;}
+.pv2-tech .pv2-spec{display:flex;flex-direction:column;gap:8px;}
 .pv2-tech .pv2-card{background:#fff;border:1px solid #E4E8EE;border-radius:12px;box-shadow:0 2px 10px rgba(20,38,58,.06);padding:8px 8px 8px 10px;}
 .pv2-tech .pv2-card-head{display:flex;align-items:center;gap:10px;margin:0 2px 6px 0;min-height:30px;}
 .pv2-tech .pv2-num{background:#F2811D;color:#fff;font:700 15px/1 'Poppins','Inter',sans-serif;border-radius:6px;padding:6px 8px;min-width:34px;text-align:center;}

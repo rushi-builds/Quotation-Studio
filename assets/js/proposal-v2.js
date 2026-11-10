@@ -78,9 +78,17 @@
   function label(text, extra) {
     return '<div class="pv2-label' + (extra ? ' ' + extra : '') + '"><i aria-hidden="true"></i><span>' + esc(text) + '</span></div>';
   }
+  /* The value row keeps the proposal's own two-tone marks (ProposalMarks), the
+     same artwork every other page's footer uses, in the same four-palette
+     rotation. Falling back to the line icons only if that file is absent. */
+  const PALETTES = ['warm', 'sage', 'lavender', 'blue'];
+  function valueMark(ic, i) {
+    const M = root.ProposalMarks;
+    return M && M.get ? M.get(ic, 30, PALETTES[i % 4]) : icon(ic, 30, 'pv2-svg', 1.4);
+  }
   function values(items) {
-    return '<ul class="pv2-values">' + items.map(([ic, a, b]) =>
-      '<li>' + icon(ic, 34, 'pv2-svg', 1.4) + '<span>' + esc(a) + '<br>' + esc(b) + '</span></li>').join('') + '</ul>';
+    return '<ul class="pv2-values">' + items.map(([ic, a, b], i) =>
+      '<li>' + valueMark(ic, i) + '<span>' + esc(a) + '<br>' + esc(b) + '</span></li>').join('') + '</ul>';
   }
 
   /* --------------------------- PAGE 5 ------------------------------------- */
@@ -151,7 +159,7 @@
     if (!vals) {
       vals = doc.createElement('div'); vals.className = 'pv2-values-wrap'; vals.dataset.docAdded = 'true';
       body.append(vals);
-      vals.innerHTML = values([['compass', 'Site-fit', 'Design'], ['layers', 'Specified', 'Equipment'], ['shield', 'Design', 'Safety'], ['calendarCheck', 'Planned', 'Handover']]);
+      vals.innerHTML = values([['target', 'Site-fit', 'Design'], ['gear', 'Specified', 'Equipment'], ['shield', 'Design', 'Safety'], ['check', 'Planned', 'Handover']]);
     }
     fit(page, ['pv2-fit-1', 'pv2-fit-2', 'pv2-fit-3']);
   }
