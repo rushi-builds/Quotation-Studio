@@ -2189,3 +2189,15 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec .spec-table tr.spec-group[data-kind="modules"] td::after,
 #pageTechSpec .spec-table tr.spec-group[data-kind="inverter"] td::after,
 #pageTechSpec .spec-table tr.spec-group[data-kind="mount"] td::after{display:none;}
+/* Correct the hero's place in the page's own flow: `.photo-top` is absolute on
+   the other brochure pages, but page 5 now owns it as a grid child. */
+#pageSolution .solution-body{padding-top:70px;}
+#pageSolution .solution-photo{
+  position:relative;inset:auto;z-index:1;width:100%;height:194px;margin:0;
+  overflow:visible;border:1px solid var(--line);border-radius:15px;background:#f4f7fa;
+}
+#pageSolution .solution-photo:after{height:4px;}
+#pageSolution .solution-photo img{box-sizing:border-box;}
+#pageTechSpec .pg-body::before{
+  background-image:url('../images/equipment/customer/structure-installation.webp');
+}

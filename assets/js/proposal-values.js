@@ -51,11 +51,11 @@
   'inverter:huawei-fusionsolar':'huawei-inverter.webp',
   'inverter:solis':'solis-inverter.webp',
   /* Mounting structure - the make the sheet names on the STRUCTURE row. */
-  'mount:ars':'../customer/structure-installation.webp',
-  'mount:ars-solar-tech':'../customer/structure-installation.webp',
-  'mount:ars-solartech':'../customer/structure-installation.webp',
-  'mount:solartech':'../customer/structure-installation.webp',
-  'mount:solar-tech':'../customer/structure-installation.webp',
+  'mount:ars':'../customer/structure-product.webp',
+  'mount:ars-solar-tech':'../customer/structure-product.webp',
+  'mount:ars-solartech':'../customer/structure-product.webp',
+  'mount:solartech':'../customer/structure-product.webp',
+  'mount:solar-tech':'../customer/structure-product.webp',
   /* Cabling, earthing and protection. One card carries the whole "Mounting &
      Cabling" group, so the card shows the structure when it has one and the
      cable the sheet names when it does not; earthing is the quiet default. */
@@ -68,7 +68,7 @@
   modules:PHOTO_BASE+'../customer/module-universal.webp',
   module:PHOTO_BASE+'../customer/module-universal.webp',
   inverter:'assets/images/inc-inverter.png',
-  mount:PHOTO_BASE+'../customer/structure-installation.webp',
+  mount:PHOTO_BASE+'../customer/structure-product.webp',
   design:PHOTO_BASE+'../customer/earthing-system.webp',
   other:PHOTO_BASE+'../customer/earthing-system.webp'
  };
