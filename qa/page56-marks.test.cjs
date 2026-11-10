@@ -44,8 +44,8 @@ console.log('\npage 5/6 marks, labels and sheet (the two regressions that shippe
 t('page 5 value row is built from ProposalMarks, the proposal-wide artwork', () => {
   assert.match(js, /root\.ProposalMarks/,
     'proposal-v2.js must ask ProposalMarks for the value marks');
-  assert.match(js, /M\.get\(ic, 30, PALETTES\[i % 4\]\)/,
-    'marks must use ProposalMarks.get(icon, size, palette) in the four-palette rotation');
+  assert.match(js, /M\.get\(ic, 26, PALETTES\[i % 4\]\)/,
+    'marks must use ProposalMarks.get(icon, 26, palette) - 26px is the .pv-mark size on the other pages');
 });
 
 t('NEGATIVE: the row no longer draws bare line icons for its four cells', () => {
@@ -69,6 +69,84 @@ t('the four cells use marks that exist in ProposalMarks', () => {
   assert.equal(icons.length, 4);
   for (const ic of icons) {
     assert.ok(new RegExp('\\n  ' + ic + ':').test(marks), `ProposalMarks has no shape named "${ic}"`);
+  }
+});
+
+/* ------------------------------------ page 5 band matches the other pages */
+t('page 5 band uses the same metrics as the footer band on the other pages', () => {
+  /* Copied deliberately from .proposal-value-footer .pv-values in
+     proposal-values.css: if one changes, the other must too. */
+  const band = css.match(/\.pv2 \.pv2-values li\{([^}]*)\}/);
+  assert.ok(band, 'the value-row cell rule must exist');
+  assert.match(band[1], /justify-content:flex-start/, 'cells start at the left, not centred');
+  assert.match(band[1], /gap:11px/, 'mark-to-copy gap 11px, same as .pv-values');
+  assert.match(css, /\.pv2 \.pv2-values li \+ li\{padding-left:15px;\}/, '15px left padding after the first cell');
+  assert.match(css, /\.pv2 \.pv2-values \.pv2-label\{font:500 9px\/1\.5 'Inter',sans-serif/, '9px copy');
+  const divider = css.match(/\.pv2 \.pv2-values li \+ li::before\{([^}]*)\}/);
+  assert.ok(divider);
+  assert.match(divider[1], /left:-9px/, 'divider sits at -9px like the footer band');
+  assert.match(divider[1], /height:18px/);
+});
+
+t('every metric above is the same value the footer band uses', () => {
+  const footer = valuesCss.match(/\.proposal-value-footer \.pv-values li\{([^}]*)\}/)[1];
+  const page5 = css.match(/\.pv2 \.pv2-values li\{([^}]*)\}/)[1];
+  for (const decl of ['justify-content:flex-start', 'gap:11px']) {
+    assert.ok(footer.includes(decl), `footer band should carry ${decl}`);
+    assert.ok(page5.includes(decl), `page 5 band must carry the same ${decl}`);
+  }
+  assert.match(valuesCss, /\.proposal-value-footer \.pv-mark svg\{display:block;\}/);
+  assert.match(css, /\.pv2 \.pv2-values \.pv2-mark svg\{display:block;\}/);
+});
+
+t('the row markup mirrors the footer markup: a mark span plus a copy span', () => {
+  assert.match(js, /<li><span class="pv2-mark">' \+ valueMark\(ic, i\) \+ '<\/span>'/,
+    'mark is wrapped in its own span, as .pv-mark is on the other pages');
+  assert.match(js, /'<span class="pv2-label">' \+ esc\(a\)/, 'copy gets its own span');
+});
+
+/* ------------------------------------------- page 6 opener is a quiet line */
+t('page 6 opener replaces the dark DETAILED SPECIFICATION slab with one line', () => {
+  const emitted = js.match(/groupsLabel\.innerHTML = '([\s\S]*?)';/);
+  assert.ok(emitted, 'the opener must be emitted by the page itself');
+  assert.doesNotMatch(emitted[1], /DETAILED SPECIFICATION/,
+    'the slab text is gone from what actually renders; it repeated the sub-heading above it');
+  assert.match(js, /groupsLabel\.classList\.add\('pv2-eyebrow'\)/, 'the opener gets its own class');
+  assert.match(js, /<em>compatibility<\/em>/, 'one orange phrase');
+  assert.match(js, /<em>certified performance<\/em>/, 'two orange phrases');
+  /* Exactly two <em> - the owner asked for 2 quiet orange bits, not a rainbow. */
+  const copy = js.match(/groupsLabel\.innerHTML = '([\s\S]*?)';/)[1];
+  assert.equal((copy.match(/<em>/g) || []).length, 2, 'exactly two orange phrases');
+});
+
+t('the orange phrases are the only coloured part of that line', () => {
+  const eyebrow = css.match(/\.pv2-tech #v_tsGroupsLabel\.pv2-eyebrow\{([^}]*)\}/);
+  assert.ok(eyebrow, 'eyebrow rule exists');
+  assert.match(eyebrow[1], /color:#7A828E/, 'the sentence itself is quiet grey');
+  assert.match(css, /\.pv2-tech #v_tsGroupsLabel\.pv2-eyebrow em\{[^}]*color:#E5741A/,
+    'only the <em> phrases take the orange');
+});
+
+/* ------------------------------------------ page 6 note wins the specificity */
+t('REGRESSION: the note rule outweighs app.css `#pageTechSpec .note-box`', () => {
+  const weights = (sel) => {
+    const ids = (sel.match(/#/g) || []).length;
+    const cls = (sel.match(/\.[a-z0-9-]+/gi) || []).length
+      + (sel.match(/\[[^\]]*\]/g) || []).length;
+    const el = (sel.match(/(^|[ >+~])([a-z][a-z0-9-]*)/gi) || []).length;
+    return ids * 10000 + cls * 100 + el;
+  };
+  const base = weights('#pageTechSpec .note-box');
+  const mine = weights('#pageTechSpec.pv2 .pg-body > .note-box');
+  assert.ok(mine > base, `our rule (${mine}) must outrank app.css (${base}) or the old box returns`);
+  /* And it must set every property the base rule sets, so nothing leaks through. */
+  /* Several rules target this box; the LAST one is the one that wins the
+     cascade at equal-or-higher specificity, so that is the one to assert on. */
+  const blocks = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)];
+  assert.ok(blocks.length >= 2, 'the shared note-bar rule and the page-6 override both exist');
+  const block = blocks[blocks.length - 1][1];
+  for (const prop of ['background:', 'border:', 'box-shadow:', 'backdrop-filter:none', 'padding:', 'font-size:']) {
+    assert.ok(block.includes(prop), `the override must re-set ${prop} instead of leaving app.css' value`);
   }
 });
 
@@ -109,7 +187,7 @@ t('NEGATIVE: cover and approved closing page are not repainted', () => {
 
 /* ------------------------------------------------------------ page 6 spacing */
 t('page 6 note is one compact inline line, not an absolute overlay', () => {
-  assert.match(css, /#pageTechSpec\.pv2 \.note-box #v_tsNoteLabel\{position:static/,
+  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel\{[\s\S]{0,200}?position:static/,
     'the label must flow inline; the old rule pinned it with position:absolute + 48px inset');
   assert.doesNotMatch(css, /#pageTechSpec\.pv2 \.note-box #v_tsNoteLabel\{letter-spacing:0;font-size:13px!important;position:absolute/,
     'the tall overlay label is the thing that was removed');
@@ -118,8 +196,8 @@ t('page 6 note is one compact inline line, not an absolute overlay', () => {
 t('page 6 reclaimed vertical space on the card grid and the label', () => {
   assert.match(css, /\.pv2-tech \.pv2-spec\{display:flex;flex-direction:column;gap:8px;\}/,
     'card gap 10 -> 8');
-  assert.match(css, /\.pv2-tech #v_tsGroupsLabel\.pv2-label\{margin:10px 0 8px -12px;height:24px;\}/,
-    'group label 28px tall / 14+10 margin -> 24px tall / 10+8 margin');
+  assert.match(css, /\.pv2-tech #v_tsGroupsLabel\.pv2-eyebrow\{[\s\S]{0,160}?height:auto/,
+    'the opener is a quiet single line now, not a height-locked slab');
   assert.match(css, /\.pv2-tech \.pv2-row \.pv2-k,\.pv2-tech \.pv2-row \.pv2-v\{padding-top:3px;padding-bottom:3px;\}/,
     'row padding 4 -> 3 on both cells');
 });

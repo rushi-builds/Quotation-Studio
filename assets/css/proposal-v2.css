@@ -20,12 +20,31 @@
 .pv2-solution #v_soScopeNote::after{content:'Note:';position:absolute;left:48px;top:50%;transform:translateY(-50%);color:#E5741A;font:700 13px/1 'Poppins','Inter',sans-serif;}
 /* One compact line: the label sits inline with the copy instead of on an
    absolute overlay, which needed 48px of left padding and made the box taller
-   than its two lines of text. */
-#pageTechSpec.pv2 .pg-body > .note-box{display:flex;align-items:center;gap:9px;padding:8px 14px;font-size:9.8px;line-height:1.45;margin-top:8px;text-align:left;}
-#pageTechSpec.pv2 .note-box::before{position:static;transform:none;flex:none;width:18px;height:18px;font-size:11px;}
-#pageTechSpec.pv2 .note-box #v_tsNoteLabel{position:static;transform:none;letter-spacing:0;font:700 10.4px/1.45 'Poppins','Inter',sans-serif;color:#E5741A;text-transform:capitalize;white-space:nowrap;flex:none;}
-#pageTechSpec.pv2 .note-box #v_tsNoteLabel::after{content:':';}
-#pageTechSpec.pv2 .note-box #v_tsNote{flex:1 1 auto;}
+   than its two lines of text.
+
+   SPECIFICITY NOTE: app.css carries `#pageTechSpec .note-box` (0-1-1-0) with a
+   gradient, a border, a backdrop blur and margin-top:26px. A rule written as
+   `#pageTechSpec.pv2 .note-box` is 0-2-1-0 only while `.pv2` is present, so any
+   load order change or class reset silently put the old box back - which is
+   exactly what happened. The selectors below match or exceed that weight
+   (0-2-1-0 and 0-2-2-0) and set every property the base rule sets, so nothing
+   leaks through. */
+#pageTechSpec.pv2 .pg-body > .note-box{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 14px;font-size:9.8px;line-height:1.45;margin-top:8px;text-align:left;
+  background:#FFF1E3;border:0;border-radius:10px;box-shadow:none;
+  -webkit-backdrop-filter:none;backdrop-filter:none;color:var(--pv2-ink);min-height:0;
+}
+#pageTechSpec.pv2 .pg-body > .note-box::before{
+  position:static;transform:none;left:auto;top:auto;flex:none;width:18px;height:18px;
+  border-radius:50%;background:#F2811D;color:#fff;font:700 11px/18px Georgia,serif;text-align:center;
+}
+#pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel{
+  position:static;transform:none;letter-spacing:0;margin:0;text-transform:capitalize;
+  font:700 10.4px/1.45 'Poppins','Inter',sans-serif;color:#E5741A;white-space:nowrap;flex:none;
+}
+#pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel::after{content:':';}
+#pageTechSpec.pv2 .pg-body > .note-box #v_tsNote{flex:1 1 auto;color:var(--pv2-ink);}
 
 /* The white sheet and its bottom-right petal artwork come from the generic page
    rule (proposal-values.css). proposal-v2.css is loaded later, so its gradient
@@ -37,9 +56,20 @@
  background-repeat:no-repeat;background-position:100% 100%;background-size:170px 170px;
 }
 
-.pv2 .pv2-values{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);}
-.pv2 .pv2-values li{display:flex;align-items:center;justify-content:center;gap:14px;color:var(--pv2-ink);font:600 12px/1.3 'Poppins','Inter',sans-serif;position:relative;}
-.pv2 .pv2-values li + li::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:1px;background:#C9CFD8;}
+/* Page 5's value band is the same component as the footer band on the other
+   thirteen pages (.proposal-value-footer .pv-values), not a look-alike: equal
+   cells, inline 26px mark, 11px gap, 15px left padding per cell after the first,
+   a faint 18px divider at -9px, 9px copy. These numbers are copied from
+   proposal-values.css on purpose - if that band changes, change both. */
+.pv2 .pv2-values{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;gap:18px;}
+.pv2 .pv2-values li{position:relative;display:flex;align-items:center;justify-content:flex-start;gap:11px;min-width:0;
+  color:#4d667b;font:500 9px/1.5 'Inter',sans-serif;}
+.pv2 .pv2-values li + li{padding-left:15px;}
+.pv2 .pv2-values .pv2-mark{display:block;flex:none;line-height:0;}
+.pv2 .pv2-values .pv2-mark svg{display:block;}
+.pv2 .pv2-values .pv2-label{font:500 9px/1.5 'Inter',sans-serif;white-space:pre-line;overflow-wrap:anywhere;color:#4d667b;}
+.pv2 .pv2-values li + li::before{content:'';position:absolute;left:-9px;top:50%;width:1px;height:18px;
+  background:#c5ccdb;opacity:.5;transform:translateY(-50%);pointer-events:none;}
 
 /* ================= PAGE 5 ================= */
 .page.pv2:not(#pageCover):not(#pageClosing).pv2-solution > .pg-body{display:flex;flex-direction:column;}
@@ -111,7 +141,6 @@
    and every card carried a 10px gap. Pulled in here (heading -2, sub -2, para
    -1px line, label -6, cards -4, note -4) so the four cards and the note fit
    above the footer with air to spare. */
-.pv2-tech #v_tsGroupsLabel.pv2-label{margin:10px 0 8px -12px;height:24px;}
 .pv2-tech .pv2-card-head{margin:0 2px 4px 0;min-height:26px;}
 .pv2-tech .pv2-card{padding:6px 8px 6px 10px;}
 .pv2-tech .pv2-row .pv2-k,.pv2-tech .pv2-row .pv2-v{padding-top:3px;padding-bottom:3px;}
@@ -123,9 +152,16 @@
 .pv2-tech #v_tsPara{font-size:11.6px;line-height:1.5;color:#4A5565;margin:0;max-width:none;}
 .pv2-tech .diagram-box{display:none!important;}
 .pv2-tech #v_tsTable{display:none!important;}
-.pv2-tech #v_tsGroupsLabel.pv2-label{display:flex;align-items:stretch;height:28px;margin:14px 0 10px -12px;padding:0;background:none;border:0;}
-.pv2-tech #v_tsGroupsLabel.pv2-label::after{content:'';flex:1 1 auto;align-self:center;height:1px;background:#C3CBD6;margin-left:12px;}
-.pv2-tech #v_tsGroupsLabel.pv2-label::before{display:none;}
+/* Quiet opener for the specification cards: one small line, two orange phrases,
+   then the rule runs to the page edge. Replaces the dark "DETAILED
+   SPECIFICATION" slab, which repeated the sub-heading above it. */
+.pv2-tech #v_tsGroupsLabel.pv2-eyebrow{display:flex;align-items:baseline;gap:0;height:auto;margin:10px 0 9px;
+  padding:0;background:none;border:0;font:500 9.6px/1.45 'Inter',sans-serif;color:#7A828E;letter-spacing:0;}
+.pv2-tech #v_tsGroupsLabel.pv2-eyebrow span{flex:0 1 auto;min-width:0;}
+.pv2-tech #v_tsGroupsLabel.pv2-eyebrow em{font-style:normal;font-weight:700;color:#E5741A;}
+.pv2-tech #v_tsGroupsLabel.pv2-eyebrow::after{content:'';flex:1 1 auto;align-self:center;height:1px;
+  background:#C3CBD6;margin-left:14px;min-width:24px;}
+.pv2-tech #v_tsGroupsLabel.pv2-eyebrow::before{display:none;}
 .pv2-tech .pv2-spec{display:flex;flex-direction:column;gap:8px;}
 .pv2-tech .pv2-card{background:#fff;border:1px solid #E4E8EE;border-radius:12px;box-shadow:0 2px 10px rgba(20,38,58,.06);padding:8px 8px 8px 10px;}
 .pv2-tech .pv2-card-head{display:flex;align-items:center;gap:10px;margin:0 2px 6px 0;min-height:30px;}

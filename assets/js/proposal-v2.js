@@ -84,11 +84,15 @@
   const PALETTES = ['warm', 'sage', 'lavender', 'blue'];
   function valueMark(ic, i) {
     const M = root.ProposalMarks;
-    return M && M.get ? M.get(ic, 30, PALETTES[i % 4]) : icon(ic, 30, 'pv2-svg', 1.4);
+    return M && M.get ? M.get(ic, 26, PALETTES[i % 4]) : icon(ic, 26, 'pv2-svg', 1.4);
   }
+  /* Same markup shape as .proposal-value-footer .pv-values on the other pages:
+     inline mark + copy, one copy span per label. Only the artwork and the words
+     differ, so the two bands read as one component. */
   function values(items) {
     return '<ul class="pv2-values">' + items.map(([ic, a, b], i) =>
-      '<li>' + valueMark(ic, i) + '<span>' + esc(a) + '<br>' + esc(b) + '</span></li>').join('') + '</ul>';
+      '<li><span class="pv2-mark">' + valueMark(ic, i) + '</span>' +
+      '<span class="pv2-label">' + esc(a) + '<br>' + esc(b) + '</span></li>').join('') + '</ul>';
   }
 
   /* --------------------------- PAGE 5 ------------------------------------- */
@@ -242,12 +246,17 @@
       .forEach((c) => page.classList.remove(c));
     const body = page.querySelector(':scope > .pg-body'); const table = $('v_tsTable');
     if (!body || !table) return;
+    /* The section opener used to shout "DETAILED SPECIFICATION" in a dark slab.
+       Page 6 is the friendly half of the pair: one quiet line that says what the
+       four cards are for, with two of its phrases picked out in orange. Kept as
+       plain quotes so the sentence stays copy, not markup. */
     const groupsLabel = $('v_tsGroupsLabel');
     if (groupsLabel) {
-      groupsLabel.classList.add('pv2-label', 'pv2-label-line');
-      if (!groupsLabel.querySelector(':scope > span')) {
-        const text = (groupsLabel.textContent || '').trim() || 'DETAILED SPECIFICATION';
-        groupsLabel.innerHTML = '<i aria-hidden="true"></i><span>' + esc(text) + '</span>';
+      groupsLabel.classList.add('pv2-eyebrow');
+      if (groupsLabel.dataset.pv2Copy !== 'spec-intro') {
+        groupsLabel.dataset.pv2Copy = 'spec-intro';
+        groupsLabel.innerHTML = '<span>Every component below is chosen for '
+          + '<em>compatibility</em>, <em>certified performance</em> and long-term reliability.</span>';
       }
     }
     const groups = readGroups(table);
