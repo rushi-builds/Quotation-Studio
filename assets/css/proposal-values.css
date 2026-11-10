@@ -2,7 +2,7 @@
    to the closing page only. Light values touch the running footer; no inset panels or artwork. */
 .page:not(#pageCover):not(#pageClosing)>.pg-foot,
 .power-page>.power-foot{
-  position:absolute;left:0;right:0;bottom:0;height:34px;min-height:34px;
+  position:absolute;left:0;right:0;bottom:0;height:38px;min-height:38px;
   box-sizing:border-box;display:flex;flex-direction:row;align-items:center;
   justify-content:space-between;gap:12px;padding:0 38px 3px;
   border:0;border-top:1px solid #e6e9e9;border-bottom:3px solid #193b50;
