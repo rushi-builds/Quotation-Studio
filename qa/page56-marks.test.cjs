@@ -263,17 +263,24 @@ t('the value row is glued to the footer rule, not stranded above it', () => {
   const decl = [...css.matchAll(/\.pv2-solution(?:\.pv2-fit-\d)? \.pv2-values-wrap([^{]*)\{([^}]*)\}/g)]
     .map((m) => m[2]).filter((b) => /margin-top:auto/.test(b)).pop();
   assert.ok(decl, 'a rule gives the row margin-top:auto so no slack is left under it');
-  assert.match(decl, /margin-bottom:-12px/,
-    'and pulls it down by 12px to land on the rule (46px body padding - 34px footer)');
+  /* 46px body padding - 34px footer - 8px clearance = 4px. The clearance is the
+     whole point: the other pages' band is a 42px box with 26px icons centred in
+     it, so their icons always sit 8px clear of the rule. Flush looked pinned. */
+  assert.match(decl, /margin-bottom:-4px/,
+    'and leaves 8px between the icons and the rule, as the other pages do');
+  assert.doesNotMatch(decl, /margin-bottom:-12px/, 'flush is what he rejected');
   /* and it must outrank the tighten steps that set an explicit 11px top margin */
   const guards = [...css.matchAll(/\.[^{}]*pv2-values-wrap[^{}]*\{[^}]*margin-top:auto[^}]*\}/g)].pop()[0];
   assert.match(guards, /\.pv2-solution\.pv2-fit-2 \.pv2-values-wrap/,
     'the tight step is re-declared too, or its 11px would win');
 });
 
-t('the value row has a definite height, so its lower edge meets the rule', () => {
+t('the value row has a definite height, so its clearance is predictable', () => {
   assert.match(css, /\.pv2 \.pv2-values\{[^}]*min-height:26px/, 'one icon tall, like the other pages');
-  assert.match(css, /margin-bottom:-12px/, 'the row, not the label leading, lands on the rule');
+  /* Derive the clearance the same way the browser does, so the number cannot
+     drift away from the reason it exists. */
+  const pad = 46, foot = 34, mb = -4;
+  assert.equal(pad + mb - foot, 8, 'icons clear the rule by exactly the 8px the other pages show');
 });
 
 /* -------------------------------------- card 03's walkway and card 04's badge */

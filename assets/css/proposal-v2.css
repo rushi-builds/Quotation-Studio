@@ -154,13 +154,18 @@
    here the row is the last flex child of .pg-body, so the page can still measure
    itself for the tighten steps. That means two declarations, and they have to
    outrank those steps:
-     - `margin-top:auto` lets the row fall until it touches the footer, instead of
+     - `margin-top:auto` lets the row fall to the bottom of the body instead of
        leaving the spare height under it (that was the gap he could see), and
-     - `margin-bottom:-12px` cancels the .pg-body's 46px bottom padding down to the
-       footer's 34px height, so the row's lower edge meets the rule exactly. */
+     - `margin-bottom:-4px` cancels most of the .pg-body's 46px bottom padding, so
+       the row's box ends 8px above the footer's 34px height.
+
+   That 8px is the point. The band on the other pages is a 42px box with 26px
+   icons centred in it, so its icons always sit 8px clear of the rule. A flush
+   row (the previous -12px) cancelled that clearance and the icons looked pinned
+   to the line. 46 - 34 - 8 = 4. */
 .pv2-solution .pv2-values-wrap,
 .pv2-solution.pv2-fit-1 .pv2-values-wrap,
-.pv2-solution.pv2-fit-2 .pv2-values-wrap{margin-top:auto;margin-bottom:-12px;}
+.pv2-solution.pv2-fit-2 .pv2-values-wrap{margin-top:auto;margin-bottom:-4px;}
 
 /* ================= PAGE 6 ================= */
 .page.pv2:not(#pageCover):not(#pageClosing).pv2-tech > .pg-body{display:block;padding-top:78px;padding-bottom:92px;}
