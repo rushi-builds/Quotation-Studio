@@ -1,30 +1,41 @@
 # Equipment photos (page 6 — Technical Specification)
 
-One file per brand, per kind. The page picks them up by itself; a brand without
-a photo falls back to the neutral render of its kind, so nothing ever shows a
-hole.
+One photograph per card, in `cards/`. Page 6 shows four cards, so exactly four
+photos are needed — the make is printed on the card itself as its real logo,
+not encoded in the file name:
 
-    assets/images/equipment/
-      waaree-module.webp
-      panasonic-module.webp
-      sungrow-inverter.webp
-      growatt-inverter.webp
-      solartech-structure.webp
-      polycab-cable.webp
+    assets/images/equipment/cards/
+      solar-module-card.webp        # card 01 - solar modules
+      solis-inverter.webp           # card 02 - inverter (fallback / Solis)
+      inverter-huawei.webp          # card 02 - Huawei make
+      inverter-sungrow.webp         # card 02 - Sungrow make
+      inverter-growatt.webp         # card 02 - Growatt make
+      inverter-fronius.webp         # card 02 - Fronius make
+      inverter-deye.webp            # card 02 - Deye make
+      mount-structure-callouts.webp # card 03 - mounting & cabling
+      earthing-safety-3pit.webp     # card 04 - electrical safety (LA / DC / AC)
 
-Register each file in `PHOTO_MAP` in `assets/js/proposal-values.js`:
+`assets/js/proposal-v2.js` maps each card kind to its file in `CARD_PHOTO`; the
+inverter card first looks in `INVERTER_PHOTO` for the make the quotation names,
+because these studio renders print the maker's logo on the product itself. A
+make with no render here (Polycab, Waaree, a custom name) falls back to
+`solis-inverter.webp`. Swapping a photo means replacing the file, not editing
+any code.
 
-    'module:waaree'   : 'waaree-module.webp',
-    'inverter:sungrow': 'sungrow-inverter.webp',
+Everything in this folder comes from the owner's `5&6 pages` Drive folder. Do
+not add brand-wise spares here: whichever make a quotation names, the card keeps
+its one photograph and the brand identity is carried by the logo badge.
 
-Keys are tried most specific first: `kind:brand:model` → `kind:brand` → `kind`,
-so one photo can cover a whole brand, or a single model can have its own.
+## Brand marks
+
+The page 6 badge prints `assets/images/brands/<make>.webp` — fifteen marks cut
+from the owner's brand sheet (`All Brands logos sheet .png`). `BRAND_LOGOS` in
+`proposal-v2.js` maps a make name to its file. A brand with no mark on the sheet
+falls back to its name set in type, so the badge is never empty.
 
 ## How a photo should look
 
-- product alone, centred, plain white or transparent background
-- no text, no watermark, no screenshot borders, no price tags
-- at least 600 × 600 px; we downscale to 480 px and WebP (quality 82)
-- aim for under 40 KB per file — the page loads only the four it shows
-
-Kinds in use: `modules`, `inverter`, `mount`, `other` (cabling/earthing).
+- the product alone, centred, plain light background — or a diagram where the
+  card explains a part rather than sells it
+- 4:3 landscape reads best on the card; 900 x 675 is what ships today
+- keep each file under ~120 KB — the page loads only the four it shows

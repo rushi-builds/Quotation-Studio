@@ -110,18 +110,11 @@
 .pv2-tech .pv2-brand{margin-left:auto;text-align:right;line-height:1;padding-right:6px;}
 .pv2-tech .pv2-brand b{display:block;font:800 19px/1 'Poppins','Inter',sans-serif;color:var(--pv2-navy);}
 .pv2-tech .pv2-brand small{display:block;font-size:8.6px;margin-top:2px;}
-.pv2-tech .pv2-brand.is-waaree b{color:#1C9A44;font-style:italic;font-weight:800;letter-spacing:-.3px;text-transform:uppercase;font-size:21px;}
-.pv2-tech .pv2-brand.is-waaree small{color:#E2401C;font-style:italic;font-weight:600;}
-.pv2-tech .pv2-brand.is-sungrow b{color:#F28B00;font-weight:500;letter-spacing:.08em;text-transform:uppercase;font-size:19px;}
-.pv2-tech .pv2-brand.is-sungrow small{color:#5B6472;}
-.pv2-tech .pv2-brand.is-solartech b{color:#1565B8;text-transform:uppercase;font-size:17px;}
-.pv2-tech .pv2-brand.is-std b{font-size:16px;}
-.pv2-tech .pv2-brand.is-adani b{color:#2C3F9B;text-transform:lowercase;}
-.pv2-tech .pv2-brand.is-longi b,.pv2-tech .pv2-brand.is-vikram b,.pv2-tech .pv2-brand.is-huawei b,.pv2-tech .pv2-brand.is-fronius b{color:#D7182A;text-transform:uppercase;}
-.pv2-tech .pv2-brand.is-panasonic b,.pv2-tech .pv2-brand.is-tata b,.pv2-tech .pv2-brand.is-premier b,.pv2-tech .pv2-brand.is-renewsys b,.pv2-tech .pv2-brand.is-deye b{color:#1A4C9C;text-transform:uppercase;}
-.pv2-tech .pv2-brand.is-renew b,.pv2-tech .pv2-brand.is-growatt b{color:#3E9A2F;text-transform:uppercase;}
-.pv2-tech .pv2-brand.is-solis b{color:#F39200;text-transform:uppercase;}
-.pv2-tech .pv2-brand.is-plain b{font-size:15px;text-transform:uppercase;}
+/* The real manufacturer mark, cut from the owner's brand sheet. Height-matched
+   to the wordmark it replaces so the card band keeps its measured rhythm; the
+   image is cropped to a fixed box, never a squashed one. */
+.pv2-tech .pv2-brand.is-logo{display:flex;align-items:center;justify-content:flex-end;}
+.pv2-tech .pv2-brand.is-logo img{display:block;width:auto;height:34px;max-width:132px;object-fit:contain;object-position:right center;}
 .pv2-tech .pv2-card-body{display:grid;grid-template-columns:minmax(0,1fr) 23%;gap:10px;align-items:center;}
 .pv2-tech .pv2-rows{border:1px solid #E1E6ED;border-radius:8px;overflow:hidden;align-self:start;}
 .pv2-tech .pv2-row{display:grid;grid-template-columns:41% 59%;border-top:1px solid #E6EAF0;}

@@ -157,39 +157,41 @@
   }
 
   /* --------------------------- PAGE 6 ------------------------------------- */
-  const BRANDS = {
-    waaree: { cls: 'waaree', tag: 'One with the Sun' },
-    sungrow: { cls: 'sungrow', tag: 'Clean power for all' },
-    adani: { cls: 'adani' }, longi: { cls: 'longi' }, panasonic: { cls: 'panasonic' }, anchor: { cls: 'panasonic' },
-    tata: { cls: 'tata' }, vikram: { cls: 'vikram' }, premier: { cls: 'premier' }, renew: { cls: 'renew' }, renewsys: { cls: 'renewsys' },
-    growatt: { cls: 'growatt' }, fronius: { cls: 'fronius' }, deye: { cls: 'deye' }, huawei: { cls: 'huawei' }, solis: { cls: 'solis' },
-    solartech: { cls: 'ars' }, ars: { cls: 'ars' }
+  /* Manufacturer marks, cut from the owner's brand sheet into
+     assets/images/brands/<name>.webp. A make the sheet does not carry (or a
+     custom make the user typed) still gets its name set in type, so the card
+     never shows an empty badge. */
+  const BRAND_LOGOS = {
+    waaree: 'waaree', adani: 'adani', longi: 'longi', tata: 'tata', vikram: 'vikram',
+    premier: 'premier', renew: 'renew', renewsys: 'renewsys', panasonic: 'anchor', anchor: 'anchor',
+    growatt: 'growatt', fronius: 'fronius', deye: 'deye', huawei: 'huawei', fusionsolar: 'huawei',
+    solis: 'solis', sungrow: 'sungrow'
   };
   const slug = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  /* One photograph per card, taken from the owner's page 5/6 set. Modules,
+     structure and safety keep a single shot each; the inverter card carries the
+     studio shot of the make the quotation actually names where the set has one,
+     because these renders print their own logo on the product. */
   const CARD_PHOTO = {
-    module: { waaree: 'waaree-module', panasonic: 'panasonic-module', anchor: 'panasonic-module', renewsys: 'renewsys-module', tata: 'tata-module',
-      vikram: 'vikram-module', adani: 'adani-module', premier: 'premier-module', renew: 'renew-module', longi: 'longi-module' },
-    inverter: { growatt: 'growatt-inverter', sungrow: 'sungrow-inverter', fronius: 'fronius-inverter', deye: 'deye-inverter', huawei: 'huawei-inverter',
-      fusionsolar: 'huawei-inverter', solis: 'solis-inverter' },
-    mount: { ars: 'ars-structure', solartech: 'ars-structure', 'solar-tech': 'ars-structure' },
-    other: { havells: 'havells-cable', polycab: 'polycab-cable' }
+    module: IMG + 'equipment/cards/solar-module-card.webp',
+    inverter: IMG + 'equipment/cards/solis-inverter.webp',
+    mount: IMG + 'equipment/cards/mount-structure-callouts.webp',
+    design: IMG + 'equipment/cards/earthing-safety-3pit.webp'
   };
-  function photoFor(kind, brand, cable) {
-    const first = slug(brand).split('-')[0];
-    const table = CARD_PHOTO[kind] || {};
-    if (kind === 'module') return IMG + 'equipment/cards/solar-module-card.webp';
-    if (kind === 'mount') return IMG + 'equipment/cards/ars-structure.webp';
-    if (kind === 'design') return IMG + 'equipment/cards/earthing-safety-3pit.webp';
-    const hit = table[slug(brand)] || table[first];
-    if (hit) return IMG + 'equipment/cards/' + hit + '.webp';
-    if (kind === 'design') return IMG + 'equipment/cards/earthing-safety-3pit.webp';
-    if (kind === 'mount') {
-      const c = CARD_PHOTO.other[slug(cable).split('-')[0]];
-      return c ? IMG + 'equipment/cards/' + c + '.webp' : IMG + 'inc-mount.png';
+  const INVERTER_PHOTO = {
+    huawei: IMG + 'equipment/cards/inverter-huawei.webp',
+    solis: IMG + 'equipment/cards/solis-inverter.webp',
+    sungrow: IMG + 'equipment/cards/inverter-sungrow.webp',
+    growatt: IMG + 'equipment/cards/inverter-growatt.webp',
+    fronius: IMG + 'equipment/cards/inverter-fronius.webp',
+    deye: IMG + 'equipment/cards/inverter-deye.webp'
+  };
+  function photoFor(kind, brand) {
+    if (kind === 'inverter' && brand) {
+      const key = slug(brand).split('-')[0];
+      if (INVERTER_PHOTO[key]) return INVERTER_PHOTO[key];
     }
-    if (kind === 'module') return IMG + 'inc-modules.png';
-    if (kind === 'inverter') return IMG + 'inc-inverter.png';
-    return IMG + 'equipment/cards/earthing.webp';
+    return CARD_PHOTO[kind] || IMG + 'equipment/cards/earthing-safety-3pit.webp';
   }
   function rowIcon(k) {
     const t = String(k || '').toLowerCase();
@@ -217,10 +219,12 @@
     if (kind === 'design') return '<div class="pv2-brand is-std"><b>IS / IEC</b><small>Lightning &amp; earthing</small></div>';
     if (!brand) return '';
     const key = slug(brand).split('-')[0];
-    const look = BRANDS[key] || BRANDS[slug(brand)] || null;
-    if (look && look.cls === 'ars') return '<div class="pv2-brand is-ars"><b>ARS</b><small>Solar Tech</small></div>';
-    const word = brand;
-    return '<div class="pv2-brand is-' + (look ? look.cls : 'plain') + '"><b>' + esc(word) + '</b>' + (look && look.tag ? '<small>' + esc(look.tag) + '</small>' : '') + '</div>';
+    if (key === 'ars' || key === 'solartech' || key === 'solar') return '<div class="pv2-brand is-ars"><b>ARS</b><small>Solar Tech</small></div>';
+    const logo = BRAND_LOGOS[key] || BRAND_LOGOS[slug(brand)];
+    if (logo) {
+      return '<div class="pv2-brand is-logo"><img src="' + IMG + 'brands/' + logo + '.webp" alt="' + esc(brand) + '" decoding="sync"></div>';
+    }
+    return '<div class="pv2-brand is-plain"><b>' + esc(brand) + '</b></div>';
   }
   function techSpec() {
     const page = $('pageTechSpec'); if (!page) return;
@@ -256,7 +260,7 @@
       if (c.kind === 'module' || c.kind === 'inverter') brand = val(/^(make|brand)$/i);
       else if (c.kind === 'mount') brand = 'ARS';
       brand = brand.replace(/\s+/g, ' ').trim();
-      const photo = photoFor(c.kind, brand, val(/^cabling/i));
+      const photo = photoFor(c.kind, brand);
       const title = c.name.charAt(0) + c.name.slice(1).toLowerCase();
       return '<article class="pv2-card is-' + c.kind + '">' +
         '<header class="pv2-card-head"><span class="pv2-num">' + String(i + 1).padStart(2, '0') + '</span>' +
