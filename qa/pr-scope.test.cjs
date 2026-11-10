@@ -110,6 +110,30 @@ async function main() {
     guard.scopeOffenders(['assets/js/charts.js', 'assets/css/closing.css', 'assets/css/app.css']).length === 0);
   t('NEGATIVE: PDF-capture allowance does not admit neighbouring scripts or styles',
     guard.scopeOffenders(['assets/js/charts-extra.js', 'assets/css/closing-extra.css']).length === 2);
+  /* Page 5/6 round (2026-11-10): the card photos moved one folder down, and the
+     redesign names its two stylesheets plus the one page-6 script. Both are
+     exact shapes - the positive case must pass and every neighbouring path
+     (a third stylesheet, a script next door, an image outside cards/) must
+     still be reported, so this cannot silently widen the asset surface. */
+  t('page 5/6 allowance admits the equipment cards folder, its naming note and the three named files',
+    guard.scopeOffenders(['assets/images/equipment/cards/waaree-module.webp',
+      'assets/images/equipment/cards/earthing-safety-3pit.webp',
+      'assets/images/equipment/cards/solar-module-card.webp',
+      'assets/images/equipment/README.md',
+      'assets/css/proposal-v2.css', 'assets/css/proposal-values.css',
+      'assets/js/proposal-v2.js']).length === 0);
+  t('NEGATIVE: page 5/6 allowance never reaches neighbouring styles, scripts or image folders',
+    guard.scopeOffenders(['assets/css/proposal-v2-extra.css',
+      'assets/css/proposal-polish.css',
+      'assets/js/proposal-v3.js',
+      'assets/images/equipment/cards/nested/extra.webp',
+      'assets/images/equipment/other/extra.webp',
+      'assets/images/equipment/cards/extra.svg',
+      'assets/images/cards/extra.webp']).length === 7);
+  t('NEGATIVE: the cards allowance cannot smuggle a script or a stylesheet in as a photo',
+    guard.scopeOffenders(['assets/images/equipment/cards/app.js',
+      'assets/images/equipment/cards/closing.css']).length === 2);
+
 
   t('workspace presentation allowance admits the exact label UI file and four named correction/review paths',
     guard.scopeOffenders(['assets/js/pulse/pulse-ui.js', 'assets/css/workspace-fit.css', 'assets/images/pulse-solar-horizon.jpg',
