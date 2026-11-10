@@ -228,29 +228,23 @@ t('the space came from padding and gaps, not from shrinking the body copy', () =
   assert.ok(rowSize >= 10, `row text ${rowSize}px would be smaller than the 10.2px it shipped at`);
 });
 
-/* ------------------------------- page 5 flow: colours, and the two-way link */
-t('DC runs green and AC runs orange, from DCDB through to the meter', () => {
-  assert.match(js, /ARROW_COLOUR = \{ dc: '#1E9E63', ac: '#F2811D'/,
-    'the two tones are declared once, green for DC and orange for AC');
-  /* DCDB -> inverter is still DC, so the first two links are green and the rest
-     of the chain is AC. Asserted on the link table, not on a rendered pixel. */
-  const links = js.match(/const links = \[([\s\S]*?)\];/)[1];
-  const tones = [...links.matchAll(/tone: '(\w+)'/g)].map((m) => m[1]);
-  assert.deepEqual(tones, ['dc', 'dc', 'ac', 'ac', 'ac', 'bi'],
-    'module->DCDB and DCDB->inverter green, inverter outwards orange');
-  /* The DC / AC badges carry the same pair, or the colour means nothing. */
-  assert.match(css, /\.pv2 \.pv2-badge\.is-dc\{background:#1E9E63;\}/, 'the DC badge is green');
-  assert.match(css, /\.pv2 \.pv2-badge\.is-ac\{background:#F2811D;\}/, 'the AC badge is orange');
+/* ------------------------------- page 5 overview is the owner's own render */
+t('the system overview is the owner’s artwork, not a code-built diagram', () => {
+  assert.match(js, /const OVERVIEW_ART = IMG \+ 'proposal\/system-overview-flow\.webp'/,
+    'one render, declared once');
+  assert.match(js, /function overviewArt\(\)/, 'and emitted by its own function');
+  assert.match(js, /'<div class="pv2-ov-box">' \+ overviewArt\(\)/,
+    'the overview box shows the render');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp')),
+    'the file is there');
 });
 
-t('the meter and the grid trade both ways, and say so', () => {
-  assert.match(js, /dir: 'both', note: 'Import \/ Export'/,
-    'the meter <-> grid link is two-headed and labelled');
-  /* Two arrowheads, pointing outward from both ends of the shaft. */
-  assert.match(js, /const heads = dir === 'both' \? head\(26\.5, 20\) \+ head\(5\.5, 12\) : head\(21, 27\.5\)/,
-    'a second, left-pointing head is drawn only for the two-way link');
-  assert.match(css, /\.pv2 \.pv2-arrow\.has-note i\{[^}]*text-transform:uppercase/,
-    'the label is set under the shaft');
+t('the overview box adds no frame of its own around that render', () => {
+  const box = css.match(/\.pv2-solution \.pv2-ov-box\{([^}]*)\}/)[1];
+  assert.match(box, /border:0/, 'the render already has its rounded frame');
+  assert.match(box, /padding:0/, 'and its own internal spacing');
+  assert.match(css, /\.pv2-solution \.pv2-ov-art\{display:block;width:100%/,
+    'the render fills the page width, so its own type stays legible');
 });
 
 /* ------------------------------- page 6 cards: number OR icon, not both */

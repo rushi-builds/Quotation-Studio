@@ -124,6 +124,13 @@
     if (/warrant/.test(t)) return 'award';
     return 'check';
   }
+  const OVERVIEW_ART = IMG + 'proposal/system-overview-flow.webp';
+  /* The owner supplied the finished overview - nodes, DC/AC badges, captions and
+     the Import / Export labels are all in the render - so the page shows his
+     artwork instead of a code-built diagram. */
+  function overviewArt() {
+    return '<img class="pv2-ov-art" src="' + OVERVIEW_ART + '" alt="Solar to grid system overview" decoding="sync">';
+  }
   function flowDiagram(s, f) {
     const P = (root.CONTENT && root.CONTENT.pageTechSpec && root.CONTENT.pageTechSpec.diagramLabels) || {};
     const count = f && f.moduleCount, watt = f && f.moduleWattage;
@@ -191,7 +198,7 @@
       body.insertBefore(ov, $('v_soScopeNote') || null);
     }
     const P = (root.CONTENT && root.CONTENT.pageTechSpec) || {};
-    ov.innerHTML = label(P.diagramTitle || 'SYSTEM OVERVIEW') + '<div class="pv2-ov-box">' + flowDiagram(s, f) + '</div>';
+    ov.innerHTML = label(P.diagramTitle || 'SYSTEM OVERVIEW') + '<div class="pv2-ov-box">' + overviewArt() + '</div>';
     let vals = body.querySelector(':scope > .pv2-values-wrap');
     if (!vals) {
       vals = doc.createElement('div'); vals.className = 'pv2-values-wrap'; vals.dataset.docAdded = 'true';
