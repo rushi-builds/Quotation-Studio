@@ -12,9 +12,8 @@ consistent 4:3 frame.
       inverter-growatt.webp
       inverter-fronius.webp
       inverter-deye.webp
-      structure-installation.webp
-      structure-product.webp (generic, unbranded rack render)
-      earthing-system.webp
+      structure-installation.webp (user-provided full image)
+      earthing-system.webp (user-provided full image)
     assets/images/equipment/crops/
       (legacy product crops and brand-specific cable images)
 

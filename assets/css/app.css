@@ -2201,3 +2201,35 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 #pageTechSpec .pg-body::before{
   background-image:url('../images/equipment/customer/structure-installation.webp');
 }
+/* Final reference-feedback pass: let the entire uploaded product artwork show.
+   All user images are fit inside a consistent 4:3 window; none are cover-cropped. */
+#pageTechSpec .spec-table td.spec-photo{
+  background-size:contain;
+  background-position:center;
+  background-color:#f7f9fc;
+  border-left:4px solid #fff;
+  border-right:4px solid #fff;
+  box-shadow:none;
+}
+#pageTechSpec .pg-body::before,
+#pageTechSpec .pg-body::after{display:none!important;content:none!important;}
+#pageTechSpec #v_tsHeading,
+#pageTechSpec #v_tsSub,
+#pageTechSpec .rule-orange,
+#pageTechSpec #v_tsPara{max-width:none;}
+#pageTechSpec .spec-photo-brand{
+  text-transform:none;letter-spacing:.01em;font-size:10px;font-weight:800;
+}
+#pageSolution .solution-hero{min-height:230px;}
+#pageSolution .solution-photo{height:216px;}
+#pageSolution .solution-specs{gap:10px 12px;}
+#pageSolution .solution-specs .spec-card{
+  min-height:72px;padding:10px 12px;grid-template-columns:50px minmax(0,1fr);column-gap:12px;
+}
+#pageSolution .solution-specs .icon-chip{width:44px;height:44px;}
+#pageSolution .solution-specs .spec-t{font-size:12px;line-height:1.25;}
+#pageSolution .solution-specs .card-desc{font-size:9px;line-height:1.4;margin-top:3px;}
+#pageSolution .solution-system{padding:9px 13px 7px;}
+#pageSolution .solution-system .diagram svg{max-height:184px;}
+#pageSolution .solution-points{margin-top:7px;padding-top:7px;gap:5px 14px;}
+#pageSolution .solution-points li{font-size:8.4px;line-height:1.35;}
