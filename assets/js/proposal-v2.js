@@ -21,6 +21,10 @@
     panel: '<path d="M4.5 4h15l2 10h-19z"/><path d="M3.3 9h17.4M9 4l-.8 10M15 4l.8 10M12 14v4M8 20h8"/>',
     inverter: '<rect x="5" y="3" width="14" height="16" rx="2"/><rect x="8" y="6.5" width="8" height="5" rx="1"/><path d="M9.5 9.3c.8-1.4 1.6-1.4 2.5 0s1.7 1.4 2.5 0M9 22v-3M15 22v-3"/>',
     structure: '<path d="M3 11 13 5h8l-10 6z"/><path d="M5 11v9M9.5 11v9M19 5v15M14.5 8v12M3 20h18"/>',
+    /* Maintenance walkway: a platform deck with its handrail above it. Four
+       strokes only - this is drawn at 14px in a key cell, where a busier glyph
+       turns to mush. */
+    walkway: '<path d="M3 15h18M3 21h18"/><path d="M5 15V9.5h14V15"/><path d="M5 21v-6M19 21v-6"/>',
     shieldCheck: '<path d="M12 21.5s7.5-3.6 7.5-9.5V5.5L12 2.5l-7.5 3V12c0 5.9 7.5 9.5 7.5 9.5z"/><path d="m8.8 12 2.2 2.2 4.3-4.4"/>',
     shield: '<path d="M12 21.5s7.5-3.6 7.5-9.5V5.5L12 2.5l-7.5 3V12c0 5.9 7.5 9.5 7.5 9.5z"/>',
     landmark: '<path d="M3 21h18M5 18h14M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 3l9 5H3z"/>',
@@ -191,6 +195,7 @@
     module: IMG + 'equipment/cards/solar-module-card.webp',
     inverter: IMG + 'equipment/cards/solis-inverter.webp',
     mount: IMG + 'equipment/cards/mount-structure-callouts.webp',
+    standards: IMG + 'equipment/cards/design-is-standards.webp',
     design: IMG + 'equipment/cards/earthing-safety-3pit.webp'
   };
   const INVERTER_PHOTO = {
@@ -206,13 +211,18 @@
       const key = slug(brand).split('-')[0];
       if (INVERTER_PHOTO[key]) return INVERTER_PHOTO[key];
     }
+    if (kind === 'design') return CARD_PHOTO.standards;
     return CARD_PHOTO[kind] || IMG + 'equipment/cards/earthing-safety-3pit.webp';
   }
   function rowIcon(k) {
     const t = String(k || '').toLowerCase();
     const map = [[/^make|brand/, 'factory'], [/technolog|^model/, 'layers'], [/^type/, 'wave'], [/rated|output|power$/, 'bolt'],
-      [/efficien|dc input/, 'gauge'], [/mppt|ratio/, 'link'], [/protection$/, 'shield'], [/warrant/, 'shield'], [/monitor/, 'wifi'],
-      [/quantity/, 'grid'], [/array size/, 'grid'], [/area/, 'expand'], [/^structure$/, 'structure'], [/cabling/, 'cable'],
+      [/efficien|dc input/, 'gauge'], [/mppt|ratio/, 'link'],
+      /* Before `protection`: "Cabling & Protection" is a cable row that happens to
+         end in the word, and it was drawing a shield. */
+      [/cabling/, 'cable'], [/protection$/, 'shield'], [/warrant/, 'shield'], [/monitor/, 'wifi'],
+      [/quantity/, 'grid'], [/array size/, 'grid'], [/area/, 'expand'], [/^structure$/, 'structure'],
+      [/walkway/, 'walkway'],
       [/earthing/, 'earth'], [/lightning/, 'lightning'], [/standard/, 'doc'], [/life/, 'compass'], [/wind/, 'wind'],
       [/proposal|design/, 'pencil'], [/location/, 'pin'], [/resource|solar|ghi/, 'sun']];
     for (const [re, ic] of map) if (re.test(t)) return ic;
@@ -231,7 +241,10 @@
     : /DESIGN|ENGINEER/i.test(name) ? 'design' : /^SITE DATA/i.test(name) ? 'sitedata' : /^SITE/i.test(name) ? 'site' : 'other';
   const HEAD_ICON = { module: 'globe', inverter: 'inverter', mount: 'structure', design: 'gear', other: 'doc' };
   function brandMark(kind, brand) {
-    if (kind === 'design') return '<div class="pv2-brand is-std"><b>IS / IEC</b><small>Lightning &amp; earthing</small></div>';
+    /* Card 04 is the card of codes, so its badge states the two families of
+       standard it is built from. Plain type, not a manufacturer logo: no make
+       belongs there. */
+    if (kind === 'design') return '<div class="pv2-brand is-std"><b>IS / IEC</b><small>Standards &amp; codes</small></div>';
     if (!brand) return '';
     const key = slug(brand).split('-')[0];
     if (key === 'ars' || key === 'solartech' || key === 'solar') brand = 'ARS Solar Tech';

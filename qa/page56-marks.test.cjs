@@ -36,6 +36,7 @@ function t(name, fn) {
 
 const css = read('assets/css/proposal-v2.css');
 const js = read('assets/js/proposal-v2.js');
+const render = read('assets/js/render.js');
 const valuesCss = read('assets/css/proposal-values.css');
 
 console.log('\npage 5/6 marks, labels and sheet (the two regressions that shipped)');
@@ -223,15 +224,22 @@ t('the note is laid out as a row of the card (41% / 59%), not a floating box', (
   const block = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)].pop()[1];
   assert.match(block, /grid-template-columns:41% 59%/,
     'same column split as .pv2-row, so Important lines up under Lightning Protection');
-  assert.match(block, /border:1px solid #E1E6ED/, 'same frame as a row');
   assert.match(block, /border-radius:8px/, 'same corner radius as the row stack');
+  /* and it still reads as advice: warm paper with an orange spine, not a plain
+     sheet (he asked for the note to look properly designed again). */
+  assert.match(block, /background:#FFFBF6/, 'warm paper, so it is not mistaken for a spec row');
+  assert.match(block, /border-left:3px solid #F2811D/, 'an orange spine marks it as the note');
 });
 
 t('the Important label keeps the key-column tint and an orange bullet', () => {
-  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel\{[\s\S]{0,300}?background:#F2F4F8/,
-    'label sits on the same #F2F4F8 key column as Structure / Cabling / Earthing');
-  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel::before\{[^}]*background:#F2811D/,
-    'an orange square stands in for the row icons');
+  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel\{[\s\S]{0,300}?background:#FDF3E7/,
+    'the label is a tinted key cell, like the key cells the rows above use');
+  /* A real icon, not a bare square: the label carries a round orange badge with a
+     line icon in it, so it matches the icon-led rows. */
+  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel::before\{[^}]*border-radius:50%/,
+    'the badge is round');
+  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel::before\{[^}]*data:image\/svg\+xml/,
+    'and it carries an inline line icon');
   /* The old round "i" badge must not come back on this row. */
   const before = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box::before\{([^}]*)\}/g)].pop()[1];
   assert.match(before, /content:none/, 'the circular info dot is switched off for this row');
@@ -266,6 +274,39 @@ t('the value row is glued to the footer rule, not stranded above it', () => {
 t('the value row has a definite height, so its lower edge meets the rule', () => {
   assert.match(css, /\.pv2 \.pv2-values\{[^}]*min-height:26px/, 'one icon tall, like the other pages');
   assert.match(css, /margin-bottom:-12px/, 'the row, not the label leading, lands on the rule');
+});
+
+/* -------------------------------------- card 03's walkway and card 04's badge */
+t('the structure card names the walkway and draws it with its own icon', () => {
+  /* Its own row, not a suffix on Structure: a row is what carries an icon. */
+  assert.match(render, /\['Walkway',/, 'the mounting scope has a walkway row of its own');
+  assert.match(render, /\['Structure', \[s\.mountMake/, 'and Structure keeps its own row');
+  assert.match(js, /\[\/walkway\/, 'walkway'\]/, 'and the icon lookup knows the word');
+  assert.match(js, /walkway: '<path/, 'the glyph exists');
+  /* The rail is what makes it a walkway and not another module drawing, and the
+     deck has to be a deck: two horizontals, not one. */
+  assert.match(js, /walkway: '[^']*M5 15V9\.5h14V15/, 'the glyph carries a handrail up from the deck');
+  assert.match(js, /walkway: '<path d="M3 15h18M3 21h18"/, 'and a deck with legs under it');
+});
+
+t('card 03 carries the owner’s new structure render', () => {
+  assert.match(js, /mount: IMG \+ 'equipment\/cards\/mount-structure-callouts\.webp'/,
+    'the structure card still points at the card set');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/equipment/cards/mount-structure-callouts.webp')),
+    'and the file is there');
+});
+
+t('card 04 shows the standards render and states what it is', () => {
+  assert.match(js, /standards: IMG \+ 'equipment\/cards\/design-is-standards\.webp'/,
+    'the design card has its own photograph');
+  assert.match(js, /if \(kind === 'design'\) return CARD_PHOTO\.standards;/,
+    'and photoFor actually routes the design card to it');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/equipment/cards/design-is-standards.webp')),
+    'the file is there');
+  /* The badge used to read "Lightning & earthing", which describes card 03's rows
+     and not the card of codes it sits on. */
+  assert.match(js, /<small>Standards &amp; codes<\/small>/, 'the card says what it is');
+  assert.doesNotMatch(js, /Lightning &amp; earthing/, 'the old badge copy is gone');
 });
 
 /* --------------------------------------- page 5 overview got its room back */

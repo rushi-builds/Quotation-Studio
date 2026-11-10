@@ -37,20 +37,24 @@
 #pageTechSpec.pv2 .pg-body > .note-box{
   position:relative;display:grid;grid-template-columns:41% 59%;align-items:stretch;
   margin-top:8px;padding:0;text-align:left;min-height:0;
-  background:#fff;border:1px solid #E1E6ED;border-radius:8px;box-shadow:none;
+  background:#FFFBF6;border:1px solid #F3DFC8;border-left:3px solid #F2811D;border-radius:8px;
+  box-shadow:0 1px 3px rgba(20,38,58,.05);
   -webkit-backdrop-filter:none;backdrop-filter:none;
   font:500 10.2px/1.3 'Inter',sans-serif;color:#1F2A38;overflow:hidden;
 }
 #pageTechSpec.pv2 .pg-body > .note-box::before{content:none;display:none;}
+/* The label is the row's key cell: a round tinted badge carrying a line icon,
+   exactly like the icon-led key cells the rows above use. It keeps its warm tint
+   so the reader can still tell this is advice and not a specification row. */
 #pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel{
-  position:static;display:flex;align-items:center;gap:9px;
-  margin:0;padding:4px 8px 4px 9px;white-space:nowrap;
-  background:#F2F4F8;color:var(--pv2-navy);text-transform:none;
+  position:static;display:flex;align-items:center;gap:8px;
+  margin:0;padding:4px 8px 4px 10px;white-space:nowrap;
+  background:#FDF3E7;color:var(--pv2-navy);text-transform:none;
   font:600 10.2px/1.25 'Inter',sans-serif;
 }
-/* An orange key bullet stands in for the row icons the other rows carry. */
 #pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel::before{
-  content:'';flex:none;width:8px;height:8px;border-radius:2px;background:#F2811D;
+  content:'';flex:none;width:18px;height:18px;border-radius:50%;
+  background:#F2811D url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.6'/%3E%3Cpath d='M12 11v5.4M12 7.7v.6'/%3E%3C/svg%3E") center/12px 12px no-repeat;
 }
 #pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel::after{content:':';}
 #pageTechSpec.pv2 .pg-body > .note-box #v_tsNote{
