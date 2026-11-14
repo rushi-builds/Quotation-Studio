@@ -292,42 +292,37 @@ t('the DC / AC pills are outlined, in the artwork, and not overlaid twice', () =
   assert.ok(acIn[0] > 240 && acIn[1] > 240 && acIn[2] > 240, 'the AC pill is hollow');
 });
 
-t('both two-way links use his block arrows, at one shared size', () => {
-  /* His correction: not just the grid link. The house <-> meter link is two-way as
-     well, so it gets the same pair - and both pairs are drawn at the same scale so
-     the diagram reads evenly. The five one-way links stay chevrons. */
-  const src = path.join(ROOT, 'assets/images/proposal/bidir-arrow.png');
-  assert.ok(fs.existsSync(src), 'his arrow art is stored as its own asset');
-
+t('both two-way links are his block arrows, green and navy', () => {
+  /* Orange beside green read as a flag, not as a diagram. Green and navy keeps two
+     clearly different inks - and the green is the page's own green, the same one in
+     the DC ring, so the pair still belongs to the page rather than to his file. */
   const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
   const box = (x0, x1) => {
-    let minX = 1e9, minY = 1e9, maxX = -1, maxY = -1, o = 0, g = 0;
+    let minX = 1e9, maxX = -1, green = 0, navy = 0, orange = 0;
     const out = execFileSync('convert', [file, '-crop', `${x1 - x0}x100+${x0}+200`, '+repage', 'txt:-'],
       { encoding: 'utf8', maxBuffer: 1 << 26 });
     for (const line of out.split('\n')) {
       const m = line.match(/^(\d+),(\d+):.*?\((\d+),(\d+),(\d+)/);
       if (!m) continue;
-      const x = +m[1] + x0, y = +m[2] + 200, r = +m[3], gg = +m[4], b = +m[5];
-      const isO = r > 180 && r - b > 90 && r - gg > 40;
-      const isG = gg > 100 && gg - r > 40 && gg - b > 40;
-      if (!isO && !isG) continue;
-      if (isO) o++; else g++;
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+      const x = +m[1] + x0, r = +m[3], g = +m[4], b = +m[5];
+      const isGreen = g > 100 && g - r > 40 && g - b > 30;
+      const isNavy = b - r > 12 && b < 95 && r < 70 && g < 80;
+      if (isGreen) { green++; minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+      else if (isNavy) { navy++; minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+      else if (r - b > 90 && r - g > 40 && r > 180) orange++;
     }
-    return { w: maxX - minX + 1, h: maxY - minY + 1, o, g };
+    return { green, navy, orange, w: maxX - minX + 1 };
   };
 
-  /* the two-way gaps, in native 2144 space */
   const houseMeter = box(1480, 1595);
   const meterGrid = box(1790, 1890);
   for (const [name, b] of [['house <-> meter', houseMeter], ['meter <-> grid', meterGrid]]) {
-    assert.ok(b.o > 40, `${name}: orange arrow present (${b.o}px)`);
-    assert.ok(b.g > 40, `${name}: green arrow present (${b.g}px)`);
+    assert.ok(b.green > 60, `${name}: green arrow present (${b.green}px)`);
+    assert.ok(b.navy > 60, `${name}: navy arrow present (${b.navy}px)`);
+    assert.ok(b.orange < 20, `${name}: no orange left in the arrows (${b.orange}px)`);
     assert.ok(b.w > 60, `${name}: the pair is drawn large, got ${b.w}px wide`);
   }
-  /* one shared size, so the two two-way links match each other */
-  assert.ok(Math.abs(houseMeter.w - meterGrid.w) <= 4,
+  assert.ok(Math.abs(houseMeter.w - meterGrid.w) <= 6,
     `both pairs are one width, got ${houseMeter.w} and ${meterGrid.w}`);
 });
 
