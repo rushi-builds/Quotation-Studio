@@ -117,14 +117,7 @@
 /* The owner's overview render carries its own rounded frame, so the box is just
    the width constraint: full bleed, no extra border or padding. */
 .pv2-solution .pv2-ov-box{margin-top:-1px;background:none;border:0;border-radius:0;box-shadow:none;padding:0;}
-.pv2-solution .pv2-ov-stack{position:relative;display:block;}
 .pv2-solution .pv2-ov-art{display:block;width:100%;height:auto;border-radius:12px;}
-/* The DC / AC pills, cut from the owner's own render so they are pixel-identical
-   to it, positioned as a percentage of the artwork so they hold at any width. */
-.pv2-solution .pv2-pill{position:absolute;transform:translate(-50%,-50%);
-  width:5.8%;height:auto;pointer-events:none;}
-.pv2-solution .pv2-pill.is-dc{left:26.2%;top:13%;}
-.pv2-solution .pv2-pill.is-ac{left:68.1%;top:13%;}
 .pv2 .pv2-flow{display:flex;align-items:flex-start;justify-content:space-between;}
 .pv2 .pv2-node{position:relative;flex:0 0 auto;width:66px;text-align:center;display:flex;flex-direction:column;align-items:center;}
 .pv2 .pv2-node.is-panel{width:98px;}.pv2 .pv2-node.is-house{width:76px;}

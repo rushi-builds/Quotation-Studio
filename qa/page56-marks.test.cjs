@@ -272,51 +272,24 @@ t('the overview render is stored at full resolution', () => {
   assert.ok(size.w >= 2000, `the render must stay at source width, got ${size.w}px`);
 });
 
-t('the DC / AC pills are cut from the render itself', () => {
-  /* Drawing them in CSS made an approximation of his artwork. They are cut out of
-     his PNG now, so the fill, the weight and the corner radius are his own. */
-  assert.match(js, /class="pv2-pill is-dc" src="' \+ IMG \+ 'proposal\/flow-pill-dc\.webp/,
-    'the DC pill is the render crop');
-  assert.match(js, /class="pv2-pill is-ac" src="' \+ IMG \+ 'proposal\/flow-pill-ac\.webp/,
-    'the AC pill is the render crop');
-  for (const f of ['flow-pill-dc.webp', 'flow-pill-ac.webp']) {
-    assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/proposal/' + f)), f + ' exists');
-  }
-  assert.match(css, /\.pv2-solution \.pv2-pill\.is-dc\{left:26\.2%;top:13%;\}/, 'DC sits over the DC group');
-  assert.match(css, /\.pv2-solution \.pv2-pill\.is-ac\{left:68\.1%;top:13%;\}/, 'AC sits over the AC group');
-});
+t('the DC / AC pills are outlined, in the artwork, and not overlaid twice', () => {
+  /* His last note: the pills were solid fills, he wants them outlined in green and
+     orange. They are painted into the raster now, so the page must not also emit
+     them - that is what put a second pill a few pixels off the painted one. */
+  assert.doesNotMatch(js, /class="pv2-pill/, 'no pill is emitted on top of the artwork');
+  assert.doesNotMatch(js, /pv2-ov-stack/, 'and no overlay stack is emitted at all');
+  assert.doesNotMatch(css, /\.pv2-pill\{/, 'the overlay CSS is gone too');
 
-t('the meter <-> grid link is his chevron pair', () => {
-  /* He sent the artwork and then drew the arrows he wanted, twice. The shapes in
-     the page are now cut from that second drawing - blue swapped for orange, which
-     is what he asked for - and composited into the render at his own size. So this
-     checks two things: the source artwork is where it claims to be, and the
-     composited render carries those two colours in the link area. */
-  const src = path.join(ROOT, 'assets/images/proposal/bidir-chevrons.png');
-  assert.ok(fs.existsSync(src), 'the chevron pair is stored as its own asset');
-  const probeSrc = (x, y) => {
-    const out = execFileSync('convert', [src, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
-    return out.match(/\d+/g).map(Number);
-  };
-  const l = probeSrc(90, 134), r = probeSrc(430, 134);
-  assert.ok(l[0] > 200 && l[1] > 80 && l[1] < 175 && l[2] < 70,
-    `the left chevron is his shape with blue swapped for orange, got rgb(${l.slice(0, 3)})`);
-  assert.ok(r[1] > 120 && r[0] < 130 && r[2] < 110, `the right chevron stays green, got rgb(${r.slice(0, 3)})`);
-
-  /* And the render it was composited into. */
   const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
   const probe = (x, y) => {
     const out = execFileSync('convert', [file, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
     return out.match(/\d+/g).map(Number);
   };
-  let oranges = 0, greens = 0;
-  for (let x = 1800; x <= 1910; x += 2) {
-    const p = probe(x, 252);
-    if (p[0] > 200 && p[1] > 80 && p[1] < 180 && p[2] < 80) oranges++;
-    if (p[1] > 120 && p[0] < 130 && p[2] < 110) greens++;
-  }
-  assert.ok(oranges > 3, `orange chevron missing from the render, found ${oranges} columns`);
-  assert.ok(greens > 3, `green chevron missing from the render, found ${greens} columns`);
+  /* The pill interiors must be paper-white now (outlined, not filled), while the
+     ring around them carries the colour. */
+  const dcIn = probe(540, 48), acIn = probe(1440, 48);
+  assert.ok(dcIn[0] > 240 && dcIn[1] > 240 && dcIn[2] > 240, 'the DC pill is hollow');
+  assert.ok(acIn[0] > 240 && acIn[1] > 240 && acIn[2] > 240, 'the AC pill is hollow');
 });
 
 t('the overview box adds no frame of its own around that render', () => {

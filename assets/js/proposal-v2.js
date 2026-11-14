@@ -125,21 +125,14 @@
     return 'check';
   }
   const OVERVIEW_ART = IMG + 'proposal/system-overview-flow.webp';
-  /* The owner supplied the finished overview - nodes, captions, the DC/AC
-     grouping and the Import / Export labels are all in the render - so the page
-     shows his artwork instead of a code-built diagram. Its own DC / AC badges sat
-     above the flow box and were cropped away with it, so the page draws those:
-     outlined pills in green and orange, as the reference he sent. The meter <-> grid
-     link he asked to improve is patched into the raster itself - it is artwork,
-     not markup, so it cannot be overlaid. */
-  const FLOW_MARKS =
-    '<img class="pv2-pill is-dc" src="' + IMG + 'proposal/flow-pill-dc.webp" alt="" aria-hidden="true" decoding="sync">' +
-    '<img class="pv2-pill is-ac" src="' + IMG + 'proposal/flow-pill-ac.webp" alt="" aria-hidden="true" decoding="sync">';
+  /* The owner supplied the finished overview - nodes, captions, the DC / AC pills
+     and the meter <-> grid chevrons are all painted into it now - so the page
+     shows the artwork and nothing else. The pills used to be overlaid as images
+     and the chevrons as drawn shapes; both are in the raster, so overlaying them
+     again would only duplicate them a few pixels off. */
   function overviewArt() {
     const alt = 'Solar to grid system overview';
-    return '<span class="pv2-ov-stack">' +
-      '<img class="pv2-ov-art" src="' + OVERVIEW_ART + '" alt="' + alt + '" decoding="sync">' +
-      FLOW_MARKS + '</span>';
+    return '<img class="pv2-ov-art" src="' + OVERVIEW_ART + '" alt="' + alt + '" decoding="sync">';
   }
   function flowDiagram(s, f) {
     const P = (root.CONTENT && root.CONTENT.pageTechSpec && root.CONTENT.pageTechSpec.diagramLabels) || {};
