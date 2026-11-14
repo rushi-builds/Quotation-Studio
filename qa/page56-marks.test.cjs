@@ -666,8 +666,15 @@ t('card 04 shows the standards render and states what it is', () => {
 
 /* --------------------------------------- page 5 overview got its room back */
 t('the node artwork has one height, so the equipment sits on one line', () => {
-  assert.match(css, /\.pv2 \.pv2-node-art\{height:86px/,
-    'one art height for every node - the images line up on a single baseline');
+  assert.match(css, /\.pv2 \.pv2-node-art\{height:78px/,
+    'one art height for every node - the equipment lines up and shares one centre');
+  /* and the per-node caps must fit inside that box, or a piece of kit overflows it
+     and the row stops being level */
+  const boxH = Number(css.match(/\.pv2 \.pv2-node-art\{height:(\d+)px/)[1]);
+  const caps = [...css.matchAll(/\.pv2 \.pv2-node\.is-\w+ img\{max-height:(\d+)px/g)]
+    .map((m) => Number(m[1]));
+  assert.ok(caps.length >= 6, 'each kind of kit has a cap');
+  for (const h of caps) assert.ok(h <= boxH, `a node cap of ${h}px exceeds the ${boxH}px box`);
   /* the arrow is the thing that used to drift; it is anchored to that same line */
   /* Nodes and links share one flex row, and their widths are chosen so the seven
      nodes plus six links add up to the column. Positioning the links absolutely
