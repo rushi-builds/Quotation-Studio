@@ -500,6 +500,10 @@
     // in the staff panel; unverified design outputs do not become customer claims.
     addRows('MOUNTING & CABLING', [
       ['Structure', [s.mountMake, s.roofType].filter(Boolean).join(' · ') || '-'],
+      /* The walkway is part of the mounting scope, not an extra line item: it goes
+         up with the structure so the array can be cleaned and serviced. It gets
+         its own row so it can carry its own icon. */
+      ['Walkway', 'Access walkway with handrail, along the array for cleaning and servicing.'],
       ['Cabling & Protection', s.cableMake],
       ['Earthing', 'Copper-bonded earth electrodes & GI strips, per IS 3043 (verified by site soil testing).'],
       ['Lightning Protection', 'Copper air-termination & down conductors, per IS/IEC 62305 (per site risk assessment).']

@@ -21,6 +21,10 @@
     panel: '<path d="M4.5 4h15l2 10h-19z"/><path d="M3.3 9h17.4M9 4l-.8 10M15 4l.8 10M12 14v4M8 20h8"/>',
     inverter: '<rect x="5" y="3" width="14" height="16" rx="2"/><rect x="8" y="6.5" width="8" height="5" rx="1"/><path d="M9.5 9.3c.8-1.4 1.6-1.4 2.5 0s1.7 1.4 2.5 0M9 22v-3M15 22v-3"/>',
     structure: '<path d="M3 11 13 5h8l-10 6z"/><path d="M5 11v9M9.5 11v9M19 5v15M14.5 8v12M3 20h18"/>',
+    /* Maintenance walkway: a platform deck with its handrail above it. Four
+       strokes only - this is drawn at 14px in a key cell, where a busier glyph
+       turns to mush. */
+    walkway: '<path d="M3 15h18M3 21h18"/><path d="M5 15V9.5h14V15"/><path d="M5 21v-6M19 21v-6"/>',
     shieldCheck: '<path d="M12 21.5s7.5-3.6 7.5-9.5V5.5L12 2.5l-7.5 3V12c0 5.9 7.5 9.5 7.5 9.5z"/><path d="m8.8 12 2.2 2.2 4.3-4.4"/>',
     shield: '<path d="M12 21.5s7.5-3.6 7.5-9.5V5.5L12 2.5l-7.5 3V12c0 5.9 7.5 9.5 7.5 9.5z"/>',
     landmark: '<path d="M3 21h18M5 18h14M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 3l9 5H3z"/>',
@@ -52,7 +56,37 @@
     return '<svg class="' + (cls || 'pv2-svg') + '" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' +
       (sw || 1.7) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICON[name] || ICON.check) + '</svg>';
   }
-  const ARROW = '<svg width="30" height="14" viewBox="0 0 30 14" aria-hidden="true"><path d="M1 7h24" stroke="#F2811D" stroke-width="2.2" stroke-linecap="round"/><path d="M21 2.5 27.5 7 21 11.5" fill="none" stroke="#F2811D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  /* Links between the nodes. One-way links are the chevron pairs the owner's
+     drawing uses; the two links that carry power both ways are his block-arrow
+     pair, green pointing back and navy pointing out. All of it is SVG, so nothing
+     here can blur at any zoom - which is exactly what the raster could not do. */
+  const TONE = { dc: '#1E9E63', ac: '#14263A', bi: '#1E9E63', navy: '#14263A' };
+  function chevronPair(colour) {
+    /* His chevrons. These outlines were verified by rasterising the path data and
+       looking at it - two attempts before this one read as one solid wedge (no
+       notch) because the inner point sat flush with the outer one. Two chevrons,
+       thick band, 5px notch, second tucked behind the first. */
+    const one = (ox, fill) =>
+      '<path d="M' + ox + ' 0 L' + (ox + 6.24) + ' 0 L' + (ox + 12.48) + ' 9 L' + (ox + 6.24) + ' 18 ' +
+      'L' + ox + ' 18 L' + (ox + 3.68) + ' 9 Z" fill="' + fill + '"/>';
+    return '<svg class="pv2-link-svg" width="22" height="18" viewBox="0 0 22 18" aria-hidden="true">' +
+      one(0, colour) + one(9.36, colour) + '</svg>';
+  }
+  function blockPair() {
+    /* His block pair: green pointing back to the meter, navy pointing out to the
+       grid. Verified the same way - the first version had the two heads facing
+       inwards, which read as arrows colliding rather than as two-way flow. */
+    /* Navy points back to the meter on the left, green points out to the grid on
+       the right - swapped from how it was drawn first. */
+    const left = '<path d="M0.93 9 L7 3 L7 6.5 L11.2 6.5 L11.2 11.5 L7 11.5 L7 15 Z" fill="' + TONE.navy + '"/>';
+    const right = '<path d="M22.4 9 L16.33 3 L16.33 6.5 L12.13 6.5 L12.13 11.5 L16.33 11.5 L16.33 15 Z" fill="' + TONE.bi + '"/>';
+    return '<svg class="pv2-link-svg" width="24" height="18" viewBox="0 0 24 18" aria-hidden="true">' +
+      left + right + '</svg>';
+  }
+  function arrow(dir, tone) {
+    if (dir === 'both') return blockPair();
+    return chevronPair(TONE[tone] || TONE.ac);
+  }
   const SWOOSH = '<svg class="pv2-swoosh" viewBox="0 0 794 88" preserveAspectRatio="none" aria-hidden="true">' +
     '<path d="M0 40C0 28 10 22 26 22H470C600 22 700 16 794 2V88H0Z" fill="#14263A"/>' +
     '<path d="M430 22.5C590 21 700 14 794 0V7C700 21 600 27 470 26.5Z" fill="#F2811D"/></svg>';
@@ -78,9 +112,21 @@
   function label(text, extra) {
     return '<div class="pv2-label' + (extra ? ' ' + extra : '') + '"><i aria-hidden="true"></i><span>' + esc(text) + '</span></div>';
   }
+  /* The value row keeps the proposal's own two-tone marks (ProposalMarks), the
+     same artwork every other page's footer uses, in the same four-palette
+     rotation. Falling back to the line icons only if that file is absent. */
+  const PALETTES = ['warm', 'sage', 'lavender', 'blue'];
+  function valueMark(ic, i) {
+    const M = root.ProposalMarks;
+    return M && M.get ? M.get(ic, 26, PALETTES[i % 4]) : icon(ic, 26, 'pv2-svg', 1.4);
+  }
+  /* Same markup shape as .proposal-value-footer .pv-values on the other pages:
+     inline mark + copy, one copy span per label. Only the artwork and the words
+     differ, so the two bands read as one component. */
   function values(items) {
-    return '<ul class="pv2-values">' + items.map(([ic, a, b]) =>
-      '<li>' + icon(ic, 34, 'pv2-svg', 1.4) + '<span>' + esc(a) + '<br>' + esc(b) + '</span></li>').join('') + '</ul>';
+    return '<ul class="pv2-values">' + items.map(([ic, a, b], i) =>
+      '<li><span class="pv2-mark">' + valueMark(ic, i) + '</span>' +
+      '<span class="pv2-label">' + esc(a) + '<br>' + esc(b) + '</span></li>').join('') + '</ul>';
   }
 
   /* --------------------------- PAGE 5 ------------------------------------- */
@@ -94,24 +140,69 @@
     if (/warrant/.test(t)) return 'award';
     return 'check';
   }
+  /* The overview used to be the owner's finished render, pasted in as one image.
+     It is a live diagram now - see flowDiagram() - because the render carried its
+     own labels and its own "13 x 545 Wp" / "7 kW", so every quote printed the same
+     numbers, and a raster can never be text-sharp at every zoom. His drawings
+     still supply the seven equipment photos the nodes use. */
+
   function flowDiagram(s, f) {
     const P = (root.CONTENT && root.CONTENT.pageTechSpec && root.CONTENT.pageTechSpec.diagramLabels) || {};
-    const count = f && f.moduleCount, watt = f && f.moduleWattage;
+    /* The numbers come from the form, not from the artwork. That was the bug in
+       showing the owner's finished render: the picture said "13 x 545 Wp" and
+       "7 kW" no matter what was being quoted. These read the same fields the rest
+       of the proposal reads. */
+    const count = (f && f.moduleCount) || '';
+    const watt  = (f && f.moduleWattage) || '';
+    const kW    = (f && f.inverterKw) || '';
+    const panelSpec = (count && watt) ? count + ' \u00d7 ' + watt + ' Wp Modules'
+      : (count ? count + ' Modules' : 'Solar Modules');
+
     const nodes = [
-      { img: 'flow-panel.webp', cls: 'is-panel', t: P.array || 'Rooftop Solar', d: count && watt ? count + ' × ' + watt + ' Wp Modules' : 'Solar modules' },
-      { img: 'flow-db.webp', cls: 'is-box', t: P.dcdb || 'DCDB', d: 'DC Protection', badge: 'DC' },
-      { img: 'flow-inverter.webp', cls: 'is-inv', t: P.inverter || 'Inverter', d: f && f.inverterKw ? f.inverterKw + ' kW' : '' },
-      { img: 'flow-db.webp', cls: 'is-box', t: P.acdb || 'ACDB', d: 'AC Protection', badge: 'AC' },
-      { img: 'flow-house.webp', cls: 'is-house', t: P.home || 'Your Property', d: '(Load Use)' },
+      { img: 'flow-panel.webp', cls: 'is-panel', t: P.array || 'Rooftop Solar', d: panelSpec },
+      { img: 'flow-db.webp', cls: 'is-box', t: P.dcdb || 'DCDB', d: 'DC Protection' },
+      { img: 'flow-inverter.webp', cls: 'is-inv', t: P.inverter || 'Inverter', d: kW ? kW + ' kW' : '' },
+      { img: 'flow-db.webp', cls: 'is-box', t: P.acdb || 'ACDB', d: 'AC Protection' },
+      { img: 'flow-house.webp', cls: 'is-house', t: P.home || 'Your Property', d: 'Load / Use' },
       { img: 'flow-meter.webp', cls: 'is-meter', t: P.meter || 'Bi-Directional Meter', d: 'Net Metering' },
-      { svg: 'tower', cls: 'is-grid', t: 'Utility Grid', d: P.grid ? '(' + String(P.grid).replace(/\s*\(([^)]*)\)\s*$/, ' / $1') + ')' : '(DISCOM)' }
+      /* His tower drawing, crop and all - the line-icon stand-in lost the four
+         insulator horns that make the pylon read as a pylon. */
+      { img: 'flow-tower.webp', cls: 'is-grid', t: P.grid || 'Utility Grid', d: 'Import / Export' }
     ];
-    return '<div class="pv2-flow">' + nodes.map((n, i) =>
-      (i ? '<span class="pv2-arrow">' + ARROW + '</span>' : '') +
-      '<div class="pv2-node ' + n.cls + '">' +
-      (n.badge ? '<span class="pv2-badge is-' + n.badge.toLowerCase() + '">' + n.badge + '</span>' : '') +
-      '<div class="pv2-node-art">' + (n.svg ? icon(n.svg, 62, 'pv2-tower', 1.25) : '<img src="' + IMG + 'proposal/' + n.img + '" alt="" decoding="sync">') + '</div>' +
-      '<b>' + esc(n.t) + '</b>' + (n.d ? '<small>' + esc(n.d) + '</small>' : '') + '</div>').join('') + '</div>';
+    /* Link i joins node i-1 to node i. Everything up to the inverter is DC and
+       green; from the inverter outwards it is AC and navy. The meter and the grid
+       trade power both ways, so that link is the block pair. */
+    /* The links up to ACDB are DC and green, from the inverter onwards AC and navy.
+       Both links that touch the bi-directional meter carry power both ways - the
+       house trades with it as much as the grid does - so both get his block pair,
+       and only the four one-way runs stay chevrons. */
+    const links = [
+      { tone: 'dc' },
+      { tone: 'dc' },
+      { tone: 'ac' },
+      { tone: 'ac' },
+      { tone: 'bi', dir: 'both' },
+      { tone: 'bi', dir: 'both' }
+    ];
+    /* The DC group runs panel -> ACDB, the AC group ACDB -> grid. Their badges are
+       outlined pills per his reference - green ring for DC, navy for AC. */
+    const badge = (text, cls) => '<span class="pv2-grp is-' + cls + '">' + esc(text) + '</span>';
+    return '<div class="pv2-flow">' +
+      '<div class="pv2-grp-row">' +
+        '<div class="pv2-grp-wrap is-dc">' + badge(P.dc || 'DC', 'dc') + '</div>' +
+        '<div class="pv2-grp-wrap is-ac">' + badge(P.ac || 'AC', 'ac') + '</div>' +
+      '</div>' +
+      '<div class="pv2-flow-row">' + nodes.map((n, i) => {
+        const link = i ? links[i - 1] || {} : null;
+        return (link ? '<span class="pv2-arrow' + (link.dir === 'both' ? ' is-both' : '') + '">' +
+          arrow(link.dir || 'right', link.tone) + '</span>' : '') +
+        '<div class="pv2-node ' + n.cls + '">' +
+          '<div class="pv2-node-art">' +
+            '<img src="' + IMG + 'proposal/' + n.img + '" alt="" decoding="sync">' +
+          '</div>' +
+          '<b>' + esc(n.t) + '</b>' + (n.d ? '<small>' + esc(n.d) + '</small>' : '') + '</div>';
+      }).join('') + '</div>' +
+    '</div>';
   }
   function solution(s, f) {
     const page = $('pageSolution'); if (!page) return;
@@ -146,12 +237,30 @@
       body.insertBefore(ov, $('v_soScopeNote') || null);
     }
     const P = (root.CONTENT && root.CONTENT.pageTechSpec) || {};
+    /* The artwork was cropped down to just the flow box, so the section heading is
+       the page's own again. The box no longer prints a second note - the render
+       carries that - which is what stopped the section reading as duplication. */
+    /* The flow is drawn live now instead of being the owner's finished raster. The
+       raster could not carry a quote - its labels and its "13 x 545 Wp" / "7 kW"
+       were baked in, so they printed the same numbers for every customer, and
+       nothing in it could be text-sharp at any zoom. Every label below is the same
+       editable content the rest of the proposal uses, and every arrow and badge is
+       SVG. His drawings still supply the seven equipment images. */
     ov.innerHTML = label(P.diagramTitle || 'SYSTEM OVERVIEW') + '<div class="pv2-ov-box">' + flowDiagram(s, f) + '</div>';
+    /* The artwork carries its own note, so the boilerplate scope note would print
+       the same advice twice. It is only suppressed while it is boilerplate: when
+       an additional system (battery, rainwater) is quoted, the renderer puts the
+       real scope sentence in that same element, and that must still show. */
+    const scopeNote = $('v_soScopeNote');
+    if (scopeNote) {
+      const basic = /^The exact equipment ratings are listed in Technical Specification\./;
+      scopeNote.hidden = basic.test((scopeNote.textContent || '').trim());
+    }
     let vals = body.querySelector(':scope > .pv2-values-wrap');
     if (!vals) {
       vals = doc.createElement('div'); vals.className = 'pv2-values-wrap'; vals.dataset.docAdded = 'true';
       body.append(vals);
-      vals.innerHTML = values([['compass', 'Site-fit', 'Design'], ['layers', 'Specified', 'Equipment'], ['shield', 'Design', 'Safety'], ['calendarCheck', 'Planned', 'Handover']]);
+      vals.innerHTML = values([['target', 'Site-fit', 'Design'], ['gear', 'Specified', 'Equipment'], ['shield', 'Design', 'Safety'], ['check', 'Planned', 'Handover']]);
     }
     fit(page, ['pv2-fit-1', 'pv2-fit-2', 'pv2-fit-3']);
   }
@@ -165,7 +274,10 @@
     waaree: 'waaree', adani: 'adani', longi: 'longi', tata: 'tata', vikram: 'vikram',
     premier: 'premier', renew: 'renew', renewsys: 'renewsys', panasonic: 'anchor', anchor: 'anchor',
     growatt: 'growatt', fronius: 'fronius', deye: 'deye', huawei: 'huawei', fusionsolar: 'huawei',
-    solis: 'solis', sungrow: 'sungrow'
+    solis: 'solis', sungrow: 'sungrow',
+    /* The structure card's own make. Drafted from the owner's mark, not a logo
+       of a foreign brand, so it rides the same badge as the rest. */
+    ars: 'ars-solartech'
   };
   const slug = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   /* One photograph per card, taken from the owner's page 5/6 set. Modules,
@@ -176,6 +288,7 @@
     module: IMG + 'equipment/cards/solar-module-card.webp',
     inverter: IMG + 'equipment/cards/solis-inverter.webp',
     mount: IMG + 'equipment/cards/mount-structure-callouts.webp',
+    standards: IMG + 'equipment/cards/design-is-standards.webp',
     design: IMG + 'equipment/cards/earthing-safety-3pit.webp'
   };
   const INVERTER_PHOTO = {
@@ -191,13 +304,18 @@
       const key = slug(brand).split('-')[0];
       if (INVERTER_PHOTO[key]) return INVERTER_PHOTO[key];
     }
+    if (kind === 'design') return CARD_PHOTO.standards;
     return CARD_PHOTO[kind] || IMG + 'equipment/cards/earthing-safety-3pit.webp';
   }
   function rowIcon(k) {
     const t = String(k || '').toLowerCase();
     const map = [[/^make|brand/, 'factory'], [/technolog|^model/, 'layers'], [/^type/, 'wave'], [/rated|output|power$/, 'bolt'],
-      [/efficien|dc input/, 'gauge'], [/mppt|ratio/, 'link'], [/protection$/, 'shield'], [/warrant/, 'shield'], [/monitor/, 'wifi'],
-      [/quantity/, 'grid'], [/array size/, 'grid'], [/area/, 'expand'], [/^structure$/, 'structure'], [/cabling/, 'cable'],
+      [/efficien|dc input/, 'gauge'], [/mppt|ratio/, 'link'],
+      /* Before `protection`: "Cabling & Protection" is a cable row that happens to
+         end in the word, and it was drawing a shield. */
+      [/cabling/, 'cable'], [/protection$/, 'shield'], [/warrant/, 'shield'], [/monitor/, 'wifi'],
+      [/quantity/, 'grid'], [/array size/, 'grid'], [/area/, 'expand'], [/^structure$/, 'structure'],
+      [/walkway/, 'walkway'],
       [/earthing/, 'earth'], [/lightning/, 'lightning'], [/standard/, 'doc'], [/life/, 'compass'], [/wind/, 'wind'],
       [/proposal|design/, 'pencil'], [/location/, 'pin'], [/resource|solar|ghi/, 'sun']];
     for (const [re, ic] of map) if (re.test(t)) return ic;
@@ -214,12 +332,14 @@
   }
   const kindOf = (name) => /MODULE/i.test(name) ? 'module' : /INVERTER/i.test(name) ? 'inverter' : /MOUNT|CABL/i.test(name) ? 'mount'
     : /DESIGN|ENGINEER/i.test(name) ? 'design' : /^SITE DATA/i.test(name) ? 'sitedata' : /^SITE/i.test(name) ? 'site' : 'other';
-  const HEAD_ICON = { module: 'globe', inverter: 'inverter', mount: 'structure', design: 'gear', other: 'doc' };
   function brandMark(kind, brand) {
-    if (kind === 'design') return '<div class="pv2-brand is-std"><b>IS / IEC</b><small>Lightning &amp; earthing</small></div>';
+    /* Card 04 is the card of codes: it has no manufacturer, so it carries no
+       badge. The IS / IEC badge that used to sit here was read as noise - the
+       card title and its own rows already say what it is. */
+    if (kind === 'design') return '';
     if (!brand) return '';
     const key = slug(brand).split('-')[0];
-    if (key === 'ars' || key === 'solartech' || key === 'solar') return '<div class="pv2-brand is-ars"><b>ARS</b><small>Solar Tech</small></div>';
+    if (key === 'ars' || key === 'solartech' || key === 'solar') brand = 'ARS Solar Tech';
     const logo = BRAND_LOGOS[key] || BRAND_LOGOS[slug(brand)];
     if (logo) {
       return '<div class="pv2-brand is-logo"><img src="' + IMG + 'brands/' + logo + '.webp" alt="' + esc(brand) + '" decoding="sync"></div>';
@@ -234,12 +354,17 @@
       .forEach((c) => page.classList.remove(c));
     const body = page.querySelector(':scope > .pg-body'); const table = $('v_tsTable');
     if (!body || !table) return;
+    /* The section opener used to shout "DETAILED SPECIFICATION" in a dark slab.
+       Page 6 is the friendly half of the pair: one quiet line that says what the
+       four cards are for, with two of its phrases picked out in orange. Kept as
+       plain quotes so the sentence stays copy, not markup. */
     const groupsLabel = $('v_tsGroupsLabel');
     if (groupsLabel) {
-      groupsLabel.classList.add('pv2-label', 'pv2-label-line');
-      if (!groupsLabel.querySelector(':scope > span')) {
-        const text = (groupsLabel.textContent || '').trim() || 'DETAILED SPECIFICATION';
-        groupsLabel.innerHTML = '<i aria-hidden="true"></i><span>' + esc(text) + '</span>';
+      groupsLabel.classList.add('pv2-eyebrow');
+      if (groupsLabel.dataset.pv2Copy !== 'spec-intro') {
+        groupsLabel.dataset.pv2Copy = 'spec-intro';
+        groupsLabel.innerHTML = '<span>Every component below is chosen for '
+          + '<em>compatibility</em>, <em>certified performance</em> and long-term reliability.</span>';
       }
     }
     const groups = readGroups(table);
@@ -263,8 +388,9 @@
       const photo = photoFor(c.kind, brand);
       const title = c.name.charAt(0) + c.name.slice(1).toLowerCase();
       return '<article class="pv2-card is-' + c.kind + '">' +
+        /* Number OR icon, not both - two devices side by side read as decoration.
+           The number is quiet set type, so it orders the cards without shouting. */
         '<header class="pv2-card-head"><span class="pv2-num">' + String(i + 1).padStart(2, '0') + '</span>' +
-        '<span class="pv2-hic">' + icon(HEAD_ICON[c.kind] || 'doc', 20, 'pv2-svg', 1.5) + '</span>' +
         '<h3>' + esc(c.name.toUpperCase() === c.name ? c.name : title) + '</h3>' + brandMark(c.kind, brand) + '</header>' +
         '<div class="pv2-card-body"><div class="pv2-rows">' + c.rows.map(([k, v]) =>
           '<div class="pv2-row"><div class="pv2-k">' + icon(rowIcon(k), 14, 'pv2-svg', 1.6) + '<span>' + esc(k) + '</span></div><div class="pv2-v">' + esc(v) + '</div></div>').join('') +

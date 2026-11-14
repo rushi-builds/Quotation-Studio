@@ -133,6 +133,17 @@ async function main() {
   t('NEGATIVE: the cards allowance cannot smuggle a script or a stylesheet in as a photo',
     guard.scopeOffenders(['assets/images/equipment/cards/app.js',
       'assets/images/equipment/cards/closing.css']).length === 2);
+  t('the page 5/6 review page is allowed by exact filename', () => {
+    assert.equal(guard.scopeOffenders(['page56-preview.html']).length, 0);
+  });
+  t('NEGATIVE: the review-page allowance cannot be widened to a family of pages', () => {
+    const wide = ['page56-preview2.html', 'page56-preview-old.html',
+      'preview/page56-preview.html', 'page56-preview.html.bak',
+      'PAGE56-PREVIEW.HTML'];
+    assert.deepEqual(guard.scopeOffenders(wide), wide,
+      'only the one exact filename passes; every neighbour is still reported');
+  });
+
   t('brand mark allowance admits the fifteen cuts and nothing beside them',
     guard.scopeOffenders(['assets/images/brands/waaree.webp', 'assets/images/brands/solis.webp',
       'assets/images/brands/tata.webp']).length === 0);

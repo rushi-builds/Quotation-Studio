@@ -11523,7 +11523,7 @@ export default {
         "inverter": "Inverter",
         "ac": "AC",
         "meter": "Bi-Directional Meter",
-        "grid": "MSEDCL (MSEB)",
+        "grid": "MSEDCL",
         "home": "Your Property",
         "arrayValue": "{moduleCount} × {moduleWattage} Wp modules",
         "inverterValue": "{inverterRating}",

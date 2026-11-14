@@ -13,18 +13,77 @@
 .pv2 .pv2-svg{display:block;flex-shrink:0;}
 
 /* note bars: the label is drawn, the sentence stays editable */
-#pageSolution.pv2 #v_soScopeNote,#pageTechSpec.pv2 .pg-body > .note-box{position:relative;background:#FFF1E3;border:0;border-radius:12px;color:var(--pv2-ink);
+
+/* Page 5's scope note keeps the shared band treatment. Page 6's note has its own
+   shape below, matched to the reference the owner sent: one short rounded pill, a
+   pale-blue flag carrying the icon and the word NOTE, an orange divider, the
+   sentence, and a folded corner. It is a footnote, so everything about it is
+   smaller than it was, and the room it gives back goes to the cards. */
+#pageSolution.pv2 #v_soScopeNote{position:relative;background:#FFF1E3;border:0;border-radius:12px;color:var(--pv2-ink);
   font-size:10.5px;line-height:1.45;padding:10px 18px 10px 104px;min-height:44px;display:flex;align-items:center;box-shadow:none;}
-.pv2-solution #v_soScopeNote::before,#pageTechSpec.pv2 .pg-body > .note-box::before{content:'i';position:absolute;left:18px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;
+.pv2-solution #v_soScopeNote::before{content:'i';position:absolute;left:18px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;
   background:#F2811D;color:#fff;font:700 14px/22px Georgia,serif;text-align:center;}
 .pv2-solution #v_soScopeNote::after{content:'Note:';position:absolute;left:48px;top:50%;transform:translateY(-50%);color:#E5741A;font:700 13px/1 'Poppins','Inter',sans-serif;}
-#pageTechSpec.pv2 .pg-body > .note-box{display:block;padding-top:11px;padding-bottom:11px;font-size:10.4px;margin-top:12px;}
-#pageTechSpec.pv2 .note-box #v_tsNoteLabel{letter-spacing:0;font-size:13px!important;position:absolute;left:48px;top:50%;transform:translateY(-50%);color:#E5741A;font:700 13px/1 'Poppins','Inter',sans-serif;text-transform:capitalize;}
-#pageTechSpec.pv2 .note-box #v_tsNoteLabel::after{content:':';}
 
-.pv2 .pv2-values{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);}
-.pv2 .pv2-values li{display:flex;align-items:center;justify-content:center;gap:14px;color:var(--pv2-ink);font:600 12px/1.3 'Poppins','Inter',sans-serif;position:relative;}
-.pv2 .pv2-values li + li::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:1px;background:#C9CFD8;}
+/* Page 6's note. Weight note: app.css carries `#pageTechSpec .note-box` (0-1-1-0)
+   with a gradient, a border, a backdrop blur and margin-top:26px. The selector
+   below is 0-2-2-0 and re-sets every property that base rule touches, so nothing
+   leaks through if load order or a class reset changes. */
+#pageTechSpec.pv2 .pg-body > .note-box{
+  position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;
+  margin-top:8px;padding:3px 24px 3px 4px;text-align:left;min-height:0;
+  background:#fff;border:1px solid #E1E6ED;border-radius:999px;box-shadow:none;
+  -webkit-backdrop-filter:none;backdrop-filter:none;
+  font:500 9.4px/1.15 'Inter',sans-serif;color:#1F2A38;overflow:hidden;
+}
+#pageTechSpec.pv2 .pg-body > .note-box::before{content:none;display:none;}
+/* The folded corner: an orange wedge with the paper turned back over it. */
+#pageTechSpec.pv2 .pg-body > .note-box::after{
+  content:'';position:absolute;right:0;bottom:0;width:18px;height:18px;
+  background:linear-gradient(135deg,#fff 0 48%,#F2811D 48% 100%);
+}
+/* v_tsNoteLabel IS the flag: the pale-blue lozenge with the icon set into its
+   left end and the word in caps. No nested wrapper needed. */
+#pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel{
+  position:static;display:inline-flex;align-items:center;gap:5px;
+  margin:0;padding:4px 12px 4px 7px;border:0;border-radius:999px;background:#DCE7F5;
+  color:#12233A;text-transform:uppercase;letter-spacing:.045em;white-space:nowrap;
+  font:800 9px/1 'Poppins','Inter',sans-serif;
+}
+#pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel::after{
+  content:'';order:-1;flex:none;width:12px;height:12px;
+  background:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F2811D' stroke-width='2.6' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.4'/%3E%3Cpath d='M12 11.2v5.4M12 7.4v.7'/%3E%3C/svg%3E") center/12px 12px no-repeat;
+}
+#pageTechSpec.pv2 .pg-body > .note-box #v_tsNote{
+  display:flex;align-items:center;margin-left:9px;padding:3px 0 3px 10px;
+  border-left:1px solid #F2811D;color:#26313F;
+  font:500 9.4px/1.2 'Inter',sans-serif;
+}
+
+/* The white sheet and its bottom-right petal artwork come from the generic page
+   rule (proposal-values.css). proposal-v2.css is loaded later, so its gradient
+   was painting over both - the page 5/6 sheets went grey and the petals
+   disappeared. Keep the artwork, drop the gradient for these two pages. */
+.page.pv2.pv2-solution:not(#pageCover):not(#pageClosing),
+.page.pv2.pv2-tech:not(#pageCover):not(#pageClosing){
+ background:#fff;background-image:url('../images/proposal-corner-petals.svg');
+ background-repeat:no-repeat;background-position:100% 100%;background-size:170px 170px;
+}
+
+/* Page 5's value band is the same component as the footer band on the other
+   thirteen pages (.proposal-value-footer .pv-values), not a look-alike: equal
+   cells, inline 26px mark, 11px gap, 15px left padding per cell after the first,
+   a faint 18px divider at -9px, 9px copy. These numbers are copied from
+   proposal-values.css on purpose - if that band changes, change both. */
+.pv2 .pv2-values{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;gap:18px;min-height:26px;}
+.pv2 .pv2-values li{position:relative;display:flex;align-items:center;justify-content:flex-start;gap:11px;min-width:0;
+  color:#4d667b;font:500 9px/1.5 'Inter',sans-serif;}
+.pv2 .pv2-values li + li{padding-left:15px;}
+.pv2 .pv2-values .pv2-mark{display:block;flex:none;line-height:0;}
+.pv2 .pv2-values .pv2-mark svg{display:block;}
+.pv2 .pv2-values .pv2-label{font:500 9px/1.5 'Inter',sans-serif;white-space:pre-line;overflow-wrap:anywhere;color:#4d667b;}
+.pv2 .pv2-values li + li::before{content:'';position:absolute;left:-9px;top:50%;width:1px;height:18px;
+  background:#c5ccdb;opacity:.5;transform:translateY(-50%);pointer-events:none;}
 
 /* ================= PAGE 5 ================= */
 .page.pv2:not(#pageCover):not(#pageClosing).pv2-solution > .pg-body{display:flex;flex-direction:column;}
@@ -41,7 +100,7 @@
 .pv2-solution .pv2-strip{position:absolute;z-index:1;background:#F2811D;border-radius:6px;}
 .pv2-solution .pv2-strip.a{left:-14px;top:52px;width:46px;height:132px;clip-path:polygon(60% 0,100% 0,40% 100%,0 100%);}
 .pv2-solution .pv2-strip.b{right:6px;bottom:-12px;width:60px;height:98px;clip-path:polygon(70% 0,100% 0,30% 100%,0 100%);}
-.pv2-solution .spacer{flex:1 1 0;min-height:8px;max-height:26px;}
+.pv2-solution .spacer{flex:1 1 0;min-height:8px;max-height:16px;}
 .pv2-solution #v_soSpecs{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin:0;width:auto;}
 .pv2-solution #v_soSpecs .spec-card{display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto auto;align-content:center;align-items:center;column-gap:13px;
   background:#fff;border:1px solid #E4E8EE;border-radius:11px;box-shadow:0 2px 9px rgba(20,38,58,.06);padding:7px 12px 7px 10px;min-height:56px;margin:0;text-align:left;}
@@ -54,31 +113,70 @@
 .pv2-solution #v_soSpecs .pv2-feature .spec-t{grid-column:2;font:700 11.5px/1.25 'Poppins','Inter',sans-serif;color:var(--pv2-navy);margin:0;}
 .pv2-solution #v_soSpecs .pv2-feature .card-desc{grid-column:3;border-left:1px solid #DDE2E9;padding-left:12px;font-size:9.6px;line-height:1.38;color:#2D3846;margin:0;}
 
-.pv2-solution .pv2-overview{margin-top:16px;}
-.pv2-solution .pv2-ov-box{margin-top:-1px;background:#fff;border:1px solid #E4E8EE;border-radius:12px;box-shadow:0 2px 9px rgba(20,38,58,.05);padding:18px 10px 12px;}
-.pv2 .pv2-flow{display:flex;align-items:flex-start;justify-content:space-between;}
-.pv2 .pv2-node{position:relative;flex:0 0 auto;width:66px;text-align:center;display:flex;flex-direction:column;align-items:center;}
-.pv2 .pv2-node.is-panel{width:98px;}.pv2 .pv2-node.is-house{width:76px;}
-.pv2 .pv2-node.is-meter{width:80px;}
-.pv2 .pv2-node.is-grid{width:96px;}
-.pv2 .pv2-node-art{height:84px;width:100%;display:flex;align-items:flex-end;justify-content:center;margin-bottom:6px;}
-.pv2 .pv2-node-art img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;filter:drop-shadow(0 3px 4px rgba(20,38,58,.12));}
-.pv2 .pv2-node.is-panel img{max-height:72px;}
-.pv2 .pv2-node.is-box img{max-height:58px;}
-.pv2 .pv2-node.is-inv img{max-height:76px;}
-.pv2 .pv2-node.is-house img{max-height:66px;margin-bottom:12px;}
-.pv2 .pv2-node.is-meter img{max-height:68px;}
-.pv2 .pv2-tower{color:var(--pv2-navy);width:66px;height:80px;}
-.pv2 .pv2-node b{font:700 11px/1.25 'Poppins','Inter',sans-serif;color:var(--pv2-navy);}
-.pv2 .pv2-node small{font-size:8.8px;line-height:1.3;color:#4A5565;margin-top:2px;}
-.pv2 .pv2-node.is-house b{margin-top:-14px;}
-.pv2 .pv2-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);width:27px;height:27px;border-radius:50%;color:#fff;font:700 9.5px/27px 'Poppins','Inter',sans-serif;
-  text-align:center;box-shadow:0 2px 5px rgba(20,38,58,.18);}
-.pv2 .pv2-badge.is-dc{background:#F2811D;}
-.pv2 .pv2-badge.is-ac{background:#3A7BC8;}
-.pv2 .pv2-arrow{flex:0 0 auto;margin-top:46px;display:flex;}.pv2 .pv2-arrow svg{width:24px;height:12px;}
-.pv2-solution #v_soScopeNote{margin-top:16px;}
-.pv2-solution .pv2-values-wrap{margin-top:16px;}
+.pv2-solution .pv2-overview{margin-top:18px;}
+/* The owner's overview render carries its own rounded frame, so the box is just
+   the width constraint: full bleed, no extra border or padding. */
+.pv2-solution .pv2-ov-box{margin-top:-1px;background:none;border:0;border-radius:0;box-shadow:none;padding:0;}
+/* The render is the owner's own raster at 2144px wide, drawn once into a 718px
+   column - so the browser is always downscaling it, never upscaling it. Every
+   re-encode on the way here softens it further: the file is now written once,
+   lossless, from a PNG pipeline, and this rule keeps the browser from applying its
+   own low-quality filter on top. */
+.pv2-solution .pv2-ov-art{display:block;width:100%;height:auto;border-radius:12px;
+  image-rendering:-webkit-optimize-contrast;image-rendering:high-quality;}
+.pv2 .pv2-flow{display:block;}
+/* The two group badges sit above the row, each centred over the stretch of nodes
+   it covers. They are sized by their own text - `display:table` and a content box
+   is what keeps a block-level badge from stretching across its whole wrap, which
+   is exactly what it did when this was written as a block with auto margins. */
+.pv2 .pv2-grp-row{position:relative;height:26px;margin-bottom:12px;}
+.pv2 .pv2-grp-wrap{position:absolute;top:0;}
+.pv2 .pv2-grp-wrap.is-dc{left:3%;width:46%;}
+.pv2 .pv2-grp-wrap.is-ac{left:58%;width:34%;}
+.pv2 .pv2-grp{display:table;margin:0 auto;padding:2px 14px 3px;border-radius:7px;
+  border:2.5px solid #1E9E63;background:#fff;color:#1E9E63;
+  font:700 12.5px/1.35 'Poppins','Inter',sans-serif;letter-spacing:.04em;white-space:nowrap;}
+.pv2 .pv2-grp.is-ac{border-color:#14263A;color:#14263A;}
+
+/* Nodes and links share one row. The links are ordinary flex items with a fixed
+   width, and the node widths are chosen so the seven nodes plus six links add up
+   to the column - so a link always lands in the gap it belongs to and can never
+   ride over a box. (Positioning them absolutely is what put them on top of the
+   equipment.) */
+.pv2 .pv2-flow-row{display:flex;align-items:flex-end;justify-content:space-between;}
+.pv2 .pv2-node{flex:0 0 auto;text-align:center;display:flex;flex-direction:column;align-items:center;}
+.pv2 .pv2-node.is-panel{width:84px;}
+.pv2 .pv2-node.is-box{width:62px;}
+.pv2 .pv2-node.is-inv{width:62px;}
+.pv2 .pv2-node.is-house{width:70px;}
+.pv2 .pv2-node.is-meter{width:74px;}
+.pv2 .pv2-node.is-grid{width:72px;}
+/* One art height for every node, so the equipment sits on a single line and the
+   images are drawn at their natural size instead of being stretched. */
+/* Every drawing occupies exactly the same box: 76px tall, full width of its node.
+   No per-kind max-height any more - that was what made the panel stand 72px while
+   the meter stood 68, so the row was never truly level and the links had no single
+   centre. With one box, every piece of kit is the same height and the centre is
+   the same number for all seven. */
+.pv2 .pv2-node-art{height:76px;width:100%;display:flex;align-items:flex-end;justify-content:center;margin-bottom:9px;}
+.pv2 .pv2-node-art img{width:100%;height:100%;object-fit:contain;object-position:bottom center;display:block;
+  filter:drop-shadow(0 2px 3px rgba(20,38,58,.13));}
+
+.pv2 .pv2-node b{font:700 10.5px/1.25 'Poppins','Inter',sans-serif;color:var(--pv2-navy);}
+.pv2 .pv2-node small{font-size:9.5px;line-height:1.3;color:#4A5565;margin-top:1px;white-space:nowrap;}
+
+/* The links are flex items of their own, parked on the equipment line: the art is
+   86px tall and the link 18px, so 34px of bottom margin centres it at 43px - the
+   same centre as the equipment above the captions. */
+/* The row is bottom-aligned, so the link is pushed up from the bottom edge by the
+   height of the captions plus half the art. 68px puts the link's centre on the
+   equipment's centre - at 46px it sat down among the captions, which is what he
+   kept seeing. */
+.pv2 .pv2-arrow{flex:0 0 38px;width:38px;display:flex;align-items:center;justify-content:center;margin-bottom:64px;}
+.pv2 .pv2-arrow svg{display:block;}
+.pv2 .pv2-arrow.is-both svg{width:26px;height:20px;}
+
+.pv2-solution #v_soScopeNote{margin-top:30px;}
 
 /* hide what the new layout replaces on page 5 */
 .pv2-solution .proposal-value-footer,.pv2-solution .solution-system{display:none!important;}
@@ -86,26 +184,63 @@
 /* tighter steps, applied only when the page is measured as full */
 .pv2-solution.pv2-fit-1 .spacer{max-height:10px;}
 .pv2-solution.pv2-fit-1 #v_soSpecs .spec-card{min-height:50px;padding-top:5px;padding-bottom:5px;}
-.pv2-solution.pv2-fit-2 .pv2-overview,.pv2-solution.pv2-fit-2 #v_soScopeNote,.pv2-solution.pv2-fit-2 .pv2-values-wrap{margin-top:10px;}
-.pv2-solution.pv2-fit-2 .pv2-node-art{height:70px;}
+.pv2-solution.pv2-fit-2 .pv2-overview,.pv2-solution.pv2-fit-2 #v_soScopeNote,.pv2-solution.pv2-fit-2 .pv2-values-wrap{margin-top:16px;}
+.pv2-solution.pv2-fit-2 .pv2-node-art{height:92px;}
 .pv2-solution.pv2-fit-3 .pv2-values-wrap{display:none;}
+
+/* The value row must sit ON the footer's horizontal rule, edge to edge, exactly
+   like the band on every other page. Those pages position their band absolutely;
+   here the row is the last flex child of .pg-body, so the page can still measure
+   itself for the tighten steps. That means two declarations, and they have to
+   outrank those steps:
+     - `margin-top:auto` lets the row fall to the bottom of the body instead of
+       leaving the spare height under it (that was the gap he could see), and
+     - `margin-bottom:-4px` cancels most of the .pg-body's 46px bottom padding, so
+       the row's box ends 8px above the footer's 34px height.
+
+   That 8px is the point. The band on the other pages is a 42px box with 26px
+   icons centred in it, so its icons always sit 8px clear of the rule. A flush
+   row (the previous -12px) cancelled that clearance and the icons looked pinned
+   to the line. 46 - 34 - 8 = 4. */
+.pv2-solution .pv2-values-wrap,
+.pv2-solution.pv2-fit-1 .pv2-values-wrap,
+.pv2-solution.pv2-fit-2 .pv2-values-wrap{margin-top:auto;margin-bottom:-4px;}
 
 /* ================= PAGE 6 ================= */
 .page.pv2:not(#pageCover):not(#pageClosing).pv2-tech > .pg-body{display:block;padding-top:78px;padding-bottom:92px;}
+/* Page 6 was overflowing: the title block measured 22px taller than it needed to
+   and every card carried a 10px gap. Pulled in here (heading -2, sub -2, para
+   -1px line, label -6, cards -4, note -4) so the four cards and the note fit
+   above the footer with air to spare. */
+.pv2-tech .pv2-card-head{margin:0 2px 4px 0;min-height:26px;}
+.pv2-tech .pv2-card{padding:6px 8px 6px 10px;}
+.pv2-tech .pv2-row .pv2-k,.pv2-tech .pv2-row .pv2-v{padding-top:3px;padding-bottom:3px;}
+.pv2-tech #v_tsPara{margin-bottom:0;}
 .pv2-tech #v_tsHeading{font:800 32px/1.12 'Poppins','Inter',sans-serif;color:var(--pv2-navy);letter-spacing:-.5px;margin:0;}
 .pv2-tech #v_tsSub{font:600 15px/1.3 'Poppins','Inter',sans-serif;color:#F2811D;margin:4px 0 0;}
 .pv2-tech .pg-body > .rule-orange{width:58px;height:3px;border-radius:2px;background:#F2811D;margin:5px 0 8px;}
 .pv2-tech #v_tsPara{font-size:11.6px;line-height:1.5;color:#4A5565;margin:0;max-width:none;}
 .pv2-tech .diagram-box{display:none!important;}
 .pv2-tech #v_tsTable{display:none!important;}
-.pv2-tech #v_tsGroupsLabel.pv2-label{display:flex;align-items:stretch;height:28px;margin:14px 0 10px -12px;padding:0;background:none;border:0;}
-.pv2-tech #v_tsGroupsLabel.pv2-label::after{content:'';flex:1 1 auto;align-self:center;height:1px;background:#C3CBD6;margin-left:12px;}
-.pv2-tech #v_tsGroupsLabel.pv2-label::before{display:none;}
-.pv2-tech .pv2-spec{display:flex;flex-direction:column;gap:10px;}
+/* Quiet opener for the specification cards: one small line, two orange phrases,
+   then the rule runs to the page edge. Replaces the dark "DETAILED
+   SPECIFICATION" slab, which repeated the sub-heading above it. */
+.pv2-tech #v_tsGroupsLabel.pv2-eyebrow{display:flex;align-items:baseline;gap:0;height:auto;margin:10px 0 9px;
+  padding:0;background:none;border:0;font:500 9.6px/1.45 'Inter',sans-serif;color:#7A828E;letter-spacing:0;}
+.pv2-tech #v_tsGroupsLabel.pv2-eyebrow span{flex:0 1 auto;min-width:0;}
+.pv2-tech #v_tsGroupsLabel.pv2-eyebrow em{font-style:normal;font-weight:700;color:#E5741A;}
+.pv2-tech #v_tsGroupsLabel.pv2-eyebrow::after{content:'';flex:1 1 auto;align-self:center;height:1px;
+  background:#C3CBD6;margin-left:14px;min-width:24px;}
+.pv2-tech #v_tsGroupsLabel.pv2-eyebrow::before{display:none;}
+.pv2-tech .pv2-spec{display:flex;flex-direction:column;gap:8px;}
 .pv2-tech .pv2-card{background:#fff;border:1px solid #E4E8EE;border-radius:12px;box-shadow:0 2px 10px rgba(20,38,58,.06);padding:8px 8px 8px 10px;}
 .pv2-tech .pv2-card-head{display:flex;align-items:center;gap:10px;margin:0 2px 6px 0;min-height:30px;}
-.pv2-tech .pv2-num{background:#F2811D;color:#fff;font:700 15px/1 'Poppins','Inter',sans-serif;border-radius:6px;padding:6px 8px;min-width:34px;text-align:center;}
-.pv2-tech .pv2-hic{width:30px;height:30px;border-radius:50%;border:1px solid #D9DEE6;background:#F6F8FA;color:var(--pv2-navy);display:flex;align-items:center;justify-content:center;}
+/* A quiet ordinal instead of a filled orange tile: the number orders the four
+   cards, it is not a headline. Weight and spacing carry it, colour is saved for
+   the things that matter. */
+.pv2-tech .pv2-num{background:none;color:#9AA5B4;font:800 12px/1 'Poppins','Inter',sans-serif;
+  border:1px solid #E1E6ED;border-radius:5px;padding:5px 6px;min-width:24px;text-align:center;letter-spacing:.02em;}
+.pv2-tech .pv2-card-head h3{margin-left:-2px;}
 .pv2-tech .pv2-card-head h3{font:800 14.5px/1.1 'Poppins','Inter',sans-serif;color:var(--pv2-navy);letter-spacing:.01em;margin:0;}
 .pv2-tech .pv2-brand{margin-left:auto;text-align:right;line-height:1;padding-right:6px;}
 .pv2-tech .pv2-brand b{display:block;font:800 19px/1 'Poppins','Inter',sans-serif;color:var(--pv2-navy);}
@@ -119,9 +254,11 @@
 .pv2-tech .pv2-rows{border:1px solid #E1E6ED;border-radius:8px;overflow:hidden;align-self:start;}
 .pv2-tech .pv2-row{display:grid;grid-template-columns:41% 59%;border-top:1px solid #E6EAF0;}
 .pv2-tech .pv2-row:first-child{border-top:0;}
-.pv2-tech .pv2-k{display:flex;align-items:center;gap:9px;background:#F2F4F8;padding:4px 8px 4px 9px;font:600 10.2px/1.25 'Inter',sans-serif;color:var(--pv2-navy);}
+.pv2-tech .pv2-k{display:flex;align-items:center;gap:9px;background:#F2F4F8;padding:4px 8px 4px 9px;
+  font:600 10.2px/1.25 'Inter',sans-serif;color:var(--pv2-navy);}
 .pv2-tech .pv2-k .pv2-svg{color:#2B3B50;}
-.pv2-tech .pv2-v{padding:4px 9px 4px 12px;font-size:10.2px;line-height:1.3;color:#1F2A38;display:flex;align-items:center;}
+.pv2-tech .pv2-v{padding:4px 9px 4px 12px;font-size:10.2px;line-height:1.3;color:#16202C;
+  font-weight:600;display:flex;align-items:center;}
 .pv2-tech .pv2-photo{position:relative;margin:0;border-radius:9px;overflow:hidden;background:#fff;border:1px solid #E6EAF0;aspect-ratio:4/3;width:100%;height:auto;align-self:center;}
 .pv2-tech .pv2-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;}
 .pv2-tech .is-inverter .pv2-photo img{object-fit:contain;padding:8px;}
@@ -130,7 +267,7 @@
   background:radial-gradient(circle at 0 0,transparent 29px,#F2811D 30px);}
 .pv2-tech #v_tsRefsWrap{margin-top:8px;}
 .pv2-tech #v_tsRefsWrap .sec-label{margin-top:0;}
-.pv2-tech .pg-body > .note-box{margin-top:12px;}
+
 .pv2-tech .proposal-value-footer{display:none!important;}
 
 .pv2-tech.pv2-fit-1 .pv2-k,.pv2-tech.pv2-fit-1 .pv2-v{padding-top:3px;padding-bottom:3px;font-size:9.8px;}
@@ -144,7 +281,7 @@
 #pageTechSpec.pv2.pv2-fit-3 .pg-body > .note-box{padding-top:7px;padding-bottom:7px;font-size:9.4px;}
 .pv2-tech.pv2-fit-4 .pv2-k,.pv2-tech.pv2-fit-4 .pv2-v{font-size:8.8px;padding-top:1.5px;padding-bottom:1.5px;}
 .pv2-tech.pv2-fit-4 .pv2-k .pv2-svg{width:12px;height:12px;}
-.pv2 .pv2-node.is-house{width:84px;}.pv2 .pv2-node.is-house b{white-space:nowrap;}
+.pv2 .pv2-node.is-house b{white-space:nowrap;}
 
 .pv2-tech .pv2-brand.is-ars b{color:#D7202A;font-style:italic;font-weight:900;font-size:21px;letter-spacing:-.5px;}
 .pv2-tech .pv2-brand.is-ars small{color:#1C2B3F;font-weight:700;font-size:9.5px;}

@@ -235,10 +235,33 @@ const BRAND_LOGO_PATHS = /^assets\/images\/brands\/[a-z0-9-]+\.webp$/;
    grid, the running footer height and the four-value band, while
    proposal-v2.js picks the card photograph per make. Listed by exact filename
    so every other stylesheet and script stays out of scope. */
+/* One review-only page (PR #59). Page 5 and 6 can only be drawn by the live
+   render pipeline, so reviewing them meant opening the whole studio and
+   scrolling to them. This file loads quotation.html in an iframe and crops to
+   the requested sheet. Exact filename only - a neighbour like
+   page56-preview2.html, or the same name in a subfolder, still fails. */
+const PAGE56_PREVIEW_EXACT = 'page56-preview.html';
+
+/* Page 5/6 feature scope. The image files are here because the flow diagram is
+   drawn from these exact assets - the seven equipment drawings, the source copies
+   the owner supplied, and the two outlined DC / AC badge keylines. Named one by
+   one, not by a folder wildcard: a new file in that folder still has to be added
+   deliberately. */
 const PAGE56_PATHS = new Set([
   'assets/css/proposal-v2.css',
   'assets/css/proposal-values.css',
-  'assets/js/proposal-v2.js'
+  'assets/js/proposal-v2.js',
+  'assets/images/proposal/flow-panel.webp',
+  'assets/images/proposal/flow-db.webp',
+  'assets/images/proposal/flow-inverter.webp',
+  'assets/images/proposal/flow-house.webp',
+  'assets/images/proposal/flow-meter.webp',
+  'assets/images/proposal/flow-tower.webp',
+  'assets/images/proposal/flow-pill-dc.webp',
+  'assets/images/proposal/flow-pill-ac.webp',
+  'assets/images/proposal/bidir-arrow.png',
+  'assets/images/proposal/system-overview-flow.webp',
+  'assets/images/proposal/system-overview-flow-2x.webp'
 ]);
 
 const REENCODED_IMAGE_PATHS=new Set([
@@ -279,7 +302,7 @@ const REENCODED_IMAGE_PATHS=new Set([
    one-line lead lives in content.js - both files are named explicitly here
    because this round is about that page's own copy and values, never about
    another page's. Exact filenames only, no wildcard. */
-const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|charts|content|proposal-values|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|proposal-feedback|gallery|gallery-likes|experience|export|engineering)\.js|assets\/css\/(dashboard|closing|experience|app)\.css|quotation\.html|dashboard\.html|gallery\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|\.vercelignore|vercel\.json|\.github\/workflows\/(qa|deploy-guard)\.yml|scripts\/check-live\.cjs|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
+const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|charts|content|proposal-values|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|proposal-feedback|gallery|gallery-likes|experience|export|engineering)\.js|assets\/css\/(dashboard|closing|experience|app)\.css|quotation\.html|page56-preview\.html|dashboard\.html|gallery\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|\.vercelignore|vercel\.json|\.github\/workflows\/(qa|deploy-guard)\.yml|scripts\/check-live\.cjs|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
 
 function git(repoRoot, args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
