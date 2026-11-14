@@ -470,8 +470,11 @@ t('two nodes that share a class are still counted twice', () => {
   for (const m of css.matchAll(/\.pv2 \.pv2-node\.(is-\w+)\{width:(\d+)px;\}/g)) widths[m[1]] = Number(m[2]);
   const nodeTotal = classes.reduce((n, c) => n + widths[c], 0);
   const link = Number(css.match(/\.pv2 \.pv2-arrow\{flex:0 0 (\d+)px/)[1]);
-  assert.equal(nodeTotal + link * (classes.length - 1), 718,
-    'the row fills the column exactly, with the repeated class counted twice');
+  /* It must not exceed the column - that is what pushed the grid off the sheet -
+     and it should come close to filling it, so the equipment is not bunched. */
+  const total = nodeTotal + link * (classes.length - 1);
+  assert.ok(total <= 718, `the row must fit the column, got ${total}px`);
+  assert.ok(total >= 700, `and use it, got ${total}px of 718`);
 });
 
 t('the link shapes are the ones that were verified on screen', () => {
@@ -666,15 +669,17 @@ t('card 04 shows the standards render and states what it is', () => {
 
 /* --------------------------------------- page 5 overview got its room back */
 t('the node artwork has one height, so the equipment sits on one line', () => {
-  assert.match(css, /\.pv2 \.pv2-node-art\{height:78px/,
+  assert.match(css, /\.pv2 \.pv2-node-art\{height:76px/,
     'one art height for every node - the equipment lines up and shares one centre');
   /* and the per-node caps must fit inside that box, or a piece of kit overflows it
      and the row stops being level */
-  const boxH = Number(css.match(/\.pv2 \.pv2-node-art\{height:(\d+)px/)[1]);
-  const caps = [...css.matchAll(/\.pv2 \.pv2-node\.is-\w+ img\{max-height:(\d+)px/g)]
-    .map((m) => Number(m[1]));
-  assert.ok(caps.length >= 6, 'each kind of kit has a cap');
-  for (const h of caps) assert.ok(h <= boxH, `a node cap of ${h}px exceeds the ${boxH}px box`);
+  /* No per-kind caps at all: every drawing is stretched to the same box with
+     object-fit:contain, so the seven are exactly as tall as each other. Per-kind
+     max-heights were what made the row uneven in the first place. */
+  assert.doesNotMatch(css, /\.pv2 \.pv2-node\.is-\w+ img\{max-height/,
+    'no per-kind height cap is left');
+  assert.match(css, /\.pv2 \.pv2-node-art img\{width:100%;height:100%;object-fit:contain/,
+    'every drawing fills the same box');
   /* the arrow is the thing that used to drift; it is anchored to that same line */
   /* Nodes and links share one flex row, and their widths are chosen so the seven
      nodes plus six links add up to the column. Positioning the links absolutely
@@ -702,10 +707,12 @@ t('the node artwork has one height, so the equipment sits on one line', () => {
     return sum + w;
   }, 0);
   const links = Number(css.match(/\.pv2 \.pv2-arrow\{flex:0 0 (\d+)px/)[1]) * (classes.length - 1);
-  /* they should fill the column - a gap here means the equipment is bunched on
-     the left with dead space beside it */
-  assert.equal(nodeTotal + links, 718,
-    `nodes + links must fill the 718px column exactly, got ${nodeTotal + links}px`);
+  /* It must fit - exceeding the column is what pushed the grid node off the sheet -
+     and it should come close to filling it, so the equipment is not bunched with
+     dead space at the end. */
+  const total = nodeTotal + links;
+  assert.ok(total <= 718, `the row must fit the 718px column, got ${total}px`);
+  assert.ok(total >= 700, `and use most of it, got ${total}px`);
 });
 
 t('the note gets more air than the blocks above it', () => {

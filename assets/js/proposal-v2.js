@@ -76,8 +76,10 @@
     /* His block pair: green pointing back to the meter, navy pointing out to the
        grid. Verified the same way - the first version had the two heads facing
        inwards, which read as arrows colliding rather than as two-way flow. */
-    const left = '<path d="M0.93 9 L7 3 L7 6.5 L11.2 6.5 L11.2 11.5 L7 11.5 L7 15 Z" fill="' + TONE.bi + '"/>';
-    const right = '<path d="M22.4 9 L16.33 3 L16.33 6.5 L12.13 6.5 L12.13 11.5 L16.33 11.5 L16.33 15 Z" fill="' + TONE.navy + '"/>';
+    /* Navy points back to the meter on the left, green points out to the grid on
+       the right - swapped from how it was drawn first. */
+    const left = '<path d="M0.93 9 L7 3 L7 6.5 L11.2 6.5 L11.2 11.5 L7 11.5 L7 15 Z" fill="' + TONE.navy + '"/>';
+    const right = '<path d="M22.4 9 L16.33 3 L16.33 6.5 L12.13 6.5 L12.13 11.5 L16.33 11.5 L16.33 15 Z" fill="' + TONE.bi + '"/>';
     return '<svg class="pv2-link-svg" width="24" height="18" viewBox="0 0 24 18" aria-hidden="true">' +
       left + right + '</svg>';
   }
