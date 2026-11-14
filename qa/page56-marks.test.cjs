@@ -765,5 +765,17 @@ t('jsdom builds the row end to end, with four marks and no page error', () => {
     'two-tone ProposalMarks artwork uses the palette tints; monochrome line icons would not');
 });
 
+/* The pixel checks above are the reason this suite is worth having: they look at
+   the artwork, not at markup that merely claims something. They need a decoder.
+   When CI did not install one, all eight of them failed with ENOENT and the run
+   read as a regression in the page rather than a missing tool - so pin the
+   prerequisite where a future edit to qa.yml will trip over it. */
+{
+  const yml = fs.readFileSync(path.join(ROOT, '.github/workflows/qa.yml'), 'utf8');
+  const offline = yml.slice(yml.indexOf('  offline:'), yml.indexOf('  browser:'));
+  assert.ok(/Install ImageMagick/.test(offline),
+    'the offline CI job installs ImageMagick: the pixel checks below decode artwork and cannot run without it');
+}
+
 console.log('\n==== RESULT: ' + passed + ' passed, ' + failures.length + ' failed ====');
 if (failures.length) { for (const f of failures) console.log('  FAILED: ' + f); process.exitCode = 1; }
