@@ -62,17 +62,23 @@
      here can blur at any zoom - which is exactly what the raster could not do. */
   const TONE = { dc: '#1E9E63', ac: '#14263A', bi: '#1E9E63', navy: '#14263A' };
   function chevronPair(colour) {
-    /* two chevrons, the second tucked behind the first, as in his artwork */
-    const one = (ox, fill) => '<path d="M' + ox + ' 1 L' + (ox + 9) + ' 9 L' + ox + ' 17 L' +
-      (ox + 4.5) + ' 17 L' + (ox + 13.5) + ' 9 L' + (ox + 4.5) + ' 1 Z" fill="' + fill + '"/>';
-    return '<svg class="pv2-link-svg" width="26" height="18" viewBox="0 0 26 18" aria-hidden="true">' +
-      one(0, colour) + one(11, colour) + '</svg>';
+    /* His chevrons. These outlines were verified by rasterising the path data and
+       looking at it - two attempts before this one read as one solid wedge (no
+       notch) because the inner point sat flush with the outer one. Two chevrons,
+       thick band, 5px notch, second tucked behind the first. */
+    const one = (ox, fill) =>
+      '<path d="M' + ox + ' 0 L' + (ox + 6.24) + ' 0 L' + (ox + 12.48) + ' 9 L' + (ox + 6.24) + ' 18 ' +
+      'L' + ox + ' 18 L' + (ox + 3.68) + ' 9 Z" fill="' + fill + '"/>';
+    return '<svg class="pv2-link-svg" width="22" height="18" viewBox="0 0 22 18" aria-hidden="true">' +
+      one(0, colour) + one(9.36, colour) + '</svg>';
   }
   function blockPair() {
-    /* his shape: two block arrows facing away from each other */
-    const left = '<path d="M11 9 L6.5 4 L6.5 7 L1 7 L1 11 L6.5 11 L6.5 14 Z" fill="' + TONE.bi + '"/>';
-    const right = '<path d="M15 9 L19.5 4 L19.5 7 L25 7 L25 11 L19.5 11 L19.5 14 Z" fill="' + TONE.navy + '"/>';
-    return '<svg class="pv2-link-svg" width="26" height="18" viewBox="0 0 26 18" aria-hidden="true">' +
+    /* His block pair: green pointing back to the meter, navy pointing out to the
+       grid. Verified the same way - the first version had the two heads facing
+       inwards, which read as arrows colliding rather than as two-way flow. */
+    const left = '<path d="M0.93 9 L7 3 L7 6.5 L11.2 6.5 L11.2 11.5 L7 11.5 L7 15 Z" fill="' + TONE.bi + '"/>';
+    const right = '<path d="M22.4 9 L16.33 3 L16.33 6.5 L12.13 6.5 L12.13 11.5 L16.33 11.5 L16.33 15 Z" fill="' + TONE.navy + '"/>';
+    return '<svg class="pv2-link-svg" width="24" height="18" viewBox="0 0 24 18" aria-hidden="true">' +
       left + right + '</svg>';
   }
   function arrow(dir, tone) {

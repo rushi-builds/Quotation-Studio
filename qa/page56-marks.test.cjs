@@ -456,6 +456,38 @@ t('nothing on page 5 is a raster of text any more', () => {
   assert.match(css, /\.pv2 \.pv2-node b\{font:700 /, 'and they are set in the page font');
 });
 
+t('two nodes that share a class are still counted twice', () => {
+  /* The row overflowed and the grid node fell off the sheet because the width
+     arithmetic counted CSS rules instead of nodes - DCDB and ACDB both use
+     .is-box, so a rule-count found six nodes where the markup emits seven. This
+     pins the real count. */
+  const flowRaw = js.slice(js.indexOf('function flowDiagram('), js.indexOf('function solution('));
+  const classes = [...flowRaw.matchAll(/cls: '([^']+)'/g)].map((m) => m[1]);
+  assert.equal(classes.length, 7, 'seven nodes are emitted');
+  assert.equal(classes.filter((c) => c === 'is-box').length, 2,
+    'two of them share .is-box - the case that broke the arithmetic');
+  const widths = {};
+  for (const m of css.matchAll(/\.pv2 \.pv2-node\.(is-\w+)\{width:(\d+)px;\}/g)) widths[m[1]] = Number(m[2]);
+  const nodeTotal = classes.reduce((n, c) => n + widths[c], 0);
+  const link = Number(css.match(/\.pv2 \.pv2-arrow\{flex:0 0 (\d+)px/)[1]);
+  assert.equal(nodeTotal + link * (classes.length - 1), 718,
+    'the row fills the column exactly, with the repeated class counted twice');
+});
+
+t('the link shapes are the ones that were verified on screen', () => {
+  /* Both were wrong first time and had to be looked at: the chevrons came out as
+     one solid wedge with no notch, and the block pair had its two heads facing
+     inwards, which read as arrows colliding. These are the path data that
+     rendered correctly, so the shapes cannot silently drift. */
+  assert.match(js, /viewBox="0 0 22 18"/, 'the chevron pair uses the 22-wide box');
+  assert.match(js, /L' \+ \(ox \+ 3\.68\) \+ ' 9 Z/, 'and keeps its notch');
+  assert.match(js, /viewBox="0 0 24 18"/, 'the block pair uses the 24-wide box');
+  /* green head on the left pointing left, navy head on the right pointing right */
+  assert.match(js, /M0\.93 9 L7 3/, 'the green head starts at the left edge');
+  assert.match(js, /M22\.4 9 L16\.33 3/, 'the navy head points out to the right');
+  assert.doesNotMatch(js, /M12 9 L6 3[^}]*TONE\.bi/, 'the inward-facing version is gone');
+});
+
 t('the overview box adds no frame of its own around that render', () => {
   const box = css.match(/\.pv2-solution \.pv2-ov-box\{([^}]*)\}/)[1];
   assert.match(box, /border:0/, 'the render already has its rounded frame');
@@ -597,11 +629,23 @@ t('the node artwork has one height, so the equipment sits on one line', () => {
   assert.doesNotMatch(css, /\.pv2 \.pv2-arrow\{position:absolute/, 'links are not absolutely placed');
   assert.doesNotMatch(js, /style="left:/, 'and nothing is hand-positioned in the markup');
 
-  /* the widths have to add up, or the last node overflows the sheet */
-  const widths = [...css.matchAll(/\.pv2 \.pv2-node(\.is-\w+)?\{width:(\d+)px;\}/g)]
-    .map((m) => Number(m[2]));
-  const nodeTotal = widths.reduce((a, b) => a + b, 0);
-  const links = Number(css.match(/\.pv2 \.pv2-arrow\{flex:0 0 (\d+)px/)[1]) * 6;
+  /* The widths have to add up, or the last node overflows the sheet. They are
+     summed over the nodes the markup actually emits, NOT over the CSS rules -
+     DCDB and ACDB share .is-box, so counting rules undercounted the row by a whole
+     node and the grid fell off the right edge. */
+  const widths = {};
+  for (const m of css.matchAll(/\.pv2 \.pv2-node\.(is-\w+)(?:,#?[^{]*)?\{width:(\d+)px;\}/g)) {
+    widths[m[1]] = Number(m[2]);
+  }
+  const flowRaw = js.slice(js.indexOf('function flowDiagram('), js.indexOf('function solution('));
+  const classes = [...flowRaw.matchAll(/cls: '([^']+)'/g)].map((m) => m[1]);
+  assert.equal(classes.length, 7, 'the diagram has seven nodes');
+  const nodeTotal = classes.reduce((sum, c) => {
+    const w = widths[c];
+    assert.ok(w, `every node class has a width - ${c} does not`);
+    return sum + w;
+  }, 0);
+  const links = Number(css.match(/\.pv2 \.pv2-arrow\{flex:0 0 (\d+)px/)[1]) * (classes.length - 1);
   /* they should fill the column - a gap here means the equipment is bunched on
      the left with dead space beside it */
   assert.equal(nodeTotal + links, 718,
