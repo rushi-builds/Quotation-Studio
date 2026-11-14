@@ -513,7 +513,13 @@ t('the tower sits on the sheet with no white plate behind it', () => {
   assert.ok(hasAlpha, 'the tower is not stored as a flat opaque bitmap');
   const out = execFileSync('convert', [path.join(ROOT, 'assets/images/proposal/flow-tower.webp'),
     '-format', '%[opaque] %[pixel:p{2,2}]', 'info:'], { encoding: 'utf8' });
-  assert.match(out, /^false/, `the corners are transparent, got ${out}`);
+  /* ImageMagick 6 prints 'false' and 7 prints 'False' for the same image, and the
+     runner's version is not ours. Case-fold the flag, then assert the corner's
+     alpha directly, so the check says what it means either way. */
+  const [flag, corner] = out.trim().split(/\s+/);
+  assert.equal(flag.toLowerCase(), 'false', `the image is not flat-opaque, got ${out}`);
+  assert.match(corner, /,0\)$|,0$/,
+    `the top-left corner has alpha 0, so nothing paints a plate behind the tower; got ${corner}`);
 });
 
 t('the links sit on the centre of the equipment, not down by the captions', () => {
