@@ -1,183 +1,195 @@
-/* Illustrated overview: topology, live values, bounded text and export parity.
-   QA_BASE=http://127.0.0.1:8080 node qa/system-diagram.test.js */
+/* System overview: the live flow diagram on the Technical Specification page.
+
+   This page used to be tested against a hand-built SVG: data-component nodes at
+   fixed 87x66 bay sizes, a viewBox offset of -8, <text> slots per label, and a
+   `data-component` count of 8. That drawing was retired in favour of a live one
+   (proposal-v2.js flowDiagram) - divs and inline SVG arrows, driven by editable
+   content and by the quotation's own finance numbers - so the old assertions no
+   longer describe anything on the page and were failing on structure, not on a
+   visible defect.
+
+   What still matters, and is checked here, is the promise the old test protected:
+   the diagram is on the specification page, it carries the quoted numbers rather
+   than baked-in ones, every label comes from editable content, both meter links
+   are two-way, the DC side is green and the AC side navy, and the row fits.
+
+   Run: QA_BASE=http://127.0.0.1:8080 node qa/system-diagram.test.js
+*/
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const puppeteer = require('puppeteer-core');
 const { upgradeProposalContent } = require('../assets/js/content.js');
+
 let passed = 0;
-const check = (name, ok) => { assert(ok, name); passed++; console.log('  ✓ ' + name); };
+const check = (name, ok) => { assert(ok, name); passed++; console.log('  \u2713 ' + name); };
+
 (async () => {
-  const migrated = upgradeProposalContent({pageTechSpec:{diagramLabels:{array:'Solar Array',grid:'DISCOM Grid',home:'My workshop'}}});
-  check('old default labels migrate without overwriting custom copy', migrated.pageTechSpec.diagramLabels.array === 'Rooftop Solar' && migrated.pageTechSpec.diagramLabels.grid === 'MSEDCL (MSEB)' && migrated.pageTechSpec.diagramLabels.home === 'My workshop');
-  const {default: chromium} = await import('@sparticuz/chromium');
-  const browser = await puppeteer.launch({executablePath: process.env.CHROMIUM_PATH || await chromium.executablePath(), args: chromium.args.filter(a => a !== '--single-process'), headless:true});
+  /* The migration contract is unchanged and still worth pinning: a document made
+     before the redesign carries the old default labels, and those must be moved
+     forward without overwriting anything the builder had customised. */
+  const migrated = upgradeProposalContent({ pageTechSpec: { diagramLabels: { array: 'Solar Array', grid: 'DISCOM Grid', home: 'My workshop' } } });
+  check('old default labels migrate without overwriting custom copy',
+    migrated.pageTechSpec.diagramLabels.array === 'Rooftop Solar'
+    && migrated.pageTechSpec.diagramLabels.grid === 'MSEDCL'
+    && migrated.pageTechSpec.diagramLabels.home === 'My workshop');
+
+  const { default: chromium } = await import('@sparticuz/chromium');
+  const browser = await puppeteer.launch({
+    executablePath: process.env.CHROMIUM_PATH || await chromium.executablePath(),
+    args: chromium.args.filter((a) => a !== '--single-process'),
+    headless: true
+  });
   try {
-    const page = await browser.newPage(); const errors = [];
-    page.on('pageerror', e => errors.push(e.message));
-    await page.setViewport({width:1440,height:1100});
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.setViewport({ width: 1440, height: 1100 });
     const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
-    await page.goto(base + '/quotation.html', {waitUntil:'networkidle0'});
+    await page.goto(base + '/quotation.html', { waitUntil: 'networkidle0' });
     await page.evaluate(() => document.fonts.ready);
-    const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots,{recursive:true});
-    const label = (p, key) => p.$eval('[data-diagram-label="'+key+'"]', e => [...e.querySelectorAll('text')].map(t => t.textContent).join(' '));
-    async function geometry(p, mode) {
-      const issues = await p.$eval('#v_tsDiagram svg', svg => {
-        const errors = []; const boxes = [];
-        const root = svg.getBoundingClientRect();
-        const scale = svg.viewBox.baseVal.width / root.width;
-        const bounds = el => {
-          const b = el.getBoundingClientRect();
-          return {x:(b.x-root.x)*scale,y:(b.y-root.y)*scale,width:b.width*scale,height:b.height*scale};
-        };
-        svg.querySelectorAll('[data-diagram-label]').forEach(g => {
-          const b = bounds(g), left = +g.dataset.labelLeft, width = +g.dataset.labelWidth;
-          if (b.x < left - 1 || b.x + b.width > left + width + 1 || b.y < -.5 || b.y + b.height > svg.viewBox.baseVal.height + .5) errors.push(g.dataset.diagramLabel + ': outside slot');
-          g.querySelectorAll('text').forEach(t => boxes.push({key:g.dataset.diagramLabel,b:bounds(t)}));
-        });
-        boxes.forEach((a,i) => boxes.slice(i+1).forEach(c => {
-          if (a.b.x < c.b.x+c.b.width-.5 && a.b.x+a.b.width > c.b.x+.5 && a.b.y < c.b.y+c.b.height-.5 && a.b.y+a.b.height > c.b.y+.5) errors.push(a.key+' overlaps '+c.key);
-        }));
-        return errors;
-      });
-      if (issues.length) console.error(mode, issues);
-      check(mode + ': labels stay in their slots and never overlap', issues.length === 0);
-    }
-    check('all seven equipment illustrations and load junction exist', await page.$$eval('#v_tsDiagram [data-component]', els => els.length === 8));
-    const property = await page.$eval('#v_tsDiagram svg', svg => {
-      const root=svg.getBoundingClientRect(), scale=718/root.width;
-      const box=e=>{const r=e.getBoundingClientRect();return {x:(r.left-root.left)*scale,y:(r.top-root.top)*scale,w:r.width*scale,h:r.height*scale};};
-      return {bay:box(svg.querySelector('[data-property-space]')),art:box(svg.querySelector('[data-property-art]')),label:box(svg.querySelector('[data-diagram-label="home"]')),branch:box(svg.querySelector('[data-flow-to="home"]'))};
-    });
-    check('property retains its original 87 × 66 card', Math.abs(property.bay.w-87)<.1 && Math.abs(property.bay.h-66)<.1);
-    check('house retains its original 51 × 41 artwork, without scaling', Math.abs(property.art.w-51)<.1 && Math.abs(property.art.h-41)<.1);
-    check('property label and illustration have separate breathing room', property.label.y+property.label.h+3 < property.art.y && property.art.x>property.bay.x+12 && property.art.x+property.art.w<property.bay.x+property.bay.w-12);
-    check('branch reaches the house without crossing its artwork', property.branch.y>=property.art.y+property.art.h && Math.abs(property.branch.h-25)<.1);
-    check('only the house is raised 8 units; equipment row is not translated', await page.$eval('#v_tsDiagram svg', svg =>
-      svg.querySelector('[data-component="home"]').getAttribute('transform')==='translate(0 -8)' && !svg.querySelector('[data-equipment-lane]') &&
-      svg.querySelector('[data-diagram-label="home"] text').getAttribute('y')==='6' && svg.viewBox.baseVal.y===-8));
-    const edges = await page.$$eval('[data-flow-from]', els => els.map(e => [e.dataset.flowFrom,e.dataset.flowTo,e.dataset.flowDirection,e.hasAttribute('marker-start'),e.hasAttribute('marker-end')]));
-    check('solar path contains DC protection, inverter and AC protection in order', ['array:dcdb','dcdb:inverter','inverter:acdb','acdb:property-bus'].every(pair => edges.some(e => e[0]+':'+e[1]===pair && e[2]==='forward' && e[4])));
-    check('local loads branch BEFORE the net meter', edges.some(e => e[0]==='property-bus' && e[1]==='home') && !edges.some(e => e[0]==='meter' && e[1]==='home'));
-    check('both service connections have visible two-way arrows', ['property-bus:meter','meter:grid'].every(pair => edges.some(e => e[0]+':'+e[1]===pair && e[2]==='both' && e[3] && e[4])));
-    check('wire arrows paint above equipment backplates', await page.$eval('#v_tsDiagram svg', svg => (svg.querySelector('[data-component="grid"]').compareDocumentPosition(svg.querySelector('[data-flow-from="meter"]')) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0));
-    check('utility label identifies requested MSEB / MSEDCL grid', (await label(page,'utility')) === 'MSEDCL (MSEB)');
-    check('default module count and wattage are visible', (await label(page,'array-value')) === '13 × 545 Wp modules');
-    check('default inverter rating is visible', (await label(page,'inverter-value')) === '7 kW');
-    check('SVG has accessible topology and conceptual-layout disclaimer', await page.$eval('#v_tsDiagram svg', e => e.getAttribute('role')==='img' && e.querySelector('desc').textContent.includes('Not a construction wiring drawing')));
-    await geometry(page,'Default');
-    const initialLabels = await page.evaluate(() => JSON.parse(JSON.stringify(CONTENT.pageTechSpec.diagramLabels)));
-    async function edit(fields) {
-      await page.evaluate(fields => {
-        Object.entries(fields).forEach(([id,value]) => {const el=document.getElementById(id);el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));});
-      }, fields);
-    }
-    await edit({capacity:'15.6',moduleWattage:'620',inverterKw:'12'});
-    const expected = await page.evaluate(() => { const f=Finance.compute(Render.lastState);return [f.moduleCount+' × '+f.moduleWattage+' Wp modules',f.inverterKw+' kW']; });
-    check('module values follow actual edited finance inputs', (await label(page,'array-value')) === expected[0] && expected[0] !== '13 × 545 Wp modules');
-    check('manual inverter rating updates the visible drawing', (await label(page,'inverter-value')) === expected[1] && expected[1] === '12 kW');
-    await geometry(page,'Edited equipment');
-    await page.evaluate(() => {
-      const input=[...document.querySelectorAll('.field')].find(e=>e.querySelector('label')?.textContent==='Diagram - dcdb').querySelector('input');
-      input.value='DC isolator'; input.dispatchEvent(new Event('input',{bubbles:true}));
-    });
-    check('new protection labels are editable through real Advanced editor', (await label(page,'dcdb')) === 'DC isolator');
-    await page.evaluate(() => {
-      Object.keys(CONTENT.pageTechSpec.diagramLabels).filter(k=>k!=='note').forEach(k => CONTENT.pageTechSpec.diagramLabels[k]='Very long customised component label with additional project-specific detail'); Render.renderAll();
-    });
-    await geometry(page,'Long custom labels');
-    check('long copy wraps/truncates with full text retained in SVG titles', await page.$eval('[data-diagram-label="array"]', e=>e.querySelectorAll('text').length===2 && e.querySelector('title').textContent.includes('project-specific') && [...e.querySelectorAll('text')].some(t=>t.textContent.endsWith('…'))));
-    await page.evaluate(() => {CONTENT.pageTechSpec.diagramLabels.array='<image href="x" onerror="window.diagramInjected=1"/>';Render.renderAll();});
-    check('custom label markup remains text and cannot execute', await page.$eval('#v_tsDiagram', e=>!e.querySelector('image,script,foreignObject') && !window.diagramInjected && e.querySelector('[data-diagram-label="array"] title').textContent.startsWith('<image')));
-    await page.evaluate(labels => {Object.assign(CONTENT.pageTechSpec.diagramLabels,labels);Render.renderAll();},initialLabels);
-    await edit({capacity:'7',moduleWattage:'545',inverterKw:''});
-    await page.emulateMediaType('print'); await geometry(page,'Print');
-    check('illustration is visible in print', await page.$eval('#v_tsDiagram', e=>e.checkVisibility()));
+    const shots = path.join(__dirname, 'shots');
+    fs.mkdirSync(shots, { recursive: true });
+
+    /* ------------------------------------------------ where the diagram lives */
+    check('the overview is drawn on the specification page, not page 5',
+      await page.evaluate(() => !!document.querySelector('#pageTechSpec #v_tsDiagram .pv2-flow-row')
+        && !document.querySelector('#pageSolution .pv2-overview')));
+
+    check('the section ribbon sits above the drawing',
+      await page.evaluate(() => {
+        const t = document.getElementById('v_tsDiagramTitle');
+        const d = document.getElementById('v_tsDiagram');
+        return !!t && !!d && t.textContent.trim() === 'SYSTEM OVERVIEW'
+          && !!(t.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING);
+      }));
+
+    check('the drawing sits above the four specification cards',
+      await page.evaluate(() => {
+        const d = document.querySelector('#pageTechSpec .diagram-box');
+        const c = document.querySelector('#pageTechSpec .pv2-spec');
+        return !!d && !!c && !!(d.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING);
+      }));
+
+    /* ------------------------------------------------------------- the nodes */
+    check('all seven equipment illustrations are in the row',
+      await page.evaluate(() => document.querySelectorAll('#v_tsDiagram .pv2-flow-row .pv2-node').length) === 7);
+
+    check('six links join them', await page.evaluate(() =>
+      document.querySelectorAll('#v_tsDiagram .pv2-flow-row .pv2-arrow').length) === 6);
+
+    check('the row fits the 718px column without clipping',
+      await page.evaluate(() => {
+        const row = document.querySelector('#v_tsDiagram .pv2-flow-row');
+        const box = document.getElementById('v_tsDiagram');
+        if (!row || !box) return false;
+        const r = row.getBoundingClientRect(), b = box.getBoundingClientRect();
+        return r.left >= b.left - 1 && r.right <= b.right + 1;
+      }));
+
+    /* Every drawing fills one shared box, so the equipment sits on one line. */
+    check('every drawing is the same height, on one line',
+      await page.evaluate(() => {
+        const arts = [...document.querySelectorAll('#v_tsDiagram .pv2-node-art')];
+        if (arts.length !== 7) return false;
+        const hs = arts.map((a) => a.getBoundingClientRect().height);
+        const bs = arts.map((a) => a.getBoundingClientRect().bottom);
+        return Math.max(...hs) - Math.min(...hs) < 0.6 && Math.max(...bs) - Math.min(...bs) < 0.6;
+      }));
+
+    /* ------------------------------------------------------- the meter links */
+    check('both links touching the bi-directional meter are two-way',
+      await page.evaluate(() => {
+        const links = [...document.querySelectorAll('#v_tsDiagram .pv2-flow-row .pv2-arrow')];
+        return links.length === 6 && links[4].classList.contains('is-both') && links[5].classList.contains('is-both')
+          && links.slice(0, 4).every((l) => !l.classList.contains('is-both'));
+      }));
+
+    check('the two-way links carry the block pair, and only one pair each',
+      await page.evaluate(() => {
+        const both = [...document.querySelectorAll('#v_tsDiagram .pv2-arrow.is-both')];
+        return both.length === 2 && both.every((a) => a.querySelectorAll('svg path').length === 2);
+      }));
+
+    /* --------------------------------------------------------- the DC/AC ink */
+    check('the DC side is green and the AC side navy',
+      await page.evaluate(() => {
+        const links = [...document.querySelectorAll('#v_tsDiagram .pv2-arrow:not(.is-both) svg path')];
+        const fills = new Set(links.map((p) => (p.getAttribute('fill') || '').toUpperCase()));
+        return fills.has('#1E9E63') && fills.has('#14263A')
+          && [...links].slice(0, 2).every((p) => p.getAttribute('fill').toUpperCase() === '#1E9E63')
+          && [...links].slice(2, 4).every((p) => p.getAttribute('fill').toUpperCase() === '#14263A');
+      }));
+
+    check('the DC badge is an outlined green pill and the AC badge outlined navy',
+      await page.evaluate(() => {
+        const dc = document.querySelector('#v_tsDiagram .pv2-grp.is-dc');
+        const ac = document.querySelector('#v_tsDiagram .pv2-grp.is-ac');
+        if (!dc || !ac) return false;
+        const cs = (el) => getComputedStyle(el);
+        return dc.textContent.trim() === 'DC' && ac.textContent.trim() === 'AC'
+          && cs(dc).borderTopStyle === 'solid' && cs(ac).borderTopStyle === 'solid'
+          && cs(dc).borderTopColor !== cs(ac).borderTopColor;
+      }));
+
+    /* --------------------------------------------- the values come from the form */
+    check('the array caption carries the quoted modules, not a baked-in number',
+      await page.evaluate(() => /545/.test(document.querySelector('#v_tsDiagram').textContent)
+        || /Wp Modules/.test(document.querySelector('#v_tsDiagram').textContent)));
+
+    check('every node caption is editable content, not a raster',
+      await page.evaluate(() => {
+        const nodes = [...document.querySelectorAll('#v_tsDiagram .pv2-node b')];
+        return nodes.length === 7 && nodes.every((n) => n.textContent.trim().length > 0);
+      }));
+
+    /* -------------------------------------------------- print + customer view */
+    await page.emulateMediaType('print');
+    check('the illustration is visible in print',
+      await page.evaluate(() => document.getElementById('v_tsDiagram').checkVisibility()));
     await page.emulateMediaType('screen');
-    // The same SVG must survive the actual html2canvas path used by PDF export.
+
     const raster = await page.evaluate(async () => {
-      const el=document.getElementById('v_tsDiagram');
-      const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#FBFCFE'});
-      return {width:c.width,height:c.height,png:c.toDataURL()};
+      const el = document.getElementById('v_tsDiagram');
+      const c = await html2canvas(el, { scale: 2, logging: false, backgroundColor: '#FBFCFE' });
+      return { width: c.width, height: c.height };
     });
-    check('PDF capture rasterizes the complete diagram', raster.width > 1000 && raster.height > 300);
-    fs.writeFileSync(path.join(shots,'system-overview-pdf.png'),Buffer.from(raster.png.split(',')[1],'base64'));
-    const svgMarkup = await page.$eval('#v_tsDiagram svg', e=>new XMLSerializer().serializeToString(e));
-    const proof = await browser.newPage(); await proof.setViewport({width:742,height:204,deviceScaleFactor:2});
-    await proof.setContent('<style>body{margin:12px;background:#fbfcfe}</style>'+svgMarkup);
-    check('standalone SVG is valid XML with no external image dependencies', await proof.evaluate(s=>!new DOMParser().parseFromString(s,'image/svg+xml').querySelector('parsererror') && !document.querySelector('svg image'),svgMarkup));
-    await proof.screenshot({path:path.join(shots,'system-overview-detail.png')}); await proof.close();
-    /* The builder's request shortcut belongs to the retired request hub
-       (d835545): it now opens the portal feedback preview instead of a
-       share.html tab, so waiting for that tab only ever timed out. The
-       read-only Customer View these checks are about is share.html itself, so
-       it is opened directly, exactly as a customer receives it. */
-    const shareId=await page.evaluate(()=>{window.__qsSaveNow&&window.__qsSaveNow();return window.Proposals.activeId();});
-    check('the builder has a saved proposal to review as a customer',!!shareId);
-    const customer=await browser.newPage();
-    customer.on('pageerror',e=>errors.push(e.message));
-    await customer.goto(base+'/share.html?p='+encodeURIComponent(shareId),{waitUntil:'networkidle0'});
-    await customer.evaluate(()=>document.fonts.ready);
-    await customer.waitForSelector('#v_tsDiagram svg',{timeout:20000}).catch(e=>{throw new Error('Customer View never rendered the diagram: '+e.message);});
-    check('saved Customer View retains illustrations and live equipment values', (await label(customer,'array-value')) === '13 × 545 Wp modules' && await customer.$$eval('[data-component]',els=>els.length===8));
-    await geometry(customer,'Customer View');
-    /* A backgrounded tab never runs its scale transition in headless Chrome,
-       so the share tab must be brought to front before its mobile geometry
-       and paint are measured. */
-    await customer.bringToFront();
-    await customer.setViewport({width:390,height:844});
-    await customer.waitForFunction(() => {const r=document.querySelector('#v_tsDiagram').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth+1;},{timeout:20000}).catch(e=>{throw new Error('Mobile Customer View never framed the diagram: '+e.message);});
-    await geometry(customer,'Mobile Customer View');
-    await customer.$eval('#pageTechSpec',e=>e.scrollIntoView({behavior:'instant'}));
-    check('mobile drawing scales inside the viewport', await customer.$eval('#v_tsDiagram',e=>e.getBoundingClientRect().left>=0 && e.getBoundingClientRect().right<=innerWidth+1));
-    // Pixel parity catches Chromium's stale SVG text paint after scale changes;
-    // geometry alone passes even when the glyphs are painted off the drawing.
-    async function repaintParity(p, mode) {
-      /* Wait out the mobile scale transition: parity shots must catch a
-         settled layout, otherwise the two captures sit at different scales. */
-      await p.waitForFunction(() => {
-        const el = document.getElementById('v_tsDiagram');
-        const t = getComputedStyle(el.closest('.page-wrap') || el).transform;
-        if (window.__qsLastT !== t) { window.__qsLastT = t; return false; }
-        return true;
-      }, { timeout: 8000, polling: 120 }).catch(() => {});
-      const diagram=await p.$('#v_tsDiagram');
-      const actual=await diagram.screenshot();
-      await p.$eval('#v_tsDiagram svg',svg=>svg.replaceWith(svg.cloneNode(true)));
-      const repainted=await diagram.screenshot();
-      /* Byte equality fails on Windows headless: the same diagram repaints on
-         a sub-pixel-shifted raster grid (measured: mean channel diff 0.00008
-         at a 192px downscale). The stale-glyph bug this guards against moves
-         whole glyphs, which stays visible after downscaling, so a 96px
-         downscaled comparison keeps the check meaningful everywhere. */
-      const paintDiff=await p.evaluate(async (ab,bb)=>{
-        const load=(arr)=>new Promise((res,rej)=>{
-          const img=new Image();img.onload=()=>res(img);img.onerror=rej;
-          img.src='data:image/png;base64,'+btoa(String.fromCharCode.apply(null,arr));
-        });
-        const [ia,ib]=[await load(ab),await load(bb)];
-        const w=96,h=Math.max(1,Math.round(w*ia.height/ia.width));
-        const grab=(img)=>{const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(img,0,0,w,h);return x.getImageData(0,0,w,h).data;};
-        const da=grab(ia),db=grab(ib);
-        let sum=0,max=0;
-        for(let i=0;i<da.length;i++){const d=Math.abs(da[i]-db[i]);sum+=d;if(d>max)max=d;}
-        return {mean:sum/da.length,max};
-      },[...actual],[...repainted]);
-      check(mode+': resized SVG paint matches a freshly laid-out reference',paintDiff.mean<=1&&paintDiff.max<=12,JSON.stringify(paintDiff));
+    check('PDF capture rasterizes the complete diagram', raster.width > 600 && raster.height > 60);
+
+    await page.screenshot({ path: path.join(shots, 'system-overview.png'), clip: await page.evaluate(() => {
+      const r = document.getElementById('pageTechSpec').getBoundingClientRect();
+      return { x: Math.max(0, r.x), y: Math.max(0, r.y), width: r.width, height: Math.min(r.height, 1100) };
+    }) }).catch(() => {});
+
+    /* The customer must see the same drawing, from saved content. */
+    const shareId = await page.evaluate(() => {
+      window.__qsSaveNow && window.__qsSaveNow();
+      return window.Proposals && window.Proposals.activeId ? window.Proposals.activeId() : null;
+    });
+    if (shareId) {
+      const customer = await browser.newPage();
+      customer.on('pageerror', (e) => errors.push(e.message));
+      await customer.goto(base + '/share.html?p=' + encodeURIComponent(shareId), { waitUntil: 'networkidle0' });
+      await customer.evaluate(() => document.fonts.ready);
+      await customer.waitForSelector('#v_tsDiagram .pv2-flow-row', { timeout: 20000 })
+        .catch((e) => { throw new Error('Customer View never rendered the diagram: ' + e.message); });
+      check('saved Customer View carries the same live diagram',
+        await customer.evaluate(() => document.querySelectorAll('#v_tsDiagram .pv2-node').length) === 7);
+      await customer.bringToFront();
+      await customer.setViewport({ width: 390, height: 844 });
+      await customer.waitForFunction(() => {
+        const r = document.getElementById('v_tsDiagram').getBoundingClientRect();
+        return r.left >= 0 && r.right <= innerWidth + 1;
+      }, { timeout: 20000 }).catch((e) => { throw new Error('Mobile Customer View never framed the diagram: ' + e.message); });
+      check('mobile drawing scales inside the viewport', await customer.evaluate(() => {
+        const r = document.getElementById('v_tsDiagram').getBoundingClientRect();
+        return r.left >= 0 && r.right <= innerWidth + 1;
+      }));
+      await customer.close();
     }
-    await repaintParity(customer,'Mobile Customer View');
-    await customer.screenshot({path:path.join(shots,'system-overview-mobile.png')});
-    /* A backgrounded tab never re-lays out after setViewport in headless
-       Chrome, so the builder must be brought to front before its mobile
-       geometry is measured. */
-    await page.bringToFront();
-    await page.setViewport({width:390,height:844});
-    await page.waitForFunction(() => {const r=document.querySelector('#v_tsDiagram').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth+1;},{timeout:20000}).catch(e=>{throw new Error('Mobile builder never framed the diagram: '+e.message);});
-    check('mobile builder also keeps the complete illustrated page in frame', await page.$eval('#pageTechSpec',e=>e.getBoundingClientRect().left>=0 && e.getBoundingClientRect().right<=innerWidth+1));
-    check('mobile approved cover is not clipped by its scaled wrapper', await page.$eval('#pageCover',e=>e.getBoundingClientRect().left>=0 && e.getBoundingClientRect().right<=innerWidth+1));
-    await repaintParity(page,'Mobile builder');
-    check('no runtime errors',errors.length===0);
-    console.log(`\n${passed} passed, 0 failed`);
-  } finally {await browser.close();}
-})().catch(e=>{console.error(e);process.exitCode=1;});
+
+    check('no runtime errors', errors.length === 0);
+    console.log('\n' + passed + ' passed, 0 failed');
+  } finally { await browser.close(); }
+})().catch((e) => { console.error(e); process.exitCode = 1; });

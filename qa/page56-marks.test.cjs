@@ -236,8 +236,19 @@ t('the system overview is a live diagram, not a picture of one', () => {
      every quote printed the same numbers, and no raster can stay sharp at every
      zoom. The flow is drawn from the same content the rest of the proposal reads,
      and the links and badges are SVG. */
-  assert.match(js, /'<div class="pv2-ov-box">' \+ flowDiagram\(s, f\)/,
+  assert.match(js, /'<div class="pv2-overview">' \+ flowDiagram\(s, f\) \+ '<\/div>'/,
     'the overview box draws the flow');
+  /* It is drawn into the specification page's own #v_tsDiagram box. It had drifted
+     into solution(), which printed the whole flow on page 5 and left page 6 with a
+     heading and nothing under it. */
+  assert.match(js, /const diagram = \$\('v_tsDiagram'\)/,
+    'the flow is written into the specification page diagram box');
+  const techRaw = js.slice(js.indexOf('function techSpec('));
+  assert.match(techRaw, /diagram\.innerHTML = '<div class="pv2-overview">'/,
+    'and it is techSpec() that does the writing, not solution()');
+  const solRaw = js.slice(js.indexOf('function solution('), js.indexOf('function techSpec('));
+  assert.doesNotMatch(solRaw, /flowDiagram|pv2-overview/,
+    'page 5 no longer draws the system overview');
   assert.doesNotMatch(js, /'<div class="pv2-ov-box">' \+ overviewArt\(\)/,
     'and no longer pastes the render into it');
 
@@ -260,12 +271,32 @@ t('the system overview is a live diagram, not a picture of one', () => {
   assert.match(js, /<span class="pv2-grp is-/, 'the DC / AC badges are markup, not pixels');
 });
 
+/* The specification page must actually SHOW the flow. It used to be hidden with
+   `display:none!important` on .diagram-box - a leftover from when the overview was
+   a raster pasted into page 5 - so the page printed its ribbon and then ran straight
+   into the cards. Nothing in the markup said so, which is why the earlier checks
+   passed while the page was visibly missing its diagram. */
+t('REGRESSION: page 6 does not hide the diagram box', () => {
+  assert.doesNotMatch(css, /\.pv2-tech \.diagram-box\{[^}]*display:none/,
+    'the specification page must not hide the box that carries the overview');
+  assert.match(css, /\.pv2-tech \.diagram-box\{[^}]*display:block/,
+    'and it must be asked to show it explicitly');
+});
+
+t('the flow is written into the page 6 box, not page 5', () => {
+  assert.match(js, /const diagram = \$\('v_tsDiagram'\)/, 'it writes into #v_tsDiagram');
+  const techRaw = js.slice(js.indexOf('function techSpec('));
+  assert.match(techRaw, /diagram\.innerHTML/, 'from inside techSpec()');
+  const solRaw = js.slice(js.indexOf('function solution('), js.indexOf('function techSpec('));
+  assert.doesNotMatch(solRaw, /flowDiagram/, 'and solution() no longer draws it');
+});
+
 t('the artwork is not dressed a second time', () => {
   /* The render was cropped down to just the flow box, so the section keeps the
      page's own ribbon - but must not print a second note under it, because the
      render's note is still in the artwork. */
-  assert.match(js, /label\(P\.diagramTitle \|\| 'SYSTEM OVERVIEW'\) \+ '<div class="pv2-ov-box">'/,
-    'the ribbon is the page’s own again');
+  assert.match(js, /title\.textContent = P\.diagramTitle \|\| 'SYSTEM OVERVIEW'/,
+    'the ribbon is the page’s own title element again');
   assert.doesNotMatch(js, /pv2-ov-box">' \+ overviewArt\(\) \+ '.*note/i, 'and no second note is printed');
   /* The scope note is suppressed only while it is boilerplate: the renderer puts
      a real scope sentence in that element when a battery or rainwater system is
@@ -547,11 +578,13 @@ t('the links sit on the centre of the equipment, not down by the captions', () =
 });
 
 t('the overview box adds no frame of its own around that render', () => {
-  const box = css.match(/\.pv2-solution \.pv2-ov-box\{([^}]*)\}/)[1];
-  assert.match(box, /border:0/, 'the render already has its rounded frame');
-  assert.match(box, /padding:0/, 'and its own internal spacing');
-  assert.match(css, /\.pv2-solution \.pv2-ov-art\{display:block;width:100%/,
-    'the render fills the page width, so its own type stays legible');
+  const box = css.match(/\.pv2 \.pv2-ov-box\{([^}]*)\}/)[1];
+  assert.match(box, /border:0/, 'the flow needs no frame of its own');
+  assert.match(box, /padding:0/, 'and no internal spacing of its own');
+  /* The rule is deliberately not scoped to .pv2-solution any more: the overview is
+     drawn on the specification page now, and a page-scoped rule would not reach it. */
+  assert.doesNotMatch(css, /\.pv2-solution \.pv2-ov-box\{/,
+    'the box styling is not trapped on the solution page');
 });
 
 /* ------------------------------- page 6 cards: number OR icon, not both */
@@ -725,12 +758,14 @@ t('the note gets more air than the blocks above it', () => {
   /* The row no longer joins this rhythm: it is pulled onto the footer rule, so
      it carries an explicit gap only as a floor and then `auto` overrides it.
      These two are the pair that sits in the flow together. */
+  /* The overview rule is generic now - it has to reach the specification page as
+     well as page 5 - while the note rule stays on the solution page it belongs to. */
   const gap = (sel) => {
-    const m = css.match(new RegExp('\\.pv2-solution ' + sel + '\\{margin-top:(\\d+)px;\\}'));
+    const m = css.match(new RegExp(sel + '\\{margin-top:(\\d+)px;\\}'));
     return m ? Number(m[1]) : NaN;
   };
-  const overview = gap('\\.pv2-overview');
-  const note = gap('#v_soScopeNote');
+  const overview = gap('\\.pv2 \\.pv2-overview');
+  const note = gap('\\.pv2-solution #v_soScopeNote');
   assert.ok(!Number.isNaN(overview) && !Number.isNaN(note), 'both declare a gap');
   /* He asked for a real gap in all of them, and the note is the one that reads as
      cramped when it crowds the diagram above it. */

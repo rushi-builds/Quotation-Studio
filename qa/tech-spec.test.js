@@ -48,10 +48,14 @@ const t = (name, condition) => {
     /* The drawing on this page is the one block a customer actually reads. It
        must not be shrunk to a thumbnail to buy room: the page gives up its own
        intro copy first (see the is-lead-trim step in render.js). */
+    /* The diagram is a live drawing now (proposal-v2.js flowDiagram), built from
+       divs and inline SVG arrows, not one <svg> wrapper - so measuring the first
+       svg's width found an arrow and reported 0%. Measure the flow row itself,
+       which is the thing that has to span the column. */
     const diagramShare = await page.$eval('#v_tsDiagram', (box) => {
-      const svg = box.querySelector('svg');
-      return svg && box.getBoundingClientRect().width
-        ? svg.getBoundingClientRect().width / box.getBoundingClientRect().width : 0;
+      const row = box.querySelector('.pv2-flow-row') || box.querySelector('.pv2-flow');
+      return row && box.getBoundingClientRect().width
+        ? row.getBoundingClientRect().width / box.getBoundingClientRect().width : 0;
     });
     t('system diagram keeps its width (' + Math.round(diagramShare * 100) + '% of the column)', diagramShare >= 0.7);
 

@@ -231,36 +231,20 @@
       }
       if (old) old.remove();
     });
-    let ov = body.querySelector(':scope > .pv2-overview');
-    if (!ov) {
-      ov = doc.createElement('div'); ov.className = 'pv2-overview'; ov.dataset.docAdded = 'true';
-      body.insertBefore(ov, $('v_soScopeNote') || null);
-    }
-    const P = (root.CONTENT && root.CONTENT.pageTechSpec) || {};
-    /* The artwork was cropped down to just the flow box, so the section heading is
-       the page's own again. The box no longer prints a second note - the render
-       carries that - which is what stopped the section reading as duplication. */
-    /* The flow is drawn live now instead of being the owner's finished raster. The
-       raster could not carry a quote - its labels and its "13 x 545 Wp" / "7 kW"
-       were baked in, so they printed the same numbers for every customer, and
-       nothing in it could be text-sharp at any zoom. Every label below is the same
-       editable content the rest of the proposal uses, and every arrow and badge is
-       SVG. His drawings still supply the seven equipment images. */
-    ov.innerHTML = label(P.diagramTitle || 'SYSTEM OVERVIEW') + '<div class="pv2-ov-box">' + flowDiagram(s, f) + '</div>';
-    /* The artwork carries its own note, so the boilerplate scope note would print
-       the same advice twice. It is only suppressed while it is boilerplate: when
-       an additional system (battery, rainwater) is quoted, the renderer puts the
-       real scope sentence in that same element, and that must still show. */
-    const scopeNote = $('v_soScopeNote');
-    if (scopeNote) {
-      const basic = /^The exact equipment ratings are listed in Technical Specification\./;
-      scopeNote.hidden = basic.test((scopeNote.textContent || '').trim());
-    }
     let vals = body.querySelector(':scope > .pv2-values-wrap');
     if (!vals) {
       vals = doc.createElement('div'); vals.className = 'pv2-values-wrap'; vals.dataset.docAdded = 'true';
       body.append(vals);
       vals.innerHTML = values([['target', 'Site-fit', 'Design'], ['gear', 'Specified', 'Equipment'], ['shield', 'Design', 'Safety'], ['check', 'Planned', 'Handover']]);
+    }
+    /* The artwork carries its own note, so the boilerplate scope note would print
+       the same advice twice. It is only suppressed while it is boilerplate: when an
+       additional system (battery, rainwater) is quoted, the renderer puts the real
+       scope sentence in that same element, and that must still show. */
+    const scopeNote = $('v_soScopeNote');
+    if (scopeNote) {
+      const basic = /^The exact equipment ratings are listed in Technical Specification\./;
+      scopeNote.hidden = basic.test((scopeNote.textContent || '').trim());
     }
     fit(page, ['pv2-fit-1', 'pv2-fit-2', 'pv2-fit-3']);
   }
@@ -346,7 +330,7 @@
     }
     return '<div class="pv2-brand is-plain"><b>' + esc(brand) + '</b></div>';
   }
-  function techSpec() {
+  function techSpec(s, f) {
     const page = $('pageTechSpec'); if (!page) return;
     chrome(page); page.classList.add('pv2-tech');
     /* The legacy fit ladder measured the old table layout; this page fits itself. */
@@ -354,6 +338,21 @@
       .forEach((c) => page.classList.remove(c));
     const body = page.querySelector(':scope > .pg-body'); const table = $('v_tsTable');
     if (!body || !table) return;
+    /* SYSTEM OVERVIEW lives here, on the specification page, in its own
+       #v_tsDiagram box inside .diagram-box - above the four cards, where the
+       section label already sits. It had drifted into solution(), which put the
+       whole flow on page 5 and left this page's box empty, so the diagram printed
+       on the wrong sheet and page 6 printed a heading with nothing under it.
+       Every label below is the same editable content the rest of the proposal
+       uses, and every arrow and badge is SVG; the owner's drawings still supply
+       the seven equipment images. */
+    const diagram = $('v_tsDiagram');
+    if (diagram) {
+      const P = (root.CONTENT && root.CONTENT.pageTechSpec) || {};
+      const title = $('v_tsDiagramTitle');
+      if (title) title.textContent = P.diagramTitle || 'SYSTEM OVERVIEW';
+      diagram.innerHTML = '<div class="pv2-overview">' + flowDiagram(s, f) + '</div>';
+    }
     /* The section opener used to shout "DETAILED SPECIFICATION" in a dark slab.
        Page 6 is the friendly half of the pair: one quiet line that says what the
        four cards are for, with two of its phrases picked out in orange. Kept as
@@ -422,7 +421,7 @@
     busy = true;
     try {
       let f = null; try { f = root.Finance && root.Finance.compute ? root.Finance.compute(s) : null; } catch (e) { f = null; }
-      solution(s, f); techSpec(); watch();
+      solution(s, f); techSpec(s, f); watch();
     } finally { busy = false; }
   }
   const previous = root.Render.renderAll;
