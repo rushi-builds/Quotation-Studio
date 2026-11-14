@@ -292,36 +292,53 @@ t('the DC / AC pills are outlined, in the artwork, and not overlaid twice', () =
   assert.ok(acIn[0] > 240 && acIn[1] > 240 && acIn[2] > 240, 'the AC pill is hollow');
 });
 
-t('the meter <-> grid link is his newest drawing, used as-is', () => {
-  /* He sent the arrow art three times; the last one is the shape he wants - two
-     block arrows facing away from each other, orange left, green right. His file
-     is used directly rather than approximated, and composited into the render. */
-  const src = path.join(ROOT, 'assets/images/proposal/bidir-chevrons.png');
-  assert.ok(fs.existsSync(src), 'the arrow art is stored as its own asset');
+t('the meter <-> grid link uses his block arrows, both of them', () => {
+  /* Second attempt, his correction: BOTH arrows in that gap are the block shape he
+     sent - orange pointing back to the meter, green pointing out to the grid - not
+     one replaced and one left as a chevron. The asset is his file, flattened onto
+     white so it composites into the flat artwork without a halo. */
+  const src = path.join(ROOT, 'assets/images/proposal/bidir-arrow.png');
+  assert.ok(fs.existsSync(src), 'his arrow art is stored as its own asset');
   const probeSrc = (x, y) => {
     const out = execFileSync('convert', [src, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
     return out.match(/\d+/g).map(Number);
   };
-  const l = probeSrc(20, 26), r = probeSrc(48, 26);
+  /* his 65x42 file: left head orange, right head green */
+  const l = probeSrc(23, 21), r = probeSrc(44, 21);
   assert.ok(l[0] > 200 && l[1] > 80 && l[1] < 180 && l[2] < 80,
     `the left arrow is orange, got rgb(${l.slice(0, 3)})`);
   assert.ok(r[1] > 120 && r[0] < 130 && r[2] < 110,
     `the right arrow is green, got rgb(${r.slice(0, 3)})`);
 
-  /* and it is composited into the overview, not just sitting in the folder */
+  /* both heads are composited into the gap, at the same height as the chevrons */
   const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
   const probe = (x, y) => {
     const out = execFileSync('convert', [file, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
     return out.match(/\d+/g).map(Number);
   };
-  let oranges = 0, greens = 0;
-  for (let x = 1805; x <= 1905; x += 2) {
-    const p = probe(x, 252);
-    if (p[0] > 200 && p[1] > 80 && p[1] < 180 && p[2] < 80) oranges++;
-    if (p[1] > 120 && p[0] < 130 && p[2] < 110) greens++;
+  let oranges = 0, greens = 0, orangeX = [], greenX = [];
+  for (let x = 1798; x <= 1882; x += 2) {
+    let isOrange = false, isGreen = false;
+    for (let y = 215; y <= 250; y += 2) {
+      const p = probe(x, y);
+      if (p[0] > 200 && p[1] > 80 && p[1] < 180 && p[2] < 80) isOrange = true;
+      if (p[1] > 120 && p[0] < 130 && p[2] < 110) isGreen = true;
+    }
+    if (isOrange) { oranges++; orangeX.push(x); }
+    if (isGreen) { greens++; greenX.push(x); }
   }
   assert.ok(oranges > 3, `orange arrow missing from the render, found ${oranges} columns`);
   assert.ok(greens > 3, `green arrow missing from the render, found ${greens} columns`);
+  /* and they are side by side, orange on the left of green - one arrow each way */
+  assert.ok(Math.max(...orangeX) < Math.min(...greenX),
+    'the orange head sits to the left of the green head');
+});
+
+t('the art that is superseded is gone', () => {
+  /* Neither the chevrons from the render nor the first arrow attempt is left in
+     the tree to be composited back in by mistake. */
+  assert.ok(!fs.existsSync(path.join(ROOT, 'assets/images/proposal/bidir-chevrons.png')),
+    'the earlier chopper asset is removed');
 });
 
 t('the overview box adds no frame of its own around that render', () => {
