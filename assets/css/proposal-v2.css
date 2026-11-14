@@ -145,12 +145,12 @@
    equipment.) */
 .pv2 .pv2-flow-row{display:flex;align-items:flex-end;justify-content:space-between;}
 .pv2 .pv2-node{flex:0 0 auto;text-align:center;display:flex;flex-direction:column;align-items:center;}
-.pv2 .pv2-node.is-panel{width:100px;}
-.pv2 .pv2-node.is-box{width:72px;}
-.pv2 .pv2-node.is-inv{width:72px;}
-.pv2 .pv2-node.is-house{width:84px;}
-.pv2 .pv2-node.is-meter{width:86px;}
-.pv2 .pv2-node.is-grid{width:88px;}
+.pv2 .pv2-node.is-panel{width:96px;}
+.pv2 .pv2-node.is-box{width:69px;}
+.pv2 .pv2-node.is-inv{width:70px;}
+.pv2 .pv2-node.is-house{width:80px;}
+.pv2 .pv2-node.is-meter{width:82px;}
+.pv2 .pv2-node.is-grid{width:84px;}
 /* One art height for every node, so the equipment sits on a single line and the
    images are drawn at their natural size instead of being stretched. */
 .pv2 .pv2-node-art{height:86px;width:100%;display:flex;align-items:flex-end;justify-content:center;margin-bottom:8px;}
@@ -170,11 +170,15 @@
 /* The links are flex items of their own, parked on the equipment line: the art is
    86px tall and the link 18px, so 34px of bottom margin centres it at 43px - the
    same centre as the equipment above the captions. */
-.pv2 .pv2-arrow{flex:0 0 24px;width:24px;display:flex;align-items:center;justify-content:center;margin-bottom:34px;}
+/* The row is bottom-aligned, so the link is pushed up from the bottom edge by the
+   height of the captions plus half the art. 68px puts the link's centre on the
+   equipment's centre - at 46px it sat down among the captions, which is what he
+   kept seeing. */
+.pv2 .pv2-arrow{flex:0 0 28px;width:28px;display:flex;align-items:center;justify-content:center;margin-bottom:68px;}
 .pv2 .pv2-arrow svg{display:block;}
 .pv2 .pv2-arrow.is-both svg{width:26px;height:20px;}
 
-.pv2-solution #v_soScopeNote{margin-top:22px;}
+.pv2-solution #v_soScopeNote{margin-top:30px;}
 
 /* hide what the new layout replaces on page 5 */
 .pv2-solution .proposal-value-footer,.pv2-solution .solution-system{display:none!important;}

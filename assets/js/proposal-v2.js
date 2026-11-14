@@ -170,12 +170,16 @@
     /* Link i joins node i-1 to node i. Everything up to the inverter is DC and
        green; from the inverter outwards it is AC and navy. The meter and the grid
        trade power both ways, so that link is the block pair. */
+    /* The links up to ACDB are DC and green, from the inverter onwards AC and navy.
+       Both links that touch the bi-directional meter carry power both ways - the
+       house trades with it as much as the grid does - so both get his block pair,
+       and only the four one-way runs stay chevrons. */
     const links = [
       { tone: 'dc' },
       { tone: 'dc' },
       { tone: 'ac' },
       { tone: 'ac' },
-      { tone: 'ac' },
+      { tone: 'bi', dir: 'both' },
       { tone: 'bi', dir: 'both' }
     ];
     /* The DC group runs panel -> ACDB, the AC group ACDB -> grid. Their badges are

@@ -488,6 +488,55 @@ t('the link shapes are the ones that were verified on screen', () => {
   assert.doesNotMatch(js, /M12 9 L6 3[^}]*TONE\.bi/, 'the inward-facing version is gone');
 });
 
+t('both links touching the bi-directional meter carry block pairs', () => {
+  /* He asked for the house <-> meter link to be two-way as well - the house trades
+     with the meter as much as the grid does. So exactly two of the six links are
+     block pairs, and they are the two that touch the meter (index 4 and 5). */
+  const flowRaw = js.slice(js.indexOf('function flowDiagram('), js.indexOf('function solution('));
+  const tones = [...flowRaw.matchAll(/\{ tone: '(dc|ac|bi)'(, dir: 'both')? \}/g)]
+    .map((m) => ({ tone: m[1], both: !!m[2] }));
+  assert.equal(tones.length, 6, 'six links join the seven nodes');
+  const both = tones.map((t, i) => (t.both ? i : -1)).filter((i) => i >= 0);
+  assert.deepEqual(both, [4, 5], 'the two links either side of the meter are two-way');
+  assert.equal(tones.filter((t) => t.both).length, 2, 'and only those two');
+});
+
+t('the tower sits on the sheet with no white plate behind it', () => {
+  /* It is a crop from his render, and the render has a white page behind the
+     drawing - so the crop came with a white card around it and showed up as a
+     rectangle in the row. The white has to be keyed out. */
+  const buf = fs.readFileSync(path.join(ROOT, 'assets/images/proposal/flow-tower.webp'));
+  const hasAlpha = buf.slice(buf.indexOf('WEBP') + 4, buf.indexOf('WEBP') + 8).toString() !== 'VP8 ';
+  assert.ok(hasAlpha, 'the tower is not stored as a flat opaque bitmap');
+  const out = execFileSync('convert', [path.join(ROOT, 'assets/images/proposal/flow-tower.webp'),
+    '-format', '%[opaque] %[pixel:p{2,2}]', 'info:'], { encoding: 'utf8' });
+  assert.match(out, /^false/, `the corners are transparent, got ${out}`);
+});
+
+t('the links sit on the centre of the equipment, not down by the captions', () => {
+  /* The row is bottom-aligned, so a link's position is set by its bottom margin.
+     At 46px the link sat among the captions - he reported the arrows as "bohot
+     niche" twice. The only correct value is the one that centres the link on the
+     86px art, so it is derived here rather than guessed. */
+  const num = (re) => {
+    const m = css.match(re);
+    assert.ok(m, `missing ${re}`);
+    return Number(m[1]);
+  };
+  const capSmall = num(/\.pv2 \.pv2-node small\{font-size:([\d.]+)px/) * 1.3;
+  const capBold = num(/\.pv2 \.pv2-node b\{font:700 ([\d.]+)px/) * 1.25;
+  const capGap = num(/\.pv2 \.pv2-node small\{[^}]*margin-top:(\d+)px/);
+  const artH = num(/\.pv2 \.pv2-node-art\{height:(\d+)px/);
+  const artGap = num(/\.pv2 \.pv2-node-art\{[^}]*margin-bottom:(\d+)px/);
+  const linkH = num(/\.pv2 \.pv2-arrow\{flex:0 0 \d+px;width:\d+px;display:flex;align-items:center;justify-content:center;margin-bottom:(\d+)px/);
+
+  const capBlock = capSmall + capGap + capBold;
+  const artCentre = capBlock + artGap + artH / 2;
+  const linkCentre = linkH + 9;          /* the link art is 18px tall */
+  assert.ok(Math.abs(artCentre - linkCentre) <= 2,
+    `the link centre must meet the art centre, got ${linkCentre} vs ${artCentre.toFixed(1)}px from the row bottom`);
+});
+
 t('the overview box adds no frame of its own around that render', () => {
   const box = css.match(/\.pv2-solution \.pv2-ov-box\{([^}]*)\}/)[1];
   assert.match(box, /border:0/, 'the render already has its rounded frame');
