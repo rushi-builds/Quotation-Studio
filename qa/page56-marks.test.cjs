@@ -292,6 +292,58 @@ t('the DC / AC pills are outlined, in the artwork, and not overlaid twice', () =
   assert.ok(acIn[0] > 240 && acIn[1] > 240 && acIn[2] > 240, 'the AC pill is hollow');
 });
 
+t('the AC badge is navy, outlined, like the DC one is green', () => {
+  /* He asked for the badge that carries AC to be navy too, ring and letter alike,
+     so it sits with the navy arrows instead of fighting them. DC keeps its green -
+     the two halves of the diagram want to be told apart. */
+  const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
+  const probe = (x, y) => {
+    const out = execFileSync('convert', [file, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
+    return out.match(/\d+/g).map(Number);
+  };
+  /* the pill interior stays paper, the ring around it is ink */
+  const ringAc = probe(1511, 52), insideAc = probe(1511, 82);
+  assert.ok(insideAc[0] > 235 && insideAc[1] > 235 && insideAc[2] > 235, 'the AC pill is hollow');
+  assert.ok(ringAc[2] - ringAc[0] > 4 && ringAc[2] < 80 && ringAc[0] < 70,
+    `the AC ring is navy, got rgb(${ringAc.slice(0, 3)})`);
+
+  /* no orange outline survives anywhere in the badge area */
+  let orange = 0;
+  for (let x = 1430; x <= 1590; x += 3) {
+    for (let y = 40; y <= 125; y += 3) {
+      const p = probe(x, y);
+      if (p[0] - p[2] > 90 && p[0] - p[1] > 40 && p[0] > 180) orange++;
+    }
+  }
+  assert.ok(orange < 6, `the old orange AC ring is gone, found ${orange}px`);
+});
+
+t('the AC side of the flow runs on navy arrows, not orange', () => {
+  /* The two links after the inverter were the only orange left in the row, and he
+     wanted them navy - the orange belonged to the AC grouping, and the grouping is
+     navy now. */
+  const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
+  const scan = (x0, x1) => {
+    let navy = 0, orange = 0;
+    const out = execFileSync('convert', [file, '-crop', `${x1 - x0}x70+${x0}+200`, '+repage', 'txt:-'],
+      { encoding: 'utf8', maxBuffer: 1 << 24 });
+    for (const line of out.split('\n')) {
+      const m = line.match(/^(\d+),(\d+):.*?\((\d+),(\d+),(\d+)/);
+      if (!m) continue;
+      const r = +m[3], g = +m[4], b = +m[5];
+      if (b - r > 12 && b < 95 && r < 70 && g < 80) navy++;
+      else if (r - b > 90 && r - g > 40 && r > 180) orange++;
+    }
+    return { navy, orange };
+  };
+  const a = scan(912, 982);   /* inverter -> ACDB */
+  const b = scan(1166, 1234); /* ACDB -> house  */
+  for (const [name, r] of [['inverter -> ACDB', a], ['ACDB -> house', b]]) {
+    assert.ok(r.navy > 60, `${name}: arrows are navy (${r.navy}px)`);
+    assert.ok(r.orange < 20, `${name}: no orange left (${r.orange}px)`);
+  }
+});
+
 t('both two-way links are his block arrows, green and navy', () => {
   /* Orange beside green read as a flag, not as a diagram. Green and navy keeps two
      clearly different inks - and the green is the page's own green, the same one in
