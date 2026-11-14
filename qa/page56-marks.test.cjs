@@ -445,7 +445,7 @@ t('nothing on page 5 is a raster of text any more', () => {
   const flowRaw = js.slice(js.indexOf('function flowDiagram('), js.indexOf('function solution('));
   const photos = [...flowRaw.matchAll(/flow-[a-z]+\.webp/g)].map((m) => m[0]);
   const allowed = ['flow-panel.webp', 'flow-db.webp', 'flow-inverter.webp',
-    'flow-house.webp', 'flow-meter.webp'];
+    'flow-house.webp', 'flow-meter.webp', 'flow-tower.webp'];
   for (const p of new Set(photos)) {
     assert.ok(allowed.includes(p), `${p} is equipment art, not a diagram of text`);
   }
@@ -588,17 +588,28 @@ t('the node artwork has one height, so the equipment sits on one line', () => {
   assert.match(css, /\.pv2 \.pv2-node-art\{height:86px/,
     'one art height for every node - the images line up on a single baseline');
   /* the arrow is the thing that used to drift; it is anchored to that same line */
-  assert.match(css, /\.pv2 \.pv2-arrow\{[^}]*margin-bottom:62px/, 'links sit on the equipment line');
+  /* the link is absolutely placed at the centre of its own gap, on the equipment
+     line - a flex row would have taken width from that gap instead */
+  assert.match(css, /\.pv2 \.pv2-flow-row\{position:relative;\}/, 'the row is the positioning context');
+  assert.match(css, /\.pv2 \.pv2-arrow\{position:absolute;[^}]*top:33px/, 'links are parked on the equipment line');
+  assert.match(js, /const linkX = \(i\)/, 'and each link is centred in its own gap');
 });
 
-t('overview and note share one gap value on page 5', () => {
+t('the note gets more air than the blocks above it', () => {
   /* The row no longer joins this rhythm: it is pulled onto the footer rule, so
      it carries an explicit gap only as a floor and then `auto` overrides it.
      These two are the pair that sits in the flow together. */
-  const gaps = [...css.matchAll(/\.pv2-solution (\.pv2-overview|#v_soScopeNote)\{margin-top:(\d+)px;\}/g)]
-    .map((m) => Number(m[2]));
-  assert.equal(gaps.length, 2, 'both blocks declare their own gap');
-  assert.equal(new Set(gaps).size, 1, `both must agree, got ${gaps.join(' / ')} px`);
+  const gap = (sel) => {
+    const m = css.match(new RegExp('\\.pv2-solution ' + sel + '\\{margin-top:(\\d+)px;\\}'));
+    return m ? Number(m[1]) : NaN;
+  };
+  const overview = gap('\\.pv2-overview');
+  const note = gap('#v_soScopeNote');
+  assert.ok(!Number.isNaN(overview) && !Number.isNaN(note), 'both declare a gap');
+  /* He asked for a real gap in all of them, and the note is the one that reads as
+     cramped when it crowds the diagram above it. */
+  assert.ok(note >= overview + 4, `the note stands clear, got ${note} vs ${overview}px`);
+  assert.ok(note >= 20, `the note has real air above it, got ${note}px`);
 });
 
 t('the value row still keeps a floor gap for the tight steps', () => {
