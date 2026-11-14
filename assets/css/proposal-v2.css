@@ -117,7 +117,13 @@
 /* The owner's overview render carries its own rounded frame, so the box is just
    the width constraint: full bleed, no extra border or padding. */
 .pv2-solution .pv2-ov-box{margin-top:-1px;background:none;border:0;border-radius:0;box-shadow:none;padding:0;}
-.pv2-solution .pv2-ov-art{display:block;width:100%;height:auto;border-radius:12px;}
+/* The render is the owner's own raster at 2144px wide, drawn once into a 718px
+   column - so the browser is always downscaling it, never upscaling it. Every
+   re-encode on the way here softens it further: the file is now written once,
+   lossless, from a PNG pipeline, and this rule keeps the browser from applying its
+   own low-quality filter on top. */
+.pv2-solution .pv2-ov-art{display:block;width:100%;height:auto;border-radius:12px;
+  image-rendering:-webkit-optimize-contrast;image-rendering:high-quality;}
 .pv2 .pv2-flow{display:flex;align-items:flex-start;justify-content:space-between;}
 .pv2 .pv2-node{position:relative;flex:0 0 auto;width:66px;text-align:center;display:flex;flex-direction:column;align-items:center;}
 .pv2 .pv2-node.is-panel{width:98px;}.pv2 .pv2-node.is-house{width:76px;}

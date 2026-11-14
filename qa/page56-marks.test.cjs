@@ -259,17 +259,14 @@ t('the overview render is stored at full resolution', () => {
   /* He caught the blur: the first version was downscaled to 1400px and then drawn
      into a 718px box on a sheet that the preview also scaled down. It is now kept
      at the source's own 2144px, so the sheet never has to stretch it. */
-  const buf = fs.readFileSync(path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp'));
-  const size = (() => {
-    /* WebP VP8X / VP8L / VP8 header dims, no decoder needed for a floor check. */
-    const i = buf.indexOf('WEBP');
-    if (i < 0) return { w: 0, h: 0 };
-    const kind = buf.slice(i + 4, i + 8).toString();
-    if (kind === 'VP8X') return { w: 1 + buf.readUIntLE(i + 12, 3), h: 1 + buf.readUIntLE(i + 15, 3) };
-    if (kind === 'VP8 ') return { w: buf.readUInt16LE(i + 14) & 0x3fff, h: buf.readUInt16LE(i + 16) & 0x3fff };
-    return { w: 0, h: 0 };
-  })();
-  assert.ok(size.w >= 2000, `the render must stay at source width, got ${size.w}px`);
+  /* Read the dimensions the way a browser does - through the decoder - rather than
+     hand-parsing the RIFF chunk, which silently reported 0x0 once the file became
+     VP8L (lossless). */
+  const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
+  const [w, h] = execFileSync('identify', ['-format', '%w %h', file], { encoding: 'utf8' })
+    .trim().split(/\s+/).map(Number);
+  assert.ok(w >= 2000, `the render must stay at source width, got ${w}px`);
+  assert.ok(h >= 480, `and its source height, got ${h}px`);
 });
 
 t('the DC / AC pills are outlined, in the artwork, and not overlaid twice', () => {
@@ -376,6 +373,49 @@ t('both two-way links are his block arrows, green and navy', () => {
   }
   assert.ok(Math.abs(houseMeter.w - meterGrid.w) <= 6,
     `both pairs are one width, got ${houseMeter.w} and ${meterGrid.w}`);
+});
+
+t('the overview is stored lossless, at full native width', () => {
+  /* The blur he kept seeing was this file, not the page: every rebuild had read
+     the previous webp and written a new one, so by the last round the artwork had
+     been through six lossy encodes and the labels were visibly smeared. The build
+     now goes source PNG -> one encode, and the encode is lossless. */
+  const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
+  const buf = fs.readFileSync(file);
+  const chunk = buf.slice(buf.indexOf('WEBP') + 4, buf.indexOf('WEBP') + 8).toString();
+  /* VP8L is the lossless bitstream, VP8 is lossy, VP8X is the extended container. */
+  assert.strictEqual(chunk, 'VP8L',
+    `the file is written lossless (got ${chunk}), so no encode softens the labels`);
+  const [w, h] = execFileSync('identify', ['-format', '%w %h', file], { encoding: 'utf8' })
+    .trim().split(/\s+/).map(Number);
+  assert.strictEqual(w, 2144, 'the artwork is still its native width, not scaled down');
+  assert.strictEqual(h, 498, 'and its native height');
+
+  /* And sharpness is measured, not assumed: an edge-energy score on a band of
+     small type has to match the source PNG the artwork came from. A lossy copy of
+     the same crop scores measurably lower. */
+  const energy = (f) => {
+    const out = execFileSync('convert', [f, '-crop', '420x60+80+385', '+repage',
+      '-colorspace', 'Gray', '-depth', '8', 'txt:-'], { encoding: 'utf8', maxBuffer: 1 << 24 });
+    const px = new Map();
+    for (const line of out.split('\n')) {
+      const m = line.match(/^(\d+),(\d+):.*?\((\d+)/);
+      if (m) px.set(m[1] + ',' + m[2], +m[3]);
+    }
+    let tot = 0, n = 0;
+    for (const [k, v] of px) {
+      const [x, y] = k.split(',').map(Number);
+      for (const [dx, dy] of [[1, 0], [0, 1]]) {
+        const q = px.get((x + dx) + ',' + (y + dy));
+        if (q !== undefined) { tot += Math.abs(v - q); n++; }
+      }
+    }
+    return tot / n;
+  };
+  const bytes = fs.statSync(file).size;
+  assert.ok(bytes > 400000, `lossless keeps the detail - file is ${Math.round(bytes / 1024)}KB`);
+  const sharp = energy(file);
+  assert.ok(sharp > 8.5, `the label band is crisp, scored ${sharp.toFixed(2)} (a re-encoded copy scores under 8.5)`);
 });
 
 t('the overview box adds no frame of its own around that render', () => {
