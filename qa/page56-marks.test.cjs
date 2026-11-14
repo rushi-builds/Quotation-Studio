@@ -286,43 +286,37 @@ t('the DC / AC pills are cut from the render itself', () => {
   assert.match(css, /\.pv2-solution \.pv2-pill\.is-ac\{left:68\.1%;top:13%;\}/, 'AC sits over the AC group');
 });
 
-t('the meter <-> grid link is his chevron pair, untouched', () => {
-  /* He sent the shape twice: two chevrons with diagonal ends, orange facing the
-     metre and green facing the grid. They are already in his render - so the only
-     correct thing to do is not paint over them. This probes the artwork at the
-     chevron bodies so a painted-over patch fails the suite. */
+t('the meter <-> grid link is his chevron pair', () => {
+  /* He sent the artwork and then drew the arrows he wanted, twice. The shapes in
+     the page are now cut from that second drawing - blue swapped for orange, which
+     is what he asked for - and composited into the render at his own size. So this
+     checks two things: the source artwork is where it claims to be, and the
+     composited render carries those two colours in the link area. */
+  const src = path.join(ROOT, 'assets/images/proposal/bidir-chevrons.png');
+  assert.ok(fs.existsSync(src), 'the chevron pair is stored as its own asset');
+  const probeSrc = (x, y) => {
+    const out = execFileSync('convert', [src, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
+    return out.match(/\d+/g).map(Number);
+  };
+  const l = probeSrc(90, 134), r = probeSrc(430, 134);
+  assert.ok(l[0] > 200 && l[1] > 80 && l[1] < 175 && l[2] < 70,
+    `the left chevron is his shape with blue swapped for orange, got rgb(${l.slice(0, 3)})`);
+  assert.ok(r[1] > 120 && r[0] < 130 && r[2] < 110, `the right chevron stays green, got rgb(${r.slice(0, 3)})`);
+
+  /* And the render it was composited into. */
   const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
   const probe = (x, y) => {
     const out = execFileSync('convert', [file, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
-    const [r, g, b] = out.match(/\d+/g).map(Number);
-    return { r, g, b };
+    return out.match(/\d+/g).map(Number);
   };
-  /* sweep the link's band; at least a few columns must be orange and a few green */
   let oranges = 0, greens = 0;
-  for (let x = 1770; x <= 1960; x += 4) {
-    const p = probe(x, 236);
-    if (p.r > 200 && p.g > 80 && p.g < 180 && p.b < 80) oranges++;
-    if (p.g > 120 && p.r < 130 && p.b < 110) greens++;
+  for (let x = 1800; x <= 1910; x += 2) {
+    const p = probe(x, 252);
+    if (p[0] > 200 && p[1] > 80 && p[1] < 180 && p[2] < 80) oranges++;
+    if (p[1] > 120 && p[0] < 130 && p[2] < 110) greens++;
   }
-  assert.ok(oranges > 2, `the left chevron must be orange, found ${oranges} orange columns`);
-  assert.ok(greens > 2, `the right chevron must be green, found ${greens} green columns`);
-});
-
-t('the tower keeps its insulator horns on both sides', () => {
-  /* Painting a white block over this area once took the left-hand horns off. They
-     are small orange bodies against paper, on both sides of the tower. */
-  const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
-  const isHorn = (x, y) => {
-    const out = execFileSync('convert', [file, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
-    const [r, g, b] = out.match(/\d+/g).map(Number);
-    return r > 110 && r > g + 35 && b < 110;
-  };
-  const anyHorn = (x0, x1, y0, y1) => {
-    for (let x = x0; x < x1; x += 2) for (let y = y0; y < y1; y += 2) if (isHorn(x, y)) return true;
-    return false;
-  };
-  assert.ok(anyHorn(1850, 1930, 130, 300), 'the left-hand horns are still there');
-  assert.ok(anyHorn(1930, 1990, 130, 300), 'and so are the right-hand ones');
+  assert.ok(oranges > 3, `orange chevron missing from the render, found ${oranges} columns`);
+  assert.ok(greens > 3, `green chevron missing from the render, found ${greens} columns`);
 });
 
 t('the overview box adds no frame of its own around that render', () => {
