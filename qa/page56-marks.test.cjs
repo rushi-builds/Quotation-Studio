@@ -26,6 +26,7 @@ const { JSDOM } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+const execFileSync = require('node:child_process').execFileSync;
 
 let passed = 0;
 const failures = [];
@@ -278,6 +279,27 @@ t('the DC / AC pills are drawn by the page, outlined, in green and orange', () =
     'outlined, as in the reference');
   assert.match(css, /\.pv2-solution \.pv2-pill\.is-dc\{[^}]*color:#1E9E63/, 'DC is green');
   assert.match(css, /\.pv2-solution \.pv2-pill\.is-ac\{[^}]*color:#F2811D/, 'AC is orange');
+});
+
+t('the meter <-> grid link reads as two block arrows, orange out green back', () => {
+  /* He sent the shape he wanted: two solid block arrows facing away from each
+     other, blue replaced with orange. They live in the raster, so the check is on
+     the artwork's own pixels - the green is the flow's green, the orange the
+     flow's orange. */
+  const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
+  const probe = (x, y) => {
+    const out = execFileSync('convert', [file, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
+    const [r, g, b] = out.match(/\d+/g).map(Number);
+    return { r, g, b };
+  };
+  const left = probe(1810, 232), right = probe(1935, 232);
+  assert.ok(left.r > 180 && left.g > 70 && left.g < 170 && left.b < 60,
+    `the left arrow must be orange, got rgb(${left.r},${left.g},${left.b})`);
+  assert.ok(right.g > 130 && right.r < 120, `the right arrow must be green, got rgb(${right.r},${right.g},${right.b})`);
+  /* No thin shaft left behind: the old arrangement had a coloured bar between the
+     heads, which is what he rejected. Mid-gap must now be paper. */
+  const mid = probe(1872, 232);
+  assert.ok(mid.r > 235 && mid.g > 235 && mid.b > 235, 'the two arrows are separate, not one bar');
 });
 
 t('the overview box adds no frame of its own around that render', () => {
