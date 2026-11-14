@@ -56,20 +56,28 @@
     return '<svg class="' + (cls || 'pv2-svg') + '" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' +
       (sw || 1.7) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICON[name] || ICON.check) + '</svg>';
   }
-  /* One arrow, three meanings. DC runs green and AC runs orange, the same pair the
-     badges use, so a reader can follow the colour across the page. The meter and
-     the grid send power both ways, so that link is drawn two-headed and carries
-     Import / Export under it. */
-  const ARROW_COLOUR = { dc: '#1E9E63', ac: '#F2811D', bi: '#3A7BC8' };
+  /* Links between the nodes. One-way links are the chevron pairs the owner's
+     drawing uses; the two links that carry power both ways are his block-arrow
+     pair, green pointing back and navy pointing out. All of it is SVG, so nothing
+     here can blur at any zoom - which is exactly what the raster could not do. */
+  const TONE = { dc: '#1E9E63', ac: '#14263A', bi: '#1E9E63', navy: '#14263A' };
+  function chevronPair(colour) {
+    /* two chevrons, the second tucked behind the first, as in his artwork */
+    const one = (ox, fill) => '<path d="M' + ox + ' 1 L' + (ox + 9) + ' 9 L' + ox + ' 17 L' +
+      (ox + 4.5) + ' 17 L' + (ox + 13.5) + ' 9 L' + (ox + 4.5) + ' 1 Z" fill="' + fill + '"/>';
+    return '<svg class="pv2-link-svg" width="26" height="18" viewBox="0 0 26 18" aria-hidden="true">' +
+      one(0, colour) + one(11, colour) + '</svg>';
+  }
+  function blockPair() {
+    /* his shape: two block arrows facing away from each other */
+    const left = '<path d="M11 9 L6.5 4 L6.5 7 L1 7 L1 11 L6.5 11 L6.5 14 Z" fill="' + TONE.bi + '"/>';
+    const right = '<path d="M15 9 L19.5 4 L19.5 7 L25 7 L25 11 L19.5 11 L19.5 14 Z" fill="' + TONE.navy + '"/>';
+    return '<svg class="pv2-link-svg" width="26" height="18" viewBox="0 0 26 18" aria-hidden="true">' +
+      left + right + '</svg>';
+  }
   function arrow(dir, tone) {
-    const c = ARROW_COLOUR[tone] || ARROW_COLOUR.ac;
-    const head = (x1, x2) => '<path d="' + x1 + ' 2.5 ' + x2 + ' 7 ' + x1 + ' 11.5" fill="none" stroke="' + c +
-      '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
-    /* Both heads point outward from the shaft's ends: right at the far end, left
-       at the near one. */
-    const heads = dir === 'both' ? head(26.5, 20) + head(5.5, 12) : head(21, 27.5);
-    return '<svg width="30" height="14" viewBox="0 0 30 14" aria-hidden="true">' +
-      '<path d="M2 7h26" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round"/>' + heads + '</svg>';
+    if (dir === 'both') return blockPair();
+    return chevronPair(TONE[tone] || TONE.ac);
   }
   const SWOOSH = '<svg class="pv2-swoosh" viewBox="0 0 794 88" preserveAspectRatio="none" aria-hidden="true">' +
     '<path d="M0 40C0 28 10 22 26 22H470C600 22 700 16 794 2V88H0Z" fill="#14263A"/>' +
@@ -124,58 +132,62 @@
     if (/warrant/.test(t)) return 'award';
     return 'check';
   }
-  const OVERVIEW_ART = IMG + 'proposal/system-overview-flow.webp';
-  /* The render is drawn into a 718px column but the source is a 2144px raster, so
-     the browser is always scaling it down by three. Downscaling that hard is what
-     makes small labels look soft, and no amount of encoding fixes it - the extra
-     pixels are the problem. This second copy is pre-reduced to exactly 2x the
-     column and sharpened for that size, so a normal screen draws from it at a
-     clean 2:1 and a retina screen still has the full-res original. */
-  const OVERVIEW_ART_2X = IMG + 'proposal/system-overview-flow-2x.webp';
-  /* The owner supplied the finished overview - nodes, captions, the DC / AC pills
-     and the meter <-> grid chevrons are all painted into it now - so the page
-     shows the artwork and nothing else. The pills used to be overlaid as images
-     and the chevrons as drawn shapes; both are in the raster, so overlaying them
-     again would only duplicate them a few pixels off. */
-  function overviewArt() {
-    const alt = 'Solar to grid system overview';
-    return '<img class="pv2-ov-art" src="' + OVERVIEW_ART_2X + '"' +
-      ' srcset="' + OVERVIEW_ART_2X + ' 2x, ' + OVERVIEW_ART + ' 3x"' +
-      ' alt="' + alt + '" decoding="sync">';
-  }
+  /* The overview used to be the owner's finished render, pasted in as one image.
+     It is a live diagram now - see flowDiagram() - because the render carried its
+     own labels and its own "13 x 545 Wp" / "7 kW", so every quote printed the same
+     numbers, and a raster can never be text-sharp at every zoom. His drawings
+     still supply the seven equipment photos the nodes use. */
+
   function flowDiagram(s, f) {
     const P = (root.CONTENT && root.CONTENT.pageTechSpec && root.CONTENT.pageTechSpec.diagramLabels) || {};
-    const count = f && f.moduleCount, watt = f && f.moduleWattage;
+    /* The numbers come from the form, not from the artwork. That was the bug in
+       showing the owner's finished render: the picture said "13 x 545 Wp" and
+       "7 kW" no matter what was being quoted. These read the same fields the rest
+       of the proposal reads. */
+    const count = (f && f.moduleCount) || '';
+    const watt  = (f && f.moduleWattage) || '';
+    const kW    = (f && f.inverterKw) || '';
+    const panelSpec = (count && watt) ? count + ' \u00d7 ' + watt + ' Wp Modules'
+      : (count ? count + ' Modules' : 'Solar Modules');
+
     const nodes = [
-      { img: 'flow-panel.webp', cls: 'is-panel', t: P.array || 'Rooftop Solar', d: count && watt ? count + ' × ' + watt + ' Wp Modules' : 'Solar modules' },
-      { img: 'flow-db.webp', cls: 'is-box', t: P.dcdb || 'DCDB', d: 'DC Protection', badge: 'DC' },
-      { img: 'flow-inverter.webp', cls: 'is-inv', t: P.inverter || 'Inverter', d: f && f.inverterKw ? f.inverterKw + ' kW' : '' },
-      { img: 'flow-db.webp', cls: 'is-box', t: P.acdb || 'ACDB', d: 'AC Protection', badge: 'AC' },
-      { img: 'flow-house.webp', cls: 'is-house', t: P.home || 'Your Property', d: '(Load Use)' },
+      { img: 'flow-panel.webp', cls: 'is-panel', t: P.array || 'Rooftop Solar', d: panelSpec },
+      { img: 'flow-db.webp', cls: 'is-box', t: P.dcdb || 'DCDB', d: 'DC Protection' },
+      { img: 'flow-inverter.webp', cls: 'is-inv', t: P.inverter || 'Inverter', d: kW ? kW + ' kW' : '' },
+      { img: 'flow-db.webp', cls: 'is-box', t: P.acdb || 'ACDB', d: 'AC Protection' },
+      { img: 'flow-house.webp', cls: 'is-house', t: P.home || 'Your Property', d: 'Load / Use' },
       { img: 'flow-meter.webp', cls: 'is-meter', t: P.meter || 'Bi-Directional Meter', d: 'Net Metering' },
-      { svg: 'tower', cls: 'is-grid', t: 'Utility Grid', d: P.grid ? '(' + String(P.grid).replace(/\s*\(([^)]*)\)\s*$/, ' / $1') + ')' : '(DISCOM)' }
+      { svg: 'tower', cls: 'is-grid', t: P.grid || 'Utility Grid', d: 'Import / Export' }
     ];
-    /* Link i joins node i-1 to node i. DCDB -> inverter is still DC, so the first
-       two links are green; everything from the inverter outwards is AC. The meter
-       and the grid trade power in both directions. */
+    /* Link i joins node i-1 to node i. Everything up to the inverter is DC and
+       green; from the inverter outwards it is AC and navy. The meter and the grid
+       trade power both ways, so that link is the block pair. */
     const links = [
       { tone: 'dc' },
       { tone: 'dc' },
       { tone: 'ac' },
       { tone: 'ac' },
       { tone: 'ac' },
-      { tone: 'bi', dir: 'both', note: 'Import / Export' }
+      { tone: 'bi', dir: 'both' }
     ];
-    return '<div class="pv2-flow">' + nodes.map((n, i) => {
-      const link = i ? links[i - 1] || {} : null;
-      return (link ? '<span class="pv2-arrow' + (link.note ? ' has-note' : '') + '">' +
-        arrow(link.dir || 'right', link.tone) +
-        (link.note ? '<i>' + esc(link.note) + '</i>' : '') + '</span>' : '') +
-      '<div class="pv2-node ' + n.cls + '">' +
-      (n.badge ? '<span class="pv2-badge is-' + n.badge.toLowerCase() + '">' + n.badge + '</span>' : '') +
-      '<div class="pv2-node-art">' + (n.svg ? icon(n.svg, 62, 'pv2-tower', 1.25) : '<img src="' + IMG + 'proposal/' + n.img + '" alt="" decoding="sync">') + '</div>' +
-      '<b>' + esc(n.t) + '</b>' + (n.d ? '<small>' + esc(n.d) + '</small>' : '') + '</div>';
-    }).join('') + '</div>';
+    /* The DC group runs panel -> ACDB, the AC group ACDB -> grid. Their badges are
+       outlined pills per his reference - green ring for DC, navy for AC. */
+    const badge = (text, cls) => '<span class="pv2-grp is-' + cls + '">' + esc(text) + '</span>';
+    return '<div class="pv2-flow">' +
+      '<div class="pv2-grp-row">' +
+        '<div class="pv2-grp-wrap is-dc">' + badge(P.dc || 'DC', 'dc') + '</div>' +
+        '<div class="pv2-grp-wrap is-ac">' + badge(P.ac || 'AC', 'ac') + '</div>' +
+      '</div>' +
+      '<div class="pv2-flow-row">' + nodes.map((n, i) => {
+        const link = i ? links[i - 1] || {} : null;
+        return (link ? '<span class="pv2-arrow' + (link.dir === 'both' ? ' is-both' : '') + '">' +
+          arrow(link.dir || 'right', link.tone) + '</span>' : '') +
+        '<div class="pv2-node ' + n.cls + '">' +
+          '<div class="pv2-node-art">' + (n.svg ? icon(n.svg, 62, 'pv2-tower', 1.25) :
+            '<img src="' + IMG + 'proposal/' + n.img + '" alt="" decoding="sync">') + '</div>' +
+          '<b>' + esc(n.t) + '</b>' + (n.d ? '<small>' + esc(n.d) + '</small>' : '') + '</div>';
+      }).join('') + '</div>' +
+    '</div>';
   }
   function solution(s, f) {
     const page = $('pageSolution'); if (!page) return;
@@ -213,7 +225,13 @@
     /* The artwork was cropped down to just the flow box, so the section heading is
        the page's own again. The box no longer prints a second note - the render
        carries that - which is what stopped the section reading as duplication. */
-    ov.innerHTML = label(P.diagramTitle || 'SYSTEM OVERVIEW') + '<div class="pv2-ov-box">' + overviewArt() + '</div>';
+    /* The flow is drawn live now instead of being the owner's finished raster. The
+       raster could not carry a quote - its labels and its "13 x 545 Wp" / "7 kW"
+       were baked in, so they printed the same numbers for every customer, and
+       nothing in it could be text-sharp at any zoom. Every label below is the same
+       editable content the rest of the proposal uses, and every arrow and badge is
+       SVG. His drawings still supply the seven equipment images. */
+    ov.innerHTML = label(P.diagramTitle || 'SYSTEM OVERVIEW') + '<div class="pv2-ov-box">' + flowDiagram(s, f) + '</div>';
     /* The artwork carries its own note, so the boilerplate scope note would print
        the same advice twice. It is only suppressed while it is boilerplate: when
        an additional system (battery, rainwater) is quoted, the renderer puts the

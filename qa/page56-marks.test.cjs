@@ -230,14 +230,34 @@ t('the space came from padding and gaps, not from shrinking the body copy', () =
 });
 
 /* ------------------------------- page 5 overview is the owner's own render */
-t('the system overview is the owner’s artwork, not a code-built diagram', () => {
-  assert.match(js, /const OVERVIEW_ART = IMG \+ 'proposal\/system-overview-flow\.webp'/,
-    'one render, declared once');
-  assert.match(js, /function overviewArt\(\)/, 'and emitted by its own function');
-  assert.match(js, /'<div class="pv2-ov-box">' \+ overviewArt\(\)/,
-    'the overview box shows the render');
-  assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp')),
-    'the file is there');
+t('the system overview is a live diagram, not a picture of one', () => {
+  /* It was his finished render for a while, and that was wrong in a way only he
+     caught: the labels and the "13 x 545 Wp" / "7 kW" were painted into it, so
+     every quote printed the same numbers, and no raster can stay sharp at every
+     zoom. The flow is drawn from the same content the rest of the proposal reads,
+     and the links and badges are SVG. */
+  assert.match(js, /'<div class="pv2-ov-box">' \+ flowDiagram\(s, f\)/,
+    'the overview box draws the flow');
+  assert.doesNotMatch(js, /'<div class="pv2-ov-box">' \+ overviewArt\(\)/,
+    'and no longer pastes the render into it');
+
+  /* the numbers have to come from the quote, not from the artwork */
+  const flowRaw = js.slice(js.indexOf('function flowDiagram('), js.indexOf('function solution('));
+  /* comments explain the old bug and quote it; only the code has to be clean */
+  const flow = flowRaw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.match(flow, /f\.moduleCount/, 'the module count is read from the quote');
+  assert.match(flow, /f\.moduleWattage/, 'and the module wattage');
+  assert.match(flow, /f\.inverterKw/, 'and the inverter size');
+  assert.doesNotMatch(flow, /545|13 ×|7 kW/, 'nothing is hard-coded in the diagram');
+
+  /* every label is one of the editable diagram labels */
+  for (const key of ['array', 'dcdb', 'inverter', 'acdb', 'home', 'meter', 'grid']) {
+    assert.match(flow, new RegExp('P\\.' + key), `${key} comes from diagramLabels`);
+  }
+  /* and the links and badges are vector, so they cannot blur */
+  assert.match(flow, /arrow\(link\.dir \|\| 'right', link\.tone\)/, 'links are drawn, not cropped');
+  assert.match(js, /<svg class="pv2-link-svg"/, 'the link art is SVG');
+  assert.match(js, /<span class="pv2-grp is-/, 'the DC / AC badges are markup, not pixels');
 });
 
 t('the artwork is not dressed a second time', () => {
@@ -418,29 +438,22 @@ t('the overview is stored lossless, at full native width', () => {
   assert.ok(sharp > 8.5, `the label band is crisp, scored ${sharp.toFixed(2)} (a re-encoded copy scores under 8.5)`);
 });
 
-t('the overview is drawn from a copy pre-sized for the 718px column', () => {
-  /* Softness here is a scale problem before it is an encoding one. The sheet draws
-     the overview into about 718px while the owner's raster is 2144px wide, so the
-     browser resamples 3:1 and the 8.5px labels come out mushy. A 2x copy is
-     pre-reduced and sharpened for that column; the full-res file stays in srcset
-     for retina, where it is genuinely used. */
-  const cssPath = path.join(ROOT, 'assets/css/proposal-v2.css');
-  const col = 718;
-  const twoX = path.join(ROOT, 'assets/images/proposal/system-overview-flow-2x.webp');
-  const [w, h] = execFileSync('identify', ['-format', '%w %h', twoX], { encoding: 'utf8' })
-    .trim().split(/\s+/).map(Number);
-  assert.ok(w >= col * 2 - 8 && w <= col * 2 + 8,
-    `the 2x copy is about twice the column, got ${w}px for a ${col}px column`);
-
-  const buf = fs.readFileSync(twoX);
-  const chunk = buf.slice(buf.indexOf('WEBP') + 4, buf.indexOf('WEBP') + 8).toString();
-  assert.strictEqual(chunk, 'VP8L', 'and it is lossless too, so the pre-reduction is the only resample');
-
-  const art = js.slice(js.indexOf('function overviewArt()'), js.indexOf('function flowDiagram('));
-  assert.match(art, /srcset/, 'the image offers both copies so the browser can choose');
-  assert.match(art, /OVERVIEW_ART_2X \+ ' 2x/, 'the pre-sized copy is the 2x candidate');
-  assert.match(art, /OVERVIEW_ART \+ ' 3x/, 'the full-res original is the 3x candidate');
-  assert.match(art, /src="' \+ OVERVIEW_ART_2X/, 'and the pre-sized copy is the fallback, not the 2144px one');
+t('nothing on page 5 is a raster of text any more', () => {
+  /* The whole reason for the rebuild: softness was baked in. Anything that carries
+     a label, a number, an arrow or a badge is markup now, and the only rasters left
+     are the seven equipment photos, which are pictures by nature. */
+  const flowRaw = js.slice(js.indexOf('function flowDiagram('), js.indexOf('function solution('));
+  const photos = [...flowRaw.matchAll(/flow-[a-z]+\.webp/g)].map((m) => m[0]);
+  const allowed = ['flow-panel.webp', 'flow-db.webp', 'flow-inverter.webp',
+    'flow-house.webp', 'flow-meter.webp'];
+  for (const p of new Set(photos)) {
+    assert.ok(allowed.includes(p), `${p} is equipment art, not a diagram of text`);
+  }
+  assert.doesNotMatch(js, /system-overview-flow/, 'the baked diagram is no longer referenced');
+  /* and the labels are real text, on the page, in the page's own font */
+  assert.match(js, /'<b>' \+ esc\(n\.t\) \+ '<\/b>'/, 'node titles are text');
+  assert.match(js, /'<small>' \+ esc\(n\.d\)/, 'node values are text');
+  assert.match(css, /\.pv2 \.pv2-node b\{font:700 /, 'and they are set in the page font');
 });
 
 t('the overview box adds no frame of its own around that render', () => {
@@ -571,10 +584,11 @@ t('card 04 shows the standards render and states what it is', () => {
 });
 
 /* --------------------------------------- page 5 overview got its room back */
-t('the system overview artwork is taller than it was', () => {
-  assert.match(css, /\.pv2 \.pv2-node-art\{height:108px/, 'node artwork 84px -> 108px');
-  assert.match(css, /\.pv2-solution\.pv2-fit-2 \.pv2-node-art\{height:92px;\}/,
-    'and the tight step keeps most of that gain (was 70px)');
+t('the node artwork has one height, so the equipment sits on one line', () => {
+  assert.match(css, /\.pv2 \.pv2-node-art\{height:86px/,
+    'one art height for every node - the images line up on a single baseline');
+  /* the arrow is the thing that used to drift; it is anchored to that same line */
+  assert.match(css, /\.pv2 \.pv2-arrow\{[^}]*margin-bottom:62px/, 'links sit on the equipment line');
 });
 
 t('overview and note share one gap value on page 5', () => {
