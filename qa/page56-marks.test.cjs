@@ -272,34 +272,57 @@ t('the overview render is stored at full resolution', () => {
   assert.ok(size.w >= 2000, `the render must stay at source width, got ${size.w}px`);
 });
 
-t('the DC / AC pills are drawn by the page, outlined, in green and orange', () => {
-  assert.match(js, /class="pv2-pill is-dc"[^>]*>DC</, 'DC pill');
-  assert.match(js, /class="pv2-pill is-ac"[^>]*>AC</, 'AC pill');
-  assert.match(css, /\.pv2-solution \.pv2-pill\{[^}]*border:1\.6px solid currentColor/,
-    'outlined, as in the reference');
-  assert.match(css, /\.pv2-solution \.pv2-pill\.is-dc\{[^}]*color:#1E9E63/, 'DC is green');
-  assert.match(css, /\.pv2-solution \.pv2-pill\.is-ac\{[^}]*color:#F2811D/, 'AC is orange');
+t('the DC / AC pills are cut from the render itself', () => {
+  /* Drawing them in CSS made an approximation of his artwork. They are cut out of
+     his PNG now, so the fill, the weight and the corner radius are his own. */
+  assert.match(js, /class="pv2-pill is-dc" src="' \+ IMG \+ 'proposal\/flow-pill-dc\.webp/,
+    'the DC pill is the render crop');
+  assert.match(js, /class="pv2-pill is-ac" src="' \+ IMG \+ 'proposal\/flow-pill-ac\.webp/,
+    'the AC pill is the render crop');
+  for (const f of ['flow-pill-dc.webp', 'flow-pill-ac.webp']) {
+    assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/proposal/' + f)), f + ' exists');
+  }
+  assert.match(css, /\.pv2-solution \.pv2-pill\.is-dc\{left:26\.2%;top:13%;\}/, 'DC sits over the DC group');
+  assert.match(css, /\.pv2-solution \.pv2-pill\.is-ac\{left:68\.1%;top:13%;\}/, 'AC sits over the AC group');
 });
 
-t('the meter <-> grid link reads as two block arrows, orange out green back', () => {
-  /* He sent the shape he wanted: two solid block arrows facing away from each
-     other, blue replaced with orange. They live in the raster, so the check is on
-     the artwork's own pixels - the green is the flow's green, the orange the
-     flow's orange. */
+t('the meter <-> grid link is his chevron pair, untouched', () => {
+  /* He sent the shape twice: two chevrons with diagonal ends, orange facing the
+     metre and green facing the grid. They are already in his render - so the only
+     correct thing to do is not paint over them. This probes the artwork at the
+     chevron bodies so a painted-over patch fails the suite. */
   const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
   const probe = (x, y) => {
     const out = execFileSync('convert', [file, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
     const [r, g, b] = out.match(/\d+/g).map(Number);
     return { r, g, b };
   };
-  const left = probe(1810, 232), right = probe(1935, 232);
-  assert.ok(left.r > 180 && left.g > 70 && left.g < 170 && left.b < 60,
-    `the left arrow must be orange, got rgb(${left.r},${left.g},${left.b})`);
-  assert.ok(right.g > 130 && right.r < 120, `the right arrow must be green, got rgb(${right.r},${right.g},${right.b})`);
-  /* No thin shaft left behind: the old arrangement had a coloured bar between the
-     heads, which is what he rejected. Mid-gap must now be paper. */
-  const mid = probe(1872, 232);
-  assert.ok(mid.r > 235 && mid.g > 235 && mid.b > 235, 'the two arrows are separate, not one bar');
+  /* sweep the link's band; at least a few columns must be orange and a few green */
+  let oranges = 0, greens = 0;
+  for (let x = 1770; x <= 1960; x += 4) {
+    const p = probe(x, 236);
+    if (p.r > 200 && p.g > 80 && p.g < 180 && p.b < 80) oranges++;
+    if (p.g > 120 && p.r < 130 && p.b < 110) greens++;
+  }
+  assert.ok(oranges > 2, `the left chevron must be orange, found ${oranges} orange columns`);
+  assert.ok(greens > 2, `the right chevron must be green, found ${greens} green columns`);
+});
+
+t('the tower keeps its insulator horns on both sides', () => {
+  /* Painting a white block over this area once took the left-hand horns off. They
+     are small orange bodies against paper, on both sides of the tower. */
+  const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
+  const isHorn = (x, y) => {
+    const out = execFileSync('convert', [file, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
+    const [r, g, b] = out.match(/\d+/g).map(Number);
+    return r > 110 && r > g + 35 && b < 110;
+  };
+  const anyHorn = (x0, x1, y0, y1) => {
+    for (let x = x0; x < x1; x += 2) for (let y = y0; y < y1; y += 2) if (isHorn(x, y)) return true;
+    return false;
+  };
+  assert.ok(anyHorn(1850, 1930, 130, 300), 'the left-hand horns are still there');
+  assert.ok(anyHorn(1930, 1990, 130, 300), 'and so are the right-hand ones');
 });
 
 t('the overview box adds no frame of its own around that render', () => {

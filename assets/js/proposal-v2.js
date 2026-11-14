@@ -133,8 +133,8 @@
      link he asked to improve is patched into the raster itself - it is artwork,
      not markup, so it cannot be overlaid. */
   const FLOW_MARKS =
-    '<span class="pv2-pill is-dc" aria-hidden="true">DC</span>' +
-    '<span class="pv2-pill is-ac" aria-hidden="true">AC</span>';
+    '<img class="pv2-pill is-dc" src="' + IMG + 'proposal/flow-pill-dc.webp" alt="" aria-hidden="true" decoding="sync">' +
+    '<img class="pv2-pill is-ac" src="' + IMG + 'proposal/flow-pill-ac.webp" alt="" aria-hidden="true" decoding="sync">';
   function overviewArt() {
     const alt = 'Solar to grid system overview';
     return '<span class="pv2-ov-stack">' +
