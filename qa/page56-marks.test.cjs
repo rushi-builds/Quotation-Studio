@@ -588,11 +588,24 @@ t('the node artwork has one height, so the equipment sits on one line', () => {
   assert.match(css, /\.pv2 \.pv2-node-art\{height:86px/,
     'one art height for every node - the images line up on a single baseline');
   /* the arrow is the thing that used to drift; it is anchored to that same line */
-  /* the link is absolutely placed at the centre of its own gap, on the equipment
-     line - a flex row would have taken width from that gap instead */
-  assert.match(css, /\.pv2 \.pv2-flow-row\{position:relative;\}/, 'the row is the positioning context');
-  assert.match(css, /\.pv2 \.pv2-arrow\{position:absolute;[^}]*top:33px/, 'links are parked on the equipment line');
-  assert.match(js, /const linkX = \(i\)/, 'and each link is centred in its own gap');
+  /* Nodes and links share one flex row, and their widths are chosen so the seven
+     nodes plus six links add up to the column. Positioning the links absolutely
+     put them on top of the equipment, which is what broke the diagram; a fixed
+     width per item cannot do that. */
+  assert.match(css, /\.pv2 \.pv2-flow-row\{display:flex/, 'nodes and links are one row');
+  assert.match(css, /\.pv2 \.pv2-arrow\{flex:0 0 \d+px/, 'each link owns a fixed slot');
+  assert.doesNotMatch(css, /\.pv2 \.pv2-arrow\{position:absolute/, 'links are not absolutely placed');
+  assert.doesNotMatch(js, /style="left:/, 'and nothing is hand-positioned in the markup');
+
+  /* the widths have to add up, or the last node overflows the sheet */
+  const widths = [...css.matchAll(/\.pv2 \.pv2-node(\.is-\w+)?\{width:(\d+)px;\}/g)]
+    .map((m) => Number(m[2]));
+  const nodeTotal = widths.reduce((a, b) => a + b, 0);
+  const links = Number(css.match(/\.pv2 \.pv2-arrow\{flex:0 0 (\d+)px/)[1]) * 6;
+  /* they should fill the column - a gap here means the equipment is bunched on
+     the left with dead space beside it */
+  assert.equal(nodeTotal + links, 718,
+    `nodes + links must fill the 718px column exactly, got ${nodeTotal + links}px`);
 });
 
 t('the note gets more air than the blocks above it', () => {

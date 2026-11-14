@@ -175,12 +175,6 @@
     /* The DC group runs panel -> ACDB, the AC group ACDB -> grid. Their badges are
        outlined pills per his reference - green ring for DC, navy for AC. */
     const badge = (text, cls) => '<span class="pv2-grp is-' + cls + '">' + esc(text) + '</span>';
-    /* The gaps between nodes are known from their widths, so each link is placed
-       at the centre of its own gap. A flex row could not do this - the links would
-       take width from the very gaps they are meant to sit in. */
-    const W = [98, 66, 66, 66, 80, 84, 84];
-    const col = 718, gap = (col - W.reduce((a, b) => a + b, 0)) / (W.length - 1);
-    const linkX = (i) => W.slice(0, i).reduce((a, b) => a + b, 0) + gap * i + gap / 2;
     return '<div class="pv2-flow">' +
       '<div class="pv2-grp-row">' +
         '<div class="pv2-grp-wrap is-dc">' + badge(P.dc || 'DC', 'dc') + '</div>' +
@@ -188,8 +182,7 @@
       '</div>' +
       '<div class="pv2-flow-row">' + nodes.map((n, i) => {
         const link = i ? links[i - 1] || {} : null;
-        return (link ? '<span class="pv2-arrow' + (link.dir === 'both' ? ' is-both' : '') +
-          '" style="left:' + (linkX(i - 1) - 13).toFixed(1) + 'px">' +
+        return (link ? '<span class="pv2-arrow' + (link.dir === 'both' ? ' is-both' : '') + '">' +
           arrow(link.dir || 'right', link.tone) + '</span>' : '') +
         '<div class="pv2-node ' + n.cls + '">' +
           '<div class="pv2-node-art">' +

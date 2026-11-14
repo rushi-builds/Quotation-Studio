@@ -125,27 +125,34 @@
 .pv2-solution .pv2-ov-art{display:block;width:100%;height:auto;border-radius:12px;
   image-rendering:-webkit-optimize-contrast;image-rendering:high-quality;}
 .pv2 .pv2-flow{display:block;}
-/* The two group badges sit above the row, over the stretch of nodes each one
-   covers, exactly where the owner's drawing puts them. */
-.pv2 .pv2-grp-row{position:relative;height:30px;margin-bottom:14px;}
+/* The two group badges sit above the row, each centred over the stretch of nodes
+   it covers. They are sized by their own text - `display:table` and a content box
+   is what keeps a block-level badge from stretching across its whole wrap, which
+   is exactly what it did when this was written as a block with auto margins. */
+.pv2 .pv2-grp-row{position:relative;height:26px;margin-bottom:12px;}
 .pv2 .pv2-grp-wrap{position:absolute;top:0;}
-.pv2 .pv2-grp-wrap.is-dc{left:4.5%;width:41%;}
-.pv2 .pv2-grp-wrap.is-ac{left:61%;width:29%;}
-.pv2 .pv2-grp{display:block;margin:0 auto;height:23px;padding:0 13px;border-radius:7px;
+.pv2 .pv2-grp-wrap.is-dc{left:3%;width:46%;}
+.pv2 .pv2-grp-wrap.is-ac{left:58%;width:34%;}
+.pv2 .pv2-grp{display:table;margin:0 auto;padding:2px 14px 3px;border-radius:7px;
   border:2.5px solid #1E9E63;background:#fff;color:#1E9E63;
-  font:700 12.5px/18px 'Poppins','Inter',sans-serif;text-align:center;letter-spacing:.03em;
-  white-space:nowrap;box-sizing:content-box;}
+  font:700 12.5px/1.35 'Poppins','Inter',sans-serif;letter-spacing:.04em;white-space:nowrap;}
 .pv2 .pv2-grp.is-ac{border-color:#14263A;color:#14263A;}
 
+/* Nodes and links share one row. The links are ordinary flex items with a fixed
+   width, and the node widths are chosen so the seven nodes plus six links add up
+   to the column - so a link always lands in the gap it belongs to and can never
+   ride over a box. (Positioning them absolutely is what put them on top of the
+   equipment.) */
 .pv2 .pv2-flow-row{display:flex;align-items:flex-end;justify-content:space-between;}
-.pv2 .pv2-node{flex:0 0 auto;width:66px;text-align:center;display:flex;flex-direction:column;align-items:center;}
-.pv2 .pv2-node.is-panel{width:98px;}
-.pv2 .pv2-node.is-house{width:80px;}
-.pv2 .pv2-node.is-meter{width:84px;}
-.pv2 .pv2-node.is-grid{width:84px;}
-/* One fixed art height for every node, so the equipment line sits on a single
-   baseline and the images are drawn at their natural size - the raster at this
-   size was what looked soft. */
+.pv2 .pv2-node{flex:0 0 auto;text-align:center;display:flex;flex-direction:column;align-items:center;}
+.pv2 .pv2-node.is-panel{width:112px;}
+.pv2 .pv2-node.is-box{width:76px;}
+.pv2 .pv2-node.is-inv{width:76px;}
+.pv2 .pv2-node.is-house{width:90px;}
+.pv2 .pv2-node.is-meter{width:94px;}
+.pv2 .pv2-node.is-grid{width:96px;}
+/* One art height for every node, so the equipment sits on a single line and the
+   images are drawn at their natural size instead of being stretched. */
 .pv2 .pv2-node-art{height:86px;width:100%;display:flex;align-items:flex-end;justify-content:center;margin-bottom:8px;}
 .pv2 .pv2-node-art img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;
   filter:drop-shadow(0 3px 4px rgba(20,38,58,.12));}
@@ -154,18 +161,18 @@
 .pv2 .pv2-node.is-inv img{max-height:76px;}
 .pv2 .pv2-node.is-house img{max-height:64px;}
 .pv2 .pv2-node.is-meter img{max-height:68px;}
-.pv2 .pv2-node.is-grid img,.pv2 .pv2-tower{color:var(--pv2-navy);width:58px;height:74px;}
+/* the tower is a wide drawing (218x190), so it is bounded by height only -
+   forcing a width on it is what squashed it */
+.pv2 .pv2-node.is-grid img{max-height:74px;max-width:86px;}
 .pv2 .pv2-node b{font:700 10.5px/1.25 'Poppins','Inter',sans-serif;color:var(--pv2-navy);}
 .pv2 .pv2-node small{font-size:9.5px;line-height:1.3;color:#4A5565;margin-top:1px;white-space:nowrap;}
-/* links sit on the equipment line, not on the captions */
-/* The links are pulled out of the flex flow and parked in the gaps between the
-   equipment, so they read as the join between two boxes rather than as a column of
-   their own. They sit on the equipment line, not on the captions. */
-.pv2 .pv2-flow-row{position:relative;}
-.pv2 .pv2-arrow{position:absolute;display:flex;align-items:center;top:33px;}
+
+/* The links are flex items of their own, parked on the equipment line: the art is
+   86px tall and the link 18px, so 34px of bottom margin centres it at 43px - the
+   same centre as the equipment above the captions. */
+.pv2 .pv2-arrow{flex:0 0 29px;width:29px;display:flex;align-items:center;justify-content:center;margin-bottom:34px;}
 .pv2 .pv2-arrow svg{display:block;}
-.pv2 .pv2-arrow svg path{fill:currentColor;}
-.pv2 .pv2-arrow.is-both svg{width:34px;height:24px;}
+.pv2 .pv2-arrow.is-both svg{width:26px;height:20px;}
 
 .pv2-solution #v_soScopeNote{margin-top:22px;}
 
@@ -272,7 +279,7 @@
 #pageTechSpec.pv2.pv2-fit-3 .pg-body > .note-box{padding-top:7px;padding-bottom:7px;font-size:9.4px;}
 .pv2-tech.pv2-fit-4 .pv2-k,.pv2-tech.pv2-fit-4 .pv2-v{font-size:8.8px;padding-top:1.5px;padding-bottom:1.5px;}
 .pv2-tech.pv2-fit-4 .pv2-k .pv2-svg{width:12px;height:12px;}
-.pv2 .pv2-node.is-house{width:84px;}.pv2 .pv2-node.is-house b{white-space:nowrap;}
+.pv2 .pv2-node.is-house b{white-space:nowrap;}
 
 .pv2-tech .pv2-brand.is-ars b{color:#D7202A;font-style:italic;font-weight:900;font-size:21px;letter-spacing:-.5px;}
 .pv2-tech .pv2-brand.is-ars small{color:#1C2B3F;font-weight:700;font-size:9.5px;}
