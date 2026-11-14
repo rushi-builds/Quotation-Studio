@@ -292,53 +292,43 @@ t('the DC / AC pills are outlined, in the artwork, and not overlaid twice', () =
   assert.ok(acIn[0] > 240 && acIn[1] > 240 && acIn[2] > 240, 'the AC pill is hollow');
 });
 
-t('the meter <-> grid link uses his block arrows, both of them', () => {
-  /* Second attempt, his correction: BOTH arrows in that gap are the block shape he
-     sent - orange pointing back to the meter, green pointing out to the grid - not
-     one replaced and one left as a chevron. The asset is his file, flattened onto
-     white so it composites into the flat artwork without a halo. */
+t('both two-way links use his block arrows, at one shared size', () => {
+  /* His correction: not just the grid link. The house <-> meter link is two-way as
+     well, so it gets the same pair - and both pairs are drawn at the same scale so
+     the diagram reads evenly. The five one-way links stay chevrons. */
   const src = path.join(ROOT, 'assets/images/proposal/bidir-arrow.png');
   assert.ok(fs.existsSync(src), 'his arrow art is stored as its own asset');
-  const probeSrc = (x, y) => {
-    const out = execFileSync('convert', [src, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
-    return out.match(/\d+/g).map(Number);
-  };
-  /* his 65x42 file: left head orange, right head green */
-  const l = probeSrc(23, 21), r = probeSrc(44, 21);
-  assert.ok(l[0] > 200 && l[1] > 80 && l[1] < 180 && l[2] < 80,
-    `the left arrow is orange, got rgb(${l.slice(0, 3)})`);
-  assert.ok(r[1] > 120 && r[0] < 130 && r[2] < 110,
-    `the right arrow is green, got rgb(${r.slice(0, 3)})`);
 
-  /* both heads are composited into the gap, at the same height as the chevrons */
   const file = path.join(ROOT, 'assets/images/proposal/system-overview-flow.webp');
-  const probe = (x, y) => {
-    const out = execFileSync('convert', [file, '-format', `%[pixel:p{${x},${y}}]`, 'info:'], { encoding: 'utf8' });
-    return out.match(/\d+/g).map(Number);
-  };
-  let oranges = 0, greens = 0, orangeX = [], greenX = [];
-  for (let x = 1798; x <= 1882; x += 2) {
-    let isOrange = false, isGreen = false;
-    for (let y = 215; y <= 250; y += 2) {
-      const p = probe(x, y);
-      if (p[0] > 200 && p[1] > 80 && p[1] < 180 && p[2] < 80) isOrange = true;
-      if (p[1] > 120 && p[0] < 130 && p[2] < 110) isGreen = true;
+  const box = (x0, x1) => {
+    let minX = 1e9, minY = 1e9, maxX = -1, maxY = -1, o = 0, g = 0;
+    const out = execFileSync('convert', [file, '-crop', `${x1 - x0}x100+${x0}+200`, '+repage', 'txt:-'],
+      { encoding: 'utf8', maxBuffer: 1 << 26 });
+    for (const line of out.split('\n')) {
+      const m = line.match(/^(\d+),(\d+):.*?\((\d+),(\d+),(\d+)/);
+      if (!m) continue;
+      const x = +m[1] + x0, y = +m[2] + 200, r = +m[3], gg = +m[4], b = +m[5];
+      const isO = r > 180 && r - b > 90 && r - gg > 40;
+      const isG = gg > 100 && gg - r > 40 && gg - b > 40;
+      if (!isO && !isG) continue;
+      if (isO) o++; else g++;
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
     }
-    if (isOrange) { oranges++; orangeX.push(x); }
-    if (isGreen) { greens++; greenX.push(x); }
-  }
-  assert.ok(oranges > 3, `orange arrow missing from the render, found ${oranges} columns`);
-  assert.ok(greens > 3, `green arrow missing from the render, found ${greens} columns`);
-  /* and they are side by side, orange on the left of green - one arrow each way */
-  assert.ok(Math.max(...orangeX) < Math.min(...greenX),
-    'the orange head sits to the left of the green head');
-});
+    return { w: maxX - minX + 1, h: maxY - minY + 1, o, g };
+  };
 
-t('the art that is superseded is gone', () => {
-  /* Neither the chevrons from the render nor the first arrow attempt is left in
-     the tree to be composited back in by mistake. */
-  assert.ok(!fs.existsSync(path.join(ROOT, 'assets/images/proposal/bidir-chevrons.png')),
-    'the earlier chopper asset is removed');
+  /* the two-way gaps, in native 2144 space */
+  const houseMeter = box(1480, 1595);
+  const meterGrid = box(1790, 1890);
+  for (const [name, b] of [['house <-> meter', houseMeter], ['meter <-> grid', meterGrid]]) {
+    assert.ok(b.o > 40, `${name}: orange arrow present (${b.o}px)`);
+    assert.ok(b.g > 40, `${name}: green arrow present (${b.g}px)`);
+    assert.ok(b.w > 60, `${name}: the pair is drawn large, got ${b.w}px wide`);
+  }
+  /* one shared size, so the two two-way links match each other */
+  assert.ok(Math.abs(houseMeter.w - meterGrid.w) <= 4,
+    `both pairs are one width, got ${houseMeter.w} and ${meterGrid.w}`);
 });
 
 t('the overview box adds no frame of its own around that render', () => {
