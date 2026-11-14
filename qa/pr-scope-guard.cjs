@@ -242,10 +242,26 @@ const BRAND_LOGO_PATHS = /^assets\/images\/brands\/[a-z0-9-]+\.webp$/;
    page56-preview2.html, or the same name in a subfolder, still fails. */
 const PAGE56_PREVIEW_EXACT = 'page56-preview.html';
 
+/* Page 5/6 feature scope. The image files are here because the flow diagram is
+   drawn from these exact assets - the seven equipment drawings, the source copies
+   the owner supplied, and the two outlined DC / AC badge keylines. Named one by
+   one, not by a folder wildcard: a new file in that folder still has to be added
+   deliberately. */
 const PAGE56_PATHS = new Set([
   'assets/css/proposal-v2.css',
   'assets/css/proposal-values.css',
-  'assets/js/proposal-v2.js'
+  'assets/js/proposal-v2.js',
+  'assets/images/proposal/flow-panel.webp',
+  'assets/images/proposal/flow-db.webp',
+  'assets/images/proposal/flow-inverter.webp',
+  'assets/images/proposal/flow-house.webp',
+  'assets/images/proposal/flow-meter.webp',
+  'assets/images/proposal/flow-tower.webp',
+  'assets/images/proposal/flow-pill-dc.webp',
+  'assets/images/proposal/flow-pill-ac.webp',
+  'assets/images/proposal/bidir-arrow.png',
+  'assets/images/proposal/system-overview-flow.webp',
+  'assets/images/proposal/system-overview-flow-2x.webp'
 ]);
 
 const REENCODED_IMAGE_PATHS=new Set([
