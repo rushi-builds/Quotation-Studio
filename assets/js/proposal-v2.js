@@ -125,6 +125,13 @@
     return 'check';
   }
   const OVERVIEW_ART = IMG + 'proposal/system-overview-flow.webp';
+  /* The render is drawn into a 718px column but the source is a 2144px raster, so
+     the browser is always scaling it down by three. Downscaling that hard is what
+     makes small labels look soft, and no amount of encoding fixes it - the extra
+     pixels are the problem. This second copy is pre-reduced to exactly 2x the
+     column and sharpened for that size, so a normal screen draws from it at a
+     clean 2:1 and a retina screen still has the full-res original. */
+  const OVERVIEW_ART_2X = IMG + 'proposal/system-overview-flow-2x.webp';
   /* The owner supplied the finished overview - nodes, captions, the DC / AC pills
      and the meter <-> grid chevrons are all painted into it now - so the page
      shows the artwork and nothing else. The pills used to be overlaid as images
@@ -132,7 +139,9 @@
      again would only duplicate them a few pixels off. */
   function overviewArt() {
     const alt = 'Solar to grid system overview';
-    return '<img class="pv2-ov-art" src="' + OVERVIEW_ART + '" alt="' + alt + '" decoding="sync">';
+    return '<img class="pv2-ov-art" src="' + OVERVIEW_ART_2X + '"' +
+      ' srcset="' + OVERVIEW_ART_2X + ' 2x, ' + OVERVIEW_ART + ' 3x"' +
+      ' alt="' + alt + '" decoding="sync">';
   }
   function flowDiagram(s, f) {
     const P = (root.CONTENT && root.CONTENT.pageTechSpec && root.CONTENT.pageTechSpec.diagramLabels) || {};

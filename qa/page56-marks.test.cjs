@@ -418,6 +418,31 @@ t('the overview is stored lossless, at full native width', () => {
   assert.ok(sharp > 8.5, `the label band is crisp, scored ${sharp.toFixed(2)} (a re-encoded copy scores under 8.5)`);
 });
 
+t('the overview is drawn from a copy pre-sized for the 718px column', () => {
+  /* Softness here is a scale problem before it is an encoding one. The sheet draws
+     the overview into about 718px while the owner's raster is 2144px wide, so the
+     browser resamples 3:1 and the 8.5px labels come out mushy. A 2x copy is
+     pre-reduced and sharpened for that column; the full-res file stays in srcset
+     for retina, where it is genuinely used. */
+  const cssPath = path.join(ROOT, 'assets/css/proposal-v2.css');
+  const col = 718;
+  const twoX = path.join(ROOT, 'assets/images/proposal/system-overview-flow-2x.webp');
+  const [w, h] = execFileSync('identify', ['-format', '%w %h', twoX], { encoding: 'utf8' })
+    .trim().split(/\s+/).map(Number);
+  assert.ok(w >= col * 2 - 8 && w <= col * 2 + 8,
+    `the 2x copy is about twice the column, got ${w}px for a ${col}px column`);
+
+  const buf = fs.readFileSync(twoX);
+  const chunk = buf.slice(buf.indexOf('WEBP') + 4, buf.indexOf('WEBP') + 8).toString();
+  assert.strictEqual(chunk, 'VP8L', 'and it is lossless too, so the pre-reduction is the only resample');
+
+  const art = js.slice(js.indexOf('function overviewArt()'), js.indexOf('function flowDiagram('));
+  assert.match(art, /srcset/, 'the image offers both copies so the browser can choose');
+  assert.match(art, /OVERVIEW_ART_2X \+ ' 2x/, 'the pre-sized copy is the 2x candidate');
+  assert.match(art, /OVERVIEW_ART \+ ' 3x/, 'the full-res original is the 3x candidate');
+  assert.match(art, /src="' \+ OVERVIEW_ART_2X/, 'and the pre-sized copy is the fallback, not the 2144px one');
+});
+
 t('the overview box adds no frame of its own around that render', () => {
   const box = css.match(/\.pv2-solution \.pv2-ov-box\{([^}]*)\}/)[1];
   assert.match(box, /border:0/, 'the render already has its rounded frame');
