@@ -474,7 +474,11 @@ t('two nodes that share a class are still counted twice', () => {
      and it should come close to filling it, so the equipment is not bunched. */
   const total = nodeTotal + link * (classes.length - 1);
   assert.ok(total <= 718, `the row must fit the column, got ${total}px`);
-  assert.ok(total >= 700, `and use it, got ${total}px of 718`);
+  /* The lower bound used to be 700 "so the equipment is not bunched". It is not a
+     free number any more: the node widths are the smallest that still let each
+     drawing bind by HEIGHT (see the width rules), so the row is sized by the
+     artwork, not padded to fill. 90% of the column is the real remaining check. */
+  assert.ok(total >= 718 * 0.9, `and use most of it, got ${total}px of 718`);
 });
 
 t('the link shapes are the ones that were verified on screen', () => {
@@ -525,8 +529,9 @@ t('the tower sits on the sheet with no white plate behind it', () => {
 t('the links sit on the centre of the equipment, not down by the captions', () => {
   /* The row is bottom-aligned, so a link's position is set by its bottom margin.
      At 46px the link sat among the captions - he reported the arrows as "bohot
-     niche" twice. The only correct value is the one that centres the link on the
-     86px art, so it is derived here rather than guessed. */
+     niche" twice. The value is derived here from the row's own numbers rather than
+     guessed, and the art height is read from the stylesheet: an earlier version of
+     this check hard-coded the art as 86px, which had already drifted to 76px. */
   const num = (re) => {
     const m = css.match(re);
     assert.ok(m, `missing ${re}`);
@@ -537,13 +542,41 @@ t('the links sit on the centre of the equipment, not down by the captions', () =
   const capGap = num(/\.pv2 \.pv2-node small\{[^}]*margin-top:(\d+)px/);
   const artH = num(/\.pv2 \.pv2-node-art\{height:(\d+)px/);
   const artGap = num(/\.pv2 \.pv2-node-art\{[^}]*margin-bottom:(\d+)px/);
-  const linkH = num(/\.pv2 \.pv2-arrow\{flex:0 0 \d+px;width:\d+px;display:flex;align-items:center;justify-content:center;margin-bottom:(\d+)px/);
+  const linkMargin = num(/\.pv2 \.pv2-arrow\{[^}]*margin-bottom:(\d+)px/);
 
   const capBlock = capSmall + capGap + capBold;
-  const artCentre = capBlock + artGap + artH / 2;
-  const linkCentre = linkH + 9;          /* the link art is 18px tall */
+  const artCentre = capBlock + artGap + artH / 2;   /* from the row's bottom edge */
+  const linkCentre = linkMargin + 9;                /* the link art is 18px tall */
   assert.ok(Math.abs(artCentre - linkCentre) <= 2,
     `the link centre must meet the art centre, got ${linkCentre} vs ${artCentre.toFixed(1)}px from the row bottom`);
+});
+
+t('REGRESSION: every drawing paints at the art height, not shrunk by its node', () => {
+  /* This is what actually kept the links off the equipment's centre, and it is not
+     a margin problem at all. The art box is object-fit:contain, so a drawing is
+     only artH tall when its node is wide enough that the HEIGHT binds first; a
+     narrower node shrinks the drawing instead. Panel (300x211) and house (300x233)
+     are landscape, and at the old 84/70px widths they painted 59.1px and 54.4px
+     while the portrait ones filled 76px - a 21.6px spread, so no single margin
+     could ever centre the links on all seven. */
+  const artH = Number(css.match(/\.pv2 \.pv2-node-art\{height:(\d+)px/)[1]);
+  const widths = {};
+  for (const m of css.matchAll(/\.pv2 \.pv2-node\.(is-\w+)\{width:(\d+)px;\}/g)) widths[m[1]] = Number(m[2]);
+  const SOURCE = {
+    'is-panel': 'flow-panel', 'is-box': 'flow-db', 'is-inv': 'flow-inverter',
+    'is-house': 'flow-house', 'is-meter': 'flow-meter', 'is-grid': 'flow-tower'
+  };
+  const order = ['is-panel', 'is-box', 'is-inv', 'is-box', 'is-house', 'is-meter', 'is-grid'];
+  const painted = order.map((cls) => {
+    const [w, h] = execFileSync('identify', ['-format', '%w %h',
+      path.join(ROOT, 'assets/images/proposal/' + SOURCE[cls] + '.webp')], { encoding: 'utf8' })
+      .trim().split(/\s+/).map(Number);
+    assert.ok(widths[cls], `${cls} must declare a width`);
+    return Math.min(widths[cls] / w, artH / h) * h;
+  });
+  const spread = Math.max(...painted) - Math.min(...painted);
+  assert.ok(spread < 0.5,
+    `every drawing paints ${artH}px tall; got [${painted.map((v) => v.toFixed(1)).join(', ')}] - ${spread.toFixed(1)}px apart`);
 });
 
 t('the overview box adds no frame of its own around that render', () => {
@@ -718,7 +751,7 @@ t('the node artwork has one height, so the equipment sits on one line', () => {
      dead space at the end. */
   const total = nodeTotal + links;
   assert.ok(total <= 718, `the row must fit the 718px column, got ${total}px`);
-  assert.ok(total >= 700, `and use most of it, got ${total}px`);
+  assert.ok(total >= 718 * 0.9, `and use most of it, got ${total}px`);
 });
 
 t('the note gets more air than the blocks above it', () => {

@@ -145,12 +145,23 @@
    equipment.) */
 .pv2 .pv2-flow-row{display:flex;align-items:flex-end;justify-content:space-between;}
 .pv2 .pv2-node{flex:0 0 auto;text-align:center;display:flex;flex-direction:column;align-items:center;}
-.pv2 .pv2-node.is-panel{width:84px;}
-.pv2 .pv2-node.is-box{width:62px;}
-.pv2 .pv2-node.is-inv{width:62px;}
-.pv2 .pv2-node.is-house{width:70px;}
-.pv2 .pv2-node.is-meter{width:74px;}
-.pv2 .pv2-node.is-grid{width:72px;}
+/* WHY THESE NUMBERS ARE NOT ROUND.
+   The art box is a fixed 76px tall and every drawing is object-fit:contain, so a
+   drawing is only 76px tall when its node is WIDE enough that the height binds
+   first - a node narrower than artHeight * sourceWidth / sourceHeight shrinks the
+   drawing instead. The two landscape sources needed more than they had:
+     panel 300x211 -> needs >= 108.1px, was 84, so it painted 59.1px
+     house 300x233 -> needs >=  97.9px, was 70, so it painted 54.4px
+   Everything else is a tall source and was already height-bound. That 21.6px
+   spread between the tallest and shortest drawing is why the links never sat on
+   the equipment's centre, however carefully the margin was chosen.
+   These are the smallest integers that bind by height. */
+.pv2 .pv2-node.is-panel{width:109px;}
+.pv2 .pv2-node.is-box{width:59px;}
+.pv2 .pv2-node.is-inv{width:48px;}
+.pv2 .pv2-node.is-house{width:98px;}
+.pv2 .pv2-node.is-meter{width:52px;}
+.pv2 .pv2-node.is-grid{width:44px;}
 /* One art height for every node, so the equipment sits on a single line and the
    images are drawn at their natural size instead of being stretched. */
 /* Every drawing occupies exactly the same box: 76px tall, full width of its node.
