@@ -165,7 +165,14 @@
       return split<0?esc(title):esc(title.slice(0,split))+'<span class="power-heading-accent">'+esc(title.slice(split))+'</span>';
     };
     const page=(n,kicker,title,lead,body)=>'<section class="page power-page power-six" id="powerPage'+n+'">'+header(n)+'<div class="power-kicker">'+kicker+'</div><h1>'+heading(n,title)+'</h1><p class="power-lead">'+lead+'</p><div class="power-body">'+body+'</div>'+foot(n)+'</section>';
-    const diagram=$('v_tsDiagram')?.innerHTML.replace(/qs-system|qs-metal|qs-panels|qs-dc-arrow|qs-ac-arrow/g,m=>'power-'+m)||'';
+    /* The live flow, built from the same content and the same finance numbers the
+       proposal itself uses. This report used to lift #v_tsDiagram's innerHTML - the
+       RETIRED svg - but page 6 hides that box with display:none and the markup-only
+       path leaves it empty, so page 3 of the report printed an empty framed box
+       directly under a caption that promised "Conceptual grid-tied flow". Falling
+       back to the old svg only matters if a document somehow still has one. */
+    const liveFlow=root.ProposalV2&&root.ProposalV2.flowDiagram?root.ProposalV2.flowDiagram(s,f):'';
+    const diagram=liveFlow||($('v_tsDiagram')?.innerHTML.replace(/qs-system|qs-metal|qs-panels|qs-dc-arrow|qs-ac-arrow/g,m=>'power-'+m)||'');
     const photo=root.__qsPageImages?.img_solution||(['commercial','industrial','rwa'].includes(s.customerType)?'assets/images/cover-'+s.customerType+'-scene.jpg':($('img_solution')?.getAttribute('src')||'assets/images/page-solution.jpg'));
     const valid=F.fmtDate(F.addDays(s.propDate,s.validityDays))||'To be confirmed';
     const scope=CONTENT.pageScope,warranty=CONTENT.pageWarranty;

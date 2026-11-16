@@ -776,6 +776,58 @@ t('REGRESSION: captions wrap instead of printing over the node beside them', () 
     'and the row may not bleed past the column as a last resort');
 });
 
+/* The six-page Power Proposal used to build its system diagram by copying
+   #v_tsDiagram's innerHTML. That is the RETIRED svg: page 6 hides it with
+   display:none and the live path leaves it empty, so page 3 of the report printed an
+   empty framed box directly under a caption promising "Conceptual grid-tied flow".
+   Nothing tested that path, which is why it stayed broken. */
+t('REGRESSION: the Power Proposal draws the live flow, not the retired svg', () => {
+  const exp = read('assets/js/experience.js');
+  assert.match(exp, /root\.ProposalV2\.flowDiagram/,
+    'experience.js must call the live flow diagram');
+  assert.match(exp, /const liveFlow=root\.ProposalV2/, 'and keep it in a named value');
+  assert.match(exp, /const diagram=liveFlow\|\|/, 'the live flow comes first; the svg is only a fallback');
+});
+
+t('the report sizes that flow for its own column, not for the proposal sheet', () => {
+  /* The live flow is built by proposal-v2.css on .pv2, at sheet scale: 76px art and
+     38px links. Dropped into page 3 of the report unchanged it overflows the sheet,
+     so experience.css overrides every one of those widths. Scoped to
+     .power-six .power-diagram so it outranks .pv2 and cannot reach the sheets. */
+  const exp = read('assets/css/experience.css');
+  for (const sel of ['.pv2-flow-row', '.pv2-node-art', '.pv2-arrow', '.pv2-node b']) {
+    assert.ok(exp.includes('.power-six .power-diagram ' + sel + '{'),
+      `experience.css must size ${sel} inside the report's diagram`);
+  }
+  for (const cls of ['is-panel', 'is-box', 'is-inv', 'is-house', 'is-meter', 'is-grid']) {
+    assert.ok(exp.includes('.power-six .power-diagram .pv2-node.' + cls + '{width:'),
+      `${cls} needs a report width, or its drawing is limited by width and the row loses its baseline`);
+  }
+});
+
+t('every report drawing also paints at one height', () => {
+  /* Same arithmetic as the sheet: object-fit:contain binds by height only if the node
+     is wide enough. If a report width is ever lowered, this catches it. */
+  const exp = read('assets/css/experience.css');
+  const artH = Number(exp.match(/\.power-six \.power-diagram \.pv2-node-art\{height:(\d+)px/)[1]);
+  const widths = {};
+  for (const m of exp.matchAll(/\.power-six \.power-diagram \.pv2-node\.(is-\w+)\{width:(\d+)px;\}/g)) widths[m[1]] = Number(m[2]);
+  const SOURCE = {
+    'is-panel': 'flow-panel', 'is-box': 'flow-db', 'is-inv': 'flow-inverter',
+    'is-house': 'flow-house', 'is-meter': 'flow-meter', 'is-grid': 'flow-tower'
+  };
+  const order = ['is-panel', 'is-box', 'is-inv', 'is-box', 'is-house', 'is-meter', 'is-grid'];
+  const painted = order.map((cls) => {
+    const [w, h] = execFileSync('identify', ['-format', '%w %h',
+      path.join(ROOT, 'assets/images/proposal/' + SOURCE[cls] + '.webp')], { encoding: 'utf8' })
+      .trim().split(/\s+/).map(Number);
+    return Math.min(widths[cls] / w, artH / h) * h;
+  });
+  const spread = Math.max(...painted) - Math.min(...painted);
+  assert.ok(spread < 0.5,
+    `report drawings must all paint ${artH}px tall; got [${painted.map((v) => v.toFixed(1)).join(', ')}]`);
+});
+
 t('the note gets more air than the blocks above it', () => {
   /* The row no longer joins this rhythm: it is pulled onto the footer rule, so
      it carries an explicit gap only as a floor and then `auto` overrides it.
