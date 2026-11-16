@@ -474,7 +474,11 @@ t('two nodes that share a class are still counted twice', () => {
      and it should come close to filling it, so the equipment is not bunched. */
   const total = nodeTotal + link * (classes.length - 1);
   assert.ok(total <= 718, `the row must fit the column, got ${total}px`);
-  assert.ok(total >= 700, `and use it, got ${total}px of 718`);
+  /* The lower bound used to be 700 "so the equipment is not bunched". It is not a
+     free number any more: the node widths are the smallest that still let each
+     drawing bind by HEIGHT (see the width rules), so the row is sized by the
+     artwork, not padded to fill. 90% of the column is the real remaining check. */
+  assert.ok(total >= 718 * 0.9, `and use most of it, got ${total}px of 718`);
 });
 
 t('the link shapes are the ones that were verified on screen', () => {
@@ -523,27 +527,60 @@ t('the tower sits on the sheet with no white plate behind it', () => {
 });
 
 t('the links sit on the centre of the equipment, not down by the captions', () => {
-  /* The row is bottom-aligned, so a link's position is set by its bottom margin.
-     At 46px the link sat among the captions - he reported the arrows as "bohot
-     niche" twice. The only correct value is the one that centres the link on the
-     86px art, so it is derived here rather than guessed. */
+  /* The row is TOP-aligned: bottom alignment made each drawing's y depend on how many
+     lines its own caption wrapped to, and "Bi-Directional Meter" takes two while
+     "Inverter" takes one. With the art anchored to the row's top edge, the link only
+     has to be pushed down by half the height difference between the link art and the
+     art box, so it is derived here rather than guessed.
+     At 46px of bottom margin the link sat among the captions - he reported the arrows
+     as "bohot niche" twice. */
   const num = (re) => {
     const m = css.match(re);
     assert.ok(m, `missing ${re}`);
     return Number(m[1]);
   };
-  const capSmall = num(/\.pv2 \.pv2-node small\{font-size:([\d.]+)px/) * 1.3;
-  const capBold = num(/\.pv2 \.pv2-node b\{font:700 ([\d.]+)px/) * 1.25;
-  const capGap = num(/\.pv2 \.pv2-node small\{[^}]*margin-top:(\d+)px/);
-  const artH = num(/\.pv2 \.pv2-node-art\{height:(\d+)px/);
-  const artGap = num(/\.pv2 \.pv2-node-art\{[^}]*margin-bottom:(\d+)px/);
-  const linkH = num(/\.pv2 \.pv2-arrow\{flex:0 0 \d+px;width:\d+px;display:flex;align-items:center;justify-content:center;margin-bottom:(\d+)px/);
+  const rowAlign = css.match(/\.pv2 \.pv2-flow-row\{[^}]*align-items:(\w[\w-]*)/);
+  assert.equal(rowAlign && rowAlign[1], 'flex-start',
+    'the row is top-aligned, so one wrapped caption cannot lift its own drawing');
 
-  const capBlock = capSmall + capGap + capBold;
-  const artCentre = capBlock + artGap + artH / 2;
-  const linkCentre = linkH + 9;          /* the link art is 18px tall */
-  assert.ok(Math.abs(artCentre - linkCentre) <= 2,
-    `the link centre must meet the art centre, got ${linkCentre} vs ${artCentre.toFixed(1)}px from the row bottom`);
+  const artH = num(/\.pv2 \.pv2-node-art\{height:(\d+)px/);
+  const linkTop = num(/\.pv2 \.pv2-arrow\{[^}]*margin-top:(\d+)px/);
+  const linkBottom = css.match(/\.pv2 \.pv2-arrow\{[^}]*margin-bottom:(\d+)px/);
+  assert.equal(Number(linkBottom && linkBottom[1]), 0,
+    'a bottom margin would fight the top offset that replaces it');
+
+  const LINK_ART = 18;                       /* chevron / block-pair viewBox height */
+  const want = (artH - LINK_ART) / 2;
+  assert.ok(Math.abs(linkTop - want) <= 2,
+    `the link centre must meet the art centre: expected about ${want}px from the row top, got ${linkTop}px`);
+});
+
+t('REGRESSION: every drawing paints at the art height, not shrunk by its node', () => {
+  /* This is what actually kept the links off the equipment's centre, and it is not
+     a margin problem at all. The art box is object-fit:contain, so a drawing is
+     only artH tall when its node is wide enough that the HEIGHT binds first; a
+     narrower node shrinks the drawing instead. Panel (300x211) and house (300x233)
+     are landscape, and at the old 84/70px widths they painted 59.1px and 54.4px
+     while the portrait ones filled 76px - a 21.6px spread, so no single margin
+     could ever centre the links on all seven. */
+  const artH = Number(css.match(/\.pv2 \.pv2-node-art\{height:(\d+)px/)[1]);
+  const widths = {};
+  for (const m of css.matchAll(/\.pv2 \.pv2-node\.(is-\w+)\{width:(\d+)px;\}/g)) widths[m[1]] = Number(m[2]);
+  const SOURCE = {
+    'is-panel': 'flow-panel', 'is-box': 'flow-db', 'is-inv': 'flow-inverter',
+    'is-house': 'flow-house', 'is-meter': 'flow-meter', 'is-grid': 'flow-tower'
+  };
+  const order = ['is-panel', 'is-box', 'is-inv', 'is-box', 'is-house', 'is-meter', 'is-grid'];
+  const painted = order.map((cls) => {
+    const [w, h] = execFileSync('identify', ['-format', '%w %h',
+      path.join(ROOT, 'assets/images/proposal/' + SOURCE[cls] + '.webp')], { encoding: 'utf8' })
+      .trim().split(/\s+/).map(Number);
+    assert.ok(widths[cls], `${cls} must declare a width`);
+    return Math.min(widths[cls] / w, artH / h) * h;
+  });
+  const spread = Math.max(...painted) - Math.min(...painted);
+  assert.ok(spread < 0.5,
+    `every drawing paints ${artH}px tall; got [${painted.map((v) => v.toFixed(1)).join(', ')}] - ${spread.toFixed(1)}px apart`);
 });
 
 t('the overview box adds no frame of its own around that render', () => {
@@ -718,7 +755,77 @@ t('the node artwork has one height, so the equipment sits on one line', () => {
      dead space at the end. */
   const total = nodeTotal + links;
   assert.ok(total <= 718, `the row must fit the 718px column, got ${total}px`);
-  assert.ok(total >= 700, `and use most of it, got ${total}px`);
+  assert.ok(total >= 718 * 0.9, `and use most of it, got ${total}px`);
+});
+
+/* Narrow fixed-width nodes plus `white-space:nowrap` captions meant a label wider
+   than its node did not wrap - it printed straight over the node beside it. With the
+   node widths forced down to their height-binding minimums, "Bi-Directional Meter"
+   (needs ~118px in a ~52px node) and "Import / Export" met in the middle. Both the
+   wrapping rule and the fact that the captions now fit are pinned here. */
+t('REGRESSION: captions wrap instead of printing over the node beside them', () => {
+  assert.doesNotMatch(css, /\.pv2 \.pv2-node small\{[^}]*white-space:nowrap/,
+    'a nowrap caption in a fixed-width node cannot wrap, it only overflows');
+  assert.match(css, /\.pv2 \.pv2-node b\{[^}]*overflow-wrap:break-word/,
+    'the node title must be allowed to break');
+  assert.match(css, /\.pv2 \.pv2-node small\{[^}]*overflow-wrap:break-word/,
+    'and so must the sub-caption');
+  assert.match(css, /\.pv2 \.pv2-node b\{[^}]*max-width:100%/,
+    'neither may exceed its node');
+  assert.match(css, /\.pv2 \.pv2-flow-row\{[^}]*overflow:hidden/,
+    'and the row may not bleed past the column as a last resort');
+});
+
+/* The six-page Power Proposal used to build its system diagram by copying
+   #v_tsDiagram's innerHTML. That is the RETIRED svg: page 6 hides it with
+   display:none and the live path leaves it empty, so page 3 of the report printed an
+   empty framed box directly under a caption promising "Conceptual grid-tied flow".
+   Nothing tested that path, which is why it stayed broken. */
+t('REGRESSION: the Power Proposal draws the live flow, not the retired svg', () => {
+  const exp = read('assets/js/experience.js');
+  assert.match(exp, /root\.ProposalV2\.flowDiagram/,
+    'experience.js must call the live flow diagram');
+  assert.match(exp, /const liveFlow=root\.ProposalV2/, 'and keep it in a named value');
+  assert.match(exp, /const diagram=liveFlow\|\|/, 'the live flow comes first; the svg is only a fallback');
+});
+
+t('the report sizes that flow for its own column, not for the proposal sheet', () => {
+  /* The live flow is built by proposal-v2.css on .pv2, at sheet scale: 76px art and
+     38px links. Dropped into page 3 of the report unchanged it overflows the sheet,
+     so experience.css overrides every one of those widths. Scoped to
+     .power-six .power-diagram so it outranks .pv2 and cannot reach the sheets. */
+  const exp = read('assets/css/experience.css');
+  for (const sel of ['.pv2-flow-row', '.pv2-node-art', '.pv2-arrow', '.pv2-node b']) {
+    assert.ok(exp.includes('.power-six .power-diagram ' + sel + '{'),
+      `experience.css must size ${sel} inside the report's diagram`);
+  }
+  for (const cls of ['is-panel', 'is-box', 'is-inv', 'is-house', 'is-meter', 'is-grid']) {
+    assert.ok(exp.includes('.power-six .power-diagram .pv2-node.' + cls + '{width:'),
+      `${cls} needs a report width, or its drawing is limited by width and the row loses its baseline`);
+  }
+});
+
+t('every report drawing also paints at one height', () => {
+  /* Same arithmetic as the sheet: object-fit:contain binds by height only if the node
+     is wide enough. If a report width is ever lowered, this catches it. */
+  const exp = read('assets/css/experience.css');
+  const artH = Number(exp.match(/\.power-six \.power-diagram \.pv2-node-art\{height:(\d+)px/)[1]);
+  const widths = {};
+  for (const m of exp.matchAll(/\.power-six \.power-diagram \.pv2-node\.(is-\w+)\{width:(\d+)px;\}/g)) widths[m[1]] = Number(m[2]);
+  const SOURCE = {
+    'is-panel': 'flow-panel', 'is-box': 'flow-db', 'is-inv': 'flow-inverter',
+    'is-house': 'flow-house', 'is-meter': 'flow-meter', 'is-grid': 'flow-tower'
+  };
+  const order = ['is-panel', 'is-box', 'is-inv', 'is-box', 'is-house', 'is-meter', 'is-grid'];
+  const painted = order.map((cls) => {
+    const [w, h] = execFileSync('identify', ['-format', '%w %h',
+      path.join(ROOT, 'assets/images/proposal/' + SOURCE[cls] + '.webp')], { encoding: 'utf8' })
+      .trim().split(/\s+/).map(Number);
+    return Math.min(widths[cls] / w, artH / h) * h;
+  });
+  const spread = Math.max(...painted) - Math.min(...painted);
+  assert.ok(spread < 0.5,
+    `report drawings must all paint ${artH}px tall; got [${painted.map((v) => v.toFixed(1)).join(', ')}]`);
 });
 
 t('the note gets more air than the blocks above it', () => {

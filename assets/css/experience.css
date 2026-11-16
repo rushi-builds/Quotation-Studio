@@ -56,6 +56,31 @@
 .power-metric>small{display:block;font-size:9px;color:#64788A;line-height:1.4;}
 .power-diagram{border:1px solid #E0E6EA;border-radius:10px;padding:10px;background:#FBFCFE;}
 .power-diagram svg{width:100%;height:auto;display:block;}
+/* The report draws the LIVE flow now (proposal-v2.js flowDiagram), not the retired
+   svg. Those are the same rules the proposal sheet uses, so the row arrives at
+   sheet scale - 76px art, 38px links - and would overflow page 3 of the report.
+   Sized for the report column instead. Scoped to .power-six .power-diagram so it
+   outranks proposal-v2.css, which sets all of these on .pv2, and so nothing on the
+   proposal sheets is touched by it. */
+.power-six .power-diagram .pv2-flow-row{display:flex;align-items:flex-start;justify-content:space-between;}
+.power-six .power-diagram .pv2-node{flex:0 0 auto;min-width:0;text-align:center;display:flex;flex-direction:column;align-items:center;}
+.power-six .power-diagram .pv2-node.is-panel{width:63px;}
+.power-six .power-diagram .pv2-node.is-box{width:35px;}
+.power-six .power-diagram .pv2-node.is-inv{width:28px;}
+.power-six .power-diagram .pv2-node.is-house{width:57px;}
+.power-six .power-diagram .pv2-node.is-meter{width:31px;}
+.power-six .power-diagram .pv2-node.is-grid{width:26px;}
+.power-six .power-diagram .pv2-node-art{height:44px;margin-bottom:4px;display:flex;align-items:flex-end;justify-content:center;}
+.power-six .power-diagram .pv2-node-art img{width:100%;height:100%;object-fit:contain;object-position:center bottom;}
+.power-six .power-diagram .pv2-node b{font:700 6.6px/1.2 'Poppins','Inter',sans-serif;color:#14263A;max-width:100%;overflow-wrap:break-word;}
+.power-six .power-diagram .pv2-node small{font-size:5.8px;line-height:1.2;color:#4A5565;margin-top:1px;max-width:100%;overflow-wrap:break-word;}
+.power-six .power-diagram .pv2-arrow{flex:0 0 20px;width:20px;display:flex;align-items:center;justify-content:center;margin:0;}
+.power-six .power-diagram .pv2-arrow{margin-top:17px;}
+.power-six .power-diagram .pv2-arrow svg{width:20px;height:auto;}
+.power-six .power-diagram .pv2-arrow.is-both svg{width:20px;height:15px;}
+.power-six .power-diagram .pv2-grp{display:table;margin:0 auto;font-size:6px;padding:1px 6px 2px;border-radius:5px;}
+.power-six .power-diagram .pv2-grp-row{margin-bottom:3px;}
+.power-six .power-diagram .pv2-overview{margin-top:0;}
 .power-row{display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid #E7ECF0;font-size:10px;line-height:1.5;}
 .power-row>span{color:#5B6B80;flex:0 0 40%;}.power-row>strong{text-align:right;overflow-wrap:anywhere;}
 .power-assumptions{margin-top:9px;}

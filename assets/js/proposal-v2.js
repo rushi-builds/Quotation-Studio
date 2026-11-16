@@ -439,6 +439,11 @@
     new MutationObserver(schedule).observe(t, { childList: true, subtree: true, characterData: true });
   };
   doc.addEventListener('DOMContentLoaded', watch); watch();
-  root.ProposalV2 = { sync };
+  /* flowDiagram is exported so the Power Proposal can draw the same live flow.
+     It used to lift #v_tsDiagram's innerHTML, which is the RETIRED svg - page 6
+     hides it with display:none, and on documents saved after the redesign it is not
+     there at all, so the report printed an empty framed box under a caption that
+     said "Conceptual grid-tied flow". */
+  root.ProposalV2 = { sync, flowDiagram };
   if (root.Render.lastState) schedule();
 })(window);
