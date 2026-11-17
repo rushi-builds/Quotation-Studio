@@ -283,6 +283,17 @@
     sheet.textContent=css;
     const frame=holder.createElement('div');
     frame.setAttribute('xmlns','http://www.w3.org/1999/xhtml');
+    /* The page is drawn inside an SVG image, where there is no <body>: every rule that
+       hangs the typeface off `body` (font-family, size, colour, smoothing) stops
+       applying, and any text that inherits instead of naming its own font falls back
+       to the browser's default serif. Headings name Poppins, so they survived; the
+       paragraphs, card text and spec values did not, and the PDF came out in Times.
+       The frame therefore carries the body's computed typography, which is exactly what
+       the page inherits in the preview. */
+    const body=getComputedStyle(document.body);
+    frame.setAttribute('style',['font-family','font-size','font-weight','font-style','line-height','letter-spacing','color',
+      'font-feature-settings','font-variant-numeric','text-rendering','-webkit-font-smoothing']
+      .map(prop=>prop+':'+body.getPropertyValue(prop)).filter(rule=>!/:\s*$/.test(rule)).join(';'));
     frame.appendChild(sheet);
     frame.appendChild(holder.importNode(page,true));
     holder.body.appendChild(frame);

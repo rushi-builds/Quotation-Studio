@@ -180,5 +180,22 @@ check('the trim never removes the page being captured', () => {
   assert.ok(doc.getElementById('inner'), 'including anything the builder hides inside it');
 });
 
+/* The native capture draws the page inside an SVG image, which has no <body>. Every rule
+   that hangs the typeface off `body` stops applying there, so text that inherits its font
+   (paragraphs, card text, spec values) silently fell back to the browser's serif and the
+   PDF came out in Times while the preview was Inter. Headings name Poppins themselves,
+   which is why only the body copy looked wrong. */
+check('the native capture carries the body typography into the SVG frame', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'assets/js/export.js'), 'utf8');
+  const doc = src.slice(src.indexOf('function svgDocument('), src.indexOf('const URL_IN_STYLE'));
+  assert.match(doc, /getComputedStyle\(document\.body\)/, 'the frame reads what the page really inherits');
+  for (const prop of ['font-family', 'font-size', 'line-height', 'color']) {
+    assert.ok(doc.includes("'" + prop + "'"), prop + ' travels with the page');
+  }
+  assert.match(doc, /frame\.setAttribute\('style'/, 'and is applied on the frame that wraps the page');
+  assert.ok(doc.indexOf("frame.setAttribute('style'") < doc.indexOf('frame.appendChild(sheet)'),
+    'before the page is placed inside it');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
