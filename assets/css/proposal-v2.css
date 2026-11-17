@@ -95,7 +95,11 @@
    block) and, with the old `right:20px`, put its edge outside the page margin. The
    id selector here wins and sets it inside the column: right edge on the cards'
    edge, bottom inside the intro column. */
-#pageSolution.pv2 > .photo-top{top:92px;right:38px;left:auto;width:324px;height:250px;}
+#pageSolution.pv2 > .photo-top{top:92px;right:38px;left:auto;width:324px;height:260px;}
+/* The photo is the page's 260px story photo (the layout audits pin that height), so the
+   intro column it sits beside is given the room to contain it: bottom edge of the photo
+   (92 + 260) must not pass the bottom of the column. */
+#pageSolution.pv2 .intro-col{min-height:290px;}
 .pv2-solution .pv2-strip{display:none;}
 /* app.css gives page 5 alone an orange tile peeking out behind the photo and lifts the
    image above the base bar. Neither exists on pages 3, 4 and 8, so both are switched
