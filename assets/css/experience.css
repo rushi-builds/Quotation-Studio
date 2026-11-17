@@ -81,6 +81,15 @@
 .power-six .power-diagram .pv2-grp{display:table;margin:0 auto;font-size:6px;padding:1px 6px 2px;border-radius:5px;}
 .power-six .power-diagram .pv2-grp-row{margin-bottom:3px;}
 .power-six .power-diagram .pv2-overview{margin-top:0;}
+/* The sheet's badges ride on their own boxes (position:absolute above the DCDB / ACDB) and its
+   links are as tall as the art box. The report scales the same markup down. */
+.power-six .power-diagram .pv2-flow{padding-top:15px;}
+.power-six .power-diagram .pv2-arrow{height:44px;margin-top:0;min-width:0;}
+.power-six .power-diagram .pv2-node{position:relative;}
+.power-six .power-diagram .pv2-node > .pv2-grp{position:absolute;left:50%;top:-14px;transform:translateX(-50%);display:block;margin:0;white-space:nowrap;
+  font:700 6px/1.3 'Poppins','Inter',sans-serif;padding:1px 6px 2px;border:1.5px solid #1E9E63;border-radius:4px;background:#fff;color:#1E9E63;}
+.power-six .power-diagram .pv2-node > .pv2-grp.is-ac{border-color:#14263A;color:#14263A;}
+.power-six .power-diagram .pv2-node b .pv2-w{white-space:normal;}
 .power-row{display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid #E7ECF0;font-size:10px;line-height:1.5;}
 .power-row>span{color:#5B6B80;flex:0 0 40%;}.power-row>strong{text-align:right;overflow-wrap:anywhere;}
 .power-assumptions{margin-top:9px;}

@@ -261,12 +261,15 @@ t('the system overview is a live diagram, not a picture of one', () => {
 });
 
 t('the artwork is not dressed a second time', () => {
-  /* The render was cropped down to just the flow box, so the section keeps the
-     page's own ribbon - but must not print a second note under it, because the
-     render's note is still in the artwork. */
-  assert.match(js, /label\(P\.diagramTitle \|\| 'SYSTEM OVERVIEW'\) \+ '<div class="pv2-ov-box">'/,
+  /* The section keeps a single name above the diagram, and it is the quiet peach tag
+     (.sec-label) that every other page uses for a section - the dark slab was the
+     only one of its kind in the proposal and out-shouted the diagram it names. The
+     diagram prints no note of its own. */
+  assert.match(js, /label\(P\.diagramTitle \|\| 'SYSTEM OVERVIEW', 'sec-label'\) \+ '<div class="pv2-ov-box">'/,
     'the ribbon is the page’s own again');
-  assert.doesNotMatch(js, /pv2-ov-box">' \+ overviewArt\(\) \+ '.*note/i, 'and no second note is printed');
+  assert.match(js, /sec-label pv2-ov-label/, 'and it is the shared peach tag, not the dark slab');
+  assert.match(css, /\.pv2-solution \.pv2-ov-label\{margin:0 0 \d+px;\}/, 'with a gap before the diagram card');
+  assert.doesNotMatch(js, /pv2-ov-box\">' \+ overviewArt\(\) \+ '.*note/i, 'and no second note is printed');
   /* The scope note is suppressed only while it is boilerplate: the renderer puts
      a real scope sentence in that element when a battery or rainwater system is
      quoted, and that one must survive. */
@@ -450,8 +453,12 @@ t('nothing on page 5 is a raster of text any more', () => {
     assert.ok(allowed.includes(p), `${p} is equipment art, not a diagram of text`);
   }
   assert.doesNotMatch(js, /system-overview-flow/, 'the baked diagram is no longer referenced');
-  /* and the labels are real text, on the page, in the page's own font */
-  assert.match(js, /'<b>' \+ esc\(n\.t\) \+ '<\/b>'/, 'node titles are text');
+  /* and the labels are real text, on the page, in the page's own font. A title may
+     wrap between words but never inside one, so each word is its own no-break span
+     (the meter reads "Bi-Directional / Meter", never three lines). */
+  assert.match(js, /'<b>' \+ caption\(n\.t\) \+ '<\/b>'/, 'node titles are text');
+  assert.match(js, /const caption = [^\n]*esc\(w\)/, 'and every word of them is escaped');
+  assert.match(css, /\.pv2 \.pv2-node b \.pv2-w\{white-space:nowrap;\}/, 'words never break inside');
   assert.match(js, /'<small>' \+ esc\(n\.d\)/, 'node values are text');
   assert.match(css, /\.pv2 \.pv2-node b\{font:700 /, 'and they are set in the page font');
 });
@@ -460,7 +467,9 @@ t('two nodes that share a class are still counted twice', () => {
   /* The row overflowed and the grid node fell off the sheet because the width
      arithmetic counted CSS rules instead of nodes - DCDB and ACDB both use
      .is-box, so a rule-count found six nodes where the markup emits seven. This
-     pins the real count. */
+     pins the real count. The links are no longer fixed slots: each takes an equal
+     share of whatever the seven nodes leave, so what is pinned is that the nodes
+     fit the diagram card with a real gap left for every link. */
   const flowRaw = js.slice(js.indexOf('function flowDiagram('), js.indexOf('function solution('));
   const classes = [...flowRaw.matchAll(/cls: '([^']+)'/g)].map((m) => m[1]);
   assert.equal(classes.length, 7, 'seven nodes are emitted');
@@ -469,16 +478,14 @@ t('two nodes that share a class are still counted twice', () => {
   const widths = {};
   for (const m of css.matchAll(/\.pv2 \.pv2-node\.(is-\w+)\{width:(\d+)px;\}/g)) widths[m[1]] = Number(m[2]);
   const nodeTotal = classes.reduce((n, c) => n + widths[c], 0);
-  const link = Number(css.match(/\.pv2 \.pv2-arrow\{flex:0 0 (\d+)px/)[1]);
-  /* It must not exceed the column - that is what pushed the grid off the sheet -
-     and it should come close to filling it, so the equipment is not bunched. */
-  const total = nodeTotal + link * (classes.length - 1);
-  assert.ok(total <= 718, `the row must fit the column, got ${total}px`);
-  /* The lower bound used to be 700 "so the equipment is not bunched". It is not a
-     free number any more: the node widths are the smallest that still let each
-     drawing bind by HEIGHT (see the width rules), so the row is sized by the
-     artwork, not padded to fill. 90% of the column is the real remaining check. */
-  assert.ok(total >= 718 * 0.9, `and use most of it, got ${total}px of 718`);
+  const box = css.match(/\.pv2-solution \.pv2-ov-box\{([^}]*)\}/)[1];
+  const side = Number(box.match(/padding:\d+px (\d+)px/)[1]);
+  const inner = 718 - 2 - side * 2;               /* column minus the card's border and padding */
+  const gap = (inner - nodeTotal) / (classes.length - 1);
+  assert.ok(nodeTotal <= inner, `the nodes must fit the card, got ${nodeTotal}px of ${inner}px`);
+  assert.ok(gap >= 24, `and leave real air between pieces of kit, got ${gap.toFixed(1)}px per link`);
+  const minLink = Number(css.match(/\.pv2 \.pv2-arrow\{flex:1 1 0;min-width:(\d+)px/)[1]);
+  assert.ok(gap >= minLink, `every link slot is at least its own width (${minLink}px), got ${gap.toFixed(1)}px`);
 });
 
 t('the link shapes are the ones that were verified on screen', () => {
@@ -527,32 +534,20 @@ t('the tower sits on the sheet with no white plate behind it', () => {
 });
 
 t('the links sit on the centre of the equipment, not down by the captions', () => {
-  /* The row is TOP-aligned: bottom alignment made each drawing's y depend on how many
-     lines its own caption wrapped to, and "Bi-Directional Meter" takes two while
-     "Inverter" takes one. With the art anchored to the row's top edge, the link only
-     has to be pushed down by half the height difference between the link art and the
-     art box, so it is derived here rather than guessed.
-     At 46px of bottom margin the link sat among the captions - he reported the arrows
-     as "bohot niche" twice. */
+  /* The row is top-aligned and every link is as tall as the art box, with its
+     arrow centred in it - so the arrow is on the equipment's centre by
+     construction. (Before, the row was bottom-aligned and a link's place came from
+     a bottom margin derived from the caption heights: any caption that wrapped
+     moved the equipment and the arrows no longer met it.) */
   const num = (re) => {
     const m = css.match(re);
     assert.ok(m, `missing ${re}`);
     return Number(m[1]);
   };
-  const rowAlign = css.match(/\.pv2 \.pv2-flow-row\{[^}]*align-items:(\w[\w-]*)/);
-  assert.equal(rowAlign && rowAlign[1], 'flex-start',
-    'the row is top-aligned, so one wrapped caption cannot lift its own drawing');
-
   const artH = num(/\.pv2 \.pv2-node-art\{height:(\d+)px/);
-  const linkTop = num(/\.pv2 \.pv2-arrow\{[^}]*margin-top:(\d+)px/);
-  const linkBottom = css.match(/\.pv2 \.pv2-arrow\{[^}]*margin-bottom:(\d+)px/);
-  assert.equal(Number(linkBottom && linkBottom[1]), 0,
-    'a bottom margin would fight the top offset that replaces it');
-
-  const LINK_ART = 18;                       /* chevron / block-pair viewBox height */
-  const want = (artH - LINK_ART) / 2;
-  assert.ok(Math.abs(linkTop - want) <= 2,
-    `the link centre must meet the art centre: expected about ${want}px from the row top, got ${linkTop}px`);
+  const linkH = num(/\.pv2 \.pv2-arrow\{flex:1 1 0;min-width:\d+px;height:(\d+)px;display:flex;align-items:center;justify-content:center;\}/);
+  assert.equal(linkH, artH, 'a link is exactly as tall as the art box, arrow centred in it');
+  assert.match(css, /\.pv2 \.pv2-flow-row\{display:flex;align-items:flex-start;/, 'and both start on the same line');
 });
 
 t('REGRESSION: every drawing paints at the art height, not shrunk by its node', () => {
@@ -583,12 +578,18 @@ t('REGRESSION: every drawing paints at the art height, not shrunk by its node', 
     `every drawing paints ${artH}px tall; got [${painted.map((v) => v.toFixed(1)).join(', ')}] - ${spread.toFixed(1)}px apart`);
 });
 
-t('the overview box adds no frame of its own around that render', () => {
+t('the overview sits in a card of its own, with room for the DC / AC badges', () => {
   const box = css.match(/\.pv2-solution \.pv2-ov-box\{([^}]*)\}/)[1];
-  assert.match(box, /border:0/, 'the render already has its rounded frame');
-  assert.match(box, /padding:0/, 'and its own internal spacing');
+  assert.match(box, /border:1px solid #E4E8EE/, 'same hairline as the eight cards above it');
+  assert.match(box, /border-radius:14px/, 'and the same rounded corner');
+  assert.match(box, /background:#fff/, 'on white, so the keyed-out equipment art sits on a clean ground');
+  const top = Number(box.match(/padding:(\d+)px/)[1]);
+  assert.ok(top >= 40, `the card leaves room above the boxes for the badges, got ${top}px`);
   assert.match(css, /\.pv2-solution \.pv2-ov-art\{display:block;width:100%/,
-    'the render fills the page width, so its own type stays legible');
+    'the legacy render still fills the page width if it is ever shown');
+  /* the badges ride on their own boxes, not on a separate row above the diagram */
+  assert.match(css, /\.pv2 \.pv2-node > \.pv2-grp\{position:absolute;left:50%;top:-\d+px;/, 'DC and AC sit on the DCDB and the ACDB');
+  assert.doesNotMatch(js, /pv2-grp-row|pv2-grp-wrap/, 'no separate badge row is left');
 });
 
 /* ------------------------------- page 6 cards: number OR icon, not both */
@@ -613,29 +614,30 @@ t('the right-hand column is the one that carries the weight', () => {
 });
 
 /* --------------------- page 6 note: the owner's reference shape, compact */
-t('the note is a single compact pill, not a fifth specification row', () => {
+t('the page 6 note is the same quiet peach band as page 5’s, not a fifth specification row', () => {
   const block = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)].pop()[1];
-  /* He sent the target: one short rounded pill with a flag, a divider and a folded
-     corner. The 41%/59% grid that made it a grid row is gone. */
-  assert.match(block, /border-radius:999px/, 'a pill, not a table row');
-  assert.doesNotMatch(block, /grid-template-columns:41% 59%/, 'it no longer copies the card columns');
-  assert.match(block, /grid-template-columns:auto minmax\(0,1fr\)/, 'flag, then the sentence');
-  assert.match(block, /padding:3px 24px 3px 4px/, 'and it is short - it is a footnote');
+  /* One soft band: an orange i, the word, the sentence. It used to be a white pill
+     with a flag, a divider and a folded corner - four devices for one sentence. */
+  assert.match(block, /background:#FFF1E3/, 'the same peach as page 5’s note');
+  assert.match(block, /border-radius:12px/, 'and its corner');
+  assert.doesNotMatch(block, /border-radius:999px/, 'no pill');
+  assert.doesNotMatch(block, /grid-template-columns:41% 59%/, 'it does not copy the card columns');
+  assert.match(block, /grid-template-columns:auto minmax\(0,1fr\)/, 'label, then the sentence');
+  assert.match(block, /padding:9px 20px/, 'padded enough to breathe, short enough to stay a footnote');
 });
 
-t('the note keeps the reference details: flag, divider, drawn corner, icon', () => {
-  /* The pale-blue flag carrying the icon and the caps word. */
-  assert.match(css, /#v_tsNoteLabel\{[^}]*background:#DCE7F5/, 'the flag is pale blue');
-  assert.match(css, /#v_tsNoteLabel\{[^}]*text-transform:uppercase/, 'and the word is set in caps');
+t('the note carries an orange i, the word and the sentence - nothing else', () => {
+  /* The label is plain orange type with the drawn icon in front of it. */
+  assert.match(css, /#v_tsNoteLabel\{[^}]*background:none/, 'no flag behind the word');
+  assert.match(css, /#v_tsNoteLabel\{[^}]*color:#E5741A/, 'the word is the page’s orange');
   assert.match(css, /#v_tsNoteLabel::after\{[^}]*data:image\/svg\+xml/, 'the icon is drawn, not a glyph');
-  /* An orange divider between the flag and the sentence. */
-  assert.match(css, /#v_tsNote\{[^}]*border-left:1px solid #F2811D/, 'orange divider');
-  /* The folded corner. */
-  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box::after\{[^}]*linear-gradient\(135deg/,
-    'the corner is folded, in orange');
-  /* The old round info dot must not come back. */
+  assert.match(css, /#v_tsNoteLabel::after\{[^}]*fill='%23F2811D'/, 'an orange disc with a white i');
+  /* The devices that were retired stay retired. */
+  assert.doesNotMatch(css, /#v_tsNote\{[^}]*border-left:1px solid/, 'no divider');
+  const after = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box::after\{([^}]*)\}/g)].pop()[1];
+  assert.match(after, /content:none/, 'no folded corner');
   const before = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box::before\{([^}]*)\}/g)].pop()[1];
-  assert.match(before, /content:none/, 'the circular info dot stays off');
+  assert.match(before, /content:none/, 'and no extra dot');
 });
 
 /* --------------------------------------------- ARS is a marked make now */
@@ -689,11 +691,17 @@ t('the structure card names the walkway and draws it with its own icon', () => {
   assert.match(js, /walkway: '<path d="M3 15h18M3 21h18"/, 'and a deck with legs under it');
 });
 
-t('card 03 carries the owner’s new structure render', () => {
-  assert.match(js, /mount: IMG \+ 'equipment\/cards\/mount-structure-callouts\.webp'/,
-    'the structure card still points at the card set');
-  assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/equipment/cards/mount-structure-callouts.webp')),
-    'and the file is there');
+t('card 03 shows structure, cabling, earthing and protection in one picture', () => {
+  /* The owner's own card carried all four things the rows beside it describe. It
+     is one 1320x800 composite: the structure large on the left, and the cable run,
+     the earthing pits and the DCDB / ACDB stacked on the right, on white gutters. */
+  assert.match(js, /mount: IMG \+ 'equipment\/cards\/mount-cabling-protection\.webp'/,
+    'the structure card points at the composite');
+  const file = path.join(ROOT, 'assets/images/equipment/cards/mount-cabling-protection.webp');
+  assert.ok(fs.existsSync(file), 'and the file is there');
+  const dims = execFileSync('identify', ['-format', '%wx%h', file]).toString().trim();
+  assert.equal(dims, '1320x800', 'at a size that stays sharp when the tile is cropped to its rows');
+  assert.match(js, /'mount-cabling-protection': '50% 50%'/, 'and it is cut from the centre');
 });
 
 t('card 04 shows the standards render and states what it is', () => {
@@ -712,10 +720,8 @@ t('card 04 shows the standards render and states what it is', () => {
 
 /* --------------------------------------- page 5 overview got its room back */
 t('the node artwork has one height, so the equipment sits on one line', () => {
-  assert.match(css, /\.pv2 \.pv2-node-art\{height:76px/,
+  assert.match(css, /\.pv2 \.pv2-node-art\{height:66px/,
     'one art height for every node - the equipment lines up and shares one centre');
-  /* and the per-node caps must fit inside that box, or a piece of kit overflows it
-     and the row stops being level */
   /* No per-kind caps at all: every drawing is stretched to the same box with
      object-fit:contain, so the seven are exactly as tall as each other. Per-kind
      max-heights were what made the row uneven in the first place. */
@@ -723,39 +729,26 @@ t('the node artwork has one height, so the equipment sits on one line', () => {
     'no per-kind height cap is left');
   assert.match(css, /\.pv2 \.pv2-node-art img\{width:100%;height:100%;object-fit:contain/,
     'every drawing fills the same box');
-  /* the arrow is the thing that used to drift; it is anchored to that same line */
-  /* Nodes and links share one flex row, and their widths are chosen so the seven
-     nodes plus six links add up to the column. Positioning the links absolutely
-     put them on top of the equipment, which is what broke the diagram; a fixed
-     width per item cannot do that. */
-  assert.match(css, /\.pv2 \.pv2-flow-row\{display:flex/, 'nodes and links are one row');
-  assert.match(css, /\.pv2 \.pv2-arrow\{flex:0 0 \d+px/, 'each link owns a fixed slot');
+  /* The row is TOP-aligned. Bottom-aligned, a caption that wrapped to a third line
+     pushed its own picture up - the reason the meter floated above the rest. */
+  assert.match(css, /\.pv2 \.pv2-flow-row\{display:flex;align-items:flex-start;/, 'nodes and links are one top-aligned row');
+  assert.doesNotMatch(css, /\.pv2 \.pv2-flow-row\{[^}]*align-items:flex-end/, 'not bottom-aligned');
+  assert.match(css, /\.pv2 \.pv2-arrow\{flex:1 1 0;/, 'each link takes an equal share of the free width');
   assert.doesNotMatch(css, /\.pv2 \.pv2-arrow\{position:absolute/, 'links are not absolutely placed');
-  assert.doesNotMatch(js, /style="left:/, 'and nothing is hand-positioned in the markup');
-
-  /* The widths have to add up, or the last node overflows the sheet. They are
-     summed over the nodes the markup actually emits, NOT over the CSS rules -
-     DCDB and ACDB share .is-box, so counting rules undercounted the row by a whole
-     node and the grid fell off the right edge. */
+  assert.doesNotMatch(js, /style=\"left:/, 'and nothing is hand-positioned in the markup');
+  /* The widths have to fit the card, or the last node overflows. They are summed
+     over the nodes the markup actually emits, NOT over the CSS rules - DCDB and
+     ACDB share .is-box. */
   const widths = {};
-  for (const m of css.matchAll(/\.pv2 \.pv2-node\.(is-\w+)(?:,#?[^{]*)?\{width:(\d+)px;\}/g)) {
-    widths[m[1]] = Number(m[2]);
-  }
+  for (const m of css.matchAll(/\.pv2 \.pv2-node\.(is-\w+)\{width:(\d+)px;\}/g)) widths[m[1]] = Number(m[2]);
   const flowRaw = js.slice(js.indexOf('function flowDiagram('), js.indexOf('function solution('));
   const classes = [...flowRaw.matchAll(/cls: '([^']+)'/g)].map((m) => m[1]);
   assert.equal(classes.length, 7, 'the diagram has seven nodes');
   const nodeTotal = classes.reduce((sum, c) => {
-    const w = widths[c];
-    assert.ok(w, `every node class has a width - ${c} does not`);
-    return sum + w;
+    assert.ok(widths[c], `every node class has a width - ${c} does not`);
+    return sum + widths[c];
   }, 0);
-  const links = Number(css.match(/\.pv2 \.pv2-arrow\{flex:0 0 (\d+)px/)[1]) * (classes.length - 1);
-  /* It must fit - exceeding the column is what pushed the grid node off the sheet -
-     and it should come close to filling it, so the equipment is not bunched with
-     dead space at the end. */
-  const total = nodeTotal + links;
-  assert.ok(total <= 718, `the row must fit the 718px column, got ${total}px`);
-  assert.ok(total >= 718 * 0.9, `and use most of it, got ${total}px`);
+  assert.ok(nodeTotal <= 688 - 6 * 22, `the nodes plus six minimum links fit the card, got ${nodeTotal}px`);
 });
 
 /* Narrow fixed-width nodes plus `white-space:nowrap` captions meant a label wider
@@ -772,8 +765,12 @@ t('REGRESSION: captions wrap instead of printing over the node beside them', () 
     'and so must the sub-caption');
   assert.match(css, /\.pv2 \.pv2-node b\{[^}]*max-width:100%/,
     'neither may exceed its node');
-  assert.match(css, /\.pv2 \.pv2-flow-row\{[^}]*overflow:hidden/,
-    'and the row may not bleed past the column as a last resort');
+  /* overflow-x only: the DC / AC badges hang above the row, so `overflow:hidden`
+     (which clips both axes) would cut them off. */
+  assert.match(css, /\.pv2 \.pv2-flow-row\{[^}]*overflow-x:clip/,
+    'the row may not bleed past the column sideways as a last resort');
+  assert.doesNotMatch(css, /\.pv2 \.pv2-flow-row\{[^}]*overflow:hidden/,
+    'but it must not clip the badges that hang above it');
 });
 
 /* The six-page Power Proposal used to build its system diagram by copying

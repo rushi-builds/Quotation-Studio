@@ -110,7 +110,8 @@
     const em = doc.createElement('em'); em.textContent = last; h.append(em);
   }
   function label(text, extra) {
-    return '<div class="pv2-label' + (extra ? ' ' + extra : '') + '"><i aria-hidden="true"></i><span>' + esc(text) + '</span></div>';
+    return '<div class="' + (extra === 'sec-label' ? 'sec-label pv2-ov-label' : 'pv2-label' + (extra ? ' ' + extra : '')) + '">' +
+      (extra === 'sec-label' ? esc(text) : '<i aria-hidden="true"></i><span>' + esc(text) + '</span>') + '</div>';
   }
   /* The value row keeps the proposal's own two-tone marks (ProposalMarks), the
      same artwork every other page's footer uses, in the same four-palette
@@ -146,6 +147,9 @@
      numbers, and a raster can never be text-sharp at every zoom. His drawings
      still supply the seven equipment photos the nodes use. */
 
+  /* A caption may wrap between words but never inside one, so a hyphenated name
+     like "Bi-Directional" stays whole. */
+  const caption = (t) => String(t == null ? '' : t).trim().split(/\s+/).map((w) => '<span class="pv2-w">' + esc(w) + '</span>').join(' ');
   function flowDiagram(s, f) {
     const P = (root.CONTENT && root.CONTENT.pageTechSpec && root.CONTENT.pageTechSpec.diagramLabels) || {};
     /* The numbers come from the form, not from the artwork. That was the bug in
@@ -187,20 +191,18 @@
     /* The DC group runs panel -> ACDB, the AC group ACDB -> grid. Their badges are
        outlined pills per his reference - green ring for DC, navy for AC. */
     const badge = (text, cls) => '<span class="pv2-grp is-' + cls + '">' + esc(text) + '</span>';
+    nodes[1].pill = badge(P.dc || 'DC', 'dc');
+    nodes[3].pill = badge(P.ac || 'AC', 'ac');
     return '<div class="pv2-flow">' +
-      '<div class="pv2-grp-row">' +
-        '<div class="pv2-grp-wrap is-dc">' + badge(P.dc || 'DC', 'dc') + '</div>' +
-        '<div class="pv2-grp-wrap is-ac">' + badge(P.ac || 'AC', 'ac') + '</div>' +
-      '</div>' +
       '<div class="pv2-flow-row">' + nodes.map((n, i) => {
         const link = i ? links[i - 1] || {} : null;
         return (link ? '<span class="pv2-arrow' + (link.dir === 'both' ? ' is-both' : '') + '">' +
           arrow(link.dir || 'right', link.tone) + '</span>' : '') +
-        '<div class="pv2-node ' + n.cls + '">' +
+        '<div class="pv2-node ' + n.cls + '">' + (n.pill || '') +
           '<div class="pv2-node-art">' +
             '<img src="' + IMG + 'proposal/' + n.img + '" alt="" decoding="sync">' +
           '</div>' +
-          '<b>' + esc(n.t) + '</b>' + (n.d ? '<small>' + esc(n.d) + '</small>' : '') + '</div>';
+          '<b>' + caption(n.t) + '</b>' + (n.d ? '<small>' + esc(n.d) + '</small>' : '') + '</div>';
       }).join('') + '</div>' +
     '</div>';
   }
@@ -212,10 +214,11 @@
     const rule = intro && intro.querySelector('.rule-orange');
     if (intro && rule && intro.firstElementChild !== rule) intro.prepend(rule);
     accent($('v_soHeading'));
+    /* The hero is the same plain rounded photograph with the orange base bar that
+       pages 3, 4 and 8 use - the slanted frame with two orange strips made this the
+       one page whose picture looked like it came from a different document. */
     const photo = page.querySelector(':scope > .photo-top');
-    if (photo && !photo.querySelector('.pv2-strip')) {
-      photo.insertAdjacentHTML('beforeend', '<span class="pv2-strip a" aria-hidden="true"></span><span class="pv2-strip b" aria-hidden="true"></span>');
-    }
+    if (photo) photo.querySelectorAll('.pv2-strip').forEach((n) => n.remove());
     const specs = $('v_soSpecs');
     if (specs) [...specs.querySelectorAll('.spec-card')].forEach((card, i) => {
       card.classList.toggle('pv2-metric', i < 3); card.classList.toggle('pv2-feature', i >= 3);
@@ -230,6 +233,16 @@
         card.prepend(ic);
       }
       if (old) old.remove();
+      /* The mounting card's default copy carries a second clause (the wind-load
+         calculation sheet) that the Technical Specification already states. On the
+         card it ran to four lines and broke the row's rhythm, so the card shows the
+         first clause only. Display only: it triggers on that exact default text, so
+         anything the author typed instead is left alone. */
+      const desc = card.querySelector('.card-desc');
+      if (desc && !desc.dataset.pv2Full && /;\s*the calculation sheet is shared before execution\.?$/i.test(desc.textContent || '')) {
+        desc.dataset.pv2Full = desc.textContent;
+        desc.textContent = desc.textContent.replace(/,?\s*designed for the site wind load to /i, ' as per ').replace(/;\s*the calculation sheet is shared before execution\.?$/i, '').replace(/\s+-\s+as per/, ' as per');
+      }
     });
     let ov = body.querySelector(':scope > .pv2-overview');
     if (!ov) {
@@ -246,7 +259,7 @@
        nothing in it could be text-sharp at any zoom. Every label below is the same
        editable content the rest of the proposal uses, and every arrow and badge is
        SVG. His drawings still supply the seven equipment images. */
-    ov.innerHTML = label(P.diagramTitle || 'SYSTEM OVERVIEW') + '<div class="pv2-ov-box">' + flowDiagram(s, f) + '</div>';
+    ov.innerHTML = label(P.diagramTitle || 'SYSTEM OVERVIEW', 'sec-label') + '<div class="pv2-ov-box">' + flowDiagram(s, f) + '</div>';
     /* The artwork carries its own note, so the boilerplate scope note would print
        the same advice twice. It is only suppressed while it is boilerplate: when
        an additional system (battery, rainwater) is quoted, the renderer puts the
@@ -287,7 +300,7 @@
   const CARD_PHOTO = {
     module: IMG + 'equipment/cards/solar-module-card.webp',
     inverter: IMG + 'equipment/cards/solis-inverter.webp',
-    mount: IMG + 'equipment/cards/mount-structure-callouts.webp',
+    mount: IMG + 'equipment/cards/mount-cabling-protection.webp',
     standards: IMG + 'equipment/cards/design-is-standards.webp',
     design: IMG + 'equipment/cards/earthing-safety-3pit.webp'
   };
@@ -299,6 +312,15 @@
     fronius: IMG + 'equipment/cards/inverter-fronius.webp',
     deye: IMG + 'equipment/cards/inverter-deye.webp'
   };
+  /* Where each photograph is cut when the tile takes the height of its rows. The
+     inverter shots are lineups lying in the middle band of a tall studio frame, so
+     they are anchored low-centre; the rest are centred. */
+  const FOCUS = {
+    'inverter-sungrow': '50% 62%', 'inverter-growatt': '50% 58%', 'inverter-fronius': '50% 62%',
+    'inverter-deye': '50% 60%', 'solis-inverter': '50% 60%', 'inverter-huawei': '50% 55%',
+    'solar-module-card': '40% 50%', 'mount-cabling-protection': '50% 50%', 'design-is-standards': '55% 50%'
+  };
+  function focusFor(url) { const m = /([^/]+)\.webp$/.exec(url || ''); return (m && FOCUS[m[1]]) || '50% 50%'; }
   function photoFor(kind, brand) {
     if (kind === 'inverter' && brand) {
       const key = slug(brand).split('-')[0];
@@ -394,7 +416,7 @@
         '<h3>' + esc(c.name.toUpperCase() === c.name ? c.name : title) + '</h3>' + brandMark(c.kind, brand) + '</header>' +
         '<div class="pv2-card-body"><div class="pv2-rows">' + c.rows.map(([k, v]) =>
           '<div class="pv2-row"><div class="pv2-k">' + icon(rowIcon(k), 14, 'pv2-svg', 1.6) + '<span>' + esc(k) + '</span></div><div class="pv2-v">' + esc(v) + '</div></div>').join('') +
-        '</div><figure class="pv2-photo"><img src="' + esc(photo) + '" alt="' + esc((brand || c.name) + ' equipment') + '" decoding="sync"></figure></div></article>';
+        '</div><figure class="pv2-photo"><img src="' + esc(photo) + '" style="object-position:' + focusFor(photo) + '" alt="' + esc((brand || c.name) + ' equipment') + '" decoding="sync"></figure></div></article>';
     }).join('');
     let wrap = body.querySelector(':scope > .pv2-spec');
     if (!wrap) { wrap = doc.createElement('div'); wrap.className = 'pv2-spec'; wrap.dataset.docAdded = 'true'; table.after(wrap); }
