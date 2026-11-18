@@ -2109,3 +2109,81 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 }
 #pageSolution .photo-top img{position:relative;z-index:1;}
 #pageSolution .pg-title em{font-style:normal;color:var(--orange);}
+
+/* ---------- Custom equipment artwork (module logo / inverter logo + photo) ----------
+   Sits inside .equipment-custom, so it inherits the amber left rule that already
+   marks "this is what you typed, not what the catalogue carries". Two shapes of
+   zone because the two pictures have opposite jobs: a logo is a mark on
+   transparency that must never be cut, a photo is a product shot that must fill
+   the card tile. */
+.custom-art{
+  position:relative;margin-top:8px;padding:10px;border:1.5px dashed #C9D2DE;border-radius:10px;
+  background:#FBFCFE;cursor:pointer;transition:border-color .15s,background .15s;
+}
+.custom-art:hover,.custom-art:focus-visible{border-color:var(--orange);background:#FFF9F2;outline:none;}
+.custom-art.is-dragging{border-color:var(--orange);background:#FFF1E3;border-style:solid;}
+.custom-art[hidden]{display:none!important;}
+.custom-art-empty b{display:block;font:600 12px/1.3 'Inter',sans-serif;color:var(--navy);}
+.custom-art-empty small{display:block;margin-top:3px;font-size:10.5px;line-height:1.35;color:#6B7A8F;}
+.custom-art-empty .custom-art-hint{margin-top:6px;padding-top:6px;border-top:1px solid #E4EAF2;font-size:10px;color:#8593A6;}
+/* A photo zone stands taller and shows its tile shape, so the owner can see what
+   the crop will become before they even drop a file. */
+.custom-art.is-photo .custom-art-empty{display:block;}
+.custom-art.is-photo::after{
+  content:'';display:block;margin-top:8px;aspect-ratio:1.45/1;max-height:96px;
+  border-radius:7px;background:repeating-linear-gradient(135deg,#EEF2F7 0 8px,#F7F9FC 8px 16px);
+}
+.custom-art.is-photo .custom-art-filled::after{
+  content:'';display:block;margin-top:8px;aspect-ratio:1.45/1;max-height:96px;
+  border-radius:7px;background-size:cover;background-position:center;
+}
+.custom-art-filled{display:flex;align-items:center;gap:10px;}
+.custom-art-filled[hidden]{display:none!important;}
+.custom-art-filled img{
+  display:block;max-width:120px;max-height:30px;width:auto;height:auto;object-fit:contain;
+  /* Logos sit on their own transparency; a light plate makes a white mark visible
+     instead of invisible. */
+  background:linear-gradient(#fff,#fff) padding-box;border-radius:4px;padding:2px 4px;
+}
+.custom-art.is-photo .custom-art-filled{flex-direction:column;align-items:flex-start;}
+.custom-art.is-photo .custom-art-filled img{
+  max-width:100%;max-height:none;width:100%;height:auto;padding:0;border-radius:7px;
+}
+.custom-art-filled>div{display:flex;flex-direction:column;gap:5px;align-items:flex-start;}
+.custom-art-filled small{font-size:10px;color:#8593A6;}
+.custom-art-filled button{
+  padding:3px 9px;border:1px solid #D7DEE8;border-radius:6px;background:#fff;
+  font:600 10px/1 'Inter',sans-serif;color:#5A6A7E;cursor:pointer;
+}
+.custom-art-filled button:hover{border-color:#D7202A;color:#D7202A;}
+
+/* The crop panel. One instance, shown under whichever photo zone is open. */
+.custom-art-crop{
+  margin-top:10px;padding:12px;border:1px solid #E1E6ED;border-radius:10px;background:#fff;
+  box-shadow:0 6px 22px rgba(18,32,54,.08);
+}
+.custom-art-crop[hidden]{display:none!important;}
+.custom-art-crop b{display:block;font:600 12px/1.3 'Inter',sans-serif;color:var(--navy);}
+.custom-art-crop>small{display:block;margin:3px 0 8px;font-size:10.5px;color:#6B7A8F;}
+.custom-art-crop canvas{
+  display:block;width:100%;max-width:260px;height:auto;border-radius:7px;background:#EEF1F5;
+  cursor:grab;touch-action:none;
+}
+.custom-art-crop canvas:active{cursor:grabbing;}
+.custom-art-zoom{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:10.5px;color:#5A6A7E;}
+.custom-art-zoom input{flex:1;accent-color:var(--orange);}
+.custom-art-fit{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:10.5px;color:#5A6A7E;cursor:pointer;}
+.custom-art-fit input{accent-color:var(--orange);}
+.custom-art-crop-actions{display:flex;gap:8px;margin-top:10px;}
+.custom-art-crop-actions button{
+  padding:6px 14px;border-radius:7px;border:1px solid #D7DEE8;background:#fff;
+  font:600 11px/1 'Inter',sans-serif;color:#43536A;cursor:pointer;
+}
+.custom-art-crop-actions button:first-child{background:var(--orange);border-color:var(--orange);color:#fff;}
+.custom-art-crop-actions button:first-child:hover{background:var(--orange-dark);border-color:var(--orange-dark);}
+.custom-art-status{
+  margin-top:8px;padding:7px 10px;border-radius:7px;background:#EEF6FF;border:1px solid #CFE2F7;
+  font:500 10.5px/1.4 'Inter',sans-serif;color:#2A5B87;
+}
+.custom-art-status[hidden]{display:none!important;}
+.custom-art-status.is-bad{background:#FFF2F2;border-color:#F7CFCF;color:#A32424;}

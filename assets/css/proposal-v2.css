@@ -279,3 +279,12 @@
 
 .pv2-tech .pv2-brand.is-ars b{color:#D7202A;font-style:italic;font-weight:900;font-size:21px;letter-spacing:-.5px;}
 .pv2-tech .pv2-brand.is-ars small{color:#1C2B3F;font-weight:700;font-size:9.5px;}
+
+/* ---------- Artwork the owner supplied (custom make) ----------
+   The card photo is normally cut to the tile with object-fit:cover, because the
+   photographer's frame is bigger than the tile. A supplied photo is different:
+   the owner already chose that crop in the upload panel, so cutting it again
+   would shave off the edges they deliberately kept. It is shown whole, on the
+   tile's own light plate so a letterboxed "fit" crop still looks deliberate. */
+.pv2-tech .pv2-photo.is-custom img{object-fit:contain;background:#fff;}
+.pv2-tech .pv2-brand.is-custom img{max-width:132px;height:30px;object-fit:contain;}

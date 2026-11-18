@@ -346,6 +346,18 @@
           <div id="moduleMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
             <label for="moduleMakeCustom">Custom module make</label>
             <input type="text" id="moduleMakeCustom" data-equipment-custom placeholder="Enter your own module make…" autocomplete="off" spellcheck="false" disabled>
+            <div class="custom-art" id="customArtModuleLogo" role="button" tabindex="0" aria-label="Upload the custom module logo">
+              <input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" data-custom-art-input hidden>
+              <div class="custom-art-empty" data-custom-art-empty>
+                <b>Drop the module logo here</b>
+                <small>or click to browse &middot; paste with Ctrl+V</small>
+                <small class="custom-art-hint">PNG / WebP / SVG with a clear background works best. The app trims the empty margin and fits it to the badge - nothing is cut.</small>
+              </div>
+              <div class="custom-art-filled" data-custom-art-filled hidden>
+                <img alt="Custom module logo preview">
+                <div><small data-custom-art-name></small><button type="button" data-custom-art-remove>Remove</button></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="field"><label for="moduleModel">Module model</label>
@@ -393,6 +405,30 @@
           <div id="inverterMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
             <label for="inverterMakeCustom">Custom inverter make</label>
             <input type="text" id="inverterMakeCustom" data-equipment-custom placeholder="Enter your own inverter make…" autocomplete="off" spellcheck="false" disabled>
+            <div class="custom-art is-logo" id="customArtInverterLogo" role="button" tabindex="0" aria-label="Upload the custom inverter logo">
+              <input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" data-custom-art-input hidden>
+              <div class="custom-art-empty" data-custom-art-empty>
+                <b>Drop the inverter logo here</b>
+                <small>or click to browse &middot; paste with Ctrl+V</small>
+                <small class="custom-art-hint">The maker's mark, on a clear background. Trimmed and fitted to the badge - nothing is cut.</small>
+              </div>
+              <div class="custom-art-filled" data-custom-art-filled hidden>
+                <img alt="Custom inverter logo preview">
+                <div><small data-custom-art-name></small><button type="button" data-custom-art-remove>Remove</button></div>
+              </div>
+            </div>
+            <div class="custom-art is-photo" id="customArtInverterPhoto" role="button" tabindex="0" aria-label="Upload the custom inverter photo">
+              <input type="file" accept="image/png,image/webp,image/jpeg" data-custom-art-input hidden>
+              <div class="custom-art-empty" data-custom-art-empty>
+                <b>Drop the inverter photo here</b>
+                <small>or click to browse &middot; paste with Ctrl+V</small>
+                <small class="custom-art-hint">A separate picture from the logo - the product itself. It is cropped to the card's shape; you can drag and zoom before saving.</small>
+              </div>
+              <div class="custom-art-filled" data-custom-art-filled hidden>
+                <img alt="Custom inverter photo preview">
+                <div><small data-custom-art-name></small><button type="button" data-custom-art-remove>Remove</button></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="field"><label for="inverterModel">Inverter model</label>
@@ -747,6 +783,23 @@
         <summary id="advToggle">Advanced Edit - content &amp; photographs</summary>
         <div id="advContainer"></div>
       </details>
+
+      <!-- One crop panel, shared by every photo zone. It is moved next to
+           whichever zone is being edited, so the owner never has to hunt for it. -->
+      <div class="custom-art-crop" id="customArtCrop" hidden>
+        <b>Choose the crop</b>
+        <small>Drag the picture to move it. Use the slider to zoom.</small>
+        <canvas id="customArtCropCanvas" width="260" height="179" aria-label="Crop preview"></canvas>
+        <label class="custom-art-zoom"><span>Zoom</span>
+          <input type="range" id="customArtCropZoom" min="1" max="3" step="0.01" value="1">
+        </label>
+        <label class="custom-art-fit"><input type="checkbox" id="customArtCropFit"> Fit without cropping (adds borders)</label>
+        <div class="custom-art-crop-actions">
+          <button type="button" id="customArtCropSave">Use this crop</button>
+          <button type="button" id="customArtCropCancel">Cancel</button>
+        </div>
+      </div>
+      <div class="custom-art-status" id="customArtStatus" role="status" aria-live="polite" hidden></div>
     </form>
 
 
@@ -1551,6 +1604,7 @@ fill="#fff"/><path fill="#25d366" d="m79 434 25.7-93.9a181.1 181.2 0 1170.3 68.7
 <script src="assets/js/workspace-prefs.js"></script>
 <script src="assets/js/platform-api.js?v=excel-workbook2"></script>
 <script src="assets/js/cloud-bridge.js?v=start-first-fold1"></script>
+<script src="assets/js/custom-art.js?v=custom-art1"></script>
 <script src="assets/js/app.js?v=feedback-preview2"></script>
 <script src="assets/js/pricing-auto.js?v=1"></script>
 <script src="assets/js/control-panel.js?v=review-notes1"></script>

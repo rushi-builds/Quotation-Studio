@@ -207,6 +207,10 @@
     const active = isCustom(sel);
     if (wrap) wrap.hidden = !active;
     if (input) input.disabled = !active;
+    /* The artwork zones live inside the wrapper, so they only exist while the
+       make is custom - and they must be wired the first time they become visible,
+       because a hidden element is still in the document at boot. */
+    if (active && root.CustomArt) root.CustomArt.wire();
   }
   function numOf(v) { const n = parseFloat(v); return isNaN(n) ? null : n; }
   function firstNum(v) { const m = String(v).match(/-?\d+(\.\d+)?/); return m ? m[0] : null; }

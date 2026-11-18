@@ -293,6 +293,15 @@
     ars: 'ars-solartech'
   };
   const slug = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  /* The owner can supply the artwork for a make the brand sheet does not carry.
+     Those pictures ride the page-image map (window.__qsPageImages), the same map
+     the cover/closing/about overrides already use, so they survive save, load,
+     share and the PDF with no extra plumbing. A saved proposal opened on another
+     machine carries them because they are data URLs, not file paths. */
+  const customArt = (key) => {
+    const url = root.__qsPageImages?.[key];
+    return typeof url === 'string' && /^data:image\//.test(url) ? url : '';
+  };
   /* One photograph per card, taken from the owner's page 5/6 set. Modules,
      structure and safety keep a single shot each; the inverter card carries the
      studio shot of the make the quotation actually names where the set has one,
@@ -320,12 +329,26 @@
     'inverter-deye': '50% 60%', 'solis-inverter': '50% 60%', 'inverter-huawei': '50% 55%',
     'solar-module-card': '40% 50%', 'mount-cabling-protection': '50% 50%', 'design-is-standards': '55% 50%'
   };
-  function focusFor(url) { const m = /([^/]+)\.webp$/.exec(url || ''); return (m && FOCUS[m[1]]) || '50% 50%'; }
+  function focusFor(url) {
+    /* A supplied photo was already cropped by the owner in the upload panel, so
+       the card must show it whole instead of cutting it a second time. */
+    if (/^data:image\//.test(url || '')) return '50% 50%';
+    const m = /([^/]+)\.webp$/.exec(url || '');
+    return (m && FOCUS[m[1]]) || '50% 50%';
+  }
+  /* A supplied photo is a crop the owner chose, so the tile must not crop it
+     again - object-fit:cover would shave the edges they deliberately kept. */
+  const isSupplied = (url) => /^data:image\//.test(url || '');
   function photoFor(kind, brand) {
-    if (kind === 'inverter' && brand) {
-      const key = slug(brand).split('-')[0];
-      if (INVERTER_PHOTO[key]) return INVERTER_PHOTO[key];
+    const known = brand ? INVERTER_PHOTO[slug(brand).split('-')[0]] : '';
+    /* The owner's own shot is the only picture that shows a make the set does not
+       carry, so it wins there. A make the set does carry keeps its studio shot:
+       picking Sungrow still shows the Sungrow render. */
+    if (kind === 'inverter' && !known) {
+      const supplied = customArt('customInverterPhoto');
+      if (supplied) return supplied;
     }
+    if (kind === 'inverter' && known) return known;
     if (kind === 'design') return CARD_PHOTO.standards;
     return CARD_PHOTO[kind] || IMG + 'equipment/cards/earthing-safety-3pit.webp';
   }
@@ -365,6 +388,13 @@
     const logo = BRAND_LOGOS[key] || BRAND_LOGOS[slug(brand)];
     if (logo) {
       return '<div class="pv2-brand is-logo"><img src="' + IMG + 'brands/' + logo + '.webp" alt="' + esc(brand) + '" decoding="sync"></div>';
+    }
+    /* No mark in the brand sheet, so a typed make would print as plain type. The
+       owner's uploaded logo is the better answer when there is one - and it is
+       what makes a custom make look like every other card. */
+    const supplied = kind === 'module' ? customArt('customModuleLogo') : kind === 'inverter' ? customArt('customInverterLogo') : '';
+    if (supplied) {
+      return '<div class="pv2-brand is-logo is-custom"><img src="' + esc(supplied) + '" alt="' + esc(brand) + '" decoding="sync"></div>';
     }
     return '<div class="pv2-brand is-plain"><b>' + esc(brand) + '</b></div>';
   }
@@ -416,7 +446,7 @@
         '<h3>' + esc(c.name.toUpperCase() === c.name ? c.name : title) + '</h3>' + brandMark(c.kind, brand) + '</header>' +
         '<div class="pv2-card-body"><div class="pv2-rows">' + c.rows.map(([k, v]) =>
           '<div class="pv2-row"><div class="pv2-k">' + icon(rowIcon(k), 14, 'pv2-svg', 1.6) + '<span>' + esc(k) + '</span></div><div class="pv2-v">' + esc(v) + '</div></div>').join('') +
-        '</div><figure class="pv2-photo"><img src="' + esc(photo) + '" style="object-position:' + focusFor(photo) + '" alt="' + esc((brand || c.name) + ' equipment') + '" decoding="sync"></figure></div></article>';
+        '</div><figure class="pv2-photo' + (isSupplied(photo) ? ' is-custom' : '') + '"><img src="' + esc(photo) + '" style="object-position:' + focusFor(photo) + '" alt="' + esc((brand || c.name) + ' equipment') + '" decoding="sync"></figure></div></article>';
     }).join('');
     let wrap = body.querySelector(':scope > .pv2-spec');
     if (!wrap) { wrap = doc.createElement('div'); wrap.className = 'pv2-spec'; wrap.dataset.docAdded = 'true'; table.after(wrap); }
