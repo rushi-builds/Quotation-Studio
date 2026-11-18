@@ -398,6 +398,44 @@
     }
     return '<div class="pv2-brand is-plain"><b>' + esc(brand) + '</b></div>';
   }
+  /* One card, one definition. Page 6 renders these into the sheet; the Power
+     Proposal asks for the same markup so its technical page and the full
+     proposal's technical page cannot drift apart - they are the same cards, built
+     from the same rows, with the same artwork lookup (including a custom make's
+     uploaded logo and photo). `i` is the card's position, used for its number. */
+  function cardMarkup(c, i) {
+    const val = (re) => (c.rows.find(([k]) => re.test(k)) || [])[1] || '';
+    let brand = '';
+    if (c.kind === 'module' || c.kind === 'inverter') brand = val(/^(make|brand)$/i);
+    else if (c.kind === 'mount') brand = 'ARS';
+    brand = brand.replace(/\s+/g, ' ').trim();
+    const photo = photoFor(c.kind, brand);
+    const title = c.name.charAt(0) + c.name.slice(1).toLowerCase();
+    return '<article class="pv2-card is-' + c.kind + '">' +
+      /* Number OR icon, not both - two devices side by side read as decoration.
+         The number is quiet set type, so it orders the cards without shouting. */
+      '<header class="pv2-card-head"><span class="pv2-num">' + String(i + 1).padStart(2, '0') + '</span>' +
+      '<h3>' + esc(c.name.toUpperCase() === c.name ? c.name : title) + '</h3>' + brandMark(c.kind, brand) + '</header>' +
+      '<div class="pv2-card-body"><div class="pv2-rows">' + c.rows.map(([k, v]) =>
+        '<div class="pv2-row"><div class="pv2-k">' + icon(rowIcon(k), 14, 'pv2-svg', 1.6) + '<span>' + esc(k) + '</span></div><div class="pv2-v">' + esc(v) + '</div></div>').join('') +
+      '</div><figure class="pv2-photo' + (isSupplied(photo) ? ' is-custom' : '') + '"><img src="' + esc(photo) + '" style="object-position:' + focusFor(photo) + '" alt="' + esc((brand || c.name) + ' equipment') + '" decoding="sync"></figure></div></article>';
+  }
+  /* The specification table is the single source of truth for both pages, so the
+     grouping lives here too rather than being re-implemented by the report. */
+  function cardsFromTable(table) {
+    const cards = []; const byKind = {};
+    readGroups(table).forEach((g) => {
+      const kind = kindOf(g.name);
+      if (kind === 'site' || kind === 'sitedata') { (byKind['_' + kind] = byKind['_' + kind] || []).push(...g.rows); return; }
+      const card = { kind, name: g.name, rows: g.rows.slice() };
+      byKind[kind] = card; cards.push(card);
+    });
+    /* Site rows read best beside the structure they size; measured site data
+       belongs with the design basis it feeds. Nothing is dropped. */
+    if (byKind._site) (byKind.mount || cards[cards.length - 1] || {}).rows?.push(...byKind._site);
+    if (byKind._sitedata) (byKind.design || cards[cards.length - 1] || {}).rows?.push(...byKind._sitedata);
+    return cards;
+  }
   function techSpec() {
     const page = $('pageTechSpec'); if (!page) return;
     chrome(page); page.classList.add('pv2-tech');
@@ -419,35 +457,8 @@
           + '<em>compatibility</em>, <em>certified performance</em> and long-term reliability.</span>';
       }
     }
-    const groups = readGroups(table);
-    const cards = []; const byKind = {};
-    groups.forEach((g) => {
-      const kind = kindOf(g.name);
-      if (kind === 'site' || kind === 'sitedata') { (byKind['_' + kind] = byKind['_' + kind] || []).push(...g.rows); return; }
-      const card = { kind, name: g.name, rows: g.rows.slice() };
-      byKind[kind] = card; cards.push(card);
-    });
-    /* Site rows read best beside the structure they size; measured site data
-       belongs with the design basis it feeds. Nothing is dropped. */
-    if (byKind._site) (byKind.mount || cards[cards.length - 1] || {}).rows?.push(...byKind._site);
-    if (byKind._sitedata) (byKind.design || cards[cards.length - 1] || {}).rows?.push(...byKind._sitedata);
-    const html = cards.map((c, i) => {
-      const val = (re) => (c.rows.find(([k]) => re.test(k)) || [])[1] || '';
-      let brand = '';
-      if (c.kind === 'module' || c.kind === 'inverter') brand = val(/^(make|brand)$/i);
-      else if (c.kind === 'mount') brand = 'ARS';
-      brand = brand.replace(/\s+/g, ' ').trim();
-      const photo = photoFor(c.kind, brand);
-      const title = c.name.charAt(0) + c.name.slice(1).toLowerCase();
-      return '<article class="pv2-card is-' + c.kind + '">' +
-        /* Number OR icon, not both - two devices side by side read as decoration.
-           The number is quiet set type, so it orders the cards without shouting. */
-        '<header class="pv2-card-head"><span class="pv2-num">' + String(i + 1).padStart(2, '0') + '</span>' +
-        '<h3>' + esc(c.name.toUpperCase() === c.name ? c.name : title) + '</h3>' + brandMark(c.kind, brand) + '</header>' +
-        '<div class="pv2-card-body"><div class="pv2-rows">' + c.rows.map(([k, v]) =>
-          '<div class="pv2-row"><div class="pv2-k">' + icon(rowIcon(k), 14, 'pv2-svg', 1.6) + '<span>' + esc(k) + '</span></div><div class="pv2-v">' + esc(v) + '</div></div>').join('') +
-        '</div><figure class="pv2-photo' + (isSupplied(photo) ? ' is-custom' : '') + '"><img src="' + esc(photo) + '" style="object-position:' + focusFor(photo) + '" alt="' + esc((brand || c.name) + ' equipment') + '" decoding="sync"></figure></div></article>';
-    }).join('');
+    const cards = cardsFromTable(table);
+    const html = cards.map(cardMarkup).join('');
     let wrap = body.querySelector(':scope > .pv2-spec');
     if (!wrap) { wrap = doc.createElement('div'); wrap.className = 'pv2-spec'; wrap.dataset.docAdded = 'true'; table.after(wrap); }
     if (wrap.dataset.html !== html) { wrap.innerHTML = html; wrap.dataset.html = html; }
@@ -496,6 +507,6 @@
      hides it with display:none, and on documents saved after the redesign it is not
      there at all, so the report printed an empty framed box under a caption that
      said "Conceptual grid-tied flow". */
-  root.ProposalV2 = { sync, flowDiagram };
+  root.ProposalV2 = { sync, flowDiagram, cardsFromTable, cardMarkup };
   if (root.Render.lastState) schedule();
 })(window);

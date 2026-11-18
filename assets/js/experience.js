@@ -174,6 +174,21 @@
     const liveFlow=root.ProposalV2&&root.ProposalV2.flowDiagram?root.ProposalV2.flowDiagram(s,f):'';
     const diagram=liveFlow||($('v_tsDiagram')?.innerHTML.replace(/qs-system|qs-metal|qs-panels|qs-dc-arrow|qs-ac-arrow/g,m=>'power-'+m)||'');
     const photo=root.__qsPageImages?.img_solution||(['commercial','industrial','rwa'].includes(s.customerType)?'assets/images/cover-'+s.customerType+'-scene.jpg':($('img_solution')?.getAttribute('src')||'assets/images/page-solution.jpg'));
+    /* The technical page of this report and page 6 of the full proposal are the
+       same page. It used to be rebuilt here as two columns of label/value rows,
+       which meant the report showed a custom make as plain text while the proposal
+       showed the owner's uploaded logo and photo. Asking proposal-v2.js for its
+       cards makes them one drawing with one artwork lookup - so a custom make
+       looks identical in both PDFs, and a change to the card design reaches both. */
+    const powerCards=(st)=>{
+      const table=$('v_tsTable');
+      const cards=root.ProposalV2?.cardsFromTable?root.ProposalV2.cardsFromTable(table):[];
+      if(!cards.length) return '';
+      /* The report's column is narrower than the sheet, so the same cards are
+         scaled down by .power-tech-cards (experience.css) rather than re-drawn. */
+      return '<div class="pv2 pv2-tech power-tech-cards"><div class="pv2-spec">'+
+        cards.map(root.ProposalV2.cardMarkup).join('')+'</div></div>';
+    };
     const valid=F.fmtDate(F.addDays(s.propDate,s.validityDays))||'To be confirmed';
     const scope=CONTENT.pageScope,warranty=CONTENT.pageWarranty;
     const list=items=>'<ul>'+items.map(item=>'<li>'+esc(item.title)+'</li>').join('')+'</ul>';
@@ -205,7 +220,7 @@
         portfolioCard(s)+
         '<div class="power-company-services"><h2>From design through commissioning</h2><p>Site assessment · System engineering · Supply & installation · Testing & commissioning · After-sales support</p></div>')+
       page(3,'03 / EQUIPMENT & SYSTEM DESIGN','The system behind the numbers.','Selected equipment and the design basis for your proposed solar installation.',
-        '<div class="power-columns"><section><h2>Solar array & installation</h2>'+row('Module make',s.moduleMake||'To be confirmed')+row('Module technology',s.moduleTech||'To be confirmed')+row('Modules / rating',f.moduleCount+' × '+precise(f.moduleWattage)+' Wp')+row('Installed DC array',precise(f.installedKwp)+' kWp')+row('Module area',precise(f.arrayArea)+' m²')+'</section><section><h2>Conversion & balance of system</h2>'+row('Inverter make',s.inverterMake||'To be confirmed')+row('Inverter rating',precise(f.inverterKw)+' kW')+row('DC / AC ratio',Number.isFinite(f.dcAcRatio)&&f.dcAcRatio>0?f.dcAcRatio.toFixed(2)+' : 1':'-')+row('Mounting structure',s.mountMake||'To be confirmed')+row('Cables & protection',s.cableMake||'To be confirmed')+'</section></div>'+
+        (powerCards(s)) +
         '<h2>How your system connects</h2><div class="power-diagram">'+diagram+'</div><p class="power-caption">Conceptual grid-tied flow, not an installation wiring drawing. Grid-tied solar alone does not provide outage backup.</p>'+
         '<div class="power-metrics power-metrics-three">'+metric('Roof type',s.roofType||'To be confirmed','Site conditions to be confirmed')+metric('Indicative roof requirement',precise(f.requiredArea)+' m²','Includes modelled layout clearance')+metric('Contracted capacity',precise(f.contractedKwp)+' kWp','Pricing basis; whole modules may deliver more DC')+'</div>'+
         '<div class="power-design-note"><h2>Engineering design basis</h2><p>'+esc(root.StateStore.engineeringNote(s))+'</p></div>')+

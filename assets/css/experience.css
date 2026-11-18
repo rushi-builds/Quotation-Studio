@@ -324,3 +324,35 @@
 .power-six h1{color:#17354a;position:relative;}
 .power-six h1::after{content:"";position:absolute;left:0;bottom:-5px;width:42px;height:2px;background:#dc8629;border-radius:1px;}
 .power-six .power-heading-accent{color:inherit;border:0;padding:0;}
+
+/* ---------- The report's technical page IS page 6 of the proposal ----------
+   Same cards, same rows, same artwork lookup. The report column is narrower than
+   the A4 sheet, and the page has a diagram and a design note under the cards, so
+   the cards are tightened here rather than re-drawn:
+     - two rows of cards rather than one long strip, because a 700px column cannot
+       give four cards a readable width side by side;
+     - the photo tile is shorter, since the report already carries a hero picture
+       on page 1 and the diagram on this page;
+     - the badge is unchanged, so a custom logo prints exactly as it does in the
+       full proposal.
+   Everything is scoped to .power-tech-cards, so page 6 itself is untouched. */
+.power-tech-cards{margin-bottom:14px;}
+.power-tech-cards .pv2-spec{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+}
+.power-tech-cards .pv2-card{
+  border-radius:9px;
+}
+.power-tech-cards .pv2-card-head{min-height:0;padding-bottom:5px;}
+.power-tech-cards .pv2-card-head h3{font-size:11.5px;letter-spacing:.04em;}
+.power-tech-cards .pv2-num{font-size:15px;}
+.power-tech-cards .pv2-brand.is-logo img{height:22px;max-width:92px;}
+.power-tech-cards .pv2-card-body{gap:8px;}
+.power-tech-cards .pv2-rows{gap:2px;}
+.power-tech-cards .pv2-row{padding:2px 0;}
+.power-tech-cards .pv2-k span{font-size:8.6px;}
+.power-tech-cards .pv2-v{font-size:8.6px;}
+.power-tech-cards .pv2-photo{min-height:64px;max-height:74px;border-radius:7px;}
+.power-tech-cards .pv2-photo img{object-position:center;}
+/* The uploaded crop is shown whole, exactly as on page 6. */
+.power-tech-cards .pv2-photo.is-custom img{object-fit:contain;background:#fff;}

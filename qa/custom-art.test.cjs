@@ -46,6 +46,8 @@ const eq = read('assets/js/equipment.js');
 const css = read('assets/css/app.css');
 const pv2css = read('assets/css/proposal-v2.css');
 const guard = read('qa/pr-scope-guard.cjs');
+const expCss = read('assets/css/experience.css');
+const experience = read('assets/js/experience.js');
 
 console.log('\nCustom equipment artwork\n');
 
@@ -153,6 +155,34 @@ check('with no artwork uploaded, nothing changes - the existing markup path is u
   /* The fallbacks are still exactly what they were before this feature. */
   /return '<div class="pv2-brand is-plain"><b>' \+ esc\(brand\) \+ '<\/b><\/div>';/.test(pv2) &&
   /return CARD_PHOTO\[kind\] \|\| IMG \+ 'equipment\/cards\/earthing-safety-3pit\.webp';/.test(pv2));
+
+/* --------------------------------------- 5b. the report prints the same cards */
+
+/* The Power Proposal's technical page used to be rebuilt as two columns of
+   label/value rows, so a custom make printed as plain text there while the full
+   proposal printed the owner's uploaded logo and photo. Both PDFs now ask for the
+   same cards, which is the only way "exactly the same in both" can stay true. */
+check('the card markup exists once and both pages ask for it',
+  (pv2.match(/pv2-card is-/g) || []).length === 1 &&
+  /function cardMarkup/.test(pv2) &&
+  /root\.ProposalV2 = \{[^}]*cardMarkup/.test(pv2) &&
+  /cards\.map\(root\.ProposalV2\.cardMarkup\)/.test(experience));
+
+check('the report groups the specification table through the same helper, not its own copy',
+  /root\.ProposalV2\.cardsFromTable\(table\)/.test(experience) &&
+  /root\.ProposalV2 = \{[^}]*cardsFromTable/.test(pv2));
+
+check('REGRESSION: the report no longer draws its own label/value columns for equipment',
+  /* This is the markup that made the two PDFs differ. */
+  !/power-columns"><section><h2>Solar array/.test(experience));
+
+check('the report\'s cards are tightened for its narrow column, and page 6 is untouched',
+  /\.power-tech-cards \.pv2-spec\{/.test(expCss) &&
+  /* Every override is scoped, so the sheet's own cards keep their own sizes. */
+  /\.power-tech-cards \.pv2-card\{/.test(expCss));
+
+check('a supplied photo is shown whole on the report too, exactly as on page 6',
+  /\.power-tech-cards \.pv2-photo\.is-custom img\{object-fit:contain/.test(expCss));
 
 /* ------------------------------------------------------------- 6. persistence */
 
