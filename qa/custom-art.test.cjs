@@ -145,8 +145,37 @@ check('with no artwork uploaded, nothing changes - the existing markup path is u
 
 /* ------------------------------------------------------------- 6. persistence */
 
+/* REGRESSION: the store key and the read key must be the same string.
+   This shipped broken once: the zones wrote `moduleLogo`, the card renderer read
+   `customModuleLogo`, and `app.js` restored `customModuleLogo`. A logo was uploaded,
+   trimmed and saved correctly - and never appeared on the card. Every source-string
+   check still passed, because both names existed in the source, just not as the
+   same name. That is why this check compares the two sides instead of looking for
+   either one. */
+{
+  const writer = customArt;
+  const reader = pv2;
+  const restore = app;
+  const stored = /const mapKey = \(zone\) => 'custom' \+ zone\[0\]\.toUpperCase\(\) \+ zone\.slice\(1\)/.test(writer);
+  check('REGRESSION: the zone key is translated to the name the card reads (custom<Zone>)',
+    stored &&
+    /__qsPageImages\[mapKey\(zoneKey\)\]/.test(writer) &&
+    /map\[mapKey\(spec\.zone\)\]/.test(writer));
+
+  const reads = ['customModuleLogo', 'customInverterLogo', 'customInverterPhoto']
+    .every((k) => reader.includes(k));
+  check('REGRESSION: every key the renderer reads is one the uploader writes', reads);
+
+  check('REGRESSION: the reopen path restores the same three keys the uploader writes',
+    /custom\(ModuleLogo\|InverterLogo\|InverterPhoto\)/.test(restore));
+
+  /* The short names must not reach the map: that is the bug itself. */
+  check('REGRESSION: the bare zone name is never used as a map key',
+    !/__qsPageImages\[zoneKey\]/.test(writer) && !/__qsPageImages\[spec\.zone\]/.test(writer));
+}
+
 check('artwork rides the page-image map, which is already saved with every proposal',
-  /root\.__qsPageImages\[zoneKey\]/.test(customArt) &&
+  /root\.__qsPageImages\[mapKey\(zoneKey\)\]/.test(customArt) &&
   /* saveActive(...) receives the page-image map as its last argument, so anything
      put in that map is persisted - the nested collectForm() call is why this is
      matched line-wise rather than with a single-argument regex. */

@@ -31,6 +31,12 @@
   const MAX_IN = 5 * 1024 * 1024;
 
   const state = { moduleLogo: '', inverterLogo: '', inverterPhoto: '' };
+  /* The zones keep their short names. The page-image map is a different namespace:
+     the card renderer (proposal-v2.js) reads customModuleLogo / customInverterLogo /
+     customInverterPhoto and app.js restores exactly those on reopen. Translating in
+     one place is the whole point - this used to write `moduleLogo`, so a logo was
+     uploaded, trimmed and saved, and then never reached the card. */
+  const mapKey = (zone) => 'custom' + zone[0].toUpperCase() + zone.slice(1);
   /* Crop sessions live here so the drag handlers do not have to re-decode the
      file on every pointer move. */
   const crops = new Map();
@@ -255,7 +261,7 @@
   }
 
   function commit(zoneKey) {
-    if (root.__qsPageImages) root.__qsPageImages[zoneKey] = state[zoneKey] || '';
+    if (root.__qsPageImages) root.__qsPageImages[mapKey(zoneKey)] = state[zoneKey] || '';
     /* The cards are painted from the page-image map, so a redraw is all that is
        needed to show or drop the artwork. */
     root.Render?.renderAll?.();
@@ -414,7 +420,7 @@
   function sync() {
     const map = root.__qsPageImages || {};
     ZONES.forEach((spec) => {
-      const url = map[spec.zone] || '';
+      const url = map[mapKey(spec.zone)] || '';
       state[spec.zone] = url;
       showThumb(spec.zone, url ? { url, w: '—', h: '—' } : null);
       if (url) {
