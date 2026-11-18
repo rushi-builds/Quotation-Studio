@@ -24,7 +24,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('QR redraw replaces old destination',await readQR(page,'#closingGallery canvas')==='https://example.com/updated-gallery');
  const expected=await page.evaluate(()=>{const f=Finance.compute(Render.lastState);return {net:Finance.fmtINR(f.netInvestment),annual:Finance.fmtNum(f.annualGen),lifetime:Finance.fmtINRshort(f.lifetimeSaving),module:f.moduleCount};});
  await page.evaluate(()=>window.__power=Experience.buildPowerPages(Render.lastState));
- check('Power Proposal is exactly six dedicated pages',await page.$$eval('.pdf-snapshot .power-page',els=>els.length===6));
+ check('Power Proposal is exactly seven dedicated pages',await page.$$eval('.pdf-snapshot .power-page',els=>els.length===7));
  check('summary reflects energy/equipment while pricing stays on Investment',await page.$eval('#powerPage1',(e,x)=>!e.textContent.includes('₹')&&e.textContent.includes(x.annual)&&e.textContent.includes(x.module+' × 620')&&e.textContent.includes('10 kW inverter'),expected));
  check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage5.textContent.includes(x.net)&&powerPage4.textContent.includes(x.lifetime),expected));
  check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage5.textContent.includes('not approved')&&powerPage6.textContent.includes('Additional scope')&&powerPage6.textContent.includes('valid until')&&powerPage6.textContent.includes('not an installation order')));

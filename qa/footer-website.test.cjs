@@ -67,7 +67,7 @@ const { chromium } = require('playwright');
       // Shared footer renderer also populates currently hidden optional pages.
       assert(await page.evaluate(expected => [...document.querySelectorAll('[data-foot-company]')].every(el => el.querySelector('.pf-website')?.textContent === expected), website));
       await page.evaluate(() => { window.__footerPower = Experience.buildPowerPages(Render.lastState); });
-      assert.equal(await checkFooters(page, '.pdf-snapshot .power-foot', website), 6);
+      assert.equal(await checkFooters(page, '.pdf-snapshot .power-foot', website), 7);
       await page.evaluate(() => { window.__footerPower.remove(); });
     }
 
