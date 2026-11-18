@@ -2159,14 +2159,11 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 }
 .custom-art-filled button:hover{border-color:#D7202A;color:#D7202A;background:#FFF7F7;}
 
-/* The photo plate shows the shape it will fill, so the crop is never a surprise -
-   but as a thin outline, not the loud hatched block it used to be. */
+/* A photo plate is the same quiet plate as a logo plate. The empty state does NOT
+   draw a ghost of the tile: an empty outlined box inside a dashed box is two boxes
+   saying nothing, and it reads as a second drop target. The shape is shown after
+   the file is dropped, on the chip, which is the only place it means anything. */
 .custom-art.is-photo .custom-art-empty{display:block;}
-.custom-art.is-photo::after{
-  content:'';display:block;margin:9px auto 0;width:100%;max-width:132px;aspect-ratio:1.45/1;
-  border-radius:5px;border:1px dashed #D7DFE9;background:#F6F9FC;
-}
-.custom-art.is-photo.is-dragging::after{border-color:var(--orange);background:#FFF4E8;}
 .custom-art.is-photo .custom-art-filled{flex-direction:column;align-items:stretch;gap:7px;}
 .custom-art.is-photo .custom-art-filled img{
   max-width:100%;max-height:none;width:100%;height:auto;aspect-ratio:1.45/1;object-fit:cover;border-radius:6px;

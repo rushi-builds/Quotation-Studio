@@ -240,8 +240,16 @@ check('each drop plate says two words and stops - no paragraph of instructions',
     return text.length <= 60;
   }));
 
-check('REGRESSION: the hatched placeholder is gone - a photo plate shows a thin outline instead',
-  !/repeating-linear-gradient/.test(css) && /\.custom-art\.is-photo::after\{/.test(css));
+check('REGRESSION: no placeholder art at all - not the hatched block, and not an empty outlined box either',
+  /* An empty outlined box inside a dashed plate is two boxes saying nothing, and
+     it reads as a second drop target. Both are gone; the tile's shape is shown on
+     the chip after a file is dropped, where it means something. */
+  !/repeating-linear-gradient/.test(css) && !/custom-art\.is-photo::after/.test(css));
+
+check('each plate names its own target, so two plates never read the same',
+  /<b>Drop module logo<\/b>/.test(html) &&
+  /<b>Drop inverter logo<\/b>/.test(html) &&
+  /<b>Drop inverter image<\/b>/.test(html));
 
 check('the empty plate carries a drawn glyph rather than a bare box',
   /\.custom-art-empty::before\{/.test(css) && /data:image\/svg\+xml/.test(css));
