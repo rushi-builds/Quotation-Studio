@@ -30,7 +30,7 @@ const {chromium}=require('playwright');
    });
    assert(result.finance,'package scope must not mutate Finance');assert.equal(result.gross,result.expectedGross);
    assert.equal(result.main.length,result.expectedPages,'exactly two system pages, with financing only when entered');
-   assert.deepEqual(result.bad,[],'A4 clearance: '+result.name+' / '+result.category+' / '+result.mode+' '+JSON.stringify(result.bad));assert.deepEqual(result.powerBad,[],'six-page Power layout');
+   assert.deepEqual(result.bad,[],'A4 clearance: '+result.name+' / '+result.category+' / '+result.mode+' '+JSON.stringify(result.bad));assert.deepEqual(result.powerBad,[],'seven-page Power layout');
    assert.equal(result.photo,result.expectedPhoto);assert.equal(result.hero,result.expectedHero);
    assert(result.mainText.includes(result.price)&&result.cover.includes(result.name));assert(result.detail.includes(result.price));
    assert(result.powerText.includes(result.name));

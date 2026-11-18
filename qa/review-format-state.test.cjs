@@ -61,7 +61,7 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     await p.locator('#downloadBtn').scrollIntoViewIfNeeded(); await p.click('#downloadBtn');
     const pdf = await download; const pdfPath = path.join(folder, 'selected-power.pdf'); await pdf.saveAs(pdfPath);
     const bytes = fs.readFileSync(pdfPath), text = bytes.toString('latin1');
-    check('actual Download button still generates a real six-page Power PDF', bytes.subarray(0, 5).toString() === '%PDF-' && (text.match(/\/Type \/Page\b/g) || []).length === 6 && bytes.length > 10000);
+    check('actual Download button still generates a real seven-page Power PDF', bytes.subarray(0, 5).toString() === '%PDF-' && (text.match(/\/Type \/Page\b/g) || []).length === 7 && bytes.length > 10000);
     await p.waitForFunction(() => !downloadBtn.disabled);
     await p.fill('#custName', 'Format QA');
     // Point 6: real content-editor input, save, reload and JSON backup.

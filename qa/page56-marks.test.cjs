@@ -773,7 +773,7 @@ t('REGRESSION: captions wrap instead of printing over the node beside them', () 
     'but it must not clip the badges that hang above it');
 });
 
-/* The six-page Power Proposal used to build its system diagram by copying
+/* The Power Proposal used to build its system diagram by copying
    #v_tsDiagram's innerHTML. That is the RETIRED svg: page 6 hides it with
    display:none and the live path leaves it empty, so page 3 of the report printed an
    empty framed box directly under a caption promising "Conceptual grid-tied flow".

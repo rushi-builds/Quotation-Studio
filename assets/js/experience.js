@@ -5,7 +5,7 @@
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const F = root.Finance;
-  const POWER_PAGE_COUNT = 6;
+  const POWER_PAGE_COUNT = 7;
   const tariffNumber = value => Number.isFinite(Number(value)) ? Math.max(0,Number(value)) : 0;
   const payback = f => Number.isFinite(f.payback) ? f.payback.toFixed(1) + ' years' : 'Not reached within 25 years';
   function publicUrl(value) {
@@ -160,11 +160,11 @@
     const header=n=>'<header class="power-head"><img src="assets/images/ktm-logo-light.png" alt="Company logo"><div>POWER PROPOSAL · '+n+' / '+POWER_PAGE_COUNT+'<br><span>'+esc(s.propRef)+' · v'+esc(s.propVersion)+'</span></div></header>';
     const foot=n=>'<footer class="power-foot"><span>'+esc(s.companyName)+' · '+esc(s.companyPhone)+'</span><span class="power-foot-website">'+esc(s.companyWebsite)+'</span><span>Power Proposal · '+n+' / '+POWER_PAGE_COUNT+'</span></footer>';
     const heading=(n,title)=>{
-      const emphasis=['Your energy.','Support.','behind the numbers.','Long-term value.','investment.','& support.'][n-1];
+      const emphasis=['Your energy.','Support.','the numbers.','behind the numbers.','Long-term value.','investment.','& support.'][n-1];
       const split=title.lastIndexOf(emphasis);
       return split<0?esc(title):esc(title.slice(0,split))+'<span class="power-heading-accent">'+esc(title.slice(split))+'</span>';
     };
-    const page=(n,kicker,title,lead,body)=>'<section class="page power-page power-six" id="powerPage'+n+'">'+header(n)+'<div class="power-kicker">'+kicker+'</div><h1>'+heading(n,title)+'</h1><p class="power-lead">'+lead+'</p><div class="power-body">'+body+'</div>'+foot(n)+'</section>';
+    const page=(n,kicker,title,lead,body)=>'<section class="page power-page power-six" id="powerPage'+n+'">'+header(n)+'<div class="power-kicker">'+kicker+'</div><h1>'+heading(n,title)+'</h1>'+(lead?'<p class="power-lead">'+lead+'</p>':'')+'<div class="power-body">'+body+'</div>'+foot(n)+'</section>';
     /* The live flow, built from the same content and the same finance numbers the
        proposal itself uses. This report used to lift #v_tsDiagram's innerHTML - the
        RETIRED svg - but page 6 hides that box with display:none and the markup-only
@@ -174,20 +174,23 @@
     const liveFlow=root.ProposalV2&&root.ProposalV2.flowDiagram?root.ProposalV2.flowDiagram(s,f):'';
     const diagram=liveFlow||($('v_tsDiagram')?.innerHTML.replace(/qs-system|qs-metal|qs-panels|qs-dc-arrow|qs-ac-arrow/g,m=>'power-'+m)||'');
     const photo=root.__qsPageImages?.img_solution||(['commercial','industrial','rwa'].includes(s.customerType)?'assets/images/cover-'+s.customerType+'-scene.jpg':($('img_solution')?.getAttribute('src')||'assets/images/page-solution.jpg'));
-    /* The technical page of this report and page 6 of the full proposal are the
-       same page. It used to be rebuilt here as two columns of label/value rows,
-       which meant the report showed a custom make as plain text while the proposal
-       showed the owner's uploaded logo and photo. Asking proposal-v2.js for its
-       cards makes them one drawing with one artwork lookup - so a custom make
-       looks identical in both PDFs, and a change to the card design reaches both. */
-    const powerCards=(st)=>{
-      const table=$('v_tsTable');
-      const cards=root.ProposalV2?.cardsFromTable?root.ProposalV2.cardsFromTable(table):[];
-      if(!cards.length) return '';
-      /* The report's column is narrower than the sheet, so the same cards are
-         scaled down by .power-tech-cards (experience.css) rather than re-drawn. */
-      return '<div class="pv2 pv2-tech power-tech-cards"><div class="pv2-spec">'+
-        cards.map(root.ProposalV2.cardMarkup).join('')+'</div></div>';
+    /* Page 3 of this report IS page 6 of the full proposal - not a rewrite of it.
+       It used to print two columns of label/value rows, which meant a custom make
+       showed its uploaded logo and picture in one PDF and only its typed name in
+       the other. Rebuilding the card drawing here, even from the same data, would
+       let the two drift apart again, so the report does not draw cards at all: the
+       sheet element is cloned, including its .page ids scoped to this host, and
+       the technical page simply carries it. One drawing, one artwork lookup.
+       `isReport` drops the sheet's own running heads, which this report prints
+       itself. Ids are not duplicated because export.js scopes them with hostOf(). */
+    const powerSpecSheet=(isReport)=>{
+      const sheet=$('pageTechSpec'); if(!sheet) return '';
+      const copy=sheet.cloneNode(true);
+      copy.classList.add('power-spec-sheet');
+      copy.classList.toggle('is-report',!!isReport);
+      copy.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
+      root.ProposalV2?.sync?.();
+      return copy.outerHTML;
     };
     const valid=F.fmtDate(F.addDays(s.propDate,s.validityDays))||'To be confirmed';
     const scope=CONTENT.pageScope,warranty=CONTENT.pageWarranty;
@@ -211,7 +214,7 @@
         '<div class="power-metrics">'+metric('Installed solar capacity',precise(f.installedKwp)+' kWp','Actual whole-module DC array')+metric('Average monthly generation',F.fmtNum(f.annualGen/12)+' kWh','Year-one average, not a seasonal forecast')+metric('Year-one generation',F.fmtNum(f.annualGen)+' kWh','Based on the entered yield assumption')+metric('25-year generation',precise(f.lifetimeGen/1000)+' MWh','Includes the entered annual degradation')+'</div>'+
         '<div class="power-highlight"><strong>24/7 remote monitoring access</strong><span>With compatible equipment, power and internet. Not staffed support.</span></div>'+
         '<h2>Your solar project at a glance</h2><div class="power-roadmap"><div><b>DESIGN</b><p>Selected equipment, installed array and system connection.</p></div><div><b>PERFORMANCE</b><p>Energy projections, cumulative value and stated assumptions.</p></div><div><b>DELIVERY</b><p>Investment, payment milestones, scope and project support.</p></div></div>'+
-        '<p class="power-note">'+(hasSystem?esc(packageName)+' · '+(root.AdditionalSystems.inBase(s)?'scope included in base rate. ':'separately quoted. '):separate?'Solar-only overview. Optional upgrades are identified separately on page 6. ':'')+'Generation depends on roof conditions, shading, equipment and maintenance. This proposal is not a site-specific simulation or a guarantee of output.</p>')+
+        '<p class="power-note">'+(hasSystem?esc(packageName)+' · '+(root.AdditionalSystems.inBase(s)?'scope included in base rate. ':'separately quoted. '):separate?'Solar-only overview. Optional upgrades are identified separately on page 7. ':'')+'Generation depends on roof conditions, shading, equipment and maintenance. This proposal is not a site-specific simulation or a guarantee of output.</p>')+
       page(2,'02 / ABOUT KTM','Engineering. Execution. Support.','Solar EPC expertise across residential, commercial and industrial projects.',
         '<div class="power-company"><span>YOUR SOLAR EPC PARTNER</span><h2>'+safe(s.companyName)+'</h2><p>'+esc(about.para1)+'</p></div>'+
         '<h2>Integrated project capabilities</h2><div class="power-capabilities">'+capabilities.map(item=>'<div><strong>'+esc(item.title)+'</strong></div>').join('')+'</div>'+
@@ -219,26 +222,29 @@
         '<p class="power-caption">Project photographs and details from the KTM portfolio.</p>'+
         portfolioCard(s)+
         '<div class="power-company-services"><h2>From design through commissioning</h2><p>Site assessment · System engineering · Supply & installation · Testing & commissioning · After-sales support</p></div>')+
-      page(3,'03 / EQUIPMENT & SYSTEM DESIGN','The system behind the numbers.','Selected equipment and the design basis for your proposed solar installation.',
-        (powerCards(s)) +
+      /* The sheet itself. No lead paragraph and no second set of headings: this is
+         page 6 of the full proposal, carried over whole, so the two downloads show
+         the same technical page down to the four cards and their artwork. */
+      page(3,'03 / TECHNICAL SPECIFICATION','Specification.','',powerSpecSheet(true))+
+      page(4,'04 / SYSTEM DESIGN','The system behind the numbers.','Selected equipment and the design basis for your proposed solar installation.',
         '<h2>How your system connects</h2><div class="power-diagram">'+diagram+'</div><p class="power-caption">Conceptual grid-tied flow, not an installation wiring drawing. Grid-tied solar alone does not provide outage backup.</p>'+
         '<div class="power-metrics power-metrics-three">'+metric('Roof type',s.roofType||'To be confirmed','Site conditions to be confirmed')+metric('Indicative roof requirement',precise(f.requiredArea)+' m²','Includes modelled layout clearance')+metric('Contracted capacity',precise(f.contractedKwp)+' kWp','Pricing basis; whole modules may deliver more DC')+'</div>'+
         '<div class="power-design-note"><h2>Engineering design basis</h2><p>'+esc(root.StateStore.engineeringNote(s))+'</p></div>')+
-      page(4,'04 / GENERATION & SAVINGS','Energy production. Long-term value.','Projected system output and energy value, based on the assumptions below.',
+      page(5,'05 / GENERATION & SAVINGS','Energy production. Long-term value.','Projected system output and energy value, based on the assumptions below.',
         '<div class="power-metrics power-metrics-three">'+metric('Year-one energy value',F.fmtINR(f.annualSaving),'Generation × entered tariff')+metric('25-year energy value',F.fmtINRshort(f.lifetimeSaving),'Before investment and operating costs')+metric('Estimated payback',paybackText,f.netInvestment<=0?'Net investment is not positive':'Interpolated from cumulative energy value')+'</div>'+
         '<section class="power-energy"><div class="power-energy-title">'+root.Icons.get('sun',22)+'<div><h2>Your solar energy milestones</h2><p>Projected electricity generated by your system</p></div></div><div class="power-energy-grid">'+[0,9,24].map(i=>'<article data-energy-year="'+(i+1)+'" data-energy-mwh="'+cumulativeGeneration[i]+'"><span>'+(['Year 1','First 10 years','Over 25 years'][[0,9,24].indexOf(i)])+'</span><strong>'+cumulativeGeneration[i].toLocaleString('en-IN',{maximumFractionDigits:1})+' <small>MWh</small></strong><p>'+(i===0?'First-year output':'Total energy produced')+'</p></article>').join('')+'</div><p class="power-caption">1 MWh = 1,000 kWh. Lifetime totals include the entered annual degradation.</p></section>'+
         '<div class="power-chart-card"><h2>Cumulative energy value <small>— projected value &nbsp; ┄ net investment</small></h2>'+powerChart(f.series.cumSaving,'Cumulative energy value over 25 years in rupees',true,false,f.netInvestment)+'</div>'+
         '<table class="power-projection-table"><thead><tr><th>Year</th><th>Annual generation</th><th>Annual energy value</th><th>Cumulative value</th></tr></thead><tbody>'+[0,4,9,14,24].map(i=>'<tr><td>'+f.series.years[i]+'</td><td>'+F.fmtNum(f.series.gen[i])+' kWh</td><td>'+F.fmtINR(f.series.saving[i])+'</td><td>'+F.fmtINR(f.series.cumSaving[i])+'</td></tr>').join('')+'</tbody></table>'+
         '<div class="power-columns power-assumptions"><div>'+row('Yield basis',safe(s.genFactor)+' kWh/kWp/year')+row('Annual degradation',safe(s.degradation)+'%')+'</div><div>'+row('Electricity tariff','₹'+safe(s.tariff)+' per kWh')+row('Annual tariff escalation',safe(s.escalation)+'%')+'</div></div>'+
         '<p class="power-note">Assumes generated units have the entered tariff value. Self-consumption, export settlement, fixed charges and site performance affect actual bills. O&M, replacements, financing interest and discounting are not deducted from these savings/payback projections.'+(separate?' Battery/additional-system benefits are not included.':'')+'</p>')+
-      page(5,'05 / INVESTMENT & PAYMENT PLAN','A transparent investment.','Project pricing, applicable GST, subsidy estimate and payment schedule.',
+      page(6,'06 / INVESTMENT & PAYMENT PLAN','A transparent investment.','Project pricing, applicable GST, subsidy estimate and payment schedule.',
         '<div class="power-columns"><section class="power-cost"><h2>'+(hasSystem&&root.AdditionalSystems.inBase(s)?'Quoted investment including system scope':separate?'Solar-only investment':'Investment overview')+'</h2>'+row('Project cost before GST',F.fmtINR(f.projectCost))+row('GST ('+f.gstPercent+'%)',F.fmtINR(f.gstAmount))+row('Total including GST',F.fmtINR(f.grossTotal))+row('Estimated subsidy - not approved',F.fmtINR(f.subsidy))+'<div class="power-total">Estimated net investment<strong>'+F.fmtINR(f.netInvestment)+'</strong></div></section><section><h2>Basis of the offer</h2>'+row('Contracted system',precise(f.capacity)+' kWp')+row('Quoted base rate','₹'+precise(f.costPerWp)+' / Wp')+row('Estimated payback',paybackText)+row('Proposal valid until',valid)+'<p class="power-note">Subsidy eligibility, approval and disbursement are subject to the applicable scheme and authority. GST is calculated using the entered rate; confirm the applicable tax treatment.</p></section></div>'+
         '<div class="power-chart-card power-cost-chart"><h2>From project cost to net investment</h2><canvas id="powerCostChart" aria-label="Cost, GST, subsidy and net investment chart" width="680" height="340"></canvas></div>'+
         '<h2>Payment milestones</h2><p class="power-caption">Calculated on gross including GST, not net after subsidy. Displayed amounts are rounded.</p><div class="power-pay">'+['advance','dispatch','completion'].map(key=>metric(key[0].toUpperCase()+key.slice(1),f.pay[key].pct+'%',F.fmtINR(f.pay[key].amount))).join('')+'</div>'+
         (Math.abs(f.pay.sumPct-100)>.001?'<p class="power-note power-warning">Payment schedule totals '+precise(f.pay.sumPct)+'%. Confirm percentages totalling 100% before approval.</p>':'')+
         (f.financing?'<div class="power-financing"><h2>Optional financing illustration</h2><div class="power-columns"><div>'+row('Loan / interest',F.fmtINR(f.financing.loan)+' / '+f.financing.ratePct+'% p.a.')+row('Term / monthly EMI',f.financing.months+' months / '+F.fmtINR(f.financing.emi))+'</div><div>'+row('Total loan repayment',F.fmtINR(f.financing.totalPaid))+row('Total loan interest',F.fmtINR(f.financing.totalInterest))+'</div></div><p class="power-caption">Illustration only; lender approval, fees and final terms apply. Interest is not deducted from solar payback above.</p></div>':'')+
         '<p class="power-note power-subsidy-note">'+esc(qualification)+'</p>'+investmentWarning)+
-      page(6,'06 / DELIVERY & PROJECT SUPPORT','Delivery, warranty & support.','Project scope, warranty coverage and documentation for your solar installation.',
+      page(7,'07 / DELIVERY & PROJECT SUPPORT','Delivery, warranty & support.','Project scope, warranty coverage and documentation for your solar installation.',
         '<div class="power-columns power-scope"><section class="power-scope-card"><h2><span>01</span> Included EPC scope</h2>'+list(scope.deliverables)+'</section><section class="power-scope-card power-scope-extra"><h2><span>02</span> Additional scope, if required</h2>'+list(scope.addl)+'</section></div>'+
         '<div class="power-warranties"><h2>Warranty highlights</h2><div class="power-columns">'+warranty.warranties.map(w=>'<div class="power-warranty-card">'+root.Icons.chip(w.icon,28,'#fff0dc','#a65c1e')+'<div><strong>'+esc(w.title)+'</strong><p>'+esc(w.b1)+' · '+esc(w.b2)+'</p></div></div>').join('')+'</div><p class="power-caption">Subject to selected OEM/model terms and the agreed project contract.</p></div>'+
         optional+

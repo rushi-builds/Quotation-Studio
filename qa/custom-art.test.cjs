@@ -162,39 +162,53 @@ check('with no artwork uploaded, nothing changes - the existing markup path is u
    label/value rows, so a custom make printed as plain text there while the full
    proposal printed the owner's uploaded logo and photo. Both PDFs now ask for the
    same cards, which is the only way "exactly the same in both" can stay true. */
-check('the card markup exists once and both pages ask for it',
+check('the card drawing is defined once, and the report does not draw a second one',
   (pv2.match(/pv2-card is-/g) || []).length === 1 &&
   /function cardMarkup/.test(pv2) &&
-  /root\.ProposalV2 = \{[^}]*cardMarkup/.test(pv2) &&
-  /cards\.map\(root\.ProposalV2\.cardMarkup\)/.test(experience));
+  /* The report carries the sheet element instead of re-drawing its cards. */
+  /\$\('pageTechSpec'\)/.test(experience) &&
+  /cloneNode\(true\)/.test(experience));
 
-check('the report groups the specification table through the same helper, not its own copy',
-  /root\.ProposalV2\.cardsFromTable\(table\)/.test(experience) &&
-  /root\.ProposalV2 = \{[^}]*cardsFromTable/.test(pv2));
-
-check('REGRESSION: the report no longer draws its own label/value columns for equipment',
-  /* This is the markup that made the two PDFs differ. */
+check('REGRESSION: the report no longer redraws equipment as its own label/value columns',
   !/power-columns"><section><h2>Solar array/.test(experience));
 
-check('the report\'s cards are tightened for its narrow column, and page 6 is untouched',
-  /\.power-tech-cards \.pv2-tech \.pv2-spec\{/.test(expCss) &&
-  /* Every override is scoped, so the sheet's own cards keep their own sizes. */
-  /\.power-tech-cards \.pv2-tech \.pv2-card\{/.test(expCss));
+check('the report carries the sheet at its own width, never scaled to fit',
+  /* Scaling was tried first. At the report's ~700px column it forced 8px type, so
+     "the same page as the full proposal" stopped being true - and the page still
+     ran past the footer. 1:1 is the only reading of "exactly the same". */
+  /\.power-spec-sheet\.is-report\{[\s\S]{0,200}?width:794px/.test(expCss) &&
+  !/power-tech-cards/.test(expCss) &&
+  !/power-tech-cards/.test(pv2));
 
-/* REGRESSION: experience.css is linked BEFORE proposal-v2.css.
-   The first attempt at these overrides used `.power-tech-cards .pv2-spec`, which
-   loses to proposal-v2.css's `.pv2-tech .pv2-spec` (display:flex) purely on load
-   order - so the report's page 3 stacked four full-size cards in one column and ran
-   486px past the A4 footer. Matching the sheet's own specificity is what makes the
-   scoped rules win without !important. */
-check('REGRESSION: every report override out-weighs the sheet rule it is overriding',
-  !/\.power-tech-cards \.pv2-[a-z]/.test(expCss.replace(/\.power-tech-cards \.pv2-tech /g, '')));
+check('the carried sheet loses its own running heads, because the report prints its own',
+  /\.power-spec-sheet\.is-report > header[\s\S]{0,300}?clip-path/.test(expCss));
 
-check('REGRESSION: the report stylesheet still loads before the sheet stylesheet, which is why the specificity above matters',
-  html.indexOf('css/experience.css') < html.indexOf('css/proposal-v2.css'));
+check('the report stamps no duplicate ids when it carries the sheet',
+  /querySelectorAll\('\[id\]'\)\s*\{[^}]*removeAttribute\('id'\)|querySelectorAll\('\[id\]'\)\.forEach\(node=>node\.removeAttribute\('id'\)\)/.test(experience));
 
-check('a supplied photo is shown whole on the report too, exactly as on page 6',
-  /\.power-tech-cards \.pv2-tech \.pv2-photo\.is-custom img\{object-fit:contain/.test(expCss));
+/* ------------------------------------ 5c. seven pages, nothing said twice */
+
+/* The report grew from six pages to seven to give the technical sheet its own
+   page. Growing it was the owner's call, on one condition: nothing duplicated and
+   nothing added that the report does not need. These pin that condition. */
+
+check('the report is seven pages, numbered from one source',
+  /const POWER_PAGE_COUNT = 7;/.test(experience) &&
+  ['01 / PROJECT OVERVIEW','02 / ABOUT KTM','03 / TECHNICAL SPECIFICATION','04 / SYSTEM DESIGN',
+   '05 / GENERATION & SAVINGS','06 / INVESTMENT & PAYMENT PLAN','07 / DELIVERY & PROJECT SUPPORT']
+    .every((t) => experience.includes(t)));
+
+check('REGRESSION: the design page did not take the technical page\'s content with it',
+  /* Splitting page 3 must not leave the equipment rows on the design page: that is
+     the duplication the owner ruled out. The cards live on page 3 only. */
+  !/powerCards|power-tech-cards/.test(experience));
+
+check('the report does not print an empty lead line where a page has no lead',
+  /lead\?'<p class="power-lead">'\+lead\+'<\/p>':''/.test(experience));
+
+check('every page still announces the same total, so no page can drift out of 7',
+  /POWER-PROPOSAL|POWER PROPOSAL \u00b7 '\+n\+' \/ '\+POWER_PAGE_COUNT/.test(experience) &&
+  /Power Proposal \u00b7 '\+n\+' \/ '\+POWER_PAGE_COUNT/.test(experience));
 
 /* ------------------------------------------------------------- 6. persistence */
 

@@ -38,7 +38,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  let layout=await powerLayout();console.log('Power layout',layout);
  const fits=x=>x.deep<=x.sheet&&x.gap>=4&&x.fit;
  const badPage=layout.filter(x=>!fits(x));
- check('all six power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': deepest='+x.deepest+'@'+x.deep+' of '+x.sheet+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
+ check('all seven power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': deepest='+x.deepest+'@'+x.deep+' of '+x.sheet+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
  check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage5',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
  const rasterQR=await page.$eval('#powerPage2',async el=>{
    const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});
@@ -102,7 +102,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
     instead of waiting 90s for a PDF that will never arrive. */
  await page.waitForFunction(()=>window.__pdf&&document.getElementById('statusMsg').textContent.includes('Downloaded'),{timeout:90000}).catch(async e=>{const why=await page.evaluate(()=>document.getElementById('statusMsg').textContent.trim());throw new Error('Power Proposal export produced no PDF: '+why+' ('+e.message+')');});
  const exported=await page.evaluate(()=>window.__pdf),bytes=Buffer.from(exported.data,'base64'),pdf=bytes.toString('latin1');fs.writeFileSync(path.join(shots,'experience','Power_Proposal_test.pdf'),bytes);
- check('actual Power Proposal PDF has six pages and correct filename',(pdf.match(/\/Type \/Page\b/g)||[]).length===6&&exported.name.startsWith('Power_Proposal_')&&exported.name.includes('12.5kWp'));
+ check('actual Power Proposal PDF has seven pages and correct filename',(pdf.match(/\/Type \/Page\b/g)||[]).length===7&&exported.name.startsWith('Power_Proposal_')&&exported.name.includes('12.5kWp'));
  check('actual PDF has clickable gallery destination',pdf.includes('/Subtype /Link')&&pdf.includes('https://example.com/updated-gallery'));
  check('export removes temporary pages and leaves original cover intact',await page.evaluate(()=>!document.querySelector('.pdf-snapshot')&&document.getElementById('v_coverCapacity').textContent==='12.5 kWp'));
  // Hold the first full-document capture, then edit the live proposal. The
@@ -128,7 +128,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await edit({propRef:original.ref,companyName:original.company,durationText:original.duration,customerType:'commercial',tariff:'22',payCompletion:'5',loanAmt:'300000',loanRate:'9',loanYears:'5'});
  await page.evaluate(()=>window.__power=Experience.buildPowerPages(Render.lastState));
  check('commercial short proposal uses zero automatic subsidy and flags payment mismatch',await page.$eval('#powerPage5',e=>e.textContent.includes('95%')&&e.textContent.includes('not approved₹0')));
- check('six-page proposal fits including entered financing',(await powerLayout()).every(x=>x.deep<=x.sheet&&x.gap>=4));
+ check('seven-page proposal fits including entered financing',(await powerLayout()).every(x=>x.deep<=x.sheet&&x.gap>=4));
  await page.evaluate(()=>window.__power.remove());await page.select('#pdfFormat','full');
  check('full-format label follows optional financing page count',await page.$eval('#downloadLabel',e=>e.textContent.includes('16 Pages')));
  await edit({customerType:'residential',tariff:'8.75',payCompletion:'10',loanAmt:'',loanRate:'',loanYears:''});

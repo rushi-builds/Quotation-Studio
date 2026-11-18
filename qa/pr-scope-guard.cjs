@@ -102,7 +102,7 @@ const FEEDBACK_LOOP_PATHS = new Set([
 
 /* Owner-approved corrections that HAD to edit the frozen family (2026-11-02).
 
-   Why: the six-page Power Proposal refused to export a proposal that fitted.
+   Why: the Power Proposal refused to export a proposal that fitted.
    The guard measured a fixed A4 box's scrollHeight, which always includes the
    page's own bottom padding (1123 + padding), so page 2 reported 1130 while
    its deepest element sat 21px clear of the footer - the same false overflow

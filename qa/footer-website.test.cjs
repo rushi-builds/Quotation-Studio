@@ -110,6 +110,6 @@ const { chromium } = require('playwright');
     fs.writeFileSync(path.join(dir, 'detailed-footer.png'), Buffer.from(data.split(',')[1], 'base64'));
     await page.locator('#pageCover').screenshot({ path: path.join(dir, 'cover.png') });
     assert.deepEqual(errors, []);
-    console.log('PASS: accent absent in all four cover images; full website fits detailed/conditional and six-page footers, print, mobile, saved reload and custom company website; real html2canvas footer captured.');
+    console.log('PASS: accent absent in all four cover images; full website fits detailed/conditional and seven-page footers, print, mobile, saved reload and custom company website; real html2canvas footer captured.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

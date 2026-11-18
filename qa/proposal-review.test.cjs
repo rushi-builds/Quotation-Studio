@@ -138,7 +138,7 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     // Existing output selector is the source; no second form value/select created.
     await p.selectOption('#pdfFormat', 'power');
     const beforePower = await capture(); await open(); await p.click('#qrw-pages-tab');
-    check('Power overview is a separate six-page output', await p.locator('.qrw-sheet-total strong').textContent() === '6' && await p.locator('.qrw-page-list>.qrw-page').count() === 6 && await p.locator('.qrw-page-actions').getByRole('button', { name: 'View ↗' }).count() === 0);
+    check('Power overview is a separate seven-page output', await p.locator('.qrw-sheet-total strong').textContent() === '7' && await p.locator('.qrw-page-list>.qrw-page').count() === 7 && await p.locator('.qrw-page-actions').getByRole('button', { name: 'View ↗' }).count() === 0);
     await p.locator('[data-review-page="power3"]').getByRole('button', { name: 'Edit page', exact: true }).click();
     check('Power edit opens the existing Power editor without enabling another report', await p.locator('[aria-label="Document format to edit"]').inputValue() === 'power' && await p.locator('[aria-label="Page to edit"]').inputValue() === 'power3' && await p.locator('#pdfFormat').inputValue() === 'power');
     assert.deepEqual(await capture(), beforePower); check('Power overview/editor navigation leaves quote and A4 HTML unchanged', true);
