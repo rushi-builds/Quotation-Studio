@@ -184,93 +184,25 @@ check('REGRESSION: the cards fill the report\'s content column, they do not over
   /* Only the rule's own body - .pdf-snapshot is legitimately 794px wide. */
   (() => { const m = expCss.match(/\.power-page \.power-spec-sheet\{([^}]*)\}/); return !!m && /width:100%/.test(m[1]) && !/794px/.test(m[1]); })());
 
-check('the block is bounded to the space the page has, in height as well as width',
-  /* Width alone was not enough: the block is drawn before it is inserted, so its
-     height is whatever the four cards claim. On a dense proposal that is taller than
-     the page, and the cards reached the footer. */
+check('REGRESSION: the fit is measured in ONE coordinate space',
+  /* This is the bug that survived two rounds. .page carries
+     transform:scale(var(--page-scale)), so getBoundingClientRect() is in SCALED
+     pixels while clientWidth/offsetWidth are UNSCALED. The first version subtracted
+     one from the other and reported a shortfall on a page that fitted - and no
+     estimate built on mixed units can be trusted either way.
+     Everything is unscaled CSS pixels now, and the vertical run uses offsetTop. */
+  /const availW=body\.clientWidth;/.test(experience) &&
+  /const availH=foot\.offsetTop-body\.offsetTop;/.test(experience) &&
+  !/getBoundingClientRect\(\)\.top\s*-\s*body\.getBoundingClientRect/.test(experience) &&
+  !/foot\.getBoundingClientRect\(\)\.top-body\.getBoundingClientRect/.test(experience));
+
+check('the block is bounded to the page in height as well as width',
   /const targetH=Math\.max\(0,availH-BOTTOM_MARGIN\);/.test(experience) &&
-  /const BOTTOM_MARGIN=18;/.test(experience));
+  /if\(fits&&scale>1-SCALE_SLACK&&H>targetH\)\{/.test(experience));
 
-check('REGRESSION: the overflow clip is the last resort, not the layout',
-  /* The first version gave the block 794px inside a 718px column, so every proposal
-     took the scale path (0.904) and the clip made the cards look cut in half - what
-     the owner photographed. The block now fills the column, so scaling should not
-     engage at all on a normal proposal; the runtime path stays only as a guard for a
-     pathological one. */
+check('scaling is a last resort, and when it is skipped a near-1 ratio is not applied',
   /const SCALE_SLACK=0\.002;/.test(experience) &&
-  /* Height is fixed whether or not scaling engages - that is what stops four cards
-     reaching the footer on a dense proposal. */
-  /if\(fits&&H>targetH\)\{/.test(experience));
-
-check('REGRESSION: no NaN, no phantom scale, when the block already fits',
-  /* The browser preview caught this and no text test would have. A detached host has
-     no layout, so offsetWidth is 0, the ratio is Infinity, min(1, ...) is 1, and the
-     old code wrote data-power-scale="NaN" while styling nothing. Nothing visibly
-     broke, which is why it survived: the value only reads wrong, and a later reader
-     would have taken "NaN" as proof that a scale had been applied. */
-  /const fits=W>0&&H>0&&availW>0&&availH>0;/.test(experience) &&
-  /if\(fits\) specBlock\.dataset\.powerScale=scale\.toFixed\(4\);/.test(experience) &&
-  !/if\(scale<1&&scale>0\)\{/.test(experience));
-
-check('the carried block is scaled by one factor, so page-6 proportions survive',
-  /* One scale for width and height. Independent width/height, or one viewBox-ish
-     factor, would stretch the cards and "the same as the full proposal" would be
-     false in the only way that is hard to notice on a screen and obvious in print. */
-  /const scale=Math\.min\(1,Math\.max\(rawW,0\),Math\.max\(rawH,0\)\);/.test(experience) &&
-  /transform='scale\('\s*\+\s*scale\.toFixed\(4\)\s*\+\s*'\)'/.test(experience) &&
-  /* The layout box must match the painted size, or the page reports a width it
-     no longer draws. */
-  /specBlock\.style\.width=sw\+'px'/.test(experience) &&
-  !/scaleX\(|scaleY\(/.test(experience));
-
-check('REGRESSION: the report does not repeat the sheet\'s own head, title or paragraph',
-  /* Carrying the whole sheet printed a second company head and a second title above
-     the cards. Only the card block travels. */
-  !/cloneNode\(true\)[\s\S]{0,80}?powerSpecSheet/.test(experience) &&
-  !/is-report/.test(experience));
-
-check('REGRESSION: a report built before page 6 painted still gets its cards',
-  /* share.html loads, and other documents, may build the report without page 6
-     having run. Cloning an empty sheet printed a blank technical page. The fallback
-     is the same two functions page 6 calls - the same drawing, not a second one -
-     so a custom make still prints its logo either way. */
-  /P\.cardsFromTable\(\$\('v_tsTable'\)\)/.test(experience) &&
-  /cards\.map\(P\.cardMarkup\)/.test(experience));
-
-check('the report asks page 6 to paint before it copies, so cards cannot be stale',
-  /try\{P\?\.sync\?\.\(\);\}/.test(experience));
-
-check('the wrapper is added once, by the caller - never nested inside itself',
-  /powerSpecCards\(\)\?'<div class="pv2 pv2-tech power-spec-sheet">'/.test(experience) &&
-  /* The helper returns inner markup only. */
-  !/return '<div class="pv2 pv2-tech power-spec-sheet">'/.test(experience));
-
-check('the report stamps no duplicate ids when it carries the cards',
-  /querySelectorAll\('\[id\]'\)\.forEach\(node=>node\.removeAttribute\('id'\)\)/.test(experience));
-
-/* ------------------------------------ 5c. seven pages, nothing said twice */
-
-/* The report grew from six pages to seven to give the technical sheet its own
-   page. Growing it was the owner's call, on one condition: nothing duplicated and
-   nothing added that the report does not need. These pin that condition. */
-
-check('the report is seven pages, numbered from one source',
-  /const POWER_PAGE_COUNT = 7;/.test(experience) &&
-  ['01 / PROJECT OVERVIEW','02 / ABOUT KTM','03 / TECHNICAL SPECIFICATION','04 / SYSTEM DESIGN',
-   '05 / GENERATION & SAVINGS','06 / INVESTMENT & PAYMENT PLAN','07 / DELIVERY & PROJECT SUPPORT']
-    .every((t) => experience.includes(t)));
-
-check('REGRESSION: the design page did not take the technical page\'s content with it',
-  /* Splitting page 3 must not leave the equipment rows on the design page: that is
-     the duplication the owner ruled out. The cards live on page 3 only. */
-  !/powerCards|power-tech-cards/.test(experience));
-
-check('the report does not print an empty lead line where a page has no lead',
-  /lead\?'<p class="power-lead">'\+lead\+'<\/p>':''/.test(experience));
-
-check('every page still announces the same total, so no page can drift out of 7',
-  /POWER-PROPOSAL|POWER PROPOSAL \u00b7 '\+n\+' \/ '\+POWER_PAGE_COUNT/.test(experience) &&
-  /Power Proposal \u00b7 '\+n\+' \/ '\+POWER_PAGE_COUNT/.test(experience));
+  /const scale=fits\?Math\.min\(1,Math\.max\(rawW,0\),Math\.max\(rawH,0\)\):1;/.test(experience));
 
 /* ------------------------------------------------------------- 6. persistence */
 

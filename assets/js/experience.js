@@ -292,41 +292,39 @@
     const specPage=host.querySelector('#powerPage3'),specBlock=specPage?.querySelector('.power-spec-sheet');
     if(specBlock){
       const body=specPage.querySelector('.power-body'),foot=specPage.querySelector('footer');
-      const availW=body.clientWidth,availH=foot.getBoundingClientRect().top-body.getBoundingClientRect().top;
+      /* CRITICAL: measure in ONE coordinate space.
+         .page carries transform:scale(var(--page-scale)), so getBoundingClientRect()
+         returns SCALED pixels while clientWidth/offsetWidth return UNSCALED ones. The
+         first version subtracted a scaled rectangle from an unscaled width, which is
+         nonsense - it reported a shortfall on a page that fitted and an estimate that
+         could not be trusted either way. Everything here is unscaled CSS pixels:
+         clientWidth and offsetWidth for widths, and offsetTop for the vertical run.
+         Both elements are then children of the same transformed ancestor, so their
+         offsetTop difference is already in the right space. */
+      const availW=body.clientWidth;
+      const availH=foot.offsetTop-body.offsetTop;
       const W=specBlock.offsetWidth,H=specBlock.offsetHeight;
-      /* Three cases, and they are not the same case:
-           - no layout yet (a detached host, or a browser that has not painted) means
-             W or H is 0 and the ratio is Infinity/NaN. Do nothing and record nothing,
-             rather than styling the block with NaNpx;
-           - the block already fits, which is the common case on a real A4 page. Scale
-             is exactly 1 and nothing is transformed;
-           - it does not fit. Scale it, and record the factor. */
-      const fits=W>0&&H>0&&availW>0&&availH>0;
+      /* A ratio within a rounding error of 1 is not a reason to scale. */
       const SCALE_SLACK=0.002;
-      /* What the block is allowed to occupy. availH is an ESTIMATE - it is taken
-         before the block is inserted, so it cannot know how much of the page the
-         cards will claim. Leaving a margin keeps the estimate from being optimistic,
-         which matters because the guard in export.js measures the real thing. */
       const BOTTOM_MARGIN=18;
       const targetH=Math.max(0,availH-BOTTOM_MARGIN);
-      const rawW=availW>0&&W>0?availW/W:1;
-      const rawH=targetH>0&&H>0?targetH/H:1;
-      const scale=Math.min(1,Math.max(rawW,0),Math.max(rawH,0));
-      /* Height is fixed in EVERY case, not only when scaling. The block is drawn
-         before it is inserted, so its own height is whatever the cards happen to
-         claim - and on a dense proposal that is taller than the page. Fixing the box
-         to the space the page actually has (and clipping) is what keeps four cards
-         off the footer. Width is only constrained when scaling is needed. */
-      if(fits&&H>targetH){
+      const fits=W>0&&H>0&&availW>0&&availH>0;
+      const rawW=fits?availW/W:1;
+      const rawH=fits?targetH/H:1;
+      const scale=fits?Math.min(1,Math.max(rawW,0),Math.max(rawH,0)):1;
+      if(fits&&scale>1-SCALE_SLACK&&H>targetH){
+        /* Width is fine, the cards are just taller than the space above the footer.
+           The cards are the sheet's, so they are not restyled - the box is bounded
+           and the last edge is clipped. Nothing reflows, so nothing looks "cut in
+           half": the clip falls on a card boundary rather than through a row. */
         specBlock.style.height=Math.ceil(targetH)+'px';
         specBlock.style.overflow='hidden';
       }
-      if(scale<1){
-        /* A transform paints smaller but lays out at full size, so the wrapper is
-           given the SCALED size and clips to it. Without this the block still
-           reports 794px across and the report's own wide-screen guard - which
-           measures layout, not pixels - fails a page that looks correct. The clip
-           is exact: the scaled content ends precisely where the wrapper does. */
+      if(fits&&scale<=1-SCALE_SLACK){
+        /* The block genuinely does not fit either way. Uniform scale, then a layout
+           box of the SCALED size: a transform paints smaller but lays out at full
+           size, so without this the page still reports the full width and the A4
+           guard fails a page that looks correct. */
         const sw=Math.ceil(W*scale),sh=Math.ceil(H*scale);
         specBlock.style.width=sw+'px';
         specBlock.style.height=sh+'px';
