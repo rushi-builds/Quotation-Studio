@@ -77,7 +77,7 @@ const battery=require('./bess-fixture.js');
   // Export stays fixed A4 even when the saved customer view is phone-sized.
   await q.setViewportSize({width:390,height:844});
   await q.goto(base+'/share.html?p='+encodeURIComponent(id));await q.waitForFunction(()=>window.Render?.lastState);
-  await q.selectOption('#pdfFormat','power');assert.match(await q.locator('#pdfFormat option:checked').textContent(),/6-page/);
+  await q.selectOption('#pdfFormat','power');assert.match(await q.locator('#pdfFormat option:checked').textContent(),/7-page/);
   // Real rasterisation + PDF save from a persisted Customer View; keep a review copy.
   const pdf=await q.evaluate(async()=>{
    const Native=jspdf.jsPDF,capture=html2canvas,result={pages:[],ink:{}};

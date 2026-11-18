@@ -55,7 +55,7 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     check('export includes verifiable SHA-256 fingerprint of the exact CSV snapshot', integrityAt > 0 && /^[0-9a-f]{64}$/.test(expectedHash) && crypto.createHash('sha256').update(plainCsv.slice(0, integrityAt + 2), 'utf8').digest('hex') === expectedHash);
     await close(p); assert.deepEqual(await snapshot(p), beforeExport); check('spreadsheet export changes no quote, CONTENT, Finance or A4 markup', true);
     check('closing review preserves exact PDF selector position', await p.evaluate(() => pdfFormat === __originalFormat && pdfFormat.parentNode === __formatParent && pdfFormat.nextSibling === __formatNext));
-    await p.selectOption('#pdfFormat', 'power'); await p.waitForFunction(() => downloadLabel.textContent.includes('6 Pages'));
+    await p.selectOption('#pdfFormat', 'power'); await p.waitForFunction(() => downloadLabel.textContent.includes('7 Pages'));
     await open(p); check('existing footer selector still controls the selected output in review', await p.locator('#pdfFormat').inputValue() === 'power' && await p.locator('.qrw-sheet-total strong').textContent() === '6'); await close(p);
     const download = p.waitForEvent('download', { timeout: 120000 });
     await p.locator('#downloadBtn').scrollIntoViewIfNeeded(); await p.click('#downloadBtn');

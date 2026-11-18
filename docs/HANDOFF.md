@@ -257,3 +257,68 @@ the scope guard flags and which needs owner approval).
   secrets, which the scope guard flags as a deploy-config change and which the owner must approve
   explicitly). Ask before building.
 
+
+- 2026-11-10 - **Power Proposal: page 3 now carries page 6's cards; report is 7 pages.**
+
+  The owner's requirement was exact parity: the technical page of the Power Proposal must look the
+  same as page 6 of the Detailed Proposal, including a custom make's uploaded logo and photo, with
+  **no duplication and no filler pages**. Three approaches were tried and two were thrown away.
+
+  1. *Re-drawn cards inside the report.* `cardMarkup`/`cardsFromTable` were exported from
+     `proposal-v2.js` and the report built its own copy from the same rows. Same data, but the
+     report's column is ~700px against the sheet's ~800, so the cards only fitted at 8px type and
+     page 3 still ran **368px** past the footer. "Same as the full proposal" was false. **Abandoned.**
+  2. *Clone the whole sheet.* Correct sizes, but it carried the sheet's own company head, title,
+     orange rule and intro paragraph, so page 3 printed two heads and two titles above four cards -
+     exactly the duplication the owner ruled out. **Abandoned.**
+  3. *Clone the card block only* - current. `powerSpecCards()` in `experience.js` asks
+     `ProposalV2.sync()` to paint the sheet, then takes `#pageTechSpec .pv2-spec`, strips its ids and
+     wraps it in `<div class="pv2 pv2-tech power-spec-sheet">`. That wrapper repeats the sheet's own
+     class chain, so **every page-6 card rule applies unchanged** and there is no second set of card
+     styles. Change the cards in `proposal-v2.css` and both pages follow; that is the property that
+     makes "exactly the same" survive future work.
+
+  **Fit.** The block draws at 794px (the sheet's width) and is then scaled by a single factor,
+  `min(1, availW/W, availH/H)`, measured in `buildPowerPages` *after* the host is in the document -
+  one factor for width and height, so a badge, a row and a photo tile keep page-6 proportions. Capped
+  at 1 so a wide window does not enlarge it. **Two gotchas, both hit:** a `transform` paints smaller
+  but lays out at full size, so the wrapper is given the *scaled* width/height and `overflow:hidden` -
+  without that the page looks right and the export refuses it on horizontal overflow; and the
+  measurement must happen post-insert, because before that there is no layout to measure and the
+  scale is silently NaN. Applied scale is recorded on the block as `data-power-scale`.
+
+  **Seven pages, nothing duplicated.** `POWER_PAGE_COUNT = 6 → 7`, and the heading-emphasis array
+  grew to seven entries. Page 3 = the sheet's cards (kicker `03 / TECHNICAL SPECIFICATION`). Page 4 =
+  the design content that used to share page 3 (connection diagram, caption, three site metrics,
+  engineering note) - moved, not copied. Generation/savings, investment/payment and delivery/support
+  shift to 05/06/07. `power-lead` is no longer printed when empty, so page 3 has no blank paragraph.
+
+  **Everything renumbered that needed it**, including the tests that name a page id:
+  `powerPage4→5`, `powerPage5→6`, `powerPage6→7` in `experience.test.js`, `power-five.test.cjs`,
+  `bess-browser.test.js`; page counts 6→7 in `proposal-review`, `review-format-state`, `export-audit`
+  (`(6 Pages)` / `6-page` label), `footer-website` (walks `.power-foot`), `supplements-browser`,
+  `system-packages-browser`. The cross-reference "identified separately on page 6" became page 7.
+
+  **Checks added** (`qa/custom-art.test.cjs`, 41 → **51**): card drawing defined once and the report
+  clones rather than redraws; the wrapper keeps the sheet class chain and adds **no** card styles;
+  the block renders at sheet width; one scale factor and the layout box matches the paint; no ids
+  duplicated; the sheet's own head/title/paragraph does **not** travel; seven pages from one constant;
+  no technical content left behind on the design page; no empty lead. Negative-tested three ways -
+  a second copy of the card markup, the card class on the design page, and dropping the height term
+  from the `min()` each fail the right check.
+
+  Suites: `custom-art` **51/51**, `page56-marks` **52/52**, `pr-scope` **52/52**, `sync` **106/106**,
+  scope guard `offenders: []`.
+
+  **CI browser suite is at 18/25; `main` is at 19/25 and the difference is not this work.** The six
+  files that fail on `main` still fail. `experience.test.js` fails one check
+  (`full: already-failed images abort export and clean up the snapshot`) and `page-spacing`,
+  `tech-spec`, `array-size`, `system-diagram`, `equipment-entry`, `browser` are the pre-existing red.
+  `bess-browser` and `supplements-browser` - which were failing on page 3 overflow through this
+  change - now pass.
+
+  **Not verified locally:** the sandbox has no working Chromium (`libnspr4.so` missing, no root to
+  install it), so nobody has *looked* at page 3. The scale maths, the clone and the class chain are
+  all reachable by reading and by the offline suite, but the honest status is: **open the preview,
+  download a Power Proposal, and confirm page 3 shows four cards with the uploaded logo and photo at
+  a legible size.** That is the one gap in this round.
