@@ -177,12 +177,24 @@ check('REGRESSION: the report no longer draws its own label/value columns for eq
   !/power-columns"><section><h2>Solar array/.test(experience));
 
 check('the report\'s cards are tightened for its narrow column, and page 6 is untouched',
-  /\.power-tech-cards \.pv2-spec\{/.test(expCss) &&
+  /\.power-tech-cards \.pv2-tech \.pv2-spec\{/.test(expCss) &&
   /* Every override is scoped, so the sheet's own cards keep their own sizes. */
-  /\.power-tech-cards \.pv2-card\{/.test(expCss));
+  /\.power-tech-cards \.pv2-tech \.pv2-card\{/.test(expCss));
+
+/* REGRESSION: experience.css is linked BEFORE proposal-v2.css.
+   The first attempt at these overrides used `.power-tech-cards .pv2-spec`, which
+   loses to proposal-v2.css's `.pv2-tech .pv2-spec` (display:flex) purely on load
+   order - so the report's page 3 stacked four full-size cards in one column and ran
+   486px past the A4 footer. Matching the sheet's own specificity is what makes the
+   scoped rules win without !important. */
+check('REGRESSION: every report override out-weighs the sheet rule it is overriding',
+  !/\.power-tech-cards \.pv2-[a-z]/.test(expCss.replace(/\.power-tech-cards \.pv2-tech /g, '')));
+
+check('REGRESSION: the report stylesheet still loads before the sheet stylesheet, which is why the specificity above matters',
+  html.indexOf('css/experience.css') < html.indexOf('css/proposal-v2.css'));
 
 check('a supplied photo is shown whole on the report too, exactly as on page 6',
-  /\.power-tech-cards \.pv2-photo\.is-custom img\{object-fit:contain/.test(expCss));
+  /\.power-tech-cards \.pv2-tech \.pv2-photo\.is-custom img\{object-fit:contain/.test(expCss));
 
 /* ------------------------------------------------------------- 6. persistence */
 
