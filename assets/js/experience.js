@@ -174,23 +174,25 @@
     const liveFlow=root.ProposalV2&&root.ProposalV2.flowDiagram?root.ProposalV2.flowDiagram(s,f):'';
     const diagram=liveFlow||($('v_tsDiagram')?.innerHTML.replace(/qs-system|qs-metal|qs-panels|qs-dc-arrow|qs-ac-arrow/g,m=>'power-'+m)||'');
     const photo=root.__qsPageImages?.img_solution||(['commercial','industrial','rwa'].includes(s.customerType)?'assets/images/cover-'+s.customerType+'-scene.jpg':($('img_solution')?.getAttribute('src')||'assets/images/page-solution.jpg'));
-    /* Page 3 of this report IS page 6 of the full proposal - not a rewrite of it.
-       It used to print two columns of label/value rows, which meant a custom make
-       showed its uploaded logo and picture in one PDF and only its typed name in
-       the other. Rebuilding the card drawing here, even from the same data, would
-       let the two drift apart again, so the report does not draw cards at all: the
-       sheet element is cloned, including its .page ids scoped to this host, and
-       the technical page simply carries it. One drawing, one artwork lookup.
-       `isReport` drops the sheet's own running heads, which this report prints
-       itself. Ids are not duplicated because export.js scopes them with hostOf(). */
-    const powerSpecSheet=(isReport)=>{
+    /* Page 3 of this report carries page 6 of the full proposal - the same nodes,
+       cloned, not a second drawing of the same cards.
+       It used to print two columns of label/value rows, so a custom make showed its
+       uploaded logo and picture in one PDF and only its typed name in the other.
+       Rebuilding the cards here would let them drift again, so the report does not
+       build cards at all: it asks proposal-v2.js to paint the sheet, then takes the
+       card block out of it.
+       Only the card block travels, not the sheet's own head, title, rule and
+       paragraph - this report already prints a head and a title, and repeating them
+       is exactly the duplication the owner ruled out. The cards keep the sheet's
+       class chain and column width, so their sizes are the sheet's sizes: the badge
+       is the badge the owner saw on screen, not a scaled-down approximation. */
+    const powerSpecCards=()=>{
       const sheet=$('pageTechSpec'); if(!sheet) return '';
-      const copy=sheet.cloneNode(true);
-      copy.classList.add('power-spec-sheet');
-      copy.classList.toggle('is-report',!!isReport);
-      copy.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
       root.ProposalV2?.sync?.();
-      return copy.outerHTML;
+      const spec=sheet.querySelector('.pv2-spec'); if(!spec) return '';
+      const copy=spec.cloneNode(true);
+      copy.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
+      return '<div class="pv2 pv2-tech power-spec-sheet">'+copy.outerHTML+'</div>';
     };
     const valid=F.fmtDate(F.addDays(s.propDate,s.validityDays))||'To be confirmed';
     const scope=CONTENT.pageScope,warranty=CONTENT.pageWarranty;
@@ -225,7 +227,7 @@
       /* The sheet itself. No lead paragraph and no second set of headings: this is
          page 6 of the full proposal, carried over whole, so the two downloads show
          the same technical page down to the four cards and their artwork. */
-      page(3,'03 / TECHNICAL SPECIFICATION','Specification.','',powerSpecSheet(true))+
+      page(3,'03 / TECHNICAL SPECIFICATION','Every component, specified.','The four groups that make up your system, exactly as they are set out in the detailed proposal.',powerSpecCards())+
       page(4,'04 / SYSTEM DESIGN','The system behind the numbers.','Selected equipment and the design basis for your proposed solar installation.',
         '<h2>How your system connects</h2><div class="power-diagram">'+diagram+'</div><p class="power-caption">Conceptual grid-tied flow, not an installation wiring drawing. Grid-tied solar alone does not provide outage backup.</p>'+
         '<div class="power-metrics power-metrics-three">'+metric('Roof type',s.roofType||'To be confirmed','Site conditions to be confirmed')+metric('Indicative roof requirement',precise(f.requiredArea)+' m²','Includes modelled layout clearance')+metric('Contracted capacity',precise(f.contractedKwp)+' kWp','Pricing basis; whole modules may deliver more DC')+'</div>'+

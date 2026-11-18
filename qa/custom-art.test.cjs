@@ -165,26 +165,28 @@ check('with no artwork uploaded, nothing changes - the existing markup path is u
 check('the card drawing is defined once, and the report does not draw a second one',
   (pv2.match(/pv2-card is-/g) || []).length === 1 &&
   /function cardMarkup/.test(pv2) &&
-  /* The report carries the sheet element instead of re-drawing its cards. */
+  /* The report clones the sheet's card block instead of re-drawing its cards. */
   /\$\('pageTechSpec'\)/.test(experience) &&
+  /querySelector\('\.pv2-spec'\)/.test(experience) &&
   /cloneNode\(true\)/.test(experience));
 
-check('REGRESSION: the report no longer redraws equipment as its own label/value columns',
-  !/power-columns"><section><h2>Solar array/.test(experience));
+check('the carried cards keep the sheet class chain, so the sheet styles them',
+  /* No second set of card styles. The wrapper repeats .pv2 .pv2-tech, which is what
+     makes page 3's badge and photo tile the same elements at the same size. */
+  /'<div class="pv2 pv2-tech power-spec-sheet">'/.test(experience) &&
+  !/\.power-spec-sheet \.pv2-(card|photo|card-head|row|k|v)\b/.test(expCss));
 
-check('the report carries the sheet at its own width, never scaled to fit',
-  /* Scaling was tried first. At the report's ~700px column it forced 8px type, so
-     "the same page as the full proposal" stopped being true - and the page still
-     ran past the footer. 1:1 is the only reading of "exactly the same". */
-  /\.power-spec-sheet\.is-report\{[\s\S]{0,200}?width:794px/.test(expCss) &&
-  !/power-tech-cards/.test(expCss) &&
-  !/power-tech-cards/.test(pv2));
+check('the report carries the cards at the sheet width, never squeezed to its column',
+  /\.power-spec-sheet\{[\s\S]{0,160}?width:794px/.test(expCss));
 
-check('the carried sheet loses its own running heads, because the report prints its own',
-  /\.power-spec-sheet\.is-report > header[\s\S]{0,300}?clip-path/.test(expCss));
+check('REGRESSION: the report does not repeat the sheet\'s own head, title or paragraph',
+  /* Carrying the whole sheet printed a second company head and a second title above
+     the cards. Only the card block travels. */
+  !/cloneNode\(true\)[\s\S]{0,80}?powerSpecSheet/.test(experience) &&
+  !/is-report/.test(experience));
 
-check('the report stamps no duplicate ids when it carries the sheet',
-  /querySelectorAll\('\[id\]'\)\s*\{[^}]*removeAttribute\('id'\)|querySelectorAll\('\[id\]'\)\.forEach\(node=>node\.removeAttribute\('id'\)\)/.test(experience));
+check('the report stamps no duplicate ids when it carries the cards',
+  /querySelectorAll\('\[id\]'\)\.forEach\(node=>node\.removeAttribute\('id'\)\)/.test(experience));
 
 /* ------------------------------------ 5c. seven pages, nothing said twice */
 

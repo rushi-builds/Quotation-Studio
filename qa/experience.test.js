@@ -26,8 +26,8 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await page.evaluate(()=>window.__power=Experience.buildPowerPages(Render.lastState));
  check('Power Proposal is exactly seven dedicated pages',await page.$$eval('.pdf-snapshot .power-page',els=>els.length===7));
  check('summary reflects energy/equipment while pricing stays on Investment',await page.$eval('#powerPage1',(e,x)=>!e.textContent.includes('₹')&&e.textContent.includes(x.annual)&&e.textContent.includes(x.module+' × 620')&&e.textContent.includes('10 kW inverter'),expected));
- check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage5.textContent.includes(x.net)&&powerPage4.textContent.includes(x.lifetime),expected));
- check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage5.textContent.includes('not approved')&&powerPage6.textContent.includes('Additional scope')&&powerPage6.textContent.includes('valid until')&&powerPage6.textContent.includes('not an installation order')));
+ check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage6.textContent.includes(x.net)&&powerPage5.textContent.includes(x.lifetime),expected));
+ check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage6.textContent.includes('not approved')&&powerPage7.textContent.includes('Additional scope')&&powerPage7.textContent.includes('valid until')&&powerPage6.textContent.includes('not an installation order')));
  /* A power page is a fixed A4 box with overflow hidden whose own bottom
     padding is part of scrollHeight (1123 + padding), so scrollHeight alone
     reads 1130 on a page that is completely inside the sheet. Measure the same
@@ -39,7 +39,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  const fits=x=>x.deep<=x.sheet&&x.gap>=4&&x.fit;
  const badPage=layout.filter(x=>!fits(x));
  check('all seven power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': deepest='+x.deepest+'@'+x.deep+' of '+x.sheet+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
- check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage5',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
+ check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage6',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
  const rasterQR=await page.$eval('#powerPage2',async el=>{
    const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});
    const jpg=new Image();jpg.src=c.toDataURL('image/jpeg',.92);await jpg.decode();
@@ -52,7 +52,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('printed sheet background stays white, without screen shadows',rasterQR.white.slice(0,3).every(v=>v>=250));
  check('short PDF QR decodes to the same configured destination',await readQR(page,'.power-gallery canvas')==='https://example.com/updated-gallery');
  const proof=await browser.newPage();await proof.setViewport({width:794,height:1124});
- for(const id of ['powerPage1','powerPage4','powerPage5','powerPage6','pageClosing']){
+ for(const id of ['powerPage1','powerPage5','powerPage6','powerPage7','pageClosing']){
   // Screenshots of canvas-bearing pages are captured directly to retain QR pixels.
   const data=await page.$eval('#'+id,async e=>{const c=await html2canvas(e,{scale:1,logging:false,useCORS:true,backgroundColor:'#ffffff',onclone:doc=>doc.body.classList.add('qs-pdf-capture')});return c.toDataURL();});fs.writeFileSync(path.join(shots,'experience-'+id+'.png'),Buffer.from(data.split(',')[1],'base64'));
  }
@@ -75,7 +75,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('scenario never changes stored quotation, live cover or baseline state',await customer.evaluate(b=>JSON.stringify(Render.lastState)===b.state&&JSON.stringify({...localStorage})===b.storage&&document.getElementById('v_coverCapacity').textContent===b.cover,before));
  check('saved gallery URL survives Customer View',await readQR(customer,'#closingGallery canvas')==='https://example.com/updated-gallery');
  await customer.evaluate(()=>{window.__power=Experience.buildPowerPages(Render.lastState);});
- check('Power Proposal ignores the exploratory tariff',await customer.$eval('#powerPage4',(e,x)=>e.textContent.includes('₹8.75 per kWh')&&e.textContent.includes(x.lifetime),expected));await customer.evaluate(()=>window.__power.remove());
+ check('Power Proposal ignores the exploratory tariff',await customer.$eval('#powerPage5',(e,x)=>e.textContent.includes('₹8.75 per kWh')&&e.textContent.includes(x.lifetime),expected));await customer.evaluate(()=>window.__power.remove());
  await customer.$eval('#scenarioReset',e=>e.click());check('reset restores exact baseline tariff',await customer.$eval('#scenarioTariff',e=>e.value==='8.75'));
  await customer.emulateMediaType('print');check('scenario tool is excluded from print',await customer.$eval('#savingsExplorer',e=>!e.checkVisibility()));await customer.emulateMediaType('screen');
  await customer.setViewport({width:390,height:844});await customer.$eval('#savingsExplorer',e=>e.scrollIntoView({behavior:'instant'}));
@@ -127,7 +127,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await page.evaluate(()=>{window.html2canvas=window.__realCanvas;jspdf.jsPDF=window.__realPDF;});
  await edit({propRef:original.ref,companyName:original.company,durationText:original.duration,customerType:'commercial',tariff:'22',payCompletion:'5',loanAmt:'300000',loanRate:'9',loanYears:'5'});
  await page.evaluate(()=>window.__power=Experience.buildPowerPages(Render.lastState));
- check('commercial short proposal uses zero automatic subsidy and flags payment mismatch',await page.$eval('#powerPage5',e=>e.textContent.includes('95%')&&e.textContent.includes('not approved₹0')));
+ check('commercial short proposal uses zero automatic subsidy and flags payment mismatch',await page.$eval('#powerPage6',e=>e.textContent.includes('95%')&&e.textContent.includes('not approved₹0')));
  check('seven-page proposal fits including entered financing',(await powerLayout()).every(x=>x.deep<=x.sheet&&x.gap>=4));
  await page.evaluate(()=>window.__power.remove());await page.select('#pdfFormat','full');
  check('full-format label follows optional financing page count',await page.$eval('#downloadLabel',e=>e.textContent.includes('16 Pages')));

@@ -325,34 +325,17 @@
 .power-six h1::after{content:"";position:absolute;left:0;bottom:-5px;width:42px;height:2px;background:#dc8629;border-radius:1px;}
 .power-six .power-heading-accent{color:inherit;border:0;padding:0;}
 
-/* ---------- Page 3 of the report IS page 6 of the proposal ----------
-   Not a copy of its markup - the sheet element itself, cloned. So there is no
-   second card design to keep in step, and a custom make's uploaded logo and photo
-   arrive by the same lookup that paints them on the sheet.
+/* ---------- Page 3 of the report carries page 6's card block ----------
+   The cards themselves are not restyled here. The wrapper repeats the sheet's own
+   class chain (.pv2 .pv2-tech), so every card rule that applies on page 6 applies
+   here unchanged - same badge height, same photo tile, same row type. That is what
+   "exactly the same" means, and it is the only version that survives a future
+   redesign of the cards: change them on the sheet and this page follows.
 
-   1:1, never scaled. Scaling was the previous attempt and it could not work: the
-   report's column is ~700px against the sheet's ~800, so fitting four cards in it
-   meant 8px type, and "same as the full proposal" stopped being true. Carrying the
-   sheet at its own width instead means a 1px border is a 1px border and a badge is
-   the badge the owner saw on screen.
-
-   The sheet's own running heads come with the clone; they are lifted out of the
-   layout and hidden, because this report prints its own head and foot. */
-.power-page .power-spec-sheet.is-report{
+   The only thing set here is width, because the sheet draws at 794px and this
+   page's column is narrower. The cards are given the sheet's width rather than
+   being squeezed into the report's, so nothing shrinks. */
+.power-page .power-spec-sheet{
   width:794px;max-width:none;
   margin:0 0 0 calc((100% - 794px) / 2);
-}
-.power-page .power-spec-sheet.is-report::before,
-.power-page .power-spec-sheet.is-report::after{content:none;display:none;}
-.power-page .power-spec-sheet.is-report > header,
-.power-page .power-spec-sheet.is-report > footer,
-.power-page .power-spec-sheet.is-report > .pg-head,
-.power-page .power-spec-sheet.is-report > .pg-foot,
-.power-page .power-spec-sheet.is-report > .page-chrome{
-  position:absolute;width:1px;height:1px;overflow:hidden;
-  clip-path:inset(50%);white-space:nowrap;
-}
-/* The sheet draws its four cards down the page, one under the next. */
-.power-page .power-spec-sheet.is-report .pv2-spec{
-  display:flex;flex-direction:column;gap:8px;
 }
