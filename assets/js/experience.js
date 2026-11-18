@@ -186,13 +186,33 @@
        is exactly the duplication the owner ruled out. The cards keep the sheet's
        class chain and column width, so their sizes are the sheet's sizes: the badge
        is the badge the owner saw on screen, not a scaled-down approximation. */
+    /* Page 3 carries page 6's cards - the same nodes, cloned, never a second
+       drawing of them. This returns the inner markup only; the caller owns the
+       wrapper, so the wrapper cannot end up nested inside itself. */
     const powerSpecCards=()=>{
-      const sheet=$('pageTechSpec'); if(!sheet) return '';
-      root.ProposalV2?.sync?.();
-      const spec=sheet.querySelector('.pv2-spec'); if(!spec) return '';
-      const copy=spec.cloneNode(true);
-      copy.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
-      return '<div class="pv2 pv2-tech power-spec-sheet">'+copy.outerHTML+'</div>';
+      const P=root.ProposalV2,sheet=$('pageTechSpec');
+      /* Page 6 builds its cards in ProposalV2.sync(). Asking for them here, rather
+         than trusting whatever happens to be on screen, means the report can never
+         print cards from a state older than the numbers beside them. sync() is
+         cheap and idempotent - it re-renders only when the markup actually differs. */
+      try{P?.sync?.();}catch(e){/* a failed page-6 paint must not take the report down */}
+      const spec=sheet?.querySelector('.pv2-spec');
+      if(spec&&spec.querySelector('.pv2-card')){
+        const copy=spec.cloneNode(true);
+        /* A clone duplicates the ids page 6 uses. export.js scopes what it scans,
+           but a duplicate id in the document is still a duplicate id. */
+        copy.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
+        return copy.outerHTML;
+      }
+      /* Page 6 has not painted - a share.html load, or a document where the sheet
+         never ran. These are the same two functions page 6 calls, so this is the
+         same drawing reached another way, not a second one. A complete technical
+         page beats a blank one. */
+      try{
+        const cards=P?.cardsFromTable?P.cardsFromTable($('v_tsTable')):[];
+        if(cards.length) return '<div class="pv2-spec">'+cards.map(P.cardMarkup).join('')+'</div>';
+      }catch(e){/* print nothing rather than half a page */}
+      return '';
     };
     const valid=F.fmtDate(F.addDays(s.propDate,s.validityDays))||'To be confirmed';
     const scope=CONTENT.pageScope,warranty=CONTENT.pageWarranty;
@@ -227,7 +247,8 @@
       /* The sheet itself. No lead paragraph and no second set of headings: this is
          page 6 of the full proposal, carried over whole, so the two downloads show
          the same technical page down to the four cards and their artwork. */
-      page(3,'03 / TECHNICAL SPECIFICATION','Every component, specified.','The four groups that make up your system, exactly as they are set out in the detailed proposal.',powerSpecCards())+
+      page(3,'03 / TECHNICAL SPECIFICATION','Every component, specified.','The four groups that make up your system, exactly as they are set out in the detailed proposal.',
+        (powerSpecCards()?'<div class="pv2 pv2-tech power-spec-sheet">'+powerSpecCards()+'</div>':''))+
       page(4,'04 / SYSTEM DESIGN','The system behind the numbers.','Selected equipment and the design basis for your proposed solar installation.',
         '<h2>How your system connects</h2><div class="power-diagram">'+diagram+'</div><p class="power-caption">Conceptual grid-tied flow, not an installation wiring drawing. Grid-tied solar alone does not provide outage backup.</p>'+
         '<div class="power-metrics power-metrics-three">'+metric('Roof type',s.roofType||'To be confirmed','Site conditions to be confirmed')+metric('Indicative roof requirement',precise(f.requiredArea)+' m²','Includes modelled layout clearance')+metric('Contracted capacity',precise(f.contractedKwp)+' kWp','Pricing basis; whole modules may deliver more DC')+'</div>'+

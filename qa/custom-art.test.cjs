@@ -196,6 +196,22 @@ check('REGRESSION: the report does not repeat the sheet\'s own head, title or pa
   !/cloneNode\(true\)[\s\S]{0,80}?powerSpecSheet/.test(experience) &&
   !/is-report/.test(experience));
 
+check('REGRESSION: a report built before page 6 painted still gets its cards',
+  /* share.html loads, and other documents, may build the report without page 6
+     having run. Cloning an empty sheet printed a blank technical page. The fallback
+     is the same two functions page 6 calls - the same drawing, not a second one -
+     so a custom make still prints its logo either way. */
+  /P\.cardsFromTable\(\$\('v_tsTable'\)\)/.test(experience) &&
+  /cards\.map\(P\.cardMarkup\)/.test(experience));
+
+check('the report asks page 6 to paint before it copies, so cards cannot be stale',
+  /try\{P\?\.sync\?\.\(\);\}/.test(experience));
+
+check('the wrapper is added once, by the caller - never nested inside itself',
+  /powerSpecCards\(\)\?'<div class="pv2 pv2-tech power-spec-sheet">'/.test(experience) &&
+  /* The helper returns inner markup only. */
+  !/return '<div class="pv2 pv2-tech power-spec-sheet">'/.test(experience));
+
 check('the report stamps no duplicate ids when it carries the cards',
   /querySelectorAll\('\[id\]'\)\.forEach\(node=>node\.removeAttribute\('id'\)\)/.test(experience));
 
