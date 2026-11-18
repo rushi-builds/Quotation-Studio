@@ -392,8 +392,12 @@
   }
 
   function wirePaste() {
-    if (document.dataset.custArtPaste) return;
-    document.dataset.custArtPaste = '1';
+    /* `<html>` carries the dataset, not `document` - `document.dataset` does not
+       exist, and reading it throws a TypeError that would abort wire() at boot
+       and take the whole editor down with it. */
+    const el = document.documentElement;
+    if (el.dataset.custArtPaste) return;
+    el.dataset.custArtPaste = '1';
     document.addEventListener('paste', (e) => {
       const zoneKey = state.__pasteZone;
       if (!zoneKey) return;

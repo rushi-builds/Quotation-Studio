@@ -166,6 +166,25 @@ check('the zones are wired when "Custom…" is chosen, not at boot for every vis
 check('wiring is idempotent - a second call cannot double-bind a drop handler',
   /zone\.dataset\.wired/.test(customArt) && /panel\.dataset\.wired/.test(customArt));
 
+/* REGRESSION: `document.dataset` does not exist.
+   Reading it throws TypeError: Cannot read properties of undefined. wire() runs
+   from app.js at boot on every page, so one such line took the whole editor down
+   and the browser suite collapsed from 19/25 to 1/25 - while every offline suite
+   stayed green, because none of them execute this file. Pinned here so the
+   pattern cannot come back. */
+check('REGRESSION: the paste guard hangs off <html>, not document (document.dataset is undefined and throws)',
+  /* Comments are stripped first: the fix's own comment names the broken
+     expression, and a naive grep would fail on the explanation rather than on
+     any real code. */
+  !/document\.dataset/.test(customArt.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')) &&
+  /document\.documentElement/.test(customArt));
+
+check('REGRESSION: no boot-time code path can throw - every top-level dataset read has an element to read it from',
+  /* wire() must survive being called with no zones present: the document studio
+     and the share view have none, and both load app.js. */
+  /function wire\(\) \{[\s\S]{0,120}ZONES\.forEach\(wireZone\)/.test(customArt));
+
+
 /* ------------------------------------------------------------- 8. the guard */
 
 check('the new module is allowed by name only - no assets/js wildcard was opened',
