@@ -345,3 +345,18 @@
 .power-page .power-spec-sheet{
   width:100%;max-width:none;
 }
+/* Page 3 is the one page in this report whose body is a full A4-layout sheet - four
+   cards, each with a rows box and a photo tile. Measured in a real browser (794x1123
+   page, 38px padding, head 210px tall, footer at 1085px): the page offered the cards
+   875px and they wanted 851px, so the fit had 24px to spare and the block was being
+   scaled by 0.007 for nothing. The head is what ate the space: the shared 30px page
+   padding, a 56px logo, a 29px headline and a lead paragraph put 210px above the
+   block. Reclaiming part of that on this page only gives the cards their room back,
+   and the scale path stops engaging at all - which is the point, because a scaled
+   card is not "the same as the full proposal". */
+#powerPage3{padding-top:20px;}
+#powerPage3 .power-head{padding-bottom:9px;margin-bottom:12px;}
+#powerPage3 .power-head img{width:76px;height:44px;}
+#powerPage3 .power-kicker{margin:4px 0;}
+#powerPage3 h1{font-size:24px;margin:6px 0 10px;}
+#powerPage3 .power-lead{font-size:10.5px;line-height:1.5;margin:0 0 10px;}
