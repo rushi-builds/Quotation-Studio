@@ -37,9 +37,6 @@
      one place is the whole point - this used to write `moduleLogo`, so a logo was
      uploaded, trimmed and saved, and then never reached the card. */
   const mapKey = (zone) => 'custom' + zone[0].toUpperCase() + zone.slice(1);
-  /* Crop sessions live here so the drag handlers do not have to re-decode the
-     file on every pointer move. */
-  const crops = new Map();
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -144,75 +141,48 @@
 
   /* ------------------------------- photo --------------------------------- */
 
-  /* The crop frame is drawn at a fixed working size and everything is expressed
-     as a fraction of the source, so the same numbers can be re-applied at full
-     resolution when the owner presses Save. */
-  function openCrop(kind, src) {
-    const frameW = 260;
+  /* One step, no decisions: a dropped photo is cropped to the tile's shape by the
+     app and the result is what gets stored and printed.
+
+     The crop is a "cover" crop anchored at the centre, which is what the page-6
+     tiles themselves do with `object-fit: cover` - so the picture the owner sees
+     in the preview is the picture that prints, with nothing left to drag, zoom or
+     confirm. The whole picture is still reachable: `fit` (letterboxed, nothing cut)
+     is used automatically when a cover crop would throw away more than half the
+     frame, because at that point the product itself is being cut off and a centred
+     strip is not a better answer than a smaller whole shot. */
+  const CROP_KEEP = 0.5;   /* cover crop must keep at least this much of the source */
+
+  function cropPlan(src) {
+    const frameW = PHOTO.maxEdge;
     const frameH = Math.round(frameW / PHOTO.aspect);
-    const cover = src.w / src.h > PHOTO.aspect;
-    crops.set(kind, {
-      src, frameW, frameH,
-      /* Start with the whole picture visible: a "fit" session begins at 1 and a
-         "cover" session begins at the smallest zoom that fills the frame. */
-      zoom: 1, mode: 'cover',
-      offsetX: 0.5, offsetY: 0.5,
-      minZoom: 1, coverZoom: cover ? src.h / src.w * PHOTO.aspect : (src.w / src.h) / PHOTO.aspect
-    });
-    const c = crops.get(kind);
-    c.minZoom = c.mode === 'cover' ? Math.min(1, c.coverZoom) : Math.min(1, c.coverZoom);
-    c.zoom = c.mode === 'cover' ? Math.max(1, c.coverZoom) : 1;
-    c.coverZoom = Math.max(0.01, c.coverZoom);
-    return c;
+    const coverScale = Math.max(frameW / src.w, frameH / src.h);
+    const fitScale = Math.min(frameW / src.w, frameH / src.h);
+    /* What fraction of the source survives a centred cover crop. */
+    const coveredW = frameW / coverScale, coveredH = frameH / coverScale;
+    const kept = (coveredW * coveredH) / (src.w * src.h);
+    const mode = kept >= CROP_KEEP ? 'cover' : 'fit';
+    const scale = mode === 'cover' ? coverScale : fitScale;
+    return {
+      frameW, frameH, mode,
+      srcW: src.w * scale, srcH: src.h * scale,
+      /* Centre both: the product is almost always in the middle of the frame. */
+      offsetX: 0.5, offsetY: 0.5
+    };
   }
 
-  function paintCrop(kind, canvas) {
-    const c = crops.get(kind);
-    if (!c || !canvas) return;
-    canvas.width = c.frameW;
-    canvas.height = c.frameH;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, c.frameW, c.frameH);
-    ctx.fillStyle = '#EEF1F5';
-    ctx.fillRect(0, 0, c.frameW, c.frameH);
-    /* Scale so the source spans the frame at zoom 1 in fit mode, and fills it in
-       cover mode. */
-    const base = c.mode === 'cover'
-      ? Math.max(c.frameW / c.src.w, c.frameH / c.src.h)
-      : Math.min(c.frameW / c.src.w, c.frameH / c.src.h);
-    const s = base * c.zoom;
-    const dw = c.src.w * s, dh = c.src.h * s;
-    const dx = (c.frameW - dw) * c.offsetX;
-    const dy = (c.frameH - dh) * c.offsetY;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(c.src.img, dx, dy, dw, dh);
-  }
-
-  function photoFrom(kind) {
-    const c = crops.get(kind);
-    if (!c) throw new Error('Nothing to save yet.');
-    const base = c.mode === 'cover'
-      ? Math.max(c.frameW / c.src.w, c.frameH / c.src.h)
-      : Math.min(c.frameW / c.src.w, c.frameH / c.src.h);
-    const s = base * c.zoom;
-    const dw = c.src.w * s, dh = c.src.h * s;
-    const dx = (c.frameW - dw) * c.offsetX;
-    const dy = (c.frameH - dh) * c.offsetY;
-
-    /* Work out the full-resolution rectangle that the on-screen frame is showing,
-       then draw just that. Anything outside the frame is genuinely not wanted. */
-    const fx = c.mode === 'cover' ? c.frameW : c.frameW;
-    const fy = c.mode === 'cover' ? c.frameH : c.frameH;
-    let scale = Math.min(PHOTO.maxEdge / (fx / s), PHOTO.maxEdge / (fy / s));
-    scale = Math.min(scale, 4);
-    const out = canvasOf(fx * scale, fy * scale);
+  function photoFrom(src) {
+    const plan = cropPlan(src);
+    const out = canvasOf(plan.frameW, plan.frameH);
     const ctx = out.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
-    if (c.mode === 'cover') {
+    if (plan.mode === 'fit') {
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, out.width, out.height);
     }
-    ctx.drawImage(c.src.img, dx * scale, dy * scale, dw * scale, dh * scale);
+    const dx = (plan.frameW - plan.srcW) * plan.offsetX;
+    const dy = (plan.frameH - plan.srcH) * plan.offsetY;
+    ctx.drawImage(src.img, dx, dy, plan.srcW, plan.srcH);
 
     let url = out.toDataURL('image/jpeg', PHOTO.quality);
     if (url.length > PHOTO.budget) url = out.toDataURL('image/jpeg', 0.8);
@@ -222,7 +192,7 @@
       url = small.toDataURL('image/jpeg', 0.8);
     }
     if (url.length > PHOTO.budget * 2) url = out.toDataURL('image/webp', 0.8);
-    return { url, w: out.width, h: out.height };
+    return { url, w: out.width, h: out.height, mode: plan.mode };
   }
 
   /* ------------------------------- wiring -------------------------------- */
@@ -279,12 +249,15 @@
         say('Logo ready - ' + Math.round(info.url.length / 1024) + ' KB. ' +
           'Trimmed from ' + info.trimmed.from.join('x') + ' to ' + info.trimmed.to.join('x') + '.');
       } else {
-        const c = openCrop(zoneKey, src);
-        const panel = $('customArtCrop');
-        if (panel) panel.hidden = false;
-        Object.assign(state, { __cropZone: zoneKey, __cropSpec: spec });
-        paintCrop(zoneKey, $('customArtCropCanvas'));
-        say('Drag the picture to choose the crop, then press Use this crop.');
+        /* No panel, no confirm: the crop is decided and applied here. */
+        const info = photoFrom(src);
+        state[zoneKey] = info.url;
+        showThumb(zoneKey, info);
+        commit(zoneKey);
+        say('Photo ready - ' + Math.round(info.url.length / 1024) + ' KB at ' +
+          info.w + 'x' + info.h + (info.mode === 'fit'
+            ? '. The whole picture is kept, with bars at the edges.'
+            : '. Cropped to the card shape.'));
       }
     } catch (err) {
       say(err.message || 'That image could not be used.', true);
@@ -327,73 +300,9 @@
     zone.querySelector('[data-custom-art-remove]')?.addEventListener('click', (e) => {
       e.stopPropagation();
       state[spec.zone] = '';
-      crops.delete(spec.zone);
       showThumb(spec.zone, null);
       commit(spec.zone);
       say('Removed.');
-    });
-  }
-
-  /* ------------------------------ crop UI -------------------------------- */
-
-  function wireCrop() {
-    const panel = $('customArtCrop');
-    if (!panel || panel.dataset.wired) return;
-    panel.dataset.wired = '1';
-    const canvas = $('customArtCropCanvas');
-    let drag = null;
-
-    const start = (x, y) => { drag = { x, y }; };
-    const move = (x, y) => {
-      const c = crops.get(state.__cropZone);
-      if (!drag || !c) return;
-      c.offsetX = clamp(c.offsetX + (x - drag.x) / 240, 0, 1);
-      c.offsetY = clamp(c.offsetY + (y - drag.y) / 180, 0, 1);
-      drag = { x, y };
-      paintCrop(state.__cropZone, canvas);
-    };
-
-    canvas?.addEventListener('pointerdown', (e) => {
-      canvas.setPointerCapture?.(e.pointerId);
-      start(e.clientX, e.clientY);
-    });
-    canvas?.addEventListener('pointermove', (e) => move(e.clientX, e.clientY));
-    canvas?.addEventListener('pointerup', () => { drag = null; });
-    canvas?.addEventListener('pointercancel', () => { drag = null; });
-
-    $('customArtCropZoom')?.addEventListener('input', (e) => {
-      const c = crops.get(state.__cropZone);
-      if (!c) return;
-      c.zoom = Math.max(c.minZoom, Number(e.target.value) || 1);
-      paintCrop(state.__cropZone, canvas);
-    });
-    $('customArtCropFit')?.addEventListener('change', (e) => {
-      const c = crops.get(state.__cropZone);
-      if (!c) return;
-      c.mode = e.target.checked ? 'fit' : 'cover';
-      c.zoom = c.mode === 'cover' ? Math.max(1, c.coverZoom) : 1;
-      const zoom = $('customArtCropZoom');
-      if (zoom) zoom.value = String(c.zoom);
-      paintCrop(state.__cropZone, canvas);
-    });
-    $('customArtCropCancel')?.addEventListener('click', () => {
-      panel.hidden = true;
-      crops.delete(state.__cropZone);
-      say('Crop cancelled.');
-    });
-    $('customArtCropSave')?.addEventListener('click', () => {
-      const zoneKey = state.__cropZone;
-      try {
-        const info = photoFrom(zoneKey);
-        state[zoneKey] = info.url;
-        showThumb(zoneKey, info);
-        commit(zoneKey);
-        panel.hidden = true;
-        crops.delete(zoneKey);
-        say('Photo ready - ' + Math.round(info.url.length / 1024) + ' KB at ' + info.w + 'x' + info.h + '.');
-      } catch (err) {
-        say(err.message || 'That crop could not be saved.', true);
-      }
     });
   }
 
@@ -433,10 +342,9 @@
 
   function wire() {
     ZONES.forEach(wireZone);
-    wireCrop();
     wirePaste();
     sync();
   }
 
-  root.CustomArt = { wire, sync, state, logoFrom, photoFrom, openCrop, paintCrop, crops, say };
+  root.CustomArt = { wire, sync, state, logoFrom, photoFrom, cropPlan, say };
 })(typeof self !== 'undefined' ? self : this);

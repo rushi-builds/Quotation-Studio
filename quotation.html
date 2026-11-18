@@ -786,21 +786,6 @@
 
     </form>
 
-      <!-- One crop panel, shared by every photo zone. It is moved next to
-           whichever zone is being edited, so the owner never has to hunt for it. -->
-      <div class="custom-art-crop" id="customArtCrop" hidden>
-        <b>Choose the crop</b>
-        <small>Drag the picture to move it. Use the slider to zoom.</small>
-        <canvas id="customArtCropCanvas" width="260" height="179" aria-label="Crop preview"></canvas>
-        <label class="custom-art-zoom"><span>Zoom</span>
-          <input type="range" id="customArtCropZoom" min="1" max="3" step="0.01" value="1">
-        </label>
-        <label class="custom-art-fit"><input type="checkbox" id="customArtCropFit"> Fit without cropping (adds borders)</label>
-        <div class="custom-art-crop-actions">
-          <button type="button" id="customArtCropSave">Use this crop</button>
-          <button type="button" id="customArtCropCancel">Cancel</button>
-        </div>
-      </div>
       <div class="custom-art-status" id="customArtStatus" role="status" aria-live="polite" hidden></div>
 
 

@@ -112,11 +112,22 @@ check('a logo keeps its transparency (WebP/PNG, never JPEG)',
 check('a photo is cropped to the tile shape it will print in',
   /aspect: 1\.45/.test(customArt) && /frameH = Math\.round\(frameW \/ PHOTO\.aspect\)/.test(customArt));
 
-check('the owner can drag the crop and zoom it before saving',
-  /pointerdown/.test(customArt) && /offsetX/.test(customArt) && /customArtCropZoom/.test(customArt));
+/* The owner was explicit: no dragging, no zooming, no confirming. The app applies
+   the crop and the picture is done. */
+check('the photo is cropped and stored in one step - no panel, no confirm, no slider',
+  /function cropPlan/.test(customArt) &&
+  /function photoFrom/.test(customArt) &&
+  /* Nothing interactive survives anywhere in the file. */
+  !/pointerdown|onpointermove|addEventListener\('input'/.test(customArt));
 
-check('"fit without cropping" is offered as an alternative to a crop',
-  /customArtCropFit/.test(customArt) && /mode = e\.target\.checked \? 'fit' : 'cover'/.test(customArt));
+check('REGRESSION: the crop controls the owner rejected are gone from the markup too',
+  !/customArtCrop/.test(html) && !/custom-art-zoom/.test(css) && !/custom-art-crop/.test(css));
+
+check('a cover crop that would eat more than half the picture falls back to fit, so the product is never sliced',
+  /CROP_KEEP = 0\.5/.test(customArt) && /kept >= CROP_KEEP \? 'cover' : 'fit'/.test(customArt));
+
+check('the automatic crop is centred, because the product sits in the middle of a studio frame',
+  /offsetX: 0\.5, offsetY: 0\.5/.test(customArt));
 
 check('a stored photo is capped so it can live in the proposal blob',
   /maxEdge: 1200/.test(customArt) && /budget: 400000/.test(customArt));
@@ -193,7 +204,7 @@ check('the zones are wired when "Custom…" is chosen, not at boot for every vis
   /root\.CustomArt\) root\.CustomArt\.wire\(\)/.test(eq));
 
 check('wiring is idempotent - a second call cannot double-bind a drop handler',
-  /zone\.dataset\.wired/.test(customArt) && /panel\.dataset\.wired/.test(customArt));
+  /zone\.dataset\.wired/.test(customArt));
 
 /* REGRESSION: `document.dataset` does not exist.
    Reading it throws TypeError: Cannot read properties of undefined. wire() runs
@@ -221,7 +232,7 @@ check('the new module is allowed by name only - no assets/js wildcard was opened
   /assets\\\/js\\\/\(app\|charts\|content\|proposal-values\|equipment\|equipment-calc\|custom-art/.test(guard));
 
 check('the stylesheet went into an already-allowed file instead of widening the guard for a new one',
-  /\.custom-art\{/.test(css) && /\.custom-art-crop\{/.test(css));
+  /\.custom-art\{/.test(css) && /\.custom-art-status\{/.test(css));
 
 console.log('\n==== ' + pass + ' passed, ' + fail + ' failed ====');
 process.exit(fail ? 1 : 0);
