@@ -31,7 +31,13 @@ jobs:
         working-directory: qa
         env:
           QA_BASE: http://127.0.0.1:8787
-        run: node tmp-diag.test.js 2>&1 | grep -A40 "DIAG"
+        run: |
+          node tmp-diag.test.js > "$RUNNER_TEMP/diag.txt" 2>&1 || true
+          cat "$RUNNER_TEMP/diag.txt"
+          # Surface it as annotations: the job log URL is not reachable from here.
+          tr -d '\n' < "$RUNNER_TEMP/diag.txt" | fold -w 180 | while read -r l; do
+            echo "::warning::$l"
+          done
       - name: Annotate
         if: always()
         run: echo "diag complete"
