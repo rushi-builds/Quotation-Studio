@@ -302,7 +302,11 @@
              is exactly 1 and nothing is transformed;
            - it does not fit. Scale it, and record the factor. */
       const fits=W>0&&H>0&&availW>0&&availH>0;
-      const scale=fits?Math.min(1,availW/W,availH/H):1;
+      /* A ratio within a rounding error of 1 is not a reason to scale at all: 0.999
+         would still push the layout box through the transform path for no gain. */
+      const SCALE_SLACK=0.002;
+      const raw=fits?Math.min(1,availW/W,availH/H):1;
+      const scale=raw>1-SCALE_SLACK?1:raw;
       if(scale<1){
         /* A transform paints smaller but lays out at full size, so the wrapper is
            given the SCALED size and clips to it. Without this the block still

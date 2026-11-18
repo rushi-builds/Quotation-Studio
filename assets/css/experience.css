@@ -335,7 +335,13 @@
    The only thing set here is width, because the sheet draws at 794px and this
    page's column is narrower. The cards are given the sheet's width rather than
    being squeezed into the report's, so nothing shrinks. */
+/* The block is given the report's own content width, not the sheet's 794px.
+   794px is the WIDTH OF A PAGE, not of a page's content: .power-page carries 38px
+   padding, so this column is 718px. Drawing the block at 794 forced the runtime
+   scale to 0.904 to fit it, which is why page 3 showed smaller cards than page 6
+   and why they looked cut off. At 718 the cards are laid out by the same rules -
+   the body grid splits into rows + a 33% photo tile in both - so the only difference
+   is a wider photo tile, while the type stays its page-6 size. */
 .power-page .power-spec-sheet{
-  width:794px;max-width:none;
-  margin:0 0 0 calc((100% - 794px) / 2);
+  width:100%;max-width:none;
 }

@@ -176,8 +176,22 @@ check('the carried cards keep the sheet class chain, so the sheet styles them',
   /'<div class="pv2 pv2-tech power-spec-sheet">'/.test(experience) &&
   !/\.power-spec-sheet \.pv2-(card|photo|card-head|row|k|v)\b/.test(expCss));
 
-check('the report renders the cards at the sheet width',
-  /\.power-spec-sheet\{[\s\S]{0,160}?width:794px/.test(expCss));
+check('REGRESSION: the cards fill the report\'s content column, they do not overflow it',
+  /* 794px is a PAGE width, not a content width: .power-page carries 38px padding, so
+     the column is 718px. Drawing the block at 794 made the runtime scale shrink the
+     whole thing to 0.904 - the cards came out smaller than page 6's and the clipped
+     overflow is what the owner saw as "half". Width 100% is the fix. */
+  /* Only the rule's own body - .pdf-snapshot is legitimately 794px wide. */
+  (() => { const m = expCss.match(/\.power-page \.power-spec-sheet\{([^}]*)\}/); return !!m && /width:100%/.test(m[1]) && !/794px/.test(m[1]); })());
+
+check('REGRESSION: the overflow clip is the last resort, not the layout',
+  /* The first version gave the block 794px inside a 718px column, so every proposal
+     took the scale path (0.904) and the clip made the cards look cut in half - what
+     the owner photographed. The block now fills the column, so scaling should not
+     engage at all on a normal proposal; the runtime path stays only as a guard for a
+     pathological one. */
+  /const SCALE_SLACK=0\.002;/.test(experience) &&
+  /raw>1-SCALE_SLACK\?1:raw/.test(experience));
 
 check('REGRESSION: no NaN, no phantom scale, when the block already fits',
   /* The browser preview caught this and no text test would have. A detached host has
@@ -193,7 +207,7 @@ check('the carried block is scaled by one factor, so page-6 proportions survive'
   /* One scale for width and height. Independent width/height, or one viewBox-ish
      factor, would stretch the cards and "the same as the full proposal" would be
      false in the only way that is hard to notice on a screen and obvious in print. */
-  /const scale=fits\?Math\.min\(1,availW\/W,availH\/H\):1;/.test(experience) &&
+  /const raw=fits\?Math\.min\(1,availW\/W,availH\/H\):1;/.test(experience) &&
   /transform='scale\('\s*\+\s*scale\.toFixed\(4\)\s*\+\s*'\)'/.test(experience) &&
   /* The layout box must match the painted size, or the page reports a width it
      no longer draws. */
