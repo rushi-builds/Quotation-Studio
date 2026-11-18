@@ -302,11 +302,25 @@
              is exactly 1 and nothing is transformed;
            - it does not fit. Scale it, and record the factor. */
       const fits=W>0&&H>0&&availW>0&&availH>0;
-      /* A ratio within a rounding error of 1 is not a reason to scale at all: 0.999
-         would still push the layout box through the transform path for no gain. */
       const SCALE_SLACK=0.002;
-      const raw=fits?Math.min(1,availW/W,availH/H):1;
-      const scale=raw>1-SCALE_SLACK?1:raw;
+      /* What the block is allowed to occupy. availH is an ESTIMATE - it is taken
+         before the block is inserted, so it cannot know how much of the page the
+         cards will claim. Leaving a margin keeps the estimate from being optimistic,
+         which matters because the guard in export.js measures the real thing. */
+      const BOTTOM_MARGIN=18;
+      const targetH=Math.max(0,availH-BOTTOM_MARGIN);
+      const rawW=availW>0&&W>0?availW/W:1;
+      const rawH=targetH>0&&H>0?targetH/H:1;
+      const scale=Math.min(1,Math.max(rawW,0),Math.max(rawH,0));
+      /* Height is fixed in EVERY case, not only when scaling. The block is drawn
+         before it is inserted, so its own height is whatever the cards happen to
+         claim - and on a dense proposal that is taller than the page. Fixing the box
+         to the space the page actually has (and clipping) is what keeps four cards
+         off the footer. Width is only constrained when scaling is needed. */
+      if(fits&&H>targetH){
+        specBlock.style.height=Math.ceil(targetH)+'px';
+        specBlock.style.overflow='hidden';
+      }
       if(scale<1){
         /* A transform paints smaller but lays out at full size, so the wrapper is
            given the SCALED size and clips to it. Without this the block still

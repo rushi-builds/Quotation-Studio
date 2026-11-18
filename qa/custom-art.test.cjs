@@ -184,6 +184,13 @@ check('REGRESSION: the cards fill the report\'s content column, they do not over
   /* Only the rule's own body - .pdf-snapshot is legitimately 794px wide. */
   (() => { const m = expCss.match(/\.power-page \.power-spec-sheet\{([^}]*)\}/); return !!m && /width:100%/.test(m[1]) && !/794px/.test(m[1]); })());
 
+check('the block is bounded to the space the page has, in height as well as width',
+  /* Width alone was not enough: the block is drawn before it is inserted, so its
+     height is whatever the four cards claim. On a dense proposal that is taller than
+     the page, and the cards reached the footer. */
+  /const targetH=Math\.max\(0,availH-BOTTOM_MARGIN\);/.test(experience) &&
+  /const BOTTOM_MARGIN=18;/.test(experience));
+
 check('REGRESSION: the overflow clip is the last resort, not the layout',
   /* The first version gave the block 794px inside a 718px column, so every proposal
      took the scale path (0.904) and the clip made the cards look cut in half - what
@@ -191,7 +198,9 @@ check('REGRESSION: the overflow clip is the last resort, not the layout',
      engage at all on a normal proposal; the runtime path stays only as a guard for a
      pathological one. */
   /const SCALE_SLACK=0\.002;/.test(experience) &&
-  /raw>1-SCALE_SLACK\?1:raw/.test(experience));
+  /* Height is fixed whether or not scaling engages - that is what stops four cards
+     reaching the footer on a dense proposal. */
+  /if\(fits&&H>targetH\)\{/.test(experience));
 
 check('REGRESSION: no NaN, no phantom scale, when the block already fits',
   /* The browser preview caught this and no text test would have. A detached host has
@@ -207,7 +216,7 @@ check('the carried block is scaled by one factor, so page-6 proportions survive'
   /* One scale for width and height. Independent width/height, or one viewBox-ish
      factor, would stretch the cards and "the same as the full proposal" would be
      false in the only way that is hard to notice on a screen and obvious in print. */
-  /const raw=fits\?Math\.min\(1,availW\/W,availH\/H\):1;/.test(experience) &&
+  /const scale=Math\.min\(1,Math\.max\(rawW,0\),Math\.max\(rawH,0\)\);/.test(experience) &&
   /transform='scale\('\s*\+\s*scale\.toFixed\(4\)\s*\+\s*'\)'/.test(experience) &&
   /* The layout box must match the painted size, or the page reports a width it
      no longer draws. */
