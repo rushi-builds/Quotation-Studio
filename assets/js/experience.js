@@ -259,6 +259,36 @@
     host.querySelectorAll('.power-page').forEach(p=>{
       if(p.querySelector('.power-body').getBoundingClientRect().bottom>p.querySelector('footer').getBoundingClientRect().top-8)p.classList.add('power-compact');
     });
+    /* Page 3 carries page 6's card block at the sheet's own 794px width. The
+       report's column is narrower than the sheet, so the block would overrun the
+       page sideways - which is a horizontal overflow, and the A4 guard fails on
+       that too. Rather than restyling the cards (which is what "the same as the
+       full proposal" rules out), the whole block is scaled uniformly to the space
+       it is given: one factor for width and height, so a badge, a row and a photo
+       tile keep their page-6 proportions exactly. Measured after the host is in the
+       document, because only then is there a layout to measure.
+       Capped at 1 - on a wide screen the block is not blown up past the sheet. */
+    const specPage=host.querySelector('#powerPage3'),specBlock=specPage?.querySelector('.power-spec-sheet');
+    if(specBlock){
+      const body=specPage.querySelector('.power-body'),foot=specPage.querySelector('footer');
+      const availW=body.clientWidth,availH=foot.getBoundingClientRect().top-body.getBoundingClientRect().top;
+      const W=specBlock.offsetWidth,H=specBlock.offsetHeight;
+      const scale=Math.min(1,availW/W,availH/H);
+      if(scale<1&&scale>0){
+        /* A transform paints smaller but lays out at full size, so the wrapper is
+           given the SCALED size and clips to it. Without this the block still
+           reports 794px across and the report's own wide-screen guard - which
+           measures layout, not pixels - fails a page that looks correct. The clip
+           is exact: the scaled content ends precisely where the wrapper does. */
+        const sw=Math.ceil(W*scale),sh=Math.ceil(H*scale);
+        specBlock.style.width=sw+'px';
+        specBlock.style.height=sh+'px';
+        specBlock.style.overflow='hidden';
+        specBlock.style.transformOrigin='top left';
+        specBlock.style.transform='scale('+scale.toFixed(4)+')';
+      }
+      specBlock.dataset.powerScale=scale.toFixed(4);
+    }
     // Match the Detailed Proposal's generous waterfall height. Only reduce it
     // on dense financing/subsidy pages, retaining at least 240px and A4 safety.
     const costCanvas=host.querySelector('#powerCostChart'),investment=costCanvas.closest('.power-page');

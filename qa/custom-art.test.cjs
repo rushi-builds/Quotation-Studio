@@ -176,8 +176,19 @@ check('the carried cards keep the sheet class chain, so the sheet styles them',
   /'<div class="pv2 pv2-tech power-spec-sheet">'/.test(experience) &&
   !/\.power-spec-sheet \.pv2-(card|photo|card-head|row|k|v)\b/.test(expCss));
 
-check('the report carries the cards at the sheet width, never squeezed to its column',
+check('the report renders the cards at the sheet width',
   /\.power-spec-sheet\{[\s\S]{0,160}?width:794px/.test(expCss));
+
+check('the carried block is scaled by one factor, so page-6 proportions survive',
+  /* One scale for width and height. Independent width/height, or one viewBox-ish
+     factor, would stretch the cards and "the same as the full proposal" would be
+     false in the only way that is hard to notice on a screen and obvious in print. */
+  /const scale=Math\.min\(1,availW\/W,availH\/H\);/.test(experience) &&
+  /transform='scale\('\s*\+\s*scale\.toFixed\(4\)\s*\+\s*'\)'/.test(experience) &&
+  /* The layout box must match the painted size, or the page reports a width it
+     no longer draws. */
+  /specBlock\.style\.width=sw\+'px'/.test(experience) &&
+  !/scaleX\(|scaleY\(/.test(experience));
 
 check('REGRESSION: the report does not repeat the sheet\'s own head, title or paragraph',
   /* Carrying the whole sheet printed a second company head and a second title above
