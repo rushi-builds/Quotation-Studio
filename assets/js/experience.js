@@ -294,8 +294,16 @@
       const body=specPage.querySelector('.power-body'),foot=specPage.querySelector('footer');
       const availW=body.clientWidth,availH=foot.getBoundingClientRect().top-body.getBoundingClientRect().top;
       const W=specBlock.offsetWidth,H=specBlock.offsetHeight;
-      const scale=Math.min(1,availW/W,availH/H);
-      if(scale<1&&scale>0){
+      /* Three cases, and they are not the same case:
+           - no layout yet (a detached host, or a browser that has not painted) means
+             W or H is 0 and the ratio is Infinity/NaN. Do nothing and record nothing,
+             rather than styling the block with NaNpx;
+           - the block already fits, which is the common case on a real A4 page. Scale
+             is exactly 1 and nothing is transformed;
+           - it does not fit. Scale it, and record the factor. */
+      const fits=W>0&&H>0&&availW>0&&availH>0;
+      const scale=fits?Math.min(1,availW/W,availH/H):1;
+      if(scale<1){
         /* A transform paints smaller but lays out at full size, so the wrapper is
            given the SCALED size and clips to it. Without this the block still
            reports 794px across and the report's own wide-screen guard - which
@@ -308,7 +316,7 @@
         specBlock.style.transformOrigin='top left';
         specBlock.style.transform='scale('+scale.toFixed(4)+')';
       }
-      specBlock.dataset.powerScale=scale.toFixed(4);
+      if(fits) specBlock.dataset.powerScale=scale.toFixed(4);
     }
     // Match the Detailed Proposal's generous waterfall height. Only reduce it
     // on dense financing/subsidy pages, retaining at least 240px and A4 safety.

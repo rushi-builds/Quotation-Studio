@@ -179,11 +179,21 @@ check('the carried cards keep the sheet class chain, so the sheet styles them',
 check('the report renders the cards at the sheet width',
   /\.power-spec-sheet\{[\s\S]{0,160}?width:794px/.test(expCss));
 
+check('REGRESSION: no NaN, no phantom scale, when the block already fits',
+  /* The browser preview caught this and no text test would have. A detached host has
+     no layout, so offsetWidth is 0, the ratio is Infinity, min(1, ...) is 1, and the
+     old code wrote data-power-scale="NaN" while styling nothing. Nothing visibly
+     broke, which is why it survived: the value only reads wrong, and a later reader
+     would have taken "NaN" as proof that a scale had been applied. */
+  /const fits=W>0&&H>0&&availW>0&&availH>0;/.test(experience) &&
+  /if\(fits\) specBlock\.dataset\.powerScale=scale\.toFixed\(4\);/.test(experience) &&
+  !/if\(scale<1&&scale>0\)\{/.test(experience));
+
 check('the carried block is scaled by one factor, so page-6 proportions survive',
   /* One scale for width and height. Independent width/height, or one viewBox-ish
      factor, would stretch the cards and "the same as the full proposal" would be
      false in the only way that is hard to notice on a screen and obvious in print. */
-  /const scale=Math\.min\(1,availW\/W,availH\/H\);/.test(experience) &&
+  /const scale=fits\?Math\.min\(1,availW\/W,availH\/H\):1;/.test(experience) &&
   /transform='scale\('\s*\+\s*scale\.toFixed\(4\)\s*\+\s*'\)'/.test(experience) &&
   /* The layout box must match the painted size, or the page reports a width it
      no longer draws. */
