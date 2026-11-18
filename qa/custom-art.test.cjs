@@ -231,6 +231,21 @@ check('the new module is allowed by name only - no assets/js wildcard was opened
   /custom-art/.test(guard) &&
   /assets\\\/js\\\/\(app\|charts\|content\|proposal-values\|equipment\|equipment-calc\|custom-art/.test(guard));
 
+/* The owner asked for a quiet plate: two words, not a paragraph, and no hatched
+   placeholder block. Both are design decisions that a later "helpful" edit would
+   undo by adding another line of instructions, so they are pinned. */
+check('each drop plate says two words and stops - no paragraph of instructions',
+  (html.match(/<div class="custom-art-empty"[^>]*>([\s\S]*?)<\/div>/g) || []).every((block) => {
+    const text = block.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return text.length <= 60;
+  }));
+
+check('REGRESSION: the hatched placeholder is gone - a photo plate shows a thin outline instead',
+  !/repeating-linear-gradient/.test(css) && /\.custom-art\.is-photo::after\{/.test(css));
+
+check('the empty plate carries a drawn glyph rather than a bare box',
+  /\.custom-art-empty::before\{/.test(css) && /data:image\/svg\+xml/.test(css));
+
 check('the stylesheet went into an already-allowed file instead of widening the guard for a new one',
   /\.custom-art\{/.test(css) && /\.custom-art-status\{/.test(css));
 

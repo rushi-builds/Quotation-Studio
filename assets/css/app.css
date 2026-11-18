@@ -2112,50 +2112,66 @@ form.qs-mode-essentials [data-adv]{display:none !important;}
 
 /* ---------- Custom equipment artwork (module logo / inverter logo + photo) ----------
    Sits inside .equipment-custom, so it inherits the amber left rule that already
-   marks "this is what you typed, not what the catalogue carries". Two shapes of
-   zone because the two pictures have opposite jobs: a logo is a mark on
-   transparency that must never be cut, a photo is a product shot that must fill
-   the card tile. */
+   marks "this is what you typed, not what the catalogue carries".
+
+   Quiet by design. Three small plates, one job each, and nothing to read: the
+   owner already knows what the box is for, so the box says the two words that
+   matter (Drop logo / Drop image) and nothing else. The empty state is a soft
+   dashed plate with a small upload glyph - no hatched placeholder, no paragraph
+   of instructions, no second line of rules. */
 .custom-art{
-  position:relative;margin-top:8px;padding:10px;border:1.5px dashed #C9D2DE;border-radius:10px;
-  background:#FBFCFE;cursor:pointer;transition:border-color .15s,background .15s;
+  position:relative;margin-top:8px;padding:12px 10px;border:1.5px dashed #CBD5E1;border-radius:9px;
+  background:#FCFDFE;cursor:pointer;text-align:center;
+  transition:border-color .15s,background .15s,box-shadow .15s;
 }
-.custom-art:hover,.custom-art:focus-visible{border-color:var(--orange);background:#FFF9F2;outline:none;}
-.custom-art.is-dragging{border-color:var(--orange);background:#FFF1E3;border-style:solid;}
+.custom-art:hover,.custom-art:focus-visible{border-color:var(--orange);background:#FFFBF6;outline:none;box-shadow:0 1px 0 rgba(242,129,29,.14);}
+.custom-art.is-dragging{border-color:var(--orange);border-style:solid;background:#FFF1E3;}
 .custom-art[hidden]{display:none!important;}
-.custom-art-empty b{display:block;font:600 12px/1.3 'Inter',sans-serif;color:var(--navy);}
-.custom-art-empty small{display:block;margin-top:3px;font-size:10.5px;line-height:1.35;color:#6B7A8F;}
-.custom-art-empty .custom-art-hint{margin-top:6px;padding-top:6px;border-top:1px solid #E4EAF2;font-size:10px;color:#8593A6;}
-/* A photo zone stands taller and shows its tile shape, so the owner can see what
-   the crop will become before they even drop a file. */
-.custom-art.is-photo .custom-art-empty{display:block;}
-.custom-art.is-photo::after{
-  content:'';display:block;margin-top:8px;aspect-ratio:1.45/1;max-height:96px;
-  border-radius:7px;background:repeating-linear-gradient(135deg,#EEF2F7 0 8px,#F7F9FC 8px 16px);
+
+/* The glyph is drawn, not an icon file: one arrow into a tray, 20px, in the same
+   grey as the hint line so the whole plate reads as one quiet unit. */
+.custom-art-empty::before{
+  content:'';display:block;width:20px;height:20px;margin:0 auto 6px;
+  background:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E9CAE' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5'/%3E%3Cpath d='M4 15v3.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V15'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-.custom-art.is-photo .custom-art-filled::after{
-  content:'';display:block;margin-top:8px;aspect-ratio:1.45/1;max-height:96px;
-  border-radius:7px;background-size:cover;background-position:center;
+.custom-art:hover .custom-art-empty::before,
+.custom-art.is-dragging .custom-art-empty::before{
+  filter:invert(48%) sepia(88%) saturate(1400%) hue-rotate(357deg) brightness(97%) contrast(94%);
 }
-.custom-art-filled{display:flex;align-items:center;gap:10px;}
+.custom-art-empty b{display:block;font:600 11.5px/1.2 'Inter',sans-serif;color:#3C4A5C;letter-spacing:.01em;}
+.custom-art-empty small{display:block;margin-top:3px;font-size:9.8px;line-height:1.3;color:#94A1B2;}
+
+/* A filled plate stops being a drop target and becomes a chip: the artwork, its
+   pixel size, and one way out. */
+.custom-art-filled{display:flex;align-items:center;gap:10px;text-align:left;}
 .custom-art-filled[hidden]{display:none!important;}
 .custom-art-filled img{
-  display:block;max-width:120px;max-height:30px;width:auto;height:auto;object-fit:contain;
-  /* Logos sit on their own transparency; a light plate makes a white mark visible
-     instead of invisible. */
-  background:linear-gradient(#fff,#fff) padding-box;border-radius:4px;padding:2px 4px;
+  display:block;max-width:104px;max-height:30px;width:auto;height:auto;object-fit:contain;flex:none;
+  /* A white mark needs a surface to be visible on, but it must not read as a box. */
+  border-radius:3px;background:
+    linear-gradient(#fff,#fff) padding-box;
 }
-.custom-art.is-photo .custom-art-filled{flex-direction:column;align-items:flex-start;}
-.custom-art.is-photo .custom-art-filled img{
-  max-width:100%;max-height:none;width:100%;height:auto;padding:0;border-radius:7px;
-}
-.custom-art-filled>div{display:flex;flex-direction:column;gap:5px;align-items:flex-start;}
-.custom-art-filled small{font-size:10px;color:#8593A6;}
+.custom-art-filled>div{display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:0;}
+.custom-art-filled small{font:500 9.5px/1 'Inter',sans-serif;color:#94A1B2;}
 .custom-art-filled button{
-  padding:3px 9px;border:1px solid #D7DEE8;border-radius:6px;background:#fff;
-  font:600 10px/1 'Inter',sans-serif;color:#5A6A7E;cursor:pointer;
+  padding:2px 8px;border:1px solid #E2E8F0;border-radius:5px;background:#fff;
+  font:600 9.5px/1.4 'Inter',sans-serif;color:#64748B;cursor:pointer;transition:all .12s;
 }
-.custom-art-filled button:hover{border-color:#D7202A;color:#D7202A;}
+.custom-art-filled button:hover{border-color:#D7202A;color:#D7202A;background:#FFF7F7;}
+
+/* The photo plate shows the shape it will fill, so the crop is never a surprise -
+   but as a thin outline, not the loud hatched block it used to be. */
+.custom-art.is-photo .custom-art-empty{display:block;}
+.custom-art.is-photo::after{
+  content:'';display:block;margin:9px auto 0;width:100%;max-width:132px;aspect-ratio:1.45/1;
+  border-radius:5px;border:1px dashed #D7DFE9;background:#F6F9FC;
+}
+.custom-art.is-photo.is-dragging::after{border-color:var(--orange);background:#FFF4E8;}
+.custom-art.is-photo .custom-art-filled{flex-direction:column;align-items:stretch;gap:7px;}
+.custom-art.is-photo .custom-art-filled img{
+  max-width:100%;max-height:none;width:100%;height:auto;aspect-ratio:1.45/1;object-fit:cover;border-radius:6px;
+}
+.custom-art.is-photo .custom-art-filled>div{flex-direction:row;align-items:center;justify-content:space-between;}
 
 .custom-art-status{
   margin-top:8px;padding:7px 10px;border-radius:7px;background:#EEF6FF;border:1px solid #CFE2F7;
