@@ -247,7 +247,11 @@
   [...host.children].forEach((page,i)=>page.dataset.docKey='power'+(i+1));
   customPages().filter(p=>p.format==='power').forEach(item=>{
    const page=el('section','page power-page power-six');page.dataset.docKey=item.id;
-   const template=host.firstElementChild;page.append(template.querySelector('header').cloneNode(true));const body=el('div','power-body');body.append(el('h2','',item.title));page.append(body,template.querySelector('footer').cloneNode(true));
+   /* The first extracted page is the full-bleed cover and intentionally has no
+      shared header. Use an ordinary A4 sheet as the optional-page chrome template. */
+   const template=[...host.children].find(p=>p.querySelector('.pg-head,.power-head')&&p.querySelector(':scope > footer'));
+   const head=template?.querySelector('.pg-head,.power-head'),foot=template?.querySelector(':scope > footer');
+   if(head)page.append(head.cloneNode(true));const body=el('div','power-body');body.append(el('h2','',item.title));page.append(body);if(foot)page.append(foot.cloneNode(true));
    const after=[...host.children].find(p=>p.dataset.docKey===item.after);if(after)after.after(page);else host.append(page);
   });
   [...host.children].forEach(page=>samples.set(page.dataset.docKey,scan(page,page.dataset.docKey)));
@@ -282,7 +286,7 @@
   format.setAttribute('aria-label','Document format to edit');format.add(new Option('Detailed proposal & system reports','full'));format.add(new Option('Power proposal','power'));format.value=report;
   format.addEventListener('change',()=>{report=format.value;selected=report==='power'?'power1':'pageExec';if(report==='power'){const h=ensurePower();h.remove();}refreshEditor();});
   picker.setAttribute('aria-label','Page to edit');
-  const pages=report==='power'?[...Array.from({length:6},(_,i)=>({id:'power'+(i+1),title:'Power '+(i+1)})),...customPages().filter(p=>p.format==='power')]:pageList();
+  const pages=report==='power'?[...Array.from({length:7},(_,i)=>({id:'power'+(i+1),title:'Power '+(i+1)})),...customPages().filter(p=>p.format==='power')]:pageList();
   if(!pages.some(p=>p.id===selected))selected=pages[0].id;
   pages.forEach(p=>picker.add(new Option(p.title+(config(p.id).excluded?' · removed':''),p.id)));picker.value=selected;
   picker.addEventListener('change',()=>{selected=picker.value;refreshEditor();});controls.append(format,picker);host.append(controls);
@@ -388,10 +392,10 @@
    pdf.save((format==='power'?'Power_Proposal_':format==='full'?'Proposal_':'System_Report_')+(savedState.custName||'Customer').replace(/[^a-z0-9]/gi,'_')+'.pdf');statusCb('Downloaded ✓ ('+pages.length+' pages)');
   }finally{snapshot?.remove();busy=false;}
  }
- let powerCountCache={key:'',count:6};
+ let powerCountCache={key:'',count:7};
  function updateDocumentLabels(){
-  const d=store(),powerCustom=customPages().filter(p=>p.format==='power'),powerKeys=new Set(powerCustom.map(p=>p.id)),powerConfigs=Object.entries(d.pages).filter(([id])=>/^power[1-6]$/.test(id)||powerKeys.has(id));
-  let count=6;
+  const d=store(),powerCustom=customPages().filter(p=>p.format==='power'),powerKeys=new Set(powerCustom.map(p=>p.id)),powerConfigs=Object.entries(d.pages).filter(([id])=>/^power[1-7]$/.test(id)||powerKeys.has(id));
+  let count=7;
   if(powerCustom.length||powerConfigs.length){const key=JSON.stringify([root.Render.lastState,powerConfigs,powerCustom]);if(key!==powerCountCache.key){const host=powerDocument();powerCountCache={key,count:host.children.length};host.remove();}count=powerCountCache.count;}
   const pages=root.Render.lastVisible||[],counts={full:pages.length,power:count,bess:pages.filter(p=>belongs(p,'bess')).length,system:pages.filter(p=>belongs(p,'system')).length,'system-power':pages.filter(p=>belongs(p,'system-power')).length};
   const select=$('pdfFormat'),format=select?.value||'full';
@@ -453,7 +457,7 @@
    host=powerDocument();rendered=[...host.children].map((p,i)=>({id:p.dataset.docKey||p.dataset.docOrigin+'-continuation-'+i,origin:p.dataset.docOrigin||p.dataset.docKey,number:i+1,continuation:!!p.dataset.docOrigin}));
   }else rendered=(root.Render.lastVisible||[]).filter(p=>belongs(p,format)).map((p,i)=>({id:p.id,origin:p.id.replace(/-continuation-\d+$/,''),number:i+1,continuation:/-continuation-\d+$/.test(p.id)}));
   try{
-   const pages=power?[...Array.from({length:6},(_,i)=>({id:'power'+(i+1),title:titles.get('power'+(i+1))})),...customPages().filter(p=>p.format==='power')]:pageList().filter(p=>belongs(p,format));
+   const pages=power?[...Array.from({length:7},(_,i)=>({id:'power'+(i+1),title:titles.get('power'+(i+1))})),...customPages().filter(p=>p.format==='power')]:pageList().filter(p=>belongs(p,format));
    const rows=pages.map(p=>{
     const v=variant(p.id),excluded=!!config(p.id).excluded,enabled=power||sourceEnabled(p.id,state);
     const renderedPages=rendered.filter(r=>r.origin===p.id);
@@ -468,7 +472,7 @@
  function openEditor(id,format='full'){
   const panel=$('advancedPanel');if(!panel||!$('documentStudio'))return false;
   const source=String(id).replace(/-continuation-\d+$/,'');
-  const valid=format==='power'?/^power[1-6]$/.test(source)||customPages().some(p=>p.id===source&&p.format==='power'):pageList().some(p=>p.id===source);
+  const valid=format==='power'?/^power[1-7]$/.test(source)||customPages().some(p=>p.id===source&&p.format==='power'):pageList().some(p=>p.id===source);
   if(!valid)return false;
   report=format==='power'?'power':'full';selected=source;
   root.__qsPreflight?.reveal?.('advancedPanel');panel.open=true;buildEditor();

@@ -276,7 +276,15 @@
 .pv2-tech.pv2-fit-2 .v_tsGroupsLabel.pv2-label{margin:8px 0 7px -12px;}
 .pv2-tech.pv2-fit-2 .pv2-k,.pv2-tech.pv2-fit-2 .pv2-v{padding-top:2px;padding-bottom:2px;font-size:9.4px;line-height:1.22;}
 .pv2-tech.pv2-fit-2 .pv2-card-head{margin-bottom:4px;min-height:26px;}
-.pv2-tech.pv2-fit-4 .v_tsPara{display:none;}
+.pv2-tech.pv2-fit-4 .v_tsPara{display:block;font-size:9.6px;line-height:1.25;margin:0;}
+.pv2-tech.pv2-fit-5 > .pg-body{padding-bottom:64px;}
+.pv2-tech.pv2-fit-5 .v_tsPara{display:block;font-size:9px;line-height:1.2;margin:0;}
+.pv2-tech.pv2-fit-5 .v_tsGroupsLabel.pv2-eyebrow{margin:5px 0;}
+.pv2-tech.pv2-fit-5 .pv2-spec{gap:3px;}
+.pv2-tech.pv2-fit-5 .pv2-card{padding:2px 5px 2px 7px;}
+.pv2-tech.pv2-fit-5 .pv2-card-head{min-height:18px;margin-bottom:1px;}
+.pv2-tech.pv2-fit-5 .pv2-k,.pv2-tech.pv2-fit-5 .pv2-v{font-size:8px;line-height:1.1;padding:.75px 5px;}
+.pv2-tech.pv2-fit-5 .pv2-k .pv2-svg{width:10px;height:10px;}
 .pv2-tech.pv2-fit-3 .pv2-card{padding-top:6px;padding-bottom:6px;}
 .pv2-sheet.pv2.pv2-fit-3 .pg-body > .note-box{padding-top:7px;padding-bottom:7px;font-size:9.4px;}
 .pv2-tech.pv2-fit-4 .pv2-k,.pv2-tech.pv2-fit-4 .pv2-v{font-size:8.8px;padding-top:1.5px;padding-bottom:1.5px;}

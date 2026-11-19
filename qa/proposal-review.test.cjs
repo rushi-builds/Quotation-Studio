@@ -148,7 +148,7 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     check('restoring legacy saved editor keys cannot overwrite UI search', await p.locator('#docTextSearch').inputValue() === 'solar');
     await p.evaluate(() => DocumentStudio.excludePage('power2', true));
     await open(); await p.click('#qrw-pages-tab');
-    check('Power removals use actual report pagination', await p.locator('.qrw-sheet-total strong').textContent() === '5' && (await p.locator('[data-review-page=power2]').textContent()).includes('Removed'));
+    check('Power removals use actual report pagination', await p.locator('.qrw-sheet-total strong').textContent() === '6' && (await p.locator('[data-review-page=power2]').textContent()).includes('Removed'));
     await close(); await p.evaluate(() => DocumentStudio.restorePage('power2'));
     await p.evaluate(() => { window.__pdfParent = pdfFormat.parentNode; window.__pdfNext = pdfFormat.nextSibling; });
     await open(); check('review has a distinct Excel snapshot action and leaves the sole PDF selector in its original footer', await p.locator('#qrwExportSpreadsheet').count() === 1 && await p.locator('#pdfFormat').count() === 1 && await p.locator('#pdfFormat').evaluate(n => n.closest('.form-actions') !== null) && await p.locator('#qrwChangeFormat').count() === 0);

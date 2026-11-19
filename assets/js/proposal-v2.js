@@ -475,7 +475,7 @@
     let wrap = body.querySelector(':scope > .pv2-spec');
     if (!wrap) { wrap = doc.createElement('div'); wrap.className = 'pv2-spec'; wrap.dataset.docAdded = 'true'; table.after(wrap); }
     if (wrap.dataset.html !== html) { wrap.innerHTML = html; wrap.dataset.html = html; }
-    fit(page, ['pv2-fit-1', 'pv2-fit-2', 'pv2-fit-3', 'pv2-fit-4']);
+    fit(page, ['pv2-fit-1', 'pv2-fit-2', 'pv2-fit-3', 'pv2-fit-4', 'pv2-fit-5']);
   }
 
   /* Measured, never assumed: tighten step by step until the last block sits

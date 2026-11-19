@@ -130,8 +130,8 @@ check('the editable-document exporter uses the same pass', () => {
 });
 
 check('browsers pick up the new exporter instead of a cached one', () => {
-  assert.ok(/assets\/js\/export\.js\?v=vivid-pdf1/.test(PAGE), 'export.js cache key is bumped');
-  assert.ok(/assets\/js\/document-studio\.js\?v=vivid-doc1/.test(PAGE), 'document-studio.js cache key is bumped');
+  assert.ok(/assets\/js\/export\.js\?v=vivid-pdf\d+/.test(PAGE), 'export.js cache key is bumped');
+  assert.ok(/assets\/js\/document-studio\.js\?v=vivid-doc\d+/.test(PAGE), 'document-studio.js cache key is bumped');
 });
 
 check('the capture clone drops the live pages instead of repainting them', () => {

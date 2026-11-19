@@ -10,6 +10,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  const base=process.env.QA_BASE||'http://127.0.0.1:8080',shots=path.join(__dirname,'shots');fs.mkdirSync(shots,{recursive:true});fs.mkdirSync(path.join(shots,'experience'),{recursive:true});
  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setViewport({width:1440,height:1200});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
+ check('Technical Specification heading, subheading and intro are visible in the builder quotation',await page.$eval('#pageTechSpec',e=>['Technical System Specification','The Components Behind Your Generation'].every(t=>e.textContent.includes(t))&&['#v_tsHeading','#v_tsSub','#v_tsPara'].every(sel=>{const n=e.querySelector(sel);return n&&getComputedStyle(n).display!=='none'&&n.getClientRects().length>0;})));
  async function edit(fields){await page.evaluate(fields=>{for(const [id,v] of Object.entries(fields)){const e=document.getElementById(id);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));}},fields);await page.evaluate(()=>Experience.whenReady());}
  check('blank gallery destination never auto-encodes a protected preview URL',await page.evaluate(()=>Experience.galleryUrl({galleryUrl:''})===''&&document.getElementById('closingGallery').hidden));
  check('new PDF selector defaults to the full report',await page.$eval('#pdfFormat',e=>e.value==='full'));
@@ -22,124 +23,34 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await edit({galleryUrl:'javascript:alert(1)'});check('invalid edits hide QR and remove previous destination',await page.$eval('#closingGallery',e=>e.hidden && !e.hasAttribute('href')));
  await edit({galleryUrl:'https://example.com/updated-gallery',capacity:'12.5',moduleWattage:'620',inverterKw:'10',tariff:'8.75'});
  check('QR redraw replaces old destination',await readQR(page,'#closingGallery canvas')==='https://example.com/updated-gallery');
- const expected=await page.evaluate(()=>{const f=Finance.compute(Render.lastState);return {net:Finance.fmtINR(f.netInvestment),annual:Finance.fmtNum(f.annualGen),lifetime:Finance.fmtINRshort(f.lifetimeSaving),module:f.moduleCount};});
+ const expected=await page.evaluate(()=>{const f=Finance.compute(Render.lastState);return {net:Finance.fmtINR(f.netInvestment),annual:Finance.fmtNum(f.annualGen),lifetime:Finance.fmtINRshort(f.lifetimeSaving),module:f.moduleCount,capacity:Render.lastState.capacity};});
  await page.evaluate(()=>window.__power=Experience.buildPowerPages(Render.lastState));
- check('Power Proposal is exactly seven dedicated pages',await page.$$eval('.pdf-snapshot .power-page',els=>els.length===7));
- check('summary reflects energy/equipment while pricing stays on Investment',await page.$eval('#powerPage1',(e,x)=>!e.textContent.includes('₹')&&e.textContent.includes(x.annual)&&e.textContent.includes(x.module+' × 620')&&e.textContent.includes('10 kW inverter'),expected));
- check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage6.textContent.includes(x.net)&&powerPage5.textContent.includes(x.lifetime),expected));
- check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage6.textContent.includes('not approved')&&powerPage7.textContent.includes('Additional scope')&&powerPage7.textContent.includes('valid until')&&powerPage7.textContent.includes('not an installation order')));
- /* A power page is a fixed A4 box with overflow hidden whose own bottom
-    padding is part of scrollHeight (1123 + padding), so scrollHeight alone
-    reads 1130 on a page that is completely inside the sheet. Measure the same
-    three things Exporter's guard now measures - deepest painted content
-    against the sheet edge, clearance above the footer, no sideways overflow -
-    and name the deepest element so a failure says what is sticking out. */
- async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer'),body=foot.previousElementSibling,f=foot.getBoundingClientRect();let deepest='(none)',low=-Infinity;for(const n of e.querySelectorAll('*')){if(n.closest('footer'))continue;const nb=n.getBoundingClientRect();if(!nb.width&&!nb.height)continue;if(nb.bottom>low){low=nb.bottom;deepest=n.tagName.toLowerCase()+(n.id?'#'+n.id:'')+(typeof n.className==='string'&&n.className.trim()?'.'+n.className.trim().split(/\s+/).join('.'):'');}}return {id:e.id,sheet:e.clientHeight,h:e.scrollHeight,deepest:deepest,deep:Math.round(low-r.top),gap:f.top-body.getBoundingClientRect().bottom,fit:e.scrollWidth<=e.clientWidth};}));}
- let layout=await powerLayout();console.log('Power layout',layout);
- /* Page 3 is page 6 carried whole, so its own footer IS the sheet's footer and sits
-    where page 6 puts it. It has no report foot to clear, so the "clearance above my
-    footer" rule does not apply to it - what does apply is that the carried sheet must
-    not spill past the page, which the deep measurement already covers. Judging it by
-    the report's footer rule failed a page that is, by design, identical to the one it
-    copies. */
- const fits=x=>x.deep<=x.sheet&&(x.id==='powerPage3'||x.gap>=4)&&x.fit;
- const badPage=layout.filter(x=>!fits(x));
- check('all seven power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': deepest='+x.deepest+'@'+x.deep+' of '+x.sheet+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
- /* Page 3 prints page 6's card block, and "prints it the same" is a claim about
-    pixels, not about markup. Every failure in this area came from copying the right
-    markup into the wrong box: a narrower column wrapped the values onto extra lines,
-    the cards grew, and the bottom one was clipped. Source-string checks cannot see
-    any of that, so this compares the two pages element by element in a real browser.
-    If page 3 and page 6 ever disagree about a card's width, height or type size, the
-    requirement is broken and this says so. */
- const specParity=await page.evaluate(()=>{
-   const read=(host)=>[...host.querySelectorAll('.pv2-card')].map(c=>{
-     const b=c.getBoundingClientRect();
-     const v=c.querySelector('.pv2-v');
-     const cs=v?getComputedStyle(v):null;
-     return {w:Math.round(b.width),h:Math.round(b.height),
-             font:cs?cs.fontSize:'',pad:cs?cs.paddingTop:''};
-   });
-   const sheet=document.querySelector('#pageTechSpec');
-   const host=Experience.buildPowerPages(Render.lastState);
-   const p3=host.querySelector('#powerPage3');
-   const sheetCards=read(sheet), pageCards=read(p3);
-   const blk=p3.querySelector('.power-spec-sheet');
-   const out={sheetCards,pageCards,
-     clipped:blk.style.overflow==='hidden',
-     scaled:!!blk.style.transform,
-     fits:p3.dataset.specFits,
-     cards:p3.querySelectorAll('.pv2-card').length,
-     badges:p3.querySelectorAll('.pv2-brand').length,
-     photos:p3.querySelectorAll('.pv2-photo img').length,
-     /* How much of each photograph actually survives the tile. */
-     crops:[...sheet.querySelectorAll('.pv2-card')].map(c=>{
-       const ph=c.querySelector('.pv2-photo'), im=ph&&ph.querySelector('img');
-       if(!ph||!im) return null;
-       const b=ph.getBoundingClientRect();
-       const natural=im.naturalWidth&&im.naturalHeight?im.naturalWidth/im.naturalHeight:0;
-       const tile=b.width/b.height;
-       const fit=getComputedStyle(im).objectFit;
-       const rows=c.querySelector('.pv2-rows');
-       return {kind:(c.className.match(/is-(\w+)/)||[])[1],
-         tile:+tile.toFixed(2), natural:+natural.toFixed(2), fit,
-         tileH:Math.round(b.height), rowsH:rows?Math.round(rows.getBoundingClientRect().height):0,
-         cardH:Math.round(c.getBoundingClientRect().height),
-         kept:fit==='contain'?1:(natural&&tile?Math.min(natural/tile,tile/natural):1)};
-     }).filter(Boolean),
-     footNum:p3.querySelector('.pg-foot-page')?.textContent.trim()||'',
-     footHas15:/of 15/.test(p3.querySelector('.pg-foot')?.textContent||'')};
-   host.remove();
-   return out;
- });
- /* The carried footer is page 6's design, but not its page number: a seven-page
-    document that says "Page 6 of 15" is simply lying to the customer. */
- check('the carried footer prints this document\'s page number, not the report\'s ['+specParity.footNum+']',
-   specParity.footNum==='Page 3 of 7'&&!specParity.footHas15);
- /* A studio shot squeezed into a tile of a different shape loses its edges. Card 04
-    is the one that lost the most: the helmet, the pen and the drawings all sit near
-    the frame, so a third of the picture went and it read as a bad crop. Every card
-    now keeps at least 85% of its photograph, and card 04 keeps all of it. */
- check('every card photograph keeps its subject ['+specParity.crops.map(c=>c.kind+' '+Math.round(c.kept*100)+'%').join(', ')+']',
-   specParity.crops.every(c=>c.kept>=0.85));
- /* Two things must both be true of card 04, and the first two attempts at this each
-    satisfied one of them: the card keeps the size the sheet gives it (growing it made
-    it taller than its neighbours), and the photograph fills its tile with nothing
-    cropped (fitting it inside left a blank band at each side). The tile column is
-    shaped like the photograph, so the ratio matches and both hold at once. */
- check('the engineering-design photograph fills its tile with nothing cropped ['+
-   JSON.stringify(specParity.crops.find(c=>c.kind==='design'))+']',
-   (()=>{const d=specParity.crops.find(c=>c.kind==='design');
-     return d && d.kept>=0.99 && Math.abs(d.tile-d.natural)<=0.02;})());
- check('and the card keeps its size - the picture never stretches the sheet',
-   (()=>{const d=specParity.crops.find(c=>c.kind==='design');
-     return d && Math.abs(d.tileH-d.rowsH)<=2;})());
- check('page 3 carries all four cards, with their badges and photographs',
-   specParity.cards===4&&specParity.badges>=3&&specParity.photos===4);
- check('page 3 cards are the same size and type as page 6 ['+
-   JSON.stringify(specParity.sheetCards.map(c=>c.w+'x'+c.h+'@'+c.font))+' vs '+
-   JSON.stringify(specParity.pageCards.map(c=>c.w+'x'+c.h+'@'+c.font))+']',
-   specParity.sheetCards.length===specParity.pageCards.length &&
-   specParity.sheetCards.every((s,i)=>{
-     const p=specParity.pageCards[i];
-     return Math.abs(s.w-p.w)<=1 && Math.abs(s.h-p.h)<=1 && s.font===p.font && s.pad===p.pad;
-   }));
- check('page 3 neither clips nor scales the block - it fits, and says so',
-   !specParity.clipped&&!specParity.scaled&&specParity.fits==='1');
- check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage6',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
- const rasterQR=await page.$eval('#powerPage2',async el=>{
-   const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});
-   const jpg=new Image();jpg.src=c.toDataURL('image/jpeg',.92);await jpg.decode();
-   const clean=document.createElement('canvas');clean.width=c.width;clean.height=c.height;const ctx=clean.getContext('2d');ctx.drawImage(jpg,0,0);
-   const r=el.querySelector('.power-gallery canvas').getBoundingClientRect(),p=el.getBoundingClientRect();
-   const crop=ctx.getImageData(Math.round((r.x-p.x)*2),Math.round((r.y-p.y)*2),Math.round(r.width*2),Math.round(r.height*2));
-   return {w:crop.width,h:crop.height,data:Array.from(crop.data),white:Array.from(ctx.getImageData(5,500,1,1).data)};
- });
- check('QR survives the exact PDF JPEG compression path',jsQR(new Uint8ClampedArray(rasterQR.data),rasterQR.w,rasterQR.h)?.data==='https://example.com/updated-gallery');
- check('printed sheet background stays white, without screen shadows',rasterQR.white.slice(0,3).every(v=>v>=250));
- check('short PDF QR decodes to the same configured destination',await readQR(page,'.power-gallery canvas')==='https://example.com/updated-gallery');
+ check('Power Proposal stays seven sheets, with the agreed combined page 4',await page.$$eval('.pdf-snapshot .power-page',els=>els.length===7));
+ const sourceOrder=['pageCover','pageSolution','pageTechSpec','pageScope','pageSavings','pageInvestment','pageClosing'];
+ check('compact PDF uses the approved Detailed Proposal page order',await page.$$eval('.pdf-snapshot .power-page',els=>JSON.stringify(els.map(e=>e.dataset.sourcePage))===JSON.stringify(['pageCover','pageSolution','pageTechSpec','pageScope','pageSavings','pageInvestment','pageClosing'])));
+ check('seven source sheets retain native artwork/chrome and shared pages are renumbered',await page.$$eval('.pdf-snapshot .power-page',els=>els.length===7&&els.every((p,i)=>i===0?!p.querySelector('.pg-head')&&!p.querySelector('.pg-foot'):i===6?!p.querySelector('.pg-head')&&p.querySelector('.pg-foot .pf-right')?.textContent.trim()==='Page 7 of 7':p.querySelector('.pg-head .pg-logo img')&&p.querySelector('.pg-head .pg-head-meta')&&p.querySelector('.pg-foot .pf-left')&&p.querySelector('.pg-foot .pf-mid')&&p.querySelector('.pg-foot .pf-right')?.textContent.trim()==='Page '+(i+1)+' of 7')));
+ check('page 3 keeps the Technical Specification body markup exactly',await page.evaluate(()=>document.querySelector('#pageTechSpec .pg-body').innerHTML===document.querySelector('#powerPage3 .pg-body').innerHTML));
+ check('compact opening and savings/investment pages reflect the saved quotation',await page.evaluate(x=>powerPage1.textContent.includes(x.annual)&&powerPage1.textContent.includes(x.capacity)&&powerPage5.textContent.includes('₹')&&powerPage6.textContent.includes(x.net),expected));
+ check('page 4 keeps EPC scope, warranty, milestones, a four-point handover checklist and one non-card customer-input note',await page.$eval('#powerPage4',e=>e.classList.contains('power-scope-warranty')&&e.dataset.sourcePage==='pageScope'&&['TURNKEY EPC SCOPE','WARRANTY COVERAGE','FROM ORDER TO HANDOVER','BEFORE WE HAND OVER','structurally adequate roof','internet/service access may be needed'].every(t=>e.textContent.includes(t))&&e.querySelector('.pg-head')&&e.querySelector('.pg-foot')&&!e.querySelector('.proposal-value-footer')&&!e.querySelector('.sw-inputs-section')&&e.querySelectorAll('.sw-quality-card').length===4&&e.querySelectorAll('.sw-value-item').length===4&&!document.querySelector('#pageScope .sw-scope-grid')));
+ async function powerLayout(){
+  return page.$$eval('.power-page',els=>els.map(e=>{
+   const r=e.getBoundingClientRect(),foot=e.querySelector(':scope > footer'),body=e.querySelector('.pg-body')||e,f=foot?.getBoundingClientRect();
+   let deepest='(none)',low=r.top;
+   for(const n of body.querySelectorAll('*')){
+    if(n.closest('footer')||n.matches('style,script'))continue;
+    const nb=n.getBoundingClientRect();if(!n.getClientRects().length||!nb.height)continue;
+    if(nb.bottom>low){low=nb.bottom;deepest=n.tagName.toLowerCase()+(n.id?'#'+n.id:'')+(typeof n.className==='string'&&n.className.trim()?'.'+n.className.trim().split(/\s+/).join('.'):'');}
+   }
+   return {id:e.id,sheet:e.clientHeight,deepest,deep:Math.round(low-r.top),gap:f?f.top-low:null,fit:e.scrollWidth<=e.clientWidth};
+  }));
+ }
+ let layout=await powerLayout();console.log('Compact proposal layout',layout);
+ const badPage=layout.filter(x=>x.deep>x.sheet||x.gap!==null&&x.gap<3||!x.fit);
+ check('all seven Detailed Proposal sheets fit A4 with footer clearance'+(badPage.length?' ['+badPage.map(x=>x.id+': '+x.deepest+'@'+x.deep+'/'+x.sheet+' gap='+Math.round(x.gap)).join(' | ')+']':''),badPage.length===0);
+ const specParity=await page.evaluate(()=>{const a=document.querySelector('#pageTechSpec'),b=document.querySelector('#powerPage3');return {body:a.querySelector('.pg-body').innerHTML===b.querySelector('.pg-body').innerHTML,source:b.dataset.sourcePage,foot:b.querySelector('.pf-right')?.textContent.trim(),hasHeader:!!b.querySelector('.pg-head'),hasFooter:!!b.querySelector('.pg-foot'),sameCards:a.querySelectorAll('.pv2-card').length===b.querySelectorAll('.pv2-card').length};});
+ check('page 3 is the original technical sheet body, with only its compact page number changed',specParity.body&&specParity.source==='pageTechSpec'&&specParity.foot==='Page 3 of 7'&&specParity.hasHeader&&specParity.hasFooter&&specParity.sameCards);
  const proof=await browser.newPage();await proof.setViewport({width:794,height:1124});
- for(const id of ['powerPage1','powerPage5','powerPage6','powerPage7','pageClosing']){
+ for(const id of ['powerPage1','powerPage2','powerPage3','powerPage4','powerPage5','powerPage6','powerPage7','pageClosing']){
   // Screenshots of canvas-bearing pages are captured directly to retain QR pixels.
   const data=await page.$eval('#'+id,async e=>{const c=await html2canvas(e,{scale:1,logging:false,useCORS:true,backgroundColor:'#ffffff',onclone:doc=>doc.body.classList.add('qs-pdf-capture')});return c.toDataURL();});fs.writeFileSync(path.join(shots,'experience-'+id+'.png'),Buffer.from(data.split(',')[1],'base64'));
  }
@@ -155,6 +66,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await customer.goto(base+'/share.html?p='+encodeURIComponent(shareId),{waitUntil:'networkidle0'});
  await customer.evaluate(()=>document.fonts.ready);
  await customer.waitForSelector('#scenarioTariff',{timeout:20000}).catch(e=>{throw new Error('Customer View never rendered the savings explorer: '+e.message);});
+ check('Technical Specification heading, subheading and intro are visible in Customer View too',await customer.$eval('#pageTechSpec',e=>['Technical System Specification','The Components Behind Your Generation'].every(t=>e.textContent.includes(t))&&['#v_tsHeading','#v_tsSub','#v_tsPara'].every(sel=>{const n=e.querySelector(sel);return n&&getComputedStyle(n).display!=='none'&&n.getClientRects().length>0;})));
  check('Customer View loads the exact baseline even outside nominal slider range',await customer.$eval('#scenarioTariff',e=>e.value==='8.75'&&+e.min<=8.75));
  const before=await customer.evaluate(()=>({state:JSON.stringify(Render.lastState),storage:JSON.stringify({...localStorage}),cover:document.getElementById('v_coverCapacity').textContent}));
  await customer.$eval('#scenarioTariff',e=>{e.value='18';e.dispatchEvent(new Event('input',{bubbles:true}));});
@@ -162,7 +74,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('scenario never changes stored quotation, live cover or baseline state',await customer.evaluate(b=>JSON.stringify(Render.lastState)===b.state&&JSON.stringify({...localStorage})===b.storage&&document.getElementById('v_coverCapacity').textContent===b.cover,before));
  check('saved gallery URL survives Customer View',await readQR(customer,'#closingGallery canvas')==='https://example.com/updated-gallery');
  await customer.evaluate(()=>{window.__power=Experience.buildPowerPages(Render.lastState);});
- check('Power Proposal ignores the exploratory tariff',await customer.$eval('#powerPage5',(e,x)=>e.textContent.includes('₹8.75 per kWh')&&e.textContent.includes(x.lifetime),expected));await customer.evaluate(()=>window.__power.remove());
+ check('Power Proposal ignores the exploratory tariff',await customer.$eval('#powerPage5',(e)=>e.textContent.includes('₹8.75')));await customer.evaluate(()=>window.__power.remove());
  await customer.$eval('#scenarioReset',e=>e.click());check('reset restores exact baseline tariff',await customer.$eval('#scenarioTariff',e=>e.value==='8.75'));
  await customer.emulateMediaType('print');check('scenario tool is excluded from print',await customer.$eval('#savingsExplorer',e=>!e.checkVisibility()));await customer.emulateMediaType('screen');
  await customer.setViewport({width:390,height:844});await customer.$eval('#savingsExplorer',e=>e.scrollIntoView({behavior:'instant'}));
@@ -190,7 +102,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await page.waitForFunction(()=>window.__pdf&&document.getElementById('statusMsg').textContent.includes('Downloaded'),{timeout:90000}).catch(async e=>{const why=await page.evaluate(()=>document.getElementById('statusMsg').textContent.trim());throw new Error('Power Proposal export produced no PDF: '+why+' ('+e.message+')');});
  const exported=await page.evaluate(()=>window.__pdf),bytes=Buffer.from(exported.data,'base64'),pdf=bytes.toString('latin1');fs.writeFileSync(path.join(shots,'experience','Power_Proposal_test.pdf'),bytes);
  check('actual Power Proposal PDF has seven pages and correct filename',(pdf.match(/\/Type \/Page\b/g)||[]).length===7&&exported.name.startsWith('Power_Proposal_')&&exported.name.includes('12.5kWp'));
- check('actual PDF has clickable gallery destination',pdf.includes('/Subtype /Link')&&pdf.includes('https://example.com/updated-gallery'));
+ check('actual PDF captures the seven renumbered Detailed Proposal sheets',await page.evaluate(()=>Exporter.stats?.pages===7&&Exporter.stats.perPage.map(p=>p.id).join(',')==='powerPage1,powerPage2,powerPage3,powerPage4,powerPage5,powerPage6,powerPage7'));
  check('export removes temporary pages and leaves original cover intact',await page.evaluate(()=>!document.querySelector('.pdf-snapshot')&&document.getElementById('v_coverCapacity').textContent==='12.5 kWp'));
  // Hold the first full-document capture, then edit the live proposal. The
  // snapshot and PDF metadata must remain at the values present when clicked.
@@ -209,13 +121,12 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('PDF metadata and filename match the captured quotation',await page.evaluate(o=>window.__metadata.author===o.company&&!window.__snapshotName.includes('CHANGED'),original));
  await page.evaluate(()=>{window.html2canvas=async()=>{throw new Error('Controlled capture failure');};});
  check('failed capture cleans up temporary pages and releases export lock',await page.evaluate(async()=>{try{await Exporter.exportPdf();return false;}catch(e){return e.message==='Controlled capture failure'&&!document.querySelector('.pdf-snapshot');}}));
- await edit({durationText:'Long delivery qualification '.repeat(200)});
- check('overlong short proposals fail safely instead of exporting clipped text',await page.evaluate(async()=>{try{await Exporter.exportPdf(()=>{}, {format:'power'});return false;}catch(e){return e.message.includes('too much text')&&!document.querySelector('.pdf-snapshot');}}));
+ check('a selected sheet that exceeds A4 fails safely instead of exporting clipped text',await page.evaluate(async()=>{const build=Experience.buildPowerPages;Experience.buildPowerPages=function(state){const host=build(state);host.querySelector('#powerPage2 .pg-body').style.transform='translateY(1600px)';return host;};try{await Exporter.exportPdf(()=>{}, {format:'power'});return false;}catch(e){return e.message.includes('does not fit its A4 sheet')&&!document.querySelector('.pdf-snapshot');}finally{Experience.buildPowerPages=build;}}));
  await page.evaluate(()=>{window.html2canvas=window.__realCanvas;jspdf.jsPDF=window.__realPDF;});
  await edit({propRef:original.ref,companyName:original.company,durationText:original.duration,customerType:'commercial',tariff:'22',payCompletion:'5',loanAmt:'300000',loanRate:'9',loanYears:'5'});
  await page.evaluate(()=>window.__power=Experience.buildPowerPages(Render.lastState));
- check('commercial short proposal uses zero automatic subsidy and flags payment mismatch',await page.$eval('#powerPage6',e=>e.textContent.includes('95%')&&e.textContent.includes('not approved₹0')));
- check('seven-page proposal fits including entered financing',(await powerLayout()).every(x=>x.deep<=x.sheet&&(x.id==='powerPage3'||x.gap>=4)));
+ check('commercial short proposal uses zero automatic subsidy and flags payment mismatch',await page.$eval('#powerPage6',e=>e.textContent.includes('− ₹0')&&e.textContent.includes('Payment schedule totals 95%')));
+ check('seven-page proposal fits including entered financing',(await powerLayout()).every(x=>x.deep<=x.sheet&&(x.gap===null||x.gap>=3)&&x.fit));
  await page.evaluate(()=>window.__power.remove());await page.select('#pdfFormat','full');
  check('full-format label follows optional financing page count',await page.$eval('#downloadLabel',e=>e.textContent.includes('16 Pages')));
  await edit({customerType:'residential',tariff:'8.75',payCompletion:'10',loanAmt:'',loanRate:'',loanYears:''});

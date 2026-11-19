@@ -56,7 +56,7 @@ const base = process.env.QA_BASE || 'http://127.0.0.1:8080';
     await close(p); assert.deepEqual(await snapshot(p), beforeExport); check('spreadsheet export changes no quote, CONTENT, Finance or A4 markup', true);
     check('closing review preserves exact PDF selector position', await p.evaluate(() => pdfFormat === __originalFormat && pdfFormat.parentNode === __formatParent && pdfFormat.nextSibling === __formatNext));
     await p.selectOption('#pdfFormat', 'power'); await p.waitForFunction(() => downloadLabel.textContent.includes('7 Pages'));
-    await open(p); check('existing footer selector still controls the selected output in review', await p.locator('#pdfFormat').inputValue() === 'power' && await p.locator('.qrw-sheet-total strong').textContent() === '6'); await close(p);
+    await open(p); check('existing footer selector still controls the selected output in review', await p.locator('#pdfFormat').inputValue() === 'power' && await p.locator('.qrw-sheet-total strong').textContent() === '7'); await close(p);
     const download = p.waitForEvent('download', { timeout: 120000 });
     await p.locator('#downloadBtn').scrollIntoViewIfNeeded(); await p.click('#downloadBtn');
     const pdf = await download; const pdfPath = path.join(folder, 'selected-power.pdf'); await pdf.saveAs(pdfPath);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Power Proposal — page 3 preview</title>
+<title>Power Proposal — 7-page design preview</title>
 <!--
   A viewing harness, not part of the app. It loads the real quotation.html in a
   hidden frame so the real scripts run, calls the real Experience.buildPowerPages(),
@@ -14,16 +14,28 @@
   and the only honest way to check that is to look at it. Nothing here duplicates
   any app logic - it calls the app.
 -->
+<!-- Mirror quotation.html's full stylesheet stack; this outer document displays
+     the Power Proposal pages, so omitting the proposal-specific sheets makes the
+     preview disagree with the Detailed Proposal reference and the PDF export. -->
 <link rel="stylesheet" href="assets/css/app.css?v=sol24">
 <link rel="stylesheet" href="assets/css/bess.css">
-<link rel="stylesheet" href="assets/css/experience.css?v=navy-headings1">
+<link rel="stylesheet" href="assets/css/experience.css?v=power-scope-warranty2">
+<link rel="stylesheet" href="assets/css/control-panel.css?v=start-first-fold2">
+<link rel="stylesheet" href="assets/css/studio-assistant.css?v=knowledge3">
+<link rel="stylesheet" href="assets/css/document-studio.css?v=document-studio2">
+<link rel="stylesheet" href="assets/css/proposal-review.css?v=review-live-items1">
+<link rel="stylesheet" href="assets/css/closing.css?v=closing-pdffix1">
+<link rel="stylesheet" href="assets/css/terms.css?v=terms-corner3">
+<link rel="stylesheet" href="assets/css/proposal-values.css?v=four-icons-corner10">
+<link rel="stylesheet" href="assets/css/proposal-polish.css?v=solution-footer2">
 <link rel="stylesheet" href="assets/css/proposal-v2.css?v=pv2-2">
+<link rel="stylesheet" href="assets/css/workspace-start.css?v=workspace-firstfold3">
 <style>
   :root{ --bg:#0f1b26; --ink:#e8eef4; --dim:#9db0c0; --line:#26394a; --ok:#38b87c; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
        font:15px/1.55 'Poppins','Inter',system-ui,sans-serif;padding:26px 22px 70px;}
-  header.top{max-width:1500px;margin:0 auto 22px;}
+  header.top{max-width:850px;margin:0 auto 22px;}
   h1{font-size:20px;font-weight:600;margin:0 0 6px;letter-spacing:.01em}
   .sub{color:var(--dim);font-size:13.5px;margin:0 0 18px}
   .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
@@ -41,12 +53,11 @@
   .verdict b{color:var(--ink)}
   .verdict .pass{color:var(--ok);font-weight:600}
   .verdict .fail{color:#ff8a7a;font-weight:600}
-  .sheetwrap{max-width:1500px;margin:24px auto 0;overflow-x:auto;padding-bottom:8px}
-  .report{display:flex;gap:26px;align-items:flex-start;width:max-content;}
-  /* The report's own pages are 794px wide A4 boxes. Shown unscaled so what you see
-     is what prints; scroll sideways if the window is narrower. */
-  .report .power-page{box-shadow:0 10px 34px rgba(0,0,0,.45);border-radius:2px;flex:0 0 auto;}
-  .cap{max-width:1500px;margin:0 auto;color:var(--dim);font-size:12.5px}
+  .sheetwrap{max-width:850px;margin:24px auto 0;overflow-x:auto;padding:0 8px 24px}
+  .report{display:flex;flex-direction:column;gap:26px;align-items:center;width:100%;}
+  /* One A4 sheet per row: read the compact proposal top-to-bottom, like a PDF. */
+  .report .power-page{width:794px;flex:0 0 auto;box-shadow:0 10px 34px rgba(0,0,0,.45);border-radius:2px;}
+  .cap{max-width:850px;margin:0 auto;color:var(--dim);font-size:12.5px}
   #frame{position:fixed;left:-20000px;top:0;width:1440px;height:1200px;border:0;visibility:hidden}
   .spin{display:inline-block;animation:r 1s linear infinite}
   @keyframes r{to{transform:rotate(360deg)}}
@@ -55,19 +66,22 @@
 <body>
 
 <header class="top">
-  <h1>Power Proposal — page 3 preview</h1>
+  <h1>Power Proposal — all 7 pages</h1>
   <p class="sub">
     Ye asli report hai: <code>Experience.buildPowerPages()</code> chalta hai, koi dummy markup nahi.
-    Page 3 = Full Proposal ka page 6. Doosre pages bhi neeche hain, compare karne ke liye.
+    Yeh 15-page Detailed Proposal ke asli A4 sheets se bana compact 7-page PDF preview hai. Saare pages vertical scroll mein, page 3 ka Technical Specification body unchanged.
   </p>
   <div class="actions">
     <button class="primary" id="reload">Report banao</button>
-    <span class="field">Scale <input type="range" id="scale" min="40" max="130" value="100"><b id="scaleV">100%</b></span>
     <span class="field">Page <select id="which" style="background:#182a38;color:#e8eef4;border:0;font:inherit">
+      <option value="1">1 — Executive summary</option>
+      <option value="2">2 — System solution</option>
       <option value="3">3 — Technical specification</option>
-      <option value="4">4 — System design</option>
-      <option value="6">6 — Investment &amp; payment</option>
-      <option value="all">Sab pages</option>
+      <option value="4">4 — Energy savings</option>
+      <option value="5">5 — Investment</option>
+      <option value="6">6 — Warranty &amp; support</option>
+      <option value="7">7 — Terms</option>
+      <option value="all" selected>Sab pages</option>
     </select></span>
   </div>
   <div class="verdict" id="verdict"><span class="spin">◐</span> Report ban rahi hai…</div>
@@ -84,8 +98,7 @@
   const report = document.getElementById('report');
   const verdict = document.getElementById('verdict');
   const which = document.getElementById('which');
-  const scale = document.getElementById('scale');
-  const scaleV = document.getElementById('scaleV');
+  let aliasStyle = null;
   let built = null;
 
   const say = (html) => { verdict.innerHTML = html; };
@@ -94,50 +107,40 @@
     if (!built) return;
     report.innerHTML = '';
     const pages = [...built.querySelectorAll('.power-page')];
-    const pick = which.value === 'all' ? pages : pages.filter((p) => p.id === 'powerPage' + which.value);
+    const sourceAliases=built.querySelector('[data-power-source-aliases]');
+    if(aliasStyle)aliasStyle.remove();
+    aliasStyle=sourceAliases?sourceAliases.cloneNode(true):null;
+    if(aliasStyle)document.head.appendChild(aliasStyle);
+    const pick = which.value === 'all' ? pages : pages.filter((p) => p.dataset.powerIndex === which.value);
     pick.forEach((p) => report.appendChild(p.cloneNode(true)));
-    applyScale();
-  }
-
-  function applyScale() {
-    /* zoom is not in every browser, and it changes layout rather than just drawing.
-       A transform on the row is predictable: the pages keep their 794px layout and
-       are drawn smaller or larger, which is what a zoom control should do. */
-    const k = Number(scale.value) / 100;
-    scaleV.textContent = Math.round(k * 100) + '%';
-    report.style.transformOrigin = 'top left';
-    report.style.transform = k === 1 ? '' : 'scale(' + k + ')';
-    /* transform does not shrink the box, so the scroll area is told the truth. */
-    report.style.width = k === 1 ? 'max-content' : 'max-content';
-    const w = report.scrollWidth * k;
-    report.parentElement.style.minWidth = w ? Math.ceil(w) + 'px' : '';
   }
 
   function measure(host) {
-    /* Same three things export.js's guard measures: deepest painted content against
-       the sheet edge, clearance above the footer, no sideways overflow. Reading the
-       guard's own rules here means the browser preview cannot disagree with the PDF. */
+    /* Match the export guard: measure painted descendants, never the full-height
+       .pg-body box. Cover/closing sheets have no normal pg-body/header; the cover
+       intentionally has no running footer. */
     return [...host.querySelectorAll('.power-page')].map((p) => {
-      const foot = p.querySelector('footer');
-      const body = foot && foot.previousElementSibling;
-      const f = foot ? foot.getBoundingClientRect() : null;
-      let deepest = '(none)', low = -Infinity;
-      p.querySelectorAll('*').forEach((n) => {
-        if (n.closest('footer')) return;
+      const foot = p.querySelector(':scope > footer');
+      const valueFooter = p.dataset.sourcePage === 'pageScope' ? p.querySelector('.proposal-value-footer') : null;
+      const body = p.querySelector('.pg-body') || p;
+      const f = valueFooter ? valueFooter.getBoundingClientRect() : foot ? foot.getBoundingClientRect() : null;
+      const top = p.getBoundingClientRect().top;
+      let deepest = '(none)', low = top;
+      body.querySelectorAll('*').forEach((n) => {
+        if (n.matches('style,script') || n.closest('footer')) return;
         const b = n.getBoundingClientRect();
-        if (!b.width && !b.height) return;
+        if (!n.getClientRects().length || !b.height) return;
         if (b.bottom > low) {
           low = b.bottom;
           deepest = n.tagName.toLowerCase() + (n.id ? '#' + n.id : '') +
             (typeof n.className === 'string' && n.className.trim() ? '.' + n.className.trim().split(/\s+/).join('.') : '');
         }
       });
-      const top = p.getBoundingClientRect().top;
       return {
         id: p.id,
         deep: Math.round(low - top),
         sheet: p.clientHeight,
-        gap: f && body ? Math.round(f.top - body.getBoundingClientRect().bottom) : null,
+        gap: f ? Math.round(f.top - low) : null,
         fit: p.scrollWidth <= p.clientWidth + 1,
         deepest,
       };
@@ -171,29 +174,25 @@
     const cards = page3 ? page3.querySelectorAll('.pv2-card') : [];
     const badges = page3 ? page3.querySelectorAll('.pv2-brand') : [];
     const photos = page3 ? page3.querySelectorAll('.pv2-photo img') : [];
-    const block = page3 ? page3.querySelector('.power-spec-sheet') : null;
 
     const bad = rows.filter((r) => !(r.deep <= r.sheet && (r.gap === null || r.gap >= 4) && r.fit));
-    const scaleApplied = block && block.dataset.powerScale ? block.dataset.powerScale : 'n/a';
 
     say(
       '<b>' + rows.length + ' pages</b> · ' +
       'page 3 pe <b>' + cards.length + ' cards</b>, ' +
       '<b>' + badges.length + ' badges</b>, ' +
-      '<b>' + photos.length + ' photos</b> · ' +
-      'scale <b>' + scaleApplied + '</b><br>' +
+      '<b>' + photos.length + ' photos</b> · page 3 ka original Technical Specification layout unchanged<br>' +
       (bad.length
         ? '<b class="fail">' + bad.length + ' page(s) A4 se bahar:</b> ' +
           bad.map((r) => r.id + ' gap=' + r.gap + ' deep=' + r.deep + '/' + r.sheet + ' fit=' + r.fit).join(' · ')
         : '<span class="pass">Sab ' + rows.length + ' pages A4 me fit hain.</span>')
     );
-    window.__preview = { rows, cards: cards.length, scaleApplied, host };
+    window.__preview = { rows, cards: cards.length, host };
     console.log('Power preview', window.__preview.rows);
   }
 
   document.getElementById('reload').addEventListener('click', build);
   which.addEventListener('change', paint);
-  scale.addEventListener('input', applyScale);
 
   frame.addEventListener('load', () => {
     /* The app boots itself; wait for a state to exist rather than guessing a delay. */
