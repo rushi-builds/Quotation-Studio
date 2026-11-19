@@ -327,7 +327,7 @@
   const FOCUS = {
     'inverter-sungrow': '50% 62%', 'inverter-growatt': '50% 58%', 'inverter-fronius': '50% 62%',
     'inverter-deye': '50% 60%', 'solis-inverter': '50% 60%', 'inverter-huawei': '50% 55%',
-    'solar-module-card': '40% 50%', 'mount-cabling-protection': '50% 50%', 'design-is-standards': '55% 50%'
+    'solar-module-card': '40% 50%', 'mount-cabling-protection': '50% 50%', 'design-is-standards': '55% 18%'
   };
   function focusFor(url) {
     /* A supplied photo was already cropped by the owner in the upload panel, so
