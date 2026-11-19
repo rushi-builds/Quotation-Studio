@@ -260,6 +260,10 @@ const PAGE56_PATHS = new Set([
   'assets/css/proposal-v2.css',
   'assets/css/proposal-values.css',
   'assets/js/proposal-v2.js',
+  /* Page 5's own four band marks (siteroof / specsheet / helmet / handover) are
+     drawn here. Added deliberately, by exact filename, because the band's artwork
+     had to stop borrowing the marks other pages use. */
+  'assets/js/proposal-marks.js',
   'assets/images/proposal/flow-panel.webp',
   'assets/images/proposal/flow-db.webp',
   'assets/images/proposal/flow-inverter.webp',
