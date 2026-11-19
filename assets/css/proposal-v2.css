@@ -178,7 +178,14 @@
 .pv2-solution.pv2-fit-1 #v_soSpecs .spec-card{min-height:50px;padding-top:5px;padding-bottom:5px;}
 .pv2-solution.pv2-fit-2 .pv2-overview,.pv2-solution.pv2-fit-2 #v_soScopeNote,.pv2-solution.pv2-fit-2 .pv2-values-wrap{margin-top:16px;}
 .pv2-solution.pv2-fit-2 .pv2-node-art{height:60px;}
-.pv2-solution.pv2-fit-3 .pv2-values-wrap{display:none;}
+/* The value row is standing furniture - the same band every other page carries -
+   so no tighten step may drop it. It used to be display:none at the tightest
+   step, and a page that loses it reads as "the icons are gone". The space is
+   taken from the two gaps above it instead, which is where the slack was. */
+.pv2-solution.pv2-fit-3 .pv2-values-wrap{margin-top:auto;margin-bottom:-4px;}
+.pv2-solution.pv2-fit-3 #v_soScopeNote{margin-top:14px;}
+.pv2-solution.pv2-fit-3 .pv2-overview{margin-top:0;}
+.pv2-solution.pv2-fit-3 .pv2-node-art{height:52px;margin-bottom:6px;}
 
 /* The value row must sit ON the footer's horizontal rule, edge to edge, exactly
    like the band on every other page. Those pages position their band absolutely;

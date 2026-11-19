@@ -55,13 +55,38 @@ t('NEGATIVE: the row no longer draws bare line icons for its four cells', () => 
     'the old monochrome icon(...) call is what made page 5 differ from the other pages');
 });
 
-t('page 5 keeps the pre-redesign labels: Site-fit / Specified / Design / Planned', () => {
+t('page 5 carries the same four promises every other page carries', () => {
   const call = js.match(/vals\.innerHTML = values\(\[([\s\S]*?)\]\);/);
   assert.ok(call, 'the value row call must still be in proposal-v2.js');
-  for (const word of ['Site-fit', 'Specified', 'Design', 'Safety', 'Planned', 'Handover']) {
-    assert.ok(call[1].includes(word), `label "${word}" is part of the original row`);
+  /* The row is the proposal's standing furniture, so the words come from the same
+     place as the rest of the sheet: pageScope in proposal-values.js. Page 5 used to
+     draw its own "Site-fit / Specified / Design / Planned" set, which read as a
+     different component on the one page the owner looks at most. */
+  const scope = read('assets/js/proposal-values.js')
+    .match(/pageScope:\{items:\[([^\]]*)\]/)[1];
+  const words = [...scope.matchAll(/'([^']+)'/g)].map((m) => m[1])
+    .filter((w) => !/^[a-z]+$/.test(w));
+  for (const word of words) {
+    const [head, tail] = word.split(' ');
+    assert.ok(new RegExp(`'${head}',\\s*'${tail}'`).test(call[1]),
+      `page 5 must show "${word}", the same promise the scope page shows`);
   }
   assert.equal((call[1].match(/\['/g) || []).length, 4, 'exactly four cells');
+});
+
+t('NEGATIVE: page 5 no longer invents its own label set', () => {
+  const call = js.match(/vals\.innerHTML = values\(\[([\s\S]*?)\]\);/)[1];
+  for (const gone of ['Site-fit', 'Specified', 'Planned', 'Safety']) {
+    assert.ok(!call.includes(gone), `"${gone}" was the page-local wording that made page 5 differ`);
+  }
+});
+
+t('NEGATIVE: the value row is never hidden by a tighten step', () => {
+  const css = read('assets/css/proposal-v2.css');
+  for (const cls of ['pv2-fit-1', 'pv2-fit-2', 'pv2-fit-3']) {
+    assert.doesNotMatch(css, new RegExp(`\\.pv2-solution\\.${cls}[^{]*\\.pv2-values-wrap\\{[^}]*display:\\s*none`),
+      `${cls} must never drop the row - a page that loses it reads as "the icons are gone"`);
+  }
 });
 
 t('the four cells use marks that exist in ProposalMarks', () => {
