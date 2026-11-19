@@ -463,3 +463,33 @@ the scope guard flags and which needs owner approval).
   time-of-day flake: `release-audit`'s "proposal date follows local India date" passes locally in any
   timezone and fails on a runner whose clock is in the small window the fixture does not pin. It is not
   related to the page-3 work and it is not touched by it.
+
+---
+
+### 2026-11-19 - The download dialog blamed the wrong page
+
+  The owner sent two screenshots: **both** PDFs opened the pre-flight with "The Technical Specification
+  page is too full ... remove a reference link", on a proposal whose Technical Specification page was
+  measured at exactly one A4 (1123 of 1123) and overflowing by nothing.
+
+  Two independent faults, and either one alone was enough to show the message.
+
+  1. **`overflowIssues()` hard-coded the spec page.** It returned the Tech Specification wording for
+     *whatever* was in `window.__qsPageOverflow`, so any page overflowing anywhere in the proposal was
+     reported as the spec page being full. It now maps every entry to its own page: the spec page keeps
+     its actionable reference-link wording, every other page says which page it is
+     (`OVERFLOW_PAGE_NAMES` in `control-panel.js`).
+
+  2. **The list itself could be stale.** `fitPages()` measures `scrollHeight` on every page, but a hidden
+     page keeps the height it had when it was last laid out, so an old overflow could outlive the state
+     that caused it. `fitPages()` now measures only pages that are actually displayed, and
+     `Exporter.preflight()` re-runs `Render.fitPages()` immediately before asking, so the dialog always
+     describes the sheet as it stands at that moment.
+
+  Three checks added to `qa/export-preflight.test.js`: another page's overflow never borrows the spec
+  wording, the spec page keeps its own wording, and a cleared overflow is not still reported.
+
+  Also worth knowing for the next run: `financial-fixes-browser` built **both** the 16-page and the 7-page
+  PDF inside one `evaluate`, keeping the first PDF's page canvases alive while capturing the second. That
+  is what had been taking the renderer down mid-run in this sandbox. Each format now exports in its own
+  `evaluate`.

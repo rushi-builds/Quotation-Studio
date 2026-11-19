@@ -179,6 +179,35 @@ const reset = () => { w.StateStore.applyForm(w.StateStore.DEFAULTS); w.Render.re
 
   console.log('- Export pre-flight: what counts as blocking -');
   const issues = () => w.__qsPreflight.run();
+  console.log('- Export pre-flight: an overflowing page names itself -');
+  check('an overflow on another page never borrows the Tech Specification message', () => {
+    /* The dialog used to hard-code the spec page's wording for whatever page had
+       overflowed, so a proposal with a perfectly good Technical Specification page
+       was told to remove a reference link. Each page names itself now. */
+    fullSheet();
+    w.__qsPageOverflow = ['pageSolution'];
+    const found = issues().advisory.filter((i) => i.id === 'pageSolution');
+    assert.equal(found.length, 1, JSON.stringify(issues().advisory));
+    assert.ok(/solution page/i.test(found[0].message), found[0].message);
+    assert.ok(!/Technical Specification/i.test(found[0].message),
+      'the spec page is not the page that overflowed: ' + found[0].message);
+    w.__qsPageOverflow = [];
+  });
+  check('the Technical Specification keeps its own actionable wording', () => {
+    fullSheet();
+    w.__qsPageOverflow = ['pageTechSpec'];
+    const found = issues().advisory.filter((i) => i.id === 'pageTechSpec');
+    assert.equal(found.length, 1);
+    assert.ok(/reference link|roof area/i.test(found[0].message), found[0].message);
+    w.__qsPageOverflow = [];
+  });
+  check('a cleared overflow is not still reported', () => {
+    fullSheet();
+    w.__qsPageOverflow = [];
+    assert.ok(!issues().advisory.some((i) => /longer than an A4 sheet|too full/.test(i.message)),
+      JSON.stringify(issues().advisory));
+  });
+
   check('a complete sheet has nothing to report', () => {
     /* complete now means named AND fully specified: a datasheet gap rides
        along as an advisory, so the truly silent sheet has none of them */

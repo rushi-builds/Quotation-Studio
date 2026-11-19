@@ -24,13 +24,17 @@ const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle
   assert.ok(await customer.evaluate(()=>Math.abs(Finance.compute(Render.lastState).financing.emi-100000/60)<1e-8));
   await customer.emulateMedia({media:'print'});assert.deepEqual(await amounts(customer),expected);await customer.emulateMedia({media:'screen'});
   // Actual html2canvas/jsPDF generation from the saved Customer View, not a mocked export.
-  const pdf=await customer.evaluate(async()=>{
+  /* One format per evaluate. Building both in a single call keeps the first
+     PDF's page canvases alive while the second is captured, which is enough to
+     take a constrained renderer down mid-run. */
+  const runExport=async format=>customer.evaluate(async format=>{
    const Native=jspdf.jsPDF,originalCapture=html2canvas,records={};
-   jspdf.jsPDF=function(...args){const p=new Native(...args);p.save=name=>{records.name=name;records.pages=p.getNumberOfPages();records.bytes=p.output('arraybuffer').byteLength;};return p;};
+   jspdf.jsPDF=function(...args){const p=new Native(...args);p.save=name=>{records.name=name;records.pages=p.getNumberOfPages();records.bytes=p.output('arraybuffer').byteLength;};return p;}
    window.html2canvas=async(el,opts)=>{if(el.id==='pageInvestment')records.investment=el.textContent;if(el.id==='powerPage6')records.power=el.textContent;return originalCapture(el,opts);};
-   try {await Exporter.exportPdf(()=>{},{format:'power'});const power={...records};await Exporter.exportPdf(()=>{},{format:'full'});return {power,full:records};}
+   try {await Exporter.exportPdf(()=>{},{format});return {...records};}
    finally {jspdf.jsPDF=Native;window.html2canvas=originalCapture;}
-  });
+  },format);
+  const pdf={power:await runExport('power'),full:await runExport('full')};
   assert.equal(pdf.power.pages,7);assert.equal(pdf.full.pages,16);assert.ok(pdf.full.bytes>10000&&pdf.power.bytes>10000);
   for(const text of [pdf.power.power,pdf.full.investment]) {assert.ok(text.includes('₹6,00,000'));assert.ok(text.includes('₹5,75,400'));assert.ok(!text.includes('₹-78,000'));}
   console.log('PASS: persisted builder/Customer View/print/real detailed and power PDFs agree; 0% EMI and export preflight supported.');
