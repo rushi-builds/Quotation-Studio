@@ -322,3 +322,67 @@ the scope guard flags and which needs owner approval).
   all reachable by reading and by the offline suite, but the honest status is: **open the preview,
   download a Power Proposal, and confirm page 3 shows four cards with the uploaded logo and photo at
   a legible size.** That is the one gap in this round.
+
+- 2026-11-10 (later) - **Page 3 printed half a card. Three causes, none of them layout.**
+
+  The owner sent a screenshot of page 3: card 04 visible, its last two rows sliced off, and large
+  white space below. Everything up to this point had been treating it as a geometry problem - a
+  height bound, then a uniform transform - and both made it worse.
+
+  The bed had two real faults underneath, and they only became visible once a browser could
+  actually be run in this sandbox:
+
+  **Running Chromium locally (this used to be impossible).** `@sparticuz/chromium` bundles
+  `bin/al2023.tar.br`, which contains the shared libraries the binary needs (`libnspr4.so`,
+  `libnss3.so`, 9 objects in total). Extract it and point `LD_LIBRARY_PATH` at it:
+
+  ```bash
+  node -e "const fs=require('fs'),z=require('zlib');fs.createReadStream('qa/node_modules/@sparticuz/chromium/bin/al2023.tar.br').pipe(z.createBrotliDecompress()).pipe(fs.createWriteStream('/tmp/al2023.tar'))"
+  mkdir -p /tmp/al2023 && tar -xf /tmp/al2023.tar -C /tmp/al2023
+  # then launch puppeteer with env LD_LIBRARY_PATH=/tmp/al2023/lib
+  ```
+
+  That is how the numbers below were obtained. Do this before trusting any claim about
+  page geometry - the offline suite reads source, it does not lay anything out.
+
+  **Cause 1 - the block was in the wrong width.** Page 6 is 794px with a 38px gutter, so its cards
+  live in 718px. The report's `.power-body` is *already* 718px, because the page's own padding is
+  outside it. The block needed `width:100%` and nothing else. An intermediate attempt added the
+  gutter a second time → cards at **642px**, every value wrapped onto an extra line, every card
+  ~40px taller.
+
+  **Cause 2 - the fit classes did not travel.** Page 6 does not print at its base type. Its fit
+  ladder adds `pv2-fit-2`, and that class is what makes the rows **9.4px with 2px padding**. The
+  markup was copied without it, so the same rows were laid out at the base **10.2px / 3px**, and
+  each card grew ~17px. `powerSpecBlock()` now reads `pv2-fit-\d` off `#pageTechSpec` and puts it
+  on the wrapper, so a denser system picks up the same step the sheet picked.
+
+  **Cause 3 - the font was different, and this one is the sneaky one.**
+  `proposal-v2.css` sets **no** `font-family` on the cards, so page 6 inherits **Inter from `body`**.
+  `experience.css` sets `.power-page{font-family:Arial,sans-serif}`, and that inherited straight into
+  the block. Inter and Arial do not wrap these values the same way: cards 02 and 04 came out **19px
+  and 20px taller** on page 3. Fixed by putting Inter back on `.power-spec-sheet` only - scoped, so
+  pages 1, 2 and 4-7 keep the report's type.
+
+  **What was removed.** The height bound and the `transform: scale()`. Both were hiding the symptom.
+  Page 3 now only *measures*: it records `data-spec-avail`, `data-spec-block` and `data-spec-fits`
+  on `#powerPage3`, so an overrun is visible instead of clipped, and `export.js` refuses the
+  download rather than shipping a cut-off card.
+
+  **Result, measured in Chromium:**
+  ```
+  page 6   718x205  718x205  718x184  718x166   @9.4px
+  page 3   718x205  718x205  718x184  718x166   @9.4px
+  page 3   avail 718x918 · block 718x813 · fits=1 · gap above footer 106px
+  ```
+
+  **Checks.** Three added to `qa/experience.test.js` (browser), comparing page 3 to page 6 element by
+  element - width, height, font size, row padding - plus no clip, no transform, `fits=1`. This is
+  the class of check that was missing: every earlier failure here passed the offline suite because
+  the markup was right and only the laid-out result was wrong.
+
+  Suites: `custom-art` 48/48, `experience` **53/53**, `page56` 52/52, `pr-scope` 52/52, `sync` 106/106.
+
+  **Lesson for the next assistant:** when the owner says "it looks wrong", believe the screenshot and
+  get a browser running before touching CSS. Three of the four attempts at this page were fixes to a
+  problem that had not been measured.
