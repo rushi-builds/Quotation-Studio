@@ -102,13 +102,15 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
     now keeps at least 85% of its photograph, and card 04 keeps all of it. */
  check('every card photograph keeps its subject ['+specParity.crops.map(c=>c.kind+' '+Math.round(c.kept*100)+'%').join(', ')+']',
    specParity.crops.every(c=>c.kept>=0.85));
- /* The card must keep the size the sheet gives it - growing it to suit a picture
-    made it taller than its neighbours, which is what the owner objected to. The
-    photograph is the thing that adapts: fitted whole inside the tile, never cut. */
- check('the engineering-design photograph is fitted whole inside the card, never cropped ['+
+ /* Two things must both be true of card 04, and the first two attempts at this each
+    satisfied one of them: the card keeps the size the sheet gives it (growing it made
+    it taller than its neighbours), and the photograph fills its tile with nothing
+    cropped (fitting it inside left a blank band at each side). The tile column is
+    shaped like the photograph, so the ratio matches and both hold at once. */
+ check('the engineering-design photograph fills its tile with nothing cropped ['+
    JSON.stringify(specParity.crops.find(c=>c.kind==='design'))+']',
    (()=>{const d=specParity.crops.find(c=>c.kind==='design');
-     return d && d.fit==='contain' && d.kept>=0.99;})());
+     return d && d.kept>=0.99 && Math.abs(d.tile-d.natural)<=0.02;})());
  check('and the card keeps its size - the picture never stretches the sheet',
    (()=>{const d=specParity.crops.find(c=>c.kind==='design');
      return d && Math.abs(d.tileH-d.rowsH)<=2;})());

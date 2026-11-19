@@ -528,3 +528,18 @@ the scope guard flags and which needs owner approval).
   The two checks in `experience.test.js` say this in the same words: card 04 keeps 100% of its
   photograph, and its tile height equals its rows height. A future change that resizes the card to suit
   a picture fails the suite.
+
+  **Second correction, same day: `contain` left a blank band.** Fitting the photograph inside the
+  33%-wide tile kept the card's size but shrank the picture, so card 04 had white margins down both
+  sides - the owner saw that immediately too, and he was right: the picture is supposed to fill its
+  box, not float in the middle of it.
+
+  The tile column is now shaped by the photograph instead of by the other cards: `auto` in the grid and
+  `aspect-ratio:4/3`, so the tile is 142x106 - the photograph's own ratio to three decimal places - and
+  `cover` has nothing to crop. The card came out 154px, which is *shorter* than the 166px it started at,
+  because the narrower picture column lets the rows use more width and the text takes fewer lines.
+
+  The three attempts in order, for anyone tempted to redo this: cover in a wide tile crops the picture;
+  contain in a wide tile leaves a band; shaping the tile to the picture does neither. The check in
+  `experience.test.js` now asserts the tile ratio equals the photograph's ratio to within 0.02 and that
+  at least 99% of the picture survives, plus the tile height still equals the rows height.
