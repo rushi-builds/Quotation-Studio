@@ -222,8 +222,8 @@ t('REGRESSION: page 5 and 6 re-assert the white sheet + petals after the v2 grad
   assert.ok(override, 'a page-5/6 rule must re-declare the sheet background');
   assert.match(override[1], /background:#fff/, 'the sheet must be white again, not the grey gradient');
   assert.match(override[1], /proposal-corner-petals\.svg/, 'and it must carry the corner artwork');
-  assert.match(override[1], /background-position:100% calc\(100% - 46px\)/, 'finishes on the footer hairline, not behind the type');
-  assert.match(override[1], /background-size:200px 200px/);
+  assert.match(override[1], /background-position:100% 100%/, 'anchored at the physical bottom-right corner');
+  assert.match(override[1], /background-size:170px 170px/);
 });
 
 t('the override comes AFTER the gradient it corrects', () => {

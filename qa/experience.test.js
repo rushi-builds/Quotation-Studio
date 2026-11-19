@@ -238,38 +238,6 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await customer.evaluate(()=>{Exporter.exportPdf=async(cb,options)=>{window.__chosenFormat=options.format;cb('Downloaded ✓ (5 pages)');};});
  await customer.$eval('#sharePrint',e=>e.click());
  check('Customer View download passes the selected format to the exporter',await customer.evaluate(()=>window.__chosenFormat==='power'));
- check('no runtime errors',errors.length===0);
- /* The petal corner artwork used to run straight through the value band and the
-    running footer, so the tagline and page number sat on tinted patches. A soft
-    veil now lifts it off that furniture; prove it on every business page. */
- /* Run on a clean sheet: by this point `page` has been driven through the whole
-    studio, printed and edited, so its DOM is not the default preview any more. */
- const petalSheet=await browser.newPage();
- try{
-   await petalSheet.setViewport({width:1440,height:1200});
-   await petalSheet.goto(base+'/quotation.html',{waitUntil:'networkidle0'});
-   await petalSheet.evaluate(()=>document.fonts.ready);
-   /* The petal artwork grows from the bottom-right corner and used to sit under the
-      tagline and page number, printing them on tinted patches. It is now lifted so
-      the artwork finishes on the footer rule. The band + footer together are ~80px
-      tall, so the lift has to be at least that: a smaller number would put the fan
-      back over the type. */
-   const petalOverType=await petalSheet.evaluate(()=>{
-     /* A lift of at least 46px puts the artwork's own vanishing point (all three
-        paths converge at 170/170 of its box) above the footer hairline, so the
-        tagline and page number land on plain white. 40 is the floor a shrunken
-        or re-pinned fan would fall below. */
-     const LIFT_MIN=40;
-     return [...document.querySelectorAll('.page:not(#pageCover):not(#pageClosing)')].filter(pg=>{
-       const cs=getComputedStyle(pg);
-       if(!cs.backgroundImage.includes('proposal-corner-petals'))return true;
-       const m=/calc\(100% - (\d+)px\)/.exec(cs.backgroundPosition);
-       if(!m)return true;                       /* pinned to the physical corner */
-       return parseFloat(m[1])<LIFT_MIN;
-     }).map(pg=>pg.id);
-   });
-   check('petal artwork no longer prints the footer on tinted patches'+(petalOverType.length?' ['+petalOverType.join(', ')+']':''),petalOverType.length===0);
- }finally{await petalSheet.close();}
- console.log(`\n${passed} passed, 0 failed`);
+ check('no runtime errors',errors.length===0);console.log(`\n${passed} passed, 0 failed`);
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

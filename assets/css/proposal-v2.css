@@ -64,7 +64,7 @@
 .page.pv2.pv2-solution:not(#pageCover):not(#pageClosing),
 .page.pv2.pv2-tech:not(#pageCover):not(#pageClosing){
  background:#fff;background-image:url('../images/proposal-corner-petals.svg');
- background-repeat:no-repeat;background-position:100% calc(100% - 46px);background-size:200px 200px;
+ background-repeat:no-repeat;background-position:100% 100%;background-size:170px 170px;
 }
 
 /* Page 5's value band is the same component as the footer band on the other
