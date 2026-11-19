@@ -1313,7 +1313,12 @@
     const over = [];
     (lastVisible.length ? lastVisible : PAGES).forEach((p) => {
       const el = document.getElementById(p.id);
-      if (el && el.scrollHeight > box + SLACK) over.push(p.id);
+      /* A hidden page keeps whatever scrollHeight it had when it was last laid
+         out, so measuring it reports an overflow that may no longer be true -
+         that stale entry then surfaced in the download dialog. Only pages that
+         are actually on the sheet are measured. */
+      const shown = el && el.closest('.page-wrap') ? getComputedStyle(el.closest('.page-wrap')).display !== 'none' : !!el;
+      if (el && shown && el.scrollHeight > box + SLACK) over.push(p.id);
     });
     root.__qsPageOverflow = over;
     return over;

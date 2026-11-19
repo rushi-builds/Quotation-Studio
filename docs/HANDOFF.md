@@ -463,3 +463,113 @@ the scope guard flags and which needs owner approval).
   time-of-day flake: `release-audit`'s "proposal date follows local India date" passes locally in any
   timezone and fails on a runner whose clock is in the small window the fixture does not pin. It is not
   related to the page-3 work and it is not touched by it.
+
+---
+
+### 2026-11-19 - The download dialog blamed the wrong page
+
+  The owner sent two screenshots: **both** PDFs opened the pre-flight with "The Technical Specification
+  page is too full ... remove a reference link", on a proposal whose Technical Specification page was
+  measured at exactly one A4 (1123 of 1123) and overflowing by nothing.
+
+  Two independent faults, and either one alone was enough to show the message.
+
+  1. **`overflowIssues()` hard-coded the spec page.** It returned the Tech Specification wording for
+     *whatever* was in `window.__qsPageOverflow`, so any page overflowing anywhere in the proposal was
+     reported as the spec page being full. It now maps every entry to its own page: the spec page keeps
+     its actionable reference-link wording, every other page says which page it is
+     (`OVERFLOW_PAGE_NAMES` in `control-panel.js`).
+
+  2. **The list itself could be stale.** `fitPages()` measures `scrollHeight` on every page, but a hidden
+     page keeps the height it had when it was last laid out, so an old overflow could outlive the state
+     that caused it. `fitPages()` now measures only pages that are actually displayed, and
+     `Exporter.preflight()` re-runs `Render.fitPages()` immediately before asking, so the dialog always
+     describes the sheet as it stands at that moment.
+
+  Three checks added to `qa/export-preflight.test.js`: another page's overflow never borrows the spec
+  wording, the spec page keeps its own wording, and a cleared overflow is not still reported.
+
+  Also worth knowing for the next run: `financial-fixes-browser` built **both** the 16-page and the 7-page
+  PDF inside one `evaluate`, keeping the first PDF's page canvases alive while capturing the second. That
+  is what had been taking the renderer down mid-run in this sandbox. Each format now exports in its own
+  `evaluate`.
+
+  **A second crop, reported from a screenshot: card 04's photograph.** The owner spotted that the
+  Engineering Design Basis picture looked cut off. It was: the source is a 4:3 studio shot (900x675 -
+  helmet, pen and drawings), but the tile is sized by the grid to match the height of the rows beside it,
+  which on that card came to 230x118. `object-fit:cover` therefore kept 68% of the height and threw away
+  32% off the top and bottom - the top of the helmet went with it.
+
+  Card 04 now keeps a 3:2 tile, so the trim is 11% instead of 32%, the same as the module and inverter
+  cards. Measured in the browser: tile 230x154 against a natural 1.33, i.e. a 1.5 tile, and the helmet,
+  the logo, the pen and the blueprints are all in frame.
+
+  Why not the photograph's exact 4:3: that made the card 217px tall against 166px, which pushed the fit
+  ladder one step further down to `pv2-fit-4` - the step that hides the page's intro paragraph. Losing
+  copy to un-crop a picture is the wrong trade. `pv2-fit-3`, which page 3 now sits at, only trims padding
+  and type; measured at 9.4px, the same as page 6.
+
+  Two checks added to `qa/experience.test.js`: every card keeps at least 85% of its photograph, and card
+  04's tile stays within a fifth of the photograph's own shape. Both read the real
+  `naturalWidth/naturalHeight` and the real laid-out tile, so a CSS change that re-crops a picture fails
+  the suite instead of reaching the customer.
+
+  **Correction on the same day, worth keeping: the card must not grow for a picture.** The first
+  attempt at card 04 gave the tile its own 3:2 ratio so the photograph could be `cover`-cropped less.
+  That worked on the picture and broke the layout - the card came out 198px against 166px, visibly
+  taller than its neighbours, and the owner said so immediately: the rows' box was the right size all
+  along, the picture was the thing that had to fit, not the other way round.
+
+  Final state: the tile keeps exactly the height the sheet gives it (118px, same as `.pv2-rows`), and
+  card 04's photograph is `object-fit:contain`, so the whole image is inside the box instead of the box
+  being stretched around a cropped image. Card sizes are back to 718x205 · 718x205 · 718x184 · 718x166
+  and the sheet is back on `pv2-fit-2`, so the type is 9.4px again.
+
+  The two checks in `experience.test.js` say this in the same words: card 04 keeps 100% of its
+  photograph, and its tile height equals its rows height. A future change that resizes the card to suit
+  a picture fails the suite.
+
+  **Second correction, same day: `contain` left a blank band.** Fitting the photograph inside the
+  33%-wide tile kept the card's size but shrank the picture, so card 04 had white margins down both
+  sides - the owner saw that immediately too, and he was right: the picture is supposed to fill its
+  box, not float in the middle of it.
+
+  The tile column is now shaped by the photograph instead of by the other cards: `auto` in the grid and
+  `aspect-ratio:4/3`, so the tile is 142x106 - the photograph's own ratio to three decimal places - and
+  `cover` has nothing to crop. The card came out 154px, which is *shorter* than the 166px it started at,
+  because the narrower picture column lets the rows use more width and the text takes fewer lines.
+
+  The three attempts in order, for anyone tempted to redo this: cover in a wide tile crops the picture;
+  contain in a wide tile leaves a band; shaping the tile to the picture does neither. The check in
+  `experience.test.js` now asserts the tile ratio equals the photograph's ratio to within 0.02 and that
+  at least 99% of the picture survives, plus the tile height still equals the rows height.
+
+  **Third correction, and this one is the rule: the card's size is not negotiable.** Two attempts had
+  changed the card to suit the picture - one grew it to 198px, the next shrank it to 154px by narrowing
+  the picture column. The owner rejected both, in those words. Card sizing is fixed by the sheet; the
+  *picture* is what adapts.
+
+  So the geometry is back to exactly what it was - `718x205 · 718x205 · 718x184 · 718x166`, tile
+  `230x118`, `pv2-fit-2`, 9.4px type - and the fix moved into the artwork: card 04 now has
+  `design-is-standards-wide.webp`, a 1200x615 derivative of the same photograph (whole scene on the left,
+  logo close-up and pen/drawings detail beside it, like card 03's own wide render). A 1.95 tile against a
+  1.95 picture crops 0.2% instead of a third, so the tile is filled edge to edge with nothing lost.
+
+  The original `design-is-standards.webp` is kept - it is the source of the derivative and other places
+  may want the square-ish version.
+
+  Lesson worth more than the pixel work: **when the owner says the size is wrong, the size is wrong.**
+  Three commits were spent moving a box that was never the problem.
+
+  **Fourth correction: one photograph, not a collage.** The first wide derivative was a three-panel
+  composition (scene + logo close-up + pen close-up), which is not what the card is - the owner wants a
+  single picture there. So the picture itself was widened instead: the studio shot was extended
+  horizontally into a continuous 1310x672 photograph (same helmet with the KTM logo, same rolled
+  blueprints, same pen, same sheet, plus a level, ruler and caliper extending naturally to either side).
+
+  Its ratio is 1.949 against the tile's 1.949, so `cover` crops **nothing** - measured at 99.7% of the
+  picture surviving. Card 04 is `718x166` with a `230x118` tile, exactly as it always was.
+
+  The rule from the previous correction still stands and is the reason this worked: **the card's size is
+  fixed by the sheet; the picture adapts to it.** Widening the artwork is the only change that satisfies
+  both the size and "show the whole thing".

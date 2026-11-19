@@ -525,11 +525,29 @@
        left over - but only a real browser can measure that. An overfull page
        would print with its last rows cut off, so it is named in the dialog
        before the sheet reaches a customer. */
+    /* Reader-facing names, so an overflow names a page the operator can find. */
+    const OVERFLOW_PAGE_NAMES = {
+      pageCover: 'The cover', pageAbout: 'The about-us', pageScope: 'The scope-of-work',
+      pageTechSpec: 'The technical specification', pageSolution: 'The solution',
+      pageExec: 'The execution', pageTerms: 'The terms', pageInvestment: 'The investment',
+      pageBom: 'The bill-of-materials', pageOptions: 'The options', pageBessOverview: 'The storage-assessment',
+      pageBessAssessment: 'The storage-assessment', pageSystemOverview: 'The additional-systems',
+      pageSystemDetail: 'The additional-systems', pageRainwater: 'The rainwater', pageFinance: 'The financing'
+    };
     function overflowIssues() {
-      return (window.__qsPageOverflow || []).length ? [{
-        id: 'pageTechSpec',
+      /* Anything still overflowing after the fit ladder is named for what it is.
+         The Tech Specification page gets the actionable version, because there is
+         something the operator can do about it. Every other page used to borrow that
+         same message, which read as "the Tech Spec page is too full" on a proposal
+         whose Tech Spec page was fine - so the others say their own id and nothing
+         about the spec page. */
+      return (window.__qsPageOverflow || []).map((id) => id === 'pageTechSpec' ? {
+        id,
         message: 'The Technical Specification page is too full: with the roof-area figures and the reference links both shown, its last rows would be cut off. Remove a reference link (or leave the roof area blank) and it fits again.'
-      }] : [];
+      } : {
+        id,
+        message: (OVERFLOW_PAGE_NAMES[id] || 'proposal') + ' page is longer than an A4 sheet, so its last rows would be cut off. Shorten a text field on that page and it fits again.'
+      });
     }
     function validateWithEngineering(f, state) {
       const merged = collect();

@@ -256,7 +256,6 @@
    is cropped to fit, never squeezed, and never floats small inside white padding. */
 .pv2-tech .pv2-photo{position:relative;margin:0;border-radius:9px;overflow:hidden;background:#EEF2F7;border:1px solid #E6EAF0;width:100%;height:auto;min-height:92px;align-self:stretch;}
 .pv2-tech .pv2-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;}
-.pv2-tech .pv2-photo img{object-fit:cover;}
 .pv2-tech .pv2-photo::after{content:'';position:absolute;right:0;bottom:0;width:30px;height:30px;
   background:radial-gradient(circle at 0 0,transparent 29px,#F2811D 30px);}
 .pv2-tech .v_tsRefsWrap{margin-top:8px;}

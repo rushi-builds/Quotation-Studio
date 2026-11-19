@@ -578,6 +578,11 @@
   async function preflight() {
     const api = root.__qsPreflight;
     if (!api || typeof api.run !== 'function') return 'proceed';
+    /* Re-measure every page right before asking. The overflow list is written by
+       the last fit pass, which can be older than the sheet on screen - a page
+       that has since been shortened kept its stale entry, and the dialog named a
+       problem that no longer existed. */
+    try { root.Render?.fitPages?.(); } catch (e) { /* measurement is best-effort */ }
     let found;
     try { found = api.run() || {}; } catch (e) { return 'proceed'; }
     if (!(found.blocking || []).length && !(found.advisory || []).length) {

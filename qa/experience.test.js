@@ -72,6 +72,21 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
      cards:p3.querySelectorAll('.pv2-card').length,
      badges:p3.querySelectorAll('.pv2-brand').length,
      photos:p3.querySelectorAll('.pv2-photo img').length,
+     /* How much of each photograph actually survives the tile. */
+     crops:[...sheet.querySelectorAll('.pv2-card')].map(c=>{
+       const ph=c.querySelector('.pv2-photo'), im=ph&&ph.querySelector('img');
+       if(!ph||!im) return null;
+       const b=ph.getBoundingClientRect();
+       const natural=im.naturalWidth&&im.naturalHeight?im.naturalWidth/im.naturalHeight:0;
+       const tile=b.width/b.height;
+       const fit=getComputedStyle(im).objectFit;
+       const rows=c.querySelector('.pv2-rows');
+       return {kind:(c.className.match(/is-(\w+)/)||[])[1],
+         tile:+tile.toFixed(2), natural:+natural.toFixed(2), fit,
+         tileH:Math.round(b.height), rowsH:rows?Math.round(rows.getBoundingClientRect().height):0,
+         cardH:Math.round(c.getBoundingClientRect().height),
+         kept:fit==='contain'?1:(natural&&tile?Math.min(natural/tile,tile/natural):1)};
+     }).filter(Boolean),
      footNum:p3.querySelector('.pg-foot-page')?.textContent.trim()||'',
      footHas15:/of 15/.test(p3.querySelector('.pg-foot')?.textContent||'')};
    host.remove();
@@ -81,6 +96,24 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
     document that says "Page 6 of 15" is simply lying to the customer. */
  check('the carried footer prints this document\'s page number, not the report\'s ['+specParity.footNum+']',
    specParity.footNum==='Page 3 of 7'&&!specParity.footHas15);
+ /* A studio shot squeezed into a tile of a different shape loses its edges. Card 04
+    is the one that lost the most: the helmet, the pen and the drawings all sit near
+    the frame, so a third of the picture went and it read as a bad crop. Every card
+    now keeps at least 85% of its photograph, and card 04 keeps all of it. */
+ check('every card photograph keeps its subject ['+specParity.crops.map(c=>c.kind+' '+Math.round(c.kept*100)+'%').join(', ')+']',
+   specParity.crops.every(c=>c.kept>=0.85));
+ /* Two things must both be true of card 04, and the first two attempts at this each
+    satisfied one of them: the card keeps the size the sheet gives it (growing it made
+    it taller than its neighbours), and the photograph fills its tile with nothing
+    cropped (fitting it inside left a blank band at each side). The tile column is
+    shaped like the photograph, so the ratio matches and both hold at once. */
+ check('the engineering-design photograph fills its tile with nothing cropped ['+
+   JSON.stringify(specParity.crops.find(c=>c.kind==='design'))+']',
+   (()=>{const d=specParity.crops.find(c=>c.kind==='design');
+     return d && d.kept>=0.99 && Math.abs(d.tile-d.natural)<=0.02;})());
+ check('and the card keeps its size - the picture never stretches the sheet',
+   (()=>{const d=specParity.crops.find(c=>c.kind==='design');
+     return d && Math.abs(d.tileH-d.rowsH)<=2;})());
  check('page 3 carries all four cards, with their badges and photographs',
    specParity.cards===4&&specParity.badges>=3&&specParity.photos===4);
  check('page 3 cards are the same size and type as page 6 ['+
