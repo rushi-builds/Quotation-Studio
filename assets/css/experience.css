@@ -344,6 +344,13 @@
    is a wider photo tile, while the type stays its page-6 size. */
 .power-page .power-spec-sheet{
   width:100%;max-width:none;
+  /* The report sets Arial on .power-page. Page 6 has no font-family of its own, so
+     it inherits Inter from body - which is why the same rows measured taller here
+     with text that wrapped differently. Two of the four cards came out 19px and 20px
+     taller for exactly this reason, and that is what pushed the fourth card under
+     the footer in the first place. The block is a page-6 block, so it takes page 6's
+     font. Scoped to the block, so pages 1, 2 and 4-7 stay in the report's type. */
+  font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
 }
 /* Page 3 is the one page in this report whose body is a full A4-layout sheet - four
    cards, each with a rows box and a photo tile. Measured in a real browser (794x1123

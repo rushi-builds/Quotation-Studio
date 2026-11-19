@@ -39,6 +39,48 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  const fits=x=>x.deep<=x.sheet&&x.gap>=4&&x.fit;
  const badPage=layout.filter(x=>!fits(x));
  check('all seven power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': deepest='+x.deepest+'@'+x.deep+' of '+x.sheet+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
+ /* Page 3 prints page 6's card block, and "prints it the same" is a claim about
+    pixels, not about markup. Every failure in this area came from copying the right
+    markup into the wrong box: a narrower column wrapped the values onto extra lines,
+    the cards grew, and the bottom one was clipped. Source-string checks cannot see
+    any of that, so this compares the two pages element by element in a real browser.
+    If page 3 and page 6 ever disagree about a card's width, height or type size, the
+    requirement is broken and this says so. */
+ const specParity=await page.evaluate(()=>{
+   const read=(host)=>[...host.querySelectorAll('.pv2-card')].map(c=>{
+     const b=c.getBoundingClientRect();
+     const v=c.querySelector('.pv2-v');
+     const cs=v?getComputedStyle(v):null;
+     return {w:Math.round(b.width),h:Math.round(b.height),
+             font:cs?cs.fontSize:'',pad:cs?cs.paddingTop:''};
+   });
+   const sheet=document.querySelector('#pageTechSpec');
+   const host=Experience.buildPowerPages(Render.lastState);
+   const p3=host.querySelector('#powerPage3');
+   const sheetCards=read(sheet), pageCards=read(p3);
+   const blk=p3.querySelector('.power-spec-sheet');
+   const out={sheetCards,pageCards,
+     clipped:blk.style.overflow==='hidden',
+     scaled:!!blk.style.transform,
+     fits:p3.dataset.specFits,
+     cards:p3.querySelectorAll('.pv2-card').length,
+     badges:p3.querySelectorAll('.pv2-brand').length,
+     photos:p3.querySelectorAll('.pv2-photo img').length};
+   host.remove();
+   return out;
+ });
+ check('page 3 carries all four cards, with their badges and photographs',
+   specParity.cards===4&&specParity.badges>=3&&specParity.photos===4);
+ check('page 3 cards are the same size and type as page 6 ['+
+   JSON.stringify(specParity.sheetCards.map(c=>c.w+'x'+c.h+'@'+c.font))+' vs '+
+   JSON.stringify(specParity.pageCards.map(c=>c.w+'x'+c.h+'@'+c.font))+']',
+   specParity.sheetCards.length===specParity.pageCards.length &&
+   specParity.sheetCards.every((s,i)=>{
+     const p=specParity.pageCards[i];
+     return Math.abs(s.w-p.w)<=1 && Math.abs(s.h-p.h)<=1 && s.font===p.font && s.pad===p.pad;
+   }));
+ check('page 3 neither clips nor scales the block - it fits, and says so',
+   !specParity.clipped&&!specParity.scaled&&specParity.fits==='1');
  check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage6',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
  const rasterQR=await page.$eval('#powerPage2',async el=>{
    const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});
