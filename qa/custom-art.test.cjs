@@ -156,51 +156,37 @@ check('with no artwork uploaded, nothing changes - the existing markup path is u
   /return '<div class="pv2-brand is-plain"><b>' \+ esc\(brand\) \+ '<\/b><\/div>';/.test(pv2) &&
   /return CARD_PHOTO\[kind\] \|\| IMG \+ 'equipment\/cards\/earthing-safety-3pit\.webp';/.test(pv2));
 
-/* ---------------------------- 5b. page 3 IS page 6, not a lookalike of it */
+/* ---------------------------- 5b. compact PDF uses source proposal sheets */
 
-/* The owner's requirement was never "the same cards" - it was "the same page".
-   Copying the cards into a report wrapper left the running head, the title, the sub,
-   the intro paragraph, the note box and the footer as the report's own, and that is
-   the difference they kept seeing. The whole section travels now. */
+check('the compact report keeps the agreed seven-page order and composes page 4 from original scope/warranty content',
+  /POWER_BASE_PAGES=\['pageCover','pageSolution','pageTechSpec','pageScope','pageSavings','pageInvestment','pageClosing'\]/.test(experience) &&
+  /const copy=source\.cloneNode\(true\)/.test(experience) &&
+  /copy\.id='powerPage'\+\(index\+1\)/.test(experience));
 
-check('the sheet is cloned whole, and page 3 draws no chrome of its own',
-  /\$\('pageTechSpec'\)/.test(experience) &&
-  /const copy=sheet\.cloneNode\(true\)/.test(experience) &&
-  /copy\.classList\.add\('power-spec-sheet','pv2'\)/.test(experience) &&
-  /* No kicker, title or foot in the page wrapper: the sheet brings them. */
-  /page\(3,null,null,null,powerSpecSheet\(\),true\)/.test(experience));
+check('page 3 is the Technical Specification sheet itself, not reconstructed markup',
+  /pageTechSpec/.test(experience) && /function powerSourcePages\(\)\{return \[\.\.\.POWER_BASE_PAGES\];\}/.test(experience) &&
+  /const number=copy\.querySelector\('\.pf-right'\)/.test(experience) &&
+  /Page '\+\(index\+1\)\+' of '\+POWER_PAGE_COUNT/.test(experience));
 
-check('REGRESSION: ids are made unique, never stripped - the sheet is styled by them',
-  /* Stripping ids is what produced the raw specification table on page 3: the
-     .v_tsTable{display:none} and .pv2-sheet layout rules stopped applying, so the
-     table appeared beside the cards and the notes fell back to app.css defaults. */
-  /node\.id='pw3-'\+node\.id/.test(experience) &&
-  !/querySelectorAll\('\[id\]'\)\.forEach\(node=>node\.removeAttribute\('id'\)\)/.test(experience));
+check('optional reports never replace one of the seven selected pages from the main proposal',
+  /POWER_STYLE_PAGES=\[\.\.\.POWER_BASE_PAGES\]/.test(experience) &&
+  /function powerSourcePages\(\)\{return \[\.\.\.POWER_BASE_PAGES\];\}/.test(experience));
 
-check('the sheet styles itself through classes, so a carried copy needs no unique ids',
-  /\.pv2-sheet/.test(css) && /\.v_tsTable/.test(pv2css) &&
-  /* Nothing may go back to depending on the ids the clone renames. */
-  !/#v_ts[A-Za-z]/.test(css + pv2css) && !/#pageTechSpec/.test(css + pv2css));
+check('source-style helper stays inside a sheet, so it cannot count as an eighth PDF page',
+  /host\.querySelector\('\.power-page'\)\?\.prepend\(aliasStyle\)/.test(experience));
 
-check('page 3 is not padded twice, and does not inherit the report Arial',
-  /#powerPage3\.is-carried\{[\s\S]{0,140}?padding:0;/.test(expCss) &&
-  /#powerPage3\.is-carried\{[\s\S]{0,240}?font-family:'Inter'/.test(expCss));
+check('source-page ID rules are aliased without weakening their selector specificity',
+  /:is\(#'\+id\+', \[data-source-page="'\+id\+'"\]\)/.test(experience) &&
+  /dataset\.powerSourceAliases/.test(experience));
 
-check('the carried sheet is not a page inside a page - no shadow, no second transform',
-  /#powerPage3 \.power-spec-sheet\{[\s\S]{0,220}?box-shadow:none/.test(expCss) &&
-  /#powerPage3 \.power-spec-sheet\{[\s\S]{0,220}?transform:none/.test(expCss));
+check('the existing experience stylesheet does not restyle extracted pages',
+  /\.power-page:not\(\.power-clone\)/.test(expCss) &&
+  !/#powerPage3\.is-carried/.test(expCss));
 
-check('REGRESSION: nothing clips or scales page 3 to make it fit',
-  /* A height bound cut the fourth card; a transform made the cards a different size
-     from page 6. Both are gone. The browser suite compares page 3 to page 6 element
-     by element and would fail either way; this stops them coming back quietly. */
-  !/style\.overflow='hidden'/.test(experience.split('powerSpecSheet')[1]||'') &&
-  !/\.style\.transform='scale/.test(experience));
-
-check('page 3 records its own geometry, so an overrun is visible rather than hidden',
-  /carried\.dataset\.specAvail=availW\+'x'\+availH;/.test(experience) &&
-  /carried\.dataset\.specBlock=W\+'x'\+H;/.test(experience) &&
-  /carried\.dataset\.specFits=\(W<=availW\+1&&H<=availH\+1\)\?'1':'0';/.test(experience));
+check('the technical sheet body is cloned untouched; only the running page number is changed',
+  /const copy=source\.cloneNode\(true\)/.test(experience) &&
+  /const number=copy\.querySelector\('\.pf-right'\)/.test(experience) &&
+  !/powerSpecSheet|specAvail|specBlock/.test(experience));
 
 /* ------------------------------------------------------------- 6. persistence */
 

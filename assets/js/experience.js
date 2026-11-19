@@ -1,4 +1,4 @@
-/* Public gallery QR, isolated customer scenarios and an optional six-page Power Proposal.
+/* Public gallery QR, isolated customer scenarios and the compact seven-page Power Proposal.
    No customer data is put in a QR URL; scenarios never write proposal state. */
 'use strict';
 (function(root) {
@@ -145,179 +145,109 @@
     [0,4,9,14,19,24].filter(i=>i<data.length).forEach(i=>{const xx=bars?L+(W-L-R)*(i+.5)/data.length:x(i);drawing+='<text x="'+xx+'" y="'+(H-7)+'" text-anchor="middle" font-size="9" fill="#64788a">Yr '+(i+1)+'</text>';});
     return '<svg class="power-series-chart" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="'+esc(label)+'" data-series="'+data.join(',')+'"><title>'+esc(label)+'</title>'+drawing+'</svg>';
   }
+  /* Seven A4 sheets extracted from the Detailed Proposal. The original pages are
+     cloned, preserving their artwork and shared chrome; only the page-4 extract is
+     composed inside its clone from EPC Scope and Warranty source content. */
+  const POWER_BASE_PAGES=['pageCover','pageSolution','pageTechSpec','pageScope','pageSavings','pageInvestment','pageClosing'];
+  const POWER_STYLE_PAGES=[...POWER_BASE_PAGES];
+  function powerSourcePages(){return [...POWER_BASE_PAGES];}
+  function prepareScopeWarrantySheet(copy){
+    const body=copy.querySelector('.pg-body'),intro=body?.querySelector('.intro-col');
+    if(!body||!intro)throw new Error('Scope, Warranty & Handover source sheet is incomplete.');
+    copy.classList.add('power-scope-warranty');
+    intro.querySelector('.pg-title').textContent='Scope, Warranty & Handover';
+    intro.querySelector('.pg-sub').textContent='Clear inclusions. Transparent coverage. Guided delivery.';
+    intro.querySelector('.body-para').textContent='A concise guide to the EPC work, equipment warranties and customer inputs for this proposal. Final project-specific inclusions and exclusions are confirmed in the agreed quotation.';
+    body.replaceChildren(intro);
+    const make=(tag,className,text)=>{const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node;};
+    const section=(label,className,gridClass)=>{const wrap=make('section','sw-section '+className),heading=make('div','sec-label sw-section-label',label),grid=make('div',gridClass);wrap.append(heading,grid);body.appendChild(wrap);return grid;};
+    const scopeCards=[
+      ['Equipment supply','Solar modules, inverter, mounting structure and balance of system.'],
+      ['Engineering & installation','Site engineering, system design and rooftop installation.'],
+      ['Electrical safety','Electrical works, earthing and lightning protection.'],
+      ['Testing & commissioning','System checks, grid synchronisation and commissioning.'],
+      ['Net metering & subsidy process','Application assistance; approvals and benefits remain subject to the DISCOM and applicable scheme.'],
+      ['Handover & customer training','System handover, operating guidance and customer training.']
+    ];
+    const scope=section('TURNKEY EPC SCOPE','sw-scope-section','sw-scope-grid');
+    scopeCards.forEach(([title,detail],i)=>{const card=make('article','sw-card sw-scope-card'),number=make('span','sw-number',String(i+1).padStart(2,'0')),copyText=make('div','sw-card-copy');copyText.append(make('h3','sw-card-title',title),make('p','sw-card-detail',detail));card.append(number,copyText);scope.appendChild(card);});
+    const warranties=section('WARRANTY COVERAGE','sw-warranty-section','sw-warranty-grid');
+    CONTENT.pageWarranty.warranties.forEach((item,i)=>{const card=make('article','sw-card sw-warranty-card'),number=make('span','sw-warranty-icon',String(i+1).padStart(2,'0')),copyText=make('div','sw-card-copy');copyText.append(make('h3','sw-card-title',item.title),make('p','sw-card-detail',item.b1),make('p','sw-card-detail sw-muted',item.b2));card.append(number,copyText);warranties.appendChild(card);});
+    const milestones=[
+      ['Order & site survey','Agreement · access · project kickoff'],
+      ['Engineering & approvals','Survey · drawings · DISCOM process'],
+      ['Material delivery','Modules · inverter · balance of system'],
+      ['Installation','Structure · modules · electrical works'],
+      ['Testing & commissioning','Safety checks · grid synchronisation'],
+      ['Metering & handover','Metering process · walkthrough · training']
+    ];
+    const journey=section('FROM ORDER TO HANDOVER','sw-journey-section','sw-journey-grid');
+    milestones.forEach(([title,detail],i)=>{const card=make('article','sw-card sw-journey-card'),step=make('span','sw-step',String(i+1).padStart(2,'0')),copyText=make('div','sw-card-copy');copyText.append(make('h3','sw-card-title',title),make('p','sw-card-detail',detail));card.append(step,copyText);journey.appendChild(card);});
+    const inputs=section('CUSTOMER INPUTS & ITEMS OUTSIDE THE AGREED SCOPE','sw-inputs-section','sw-inputs-grid');
+    const client=make('article','sw-note-card'),exclusions=make('article','sw-note-card sw-exclusions');
+    client.append(make('h3','sw-note-title','Customer inputs'),make('p','sw-card-detail','Provide safe roof access, site utilities and required permissions/documents; the roof must be structurally adequate. Internet and service access may be needed for monitoring and support.'));
+    exclusions.append(make('h3','sw-note-title','May be additional if not included in this quotation'),make('p','sw-card-detail','Civil or structural modifications, load enhancement, extra internal electrical work, and DISCOM statutory charges or deposits.'));
+    inputs.append(client,exclusions);
+    body.appendChild(make('p','sw-legal-note','Warranty periods follow the selected OEM and agreed terms. Net-metering, subsidy eligibility and authority timelines are subject to DISCOM/government approval.'));
+  }
   function buildPowerPages(s) {
-    const f=F.compute(s);
-    // Known public company portfolio, not a guessed sandbox/preview destination.
-    // A supplied destination takes precedence; invalid explicit URLs stay hidden.
-    const url=portfolioDestination(s);
-    let runningGeneration=0;
-    const cumulativeGeneration=f.series.gen.map(value=>(runningGeneration+=value)/1000);
-    const hasBattery=root.Bess.included(s),hasSystem=root.AdditionalSystems.included(s),separate=hasBattery||hasSystem;
-    const packageName=root.AdditionalSystems.name(s)+(root.Rainwater.enabled(s)?' + Rainwater harvesting':'');
-    const battery=root.Bess.compute(s,f),safe=v=>esc(v==null||v===''?'To be confirmed':v);
-    const precise=v=>Number.isFinite(v)?v.toLocaleString('en-IN',{maximumFractionDigits:3}):'-';
-    const paybackText=f.netInvestment<=0?'Not applicable':payback(f);
-    const header=()=>'<header class="pg-head power-head"><div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div><div class="pg-head-meta">'+esc(s.propRef||'—')+'  •  v'+esc(s.propVersion||'1.0')+'  •  '+esc(F.fmtDate(s.propDate)||'-')+'</div></header>';
-    const footerTagline=String(CONTENT.shared.footerTagline||'').replace(/&nbsp;/g,' ').replace(/<[^>]*>/g,'');
-    const foot=n=>'<footer class="pg-foot power-foot"><div class="pf-left"><span class="pf-contact">'+esc(s.companyName)+'  •  '+esc(s.companyPhone)+'</span><span class="pf-divider">•</span><span class="pf-website">'+esc(s.companyWebsite)+'</span></div><div class="pf-mid">'+esc(footerTagline)+'</div><div class="pf-right">Page '+n+' of '+POWER_PAGE_COUNT+'</div></footer>';
-    const heading=(n,title)=>{
-      const emphasis=['Your energy.','Support.','the numbers.','behind the numbers.','Long-term value.','investment.','& support.'][n-1];
-      const split=title.lastIndexOf(emphasis);
-      return split<0?esc(title):esc(title.slice(0,split))+'<span class="power-heading-accent">'+esc(title.slice(split))+'</span>';
+    const sourcePages=powerSourcePages(s);
+    const host=document.createElement('div');
+    host.className='pdf-snapshot power-proposal-snapshot';
+    host.setAttribute('aria-hidden','true');
+    /* Several reference stylesheets scope rules to their source page ID. These
+       aliases preserve those exact rules without duplicate IDs in the live document. */
+    const rewrite=selector=>POWER_STYLE_PAGES.reduce((text,id)=>
+      text.replace(new RegExp('#'+id+'(?![\\w-])','g'),':is(#'+id+', [data-source-page="'+id+'"])'),selector);
+    const collect=rules=>{
+      let css='';
+      for(const rule of rules){
+        try{
+          if(rule.type===1){
+            if(POWER_STYLE_PAGES.some(id=>new RegExp('#'+id+'(?![\\w-])').test(rule.selectorText)))
+              css+=rewrite(rule.selectorText)+'{'+rule.style.cssText+'}';
+          }else if(rule.cssRules){
+            const nested=collect(rule.cssRules);
+            if(nested){const brace=rule.cssText.indexOf('{');css+=rule.cssText.slice(0,brace)+'{'+nested+'}';}
+          }
+        }catch(e){/* A cross-origin @import must not discard later local rules. */}
+      }
+      return css;
     };
-    /* A page with `bare` set draws no chrome of its own - no running head, kicker,
-       title, lead or foot. Page 3 uses it because it carries page 6 whole, and page 6
-       brings all of those with it. Drawing them here as well would print the company
-       twice over the same sheet, which is the duplication the owner ruled out. */
-    const page=(n,kicker,title,lead,body,bare)=>bare
-      ? '<section class="page power-page power-six is-carried" id="powerPage'+n+'">'+body+'</section>'
-      : '<section class="page power-page power-six" id="powerPage'+n+'">'+header(n)+'<div class="power-kicker">'+kicker+'</div><h1>'+heading(n,title)+'</h1>'+(lead?'<p class="power-lead">'+lead+'</p>':'')+'<div class="power-body">'+body+'</div>'+foot(n)+'</section>';
-    /* The live flow, built from the same content and the same finance numbers the
-       proposal itself uses. This report used to lift #v_tsDiagram's innerHTML - the
-       RETIRED svg - but page 6 hides that box with display:none and the markup-only
-       path leaves it empty, so page 3 of the report printed an empty framed box
-       directly under a caption that promised "Conceptual grid-tied flow". Falling
-       back to the old svg only matters if a document somehow still has one. */
-    const liveFlow=root.ProposalV2&&root.ProposalV2.flowDiagram?root.ProposalV2.flowDiagram(s,f):'';
-    const diagram=liveFlow||($('v_tsDiagram')?.innerHTML.replace(/qs-system|qs-metal|qs-panels|qs-dc-arrow|qs-ac-arrow/g,m=>'power-'+m)||'');
-    const photo=root.__qsPageImages?.img_solution||(['commercial','industrial','rwa'].includes(s.customerType)?'assets/images/cover-'+s.customerType+'-scene.jpg':($('img_solution')?.getAttribute('src')||'assets/images/page-solution.jpg'));
-    /* Page 3 of this report carries page 6 of the full proposal - the same nodes,
-       cloned, not a second drawing of the same cards.
-       It used to print two columns of label/value rows, so a custom make showed its
-       uploaded logo and picture in one PDF and only its typed name in the other.
-       Rebuilding the cards here would let them drift again, so the report does not
-       build cards at all: it asks proposal-v2.js to paint the sheet, then takes the
-       card block out of it.
-       Only the card block travels, not the sheet's own head, title, rule and
-       paragraph - this report already prints a head and a title, and repeating them
-       is exactly the duplication the owner ruled out. The cards keep the sheet's
-       class chain and column width, so their sizes are the sheet's sizes: the badge
-       is the badge the owner saw on screen, not a scaled-down approximation. */
-    /* Page 3 carries page 6's cards - the same nodes, cloned, never a second
-       drawing of them. This returns the inner markup only; the caller owns the
-       wrapper, so the wrapper cannot end up nested inside itself. */
-    /* Page 3 IS page 6 - the whole sheet, cloned. Not the cards in a lookalike
-       wrapper, which is what kept going wrong: the cards matched while the header,
-       the title, the note under them and the footer were still the report's own. The
-       owner asked for the same page, so it is the same page.
-       Two things matter about how it is copied:
-       - ids are made unique rather than removed. proposal-v2.css styles the sheet
-         through #v_tsTable / #v_tsHeading / #v_tsPara and app.css through
-         #pageTechSpec .pg-body, so stripping ids silently unstyles the copy - the raw
-         specification table reappears beside the cards and the notes revert to app.css
-         defaults. Prefixing keeps every rule working and keeps ids unique.
-       - the copy carries the same classes as the sheet, so the same rules apply. */
-    const powerSpecSheet=()=>{
-      const sheet=$('pageTechSpec'); if(!sheet) return '';
-      try{root.ProposalV2?.sync?.();}catch(e){/* a failed page-6 paint must not take the report down */}
-      const copy=sheet.cloneNode(true);
-      copy.classList.add('power-spec-sheet','pv2');
-      /* Unique ids, same names. A document with two #v_tsTable is invalid, and
-         getElementById would start answering for the wrong one. */
-      copy.querySelectorAll('[id]').forEach(node=>{node.id='pw3-'+node.id;});
-      /* The report footer prints "Page 6 of 15". In a seven-page Power Proposal that is
-         simply wrong, so the same slot prints this document's own page number. Nothing
-         else in the footer is touched - the design has to stay page 6's. */
-      const num=copy.querySelector('.pg-foot-page');
-      if(num) num.textContent='Page 3 of '+POWER_PAGE_COUNT;
-      return copy.outerHTML;
-    };
-    const valid=F.fmtDate(F.addDays(s.propDate,s.validityDays))||'To be confirmed';
-    const scope=CONTENT.pageScope,warranty=CONTENT.pageWarranty;
-    const list=items=>'<ul>'+items.map(item=>'<li>'+esc(item.title)+'</li>').join('')+'</ul>';
-    const refs=[['PVsyst simulation report',s.pvsystUrl],['ARKA layout & shading report',s.arkaUrl]].filter(([,u])=>root.Render.safeHttpUrl(u)).map(([label,u])=>'<a href="'+esc(root.Render.safeHttpUrl(u))+'">'+label+' ↗</a>').join('');
-    const about=CONTENT.pageAbout;
-    const projects=CONTENT.pageProjects.categories.map(category=>category.projects?.[0]).filter(Boolean);
-    const capabilities=(CONTENT.pageWhyKtm.differentiators||[]).filter(item=>['gear','drone','wrench'].includes(item.icon));
-    const manual=s.subsidyOverride!==''&&s.subsidyOverride!=null&&Number.isFinite(parseFloat(s.subsidyOverride));
-    const subsidyNote=s.customerType==='rwa'
-      ? 'RWA/GHS: ₹18,000 per eligible installed DC kWp; capped at 500 kWp and 3 kWp per house, inclusive of individual resident rooftop systems. '+(f.rwaEligibilityConfirmed?'Entered eligible capacity: '+precise(f.rwaEligibleKwp)+' kWp; preparer-supplied, not authority approval.':'Provisional estimate: household count and individual rooftop allowance still require verification.')
-      : s.customerType==='residential'?'Residential subsidy is an estimate on installed DC capacity, subject to scheme eligibility, approved equipment and DISCOM verification.'+(f.stateTopUp>0?' Entered state top-up: '+F.fmtINR(f.stateTopUp)+'; eligibility and approval must be verified.':''):'No automatic central residential subsidy is applied to this customer category.';
-    const qualification=(manual?'Manual subsidy override: '+F.fmtINR(f.subsidy)+'. ':'')+subsidyNote;
-    const investmentWarning=f.netInvestment<0?'<p class="power-note power-warning">The entered subsidy exceeds the gross price. Negative net investment is not a promised payout; verify the override before issuing this quotation.</p>':'';
-    const optional=(hasBattery?'<p class="power-note power-additional-scope"><strong>Battery Energy Storage</strong> · '+safe(s.bessMake)+' · '+(battery.cost!==null?F.fmtINR(battery.cost):'Price to be confirmed')+', separately quoted. See Storage Assessment for configuration, compatibility and agreed scope.</p>':'')+(hasSystem?'<p class="power-note power-additional-scope"><strong>'+safe(packageName)+'</strong> · '+esc(root.AdditionalSystems.priceText(s))+' · '+(root.AdditionalSystems.inBase(s)?'included in the entered base quote':'separately quoted')+(root.Rainwater.enabled(s)?'. Harvesting: '+safe(root.Rainwater.priceText(s))+(s.systemWaterPriceMode==='included'?'':' separately quoted'):'')+'. See Additional System Scope'+(root.Rainwater.enabled(s)?' and Rainwater Collection':'')+' for details and exclusions.</p>':'');
-    const host=document.createElement('div');host.className='pdf-snapshot';host.setAttribute('aria-hidden','true');
-    host.innerHTML=
-      page(1,'01 / PROJECT OVERVIEW','Your roof. Your energy.','A considered rooftop solar proposal, built around your selected system and site assumptions.',
-        '<div class="power-customer"><strong>'+safe(s.custName)+'</strong><span>'+safe(s.custAddress)+'</span></div>'+
-        '<div class="power-hero"><div><span>PROPOSED SYSTEM</span><strong>'+precise(f.capacity)+' <small>kWp</small></strong><p>'+f.moduleCount+' × '+precise(f.moduleWattage)+' Wp modules<br>'+precise(f.inverterKw)+' kW inverter</p><span>DESIGN · SUPPLY · INSTALLATION</span></div><img src="'+esc(photo)+'" alt="Illustrative solar architecture; not a verified project photograph"></div><p class="power-caption">Illustrative architecture. The final equipment layout follows site and structural verification.</p>'+
-        '<div class="power-metrics">'+metric('Installed solar capacity',precise(f.installedKwp)+' kWp','Actual whole-module DC array')+metric('Average monthly generation',F.fmtNum(f.annualGen/12)+' kWh','Year-one average, not a seasonal forecast')+metric('Year-one generation',F.fmtNum(f.annualGen)+' kWh','Based on the entered yield assumption')+metric('25-year generation',precise(f.lifetimeGen/1000)+' MWh','Includes the entered annual degradation')+'</div>'+
-        '<div class="power-highlight"><strong>24/7 remote monitoring access</strong><span>With compatible equipment, power and internet. Not staffed support.</span></div>'+
-        '<h2>Your solar project at a glance</h2><div class="power-roadmap"><div><b>DESIGN</b><p>Selected equipment, installed array and system connection.</p></div><div><b>PERFORMANCE</b><p>Energy projections, cumulative value and stated assumptions.</p></div><div><b>DELIVERY</b><p>Investment, payment milestones, scope and project support.</p></div></div>'+
-        '<p class="power-note">'+(hasSystem?esc(packageName)+' · '+(root.AdditionalSystems.inBase(s)?'scope included in base rate. ':'separately quoted. '):separate?'Solar-only overview. Optional upgrades are identified separately on page 7. ':'')+'Generation depends on roof conditions, shading, equipment and maintenance. This proposal is not a site-specific simulation or a guarantee of output.</p>')+
-      page(2,'02 / ABOUT KTM','Engineering. Execution. Support.','Solar EPC expertise across residential, commercial and industrial projects.',
-        '<div class="power-company"><span>YOUR SOLAR EPC PARTNER</span><h2>'+safe(s.companyName)+'</h2><p>'+esc(about.para1)+'</p></div>'+
-        '<h2>Integrated project capabilities</h2><div class="power-capabilities">'+capabilities.map(item=>'<div><strong>'+esc(item.title)+'</strong></div>').join('')+'</div>'+
-        '<h2 class="power-portfolio-heading">Selected projects</h2><div class="power-projects">'+projects.map(project=>'<article><img src="'+esc(PROJECT_IMAGES[project.img]||'')+'" alt="'+esc(project.name)+'"><div><span>'+esc(project.capacity)+'</span><h3>'+esc(project.name)+'</h3><p>'+esc(project.location)+'</p></div></article>').join('')+'</div>'+
-        '<p class="power-caption">Project photographs and details from the KTM portfolio.</p>'+
-        portfolioCard(s)+
-        '<div class="power-company-services"><h2>From design through commissioning</h2><p>Site assessment · System engineering · Supply & installation · Testing & commissioning · After-sales support</p></div>')+
-      /* The sheet itself. No lead paragraph and no second set of headings: this is
-         page 6 of the full proposal, carried over whole, so the two downloads show
-         the same technical page down to the four cards and their artwork. */
-      /* No kicker, title or lead of its own: the sheet underneath has them. */
-      page(3,null,null,null,powerSpecSheet(),true)+
-      page(4,'04 / SYSTEM DESIGN','The system behind the numbers.','Selected equipment and the design basis for your proposed solar installation.',
-        '<h2>How your system connects</h2><div class="power-diagram">'+diagram+'</div><p class="power-caption">Conceptual grid-tied flow, not an installation wiring drawing. Grid-tied solar alone does not provide outage backup.</p>'+
-        '<div class="power-metrics power-metrics-three">'+metric('Roof type',s.roofType||'To be confirmed','Site conditions to be confirmed')+metric('Indicative roof requirement',precise(f.requiredArea)+' m²','Includes modelled layout clearance')+metric('Contracted capacity',precise(f.contractedKwp)+' kWp','Pricing basis; whole modules may deliver more DC')+'</div>'+
-        '<div class="power-design-note"><h2>Engineering design basis</h2><p>'+esc(root.StateStore.engineeringNote(s))+'</p></div>')+
-      page(5,'05 / GENERATION & SAVINGS','Energy production. Long-term value.','Projected system output and energy value, based on the assumptions below.',
-        '<div class="power-metrics power-metrics-three">'+metric('Year-one energy value',F.fmtINR(f.annualSaving),'Generation × entered tariff')+metric('25-year energy value',F.fmtINRshort(f.lifetimeSaving),'Before investment and operating costs')+metric('Estimated payback',paybackText,f.netInvestment<=0?'Net investment is not positive':'Interpolated from cumulative energy value')+'</div>'+
-        '<section class="power-energy"><div class="power-energy-title">'+root.Icons.get('sun',22)+'<div><h2>Your solar energy milestones</h2><p>Projected electricity generated by your system</p></div></div><div class="power-energy-grid">'+[0,9,24].map(i=>'<article data-energy-year="'+(i+1)+'" data-energy-mwh="'+cumulativeGeneration[i]+'"><span>'+(['Year 1','First 10 years','Over 25 years'][[0,9,24].indexOf(i)])+'</span><strong>'+cumulativeGeneration[i].toLocaleString('en-IN',{maximumFractionDigits:1})+' <small>MWh</small></strong><p>'+(i===0?'First-year output':'Total energy produced')+'</p></article>').join('')+'</div><p class="power-caption">1 MWh = 1,000 kWh. Lifetime totals include the entered annual degradation.</p></section>'+
-        '<div class="power-chart-card"><h2>Cumulative energy value <small>— projected value &nbsp; ┄ net investment</small></h2>'+powerChart(f.series.cumSaving,'Cumulative energy value over 25 years in rupees',true,false,f.netInvestment)+'</div>'+
-        '<table class="power-projection-table"><thead><tr><th>Year</th><th>Annual generation</th><th>Annual energy value</th><th>Cumulative value</th></tr></thead><tbody>'+[0,4,9,14,24].map(i=>'<tr><td>'+f.series.years[i]+'</td><td>'+F.fmtNum(f.series.gen[i])+' kWh</td><td>'+F.fmtINR(f.series.saving[i])+'</td><td>'+F.fmtINR(f.series.cumSaving[i])+'</td></tr>').join('')+'</tbody></table>'+
-        '<div class="power-columns power-assumptions"><div>'+row('Yield basis',safe(s.genFactor)+' kWh/kWp/year')+row('Annual degradation',safe(s.degradation)+'%')+'</div><div>'+row('Electricity tariff','₹'+safe(s.tariff)+' per kWh')+row('Annual tariff escalation',safe(s.escalation)+'%')+'</div></div>'+
-        '<p class="power-note">Assumes generated units have the entered tariff value. Self-consumption, export settlement, fixed charges and site performance affect actual bills. O&M, replacements, financing interest and discounting are not deducted from these savings/payback projections.'+(separate?' Battery/additional-system benefits are not included.':'')+'</p>')+
-      page(6,'06 / INVESTMENT & PAYMENT PLAN','A transparent investment.','Project pricing, applicable GST, subsidy estimate and payment schedule.',
-        '<div class="power-columns"><section class="power-cost"><h2>'+(hasSystem&&root.AdditionalSystems.inBase(s)?'Quoted investment including system scope':separate?'Solar-only investment':'Investment overview')+'</h2>'+row('Project cost before GST',F.fmtINR(f.projectCost))+row('GST ('+f.gstPercent+'%)',F.fmtINR(f.gstAmount))+row('Total including GST',F.fmtINR(f.grossTotal))+row('Estimated subsidy - not approved',F.fmtINR(f.subsidy))+'<div class="power-total">Estimated net investment<strong>'+F.fmtINR(f.netInvestment)+'</strong></div></section><section><h2>Basis of the offer</h2>'+row('Contracted system',precise(f.capacity)+' kWp')+row('Quoted base rate','₹'+precise(f.costPerWp)+' / Wp')+row('Estimated payback',paybackText)+row('Proposal valid until',valid)+'<p class="power-note">Subsidy eligibility, approval and disbursement are subject to the applicable scheme and authority. GST is calculated using the entered rate; confirm the applicable tax treatment.</p></section></div>'+
-        '<div class="power-chart-card power-cost-chart"><h2>From project cost to net investment</h2><canvas id="powerCostChart" aria-label="Cost, GST, subsidy and net investment chart" width="680" height="340"></canvas></div>'+
-        '<h2>Payment milestones</h2><p class="power-caption">Calculated on gross including GST, not net after subsidy. Displayed amounts are rounded.</p><div class="power-pay">'+['advance','dispatch','completion'].map(key=>metric(key[0].toUpperCase()+key.slice(1),f.pay[key].pct+'%',F.fmtINR(f.pay[key].amount))).join('')+'</div>'+
-        (Math.abs(f.pay.sumPct-100)>.001?'<p class="power-note power-warning">Payment schedule totals '+precise(f.pay.sumPct)+'%. Confirm percentages totalling 100% before approval.</p>':'')+
-        (f.financing?'<div class="power-financing"><h2>Optional financing illustration</h2><div class="power-columns"><div>'+row('Loan / interest',F.fmtINR(f.financing.loan)+' / '+f.financing.ratePct+'% p.a.')+row('Term / monthly EMI',f.financing.months+' months / '+F.fmtINR(f.financing.emi))+'</div><div>'+row('Total loan repayment',F.fmtINR(f.financing.totalPaid))+row('Total loan interest',F.fmtINR(f.financing.totalInterest))+'</div></div><p class="power-caption">Illustration only; lender approval, fees and final terms apply. Interest is not deducted from solar payback above.</p></div>':'')+
-        '<p class="power-note power-subsidy-note">'+esc(qualification)+'</p>'+investmentWarning)+
-      page(7,'07 / DELIVERY & PROJECT SUPPORT','Delivery, warranty & support.','Project scope, warranty coverage and documentation for your solar installation.',
-        '<div class="power-columns power-scope"><section class="power-scope-card"><h2><span>01</span> Included EPC scope</h2>'+list(scope.deliverables)+'</section><section class="power-scope-card power-scope-extra"><h2><span>02</span> Additional scope, if required</h2>'+list(scope.addl)+'</section></div>'+
-        '<div class="power-warranties"><h2>Warranty highlights</h2><div class="power-columns">'+warranty.warranties.map(w=>'<div class="power-warranty-card">'+root.Icons.chip(w.icon,28,'#fff0dc','#a65c1e')+'<div><strong>'+esc(w.title)+'</strong><p>'+esc(w.b1)+' · '+esc(w.b2)+'</p></div></div>').join('')+'</div><p class="power-caption">Subject to selected OEM/model terms and the agreed project contract.</p></div>'+
-        optional+
-        '<div class="power-terms">'+row('Proposal date / valid until',(F.fmtDate(s.propDate)||'To be confirmed')+' / '+valid)+row('Indicative delivery',s.durationText||'To be confirmed')+row('Jurisdiction',s.jurisdiction||'To be confirmed')+'</div>'+
-        '<section class="power-readiness"><h2>Site readiness</h2><div>'+scope.resp.map(r=>'<span>'+esc(r.title)+'</span>').join('')+'</div><p>Final site requirements are agreed before mobilisation.</p></section>'+
-        '<div class="power-support"><div><span>PROJECT & SERVICE CONTACT</span><h2>'+safe(s.companyName)+'</h2></div><div><strong>'+safe(s.companyPhone)+'</strong><p>'+safe(s.companyEmail)+'</p></div></div>'+
-        '<p class="power-note">This proposal is not an installation order. Complete terms and exclusions are set out in the Detailed Proposal. Solar totals, charts and payment milestones exclude separately priced battery/additional systems. Generation and savings are estimates; subsidy is subject to approval.</p>'+
-        (refs?'<section class="power-report-links"><h2>Project engineering reports</h2><p>Site-specific design and simulation documents</p><div>'+refs+'</div></section>':''));
-    document.body.appendChild(host);
-    host.querySelectorAll('.power-page').forEach(p=>{
-      /* Page 3 carries the sheet whole and has neither a .power-body nor a footer of
-         its own - the sheet has both - so it is skipped rather than dereferenced. */
-      const body=p.querySelector('.power-body'),foot=p.querySelector('footer');
-      if(body&&foot&&body.getBoundingClientRect().bottom>foot.getBoundingClientRect().top-8)p.classList.add('power-compact');
+    const aliases=[];
+    for(const sheet of document.styleSheets){try{aliases.push(collect(sheet.cssRules));}catch(e){/* Ignore inaccessible third-party stylesheets. */}}
+    const aliasStyle=document.createElement('style');
+    aliasStyle.dataset.powerSourceAliases='';
+    aliasStyle.textContent=aliases.join('\n');
+    sourcePages.forEach((sourceId,index)=>{
+      const source=$(sourceId);
+      if(!source)throw new Error('Power Proposal source page is missing: '+sourceId);
+      const copy=source.cloneNode(true);
+      copy.id='powerPage'+(index+1);
+      copy.classList.add('power-page','power-clone');
+      copy.dataset.sourcePage=sourceId;
+      copy.dataset.powerIndex=String(index+1);
+      copy.style.transform='none';
+      copy.style.margin='0';
+      copy.querySelectorAll('[data-head-ref],[data-foot-company],[data-foot-tagline]').forEach(node=>{
+        node.removeAttribute('data-head-ref');node.removeAttribute('data-foot-company');node.removeAttribute('data-foot-tagline');
+      });
+      copy.querySelectorAll('img[data-print-src]').forEach(img=>{
+        img.src=img.getAttribute('data-print-src');img.removeAttribute('srcset');img.removeAttribute('sizes');
+      });
+      copy.querySelectorAll('canvas').forEach((canvas,i)=>{
+        const original=source.querySelectorAll('canvas')[i];
+        if(original?.width&&original?.height)try{canvas.getContext('2d').drawImage(original,0,0);}catch(e){}
+      });
+      if(sourceId==='pageScope')prepareScopeWarrantySheet(copy);
+      const number=copy.querySelector('.pf-right');
+      if(number)number.textContent='Page '+(index+1)+' of '+POWER_PAGE_COUNT;
+      host.appendChild(copy);
     });
-    /* Page 3 is page 6, so its geometry is page 6's geometry. There is nothing to
-       fit, scale or clip: the sheet already fits an A4 box, because that is the box it
-       was designed for. Every earlier attempt here failed by trying to make a
-       lookalike fit a differently-padded column, and each fix was a papering-over -
-       a height bound that cut the fourth card, then a transform that made the cards a
-       different size from page 6.
-       What is kept is the measurement, recorded on the page rather than acted on: a
-       future change that makes the sheet overrun should be visible, and export.js
-       refuses the download instead of shipping a page with a cut-off card. */
-    const carried=host.querySelector('#powerPage3'),sheetCopy=carried?.querySelector('.power-spec-sheet');
-    if(sheetCopy){
-      /* Unscaled CSS pixels on both sides: .page carries transform:scale(), so a rect
-         difference here would be in a different space from these widths. */
-      const availW=carried.clientWidth,availH=carried.clientHeight;
-      const W=sheetCopy.offsetWidth,H=sheetCopy.offsetHeight;
-      carried.dataset.specAvail=availW+'x'+availH;
-      carried.dataset.specBlock=W+'x'+H;
-      carried.dataset.specFits=(W<=availW+1&&H<=availH+1)?'1':'0';
-    }
-    // Match the Detailed Proposal's generous waterfall height. Only reduce it
-    // on dense financing/subsidy pages, retaining at least 240px and A4 safety.
-    const costCanvas=host.querySelector('#powerCostChart'),investment=costCanvas.closest('.power-page');
-    const overflow=investment.querySelector('.power-body').getBoundingClientRect().bottom-investment.querySelector('footer').getBoundingClientRect().top+12;
-    if(overflow>0) costCanvas.style.height=Math.max(240,Math.floor(costCanvas.clientHeight-overflow))+'px';
-    root.Charts.bridge(costCanvas,f); // draw at final dimensions, never stretch pixels
-    const canvas=host.querySelector('.power-gallery canvas');
-    if(canvas&&url&&root.QRCode){root.QRCode.toCanvas(canvas,url,{width:320,margin:4,errorCorrectionLevel:'M'});canvas.style.width='94px';canvas.style.height='94px';}
+    /* Keep helper CSS inside the first extracted sheet, not as a pseudo-page at
+       the snapshot root; the document editor and PDF exporter both enumerate pages. */
+    host.querySelector('.power-page')?.prepend(aliasStyle);
+    document.body.appendChild(host);
     return host;
   }
   document.addEventListener('qs:rendered',sync);

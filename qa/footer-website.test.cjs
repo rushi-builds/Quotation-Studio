@@ -67,11 +67,11 @@ const { chromium } = require('playwright');
       // Shared footer renderer also populates currently hidden optional pages.
       assert(await page.evaluate(expected => [...document.querySelectorAll('[data-foot-company]')].every(el => el.querySelector('.pf-website')?.textContent === expected), website));
       await page.evaluate(() => { window.__footerPower = Experience.buildPowerPages(Render.lastState); });
-      // Page 3 is the full proposal's sheet carried whole, footer included, so it paints a
-      // .pg-foot rather than a .power-foot: 6 of the 7 power pages own a power footer.
-      assert.equal(await checkFooters(page, '.pdf-snapshot .power-foot', website), 6);
+      // The original full-bleed cover has no running footer; the other six
+      // selected sheets retain their own Detailed Proposal footer artwork.
+      assert.equal(await checkFooters(page, '.pdf-snapshot .power-page .pg-foot', website), 6);
       assert.equal(await page.evaluate(() => document.querySelectorAll('.pdf-snapshot #powerPage3 .pg-foot .pf-website').length), 1,
-        'page 3 carries the full proposal footer, website line included');
+        'page 3 uses the full proposal footer, website line included');
       assert.equal(await page.evaluate(() => document.querySelector('#powerPage3 .pg-foot .pf-website').textContent.trim()), website);
       await page.evaluate(() => { window.__footerPower.remove(); });
     }

@@ -25,7 +25,7 @@ const {chromium}=require('playwright');
      const boundary=id==='pageInvestment'?document.getElementById('v_inDisclaimer').getBoundingClientRect().top-2:footer-2;
      return children.filter(el=>el.id!=='v_inDisclaimer'&&el.getBoundingClientRect().bottom>boundary).map(el=>id+': '+(el.id||el.className));
     });
-    const power=Experience.buildPowerPages(s);const powerBad=power.checkVisibility()?[...power.querySelectorAll('.power-page')].filter(pg=>pg.querySelector('.power-body').getBoundingClientRect().bottom>pg.querySelector('footer').getBoundingClientRect().top-4).map(pg=>pg.id):[];const powerText=power.textContent;power.remove();
+    const power=Experience.buildPowerPages(s);const powerBad=[...power.querySelectorAll('.power-page')].filter(pg=>{const body=pg.querySelector('.pg-body'),limit=pg.querySelector('footer').getBoundingClientRect().top-4;return [...body.querySelectorAll('*')].filter(n=>n.getClientRects().length&&!n.matches('style,script')).some(n=>n.getBoundingClientRect().bottom>limit);}).map(pg=>pg.id);const powerText=power.textContent;power.remove();
     return {expectedPages:17+(f.financing?1:0),category:s.customerType,bad,powerBad,main,finance:JSON.stringify(f)===JSON.stringify(expected),gross:v_inGrossTotal.textContent,expectedGross:Finance.fmtINR(f.grossTotal),name:A.name(s),price:A.priceText(s),mainText:v_inSub.textContent,detail:systemDetailBody.textContent,cover:v_coverSystem.textContent,photo:img_solution.getAttribute('src'),expectedPhoto:'assets/images/page-solution.jpg',expectedHero:'assets/images/'+A.presentation(s).image,hero:document.querySelector('#systemOverviewBody .sp-hero img').getAttribute('src'),mode:A.priceMode(s),powerText};
    });
    assert(result.finance,'package scope must not mutate Finance');assert.equal(result.gross,result.expectedGross);
@@ -91,7 +91,7 @@ const {chromium}=require('playwright');
    window.__packageCaptured=[];
    window.html2canvas=async(el,opts)=>{window.__packageCaptured.push({id:el.id,footer:el.querySelector('.pf-right')?.textContent,text:el.textContent,hero:el.querySelector('.sp-hero img')?.getAttribute('src')});return canvas(el,opts);};
   });
-  for(const [format,count]of [['system',2],['system-power',1],['power',6],['full',17]]){
+  for(const [format,count]of [['system',2],['system-power',1],['power',7],['full',17]]){
    const result=await page.evaluate(async format=>{__packageCaptured=[];await Exporter.exportPdf(()=>{},{format});return {pdf:__packagePdf,captures:__packageCaptured,cleaned:!document.querySelector('.pdf-snapshot')};},format);
    const bytes=Buffer.from(result.pdf,'base64');assert.equal(bytes.subarray(0,5).toString(),'%PDF-');
    assert.equal((bytes.toString('latin1').match(/\/Type \/Page\b/g)||[]).length,count,format+' PDF page count');assert(result.cleaned);

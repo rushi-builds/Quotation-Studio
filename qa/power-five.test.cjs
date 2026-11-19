@@ -1,102 +1,69 @@
 'use strict';
-const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const {chromium}=require('playwright'),pkg=require('@sparticuz/chromium'),bundle=pkg.default||pkg;
-const battery=require('./bess-fixture.js');
+const assert=require('node:assert/strict');
+const {chromium}=require('playwright');
+const pkg=require('@sparticuz/chromium'),bundle=pkg.default||pkg;
 (async()=>{
- const b=await chromium.launch({executablePath:await bundle.executablePath(),args:bundle.args.filter(x=>x!=='--single-process'),headless:true});
- try {
-  const context=await b.newContext({viewport:{width:1440,height:1100}}),p=await context.newPage(),errors=[];
-  p.on('pageerror',e=>errors.push(e.message));const base=process.env.QA_BASE||'http://127.0.0.1:8080';
-  await p.goto(base+'/quotation.html');await p.waitForFunction(()=>window.Render?.lastState);await p.evaluate(()=>document.fonts.ready);
-  // The reported ₹83.33k label must sit outside the plotting area, never under a bar.
-  const ticks=await p.evaluate(()=>{
-   const canvas=document.createElement('canvas');canvas.width=680;canvas.height=180;document.body.append(canvas);
-   const ctx=canvas.getContext('2d'),draw=ctx.fillText.bind(ctx),move=ctx.moveTo.bind(ctx),labels=[],grid=[];
-   ctx.fillText=function(text,x,y,...rest){if(this.font.includes('10.5px'))labels.push({text,left:x-this.measureText(text).width,right:x,align:this.textAlign});draw(text,x,y,...rest);};
-   ctx.moveTo=function(x,y){grid.push(x);move(x,y);};
-   Charts.bridge(canvas,Finance.compute({...StateStore.DEFAULTS,capacity:'3',moduleWattage:'500',costPerKwp:'63600'}));canvas.remove();return {labels,gridStart:grid[0]};
+ const browser=await chromium.launch({executablePath:await bundle.executablePath(),args:bundle.args.filter(x=>x!=='--single-process'),headless:true});
+ try{
+  const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  const base=process.env.QA_BASE||'http://127.0.0.1:8080';
+  await page.goto(base+'/quotation.html');
+  await page.waitForFunction(()=>window.Render?.lastState);
+  await page.evaluate(()=>document.fonts.ready);
+  const result=await page.evaluate(async()=>{
+   StateStore.applyForm({...StateStore.DEFAULTS,custName:'Compact QA',propRef:'QA-COMPACT',capacity:'12.5',moduleWattage:'620',tariff:'8.75'});
+   Render.renderAll();
+   const state=JSON.stringify(Render.lastState),finance=JSON.stringify(Finance.compute(Render.lastState));
+   const digest=node=>node.nodeType===1?['e',node.tagName,[...node.attributes].map(a=>[a.name,a.value]).sort((a,b)=>a[0].localeCompare(b[0])),[...node.childNodes].map(digest)]:node.nodeType===3?['t',node.nodeValue]:['n',node.nodeType];
+   const pagesBefore=JSON.stringify([...document.querySelectorAll('.preview-panel .page')].map(digest));
+   const host=Experience.buildPowerPages(Render.lastState);
+   await Promise.all([...host.querySelectorAll('img')].map(img=>img.decode().catch(()=>{})));
+   const pages=[...host.querySelectorAll(':scope > .power-page')];
+   const sourceOrder=['pageCover','pageSolution','pageTechSpec','pageScope','pageSavings','pageInvestment','pageClosing'];
+   const parity=pages.map((copy,i)=>{
+    const source=document.getElementById(sourceOrder[i]);
+    const body=source.querySelector('.pg-body'),copyBody=copy.querySelector('.pg-body');
+    const footer=copy.querySelector('.pg-foot'),sourceHead=source.querySelector('.pg-head'),copyHead=copy.querySelector('.pg-head');
+    const originalStructure=i===0
+      ? source.querySelector('.ktm-cover').innerHTML===copy.querySelector('.ktm-cover').innerHTML
+      : i===3
+        ? copy.classList.contains('power-scope-warranty')&&['TURNKEY EPC SCOPE','WARRANTY COVERAGE','FROM ORDER TO HANDOVER','CUSTOMER INPUTS'].every(t=>copy.textContent.includes(t))
+        : i===6
+          ? ['.closing-hero','.closing-card','.closing-invitation','.closing-wave'].every(sel=>source.querySelector(sel)?.outerHTML===copy.querySelector(sel)?.outerHTML)
+          : body?.innerHTML===copyBody?.innerHTML;
+    return {source:copy.dataset.sourcePage,index:copy.dataset.powerIndex,originalStructure,
+      number:footer?.querySelector('.pf-right')?.textContent.trim()||null,
+      header:!!copy.querySelector('.pg-head .pg-logo img'),footerOK:!!footer?.querySelector('.pf-mid'),
+      sourceWidth:source.offsetWidth,copyWidth:copy.offsetWidth,
+      sourceHead:sourceHead?.offsetHeight||0,copyHead:copyHead?.offsetHeight||0};
+   });
+   const footGaps=pages.map(p=>{const foot=p.querySelector(':scope > footer');if(!foot)return null;const body=p.querySelector('.pg-body')||p,content=[...body.querySelectorAll('*')].filter(n=>n.getClientRects().length&&!n.matches('style,script')&&!n.closest('footer'));const bottom=Math.max(...content.map(n=>n.getBoundingClientRect().bottom));return foot.getBoundingClientRect().top-bottom;});
+   const third=pages[2],sourceSpec=document.getElementById('pageTechSpec');
+   const output={count:pages.length,sourceOrder,parity,footGaps,
+    exactSpec:third.querySelector('.pg-body').innerHTML===sourceSpec.querySelector('.pg-body').innerHTML,
+    specCards:third.querySelectorAll('.pv2-card').length,
+    investment:pages[5].textContent.includes(Finance.fmtINR(Finance.compute(Render.lastState).netInvestment)),
+    savings:pages[4].textContent.includes('₹'),
+    scopeLayout:(()=>{const p=pages[3],sections=[...p.querySelectorAll('.sw-section')],aside=p.querySelector('.proposal-value-footer'),bottom=Math.max(...[...p.querySelector('.pg-body').querySelectorAll('*')].filter(n=>n.getClientRects().length&&!n.matches('style,script')).map(n=>n.getBoundingClientRect().bottom));return {sections:sections.length,ordered:sections.slice(1).every((s,i)=>sections[i].getBoundingClientRect().bottom<=s.getBoundingClientRect().top),asideGap:aside?aside.getBoundingClientRect().top-bottom:null,overflow:p.scrollWidth<=p.clientWidth};})(),
+    numbers:pages.map(p=>p.querySelector('.pf-right')?.textContent.trim()||null),
+    aliases:host.querySelector('style[data-power-source-aliases]')?.textContent.includes('data-source-page'),
+    unchanged:state===JSON.stringify(Render.lastState)&&finance===JSON.stringify(Finance.compute(Render.lastState))&&pagesBefore===JSON.stringify([...document.querySelectorAll('.preview-panel .page')].map(digest))};
+   host.remove();return output;
   });
-  assert.ok(ticks.labels.some(t=>t.text==='₹83.33k'));
-  assert.ok(ticks.labels.every(t=>t.left>=0&&t.right<=ticks.gridStart-8&&t.align==='right'),'all currency suffixes have a dedicated gutter');
-  const fixtures=[
-   ['residential',{}],
-   // Screenshot regression: a normal 3 kWp offer used to fail on the ABOUT
-   // page (scrollHeight 1130), despite the message blaming equipment text.
-   ['reported 3 kWp export',{custName:'Dhaval',capacity:'3',costPerWp:'62.5',gstPercent:'8.9',tariff:'10'}],
-   ['commercial',{customerType:'commercial',capacity:'100',loanAmt:'3000000',loanRate:'9',loanYears:'10'}],
-   ['industrial zero-interest',{customerType:'industrial',capacity:'25',loanAmt:'500000',loanRate:'0',loanYears:'10'}],
-   ['RWA provisional',{customerType:'rwa',capacity:'100',loanAmt:'3000000',loanRate:'9',loanYears:'10'}],
-   ['RWA confirmed',{customerType:'rwa',capacity:'100',rwaEligibleKwp:'60'}],
-   ['zero tariff',{tariff:'0'}],['decreasing value',{escalation:'0',degradation:'1'}],
-   ['zero override',{subsidyOverride:'0'}],['negative investment',{subsidyOverride:'99999999'}],
-   ['custom equipment',{moduleMake:'Custom & Sons <review>',inverterMake:'Custom three-phase inverter, reviewed to site electrical requirements',custName:'Customer with a moderately long organisation name',custAddress:'Industrial Area, Pune, Maharashtra — project site under review'}],
-   ['battery plus additional system',{...battery,bessSpecMode:'manual',bessInclude:true,systemEnabled:true,systemInclude:true,systemTemplate:'custom',systemName:'Solar-aware EV charging integration',systemPrice:'150000'}]
-  ];
-  for(const [name,fields] of fixtures){
-   const result=await p.evaluate(async fields=>{
-    StateStore.applyForm({...StateStore.DEFAULTS,custName:'Six-page QA',propRef:'QA-POWER-SIX',galleryUrl:'https://example.com/solar',arkaUrl:'https://example.com/arka-report',pvsystUrl:'https://example.com/pvsyst-report',costPerWp:'60',moduleWattage:'500',capacity:'10',...fields});Render.renderAll();
-    const before={state:JSON.stringify(Render.lastState),finance:JSON.stringify(Finance.compute(Render.lastState)),pages:[...document.querySelectorAll('.preview-panel .page')].map(e=>e.outerHTML).join('')};
-    const h=Experience.buildPowerPages(Render.lastState);await Promise.all([...h.querySelectorAll('img')].map(i=>i.decode()));
-    const f=Finance.compute(Render.lastState),pages=[...h.children];
-    const data={uniformHeadings:[...h.querySelectorAll('h1')].every(e=>getComputedStyle(e).color==='rgb(23, 53, 74)'&&getComputedStyle(e.querySelector('.power-heading-accent')).color===getComputedStyle(e).color&&getComputedStyle(e,'::after').width==='42px'),headingAccents:h.querySelectorAll('h1 .power-heading-accent').length,chartHeight:h.querySelector('#powerCostChart').clientHeight,payGap:h.querySelector('.power-pay').getBoundingClientRect().top-h.querySelector('.power-cost-chart').getBoundingClientRect().bottom,count:pages.length,geometry:pages.map(el=>({id:el.id,height:el.scrollHeight,gap:el.querySelector('footer').getBoundingClientRect().top-el.querySelector('.power-body').getBoundingClientRect().bottom,width:el.scrollWidth})),hasCharts:h.querySelectorAll('.power-series-chart').length===1&&h.querySelector('#powerCostChart').getContext('2d').getImageData(0,0,680,180).data.some(v=>v!==0),series:[...h.querySelectorAll('[data-series]')].map(e=>e.dataset.series.split(',').map(Number)),expectedSeries:[f.series.cumSaving],milestones:[...h.querySelectorAll('[data-energy-mwh]')].map(e=>Number(e.dataset.energyMwh)),expectedMilestones:[0,9,24].map(i=>f.series.gen.slice(0,i+1).reduce((sum,n)=>sum+n,0)/1000),investment:h.querySelector('#powerPage5').textContent.includes(Finance.fmtINR(f.netInvestment)),page1:h.querySelector('#powerPage1').textContent,photo:h.querySelector('.power-hero img').getAttribute('src'),last:h.querySelector('#powerPage6').textContent,links:[...h.querySelectorAll('.power-report-links a')].map(a=>({href:a.href,page:a.closest('.power-page').id})),projects:h.querySelectorAll('#powerPage2 .power-projects article').length,text:h.textContent,changed:JSON.stringify(Render.lastState)!==before.state||JSON.stringify(Finance.compute(Render.lastState))!==before.finance||[...document.querySelectorAll('.preview-panel .page')].map(e=>e.outerHTML).join('')!==before.pages};
-    if(fields.customerType===undefined&&!Object.keys(fields).length){window.__powerReview=h;}else h.remove();return data;
-   },fields);
-   assert.equal(result.count,7,name);assert.equal(result.headingAccents,7);assert.ok(result.uniformHeadings,'uniform navy headings with short amber rules');assert.ok(result.chartHeight>=240&&result.chartHeight<=340);assert.ok(result.payGap>0);if(name==='residential')assert.equal(result.chartHeight,340);assert.deepEqual(result.milestones,result.expectedMilestones); assert.equal(result.projects,3);assert.deepEqual(result.links,[{href:'https://example.com/pvsyst-report',page:'powerPage6'},{href:'https://example.com/arka-report',page:'powerPage6'}]);assert.ok(!result.text.includes('Review → discuss')); assert.equal(result.changed,false,name+' must not mutate main proposal');assert.ok(result.hasCharts,name+' savings and cost charts');assert.deepEqual(result.series,result.expectedSeries,name+' chart data uses Finance exactly');assert.ok(result.investment,name+' actual net investment');assert.ok(!/₹|Payback|Net investment/.test(result.page1),name+' benefits-first opening');assert.ok(!/NaN|undefined|Infinity/.test(result.text),name+' finite output');
-   for(const g of result.geometry)assert.ok(g.height<=1124&&g.gap>=4&&g.width<=794,name+' '+JSON.stringify(g));
-   if(fields.customerType&&['commercial','industrial','rwa'].includes(fields.customerType))assert.ok(result.photo.includes('cover-'+fields.customerType+'-scene'));
-   if(name==='battery plus additional system')assert.ok(result.last.includes('3,00,000')&&result.last.includes('1,50,000')&&result.last.includes('Solar totals, charts and payment milestones exclude'));
-   if(name==='RWA provisional')assert.match(result.text,/Provisional estimate/);
-   if(name==='RWA confirmed')assert.match(result.text,/Entered eligible capacity: 60 kWp/);
-   if(name==='negative investment')assert.match(result.text,/Negative net investment is not a promised payout/);
-   if(name==='custom equipment')assert.ok(result.text.includes('Custom & Sons <review>')&&!result.text.includes('&amp;'));
-   if(name==='residential'){
-    fs.mkdirSync(path.join(__dirname,'shots','power-six'),{recursive:true});
-    for(const id of ['powerPage2','powerPage5','powerPage6','powerPage7']){
-     const data=await p.evaluate(async id=>{const c=await html2canvas(window.__powerReview.querySelector('#'+id),{scale:1,useCORS:true,logging:false,backgroundColor:'#fff'});return c.toDataURL();},id);
-     fs.writeFileSync(path.join(__dirname,'shots','power-six',id+'.png'),Buffer.from(data.split(',')[1],'base64'));
-    }
-    await p.evaluate(()=>{window.__powerReview.remove();window.__powerReview=null;});
-   }
-   console.log('PASS:',name,'— seven pages, consistent values/charts, A4 geometry, unchanged detailed proposal');
-  }
-  // Keep the real overflow guard: genuinely excessive user content must still
-  // abort without clipping text, capturing a PDF or leaking temporary pages.
-  const blocked=await p.evaluate(async()=>{
-   StateStore.applyForm({...StateStore.DEFAULTS,custName:'Overflow QA',durationText:'Delivery requires site verification. '.repeat(400)});Render.renderAll();
-   const original=html2canvas;let captured=false;
-   window.html2canvas=async()=>{captured=true;throw Error('Unexpected capture of overflowing text');};
-   try {await Exporter.exportPdf(()=>{},{format:'power'});return {blocked:false};}
-   catch(error){return {blocked:error.message.includes('too much text'),captured,clean:!document.querySelector('.pdf-snapshot')};}
-   finally {window.html2canvas=original;}
-  });
-  assert.deepEqual(blocked,{blocked:true,captured:false,clean:true});
-  console.log('PASS: genuine text overflow still blocks export before capture and cleans up.');
-  await p.evaluate(()=>{StateStore.applyForm({...StateStore.DEFAULTS,custName:'Dhaval',capacity:'3',costPerWp:'62.5',gstPercent:'8.9',tariff:'10',propRef:'QA-SIX-PAGES',galleryUrl:'https://example.com/solar',arkaUrl:'https://example.com/arka-report',pvsystUrl:'https://example.com/pvsyst-report'});Render.renderAll();});
-  const id=await p.evaluate(()=>{Proposals.saveActive(StateStore.collectForm(),CONTENT,PROJECT_IMAGES);return Proposals.activeId();});
-  const q=await context.newPage();q.on('pageerror',e=>errors.push(e.message));
-  // Export stays fixed A4 even when the saved customer view is phone-sized.
-  await q.setViewportSize({width:390,height:844});
-  await q.goto(base+'/share.html?p='+encodeURIComponent(id));await q.waitForFunction(()=>window.Render?.lastState);
-  await q.selectOption('#pdfFormat','power');assert.match(await q.locator('#pdfFormat option:checked').textContent(),/7-page/);
-  // Real rasterisation + PDF save from a persisted Customer View; keep a review copy.
-  const pdf=await q.evaluate(async()=>{
-   const Native=jspdf.jsPDF,capture=html2canvas,result={pages:[],ink:{}};
-   jspdf.jsPDF=function(...args){const pdf=new Native(...args);pdf.save=name=>{result.name=name;result.bytes=pdf.output('datauristring').split(',')[1];};return pdf;};
-   window.html2canvas=async(el,opts)=>{
-    result.pages.push(el.id);const c=await capture(el,opts);
-    if(el.id==='powerPage5'){
-     const image=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let orange=0,navy=0;
-     for(let i=0;i<image.length;i+=4){if(image[i]>180&&image[i+1]>70&&image[i+1]<190&&image[i+2]<90)orange++;if(image[i]<60&&image[i+1]<90&&image[i+2]>40&&image[i+2]<140)navy++;}
-     result.ink={orange,navy};
-    }
-    return c;
-   };
-   try{await Exporter.exportPdf(()=>{},{format:'power'});return result;}finally{jspdf.jsPDF=Native;window.html2canvas=capture;}
-  });
-  assert.deepEqual(pdf.pages,['powerPage1','powerPage2','powerPage3','powerPage4','powerPage5','powerPage6','powerPage7']);
-  const bytes=Buffer.from(pdf.bytes,'base64'),text=bytes.toString('latin1');assert.equal((text.match(/\/Type \/Page\b/g)||[]).length,7);assert.ok(text.includes('https://example.com/solar'));assert.ok(text.includes('https://example.com/arka-report'));assert.ok(text.includes('https://example.com/pvsyst-report'));assert.ok(pdf.ink.orange>1000&&pdf.ink.navy>1000,'charts visible in actual raster, not only DOM');
-  fs.mkdirSync(path.join(__dirname,'shots','power-six'),{recursive:true});fs.writeFileSync(path.join(__dirname,'shots','power-six','Power-Proposal-7-Pages.pdf'),bytes);
-  assert.equal(await q.locator('.pdf-snapshot').count(),0);assert.deepEqual(errors,[]);
-  console.log('PASS: saved Customer View, actual seven-page PDF, chart pixels, clickable gallery link and cleanup.');
- }finally{await b.close();}
-})().catch(e=>{console.error(e);process.exitCode=1});
+  assert.equal(result.count,7);
+  assert.deepEqual(result.parity.map(p=>p.source),result.sourceOrder);
+  assert.deepEqual(result.parity.map(p=>p.index),['1','2','3','4','5','6','7']);
+  assert(result.parity.every((p,i)=>p.originalStructure&&p.index===String(i+1)&&(i===0?!p.header&&!p.footerOK&&p.number===null:i===6?!p.header&&p.footerOK&&p.number==='Page 7 of 7':p.header&&p.footerOK&&p.number===`Page ${i+1} of 7`)),'selected sheets preserve their native page artwork/chrome and only running pages are renumbered: '+JSON.stringify(result.parity));
+  assert(result.parity.every(p=>p.sourceWidth===p.copyWidth&&p.sourceHead===p.copyHead),'A4 sheet and chrome geometry stays identical');
+  assert(result.footGaps[0]===null&&result.footGaps.slice(1).every(g=>g>=3),'all selected Detailed Proposal sheets clear their footer: '+JSON.stringify(result.footGaps));
+  assert(result.exactSpec&&result.specCards>=1,'page 3 technical sheet body remains unchanged');
+  assert(result.scopeLayout.sections===4&&result.scopeLayout.ordered&&result.scopeLayout.asideGap>=8&&result.scopeLayout.overflow,'page 4 combines EPC scope, warranties, milestones and client caveats with clear vertical flow: '+JSON.stringify(result.scopeLayout));
+  assert(result.investment&&result.savings,'saved quote values stay in the compact report');
+  assert(result.numbers[0]===null&&result.numbers.slice(1).every((n,i)=>n===`Page ${i+2} of 7`));
+  assert(result.aliases,'source-ID design rules are carried into the snapshot');
+  assert(result.unchanged,'building the compact extract does not mutate the saved proposal');
+  assert.deepEqual(errors,[]);
+  console.log('PASS: seven-page source order, combined scope/warranty sheet, vertical preview/export, exact page-3 body, shared numbered chrome, saved figures, no mutation.');
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1);});

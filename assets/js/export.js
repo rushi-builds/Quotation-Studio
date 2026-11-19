@@ -4,7 +4,7 @@
 (function(root) {
   const $=id=>document.getElementById(id);
   let busy=false;
-  const powerPageCount=()=>root.Experience?.POWER_PAGE_COUNT||6;
+  const powerPageCount=()=>root.Experience?.POWER_PAGE_COUNT||7;
   const pageLabel=n=>n+' '+(n===1?'Page':'Pages');
   const formats={bess:{title:'BESS Report',ids:['pageBessOverview','pageBessAssessment']},system:{title:'Additional System Report',ids:['pageSystemOverview','pageSystemDetail']},'system-power':{title:'System Power Proposal',ids:['pageSystemOverview']}};
   function formatsFor(s) {
@@ -383,7 +383,9 @@
       if(format==='bess'&&!root.Bess.enabled(s))throw new Error('Enable BESS to download its report.');
       if(format.startsWith('system')&&!root.AdditionalSystems.enabled(s))throw new Error('Enable an additional system to download its report.');
       snapshot=format==='power'?root.Experience.buildPowerPages(s):reports[format]?snapshotFull(root.Render.PAGES.filter(p=>reports[format].ids.includes(p.id)),reports[format].title):snapshotFull();
-      const pages=[...snapshot.children];
+      const pages=format==='power'
+        ? [...snapshot.children].filter(page=>page.classList.contains('power-page'))
+        : [...snapshot.children];
       if(format==='power'&&pages.length!==powerPageCount())throw new Error('Power Proposal page count is inconsistent. Refresh the app and try again.');
       await Promise.all([...snapshot.querySelectorAll('img')].map(img=>new Promise((resolve,reject)=>{
         // `complete` is also true for failed/empty images. Do not silently issue
@@ -404,31 +406,24 @@
       })));
       root.SupplementDesign.fit(snapshot);
       if(format==='power') pages.forEach(page=>{
-        const footer=page.querySelector('footer'),last=footer.previousElementSibling;
-        /* A power page is a fixed A4 box with overflow hidden, so its
-           scrollHeight is never smaller than the box plus the page's own bottom
-           padding (1123 + padding), which reported overflow on pages whose
-           deepest element sat 21px clear of the footer. Measure the painted
-           content against the footer and the sheet edge instead - same guard,
-           without the padding counted as text. */
+        const footer=page.querySelector(':scope > footer');
+        const valueFooter=page.dataset.sourcePage==='pageScope'?page.querySelector('.proposal-value-footer'):null;
+        if(!footer&&page.dataset.sourcePage!=='pageCover')throw new Error('A selected proposal page is missing its running footer. Refresh and try again.');
+        /* Cover and closing are full-page compositions, not pg-body sheets. All
+           other selected pages use the real Detailed Proposal body. Measure only
+           painted descendants: the .pg-body container itself fills the A4 region. */
+        const body=page.querySelector('.pg-body')||page;
         const sheetTop=page.getBoundingClientRect().top;
-        let contentBottom=last.getBoundingClientRect().bottom;
-        /* Page 3 of the report carries page 6 whole, so the footer that belongs to it
-           is the SHEET's .pg-foot, sitting where page 6 puts it - deliberately not
-           clear of the cards, and 42px past where the report's own foot would be. The
-           clearance rule is about the report's foot, so it only applies to pages that
-           have one. The sheet-edge and sideways checks still apply to every page. */
-        const ownFoot=page.querySelector(':scope > footer.power-foot');
-        const carried=!ownFoot&&!!page.querySelector('.power-spec-sheet');
-        for(const node of page.querySelectorAll('*')){
-          if(node.closest('footer')) continue;
+        let contentBottom=sheetTop;
+        for(const node of body.querySelectorAll('*')){
+          if(node.matches('style,script')||node.closest('footer'))continue;
           const box=node.getBoundingClientRect();
-          if(box.height&&box.bottom>contentBottom) contentBottom=box.bottom;
+          if(node.getClientRects().length&&box.height&&box.bottom>contentBottom)contentBottom=box.bottom;
         }
-        const overFoot=ownFoot&&contentBottom>ownFoot.getBoundingClientRect().top-4;
-        if(overFoot || contentBottom>sheetTop+page.clientHeight+0.5 || page.scrollWidth>page.clientWidth+1)
-          throw new Error((carried?'The carried technical page no longer fits the sheet. ':'')
-            +'This proposal has too much text for the '+powerPageCount()+'-page report. Please use the detailed PDF or shorten the equipment / delivery text.');
+        const overFooter=footer&&contentBottom>footer.getBoundingClientRect().top-3;
+        const overValueFooter=valueFooter&&contentBottom>valueFooter.getBoundingClientRect().top-3;
+        if(overFooter||overValueFooter||contentBottom>sheetTop+page.clientHeight+0.5||page.scrollWidth>page.clientWidth+1)
+          throw new Error('A selected page in the '+powerPageCount()+'-page proposal does not fit its A4 sheet. Use the Detailed Proposal or shorten the text before downloading.');
       });
       // Supplements accept user-authored text. Never silently clip a long scope or model name.
       pages.filter(p=>p.classList.contains('bess-page')||p.classList.contains('system-page')).forEach(page=>{
