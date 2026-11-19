@@ -234,7 +234,14 @@
       /* Render's legacy fit ladder may add is-lead-trim before ProposalV2's
          own pass runs. That class hides the exact heading lead requested here;
          the compact PDF clone must always carry the visible title/subtitle/copy. */
-      if(sourceId==='pageTechSpec')copy.classList.remove('is-lead-trim');
+      if(sourceId==='pageTechSpec'){
+        copy.classList.remove('is-lead-trim');
+        const liveFlow=root.ProposalV2&&root.ProposalV2.flowDiagram
+          ?root.ProposalV2.flowDiagram(s,root.Finance?.compute?.(s)):null;
+        const diagram=liveFlow||copy.querySelector('#v_tsDiagram')?.innerHTML||'';
+        const diagramBox=copy.querySelector('#v_tsDiagram');
+        if(diagramBox)diagramBox.innerHTML=diagram;
+      }
       copy.dataset.sourcePage=sourceId;
       copy.dataset.powerIndex=String(index+1);
       copy.style.transform='none';
