@@ -679,15 +679,17 @@ check('the engineering basis is kept inside its page, and an overflowing page is
   assert.ok(stepsSrc.includes('is-lead-trim'), 'the ladder needs a step that trims the page\'s own lead copy');
   assert.ok(stepsSrc.indexOf('is-lead-trim') < stepsSrc.indexOf('is-diagram-spec'),
     'lead copy goes before the drawing loses any width');
-  assert.ok(cssSrc.includes('#pageTechSpec.is-lead-trim .body-para{display:none;}'),
+  // The sheet is styled by class, not by id, so the whole page can be carried onto the
+  // power proposal and still be ruled by the same lead-trim ladder.
+  assert.ok(cssSrc.includes('.pv2-sheet.is-lead-trim .body-para{display:none;}'),
     'lead-trim hides the intro paragraph');
-  assert.ok(cssSrc.includes('#pageTechSpec.is-lead-trim .pg-sub{display:none;}'),
+  assert.ok(cssSrc.includes('.pv2-sheet.is-lead-trim .pg-sub{display:none;}'),
     'lead-trim hides the subtitle');
-  assert.ok(!/#pageTechSpec\.is-lead-trim[^{]*\.spec-table/.test(cssSrc),
+  assert.ok(!/\.pv2-sheet\.is-lead-trim[^{]*\.spec-table/.test(cssSrc),
     'lead-trim never touches the specification rows');
-  assert.ok(!/#pageTechSpec\.is-lead-trim[^{]*\.ts-diagram-note/.test(cssSrc),
+  assert.ok(!/\.pv2-sheet\.is-lead-trim[^{]*\.ts-diagram-note/.test(cssSrc),
     'lead-trim never touches the honesty note');
-  assert.ok(!/#pageTechSpec\.is-lead-trim[^{]*#v_tsDiagram/.test(cssSrc),
+  assert.ok(!/\.pv2-sheet\.is-lead-trim[^{]*\.v_tsDiagram/.test(cssSrc),
     'lead-trim never resizes the drawing itself');
 
   const other = w.document.getElementById('pageExec');
