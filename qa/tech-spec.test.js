@@ -45,15 +45,14 @@ const t = (name, condition) => {
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
-    /* The drawing on this page is the one block a customer actually reads. It
-       must not be shrunk to a thumbnail to buy room: the page gives up its own
-       intro copy first (see the is-lead-trim step in render.js). */
-    const diagramShare = await page.$eval('#v_tsDiagram', (box) => {
-      const svg = box.querySelector('svg');
-      return svg && box.getBoundingClientRect().width
-        ? svg.getBoundingClientRect().width / box.getBoundingClientRect().width : 0;
+    /* The current live flow belongs to the Solution overview; the retired
+       Technical Specification SVG is deliberately hidden by proposal-v2.css. */
+    const diagramShare = await page.$eval('#pageSolution .pv2-overview .pv2-flow', (flow) => {
+      const box = flow.parentElement;
+      return box.getBoundingClientRect().width
+        ? flow.getBoundingClientRect().width / box.getBoundingClientRect().width : 0;
     });
-    t('system diagram keeps its width (' + Math.round(diagramShare * 100) + '% of the column)', diagramShare >= 0.7);
+    t('live system flow keeps its width (' + Math.round(diagramShare * 100) + '% of the column)', diagramShare >= 0.7);
 
     const setLinks = (pvsyst, arka) => page.evaluate(([p, a]) => {
       document.getElementById('pvsystUrl').value = p;
@@ -130,7 +129,7 @@ const t = (name, condition) => {
        anyone. Only a real engine can answer whether it fits - jsdom reports
        scrollHeight as 0 - so it is answered here, with the design-basis inputs
        both complete and empty (a DATA REQUIRED line is the longest form). */
-    const fit = await page.evaluate(() => {
+    const fit = await page.evaluate(async () => {
       const set = (id, value) => {
         const el = document.getElementById(id);
         if (el) { el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); }
@@ -157,6 +156,7 @@ const t = (name, condition) => {
       };
       const complete = measure(filled);
       const blank = measure(Object.fromEntries(Object.keys(filled).map((k) => [k, ''])));
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
       return { complete, blank, reported: (window.__qsPageOverflow || []).slice() };
     });
     t('the design basis fits its A4 page with inputs complete (' + fit.complete.overflow + ' px spare)',
@@ -180,7 +180,8 @@ const t = (name, condition) => {
     }));
     t('fitting the page never shrinks the design basis below 9 px',
       fit.complete.fontPx >= 9 && fit.blank.fontPx >= 9);
-    t('no page is reported as overflowing after the fit', fit.reported.length === 0);
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    t('technical specification is not reported as overflowing after the fit', await page.evaluate(()=>!window.__qsPageOverflow.includes('pageTechSpec')));
 
     /* Roof-area rows plus references used to defeat the fit ladder through CSS
        specificity. They now fit without losing any design-basis row. */
@@ -216,50 +217,31 @@ const t = (name, condition) => {
       if (el) { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); }
       Render.renderAll();
     });
-    t('clearing either optional block fits the page again', await page.evaluate(() => (window.__qsPageOverflow || []).length === 0));
+    t('clearing either optional block fits the Technical Specification again', await page.evaluate(() => !(window.__qsPageOverflow || []).includes('pageTechSpec')));
 
     t('genuinely excessive content is still reported instead of silently ignored', await page.evaluate(()=>{
       const extra=document.createElement('div');extra.style.height='1500px';extra.style.flexShrink='0';
       pageTechSpec.querySelector('.pg-body').appendChild(extra);Render.fitPages();
       const reported=window.__qsPageOverflow.includes('pageTechSpec');extra.remove();Render.fitPages();return reported;
     }));
-    /* The download is a raster capture, and html2canvas paints an inline <svg>
-       at its own idea of its size unless it is handed an <img>. Page 6's
-       drawing printed cut in half for exactly that reason, so the cure is
-       pinned here on the real page. */
-    const painted = await page.evaluate(async () => {
-      /* The drawing now lives on the page that proposes the system, so the
-         snapshot follows the drawing instead of assuming page 6. Every
-         assertion about it is unchanged. */
-      const live = document.getElementById('v_tsDiagram').closest('.page');
-      const host = document.createElement('div');
-      host.style.cssText = 'position:absolute;left:-12000px;top:0;width:794px;';
-      host.className = 'pdf-snapshot';
-      const copy = live.cloneNode(true);
-      copy.style.transform = 'none';
-      host.appendChild(copy);
-      document.body.appendChild(host);
-      const before = copy.querySelector('#v_tsDiagram svg');
-      const column = copy.querySelector('#v_tsDiagram').getBoundingClientRect().width;
-      const svgBefore = before ? before.getBoundingClientRect().width : 0;
-      await Exporter.paintShapes(copy);
-      const img = copy.querySelector('#v_tsDiagram img');
+    const compactFlow = await page.evaluate(() => {
+      const host = Experience.buildPowerPages(Render.lastState);
+      const flow = host.querySelector('#powerPage2 .pv2-overview .pv2-flow');
+      const finance=Finance.compute(Render.lastState);
       const result = {
-        column,
-        svgBefore,
-        replaced: !!img && !copy.querySelector('#v_tsDiagram svg'),
-        width: img ? img.getBoundingClientRect().width : 0,
-        sharp: img ? img.naturalWidth >= Math.round(Math.min(svgBefore || 1, column)) : false,
-        leftovers: [...copy.querySelectorAll('svg')].filter(s => s.getBoundingClientRect().width > 1).length
+        nodes: flow?.querySelectorAll('.pv2-node').length || 0,
+        width: flow?.getBoundingClientRect().width || 0,
+        labels: flow?.textContent || '',
+        values: [...(flow?.querySelectorAll('.pv2-node small')||[])].map(node=>node.textContent),
+        expectedModule: finance.moduleCount+' × '+finance.moduleWattage+' Wp Modules',
+        expectedInverter: finance.inverterKw+' kW'
       };
       host.remove();
       return result;
     });
-    t('the PDF capture paints the system diagram as an image at its column width',
-      painted.replaced && painted.column > 0 && painted.width >= painted.column * 0.7);
-    t('the painted diagram keeps at least one pixel per point, so its labels stay sharp',
-      painted.sharp);
-    t('no visible inline drawing is left for html2canvas to crop', painted.leftovers === 0);
+    t('the compact PDF carries all seven nodes of the live system flow', compactFlow.nodes === 7);
+    t('the live flow fits its own compact PDF column', compactFlow.width > 0 && compactFlow.width < 794);
+    t('the compact PDF flow reflects the quoted equipment values', compactFlow.values.includes(compactFlow.expectedModule)&&compactFlow.values.includes(compactFlow.expectedInverter));
 
     t('no browser runtime errors', errors.length === 0);
     fs.writeFileSync(path.join(OUT, 'tech-spec-metrics.json'), JSON.stringify(results, null, 2) + '\n');

@@ -220,8 +220,12 @@
       }
       return css;
     };
+    const rebaseUrls=(css,base)=>css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g,(whole,quote,ref)=>{
+      if(/^(data:|#)/i.test(ref))return whole;
+      try{return 'url("'+new URL(ref,base).href+'")';}catch(e){return whole;}
+    });
     const aliases=[];
-    for(const sheet of document.styleSheets){try{aliases.push(collect(sheet.cssRules));}catch(e){/* Ignore inaccessible third-party stylesheets. */}}
+    for(const sheet of document.styleSheets){try{aliases.push(rebaseUrls(collect(sheet.cssRules),sheet.href||document.baseURI));}catch(e){/* Ignore inaccessible third-party stylesheets. */}}
     const aliasStyle=document.createElement('style');
     aliasStyle.dataset.powerSourceAliases='';
     aliasStyle.textContent=aliases.join('\n');
@@ -234,13 +238,14 @@
       /* Render's legacy fit ladder may add is-lead-trim before ProposalV2's
          own pass runs. That class hides the exact heading lead requested here;
          the compact PDF clone must always carry the visible title/subtitle/copy. */
-      if(sourceId==='pageTechSpec'){
-        copy.classList.remove('is-lead-trim');
+      if(sourceId==='pageTechSpec')copy.classList.remove('is-lead-trim');
+      if(sourceId==='pageSolution'){
         const liveFlow=root.ProposalV2&&root.ProposalV2.flowDiagram
           ?root.ProposalV2.flowDiagram(s,root.Finance?.compute?.(s)):null;
-        const diagram=liveFlow||copy.querySelector('#v_tsDiagram')?.innerHTML||'';
-        const diagramBox=copy.querySelector('#v_tsDiagram');
-        if(diagramBox)diagramBox.innerHTML=diagram;
+        const diagram=liveFlow||copy.querySelector('.pv2-overview .pv2-flow')?.outerHTML||'';
+        const overview=copy.querySelector('.pv2-overview .pv2-ov-box');
+        const existing=overview?.querySelector('.pv2-flow');
+        if(overview&&liveFlow){if(existing)existing.outerHTML=diagram;else overview.insertAdjacentHTML('beforeend',diagram);}
       }
       copy.dataset.sourcePage=sourceId;
       copy.dataset.powerIndex=String(index+1);
