@@ -55,29 +55,52 @@ t('NEGATIVE: the row no longer draws bare line icons for its four cells', () => 
     'the old monochrome icon(...) call is what made page 5 differ from the other pages');
 });
 
-t('page 5 carries the same four promises every other page carries', () => {
+t('page 5 keeps its own four promises, not a copy of another page', () => {
   const call = js.match(/vals\.innerHTML = values\(\[([\s\S]*?)\]\);/);
   assert.ok(call, 'the value row call must still be in proposal-v2.js');
-  /* The row is the proposal's standing furniture, so the words come from the same
-     place as the rest of the sheet: pageScope in proposal-values.js. Page 5 used to
-     draw its own "Site-fit / Specified / Design / Planned" set, which read as a
-     different component on the one page the owner looks at most. */
-  const scope = read('assets/js/proposal-values.js')
-    .match(/pageScope:\{items:\[([^\]]*)\]/)[1];
-  const words = [...scope.matchAll(/'([^']+)'/g)].map((m) => m[1])
-    .filter((w) => !/^[a-z]+$/.test(w));
-  for (const word of words) {
-    const [head, tail] = word.split(' ');
+  for (const [head, tail] of [['Site-fit', 'Design'], ['Specified', 'Equipment'],
+    ['Design', 'Safety'], ['Planned', 'Handover']]) {
     assert.ok(new RegExp(`'${head}',\\s*'${tail}'`).test(call[1]),
-      `page 5 must show "${word}", the same promise the scope page shows`);
+      `page 5 must say "${head} ${tail}" - what this page established`);
   }
   assert.equal((call[1].match(/\['/g) || []).length, 4, 'exactly four cells');
 });
 
-t('NEGATIVE: page 5 no longer invents its own label set', () => {
+t('NEGATIVE: page 5 does not repeat another page\'s band', () => {
+  /* The band's SHAPE is shared furniture, the WORDS are not. Copying the scope
+     page's four promises onto page 5 made the same component appear twice. */
   const call = js.match(/vals\.innerHTML = values\(\[([\s\S]*?)\]\);/)[1];
-  for (const gone of ['Site-fit', 'Specified', 'Planned', 'Safety']) {
-    assert.ok(!call.includes(gone), `"${gone}" was the page-local wording that made page 5 differ`);
+  const mine = new Set([...call.matchAll(/'([A-Z][A-Za-z-]+)'/g)].map((m) => m[1]));
+  const values = read('assets/js/proposal-values.js');
+  for (const [, name, items] of values.matchAll(/page(\w+):\{[^}]*items:\[([^\]]*)\]/g)) {
+    /* pageSolution in the shared map is page 5's own fallback definition - it is
+       skipped once ProposalV2 is loaded, so it is not "another page". */
+    if (name === 'Solution' || name === 'TechSpec') continue;
+    for (const [, label] of items.matchAll(/'([A-Z][A-Za-z -]+)'/g)) {
+      const words = label.split(/\s+|\\n/).filter((w) => w.length > 2);
+      for (const w of words) {
+        assert.ok(!mine.has(w),
+          `"${w}" already appears on another page's band - page 5 must say something of its own`);
+      }
+    }
+  }
+});
+
+t('page 5 draws its own four marks, not the ones other pages use', () => {
+  /* The band's shape is shared furniture; its artwork is not. Reusing target/gear/
+     shield/check made page 5's band look like a duplicate of the scope page's. */
+  const call = js.match(/vals\.innerHTML = values\(\[([\s\S]*?)\]\);/)[1];
+  const mine = [...call.matchAll(/\['([a-zA-Z]+)'/g)].map((m) => m[1]);
+  assert.equal(mine.length, 4);
+  assert.equal(new Set(mine).size, 4, 'four different marks');
+  const values = read('assets/js/proposal-values.js');
+  const elsewhere = new Set();
+  for (const [, name, items] of values.matchAll(/page(\w+):\{[^}]*items:\[([^\]]*)\]/g)) {
+    if (name === 'Solution' || name === 'TechSpec') continue;
+    for (const [, ic] of items.matchAll(/\['([a-z]+)'/g)) elsewhere.add(ic);
+  }
+  for (const ic of mine) {
+    assert.ok(!elsewhere.has(ic), `"${ic}" is already on another page's band - pick artwork of its own`);
   }
 });
 

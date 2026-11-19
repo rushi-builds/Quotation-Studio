@@ -23,7 +23,13 @@
   rupee:'<circle cx="16" cy="16" r="13" fill="{t}" stroke="{a}"/><path d="M10 8h12M10 13h12M17 8c4 7-1 9-7 9l10 9"/>',
   wrench:'<path d="M20 4a7 7 0 0 0-8 9L4 21a4 4 0 0 0 6 6l8-8a7 7 0 0 0 9-9l-5 5-5-5 5-5Z" fill="{t}"/><path d="m7 24 7-7" stroke="{a}"/>',
   check:'<circle cx="16" cy="16" r="13" fill="{t}"/><path d="m9 16 5 5 9-11" stroke="{a}" stroke-width="2"/>',
-  gear:'<path d="m13 3 6 0 1 4 4 2 4-1 3 5-3 3 0 4 3 3-3 5-4-1-4 2-1 4h-6l-1-4-4-2-4 1-3-5 3-3v-4l-3-3 3-5 4 1 4-2Z" transform="translate(0 -2) scale(.95)" fill="{t}"/><circle cx="15" cy="15" r="5" stroke="{a}"/>'
+  /* Page 5 (Solution) owns these four. The band there describes what that page
+     established, so it must not borrow the marks the scope/quality pages use -
+     a repeated mark makes the two bands read as one component. */
+  siteroof:'<path d="M16 3C11.4 3 7.6 6.8 7.6 11.4c0 6.4 8.4 15.6 8.4 15.6s8.4-9.2 8.4-15.6C24.4 6.8 20.6 3 16 3Z" fill="{t}"/><rect x="11.6" y="7" width="8.8" height="8.8" rx="1.2" stroke="{a}"/><path d="M16 7v8.8M11.6 11.4h8.8" stroke="{a}"/>',
+  specsheet:'<path d="M8 5h16a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" fill="{t}"/><path d="M12 3h8v4h-8z" fill="{a}" stroke="{a}"/><path d="M10 13h12v9H10Z" stroke="{a}"/><path d="M14 13v9M18 13v9M10 17.5h12" stroke="{a}"/>',
+  helmet:'<path d="M6 23v-1a10 10 0 0 1 20 0v1Z" fill="{t}"/><path d="M3 23h26v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" fill="{t}"/><path d="M16 12.5v10M10.5 14 9.5 23M21.5 14l1 9" stroke="{a}"/>',
+  handover:'<circle cx="9.6" cy="9.6" r="7" fill="{t}" stroke="{a}"/><circle cx="9.6" cy="9.6" r="2.6" stroke="{a}" stroke-width="2"/><path d="m14.8 14.8 13.4 13.4" stroke="{a}" stroke-width="2.4"/><path d="m24.2 24.2 3.8-3.8M27.4 27.4l3.4-3.4" stroke="{a}" stroke-width="2.4"/>'
  };
  function get(name,size=28,palette='warm'){
   const p=Object.hasOwn(palettes,palette)?palettes[palette]:palettes.warm;

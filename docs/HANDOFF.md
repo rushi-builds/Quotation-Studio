@@ -12,9 +12,17 @@ closing page and the technical sheet. Page 5 draws its own copy of it (`.pv2-val
 in `proposal-v2.js`) instead of the injected `.proposal-value-footer`, so it has to be
 kept in step by hand:
 
-- **the words** come from `pageScope` in `proposal-values.js`. Page 5 used to draw its own
-  `Site-fit / Specified / Design / Planned` set, which read as a different component on the
-  page the owner looks at most. They are now the same four promises as everywhere else.
+- **the words and the artwork are page 5's own**, and deliberately so. The *shape* of the
+  band (mark + two-line label, ticks, accent underline) is shared furniture, but the
+  content must be unique: `Site-fit Design / Specified Equipment / Design Safety /
+  Planned Handover` with the `siteroof / specsheet / helmet / handover` marks in
+  `assets/js/proposal-marks.js`. Page 5 describes what *that* page established, so
+  reusing the scope page's `Defined scope / Careful installation / Clear handover /
+  Agreed responsibilities` (or its `doc / gear / check / users` marks) makes the same
+  component appear twice - the owner rejected exactly that.
+- **the four marks are new artwork**, added to `proposal-marks.js` for this band only:
+  `siteroof` (a site pin with a roof grid), `specsheet` (a datasheet with a rating table),
+  `helmet` (design safety), `handover` (a key). No other page uses them.
 - **the row is never hidden.** `.pv2-fit-3` used to be `display:none` on it, and because
   the page only has ~16px of slack before the first tighten step kicks in, it vanished
   easily - "the 4 icons are gone". The tightest step now takes its ~30px from the gaps
