@@ -231,6 +231,10 @@
       const copy=source.cloneNode(true);
       copy.id='powerPage'+(index+1);
       copy.classList.add('power-page','power-clone');
+      /* Render's legacy fit ladder may add is-lead-trim before ProposalV2's
+         own pass runs. That class hides the exact heading lead requested here;
+         the compact PDF clone must always carry the visible title/subtitle/copy. */
+      if(sourceId==='pageTechSpec')copy.classList.remove('is-lead-trim');
       copy.dataset.sourcePage=sourceId;
       copy.dataset.powerIndex=String(index+1);
       copy.style.transform='none';

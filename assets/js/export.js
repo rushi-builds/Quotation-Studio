@@ -37,11 +37,18 @@
     const format=select?.value||'full',count=root.Render.lastVisible?.length||15,label=$('downloadLabel');
     if(label)label.textContent=format==='power'?'Download Power Proposal ('+pageLabel(powerPageCount())+')':reports[format]?'Download '+reports[format].title+' ('+pageLabel(reports[format].ids.length)+')':'Generate & Download PDF ('+count+' Pages)';
   }
+  function restoreTechSpecLead(page) {
+    if(page.id!=='pageTechSpec'&&page.dataset.sourcePage!=='pageTechSpec')return;
+    page.classList.remove('is-lead-trim');
+    page.querySelector('.v_tsSub')?.style.removeProperty('display');
+    page.querySelector('.v_tsPara')?.style.removeProperty('display');
+  }
   function snapshotFull(selected,standaloneTitle) {
     const host=document.createElement('div'); host.className='pdf-snapshot'; host.setAttribute('aria-hidden','true');
     const pages=selected|| (root.Render.lastVisible?.length ? root.Render.lastVisible : root.Render.PAGES);
     pages.forEach((p,index)=>{
       const source=$(p.id), copy=source.cloneNode(true);
+      restoreTechSpecLead(copy);
       copy.style.transform='none';
       // Keep the builder light; load high-resolution artwork only in the
       // detached PDF snapshot. Uploaded photos have no print override.
@@ -386,6 +393,7 @@
       const pages=format==='power'
         ? [...snapshot.children].filter(page=>page.classList.contains('power-page'))
         : [...snapshot.children];
+      pages.forEach(restoreTechSpecLead);
       if(format==='power'&&pages.length!==powerPageCount())throw new Error('Power Proposal page count is inconsistent. Refresh the app and try again.');
       await Promise.all([...snapshot.querySelectorAll('img')].map(img=>new Promise((resolve,reject)=>{
         // `complete` is also true for failed/empty images. Do not silently issue
