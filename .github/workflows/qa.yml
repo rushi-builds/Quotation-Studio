@@ -60,8 +60,23 @@ jobs:
       # that the outlined DC / AC pills are really in the pixels, and that the
       # link inks are the ones the CSS claims. That needs a decoder, and the
       # browser job already installs ImageMagick for the same reason.
+      # ImageMagick decodes the page 5/6 artwork in page56-marks. The runner image
+      # usually carries it already, and when it does not, an unlucky apt mirror
+      # used to fail this step and skip the whole suite below it - a red job that
+      # said nothing about the code. Retry the mirror, then fall back to whatever
+      # is already installed, and only fail when there is genuinely no `identify`.
       - name: Install ImageMagick
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+        run: |
+          if command -v identify >/dev/null 2>&1; then
+            echo "identify already available: $(identify -version | head -1)"
+            exit 0
+          fi
+          for attempt in 1 2 3; do
+            sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick && break
+            echo "apt attempt $attempt failed; retrying"
+            sleep 10
+          done
+          command -v identify >/dev/null 2>&1 || { echo "::error title=ImageMagick::identify is required by page56-marks and could not be installed"; exit 1; }
 
       - name: Run offline suite
         working-directory: qa
@@ -125,8 +140,23 @@ jobs:
       # qa/brand-engineering.test.js crops the approved cover with `convert`
       # and compares the pixels against the logo, so the suite needs ImageMagick
       # on the runner, not only a browser.
+      # ImageMagick decodes the page 5/6 artwork in page56-marks. The runner image
+      # usually carries it already, and when it does not, an unlucky apt mirror
+      # used to fail this step and skip the whole suite below it - a red job that
+      # said nothing about the code. Retry the mirror, then fall back to whatever
+      # is already installed, and only fail when there is genuinely no `identify`.
       - name: Install ImageMagick
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+        run: |
+          if command -v identify >/dev/null 2>&1; then
+            echo "identify already available: $(identify -version | head -1)"
+            exit 0
+          fi
+          for attempt in 1 2 3; do
+            sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick && break
+            echo "apt attempt $attempt failed; retrying"
+            sleep 10
+          done
+          command -v identify >/dev/null 2>&1 || { echo "::error title=ImageMagick::identify is required by page56-marks and could not be installed"; exit 1; }
 
       - name: Start local platform server
         run: node platform/local-server/server.js &
