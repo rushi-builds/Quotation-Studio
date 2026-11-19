@@ -42,6 +42,7 @@ const pkg=require('@sparticuz/chromium'),bundle=pkg.default||pkg;
    const third=pages[2],sourceSpec=document.getElementById('pageTechSpec');
    const output={count:pages.length,sourceOrder,parity,footGaps,
     exactSpec:third.querySelector('.pg-body').innerHTML===sourceSpec.querySelector('.pg-body').innerHTML,
+    specIntroSurvivesTightFit:(()=>{third.classList.add('pv2-fit-4');const visible=['.v_tsHeading','.v_tsSub','.v_tsPara'].every(sel=>{const n=third.querySelector(sel);return n&&getComputedStyle(n).display!=='none'&&n.getClientRects().length>0;});third.classList.remove('pv2-fit-4');return visible;})(),
     specCards:third.querySelectorAll('.pv2-card').length,
     investment:pages[5].textContent.includes(Finance.fmtINR(Finance.compute(Render.lastState).netInvestment)),
     savings:pages[4].textContent.includes('₹'),
@@ -57,7 +58,7 @@ const pkg=require('@sparticuz/chromium'),bundle=pkg.default||pkg;
   assert(result.parity.every((p,i)=>p.originalStructure&&p.index===String(i+1)&&(i===0?!p.header&&!p.footerOK&&p.number===null:i===6?!p.header&&p.footerOK&&p.number==='Page 7 of 7':p.header&&p.footerOK&&p.number===`Page ${i+1} of 7`)),'selected sheets preserve their native page artwork/chrome and only running pages are renumbered: '+JSON.stringify(result.parity));
   assert(result.parity.every(p=>p.sourceWidth===p.copyWidth&&p.sourceHead===p.copyHead),'A4 sheet and chrome geometry stays identical');
   assert(result.footGaps[0]===null&&result.footGaps.slice(1).every(g=>g>=3),'all selected Detailed Proposal sheets clear their footer: '+JSON.stringify(result.footGaps));
-  assert(result.exactSpec&&result.specCards>=1,'page 3 technical sheet body remains unchanged');
+  assert(result.exactSpec&&result.specCards>=1&&result.specIntroSurvivesTightFit,'page 3 keeps its original technical sheet and preserves the full heading intro even at tight-fit sizing');
   assert(result.scopeLayout.sections===4&&result.scopeLayout.ordered&&result.scopeLayout.footerGap>=8&&result.scopeLayout.noRepeatedBand&&result.scopeLayout.qualityChecks===4&&result.scopeLayout.valueIcons===4&&result.scopeLayout.overflow,'page 4 uses one clear pre-handover section with four checks, four unique footer icons, balanced spacing and footer clearance: '+JSON.stringify(result.scopeLayout));
   assert(result.investment&&result.savings,'saved quote values stay in the compact report');
   assert(result.numbers[0]===null&&result.numbers.slice(1).every((n,i)=>n===`Page ${i+2} of 7`));

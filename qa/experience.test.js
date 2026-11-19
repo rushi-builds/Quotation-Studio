@@ -10,6 +10,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  const base=process.env.QA_BASE||'http://127.0.0.1:8080',shots=path.join(__dirname,'shots');fs.mkdirSync(shots,{recursive:true});fs.mkdirSync(path.join(shots,'experience'),{recursive:true});
  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setViewport({width:1440,height:1200});await page.goto(base+'/quotation.html',{waitUntil:'networkidle0'});await page.evaluate(()=>document.fonts.ready);
+ check('Technical Specification heading, subheading and intro are visible in the builder quotation',await page.$eval('#pageTechSpec',e=>['Technical System Specification','The Components Behind Your Generation'].every(t=>e.textContent.includes(t))&&['#v_tsHeading','#v_tsSub','#v_tsPara'].every(sel=>{const n=e.querySelector(sel);return n&&getComputedStyle(n).display!=='none'&&n.getClientRects().length>0;})));
  async function edit(fields){await page.evaluate(fields=>{for(const [id,v] of Object.entries(fields)){const e=document.getElementById(id);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));}},fields);await page.evaluate(()=>Experience.whenReady());}
  check('blank gallery destination never auto-encodes a protected preview URL',await page.evaluate(()=>Experience.galleryUrl({galleryUrl:''})===''&&document.getElementById('closingGallery').hidden));
  check('new PDF selector defaults to the full report',await page.$eval('#pdfFormat',e=>e.value==='full'));
@@ -65,6 +66,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await customer.goto(base+'/share.html?p='+encodeURIComponent(shareId),{waitUntil:'networkidle0'});
  await customer.evaluate(()=>document.fonts.ready);
  await customer.waitForSelector('#scenarioTariff',{timeout:20000}).catch(e=>{throw new Error('Customer View never rendered the savings explorer: '+e.message);});
+ check('Technical Specification heading, subheading and intro are visible in Customer View too',await customer.$eval('#pageTechSpec',e=>['Technical System Specification','The Components Behind Your Generation'].every(t=>e.textContent.includes(t))&&['#v_tsHeading','#v_tsSub','#v_tsPara'].every(sel=>{const n=e.querySelector(sel);return n&&getComputedStyle(n).display!=='none'&&n.getClientRects().length>0;})));
  check('Customer View loads the exact baseline even outside nominal slider range',await customer.$eval('#scenarioTariff',e=>e.value==='8.75'&&+e.min<=8.75));
  const before=await customer.evaluate(()=>({state:JSON.stringify(Render.lastState),storage:JSON.stringify({...localStorage}),cover:document.getElementById('v_coverCapacity').textContent}));
  await customer.$eval('#scenarioTariff',e=>{e.value='18';e.dispatchEvent(new Event('input',{bubbles:true}));});
