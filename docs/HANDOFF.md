@@ -493,3 +493,23 @@ the scope guard flags and which needs owner approval).
   PDF inside one `evaluate`, keeping the first PDF's page canvases alive while capturing the second. That
   is what had been taking the renderer down mid-run in this sandbox. Each format now exports in its own
   `evaluate`.
+
+  **A second crop, reported from a screenshot: card 04's photograph.** The owner spotted that the
+  Engineering Design Basis picture looked cut off. It was: the source is a 4:3 studio shot (900x675 -
+  helmet, pen and drawings), but the tile is sized by the grid to match the height of the rows beside it,
+  which on that card came to 230x118. `object-fit:cover` therefore kept 68% of the height and threw away
+  32% off the top and bottom - the top of the helmet went with it.
+
+  Card 04 now keeps a 3:2 tile, so the trim is 11% instead of 32%, the same as the module and inverter
+  cards. Measured in the browser: tile 230x154 against a natural 1.33, i.e. a 1.5 tile, and the helmet,
+  the logo, the pen and the blueprints are all in frame.
+
+  Why not the photograph's exact 4:3: that made the card 217px tall against 166px, which pushed the fit
+  ladder one step further down to `pv2-fit-4` - the step that hides the page's intro paragraph. Losing
+  copy to un-crop a picture is the wrong trade. `pv2-fit-3`, which page 3 now sits at, only trims padding
+  and type; measured at 9.4px, the same as page 6.
+
+  Two checks added to `qa/experience.test.js`: every card keeps at least 85% of its photograph, and card
+  04's tile stays within a fifth of the photograph's own shape. Both read the real
+  `naturalWidth/naturalHeight` and the real laid-out tile, so a CSS change that re-crops a picture fails
+  the suite instead of reaching the customer.
