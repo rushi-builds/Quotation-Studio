@@ -214,6 +214,11 @@
       /* Unique ids, same names. A document with two #v_tsTable is invalid, and
          getElementById would start answering for the wrong one. */
       copy.querySelectorAll('[id]').forEach(node=>{node.id='pw3-'+node.id;});
+      /* The report footer prints "Page 6 of 15". In a seven-page Power Proposal that is
+         simply wrong, so the same slot prints this document's own page number. Nothing
+         else in the footer is touched - the design has to stay page 6's. */
+      const num=copy.querySelector('.pg-foot-page');
+      if(num) num.textContent='Page 3 of '+POWER_PAGE_COUNT;
       return copy.outerHTML;
     };
     const valid=F.fmtDate(F.addDays(s.propDate,s.validityDays))||'To be confirmed';

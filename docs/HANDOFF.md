@@ -447,3 +447,13 @@ the scope guard flags and which needs owner approval).
   The full offline suite (`qa/npm test`) passes end to end: exit 0. Note for anyone running it locally:
   `platform/cloudflare` needs its own `npm install` first, or `excel-module-catalog.test.mjs` dies on a
   missing `@e965/xlsx` - CI installs both trees, the local box does not.
+
+  **One thing the screenshot caught that the tests did not: the footer number.** The carried sheet brought
+  the report's own footer number with it, so page 3 of a seven-page Power Proposal announced "Page 6 of 15".
+  The design has to be page 6's, but the number has to be true, so `powerSpecSheet()` rewrites only
+  `#powerSpecSheet .pg-foot-page` to `Page 3 of 7` - the footer markup gained a `pg-foot-page` class on
+  `#v_pgnum_pageTechSpec` as a stable hook, and nothing else in the footer moved. `experience.test.js` now
+  asserts that the carried footer prints this document's number and never "of 15", so it cannot regress.
+
+  Visual proof, full-proposal page 6 beside power-proposal page 3 at the same scale:
+  `page3-vs-page6.png` in the repo root (not committed - regenerate with the recipe below).

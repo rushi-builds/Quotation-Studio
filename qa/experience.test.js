@@ -71,10 +71,16 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
      fits:p3.dataset.specFits,
      cards:p3.querySelectorAll('.pv2-card').length,
      badges:p3.querySelectorAll('.pv2-brand').length,
-     photos:p3.querySelectorAll('.pv2-photo img').length};
+     photos:p3.querySelectorAll('.pv2-photo img').length,
+     footNum:p3.querySelector('.pg-foot-page')?.textContent.trim()||'',
+     footHas15:/of 15/.test(p3.querySelector('.pg-foot')?.textContent||'')};
    host.remove();
    return out;
  });
+ /* The carried footer is page 6's design, but not its page number: a seven-page
+    document that says "Page 6 of 15" is simply lying to the customer. */
+ check('the carried footer prints this document\'s page number, not the report\'s ['+specParity.footNum+']',
+   specParity.footNum==='Page 3 of 7'&&!specParity.footHas15);
  check('page 3 carries all four cards, with their badges and photographs',
    specParity.cards===4&&specParity.badges>=3&&specParity.photos===4);
  check('page 3 cards are the same size and type as page 6 ['+
