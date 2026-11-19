@@ -38,9 +38,16 @@
 .page:not(#pageCover):not(#pageClosing)>.pg-body>.footer-note{
  position:static;left:auto;right:auto;bottom:auto;margin-top:14px;flex-shrink:0;
 }
-/* Three soft coloured petals grow from the physical bottom-right corner,
-   behind the live page number and footer. No separate body-corner artwork. */
+/* Three soft coloured petals as a corner flourish. They used to be pinned to the
+   physical corner at 170px, which put the densest part of the artwork straight
+   behind the last type rows: the tagline, the page number and the value band's
+   labels were printed on top of tinted patches ("fool uspr blocks aate he",
+   visible on most sheets). The fan now finishes on the footer's hairline instead,
+   a touch larger so the flourish still reads, which leaves every line of type on
+   the sheet's own white. Purely the artwork's position and size change. */
 .page:not(#pageCover):not(#pageClosing){
  background-color:#fff;background-image:url('../images/proposal-corner-petals.svg');
- background-repeat:no-repeat;background-position:100% 100%;background-size:170px 170px;
+ background-repeat:no-repeat;
+ background-position:100% calc(100% - 46px);
+ background-size:200px 200px;
 }

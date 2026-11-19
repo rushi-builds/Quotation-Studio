@@ -4,6 +4,20 @@ Written so any engineer or AI assistant (another Claude account, Arena, Lovable,
 exactly where it stopped. State as of `main` = `be429df` (PR #62 merged). Owner: **rushi-builds**. Language the owner
 uses: Hinglish; keep replies short and practical. **Never put tokens/passwords in this repo or in chats.**
 
+### The corner petals and the footer
+
+The petal fan (`assets/images/proposal-corner-petals.svg`) is a corner flourish, but
+it used to be pinned to the physical bottom-right corner at 170×170 - exactly where the
+tagline, the page number and the value band's labels sit. On most sheets they printed on
+top of tinted patches. The fan is now lifted to finish on the footer's hairline
+(`background-position:100% calc(100% - 46px); background-size:200px 200px`) on both the
+generic page rule and page 5/6's own override in `proposal-v2.css`. **Both places must
+move together** - page 5/6 overrides the generic rule, so changing one alone leaves those
+two sheets looking different from the rest.
+
+Tried and rejected: a white veil over the bottom strip (washed the petals out entirely),
+and an opaque footer/band (cut the artwork with a hard box).
+
 ### The value band on page 5 (Solution)
 
 The four-icon band (`Defined scope / Careful installation / Clear handover / Agreed
