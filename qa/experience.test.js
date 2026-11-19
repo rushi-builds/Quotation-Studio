@@ -80,8 +80,11 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
        const natural=im.naturalWidth&&im.naturalHeight?im.naturalWidth/im.naturalHeight:0;
        const tile=b.width/b.height;
        const fit=getComputedStyle(im).objectFit;
+       const rows=c.querySelector('.pv2-rows');
        return {kind:(c.className.match(/is-(\w+)/)||[])[1],
          tile:+tile.toFixed(2), natural:+natural.toFixed(2), fit,
+         tileH:Math.round(b.height), rowsH:rows?Math.round(rows.getBoundingClientRect().height):0,
+         cardH:Math.round(c.getBoundingClientRect().height),
          kept:fit==='contain'?1:(natural&&tile?Math.min(natural/tile,tile/natural):1)};
      }).filter(Boolean),
      footNum:p3.querySelector('.pg-foot-page')?.textContent.trim()||'',
@@ -99,13 +102,16 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
     now keeps at least 85% of its photograph, and card 04 keeps all of it. */
  check('every card photograph keeps its subject ['+specParity.crops.map(c=>c.kind+' '+Math.round(c.kept*100)+'%').join(', ')+']',
    specParity.crops.every(c=>c.kept>=0.85));
- /* The tile used to be far wider than the photograph (1.95 against 1.33), which is
-    what turned a 4:3 studio shot into a letterbox strip. It now stays within a fifth
-    of the photograph's own shape, so the crop is a trim rather than a surgery. */
- check('the engineering-design photograph is no longer cut down to a letterbox ['+
+ /* The card must keep the size the sheet gives it - growing it to suit a picture
+    made it taller than its neighbours, which is what the owner objected to. The
+    photograph is the thing that adapts: fitted whole inside the tile, never cut. */
+ check('the engineering-design photograph is fitted whole inside the card, never cropped ['+
    JSON.stringify(specParity.crops.find(c=>c.kind==='design'))+']',
    (()=>{const d=specParity.crops.find(c=>c.kind==='design');
-     return d && Math.abs(d.tile-d.natural)/d.natural<=0.2;})());
+     return d && d.fit==='contain' && d.kept>=0.99;})());
+ check('and the card keeps its size - the picture never stretches the sheet',
+   (()=>{const d=specParity.crops.find(c=>c.kind==='design');
+     return d && Math.abs(d.tileH-d.rowsH)<=2;})());
  check('page 3 carries all four cards, with their badges and photographs',
    specParity.cards===4&&specParity.badges>=3&&specParity.photos===4);
  check('page 3 cards are the same size and type as page 6 ['+

@@ -513,3 +513,18 @@ the scope guard flags and which needs owner approval).
   04's tile stays within a fifth of the photograph's own shape. Both read the real
   `naturalWidth/naturalHeight` and the real laid-out tile, so a CSS change that re-crops a picture fails
   the suite instead of reaching the customer.
+
+  **Correction on the same day, worth keeping: the card must not grow for a picture.** The first
+  attempt at card 04 gave the tile its own 3:2 ratio so the photograph could be `cover`-cropped less.
+  That worked on the picture and broke the layout - the card came out 198px against 166px, visibly
+  taller than its neighbours, and the owner said so immediately: the rows' box was the right size all
+  along, the picture was the thing that had to fit, not the other way round.
+
+  Final state: the tile keeps exactly the height the sheet gives it (118px, same as `.pv2-rows`), and
+  card 04's photograph is `object-fit:contain`, so the whole image is inside the box instead of the box
+  being stretched around a cropped image. Card sizes are back to 718x205 · 718x205 · 718x184 · 718x166
+  and the sheet is back on `pv2-fit-2`, so the type is 9.4px again.
+
+  The two checks in `experience.test.js` say this in the same words: card 04 keeps 100% of its
+  photograph, and its tile height equals its rows height. A future change that resizes the card to suit
+  a picture fails the suite.

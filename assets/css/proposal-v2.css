@@ -256,14 +256,13 @@
    is cropped to fit, never squeezed, and never floats small inside white padding. */
 .pv2-tech .pv2-photo{position:relative;margin:0;border-radius:9px;overflow:hidden;background:#EEF2F7;border:1px solid #E6EAF0;width:100%;height:auto;min-height:92px;align-self:stretch;}
 .pv2-tech .pv2-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;}
-/* Card 04's own photograph is a 4:3 studio shot - helmet, pen and drawings all in
-   frame. Stretched to the height of the rows beside it in a 230x118 tile it lost a
-   third of its picture top and bottom, which reads as a bad crop rather than a
-   close-up. It keeps its own ratio and is shown whole; the grid row grows to fit
-   it, so nothing is cut and the orange corner still lands on the page edge. */
-.pv2-tech .pv2-card.is-design .pv2-card-body{align-items:start;}
-.pv2-tech .pv2-card.is-design .pv2-photo{align-self:start;aspect-ratio:3/2;min-height:0;}
-.pv2-tech .pv2-card.is-design .pv2-photo img{object-fit:cover;}
+/* Card 04's photograph is a 4:3 studio shot - helmet, pen and drawings all in
+   frame - inside a tile the grid sizes to match the rows beside it. Covering that
+   tile threw away a third of the picture; growing the tile instead made the card
+   taller than its neighbours. Neither is right: the tile keeps the height the
+   sheet gives it, and the photograph is fitted inside it whole. Same card, whole
+   picture, no crop. */
+.pv2-tech .pv2-card.is-design .pv2-photo img{object-fit:contain;background:#fff;}
 .pv2-tech .pv2-photo::after{content:'';position:absolute;right:0;bottom:0;width:30px;height:30px;
   background:radial-gradient(circle at 0 0,transparent 29px,#F2811D 30px);}
 .pv2-tech .v_tsRefsWrap{margin-top:8px;}
