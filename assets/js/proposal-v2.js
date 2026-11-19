@@ -273,10 +273,14 @@
     if (!vals) {
       vals = doc.createElement('div'); vals.className = 'pv2-values-wrap'; vals.dataset.docAdded = 'true';
       body.append(vals);
-      /* The same four marks and the same four promises the rest of the proposal
-         carries on its scope page: this row is the proposal's standing furniture,
-         not a page-local variant of it. */
-      vals.innerHTML = values([['doc', 'Defined', 'scope'], ['gear', 'Careful', 'installation'], ['check', 'Clear', 'handover'], ['users', 'Agreed', 'responsibilities']]);
+      /* Page 5 keeps its own four promises. The band's shape (mark + two-line
+         label, ticks, accent underline) is shared with every other page, but the
+         words must not be: the scope page already says "Defined scope / Careful
+         installation / Clear handover / Agreed responsibilities", so repeating
+         them here reads as the same component twice. These four are page-local -
+         they say what THIS page established: the site-fit design, the specified
+         equipment, the design basis, the planned handover. */
+      vals.innerHTML = values([['siteroof', 'Site-fit', 'Design'], ['specsheet', 'Specified', 'Equipment'], ['helmet', 'Design', 'Safety'], ['handover', 'Planned', 'Handover']]);
     }
     fit(page, ['pv2-fit-1', 'pv2-fit-2', 'pv2-fit-3']);
   }
