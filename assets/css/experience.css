@@ -325,42 +325,32 @@
 .power-six h1::after{content:"";position:absolute;left:0;bottom:-5px;width:42px;height:2px;background:#dc8629;border-radius:1px;}
 .power-six .power-heading-accent{color:inherit;border:0;padding:0;}
 
-/* ---------- Page 3 of the report carries page 6's card block ----------
-   The cards themselves are not restyled here. The wrapper repeats the sheet's own
-   class chain (.pv2 .pv2-tech), so every card rule that applies on page 6 applies
-   here unchanged - same badge height, same photo tile, same row type. That is what
-   "exactly the same" means, and it is the only version that survives a future
-   redesign of the cards: change them on the sheet and this page follows.
+/* ---------- Page 3 IS page 6 ----------
+   The whole sheet is cloned, so it brings its own running head, title, sub, rule,
+   cards, note box and footer. Nothing here restyles any of that: the sheet keeps
+   every page-6 rule, which is the only version of "exactly the same" that survives
+   future work. What is set here is only what a sheet-inside-a-page needs.
 
-   The only thing set here is width, because the sheet draws at 794px and this
-   page's column is narrower. The cards are given the sheet's width rather than
-   being squeezed into the report's, so nothing shrinks. */
-/* The block is given the report's own content width, not the sheet's 794px.
-   794px is the WIDTH OF A PAGE, not of a page's content: .power-page carries 38px
-   padding, so this column is 718px. Drawing the block at 794 forced the runtime
-   scale to 0.904 to fit it, which is why page 3 showed smaller cards than page 6
-   and why they looked cut off. At 718 the cards are laid out by the same rules -
-   the body grid splits into rows + a 33% photo tile in both - so the only difference
-   is a wider photo tile, while the type stays its page-6 size. */
-.power-page .power-spec-sheet{
-  width:100%;max-width:none;
-  /* The report sets Arial on .power-page. Page 6 has no font-family of its own, so
-     it inherits Inter from body - which is why the same rows measured taller here
-     with text that wrapped differently. Two of the four cards came out 19px and 20px
-     taller for exactly this reason, and that is what pushed the fourth card under
-     the footer in the first place. The block is a page-6 block, so it takes page 6's
-     font. Scoped to the block, so pages 1, 2 and 4-7 stay in the report's type. */
+   The report's page padding, Arial and flex column are all cancelled on this one page
+   so the sheet lands on the sheet's own margins. Without the font reset the cards
+   re-wrap (Inter vs Arial is a 19-20px difference across two cards), and without the
+   padding reset the sheet is inset twice. */
+#powerPage3.is-carried{
+  padding:0;
   font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
 }
-/* Page 3 is the one page in this report whose body is a full A4-layout sheet - four
-   cards, each with a rows box and a photo tile. Measured in a real browser (794x1123
-   page, 38px padding, head 210px tall, footer at 1085px): the page offered the cards
-   875px and they wanted 851px, so the fit had 24px to spare and the block was being
-   scaled by 0.007 for nothing. The head is what ate the space: the shared 30px page
-   padding, a 56px logo, a 29px headline and a lead paragraph put 210px above the
-   block. Reclaiming part of that on this page only gives the cards their room back,
-   and the scale path stops engaging at all - which is the point, because a scaled
-   card is not "the same as the full proposal". */
+/* The sheet is a .page: a full A4 box with its own shadow and overflow. Inside
+   another .page it must not be either - it is already the right size, and its
+   shadow would draw a rectangle on the report. */
+#powerPage3 .power-spec-sheet{
+  width:100%;
+  height:100%;
+  max-width:none;
+  box-shadow:none;
+  transform:none;
+  overflow:visible;
+  background:#fff;
+}
 #powerPage3{padding-top:20px;}
 #powerPage3 .power-head{padding-bottom:9px;margin-bottom:12px;}
 #powerPage3 .power-head img{width:76px;height:44px;}

@@ -164,7 +164,13 @@
       const split=title.lastIndexOf(emphasis);
       return split<0?esc(title):esc(title.slice(0,split))+'<span class="power-heading-accent">'+esc(title.slice(split))+'</span>';
     };
-    const page=(n,kicker,title,lead,body)=>'<section class="page power-page power-six" id="powerPage'+n+'">'+header(n)+'<div class="power-kicker">'+kicker+'</div><h1>'+heading(n,title)+'</h1>'+(lead?'<p class="power-lead">'+lead+'</p>':'')+'<div class="power-body">'+body+'</div>'+foot(n)+'</section>';
+    /* A page with `bare` set draws no chrome of its own - no running head, kicker,
+       title, lead or foot. Page 3 uses it because it carries page 6 whole, and page 6
+       brings all of those with it. Drawing them here as well would print the company
+       twice over the same sheet, which is the duplication the owner ruled out. */
+    const page=(n,kicker,title,lead,body,bare)=>bare
+      ? '<section class="page power-page power-six is-carried" id="powerPage'+n+'">'+body+'</section>'
+      : '<section class="page power-page power-six" id="powerPage'+n+'">'+header(n)+'<div class="power-kicker">'+kicker+'</div><h1>'+heading(n,title)+'</h1>'+(lead?'<p class="power-lead">'+lead+'</p>':'')+'<div class="power-body">'+body+'</div>'+foot(n)+'</section>';
     /* The live flow, built from the same content and the same finance numbers the
        proposal itself uses. This report used to lift #v_tsDiagram's innerHTML - the
        RETIRED svg - but page 6 hides that box with display:none and the markup-only
@@ -189,58 +195,26 @@
     /* Page 3 carries page 6's cards - the same nodes, cloned, never a second
        drawing of them. This returns the inner markup only; the caller owns the
        wrapper, so the wrapper cannot end up nested inside itself. */
-    /* Page 3 prints page 6's card block, and it prints it at page 6's width.
-       That width is the whole point: the four cards size their rows against it, so
-       a narrower copy wraps its values onto more lines and the four cards come out
-       ~100px taller than the sheet's. Copying the card markup into the report's own
-       718px column was therefore not a smaller copy of page 6 - it was a differently
-       shaped one, which is how the last card ended up clipped by the height bound.
-       So the sheet's own .pg-body is what travels: same 38px gutter, same content
-       box, same result. Only the .pv2-spec inside it is kept - the sheet's heading,
-       rule and paragraph belong to the sheet, and this report already prints its own. */
-    const powerSpecBlock=()=>{
-      const P=root.ProposalV2,sheet=$('pageTechSpec');
-      /* Page 6 builds its cards in ProposalV2.sync(). Asking for it here, rather than
-         trusting whatever is on screen, means the report cannot print cards from a
-         state older than the numbers beside them. sync() is idempotent - it re-renders
-         only when the markup actually differs. */
-      try{P?.sync?.();}catch(e){/* a failed page-6 paint must not take the report down */}
-      const spec=sheet?.querySelector('.pv2-spec');
-      let inner='';
-      if(spec&&spec.querySelector('.pv2-card')){
-        const copy=spec.cloneNode(true);
-        /* A clone duplicates the ids page 6 uses. export.js scopes what it scans, but
-           a duplicate id in the document is still a duplicate id. */
-        copy.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
-        inner=copy.outerHTML;
-      }else{
-        /* Page 6 has not painted - a share.html load, or a document where the sheet
-           never ran. These are the same two functions page 6 calls, so this is the
-           same drawing reached another way, not a second one. */
-        try{
-          const cards=P?.cardsFromTable?P.cardsFromTable($('v_tsTable')):[];
-          if(cards.length) inner='<div class="pv2-spec">'+cards.map(P.cardMarkup).join('')+'</div>';
-        }catch(e){/* print nothing rather than half a page */}
-      }
-      if(!inner) return '';
-      /* No gutter is added here, and that is the whole fix.
-         Page 6's .pg-body is 794px with 38px padding, so its card block sits in a
-         718px content box. The report's own .power-body is already 718px - the page's
-         38px padding is outside it - so the block needs width:100% and nothing else.
-         Adding the gutter here subtracted it a second time, narrowing the cards to
-         642px, wrapping every value onto an extra line, and making the four cards
-         ~90px taller than the sheet's. That extra height is what was being clipped.
-         Same 718px box, same wrapping, same card heights. */
-      /* The sheet's fit classes travel with the block, and they are not decoration.
-         Page 6 does not print at its base type: its fit ladder adds pv2-fit-2, which
-         is what makes rows 9.4px with 2px padding. Without those classes the same
-         markup is laid out at the base 10.2px / 3px, so every value is taller, each
-         card grows ~17px, and the fourth card runs under the footer. That is what was
-         being clipped before - not a geometry fault at all, a missing class.
-         Read from the sheet at the moment it is copied, so if the ladder picks a
-         different step for a denser system, the report picks the same one. */
-      const steps=[...sheet.classList].filter(c=>/^pv2-fit-\d$/.test(c)).join(' ');
-      return '<div class="pv2 pv2-tech power-spec-sheet'+(steps?' '+steps:'')+'">'+inner+'</div>';
+    /* Page 3 IS page 6 - the whole sheet, cloned. Not the cards in a lookalike
+       wrapper, which is what kept going wrong: the cards matched while the header,
+       the title, the note under them and the footer were still the report's own. The
+       owner asked for the same page, so it is the same page.
+       Two things matter about how it is copied:
+       - ids are made unique rather than removed. proposal-v2.css styles the sheet
+         through #v_tsTable / #v_tsHeading / #v_tsPara and app.css through
+         #pageTechSpec .pg-body, so stripping ids silently unstyles the copy - the raw
+         specification table reappears beside the cards and the notes revert to app.css
+         defaults. Prefixing keeps every rule working and keeps ids unique.
+       - the copy carries the same classes as the sheet, so the same rules apply. */
+    const powerSpecSheet=()=>{
+      const sheet=$('pageTechSpec'); if(!sheet) return '';
+      try{root.ProposalV2?.sync?.();}catch(e){/* a failed page-6 paint must not take the report down */}
+      const copy=sheet.cloneNode(true);
+      copy.classList.add('power-spec-sheet','pv2');
+      /* Unique ids, same names. A document with two #v_tsTable is invalid, and
+         getElementById would start answering for the wrong one. */
+      copy.querySelectorAll('[id]').forEach(node=>{node.id='pw3-'+node.id;});
+      return copy.outerHTML;
     };
     const valid=F.fmtDate(F.addDays(s.propDate,s.validityDays))||'To be confirmed';
     const scope=CONTENT.pageScope,warranty=CONTENT.pageWarranty;
@@ -275,8 +249,8 @@
       /* The sheet itself. No lead paragraph and no second set of headings: this is
          page 6 of the full proposal, carried over whole, so the two downloads show
          the same technical page down to the four cards and their artwork. */
-      page(3,'03 / TECHNICAL SPECIFICATION','Every component, specified.','The four groups that make up your system, exactly as they are set out in the detailed proposal.',
-        powerSpecBlock())+
+      /* No kicker, title or lead of its own: the sheet underneath has them. */
+      page(3,null,null,null,powerSpecSheet(),true)+
       page(4,'04 / SYSTEM DESIGN','The system behind the numbers.','Selected equipment and the design basis for your proposed solar installation.',
         '<h2>How your system connects</h2><div class="power-diagram">'+diagram+'</div><p class="power-caption">Conceptual grid-tied flow, not an installation wiring drawing. Grid-tied solar alone does not provide outage backup.</p>'+
         '<div class="power-metrics power-metrics-three">'+metric('Roof type',s.roofType||'To be confirmed','Site conditions to be confirmed')+metric('Indicative roof requirement',precise(f.requiredArea)+' m²','Includes modelled layout clearance')+metric('Contracted capacity',precise(f.contractedKwp)+' kWp','Pricing basis; whole modules may deliver more DC')+'</div>'+
@@ -306,43 +280,29 @@
         (refs?'<section class="power-report-links"><h2>Project engineering reports</h2><p>Site-specific design and simulation documents</p><div>'+refs+'</div></section>':''));
     document.body.appendChild(host);
     host.querySelectorAll('.power-page').forEach(p=>{
-      if(p.querySelector('.power-body').getBoundingClientRect().bottom>p.querySelector('footer').getBoundingClientRect().top-8)p.classList.add('power-compact');
+      /* Page 3 carries the sheet whole and has neither a .power-body nor a footer of
+         its own - the sheet has both - so it is skipped rather than dereferenced. */
+      const body=p.querySelector('.power-body'),foot=p.querySelector('footer');
+      if(body&&foot&&body.getBoundingClientRect().bottom>foot.getBoundingClientRect().top-8)p.classList.add('power-compact');
     });
-    /* Page 3 carries page 6's card block at the sheet's own 794px width. The
-       report's column is narrower than the sheet, so the block would overrun the
-       page sideways - which is a horizontal overflow, and the A4 guard fails on
-       that too. Rather than restyling the cards (which is what "the same as the
-       full proposal" rules out), the whole block is scaled uniformly to the space
-       it is given: one factor for width and height, so a badge, a row and a photo
-       tile keep their page-6 proportions exactly. Measured after the host is in the
-       document, because only then is there a layout to measure.
-       Capped at 1 - on a wide screen the block is not blown up past the sheet. */
-    /* Page 3's block is measured, never clipped and never scaled.
-       Both earlier attempts failed for the same reason - they treated a content
-       problem as a geometry problem. Bounding the block in height cut the fourth
-       card in half. Scaling it down made the cards a different size from page 6,
-       which is precisely what "the same as the full proposal" forbids, and a
-       transform left the layout box wrong. The real fault was upstream: the card
-       block was being copied into a narrower column, so its values wrapped onto more
-       lines and the four cards came out taller than the sheet's. Fixing that - the
-       block now carries the sheet's own gutter - means the block arrives at its
-       natural height, and there is nothing left to clip.
-       The measurement is kept as evidence rather than as a control: if a future
-       change makes page 3 taller than the space above its footer, the failure is
-       recorded on the page instead of hidden behind a clip, and export.js refuses
-       the download loudly rather than shipping a report with a cut-off card. */
-    const specPage=host.querySelector('#powerPage3'),specBlock=specPage?.querySelector('.power-spec-sheet');
-    if(specBlock){
-      const body=specPage.querySelector('.power-body'),foot=specPage.querySelector('footer');
-      /* One coordinate space: clientWidth/offsetHeight are unscaled CSS pixels, and
-         .page carries transform:scale(var(--page-scale)), so any getBoundingClientRect
-         difference here would be in a different space than these widths. */
-      const availW=body.clientWidth;
-      const availH=foot.offsetTop-body.offsetTop;
-      const W=specBlock.offsetWidth,H=specBlock.offsetHeight;
-      specPage.dataset.specAvail=availW+'x'+availH;
-      specPage.dataset.specBlock=W+'x'+H;
-      specPage.dataset.specFits=(W<=availW&&H<=availH)?'1':'0';
+    /* Page 3 is page 6, so its geometry is page 6's geometry. There is nothing to
+       fit, scale or clip: the sheet already fits an A4 box, because that is the box it
+       was designed for. Every earlier attempt here failed by trying to make a
+       lookalike fit a differently-padded column, and each fix was a papering-over -
+       a height bound that cut the fourth card, then a transform that made the cards a
+       different size from page 6.
+       What is kept is the measurement, recorded on the page rather than acted on: a
+       future change that makes the sheet overrun should be visible, and export.js
+       refuses the download instead of shipping a page with a cut-off card. */
+    const carried=host.querySelector('#powerPage3'),sheetCopy=carried?.querySelector('.power-spec-sheet');
+    if(sheetCopy){
+      /* Unscaled CSS pixels on both sides: .page carries transform:scale(), so a rect
+         difference here would be in a different space from these widths. */
+      const availW=carried.clientWidth,availH=carried.clientHeight;
+      const W=sheetCopy.offsetWidth,H=sheetCopy.offsetHeight;
+      carried.dataset.specAvail=availW+'x'+availH;
+      carried.dataset.specBlock=W+'x'+H;
+      carried.dataset.specFits=(W<=availW+1&&H<=availH+1)?'1':'0';
     }
     // Match the Detailed Proposal's generous waterfall height. Only reduce it
     // on dense financing/subsidy pages, retaining at least 240px and A4 safety.

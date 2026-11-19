@@ -156,77 +156,51 @@ check('with no artwork uploaded, nothing changes - the existing markup path is u
   /return '<div class="pv2-brand is-plain"><b>' \+ esc\(brand\) \+ '<\/b><\/div>';/.test(pv2) &&
   /return CARD_PHOTO\[kind\] \|\| IMG \+ 'equipment\/cards\/earthing-safety-3pit\.webp';/.test(pv2));
 
-/* --------------------------------------- 5b. the report prints the same cards */
+/* ---------------------------- 5b. page 3 IS page 6, not a lookalike of it */
 
-/* The Power Proposal's technical page used to be rebuilt as two columns of
-   label/value rows, so a custom make printed as plain text there while the full
-   proposal printed the owner's uploaded logo and photo. Both PDFs now ask for the
-   same cards, which is the only way "exactly the same in both" can stay true. */
-check('the card drawing is defined once, and the report does not draw a second one',
-  (pv2.match(/pv2-card is-/g) || []).length === 1 &&
-  /function cardMarkup/.test(pv2) &&
-  /* The report clones the sheet's card block instead of re-drawing its cards. */
+/* The owner's requirement was never "the same cards" - it was "the same page".
+   Copying the cards into a report wrapper left the running head, the title, the sub,
+   the intro paragraph, the note box and the footer as the report's own, and that is
+   the difference they kept seeing. The whole section travels now. */
+
+check('the sheet is cloned whole, and page 3 draws no chrome of its own',
   /\$\('pageTechSpec'\)/.test(experience) &&
-  /querySelector\('\.pv2-spec'\)/.test(experience) &&
-  /cloneNode\(true\)/.test(experience));
+  /const copy=sheet\.cloneNode\(true\)/.test(experience) &&
+  /copy\.classList\.add\('power-spec-sheet','pv2'\)/.test(experience) &&
+  /* No kicker, title or foot in the page wrapper: the sheet brings them. */
+  /page\(3,null,null,null,powerSpecSheet\(\),true\)/.test(experience));
 
-check('the carried cards keep the sheet class chain AND the sheet fit classes',
-  /* No second set of card styles. The wrapper repeats .pv2 .pv2-tech, and the
-     sheet's pv2-fit-N step travels with it. That step is not decoration: page 6
-     prints its rows at 9.4px/2px because pv2-fit-2 is on the sheet. Copying the
-     markup without the class laid the same rows out at the base 10.2px/3px, which
-     made every card ~17px taller - and that extra height is what the old height
-     bound then clipped. The card type size on page 3 is proof the class arrived. */
-  /'<div class="pv2 pv2-tech power-spec-sheet'\+\(steps\?' '\+steps:''\)\+'">'/.test(experience) &&
-  /\/\^pv2-fit-\\d\$\//.test(experience) &&
-  !/\.power-spec-sheet \.pv2-(card|photo|card-head|row|k|v)\b/.test(expCss));
+check('REGRESSION: ids are made unique, never stripped - the sheet is styled by them',
+  /* Stripping ids is what produced the raw specification table on page 3: the
+     .v_tsTable{display:none} and .pv2-sheet layout rules stopped applying, so the
+     table appeared beside the cards and the notes fell back to app.css defaults. */
+  /node\.id='pw3-'\+node\.id/.test(experience) &&
+  !/querySelectorAll\('\[id\]'\)\.forEach\(node=>node\.removeAttribute\('id'\)\)/.test(experience));
 
-check('REGRESSION: the block is never clipped to fit, and never scaled',
-  /* Both were tried and both shipped a worse page. A height bound cut the fourth
-     card in half; a transform made the cards a different size from page 6, which is
-     precisely what "the same as the full proposal" forbids. Both are gone. The
-     failure mode is now loud: export.js refuses the download if page 3 overruns. */
-  !/specBlock\.style\.overflow='hidden'/.test(experience) &&
-  !/specBlock\.style\.transform='scale/.test(experience) &&
-  !/specBlock\.style\.height=/.test(experience) &&
-  !/async function powerLayout[\s\S]{0,200}?power-tech-cards/.test(experience));
+check('the sheet styles itself through classes, so a carried copy needs no unique ids',
+  /\.pv2-sheet/.test(css) && /\.v_tsTable/.test(pv2css) &&
+  /* Nothing may go back to depending on the ids the clone renames. */
+  !/#v_ts[A-Za-z]/.test(css + pv2css) && !/#pageTechSpec/.test(css + pv2css));
 
-check('the block adds NO gutter of its own - the report column is already the sheet content width',
-  /* Page 6: 794px page, 38px padding, so 718px of content. The report's .power-body
-     is already 718px, because the page padding is outside it. Adding the gutter here
-     a second time narrowed the cards to 642px and wrapped every value onto an extra
-     line. Measured in a real browser: 718 -> 642 cards, 205px -> 247px. */
-  !/padding-left:'\+pad/.test(experience) &&
-  !/getComputedStyle\(body\)\.paddingLeft/.test(experience));
+check('page 3 is not padded twice, and does not inherit the report Arial',
+  /#powerPage3\.is-carried\{[\s\S]{0,140}?padding:0;/.test(expCss) &&
+  /#powerPage3\.is-carried\{[\s\S]{0,240}?font-family:'Inter'/.test(expCss));
 
-check('REGRESSION: the cards fill the report\'s content column, they do not overflow it',
-  /* 794px is a PAGE width, not a content width: .power-page carries 38px padding, so
-     the column is 718px. Drawing the block at 794 made the runtime scale shrink the
-     whole thing to 0.904 - the cards came out smaller than page 6's and the clipped
-     overflow is what the owner saw as "half". Width 100% is the fix. */
-  /* Only the rule's own body - .pdf-snapshot is legitimately 794px wide. */
-  (() => { const m = expCss.match(/\.power-page \.power-spec-sheet\{([^}]*)\}/); return !!m && /width:100%/.test(m[1]) && !/794px/.test(m[1]); })());
+check('the carried sheet is not a page inside a page - no shadow, no second transform',
+  /#powerPage3 \.power-spec-sheet\{[\s\S]{0,220}?box-shadow:none/.test(expCss) &&
+  /#powerPage3 \.power-spec-sheet\{[\s\S]{0,220}?transform:none/.test(expCss));
 
-check('REGRESSION: the fit is measured in ONE coordinate space',
-  /* This is the bug that survived two rounds. .page carries
-     transform:scale(var(--page-scale)), so getBoundingClientRect() is in SCALED
-     pixels while clientWidth/offsetWidth are UNSCALED. The first version subtracted
-     one from the other and reported a shortfall on a page that fitted - and no
-     estimate built on mixed units can be trusted either way.
-     Everything is unscaled CSS pixels now, and the vertical run uses offsetTop. */
-  /const availW=body\.clientWidth;/.test(experience) &&
-  /const availH=foot\.offsetTop-body\.offsetTop;/.test(experience) &&
-  !/getBoundingClientRect\(\)\.top\s*-\s*body\.getBoundingClientRect/.test(experience) &&
-  !/foot\.getBoundingClientRect\(\)\.top-body\.getBoundingClientRect/.test(experience));
+check('REGRESSION: nothing clips or scales page 3 to make it fit',
+  /* A height bound cut the fourth card; a transform made the cards a different size
+     from page 6. Both are gone. The browser suite compares page 3 to page 6 element
+     by element and would fail either way; this stops them coming back quietly. */
+  !/style\.overflow='hidden'/.test(experience.split('powerSpecSheet')[1]||'') &&
+  !/\.style\.transform='scale/.test(experience));
 
 check('page 3 records its own geometry, so an overrun is visible rather than hidden',
-  /* The page carries avail/block/fits as data attributes. That is the difference
-     between "it fits" and "it looks like it fits": a clip hides an overrun, and so
-     does a transform. A recorded number can be read back by a test, a support
-     question, or the browser preview built alongside this work. */
-  /specPage\.dataset\.specAvail=availW\+'x'\+availH;/.test(experience) &&
-  /specPage\.dataset\.specBlock=W\+'x'\+H;/.test(experience) &&
-  /specPage\.dataset\.specFits=\(W<=availW&&H<=availH\)\?'1':'0';/.test(experience));
+  /carried\.dataset\.specAvail=availW\+'x'\+availH;/.test(experience) &&
+  /carried\.dataset\.specBlock=W\+'x'\+H;/.test(experience) &&
+  /carried\.dataset\.specFits=\(W<=availW\+1&&H<=availH\+1\)\?'1':'0';/.test(experience));
 
 /* ------------------------------------------------------------- 6. persistence */
 

@@ -386,3 +386,53 @@ the scope guard flags and which needs owner approval).
   **Lesson for the next assistant:** when the owner says "it looks wrong", believe the screenshot and
   get a browser running before touching CSS. Three of the four attempts at this page were fixes to a
   problem that had not been measured.
+
+---
+
+### 2026-11-10 - Page 3 is now page 6, whole page, not just the cards
+
+  The owner's words were "as exact same as proposal understood" - the cards alone were never going to
+  satisfy him. Page 3 now carries the **entire** `#pageTechSpec` section: the report header, the
+  "Technical System Specification" title, the subtitle, the DETAILED SPECIFICATION block, the four
+  spec cards, the note box under them, and the report footer. Nothing is drawn on top of it.
+
+  **The bug that stood in the way, and the rule it leaves behind.** The first attempt cloned the
+  section and stripped the ids so the copy would not duplicate `#pageTechSpec`. That silently
+  un-styled the whole thing, because the sheet was styled *by* those ids
+  (`#v_tsTable{display:none}`, `#pageTechSpec .pg-body`). Result: the raw spec table reappeared
+  below the cards and the note fell back to app.css defaults.
+
+  So: **every sheet selector is now class-based** - `.pv2-sheet` instead of `#pageTechSpec`,
+  `.v_tsTable` / `.v_tsHeading` / `.v_tsPara` / `.v_tsGroupsLabel` / `.v_tsRefsWrap` instead of
+  `#v_ts*` (86 + 8 and 12 + 18 rules across `app.css` and `proposal-v2.css`). `quotation.html`
+  mirrors all 14 `v_ts*` ids as same-named classes, so nothing that targets an id breaks. The clone
+  then keeps its structure and simply **prefixes every id with `pw3-`** instead of deleting them.
+
+  **Never strip ids from that clone again. Prefix them.** A copied section needs no particular id
+  once the styling is class-based.
+
+  **Export guard.** A carried page has no report footer, so the "too much text" preflight was
+  measuring page 3's `pg-foot` against a missing `.power-foot` and refusing to export. The
+  footer-clearance test now only runs against `:scope > footer.power-foot`, and a carried sheet is
+  instead checked for sheet edge and horizontal overflow. Export produces the full 7-page Power
+  Proposal again.
+
+  **Measured, in Chromium, after the change** (`/tmp/whole.cjs`):
+  ```
+  head 1 · kicker 0 · h1 1 · cardCount 4 · noteBox 1 · foot 1
+  cards  718x205  718x205  718x184  718x166     (identical to page 6)
+  bodyH 1123 = exactly one A4                   (fits)
+  ```
+  A side-by-side screenshot of page 3 and page 6 at the same scale is indistinguishable.
+
+  **Tests retargeted, none deleted:** `page56-marks` moved to the class selectors (52/52),
+  `custom-art` section 5b rewritten to the whole-sheet intent including "ids are made unique, never
+  stripped" and "styles itself through classes" (48/48), `experience` exempts the carried page from
+  the footer-gap floor since it has no report footer (53/53). In the browser suites, `financial-fixes`
+  had two stale expectations from when the power proposal was 6 pages and investment lived on page 5
+  (now 7 pages, investment on page 6), and `footer-website` now expects 6 `.power-foot` plus page 3's
+  carried `.pg-foot`. Both pass.
+
+  Full local set: `experience` 53/53 · `page56-marks` 52/52 · `custom-art` 48/48 · `sync` 106/106 ·
+  `financial-fixes-browser` 2/2 · `footer-website` PASS · `pr-scope-guard` clean.
+  `power-five` still fails on its `₹83.33k` tick label - confirmed pre-existing on `main`, unrelated.

@@ -413,13 +413,22 @@
            without the padding counted as text. */
         const sheetTop=page.getBoundingClientRect().top;
         let contentBottom=last.getBoundingClientRect().bottom;
+        /* Page 3 of the report carries page 6 whole, so the footer that belongs to it
+           is the SHEET's .pg-foot, sitting where page 6 puts it - deliberately not
+           clear of the cards, and 42px past where the report's own foot would be. The
+           clearance rule is about the report's foot, so it only applies to pages that
+           have one. The sheet-edge and sideways checks still apply to every page. */
+        const ownFoot=page.querySelector(':scope > footer.power-foot');
+        const carried=!ownFoot&&!!page.querySelector('.power-spec-sheet');
         for(const node of page.querySelectorAll('*')){
           if(node.closest('footer')) continue;
           const box=node.getBoundingClientRect();
           if(box.height&&box.bottom>contentBottom) contentBottom=box.bottom;
         }
-        if(contentBottom>footer.getBoundingClientRect().top-4 || contentBottom>sheetTop+page.clientHeight+0.5 || page.scrollWidth>page.clientWidth+1)
-          throw new Error('This proposal has too much text for the '+powerPageCount()+'-page report. Please use the detailed PDF or shorten the equipment / delivery text.');
+        const overFoot=ownFoot&&contentBottom>ownFoot.getBoundingClientRect().top-4;
+        if(overFoot || contentBottom>sheetTop+page.clientHeight+0.5 || page.scrollWidth>page.clientWidth+1)
+          throw new Error((carried?'The carried technical page no longer fits the sheet. ':'')
+            +'This proposal has too much text for the '+powerPageCount()+'-page report. Please use the detailed PDF or shorten the equipment / delivery text.');
       });
       // Supplements accept user-authored text. Never silently clip a long scope or model name.
       pages.filter(p=>p.classList.contains('bess-page')||p.classList.contains('system-page')).forEach(page=>{

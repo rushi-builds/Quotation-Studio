@@ -122,15 +122,15 @@ t('page 6 opener replaces the dark DETAILED SPECIFICATION slab with one line', (
 });
 
 t('the orange phrases are the only coloured part of that line', () => {
-  const eyebrow = css.match(/\.pv2-tech #v_tsGroupsLabel\.pv2-eyebrow\{([^}]*)\}/);
+  const eyebrow = css.match(/\.pv2-tech .v_tsGroupsLabel\.pv2-eyebrow\{([^}]*)\}/);
   assert.ok(eyebrow, 'eyebrow rule exists');
   assert.match(eyebrow[1], /color:#7A828E/, 'the sentence itself is quiet grey');
-  assert.match(css, /\.pv2-tech #v_tsGroupsLabel\.pv2-eyebrow em\{[^}]*color:#E5741A/,
+  assert.match(css, /\.pv2-tech .v_tsGroupsLabel\.pv2-eyebrow em\{[^}]*color:#E5741A/,
     'only the <em> phrases take the orange');
 });
 
 /* ------------------------------------------ page 6 note wins the specificity */
-t('REGRESSION: the note rule outweighs app.css `#pageTechSpec .note-box`', () => {
+t('REGRESSION: the note rule outweighs app.css `.pv2-sheet .note-box`', () => {
   const weights = (sel) => {
     const ids = (sel.match(/#/g) || []).length;
     const cls = (sel.match(/\.[a-z0-9-]+/gi) || []).length
@@ -138,8 +138,8 @@ t('REGRESSION: the note rule outweighs app.css `#pageTechSpec .note-box`', () =>
     const el = (sel.match(/(^|[ >+~])([a-z][a-z0-9-]*)/gi) || []).length;
     return ids * 10000 + cls * 100 + el;
   };
-  const base = weights('#pageTechSpec .note-box');
-  const mine = weights('#pageTechSpec.pv2 .pg-body > .note-box');
+  const base = weights('.pv2-sheet .note-box');
+  const mine = weights('.pv2-sheet.pv2 .pg-body > .note-box');
   assert.ok(mine > base, `our rule (${mine}) must outrank app.css (${base}) or the old box returns`);
   /* And it must set every property the base rule sets, so nothing leaks through. */
   /* Several rules target this box; the LAST one is the one that wins the
@@ -147,7 +147,7 @@ t('REGRESSION: the note rule outweighs app.css `#pageTechSpec .note-box`', () =>
      (Page 5's scope note no longer rides this selector: page 6's note is now a
      pill of its own, so the base layout lives in ONE rule and the fit step adds
      the padding tweak.) */
-  const blocks = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)];
+  const blocks = [...css.matchAll(/.pv2-sheet\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)];
   assert.ok(blocks.length >= 1, 'the base layout rule exists');
   const block = blocks[blocks.length - 1][1];
   /* font-size now rides the `font:` shorthand, which resets it just as well. */
@@ -193,16 +193,16 @@ t('NEGATIVE: cover and approved closing page are not repainted', () => {
 
 /* ------------------------------------------------------------ page 6 spacing */
 t('page 6 note is one compact inline line, not an absolute overlay', () => {
-  assert.match(css, /#pageTechSpec\.pv2 \.pg-body > \.note-box #v_tsNoteLabel\{[\s\S]{0,200}?position:static/,
+  assert.match(css, /.pv2-sheet\.pv2 \.pg-body > \.note-box .v_tsNoteLabel\{[\s\S]{0,200}?position:static/,
     'the label must flow inline; the old rule pinned it with position:absolute + 48px inset');
-  assert.doesNotMatch(css, /#pageTechSpec\.pv2 \.note-box #v_tsNoteLabel\{letter-spacing:0;font-size:13px!important;position:absolute/,
+  assert.doesNotMatch(css, /.pv2-sheet\.pv2 \.note-box .v_tsNoteLabel\{letter-spacing:0;font-size:13px!important;position:absolute/,
     'the tall overlay label is the thing that was removed');
 });
 
 t('page 6 reclaimed vertical space on the card grid and the label', () => {
   assert.match(css, /\.pv2-tech \.pv2-spec\{display:flex;flex-direction:column;gap:8px;\}/,
     'card gap 10 -> 8');
-  assert.match(css, /\.pv2-tech #v_tsGroupsLabel\.pv2-eyebrow\{[\s\S]{0,160}?height:auto/,
+  assert.match(css, /\.pv2-tech .v_tsGroupsLabel\.pv2-eyebrow\{[\s\S]{0,160}?height:auto/,
     'the opener is a quiet single line now, not a height-locked slab');
   assert.match(css, /\.pv2-tech \.pv2-row \.pv2-k,\.pv2-tech \.pv2-row \.pv2-v\{padding-top:3px;padding-bottom:3px;\}/,
     'row padding 4 -> 3 on both cells');
@@ -221,7 +221,7 @@ t('the space came from padding and gaps, not from shrinking the body copy', () =
   assert.match(compress[1], /padding-top:3px;padding-bottom:3px/, 'row padding 4 -> 3');
   /* The pill sets its type with the `font:` shorthand, so read the size from
      there; fall back to a longhand if one is ever reintroduced. */
-  const noteBlock = (css.match(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([^}]*)\}/) || [])[1] || '';
+  const noteBlock = (css.match(/.pv2-sheet\.pv2 \.pg-body > \.note-box\{([^}]*)\}/) || [])[1] || '';
   const noteSize = Number((noteBlock.match(/font-size:([\d.]+)px/) ||
     noteBlock.match(/font:(?:\d+ )?([\d.]+)px/) || [])[1]);
   const rowSize = Number((css.match(/\.pv2-tech \.pv2-k\{[^}]*font:(?:\d+ )?([\d.]+)px/) || [])[1]);
@@ -615,7 +615,7 @@ t('the right-hand column is the one that carries the weight', () => {
 
 /* --------------------- page 6 note: the owner's reference shape, compact */
 t('the page 6 note is the same quiet peach band as page 5’s, not a fifth specification row', () => {
-  const block = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)].pop()[1];
+  const block = [...css.matchAll(/.pv2-sheet\.pv2 \.pg-body > \.note-box\{([\s\S]*?)\}/g)].pop()[1];
   /* One soft band: an orange i, the word, the sentence. It used to be a white pill
      with a flag, a divider and a folded corner - four devices for one sentence. */
   assert.match(block, /background:#FFF1E3/, 'the same peach as page 5’s note');
@@ -628,15 +628,15 @@ t('the page 6 note is the same quiet peach band as page 5’s, not a fifth speci
 
 t('the note carries an orange i, the word and the sentence - nothing else', () => {
   /* The label is plain orange type with the drawn icon in front of it. */
-  assert.match(css, /#v_tsNoteLabel\{[^}]*background:none/, 'no flag behind the word');
-  assert.match(css, /#v_tsNoteLabel\{[^}]*color:#E5741A/, 'the word is the page’s orange');
-  assert.match(css, /#v_tsNoteLabel::after\{[^}]*data:image\/svg\+xml/, 'the icon is drawn, not a glyph');
-  assert.match(css, /#v_tsNoteLabel::after\{[^}]*fill='%23F2811D'/, 'an orange disc with a white i');
+  assert.match(css, /.v_tsNoteLabel\{[^}]*background:none/, 'no flag behind the word');
+  assert.match(css, /.v_tsNoteLabel\{[^}]*color:#E5741A/, 'the word is the page’s orange');
+  assert.match(css, /.v_tsNoteLabel::after\{[^}]*data:image\/svg\+xml/, 'the icon is drawn, not a glyph');
+  assert.match(css, /.v_tsNoteLabel::after\{[^}]*fill='%23F2811D'/, 'an orange disc with a white i');
   /* The devices that were retired stay retired. */
-  assert.doesNotMatch(css, /#v_tsNote\{[^}]*border-left:1px solid/, 'no divider');
-  const after = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box::after\{([^}]*)\}/g)].pop()[1];
+  assert.doesNotMatch(css, /.v_tsNote\{[^}]*border-left:1px solid/, 'no divider');
+  const after = [...css.matchAll(/.pv2-sheet\.pv2 \.pg-body > \.note-box::after\{([^}]*)\}/g)].pop()[1];
   assert.match(after, /content:none/, 'no folded corner');
-  const before = [...css.matchAll(/#pageTechSpec\.pv2 \.pg-body > \.note-box::before\{([^}]*)\}/g)].pop()[1];
+  const before = [...css.matchAll(/.pv2-sheet\.pv2 \.pg-body > \.note-box::before\{([^}]*)\}/g)].pop()[1];
   assert.match(before, /content:none/, 'and no extra dot');
 });
 
@@ -774,7 +774,7 @@ t('REGRESSION: captions wrap instead of printing over the node beside them', () 
 });
 
 /* The Power Proposal used to build its system diagram by copying
-   #v_tsDiagram's innerHTML. That is the RETIRED svg: page 6 hides it with
+   .v_tsDiagram's innerHTML. That is the RETIRED svg: page 6 hides it with
    display:none and the live path leaves it empty, so page 3 of the report printed an
    empty framed box directly under a caption promising "Conceptual grid-tied flow".
    Nothing tested that path, which is why it stayed broken. */

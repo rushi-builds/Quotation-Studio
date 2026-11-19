@@ -28,31 +28,31 @@
 /* Page 6's note is the same quiet peach band as page 5's: an orange "i", the word
    Note, then the sentence. It used to be a white pill with a folded corner, a
    pale-blue flag and a divider - four devices for one sentence, and it sat tight
-   under the last card. Weight note: app.css carries `#pageTechSpec .note-box`
+   under the last card. Weight note: app.css carries `.pv2-sheet .note-box`
    (0-1-1-0) with a gradient, a border, a backdrop blur and margin-top:26px. The
    selector below is 0-2-2-0 and re-sets every property that base rule touches, so
    nothing leaks through if load order or a class reset changes. */
-#pageTechSpec.pv2 .pg-body > .note-box{
+.pv2-sheet.pv2 .pg-body > .note-box{
   position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:14px;
   margin-top:12px;padding:9px 20px;text-align:left;min-height:0;
   background:#FFF1E3;border:0;border-radius:12px;box-shadow:none;
   -webkit-backdrop-filter:none;backdrop-filter:none;
   font:500 9.6px/1.45 'Inter',sans-serif;color:#26313F;overflow:visible;
 }
-#pageTechSpec.pv2 .pg-body > .note-box::before{content:none;display:none;}
-#pageTechSpec.pv2 .pg-body > .note-box::after{content:none;display:none;}
+.pv2-sheet.pv2 .pg-body > .note-box::before{content:none;display:none;}
+.pv2-sheet.pv2 .pg-body > .note-box::after{content:none;display:none;}
 /* v_tsNoteLabel is the flag: the orange ring-i icon, then the word. */
-#pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel{
+.pv2-sheet.pv2 .pg-body > .note-box .v_tsNoteLabel{
   position:static;display:inline-flex;align-items:center;gap:8px;
   margin:0;padding:0;border:0;border-radius:0;background:none;
   color:#E5741A;text-transform:none;letter-spacing:0;white-space:nowrap;
   font:700 12.5px/1 'Poppins','Inter',sans-serif;
 }
-#pageTechSpec.pv2 .pg-body > .note-box #v_tsNoteLabel::after{
+.pv2-sheet.pv2 .pg-body > .note-box .v_tsNoteLabel::after{
   content:'';order:-1;flex:none;width:20px;height:20px;
   background:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='12' fill='%23F2811D'/%3E%3Cpath d='M12 10.6v6.2M12 6.6v1.3' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-#pageTechSpec.pv2 .pg-body > .note-box #v_tsNote{
+.pv2-sheet.pv2 .pg-body > .note-box .v_tsNote{
   display:block;margin:0;padding:0;border:0;color:#26313F;
   font:500 9.6px/1.45 'Inter',sans-serif;
 }
@@ -207,23 +207,23 @@
 .pv2-tech .pv2-card-head{margin:0 2px 4px 0;min-height:24px;}
 .pv2-tech .pv2-card{padding:6px 8px 6px 10px;}
 .pv2-tech .pv2-row .pv2-k,.pv2-tech .pv2-row .pv2-v{padding-top:3px;padding-bottom:3px;}
-.pv2-tech #v_tsPara{margin-bottom:0;}
-.pv2-tech #v_tsHeading{font:800 32px/1.12 'Poppins','Inter',sans-serif;color:var(--pv2-navy);letter-spacing:-.5px;margin:0;}
-.pv2-tech #v_tsSub{font:600 15px/1.3 'Poppins','Inter',sans-serif;color:#F2811D;margin:4px 0 0;}
+.pv2-tech .v_tsPara{margin-bottom:0;}
+.pv2-tech .v_tsHeading{font:800 32px/1.12 'Poppins','Inter',sans-serif;color:var(--pv2-navy);letter-spacing:-.5px;margin:0;}
+.pv2-tech .v_tsSub{font:600 15px/1.3 'Poppins','Inter',sans-serif;color:#F2811D;margin:4px 0 0;}
 .pv2-tech .pg-body > .rule-orange{width:58px;height:3px;border-radius:2px;background:#F2811D;margin:5px 0 8px;}
-.pv2-tech #v_tsPara{font-size:11.6px;line-height:1.5;color:#4A5565;margin:0;max-width:none;}
+.pv2-tech .v_tsPara{font-size:11.6px;line-height:1.5;color:#4A5565;margin:0;max-width:none;}
 .pv2-tech .diagram-box{display:none!important;}
-.pv2-tech #v_tsTable{display:none!important;}
+.pv2-tech .v_tsTable{display:none!important;}
 /* Quiet opener for the specification cards: one small line, two orange phrases,
    then the rule runs to the page edge. Replaces the dark "DETAILED
    SPECIFICATION" slab, which repeated the sub-heading above it. */
-.pv2-tech #v_tsGroupsLabel.pv2-eyebrow{display:flex;align-items:baseline;gap:0;height:auto;margin:8px 0 8px;
+.pv2-tech .v_tsGroupsLabel.pv2-eyebrow{display:flex;align-items:baseline;gap:0;height:auto;margin:8px 0 8px;
   padding:0;background:none;border:0;font:500 9.6px/1.45 'Inter',sans-serif;color:#7A828E;letter-spacing:0;}
-.pv2-tech #v_tsGroupsLabel.pv2-eyebrow span{flex:0 1 auto;min-width:0;}
-.pv2-tech #v_tsGroupsLabel.pv2-eyebrow em{font-style:normal;font-weight:700;color:#E5741A;}
-.pv2-tech #v_tsGroupsLabel.pv2-eyebrow::after{content:'';flex:1 1 auto;align-self:center;height:1px;
+.pv2-tech .v_tsGroupsLabel.pv2-eyebrow span{flex:0 1 auto;min-width:0;}
+.pv2-tech .v_tsGroupsLabel.pv2-eyebrow em{font-style:normal;font-weight:700;color:#E5741A;}
+.pv2-tech .v_tsGroupsLabel.pv2-eyebrow::after{content:'';flex:1 1 auto;align-self:center;height:1px;
   background:#C3CBD6;margin-left:14px;min-width:24px;}
-.pv2-tech #v_tsGroupsLabel.pv2-eyebrow::before{display:none;}
+.pv2-tech .v_tsGroupsLabel.pv2-eyebrow::before{display:none;}
 .pv2-tech .pv2-spec{display:flex;flex-direction:column;gap:8px;}
 .pv2-tech .pv2-card{background:#fff;border:1px solid #E4E8EE;border-radius:12px;box-shadow:0 2px 10px rgba(20,38,58,.06);padding:8px 8px 8px 10px;}
 .pv2-tech .pv2-card-head{display:flex;align-items:center;gap:10px;margin:0 2px 5px 0;min-height:26px;}
@@ -259,20 +259,20 @@
 .pv2-tech .pv2-photo img{object-fit:cover;}
 .pv2-tech .pv2-photo::after{content:'';position:absolute;right:0;bottom:0;width:30px;height:30px;
   background:radial-gradient(circle at 0 0,transparent 29px,#F2811D 30px);}
-.pv2-tech #v_tsRefsWrap{margin-top:8px;}
-.pv2-tech #v_tsRefsWrap .sec-label{margin-top:0;}
+.pv2-tech .v_tsRefsWrap{margin-top:8px;}
+.pv2-tech .v_tsRefsWrap .sec-label{margin-top:0;}
 
 .pv2-tech .proposal-value-footer{display:none!important;}
 
 .pv2-tech.pv2-fit-1 .pv2-k,.pv2-tech.pv2-fit-1 .pv2-v{padding-top:3px;padding-bottom:3px;font-size:9.8px;}
 .pv2-tech.pv2-fit-1 .pv2-spec{gap:8px;}
-.pv2-tech.pv2-fit-2 #v_tsPara{font-size:10.6px;}
-.pv2-tech.pv2-fit-2 #v_tsGroupsLabel.pv2-label{margin:8px 0 7px -12px;}
+.pv2-tech.pv2-fit-2 .v_tsPara{font-size:10.6px;}
+.pv2-tech.pv2-fit-2 .v_tsGroupsLabel.pv2-label{margin:8px 0 7px -12px;}
 .pv2-tech.pv2-fit-2 .pv2-k,.pv2-tech.pv2-fit-2 .pv2-v{padding-top:2px;padding-bottom:2px;font-size:9.4px;line-height:1.22;}
 .pv2-tech.pv2-fit-2 .pv2-card-head{margin-bottom:4px;min-height:26px;}
-.pv2-tech.pv2-fit-4 #v_tsPara{display:none;}
+.pv2-tech.pv2-fit-4 .v_tsPara{display:none;}
 .pv2-tech.pv2-fit-3 .pv2-card{padding-top:6px;padding-bottom:6px;}
-#pageTechSpec.pv2.pv2-fit-3 .pg-body > .note-box{padding-top:7px;padding-bottom:7px;font-size:9.4px;}
+.pv2-sheet.pv2.pv2-fit-3 .pg-body > .note-box{padding-top:7px;padding-bottom:7px;font-size:9.4px;}
 .pv2-tech.pv2-fit-4 .pv2-k,.pv2-tech.pv2-fit-4 .pv2-v{font-size:8.8px;padding-top:1.5px;padding-bottom:1.5px;}
 .pv2-tech.pv2-fit-4 .pv2-k .pv2-svg{width:12px;height:12px;}
 .pv2 .pv2-node.is-house b{white-space:nowrap;}
