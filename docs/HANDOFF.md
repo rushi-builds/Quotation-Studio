@@ -457,3 +457,9 @@ the scope guard flags and which needs owner approval).
 
   Visual proof, full-proposal page 6 beside power-proposal page 3 at the same scale:
   `page3-vs-page6.png` in the repo root (not committed - regenerate with the recipe below).
+
+  **CI status at this point.** Offline suite green on CI. Browser suite is at the baseline set of failures
+  (`page-spacing`, `tech-spec`, `array-size`, `system-diagram`, `equipment-entry`, `browser`) plus one
+  time-of-day flake: `release-audit`'s "proposal date follows local India date" passes locally in any
+  timezone and fails on a runner whose clock is in the small window the fixture does not pin. It is not
+  related to the page-3 work and it is not touched by it.
