@@ -515,14 +515,14 @@
 /* Power Proposal page 4 is a compact, composed sheet made only inside the
    seven-page extract. Its flow stays normal so sections cannot overlap; the
    original Detailed Proposal pageScope and pageWarranty remain untouched. */
-#powerPage4.power-scope-warranty>.pg-body{display:flex;flex-direction:column;gap:12px;padding-top:70px;padding-bottom:48px;}
+#powerPage4.power-scope-warranty>.pg-body{display:flex;flex-direction:column;gap:14px;padding-top:70px;padding-bottom:48px;}
 #powerPage4.power-scope-warranty .intro-col{flex:0 0 216px;min-height:216px;max-width:390px;}
 #powerPage4.power-scope-warranty .sw-section{min-width:0;flex:none;}
 #powerPage4.power-scope-warranty .sw-section-label{display:block;margin:0 0 7px;padding:5px 10px;}
-#powerPage4.power-scope-warranty .sw-scope-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
-#powerPage4.power-scope-warranty .sw-warranty-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
-#powerPage4.power-scope-warranty .sw-journey-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
-#powerPage4.power-scope-warranty .sw-inputs-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+#powerPage4.power-scope-warranty .sw-scope-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+#powerPage4.power-scope-warranty .sw-warranty-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+#powerPage4.power-scope-warranty .sw-journey-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+#powerPage4.power-scope-warranty .sw-inputs-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 #powerPage4.power-scope-warranty .sw-card{min-width:0;border:1px solid #e1e7ec;border-radius:8px;background:#fff;padding:8px 9px;display:flex;align-items:flex-start;gap:7px;}
 #powerPage4.power-scope-warranty .sw-scope-card{min-height:64px;background:#fffdfa;padding:9px 10px;}
 #powerPage4.power-scope-warranty .sw-number,#powerPage4.power-scope-warranty .sw-warranty-icon,#powerPage4.power-scope-warranty .sw-step{flex:0 0 auto;display:grid;place-items:center;width:21px;height:21px;border-radius:50%;background:#f7941d;color:#fff;font:700 8px/1 'Inter',Arial,sans-serif;}
@@ -542,9 +542,16 @@
 #powerPage4.power-scope-warranty .sw-note-card.sw-exclusions{border-left-color:#17354a;background:#f5f7f9;}
 #powerPage4.power-scope-warranty .sw-note-title{margin:0;color:#17354a;font:700 9px/1.35 'Poppins','Inter',Arial,sans-serif;overflow-wrap:anywhere;}
 #powerPage4.power-scope-warranty .sw-note-card .sw-card-detail{font-size:8.7px;line-height:1.45;}
-#powerPage4.power-scope-warranty .sw-quality-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+#powerPage4.power-scope-warranty .sw-quality-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 #powerPage4.power-scope-warranty .sw-quality-card{min-height:51px;align-items:center;background:#fff;padding:8px 9px;}
 #powerPage4.power-scope-warranty .sw-quality-mark{flex:0 0 auto;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#eaf5ef;color:#24734d;font:700 7px/1 'Inter',Arial,sans-serif;}
 #powerPage4.power-scope-warranty .sw-quality-card .sw-card-title{font-size:9px;}
 #powerPage4.power-scope-warranty .sw-quality-card .sw-card-detail{font-size:8px;line-height:1.35;margin-top:2px;}
 #powerPage4.power-scope-warranty .sw-legal-note{flex:none;margin:0;color:#667589;font:400 8.2px/1.45 'Inter',Arial,sans-serif;overflow-wrap:anywhere;}
+
+#powerPage4.power-scope-warranty .sw-value-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding-top:8px;border-top:1px solid #e5e9ed;}
+#powerPage4.power-scope-warranty .sw-value-item{min-width:0;display:flex;align-items:center;gap:7px;color:#4d667b;}
+#powerPage4.power-scope-warranty .sw-value-mark{display:block;flex:0 0 auto;line-height:0;}
+#powerPage4.power-scope-warranty .sw-value-mark svg{display:block;width:21px;height:21px;}
+#powerPage4.power-scope-warranty .sw-value-label{font:500 7.6px/1.3 'Inter',Arial,sans-serif;overflow-wrap:anywhere;}
+@media(max-width:680px){#powerPage4.power-scope-warranty .sw-value-row{gap:6px;}#powerPage4.power-scope-warranty .sw-value-item{gap:4px;}}

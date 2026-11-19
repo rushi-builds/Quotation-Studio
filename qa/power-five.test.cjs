@@ -28,7 +28,7 @@ const pkg=require('@sparticuz/chromium'),bundle=pkg.default||pkg;
     const originalStructure=i===0
       ? source.querySelector('.ktm-cover').innerHTML===copy.querySelector('.ktm-cover').innerHTML
       : i===3
-        ? copy.classList.contains('power-scope-warranty')&&['TURNKEY EPC SCOPE','WARRANTY COVERAGE','FROM ORDER TO HANDOVER','CUSTOMER INPUTS','BEFORE WE HAND OVER'].every(t=>copy.textContent.includes(t))
+        ? copy.classList.contains('power-scope-warranty')&&['TURNKEY EPC SCOPE','WARRANTY COVERAGE','FROM ORDER TO HANDOVER','BEFORE WE HAND OVER','structurally adequate roof','internet/service access may be needed'].every(t=>copy.textContent.includes(t))
         : i===6
           ? ['.closing-hero','.closing-card','.closing-invitation','.closing-wave'].every(sel=>source.querySelector(sel)?.outerHTML===copy.querySelector(sel)?.outerHTML)
           : body?.innerHTML===copyBody?.innerHTML;
@@ -45,7 +45,7 @@ const pkg=require('@sparticuz/chromium'),bundle=pkg.default||pkg;
     specCards:third.querySelectorAll('.pv2-card').length,
     investment:pages[5].textContent.includes(Finance.fmtINR(Finance.compute(Render.lastState).netInvestment)),
     savings:pages[4].textContent.includes('₹'),
-    scopeLayout:(()=>{const p=pages[3],sections=[...p.querySelectorAll('.sw-section')],aside=p.querySelector('.proposal-value-footer'),foot=p.querySelector(':scope>footer'),body=p.querySelector('.pg-body'),bottom=Math.max(...[...body.querySelectorAll('*')].filter(n=>n.getClientRects().length&&!n.matches('style,script')).map(n=>n.getBoundingClientRect().bottom));return {sections:sections.length,ordered:sections.slice(1).every((s,i)=>sections[i].getBoundingClientRect().bottom<=s.getBoundingClientRect().top),footerGap:foot.getBoundingClientRect().top-bottom,noRepeatedBand:!aside,qualityChecks:p.querySelectorAll('.sw-quality-card').length,overflow:p.scrollWidth<=p.clientWidth};})(),
+    scopeLayout:(()=>{const p=pages[3],sections=[...p.querySelectorAll('.sw-section')],aside=p.querySelector('.proposal-value-footer'),foot=p.querySelector(':scope>footer'),body=p.querySelector('.pg-body'),bottom=Math.max(...[...body.querySelectorAll('*')].filter(n=>n.getClientRects().length&&!n.matches('style,script')).map(n=>n.getBoundingClientRect().bottom));return {sections:sections.length,ordered:sections.slice(1).every((s,i)=>sections[i].getBoundingClientRect().bottom<=s.getBoundingClientRect().top),footerGap:foot.getBoundingClientRect().top-bottom,noRepeatedBand:!aside,qualityChecks:p.querySelectorAll('.sw-quality-card').length,valueIcons:p.querySelectorAll('.sw-value-item').length,overflow:p.scrollWidth<=p.clientWidth};})(),
     numbers:pages.map(p=>p.querySelector('.pf-right')?.textContent.trim()||null),
     aliases:host.querySelector('style[data-power-source-aliases]')?.textContent.includes('data-source-page'),
     unchanged:state===JSON.stringify(Render.lastState)&&finance===JSON.stringify(Finance.compute(Render.lastState))&&pagesBefore===JSON.stringify([...document.querySelectorAll('.preview-panel .page')].map(digest))};
@@ -58,7 +58,7 @@ const pkg=require('@sparticuz/chromium'),bundle=pkg.default||pkg;
   assert(result.parity.every(p=>p.sourceWidth===p.copyWidth&&p.sourceHead===p.copyHead),'A4 sheet and chrome geometry stays identical');
   assert(result.footGaps[0]===null&&result.footGaps.slice(1).every(g=>g>=3),'all selected Detailed Proposal sheets clear their footer: '+JSON.stringify(result.footGaps));
   assert(result.exactSpec&&result.specCards>=1,'page 3 technical sheet body remains unchanged');
-  assert(result.scopeLayout.sections===5&&result.scopeLayout.ordered&&result.scopeLayout.footerGap>=8&&result.scopeLayout.noRepeatedBand&&result.scopeLayout.qualityChecks===3&&result.scopeLayout.overflow,'page 4 adds source-backed pre-handover checks, opens up section spacing and clears the footer without repeating the old value band: '+JSON.stringify(result.scopeLayout));
+  assert(result.scopeLayout.sections===4&&result.scopeLayout.ordered&&result.scopeLayout.footerGap>=8&&result.scopeLayout.noRepeatedBand&&result.scopeLayout.qualityChecks===4&&result.scopeLayout.valueIcons===4&&result.scopeLayout.overflow,'page 4 uses one clear pre-handover section with four checks, four unique footer icons, balanced spacing and footer clearance: '+JSON.stringify(result.scopeLayout));
   assert(result.investment&&result.savings,'saved quote values stay in the compact report');
   assert(result.numbers[0]===null&&result.numbers.slice(1).every((n,i)=>n===`Page ${i+2} of 7`));
   assert(result.aliases,'source-ID design rules are carried into the snapshot');
