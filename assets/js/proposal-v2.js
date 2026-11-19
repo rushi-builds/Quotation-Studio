@@ -273,7 +273,10 @@
     if (!vals) {
       vals = doc.createElement('div'); vals.className = 'pv2-values-wrap'; vals.dataset.docAdded = 'true';
       body.append(vals);
-      vals.innerHTML = values([['target', 'Site-fit', 'Design'], ['gear', 'Specified', 'Equipment'], ['shield', 'Design', 'Safety'], ['check', 'Planned', 'Handover']]);
+      /* The same four marks and the same four promises the rest of the proposal
+         carries on its scope page: this row is the proposal's standing furniture,
+         not a page-local variant of it. */
+      vals.innerHTML = values([['doc', 'Defined', 'scope'], ['gear', 'Careful', 'installation'], ['check', 'Clear', 'handover'], ['users', 'Agreed', 'responsibilities']]);
     }
     fit(page, ['pv2-fit-1', 'pv2-fit-2', 'pv2-fit-3']);
   }

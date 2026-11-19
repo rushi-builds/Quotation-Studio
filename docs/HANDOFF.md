@@ -4,6 +4,23 @@ Written so any engineer or AI assistant (another Claude account, Arena, Lovable,
 exactly where it stopped. State as of `main` = `be429df` (PR #62 merged). Owner: **rushi-builds**. Language the owner
 uses: Hinglish; keep replies short and practical. **Never put tokens/passwords in this repo or in chats.**
 
+### The value band on page 5 (Solution)
+
+The four-icon band (`Defined scope / Careful installation / Clear handover / Agreed
+responsibilities`) is standing furniture: it closes every page except the cover, the
+closing page and the technical sheet. Page 5 draws its own copy of it (`.pv2-values-wrap`
+in `proposal-v2.js`) instead of the injected `.proposal-value-footer`, so it has to be
+kept in step by hand:
+
+- **the words** come from `pageScope` in `proposal-values.js`. Page 5 used to draw its own
+  `Site-fit / Specified / Design / Planned` set, which read as a different component on the
+  page the owner looks at most. They are now the same four promises as everywhere else.
+- **the row is never hidden.** `.pv2-fit-3` used to be `display:none` on it, and because
+  the page only has ~16px of slack before the first tighten step kicks in, it vanished
+  easily - "the 4 icons are gone". The tightest step now takes its ~30px from the gaps
+  above the row (`#v_soScopeNote` margin, `.pv2-overview` margin, node art height) and the
+  row stays. `qa/page56-marks.test.cjs` fails if any fit step hides it again.
+
 ## 1. What this is
 Solar EPC proposal builder. Form on the left, live A4 preview on the right, 15 pages, exported as PDF.
 - Frontend: static HTML/CSS/JS (no build step), hosted on **Vercel**. `vercel.json` rewrites `/api/*` to the
