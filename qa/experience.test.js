@@ -24,10 +24,10 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('QR redraw replaces old destination',await readQR(page,'#closingGallery canvas')==='https://example.com/updated-gallery');
  const expected=await page.evaluate(()=>{const f=Finance.compute(Render.lastState);return {net:Finance.fmtINR(f.netInvestment),annual:Finance.fmtNum(f.annualGen),lifetime:Finance.fmtINRshort(f.lifetimeSaving),module:f.moduleCount};});
  await page.evaluate(()=>window.__power=Experience.buildPowerPages(Render.lastState));
- check('Power Proposal is exactly six dedicated pages',await page.$$eval('.pdf-snapshot .power-page',els=>els.length===6));
+ check('Power Proposal is exactly seven dedicated pages',await page.$$eval('.pdf-snapshot .power-page',els=>els.length===7));
  check('summary reflects energy/equipment while pricing stays on Investment',await page.$eval('#powerPage1',(e,x)=>!e.textContent.includes('₹')&&e.textContent.includes(x.annual)&&e.textContent.includes(x.module+' × 620')&&e.textContent.includes('10 kW inverter'),expected));
- check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage5.textContent.includes(x.net)&&powerPage4.textContent.includes(x.lifetime),expected));
- check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage5.textContent.includes('not approved')&&powerPage6.textContent.includes('Additional scope')&&powerPage6.textContent.includes('valid until')&&powerPage6.textContent.includes('not an installation order')));
+ check('investment and cumulative value match the same saved quotation',await page.evaluate(x=>powerPage6.textContent.includes(x.net)&&powerPage5.textContent.includes(x.lifetime),expected));
+ check('brief includes subsidy qualification, exclusions and proposal validity',await page.evaluate(()=>powerPage6.textContent.includes('not approved')&&powerPage7.textContent.includes('Additional scope')&&powerPage7.textContent.includes('valid until')&&powerPage7.textContent.includes('not an installation order')));
  /* A power page is a fixed A4 box with overflow hidden whose own bottom
     padding is part of scrollHeight (1123 + padding), so scrollHeight alone
     reads 1130 on a page that is completely inside the sheet. Measure the same
@@ -36,10 +36,64 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
     and name the deepest element so a failure says what is sticking out. */
  async function powerLayout(){return page.$$eval('.power-page',els=>els.map(e=>{const r=e.getBoundingClientRect(),foot=e.querySelector('footer'),body=foot.previousElementSibling,f=foot.getBoundingClientRect();let deepest='(none)',low=-Infinity;for(const n of e.querySelectorAll('*')){if(n.closest('footer'))continue;const nb=n.getBoundingClientRect();if(!nb.width&&!nb.height)continue;if(nb.bottom>low){low=nb.bottom;deepest=n.tagName.toLowerCase()+(n.id?'#'+n.id:'')+(typeof n.className==='string'&&n.className.trim()?'.'+n.className.trim().split(/\s+/).join('.'):'');}}return {id:e.id,sheet:e.clientHeight,h:e.scrollHeight,deepest:deepest,deep:Math.round(low-r.top),gap:f.top-body.getBoundingClientRect().bottom,fit:e.scrollWidth<=e.clientWidth};}));}
  let layout=await powerLayout();console.log('Power layout',layout);
- const fits=x=>x.deep<=x.sheet&&x.gap>=4&&x.fit;
+ /* Page 3 is page 6 carried whole, so its own footer IS the sheet's footer and sits
+    where page 6 puts it. It has no report foot to clear, so the "clearance above my
+    footer" rule does not apply to it - what does apply is that the carried sheet must
+    not spill past the page, which the deep measurement already covers. Judging it by
+    the report's footer rule failed a page that is, by design, identical to the one it
+    copies. */
+ const fits=x=>x.deep<=x.sheet&&(x.id==='powerPage3'||x.gap>=4)&&x.fit;
  const badPage=layout.filter(x=>!fits(x));
- check('all six power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': deepest='+x.deepest+'@'+x.deep+' of '+x.sheet+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
- check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage5',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
+ check('all seven power pages fit A4 without footer overlap'+(badPage.length?' ['+badPage.map(x=>x.id+': deepest='+x.deepest+'@'+x.deep+' of '+x.sheet+' gap='+Math.round(x.gap)+' fit='+x.fit).join(' | ')+']':''),badPage.length===0);
+ /* Page 3 prints page 6's card block, and "prints it the same" is a claim about
+    pixels, not about markup. Every failure in this area came from copying the right
+    markup into the wrong box: a narrower column wrapped the values onto extra lines,
+    the cards grew, and the bottom one was clipped. Source-string checks cannot see
+    any of that, so this compares the two pages element by element in a real browser.
+    If page 3 and page 6 ever disagree about a card's width, height or type size, the
+    requirement is broken and this says so. */
+ const specParity=await page.evaluate(()=>{
+   const read=(host)=>[...host.querySelectorAll('.pv2-card')].map(c=>{
+     const b=c.getBoundingClientRect();
+     const v=c.querySelector('.pv2-v');
+     const cs=v?getComputedStyle(v):null;
+     return {w:Math.round(b.width),h:Math.round(b.height),
+             font:cs?cs.fontSize:'',pad:cs?cs.paddingTop:''};
+   });
+   const sheet=document.querySelector('#pageTechSpec');
+   const host=Experience.buildPowerPages(Render.lastState);
+   const p3=host.querySelector('#powerPage3');
+   const sheetCards=read(sheet), pageCards=read(p3);
+   const blk=p3.querySelector('.power-spec-sheet');
+   const out={sheetCards,pageCards,
+     clipped:blk.style.overflow==='hidden',
+     scaled:!!blk.style.transform,
+     fits:p3.dataset.specFits,
+     cards:p3.querySelectorAll('.pv2-card').length,
+     badges:p3.querySelectorAll('.pv2-brand').length,
+     photos:p3.querySelectorAll('.pv2-photo img').length,
+     footNum:p3.querySelector('.pg-foot-page')?.textContent.trim()||'',
+     footHas15:/of 15/.test(p3.querySelector('.pg-foot')?.textContent||'')};
+   host.remove();
+   return out;
+ });
+ /* The carried footer is page 6's design, but not its page number: a seven-page
+    document that says "Page 6 of 15" is simply lying to the customer. */
+ check('the carried footer prints this document\'s page number, not the report\'s ['+specParity.footNum+']',
+   specParity.footNum==='Page 3 of 7'&&!specParity.footHas15);
+ check('page 3 carries all four cards, with their badges and photographs',
+   specParity.cards===4&&specParity.badges>=3&&specParity.photos===4);
+ check('page 3 cards are the same size and type as page 6 ['+
+   JSON.stringify(specParity.sheetCards.map(c=>c.w+'x'+c.h+'@'+c.font))+' vs '+
+   JSON.stringify(specParity.pageCards.map(c=>c.w+'x'+c.h+'@'+c.font))+']',
+   specParity.sheetCards.length===specParity.pageCards.length &&
+   specParity.sheetCards.every((s,i)=>{
+     const p=specParity.pageCards[i];
+     return Math.abs(s.w-p.w)<=1 && Math.abs(s.h-p.h)<=1 && s.font===p.font && s.pad===p.pad;
+   }));
+ check('page 3 neither clips nor scales the block - it fits, and says so',
+   !specParity.clipped&&!specParity.scaled&&specParity.fits==='1');
+ check('only three payment milestones are printed and all values are finite',await page.$eval('#powerPage6',e=>e.querySelectorAll('.power-pay .power-metric').length===3&&!/undefined|NaN/.test(e.textContent)));
  const rasterQR=await page.$eval('#powerPage2',async el=>{
    const c=await html2canvas(el,{scale:2,logging:false,backgroundColor:'#fff',onclone:d=>d.body.classList.add('qs-pdf-capture')});
    const jpg=new Image();jpg.src=c.toDataURL('image/jpeg',.92);await jpg.decode();
@@ -52,7 +106,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('printed sheet background stays white, without screen shadows',rasterQR.white.slice(0,3).every(v=>v>=250));
  check('short PDF QR decodes to the same configured destination',await readQR(page,'.power-gallery canvas')==='https://example.com/updated-gallery');
  const proof=await browser.newPage();await proof.setViewport({width:794,height:1124});
- for(const id of ['powerPage1','powerPage4','powerPage5','powerPage6','pageClosing']){
+ for(const id of ['powerPage1','powerPage5','powerPage6','powerPage7','pageClosing']){
   // Screenshots of canvas-bearing pages are captured directly to retain QR pixels.
   const data=await page.$eval('#'+id,async e=>{const c=await html2canvas(e,{scale:1,logging:false,useCORS:true,backgroundColor:'#ffffff',onclone:doc=>doc.body.classList.add('qs-pdf-capture')});return c.toDataURL();});fs.writeFileSync(path.join(shots,'experience-'+id+'.png'),Buffer.from(data.split(',')[1],'base64'));
  }
@@ -75,7 +129,7 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  check('scenario never changes stored quotation, live cover or baseline state',await customer.evaluate(b=>JSON.stringify(Render.lastState)===b.state&&JSON.stringify({...localStorage})===b.storage&&document.getElementById('v_coverCapacity').textContent===b.cover,before));
  check('saved gallery URL survives Customer View',await readQR(customer,'#closingGallery canvas')==='https://example.com/updated-gallery');
  await customer.evaluate(()=>{window.__power=Experience.buildPowerPages(Render.lastState);});
- check('Power Proposal ignores the exploratory tariff',await customer.$eval('#powerPage4',(e,x)=>e.textContent.includes('₹8.75 per kWh')&&e.textContent.includes(x.lifetime),expected));await customer.evaluate(()=>window.__power.remove());
+ check('Power Proposal ignores the exploratory tariff',await customer.$eval('#powerPage5',(e,x)=>e.textContent.includes('₹8.75 per kWh')&&e.textContent.includes(x.lifetime),expected));await customer.evaluate(()=>window.__power.remove());
  await customer.$eval('#scenarioReset',e=>e.click());check('reset restores exact baseline tariff',await customer.$eval('#scenarioTariff',e=>e.value==='8.75'));
  await customer.emulateMediaType('print');check('scenario tool is excluded from print',await customer.$eval('#savingsExplorer',e=>!e.checkVisibility()));await customer.emulateMediaType('screen');
  await customer.setViewport({width:390,height:844});await customer.$eval('#savingsExplorer',e=>e.scrollIntoView({behavior:'instant'}));
@@ -95,14 +149,14 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await page.$eval('#img_solution',async(e,src)=>{e.src=src;await e.decode();},originalPhoto);
  // Real jsPDF/html2canvas export, with a copy retained for page-count/link checks.
  await page.evaluate(()=>{const Original=jspdf.jsPDF;jspdf.jsPDF=function(...args){const pdf=new Original(...args),save=pdf.save.bind(pdf);pdf.save=name=>{window.__pdf={name,data:pdf.output('datauristring').split(',')[1]};return save(name);};return pdf;};});
- await page.select('#pdfFormat','power');check('download label follows selected format',await page.$eval('#downloadLabel',e=>e.textContent==='Download Power Proposal (6 Pages)'));
+ await page.select('#pdfFormat','power');check('download label follows selected format',await page.$eval('#downloadLabel',e=>e.textContent==='Download Power Proposal (7 Pages)'));
  await page.$eval('#custName',e=>{e.value='QA Customer';e.dispatchEvent(new Event('input',{bubbles:true}));});
  await page.click('#downloadBtn');await page.evaluate(()=>{const dialog=document.getElementById('exportCheckDialog');if(dialog?.open){const proceed=[...dialog.querySelectorAll('button')].find(b=>b.textContent==='Download anyway');if(!proceed)throw new Error(dialog.textContent);proceed.click();}});
  /* If the exporter refuses, it says why in the status line; report that
     instead of waiting 90s for a PDF that will never arrive. */
  await page.waitForFunction(()=>window.__pdf&&document.getElementById('statusMsg').textContent.includes('Downloaded'),{timeout:90000}).catch(async e=>{const why=await page.evaluate(()=>document.getElementById('statusMsg').textContent.trim());throw new Error('Power Proposal export produced no PDF: '+why+' ('+e.message+')');});
  const exported=await page.evaluate(()=>window.__pdf),bytes=Buffer.from(exported.data,'base64'),pdf=bytes.toString('latin1');fs.writeFileSync(path.join(shots,'experience','Power_Proposal_test.pdf'),bytes);
- check('actual Power Proposal PDF has six pages and correct filename',(pdf.match(/\/Type \/Page\b/g)||[]).length===6&&exported.name.startsWith('Power_Proposal_')&&exported.name.includes('12.5kWp'));
+ check('actual Power Proposal PDF has seven pages and correct filename',(pdf.match(/\/Type \/Page\b/g)||[]).length===7&&exported.name.startsWith('Power_Proposal_')&&exported.name.includes('12.5kWp'));
  check('actual PDF has clickable gallery destination',pdf.includes('/Subtype /Link')&&pdf.includes('https://example.com/updated-gallery'));
  check('export removes temporary pages and leaves original cover intact',await page.evaluate(()=>!document.querySelector('.pdf-snapshot')&&document.getElementById('v_coverCapacity').textContent==='12.5 kWp'));
  // Hold the first full-document capture, then edit the live proposal. The
@@ -127,8 +181,8 @@ let passed=0;const check=(name,ok)=>{assert(ok,name);passed++;console.log('  ✓
  await page.evaluate(()=>{window.html2canvas=window.__realCanvas;jspdf.jsPDF=window.__realPDF;});
  await edit({propRef:original.ref,companyName:original.company,durationText:original.duration,customerType:'commercial',tariff:'22',payCompletion:'5',loanAmt:'300000',loanRate:'9',loanYears:'5'});
  await page.evaluate(()=>window.__power=Experience.buildPowerPages(Render.lastState));
- check('commercial short proposal uses zero automatic subsidy and flags payment mismatch',await page.$eval('#powerPage5',e=>e.textContent.includes('95%')&&e.textContent.includes('not approved₹0')));
- check('six-page proposal fits including entered financing',(await powerLayout()).every(x=>x.deep<=x.sheet&&x.gap>=4));
+ check('commercial short proposal uses zero automatic subsidy and flags payment mismatch',await page.$eval('#powerPage6',e=>e.textContent.includes('95%')&&e.textContent.includes('not approved₹0')));
+ check('seven-page proposal fits including entered financing',(await powerLayout()).every(x=>x.deep<=x.sheet&&(x.id==='powerPage3'||x.gap>=4)));
  await page.evaluate(()=>window.__power.remove());await page.select('#pdfFormat','full');
  check('full-format label follows optional financing page count',await page.$eval('#downloadLabel',e=>e.textContent.includes('16 Pages')));
  await edit({customerType:'residential',tariff:'8.75',payCompletion:'10',loanAmt:'',loanRate:'',loanYears:''});

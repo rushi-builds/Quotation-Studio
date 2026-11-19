@@ -324,3 +324,36 @@
 .power-six h1{color:#17354a;position:relative;}
 .power-six h1::after{content:"";position:absolute;left:0;bottom:-5px;width:42px;height:2px;background:#dc8629;border-radius:1px;}
 .power-six .power-heading-accent{color:inherit;border:0;padding:0;}
+
+/* ---------- Page 3 IS page 6 ----------
+   The whole sheet is cloned, so it brings its own running head, title, sub, rule,
+   cards, note box and footer. Nothing here restyles any of that: the sheet keeps
+   every page-6 rule, which is the only version of "exactly the same" that survives
+   future work. What is set here is only what a sheet-inside-a-page needs.
+
+   The report's page padding, Arial and flex column are all cancelled on this one page
+   so the sheet lands on the sheet's own margins. Without the font reset the cards
+   re-wrap (Inter vs Arial is a 19-20px difference across two cards), and without the
+   padding reset the sheet is inset twice. */
+#powerPage3.is-carried{
+  padding:0;
+  font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+/* The sheet is a .page: a full A4 box with its own shadow and overflow. Inside
+   another .page it must not be either - it is already the right size, and its
+   shadow would draw a rectangle on the report. */
+#powerPage3 .power-spec-sheet{
+  width:100%;
+  height:100%;
+  max-width:none;
+  box-shadow:none;
+  transform:none;
+  overflow:visible;
+  background:#fff;
+}
+#powerPage3{padding-top:20px;}
+#powerPage3 .power-head{padding-bottom:9px;margin-bottom:12px;}
+#powerPage3 .power-head img{width:76px;height:44px;}
+#powerPage3 .power-kicker{margin:4px 0;}
+#powerPage3 h1{font-size:24px;margin:6px 0 10px;}
+#powerPage3 .power-lead{font-size:10.5px;line-height:1.5;margin:0 0 10px;}

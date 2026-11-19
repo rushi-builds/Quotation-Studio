@@ -259,6 +259,17 @@
       if (typeof override === 'string' && override) window.__qsPageImages[id] = override;
       if ($(id)) $(id).src = window.__qsPageImages[id] || src;
     });
+    /* Custom equipment artwork is not a page element - it has no template src and
+       no id in the document - so the loop above never sees it. Without this the
+       owner's uploaded logo/photo came back blank after reopening a proposal even
+       though it was saved. Only image data URLs are accepted. */
+    Object.keys(blob.pageImages || {}).forEach((id) => {
+      const value = blob.pageImages[id];
+      if (/^custom(ModuleLogo|InverterLogo|InverterPhoto)$/.test(id) && typeof value === 'string' && /^data:image\//.test(value)) {
+        window.__qsPageImages[id] = value;
+      }
+    });
+    window.CustomArt?.sync();
     if (typeof window.Proposals.markAccepted === 'function') {
       window.Proposals.markAccepted(blob.id);   /* this revision is now the tab's baseline */
     }
@@ -853,6 +864,10 @@
     loadActiveIntoUI();                                /* apply saved proposal if any */
     window.EquipmentStore.wire();
     window.EquipmentStore.refreshSelects();
+    /* The custom-artwork zones are wired here rather than in equipment.js, so a
+       page that has no such zone (the document studio, the share view) costs
+       nothing, and the zones that do exist are live before the first render. */
+    window.CustomArt?.wire();
     wireForm();
 
     wireManager();

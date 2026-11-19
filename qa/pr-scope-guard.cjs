@@ -102,7 +102,7 @@ const FEEDBACK_LOOP_PATHS = new Set([
 
 /* Owner-approved corrections that HAD to edit the frozen family (2026-11-02).
 
-   Why: the six-page Power Proposal refused to export a proposal that fitted.
+   Why: the Power Proposal refused to export a proposal that fitted.
    The guard measured a fixed A4 box's scrollHeight, which always includes the
    page's own bottom padding (1123 + padding), so page 2 reported 1130 while
    its deepest element sat 21px clear of the footer - the same false overflow
@@ -242,6 +242,15 @@ const BRAND_LOGO_PATHS = /^assets\/images\/brands\/[a-z0-9-]+\.webp$/;
    page56-preview2.html, or the same name in a subfolder, still fails. */
 const PAGE56_PREVIEW_EXACT = 'page56-preview.html';
 
+/* One review-only page (3B). The Power Proposal's page 3 can only be seen by
+   downloading a PDF or opening the studio, and the requirement for it was that it
+   look exactly like page 6 - which can only be settled by looking. This page loads
+   quotation.html in a hidden frame so the real scripts run, then lays the real
+   buildPowerPages() output out at 1:1. It duplicates no app logic and no styles.
+   Exact filename only - power-preview2.html, or the same name in a subfolder,
+   still fails. */
+const POWER_PREVIEW_EXACT = 'power-preview.html';
+
 /* Page 5/6 feature scope. The image files are here because the flow diagram is
    drawn from these exact assets - the seven equipment drawings, the source copies
    the owner supplied, and the two outlined DC / AC badge keylines. Named one by
@@ -302,7 +311,7 @@ const REENCODED_IMAGE_PATHS=new Set([
    one-line lead lives in content.js - both files are named explicitly here
    because this round is about that page's own copy and values, never about
    another page's. Exact filenames only, no wildcard. */
-const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|charts|content|proposal-values|equipment|equipment-calc|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|proposal-feedback|gallery|gallery-likes|experience|export|engineering)\.js|assets\/css\/(dashboard|closing|experience|app)\.css|quotation\.html|page56-preview\.html|dashboard\.html|gallery\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|\.vercelignore|vercel\.json|\.github\/workflows\/(qa|deploy-guard)\.yml|scripts\/check-live\.cjs|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
+const ALLOWED_SCOPE_RE = /^(assets\/js\/settings-connections\.js|assets\/css\/settings-connections\.css|assets\/js\/pulse\/(business-pulse|pulse-governance-ui)\.js|platform\/cloudflare\/src\/(worker|catalogue|site-geo|oauth|phone|excel-module-catalog)\.(js|mjs)|platform\/cloudflare\/package\.json|platform\/cloudflare\/wrangler\.toml|platform\/studio-knowledge\.mjs|scripts\/build-assistant-knowledge\.cjs|platform\/local-server\/server\.js|platform\/schema\.sql|platform\/migrations\/(005-is-admin(-verify)?|006-catalogue|006-profile-info(-verify)?|007-site-geo|007-member-links-likes(-verify)?|008-member-custom-link(-verify)?|009-recovery-resend(-verify)?|010-excel-product-catalog)\.sql|platform\/cloudflare\/public\/.+|assets\/js\/(app|charts|content|proposal-values|equipment|equipment-calc|custom-art|module-catalog|site-estimate|catalogue-data|state|render|assistant-chat|dashboard|dashboard-home|platform-api|cloud-bridge|portal|proposal-feedback|gallery|gallery-likes|experience|export|engineering)\.js|assets\/css\/(dashboard|closing|experience|app)\.css|quotation\.html|page56-preview\.html|power-preview\.html|dashboard\.html|gallery\.html|index\.html|oauth-complete\.html|portal\.html|share\.html|\.gitignore|\.vercelignore|vercel\.json|\.github\/workflows\/(qa|deploy-guard)\.yml|scripts\/check-live\.cjs|qa\/[^/]+|qa\/fixtures\/.+|docs\/[^/]+\.md)$/;
 
 function git(repoRoot, args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' });

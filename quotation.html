@@ -346,6 +346,17 @@
           <div id="moduleMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
             <label for="moduleMakeCustom">Custom module make</label>
             <input type="text" id="moduleMakeCustom" data-equipment-custom placeholder="Enter your own module make…" autocomplete="off" spellcheck="false" disabled>
+            <div class="custom-art" id="customArtModuleLogo" role="button" tabindex="0" aria-label="Upload the custom module logo">
+              <input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" data-custom-art-input hidden>
+              <div class="custom-art-empty" data-custom-art-empty>
+                <b>Drop module logo</b>
+                <small>or click &middot; paste with Ctrl+V</small>
+              </div>
+              <div class="custom-art-filled" data-custom-art-filled hidden>
+                <img alt="Custom module logo preview">
+                <div><small data-custom-art-name></small><button type="button" data-custom-art-remove>Remove</button></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="field"><label for="moduleModel">Module model</label>
@@ -393,6 +404,28 @@
           <div id="inverterMakeCustomWrap" class="equipment-custom" data-equipment-custom hidden>
             <label for="inverterMakeCustom">Custom inverter make</label>
             <input type="text" id="inverterMakeCustom" data-equipment-custom placeholder="Enter your own inverter make…" autocomplete="off" spellcheck="false" disabled>
+            <div class="custom-art is-logo" id="customArtInverterLogo" role="button" tabindex="0" aria-label="Upload the custom inverter logo">
+              <input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" data-custom-art-input hidden>
+              <div class="custom-art-empty" data-custom-art-empty>
+                <b>Drop inverter logo</b>
+                <small>or click &middot; paste with Ctrl+V</small>
+              </div>
+              <div class="custom-art-filled" data-custom-art-filled hidden>
+                <img alt="Custom inverter logo preview">
+                <div><small data-custom-art-name></small><button type="button" data-custom-art-remove>Remove</button></div>
+              </div>
+            </div>
+            <div class="custom-art is-photo" id="customArtInverterPhoto" role="button" tabindex="0" aria-label="Upload the custom inverter photo">
+              <input type="file" accept="image/png,image/webp,image/jpeg" data-custom-art-input hidden>
+              <div class="custom-art-empty" data-custom-art-empty>
+                <b>Drop inverter image</b>
+                <small>or click &middot; paste with Ctrl+V</small>
+              </div>
+              <div class="custom-art-filled" data-custom-art-filled hidden>
+                <img alt="Custom inverter photo preview">
+                <div><small data-custom-art-name></small><button type="button" data-custom-art-remove>Remove</button></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="field"><label for="inverterModel">Inverter model</label>
@@ -747,7 +780,11 @@
         <summary id="advToggle">Advanced Edit - content &amp; photographs</summary>
         <div id="advContainer"></div>
       </details>
+
     </form>
+
+      <div class="custom-art-status" id="customArtStatus" role="status" aria-live="polite" hidden></div>
+
 
 
     <div class="form-actions">
@@ -1022,36 +1059,36 @@
     <!-- ============ PAGE 6 - TECHNICAL SPECIFICATION ============ -->
     <div class="page-wrap" data-page="pageTechSpec">
       <div class="page-label"></div>
-      <section class="page" id="pageTechSpec">
+      <section class="page pv2-sheet" id="pageTechSpec">
         <header class="pg-head">
           <div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div>
           <div class="pg-head-meta" data-head-ref></div>
         </header>
         <div class="pg-body">
-          <h2 class="pg-title" id="v_tsHeading"></h2>
-          <div class="pg-sub" id="v_tsSub"></div>
+          <h2 class="v_tsHeading pg-title" id="v_tsHeading"></h2>
+          <div class="v_tsSub pg-sub" id="v_tsSub"></div>
           <div class="rule-orange"></div>
-          <p class="body-para body-para-wide" id="v_tsPara"></p>
+          <p class="v_tsPara body-para body-para-wide" id="v_tsPara"></p>
 
           <div class="diagram-box">
-            <div class="sec-label tight" id="v_tsDiagramTitle"></div>
-            <div class="diagram" id="v_tsDiagram"></div>
-            <div class="fine-note center ts-diagram-note" id="v_tsDiagramNote"></div>
+            <div class="v_tsDiagramTitle sec-label tight" id="v_tsDiagramTitle"></div>
+            <div class="v_tsDiagram diagram" id="v_tsDiagram"></div>
+            <div class="v_tsDiagramNote fine-note center ts-diagram-note" id="v_tsDiagramNote"></div>
           </div>
 
-          <div class="sec-label mt-12" id="v_tsGroupsLabel"></div>
-          <table class="spec-table" id="v_tsTable"></table>
-          <div id="v_tsRefsWrap" style="display:none;">
-            <div class="sec-label mt-12" id="v_tsRefsLabel"></div>
-            <div class="ts-refs" id="v_tsRefs"></div>
-            <div class="ts-ref-note" id="v_tsRefsNote"></div>
+          <div class="v_tsGroupsLabel sec-label mt-12" id="v_tsGroupsLabel"></div>
+          <table class="v_tsTable spec-table" id="v_tsTable"></table>
+          <div class="v_tsRefsWrap" id="v_tsRefsWrap" style="display:none;">
+            <div class="v_tsRefsLabel sec-label mt-12" id="v_tsRefsLabel"></div>
+            <div class="v_tsRefs ts-refs" id="v_tsRefs"></div>
+            <div class="v_tsRefsNote ts-ref-note" id="v_tsRefsNote"></div>
           </div>
-          <div class="note-box mt-10"><b id="v_tsNoteLabel"></b> <span id="v_tsNote"></span></div>
+          <div class="note-box mt-10"><b class="v_tsNoteLabel" id="v_tsNoteLabel"></b> <span class="v_tsNote" id="v_tsNote"></span></div>
         </div>
         <footer class="pg-foot">
           <div class="pf-left" data-foot-company></div>
           <div class="pf-mid" data-foot-tagline></div>
-          <div class="pf-right" id="v_pgnum_pageTechSpec"></div>
+          <div class="pf-right pg-foot-page" id="v_pgnum_pageTechSpec"></div>
         </footer>
       </section>
     </div>
@@ -1551,6 +1588,7 @@ fill="#fff"/><path fill="#25d366" d="m79 434 25.7-93.9a181.1 181.2 0 1170.3 68.7
 <script src="assets/js/workspace-prefs.js"></script>
 <script src="assets/js/platform-api.js?v=excel-workbook2"></script>
 <script src="assets/js/cloud-bridge.js?v=start-first-fold1"></script>
+<script src="assets/js/custom-art.js?v=custom-art1"></script>
 <script src="assets/js/app.js?v=feedback-preview2"></script>
 <script src="assets/js/pricing-auto.js?v=1"></script>
 <script src="assets/js/control-panel.js?v=review-notes1"></script>

@@ -67,7 +67,12 @@ const { chromium } = require('playwright');
       // Shared footer renderer also populates currently hidden optional pages.
       assert(await page.evaluate(expected => [...document.querySelectorAll('[data-foot-company]')].every(el => el.querySelector('.pf-website')?.textContent === expected), website));
       await page.evaluate(() => { window.__footerPower = Experience.buildPowerPages(Render.lastState); });
+      // Page 3 is the full proposal's sheet carried whole, footer included, so it paints a
+      // .pg-foot rather than a .power-foot: 6 of the 7 power pages own a power footer.
       assert.equal(await checkFooters(page, '.pdf-snapshot .power-foot', website), 6);
+      assert.equal(await page.evaluate(() => document.querySelectorAll('.pdf-snapshot #powerPage3 .pg-foot .pf-website').length), 1,
+        'page 3 carries the full proposal footer, website line included');
+      assert.equal(await page.evaluate(() => document.querySelector('#powerPage3 .pg-foot .pf-website').textContent.trim()), website);
       await page.evaluate(() => { window.__footerPower.remove(); });
     }
 
@@ -110,6 +115,6 @@ const { chromium } = require('playwright');
     fs.writeFileSync(path.join(dir, 'detailed-footer.png'), Buffer.from(data.split(',')[1], 'base64'));
     await page.locator('#pageCover').screenshot({ path: path.join(dir, 'cover.png') });
     assert.deepEqual(errors, []);
-    console.log('PASS: accent absent in all four cover images; full website fits detailed/conditional and six-page footers, print, mobile, saved reload and custom company website; real html2canvas footer captured.');
+    console.log('PASS: accent absent in all four cover images; full website fits detailed/conditional and seven-page footers, print, mobile, saved reload and custom company website; real html2canvas footer captured.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
