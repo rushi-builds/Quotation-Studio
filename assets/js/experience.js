@@ -157,8 +157,9 @@
     const battery=root.Bess.compute(s,f),safe=v=>esc(v==null||v===''?'To be confirmed':v);
     const precise=v=>Number.isFinite(v)?v.toLocaleString('en-IN',{maximumFractionDigits:3}):'-';
     const paybackText=f.netInvestment<=0?'Not applicable':payback(f);
-    const header=n=>'<header class="power-head"><img src="assets/images/ktm-logo-light.png" alt="Company logo"><div>POWER PROPOSAL · '+n+' / '+POWER_PAGE_COUNT+'<br><span>'+esc(s.propRef)+' · v'+esc(s.propVersion)+'</span></div></header>';
-    const foot=n=>'<footer class="power-foot"><span>'+esc(s.companyName)+' · '+esc(s.companyPhone)+'</span><span class="power-foot-website">'+esc(s.companyWebsite)+'</span><span>Power Proposal · '+n+' / '+POWER_PAGE_COUNT+'</span></footer>';
+    const header=()=>'<header class="pg-head power-head"><div class="pg-logo"><img src="assets/images/ktm-logo-light.png" alt="Company logo"></div><div class="pg-head-meta">'+esc(s.propRef||'—')+'  •  v'+esc(s.propVersion||'1.0')+'  •  '+esc(F.fmtDate(s.propDate)||'-')+'</div></header>';
+    const footerTagline=String(CONTENT.shared.footerTagline||'').replace(/&nbsp;/g,' ').replace(/<[^>]*>/g,'');
+    const foot=n=>'<footer class="pg-foot power-foot"><div class="pf-left"><span class="pf-contact">'+esc(s.companyName)+'  •  '+esc(s.companyPhone)+'</span><span class="pf-divider">•</span><span class="pf-website">'+esc(s.companyWebsite)+'</span></div><div class="pf-mid">'+esc(footerTagline)+'</div><div class="pf-right">Page '+n+' of '+POWER_PAGE_COUNT+'</div></footer>';
     const heading=(n,title)=>{
       const emphasis=['Your energy.','Support.','the numbers.','behind the numbers.','Long-term value.','investment.','& support.'][n-1];
       const split=title.lastIndexOf(emphasis);
