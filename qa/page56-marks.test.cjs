@@ -718,7 +718,8 @@ t('card 04 shows the standards render and states what it is', () => {
   assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/equipment/cards/design-is-standards.webp')),
     'and the original it was derived from is kept');
   /* Wide enough that the tile crops almost nothing, and big enough that it stays
-     sharp at the size it is printed. */
+     sharp at the size it is printed. One continuous photograph - no collage of
+     panels, which is what the earlier attempt at this put on the card. */
   const wideDims = execFileSync('identify', ['-format', '%wx%h', designWide]).toString().trim();
   const [ww, wh] = wideDims.split('x').map(Number);
   assert.ok(ww / wh >= 1.85, 'it is a wide render, so the wide tile crops nothing: ' + wideDims);

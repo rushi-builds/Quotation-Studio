@@ -560,3 +560,16 @@ the scope guard flags and which needs owner approval).
 
   Lesson worth more than the pixel work: **when the owner says the size is wrong, the size is wrong.**
   Three commits were spent moving a box that was never the problem.
+
+  **Fourth correction: one photograph, not a collage.** The first wide derivative was a three-panel
+  composition (scene + logo close-up + pen close-up), which is not what the card is - the owner wants a
+  single picture there. So the picture itself was widened instead: the studio shot was extended
+  horizontally into a continuous 1310x672 photograph (same helmet with the KTM logo, same rolled
+  blueprints, same pen, same sheet, plus a level, ruler and caliper extending naturally to either side).
+
+  Its ratio is 1.949 against the tile's 1.949, so `cover` crops **nothing** - measured at 99.7% of the
+  picture surviving. Card 04 is `718x166` with a `230x118` tile, exactly as it always was.
+
+  The rule from the previous correction still stands and is the reason this worked: **the card's size is
+  fixed by the sheet; the picture adapts to it.** Widening the artwork is the only change that satisfies
+  both the size and "show the whole thing".
