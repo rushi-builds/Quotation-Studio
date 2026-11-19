@@ -436,3 +436,14 @@ the scope guard flags and which needs owner approval).
   Full local set: `experience` 53/53 · `page56-marks` 52/52 · `custom-art` 48/48 · `sync` 106/106 ·
   `financial-fixes-browser` 2/2 · `footer-website` PASS · `pr-scope-guard` clean.
   `power-five` still fails on its `₹83.33k` tick label - confirmed pre-existing on `main`, unrelated.
+
+  **Follow-up: two more suites were holding the old selectors or the old page map.**
+  `qa/engineering-standards.test.js` was grepping `assets/css/app.css` for the literal
+  `#pageTechSpec.is-lead-trim …` rules that the class rename removed - the page rendered correctly and the
+  test failed anyway. Its five assertions now read `.pv2-sheet.is-lead-trim …`. `qa/bess-browser.test.js`
+  measures "content bottom above the footer" on every power page; page 3 has no `.power-foot` to measure
+  against, so the carried sheet is checked for staying inside the page instead. Both green.
+
+  The full offline suite (`qa/npm test`) passes end to end: exit 0. Note for anyone running it locally:
+  `platform/cloudflare` needs its own `npm install` first, or `excel-module-catalog.test.mjs` dies on a
+  missing `@e965/xlsx` - CI installs both trees, the local box does not.
