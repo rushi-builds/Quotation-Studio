@@ -543,3 +543,20 @@ the scope guard flags and which needs owner approval).
   contain in a wide tile leaves a band; shaping the tile to the picture does neither. The check in
   `experience.test.js` now asserts the tile ratio equals the photograph's ratio to within 0.02 and that
   at least 99% of the picture survives, plus the tile height still equals the rows height.
+
+  **Third correction, and this one is the rule: the card's size is not negotiable.** Two attempts had
+  changed the card to suit the picture - one grew it to 198px, the next shrank it to 154px by narrowing
+  the picture column. The owner rejected both, in those words. Card sizing is fixed by the sheet; the
+  *picture* is what adapts.
+
+  So the geometry is back to exactly what it was - `718x205 · 718x205 · 718x184 · 718x166`, tile
+  `230x118`, `pv2-fit-2`, 9.4px type - and the fix moved into the artwork: card 04 now has
+  `design-is-standards-wide.webp`, a 1200x615 derivative of the same photograph (whole scene on the left,
+  logo close-up and pen/drawings detail beside it, like card 03's own wide render). A 1.95 tile against a
+  1.95 picture crops 0.2% instead of a third, so the tile is filled edge to edge with nothing lost.
+
+  The original `design-is-standards.webp` is kept - it is the source of the derivative and other places
+  may want the square-ish version.
+
+  Lesson worth more than the pixel work: **when the owner says the size is wrong, the size is wrong.**
+  Three commits were spent moving a box that was never the problem.

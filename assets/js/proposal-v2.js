@@ -310,7 +310,13 @@
     module: IMG + 'equipment/cards/solar-module-card.webp',
     inverter: IMG + 'equipment/cards/solis-inverter.webp',
     mount: IMG + 'equipment/cards/mount-cabling-protection.webp',
-    standards: IMG + 'equipment/cards/design-is-standards.webp',
+    /* Card 04's tile is the same wide box as every other card's (230x118 at 9.4px),
+       but the studio photograph behind this one is 4:3, so covering that box cut a
+       third of it away - and the card must not shrink to suit a picture. The wide
+       derivative keeps the whole scene on the left and the two details that matter
+       (the logo, the pen and drawings) beside it, so the tile is filled edge to edge
+       with nothing cropped. Source: design-is-standards.webp, same picture. */
+    standards: IMG + 'equipment/cards/design-is-standards-wide.webp',
     design: IMG + 'equipment/cards/earthing-safety-3pit.webp'
   };
   const INVERTER_PHOTO = {

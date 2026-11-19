@@ -705,12 +705,24 @@ t('card 03 shows structure, cabling, earthing and protection in one picture', ()
 });
 
 t('card 04 shows the standards render and states what it is', () => {
-  assert.match(js, /standards: IMG \+ 'equipment\/cards\/design-is-standards\.webp'/,
+  /* The card's tile is the same wide box as every other card's, but the studio
+     photograph behind it is 4:3, so covering that box cut a third of the picture
+     away. The card must not shrink to suit a picture, so the picture carries a wide
+     derivative instead: whole scene on the left, logo and pen details beside it. */
+  assert.match(js, /standards: IMG \+ 'equipment\/cards\/design-is-standards-wide\.webp'/,
     'the design card has its own photograph');
   assert.match(js, /if \(kind === 'design'\) return CARD_PHOTO\.standards;/,
     'and photoFor actually routes the design card to it');
+  const designWide = path.join(ROOT, 'assets/images/equipment/cards/design-is-standards-wide.webp');
+  assert.ok(fs.existsSync(designWide), 'the file is there');
   assert.ok(fs.existsSync(path.join(ROOT, 'assets/images/equipment/cards/design-is-standards.webp')),
-    'the file is there');
+    'and the original it was derived from is kept');
+  /* Wide enough that the tile crops almost nothing, and big enough that it stays
+     sharp at the size it is printed. */
+  const wideDims = execFileSync('identify', ['-format', '%wx%h', designWide]).toString().trim();
+  const [ww, wh] = wideDims.split('x').map(Number);
+  assert.ok(ww / wh >= 1.85, 'it is a wide render, so the wide tile crops nothing: ' + wideDims);
+  assert.ok(ww >= 900, 'and at native width, not upscaled blur: ' + wideDims);
   /* The badge is gone entirely: card 04 has no manufacturer, and the IS / IEC
      badge was read as noise on a card that already states its own name. */
   assert.match(js, /if \(kind === 'design'\) return '';/, 'the design card carries no badge');
