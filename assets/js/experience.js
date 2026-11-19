@@ -155,6 +155,10 @@
     const body=copy.querySelector('.pg-body'),intro=body?.querySelector('.intro-col');
     if(!body||!intro)throw new Error('Scope, Warranty & Handover source sheet is incomplete.');
     copy.classList.add('power-scope-warranty');
+    /* The source-page value band repeats scope/handover language and occupies the
+       lower content area. Drop it only from this composed clone to make room for
+       the source proposal's concrete pre-handover checks; the original stays intact. */
+    copy.querySelector('.proposal-value-footer')?.remove();
     intro.querySelector('.pg-title').textContent='Scope, Warranty & Handover';
     intro.querySelector('.pg-sub').textContent='Clear inclusions. Transparent coverage. Guided delivery.';
     intro.querySelector('.body-para').textContent='A concise guide to the EPC work, equipment warranties and customer inputs for this proposal. Final project-specific inclusions and exclusions are confirmed in the agreed quotation.';
@@ -188,6 +192,8 @@
     client.append(make('h3','sw-note-title','Customer inputs'),make('p','sw-card-detail','Provide safe roof access, site utilities and required permissions/documents; the roof must be structurally adequate. Internet and service access may be needed for monitoring and support.'));
     exclusions.append(make('h3','sw-note-title','May be additional if not included in this quotation'),make('p','sw-card-detail','Civil or structural modifications, load enhancement, extra internal electrical work, and DISCOM statutory charges or deposits.'));
     inputs.append(client,exclusions);
+    const quality=section(CONTENT.pageQuality.checklistLabel,'sw-quality-section','sw-quality-grid');
+    CONTENT.pageQuality.checklist.slice(0,3).forEach((item,i)=>{const card=make('article','sw-card sw-quality-card'),step=make('span','sw-quality-mark',String(i+1).padStart(2,'0')),copyText=make('div','sw-card-copy');copyText.append(make('h3','sw-card-title',item.title),make('p','sw-card-detail',item.desc));card.append(step,copyText);quality.appendChild(card);});
     body.appendChild(make('p','sw-legal-note','Warranty periods follow the selected OEM and agreed terms. Net-metering, subsidy eligibility and authority timelines are subject to DISCOM/government approval.'));
   }
   function buildPowerPages(s) {
