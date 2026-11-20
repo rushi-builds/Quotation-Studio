@@ -1111,6 +1111,32 @@
     const canMessage = phone.startsWith('+') && digits.length >= 8 && digits.length <= 15;
     const whatsappUrl = canMessage ? 'https://wa.me/' + digits + '?text=' + encodeURIComponent('Hello, I would like to discuss proposal ' + (s.propRef || '') + ' from ' + (s.companyName || '') + '.') : '';
     if (wa) { wa.hidden = !canMessage; contactLink('v_clWhatsApp', whatsappUrl); }
+    const projBtn = $('v_clProjects');
+    if (projBtn) {
+      let galleryHref = '';
+      try {
+        const exp = root.Experience;
+        if (exp && exp.publicUrl && exp.galleryUrl) {
+          const gUrl = exp.galleryUrl(s);
+          if (gUrl) galleryHref = gUrl;
+          else if (!String(s.galleryUrl || '').trim()) galleryHref = 'https://qs-studio-rushi.ktmenergyexperts.workers.dev/gallery.html';
+        } else {
+          galleryHref = String(s.galleryUrl || '').trim();
+        }
+      } catch (e) {}
+      if (galleryHref) {
+        try { const u = new URL(galleryHref); if (u.protocol !== 'https:') galleryHref = ''; } catch (e) { galleryHref = ''; }
+      }
+      projBtn.hidden = !galleryHref;
+      contactLink('v_clProjects', galleryHref);
+      if (galleryHref) { projBtn.target = '_blank'; projBtn.rel = 'noopener noreferrer'; }
+    }
+    try {
+      const dividers = document.querySelectorAll('#pageClosing .closing-divider');
+      const ids = ['v_clProjects', 'v_clDiscuss', 'v_clWhatsApp'];
+      const vis = ids.map(function(id){ const el = $(id); return el && !el.hidden; });
+      dividers.forEach(function(div, i){ div.hidden = !(vis[i] && vis[i+1]); });
+    } catch (e) {}
     const sharedView = document.body.classList.contains('share-mode');
     const inPortal = sharedView && /(?:^|\/)portal\.html$/.test(location.pathname);
     const feedbackLink = feedbackUrl(inPortal ? location.href : s.shareUrl);
