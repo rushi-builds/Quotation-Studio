@@ -264,6 +264,10 @@ const PAGE56_PATHS = new Set([
      drawn here. Added deliberately, by exact filename, because the band's artwork
      had to stop borrowing the marks other pages use. */
   'assets/js/proposal-marks.js',
+  /* The corner fan is this round's own artwork: it is the page background of
+     every business sheet, and pages 5/6 re-declare it in their own override.
+     Named exactly, no wildcard. */
+  'assets/images/proposal-corner-petals.svg',
   'assets/images/proposal/flow-panel.webp',
   'assets/images/proposal/flow-db.webp',
   'assets/images/proposal/flow-inverter.webp',
