@@ -36,6 +36,7 @@ const {chromium}=require('playwright');
   for(const [id,size] of [['v_clWhatsApp',40],['v_clDiscuss',32]])assert(await page.locator('#'+id+' .closing-action-symbol svg').evaluate((svg,size)=>{const r=svg.getBoundingClientRect();return r.width===size&&r.height===size;},size),id+' icon is sized to visually match the project magnifier');
   assert(await page.locator('#v_clFooterValues li svg').evaluateAll(els=>els.map(e=>({count:e.querySelectorAll('path,circle,rect').length,html:e.outerHTML.slice(0,80)}))),'footer icons updated from first reference sheet');
   assert.equal(await page.locator('#v_clFooterValues li').count(),4,'four footer values still present with new icons');
+  assert.equal(await page.locator('#v_clFooterValues li').nth(2).locator('svg circle').getAttribute('cy'),'13.2','quality artwork retains its lower optical alignment');
   assert(await page.locator('#v_clFooterValues').evaluate(list=>{
    const rows=[...list.querySelectorAll('li')];
    const icons=rows.map(row=>row.querySelector('svg'));
