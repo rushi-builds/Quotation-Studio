@@ -1131,12 +1131,8 @@
       contactLink('v_clProjects', galleryHref);
       if (galleryHref) { projBtn.target = '_blank'; projBtn.rel = 'noopener noreferrer'; }
     }
-    try {
-      const dividers = document.querySelectorAll('#pageClosing .closing-divider');
-      const ids = ['v_clProjects', 'v_clDiscuss', 'v_clWhatsApp'];
-      const vis = ids.map(function(id){ const el = $(id); return el && !el.hidden; });
-      dividers.forEach(function(div, i){ div.hidden = !(vis[i] && vis[i+1]); });
-    } catch (e) {}
+    // Explore projects lives below the disclaimer now - its container hides when the link is not public
+    try { const expWrap=document.querySelector('.closing-explore'); if(expWrap) expWrap.hidden = projBtn ? projBtn.hidden : true; } catch(e) {}
     const sharedView = document.body.classList.contains('share-mode');
     const inPortal = sharedView && /(?:^|\/)portal\.html$/.test(location.pathname);
     const feedbackLink = feedbackUrl(inPortal ? location.href : s.shareUrl);
