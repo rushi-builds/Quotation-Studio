@@ -79,12 +79,12 @@
 #pageClosing .closing-privacy-symbol{display:block;flex:none;}
 #pageClosing .closing-privacy-symbol svg{display:block;width:17px;height:17px;}
 #pageClosing .closing-confidentiality{margin:0;font:400 6.7px/1.6 'Inter',sans-serif;color:#87909a;}
-#pageClosing .closing-wave{position:relative;min-height:118px;margin:auto 0 38px;background:none;overflow:hidden;flex-shrink:0;}
+#pageClosing .closing-wave{position:relative;min-height:138px;margin:auto 0 32px;background:none;overflow:visible;flex-shrink:0;}
 #pageClosing .closing-wave>.closing-wave-art{position:absolute;inset:0;width:100%;height:100%;}
-#pageClosing .closing-wave-lettering{position:absolute;left:12px;top:34px;width:142px;height:auto;display:block;}
+#pageClosing .closing-wave-lettering{position:absolute;left:12px;top:28px;width:142px;height:auto;display:block;}
 /* Preserve the original wave artwork. Values are free-standing additions,
    not another panel: no card, tint, border, blur or shadow behind the icons. */
-#pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:90px 110px 0 48px;padding:0;list-style:none;border:0;border-radius:0;background:none;box-shadow:none;}
+#pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:74px 110px 0 48px;padding:0 0 8px;list-style:none;border:0;border-radius:0;background:none;box-shadow:none;}
 #pageClosing .closing-footer-values li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 6px;text-align:left;}
 #pageClosing .closing-footer-value-icon{display:block;flex:none;}
 #pageClosing .closing-footer-value-icon svg{display:block;width:25px;height:25px;}
