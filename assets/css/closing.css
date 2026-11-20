@@ -10,7 +10,7 @@
 #pageClosing .gallery-card{top:98px;right:26px;width:125px;padding:9px;border-radius:9px;box-shadow:none;}
 #pageClosing .gallery-card canvas{width:96px;height:96px;}
 #pageClosing:has(.closing-banner.has-gallery) .closing-promise{display:none;}
-#pageClosing .closing-hero{position:relative;inset:auto;display:block;min-height:358px;margin:126px 48px 0;padding:0;flex-shrink:0;text-align:left;}
+#pageClosing .closing-hero{position:relative;inset:auto;display:block;min-height:328px;margin:126px 48px 0;padding:0;flex-shrink:0;text-align:left;}
 #pageClosing .closing-kicker{margin:0 0 7px;font:600 32px/1.15 'Inter',sans-serif;letter-spacing:-.8px;color:#19364c;}
 #pageClosing .closing-kicker::before{content:'';display:block;width:34px;height:2px;background:#ce9678;margin-bottom:11px;}
 #pageClosing .closing-thank-note{max-width:400px;margin:0 0 16px;font:400 12px/1.55 'Inter',sans-serif;color:#536373;white-space:pre-line;}
@@ -20,6 +20,10 @@
 #pageClosing .closing-dot{color:#e88a25;}
 #pageClosing #v_clThankMessage{max-width:395px;margin:12px 0 0;font:400 13px/1.65 'Inter',sans-serif;color:#536373;}
 #pageClosing #v_clThankMessage:empty{display:none;}
+/* Older saved proposals may include the optional paragraph; reclaim space
+   within the hero rather than pushing the wave beneath the page footer. */
+#pageClosing:has(#v_clThankMessage:not(:empty)) #v_clThankMessage{font-size:11px;line-height:1.4;}
+#pageClosing:has(#v_clThankMessage:not(:empty)) .closing-values{margin-top:8px;}
 #pageClosing .closing-values{display:grid;grid-template-columns:repeat(3,1fr);width:395px;margin:36px 0 0;}
 #pageClosing .closing-values>div{display:flex;flex-direction:column;align-items:center;gap:9px;border-right:1px solid #dcdedb;}
 #pageClosing .closing-values>div:last-child{border:0;}
@@ -79,12 +83,12 @@
 #pageClosing .closing-privacy-symbol{display:block;flex:none;}
 #pageClosing .closing-privacy-symbol svg{display:block;width:17px;height:17px;}
 #pageClosing .closing-confidentiality{margin:0;font:400 6.7px/1.6 'Inter',sans-serif;color:#87909a;}
-#pageClosing .closing-wave{position:relative;min-height:138px;margin:auto 0 32px;background:none;overflow:visible;flex-shrink:0;}
+#pageClosing .closing-wave{position:relative;min-height:124px;margin:auto 0 42px;background:none;overflow:hidden;flex-shrink:0;}
 #pageClosing .closing-wave>.closing-wave-art{position:absolute;inset:0;width:100%;height:100%;}
-#pageClosing .closing-wave-lettering{position:absolute;left:12px;top:28px;width:142px;height:auto;display:block;}
+#pageClosing .closing-wave-lettering{position:absolute;left:12px;top:34px;width:142px;height:auto;display:block;}
 /* Preserve the original wave artwork. Values are free-standing additions,
    not another panel: no card, tint, border, blur or shadow behind the icons. */
-#pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:74px 110px 0 48px;padding:0 0 8px;list-style:none;border:0;border-radius:0;background:none;box-shadow:none;}
+#pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:90px 110px 0 48px;padding:0;list-style:none;border:0;border-radius:0;background:none;box-shadow:none;}
 #pageClosing .closing-footer-values li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 6px;text-align:left;}
 #pageClosing .closing-footer-value-icon{display:block;flex:none;}
 #pageClosing .closing-footer-value-icon svg{display:block;width:25px;height:25px;}
