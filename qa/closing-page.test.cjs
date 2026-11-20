@@ -12,6 +12,7 @@ const {chromium}=require('playwright');
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';
   await page.goto(base+'/quotation.html');await page.waitForFunction(()=>window.Render?.lastState&&document.querySelector('.studio-ready'));await page.evaluate(()=>document.fonts.ready);
+  assert(await page.evaluate(()=>Icons.get(undefined,18).includes('<svg')),'missing icon names retain the default fallback');
   assert.equal(await page.locator('#pageClosing .accept-block,#pageClosing .sign-box,#pageClosing .engineering-steps').count(),0);
   assert.equal(await page.locator('#v_clHeading').textContent(),'Together for a Greener Tomorrow.');
   assert.equal(await page.locator('#v_clThankHeading').textContent(),'Thank you.');
@@ -26,9 +27,41 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('.closing-company-heading #v_clCompanyName').count(),1);
   assert(await page.locator('#v_clCompanyName').evaluate(e=>parseFloat(getComputedStyle(e).fontSize)>=16));
   assert(await page.locator('#v_clDiscuss').evaluate(e=>getComputedStyle(e).backgroundImage.includes('linear-gradient')),'reference orange feedback pill');
-  assert.equal(await page.locator('#v_clWhatsApp').evaluate(e=>getComputedStyle(e).borderTopColor),'rgb(32, 165, 114)','reference green WhatsApp outline');
-  assert.equal(await page.locator('.closing-action-arrow').count(),2);
-  assert(await page.locator('.closing-actions').evaluate(row=>{const [a,b]=[...row.querySelectorAll('a')].map(e=>e.getBoundingClientRect());return a.width===b.width&&a.height===b.height&&a.width===256&&a.height===48;}),'both CTA boxes have exactly the same size');
+  assert.equal(await page.locator('#v_clWhatsApp').evaluate(e=>getComputedStyle(e).borderTopColor),'rgb(26, 138, 90)','reference green WhatsApp outline');
+  assert.equal(await page.locator('.closing-action-arrow').count(),3);
+  assert(await page.locator('#v_clProjects').evaluate(e=>getComputedStyle(e).borderTopColor==='rgb(15, 48, 78)' && e.textContent.includes('Explore Our Projects')),'reference navy Explore Our Projects outline');
+  assert(await page.locator('.closing-actions').evaluate(row=>{const els=[...row.querySelectorAll('a:not([hidden])')];const rects=els.map(e=>e.getBoundingClientRect());return els.length===2 && rects.every(r=>Math.round(r.width)===298&&Math.round(r.height)===48) && els[0].id==='v_clProjects' && els[1].id==='v_clWhatsApp';}),'top row has Explore + WhatsApp as two equal premium pills');
+  assert(await page.locator('.closing-explore').evaluate(e=>{const btn=e.querySelector('#v_clDiscuss'); if(!btn||btn.hidden) return false; const r=e.getBoundingClientRect(),br=btn.getBoundingClientRect(); return !e.hidden && Math.round(br.width)===340 && Math.round(br.height)===44 && r.top > document.querySelector('.closing-bottom').getBoundingClientRect().bottom && getComputedStyle(btn).backgroundImage.includes('linear-gradient');}),'Share your thoughts sits centered below the disclaimer as orange primary');
+  assert(await page.locator('#v_clProjects .closing-action-symbol svg').evaluate(s=>s.getAttribute('viewBox')==='0 0 64 64' && s.querySelector('circle[cx="30"][cy="18"]')?.getAttribute('fill')==='#ffd54f' && s.querySelectorAll('circle').length===3),'Explore icon matches the magnifier, left sun and solar panel reference');
+  assert(await page.locator('#v_clProjects .closing-action-symbol svg').evaluate(s=>{const r=s.getBoundingClientRect();return r.width===38 && r.height===38;}),'Explore magnifier is large enough to show its solar panel');
+  for(const [id,size] of [['v_clWhatsApp',40],['v_clDiscuss',32]])assert(await page.locator('#'+id+' .closing-action-symbol svg').evaluate((svg,size)=>{const r=svg.getBoundingClientRect();return r.width===size&&r.height===size;},size),id+' icon is sized to visually match the project magnifier');
+  assert(await page.locator('#v_clFooterValues li svg').evaluateAll(els=>els.map(e=>({count:e.querySelectorAll('path,circle,rect').length,html:e.outerHTML.slice(0,80)}))),'footer icons updated from first reference sheet');
+  assert.equal(await page.locator('#v_clFooterValues li').count(),4,'four footer values still present with new icons');
+  assert.equal(await page.locator('#v_clFooterValues li').nth(2).locator('svg circle').getAttribute('cy'),'13.2','quality artwork retains its lower optical alignment');
+  assert(await page.locator('#v_clFooterValues').evaluate(list=>{
+   const rows=[...list.querySelectorAll('li')];
+   const icons=rows.map(row=>row.querySelector('svg'));
+   const centers=icons.map(icon=>{const r=icon.getBoundingClientRect();return r.top+r.height/2;});
+   return Math.max(...centers)-Math.min(...centers)<0.5 && rows.every(row=>{
+    const icon=row.querySelector('svg'), label=row.querySelector('.closing-footer-value-text');
+    const ir=icon.getBoundingClientRect(),lr=label.getBoundingClientRect();
+    return Math.abs((ir.top+ir.height/2)-(lr.top+lr.height/2))<0.5 &&
+     getComputedStyle(label).fontWeight==='400' &&
+     [...icon.children].every(part=>part.getAttribute('fill')==='none' && part.getAttribute('stroke-width')==='1.2');
+   });
+  }),'footer icons and regular-weight labels are aligned, consistent, fine-line drawings');
+  assert(await page.locator('#v_clFooterValues').evaluate(list=>{
+   const wave=list.closest('.closing-wave'), art=wave.querySelector('.closing-wave-art');
+   const edge=art.querySelector('path[stroke="url(#closingWaveEdge)"]');
+   const waveRect=wave.getBoundingClientRect(), foot=document.querySelector('#pageClosing .pg-foot').getBoundingClientRect();
+   const matrix=edge.getScreenCTM(), length=edge.getTotalLength();
+   const samples=Array.from({length:1001},(_,i)=>{const p=edge.getPointAtLength(length*i/1000);return new DOMPoint(p.x,p.y).matrixTransform(matrix);});
+   return [...list.querySelectorAll('li')].every(li=>{
+    const r=li.getBoundingClientRect();
+    const curve=samples.filter(p=>p.x>=r.left-1&&p.x<=r.right+1);
+    return curve.length && r.top>=Math.max(...curve.map(p=>p.y))-1 && r.bottom<=waveRect.bottom && r.bottom<=foot.top && r.left>=waveRect.left && r.right<=waveRect.right;
+   });
+  }),'all footer icons and labels stay inside the dark wave above the page footer');
   const badges=await page.locator('.closing-input-number').evaluateAll(nodes=>nodes.map(e=>({color:getComputedStyle(e).color,bg:getComputedStyle(e).backgroundImage})));
   assert.equal(badges[1].color,'rgb(120, 100, 155)');assert.equal(badges[3].color,badges[1].color);assert.equal(badges[0].color,badges[2].color);assert.notEqual(badges[0].bg,badges[1].bg);
   await page.waitForFunction(()=>document.getElementById('img_closing').complete&&document.getElementById('img_closing').naturalWidth>0);

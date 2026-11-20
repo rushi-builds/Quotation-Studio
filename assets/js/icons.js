@@ -64,7 +64,44 @@
     tax: [P('M6 3h9l4 4v14H6zM14 3v5h5M10 17l5-5'), C({cx:10.5,cy:12.5,r:1}), C({cx:14.5,cy:16.5,r:1})],
     shieldAlert: [P('m12 3-8 3v6c0 4 3 7 8 9 5-2 8-5 8-9V6zM12 7v6M12 16v.2')],
     scales: [P('M12 3v17M7 21h10M4 6h16M7 5l-4 9h8L7 5ZM17 5l-4 9h8l-4-9ZM3 14c0 4 8 4 8 0M13 14c0 4 8 4 8 0')],
-    meter: [C({ cx: 12, cy: 12, r: 9 }), P('m12 12 3.5-3.5'), P('M12 3v1.8M21 12h-1.8M12 21v-1.8M3 12h1.8')]
+    meter: [C({ cx: 12, cy: 12, r: 9 }), P('m12 12 3.5-3.5'), P('M12 3v1.8M21 12h-1.8M12 21v-1.8M3 12h1.8')],
+    // ── Construction / site icons — thin-line matching first reference sheet ──
+    bulldozer: [P('M3 10h10l2.2-4h3.8v8H3z'), R({ x: 4, y: 16, width: 12, height: 3, rx: 0.8 }), C({ cx: 6.8, cy: 17.5, r: 1.1 }), C({ cx: 11.2, cy: 17.5, r: 1.1 }), P('M15 8l4 4v3h-3.6')],
+    toolsCross: [P('M7 6a2.2 2.2 0 0 1 3.1 3.1L6 13.2l-1.8-1.8L7 6'), P('M17 6a2.2 2.2 0 0 0-3.1 3.1L18 13.2l1.8-1.8L17 6'), P('M9 16l2 2 5-5')],
+    helmetSafety: [P('M5 11.5a7 7 0 0 1 14 0H5'), R({ x: 4.5, y: 11.5, width: 15, height: 1.6, rx: 0.5 }), P('M7 15.5a4 4 0 0 0 4 2.2A4 4 0 0 0 17 15.5H7'), P('M8.5 14.8h7a1.2 1.2 0 0 1 0 2.4h-7a1.2 1.2 0 0 1 0-2.4')],
+    constructionWorker: [C({ cx: 12, cy: 5.5, r: 2.6 }), P('M12 2.2a4 4 0 0 0-4 3.2h8a4 4 0 0 0-4-3.2'), P('M8.5 9h7l1 9H7.5z'), P('M10 9v4M14 9v4'), P('M9.2 18.5h5.6')],
+    workerBadge: [C({ cx: 10, cy: 5.5, r: 2.4 }), P('M6 11h8l1 8H5z'), P('M8 13h4M8 16h4'), R({ x: 13.5, y: 9, width: 5, height: 6, rx: 0.6 }), P('M15.2 10.5l1.6 1.6 1.1-1.1'), C({ cx: 18.2, cy: 7.5, r: 2.6 })],
+    inspection: [C({ cx: 9, cy: 10, r: 5.2 }), P('M7 10a5 5 0 0 1 5-5'), P('m7.5 11.2 3.2 3.2'), R({ x: 13, y: 12.5, width: 5, height: 3.5, rx: 0.8, fill: '{S}' }, { plain: true }), P('m9 11 1.4 1.3 2.8-2.7')],
+    roboticArm: [R({ x: 9, y: 16, width: 6, height: 2, rx: 0.6 }), P('M12 16V10l4-2.5 1.5 1.2L12 10'), P('M16 7l2-2M16 7l-1.5 2.5'), C({ cx: 8, cy: 12, r: 2 })],
+    conveyor: [P('M3 12h12M3 8h12'), R({ x: 13, y: 6, width: 6, height: 8, rx: 0.5 }), P('M15 8v4M17 8v4'), R({ x: 3, y: 13, width: 3.2, height: 2, rx: 0.3 }), R({ x: 7, y: 13, width: 3.2, height: 2, rx: 0.3 })],
+    deliveryTruck: [R({ x: 3, y: 9, width: 10, height: 7, rx: 0.8 }), P('M13 10h4l3 3.5V16h-7'), C({ cx: 7, cy: 18, r: 1.5 }), C({ cx: 17, cy: 18, r: 1.5 }), R({ x: 13.5, y: 6.5, width: 5, height: 4, rx: 0.4 })],
+    forklift: [P('M3 10h7l2-3h3v9H3z'), R({ x: 3, y: 17, width: 10, height: 1.2, rx: 0.4 }), C({ cx: 5.5, cy: 18.5, r: 1.4 }), C({ cx: 13, cy: 18.5, r: 1.4 }), P('M12 7v8')],
+    craneTower: [P('M6 19V7l6-3 6 3v2H6'), P('M12 4v15'), P('M16 8h2l1.5 4a1.5 1.5 0 0 1-1.5 1.5h-1'), C({ cx: 18, cy: 14.5, r: 1 })],
+    powerCabinet: [R({ x: 6, y: 5, width: 12, height: 13, rx: 1 }), P('M8 8h8M8 11h8M8 14h8'), P('M12 8v9'), P('M13.5 12l2 2-2 2')],
+    welder: [C({ cx: 14.5, cy: 6, r: 2.4 }), P('M12 8.5l-3 5h6l-1.5 4'), P('M8 12l-2 4h4'), P('M17 10l2 3-1.5 1')],
+    wrenchGear: [P('M14 4a3 3 0 0 0-4.2 4.2L6 12l1.8 1.8 3.8-3.8A3 3 0 0 0 14 4'), C({ cx: 17, cy: 15, r: 4 }), P('M17 11v3M17 19v-3M13 15h3M21 15h-3M14.5 12.5l2.1 2.1M19.5 12.5l-2.1 2.1M14.5 17.5l2.1-2.1M19.5 17.5l-2.1-2.1')],
+    // Closing values: consistent, open 24px construction line drawings. Keep
+    // these separate from other icons so their fine strokes stay PDF-safe.
+    footerHardhat: [P('M4.5 13.8h15M6 13.8v-2a6 6 0 0 1 12 0v2M4.5 13.8v1.6h15v-1.6M10 6.2v3.4M14 6.2v3.4'), P('M7.8 17h3.6v1.1a1.8 1.8 0 0 1-3.6 0V17ZM12.6 17h3.6v1.1a1.8 1.8 0 0 1-3.6 0V17ZM11.4 17.7h1.2')],
+    footerWorker: [P('M7.8 8.2v-.6a4.2 4.2 0 0 1 8.4 0v.6M7 8.2h10M10.7 3.5v2.2M13.3 3.5v2.2'), P('M8.8 9.3v1.3a3.2 3.2 0 0 0 6.4 0V9.3M5.4 20v-1.1a5.2 5.2 0 0 1 5.2-5.2h2.8a5.2 5.2 0 0 1 5.2 5.2V20H5.4ZM10.2 14l1.8 2.1 1.8-2.1M12 16.1V20')],
+    footerInspection: [C({ cx: 10.1, cy: 13.2, r: 6.1 }), P('m14.5 17.6 4.7 4.7M7.4 13.3l1.8 1.8 3.5-3.7')],
+    footerCrane: [P('M7.3 20V6.2L12 3.5l4.7 2.7M4.5 6.2h15M12 3.5V20M7.3 9l4.7 3.3L7.3 16l4.7 3.2M16.7 6.2v5.1M16.7 11.3v1.4a1.5 1.5 0 1 0 2.6 1M5.2 20h9.3')],
+    // Second-image: laptop + magnifier + solar (coloured premium for Explore)
+    solarSearch: [
+      R({ x: 2, y: 3.2, width: 20, height: 13, rx: 1.1 }),
+      R({ x: 3.5, y: 4.8, width: 17, height: 9, rx: 0.6 }),
+      C({ cx: 12, cy: 9.2, r: 0.6, fill: '{S}' }, { plain: true }),
+      R({ x: 1.2, y: 16.8, width: 21.6, height: 3, rx: 1 }),
+      C({ cx: 10.8, cy: 9.5, r: 3.8 }),
+      C({ cx: 10.8, cy: 9.5, r: 2.9, fill: '#FFF8E1', 'fill-opacity': '0.55' }, { plain: true }),
+      P('M13.2 12.4l3 3'),
+      R({ x: 13.5, y: 12.5, width: 5, height: 1.4, rx: 0.6, fill: '#1A2E4A' }, { plain: true }),
+      P('M7.8 11.2h5.6l-0.7 1.7H8.5z'),
+      P('M8.5 9.2h4.2l0.5 1H8z'),
+      P('M9.2 9.2v2M11.2 9.2v2M10.2 11.2v1.4'),
+      C({ cx: 13.2, cy: 7.2, r: 0.9, fill: '#FFD54F', stroke: '#E67E22', 'stroke-width': '0.9' }, { plain: true }),
+      P('M13.2 5.6v0.9M13.2 8.5v0.9M11.6 7.2h0.9M14.8 7.2h-0.9M12.1 6.1l0.6 0.6M14.3 8.3l0.6 0.6M12.1 8.3l0.6-0.6M14.3 6.1l0.6-0.6')
+    ]
   };
 
   const DEFAULT_PRIMARY = '#1C2B3F';
@@ -90,7 +127,7 @@
     const els = ICONS[name] || ICONS.check;
     size = size || 18;
     const S = primary || DEFAULT_PRIMARY;
-    const sw = 1.7;
+    const sw = typeof name === 'string' && name.startsWith('footer') ? 1.2 : 1.7;
     let body = '';
     if (halo) {
       body += '<circle cx="12" cy="12" r="10.6" fill="' + (accent || DEFAULT_ACCENT) +

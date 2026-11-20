@@ -61,14 +61,15 @@ const {chromium}=require('playwright');
   await preview.screenshot({path:path.join(shots,'premium-feedback-desktop.png'),fullPage:true});
   await page.evaluate(()=>document.activeElement?.blur());
   assert.equal(await page.locator('.closing-action small').count(),0,'no extra action subtext');
-  assert.equal(await page.locator('.closing-action-symbol svg').count(),2,'feedback and original WhatsApp mark');
+  assert.equal(await page.locator('.closing-action-symbol svg').count(),3,'feedback, projects and WhatsApp marks');
   assert(await page.locator('.closing-actions').evaluate(e=>e.getBoundingClientRect().height<=50),'reference pill actions stay within the A4 layout');
+  assert(await page.locator('.closing-explore').evaluate(e=>!e.hidden && e.querySelector('#v_clDiscuss').getBoundingClientRect().width===360),'Share feedback sits centered below disclaimer');
   assert.equal(await page.locator('#closingLinkHint').count(),0);
-  assert.equal(await page.locator('.closing-action-arrow').count(),2,'arrows only on real actions, not engineering rows');
+  assert.equal(await page.locator('.closing-action-arrow').count(),3,'arrows only on real actions, not engineering rows');
   assert.equal(await page.locator('.next-item a,.next-item button').count(),0);
   assert((await page.locator('#v_clDiscuss').textContent()).includes('Share your thoughts'));
   assert((await page.locator('#v_clWhatsApp').textContent()).includes('WhatsApp'));
-  assert.equal(await page.locator('.closing-actions>a').first().getAttribute('id'),'v_clDiscuss');
+  assert.equal(await page.locator('.closing-actions>a').first().getAttribute('id'),'v_clProjects');
   assert.equal(await page.locator('.closing-actions').evaluate(el=>getComputedStyle(el).borderTopWidth),'0px','no outer joined box');
   await page.locator('#pageClosing .closing-invitation').screenshot({path:path.join(shots,'premium-closing-actions.png')});
   for(const width of [390,360]){await preview.setViewportSize({width,height:900});assert(await preview.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}

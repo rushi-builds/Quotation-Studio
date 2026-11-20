@@ -1080,10 +1080,10 @@
     set('v_clEmail', s.companyEmail);
     set('v_clWebsite', s.companyWebsite);
     const footerValues = [
-      ['leaf', P.footerReliable ?? 'Reliability'],
-      ['users', P.footerTeam ?? 'Experience'],
-      ['shield', P.footerQuality ?? 'Quality'],
-      ['chart', P.footerValue ?? 'Long-term value']
+      ['footerHardhat', P.footerReliable ?? 'Reliability'],
+      ['footerWorker', P.footerTeam ?? 'Experience'],
+      ['footerInspection', P.footerQuality ?? 'Quality'],
+      ['footerCrane', P.footerValue ?? 'Long-term value']
     ];
     setHTML('v_clFooterValues', footerValues.map(([icon, label]) =>
       '<li><span class="closing-footer-value-icon" aria-hidden="true">' + I.get(icon, 25, '#eee9f5') + '</span>' +
@@ -1111,6 +1111,28 @@
     const canMessage = phone.startsWith('+') && digits.length >= 8 && digits.length <= 15;
     const whatsappUrl = canMessage ? 'https://wa.me/' + digits + '?text=' + encodeURIComponent('Hello, I would like to discuss proposal ' + (s.propRef || '') + ' from ' + (s.companyName || '') + '.') : '';
     if (wa) { wa.hidden = !canMessage; contactLink('v_clWhatsApp', whatsappUrl); }
+    const projBtn = $('v_clProjects');
+    if (projBtn) {
+      let galleryHref = '';
+      try {
+        const exp = root.Experience;
+        if (exp && exp.publicUrl && exp.galleryUrl) {
+          const gUrl = exp.galleryUrl(s);
+          if (gUrl) galleryHref = gUrl;
+          else if (!String(s.galleryUrl || '').trim()) galleryHref = 'https://qs-studio-rushi.ktmenergyexperts.workers.dev/gallery.html';
+        } else {
+          galleryHref = String(s.galleryUrl || '').trim();
+        }
+      } catch (e) {}
+      if (galleryHref) {
+        try { const u = new URL(galleryHref); if (u.protocol !== 'https:') galleryHref = ''; } catch (e) { galleryHref = ''; }
+      }
+      projBtn.hidden = !galleryHref;
+      contactLink('v_clProjects', galleryHref);
+      if (galleryHref) { projBtn.target = '_blank'; projBtn.rel = 'noopener noreferrer'; }
+    }
+    // Explore (top row) and Feedback (bottom) now swapped - hide their wrappers independently
+    try { const expWrap=document.querySelector('.closing-explore'); if(expWrap) { const fbBtn=$('v_clDiscuss'); expWrap.hidden = fbBtn ? fbBtn.hidden : false; } } catch(e) {}
     const sharedView = document.body.classList.contains('share-mode');
     const inPortal = sharedView && /(?:^|\/)portal\.html$/.test(location.pathname);
     const feedbackLink = feedbackUrl(inPortal ? location.href : s.shareUrl);
