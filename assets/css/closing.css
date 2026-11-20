@@ -63,8 +63,8 @@
 #pageClosing .closing-action-tertiary .closing-action-symbol svg{width:26px;height:26px;}
 #pageClosing .closing-action-arrow{width:18px;height:18px;flex:none;margin-left:6px;opacity:.95;}
 #pageClosing .closing-action-sep{width:1px;height:20px;background:#0f304e;opacity:.15;flex:none;margin:0 2px;}
-#pageClosing .closing-explore{display:flex;justify-content:center;margin:16px 50px 0;padding:0;}
-#pageClosing .closing-action-feedback{width:360px;min-height:48px;height:48px;border-radius:25px;font:600 13px/1.4 'Inter',sans-serif;gap:12px;padding:8px 22px;letter-spacing:.1px;}
+#pageClosing .closing-explore{display:flex;justify-content:center;margin:10px 50px 0;padding:0;}
+#pageClosing .closing-action-feedback{width:340px;min-height:44px;height:44px;border-radius:25px;font:600 12.5px/1.4 'Inter',sans-serif;gap:12px;padding:6px 20px;letter-spacing:.1px;}
 #pageClosing .closing-action-feedback:hover{transform:translateY(-1px);filter:brightness(1.04);}
 #pageClosing .closing-actions .closing-action{width:298px;}
 #pageClosing .closing-actions .closing-action-tertiary{background:linear-gradient(180deg,#ffffff,#fbfdff);border-color:#0f304e;}
@@ -79,7 +79,7 @@
 #pageClosing .closing-privacy-symbol{display:block;flex:none;}
 #pageClosing .closing-privacy-symbol svg{display:block;width:17px;height:17px;}
 #pageClosing .closing-confidentiality{margin:0;font:400 6.7px/1.6 'Inter',sans-serif;color:#87909a;}
-#pageClosing .closing-wave{position:relative;min-height:124px;margin:auto 0 42px;background:none;overflow:hidden;flex-shrink:0;}
+#pageClosing .closing-wave{position:relative;min-height:118px;margin:auto 0 38px;background:none;overflow:hidden;flex-shrink:0;}
 #pageClosing .closing-wave>.closing-wave-art{position:absolute;inset:0;width:100%;height:100%;}
 #pageClosing .closing-wave-lettering{position:absolute;left:12px;top:34px;width:142px;height:auto;display:block;}
 /* Preserve the original wave artwork. Values are free-standing additions,
@@ -95,6 +95,7 @@
 #pageClosing .pg-foot .pf-right::before{content:'';display:inline-block;width:22px;height:1px;margin-right:12px;vertical-align:middle;background:#d6a371;}
 @media(max-width:720px){#pageClosing .closing-actions{gap:12px;flex-wrap:wrap;}#pageClosing .closing-divider{display:none!important;}#pageClosing .closing-actions .closing-action{width:100%;max-width:298px;}#pageClosing .closing-action-feedback{width:100%;max-width:360px;}}
 #pageClosing .closing-explore[hidden]{display:none!important;}
+#pageClosing .closing-footer-values[hidden]{display:none!important;}
 #pageClosing .closing-action[hidden],#pageClosing .contact-item[hidden]{display:none!important;}
 /* Keep the existing Advanced Edit / automatic continuation mechanism. */
 #pageClosing.doc-flow{display:block;}
