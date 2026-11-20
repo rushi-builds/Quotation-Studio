@@ -84,7 +84,7 @@
     // these separate from other icons so their fine strokes stay PDF-safe.
     footerHardhat: [P('M4.5 13.8h15M6 13.8v-2a6 6 0 0 1 12 0v2M4.5 13.8v1.6h15v-1.6M10 6.2v3.4M14 6.2v3.4'), P('M7.8 17h3.6v1.1a1.8 1.8 0 0 1-3.6 0V17ZM12.6 17h3.6v1.1a1.8 1.8 0 0 1-3.6 0V17ZM11.4 17.7h1.2')],
     footerWorker: [P('M7.8 8.2v-.6a4.2 4.2 0 0 1 8.4 0v.6M7 8.2h10M10.7 3.5v2.2M13.3 3.5v2.2'), P('M8.8 9.3v1.3a3.2 3.2 0 0 0 6.4 0V9.3M5.4 20v-1.1a5.2 5.2 0 0 1 5.2-5.2h2.8a5.2 5.2 0 0 1 5.2 5.2V20H5.4ZM10.2 14l1.8 2.1 1.8-2.1M12 16.1V20')],
-    footerInspection: [C({ cx: 10.1, cy: 11.1, r: 6.1 }), P('m14.5 15.5 4.7 4.7M7.4 11.2l1.8 1.8 3.5-3.7')],
+    footerInspection: [C({ cx: 10.1, cy: 12, r: 6.1 }), P('m14.5 16.4 4.7 4.7M7.4 12.1l1.8 1.8 3.5-3.7')],
     footerCrane: [P('M7.3 20V6.2L12 3.5l4.7 2.7M4.5 6.2h15M12 3.5V20M7.3 9l4.7 3.3L7.3 16l4.7 3.2M16.7 6.2v5.1M16.7 11.3v1.4a1.5 1.5 0 1 0 2.6 1M5.2 20h9.3')],
     // Second-image: laptop + magnifier + solar (coloured premium for Explore)
     solarSearch: [

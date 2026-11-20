@@ -63,12 +63,13 @@
 #pageClosing .closing-action-tertiary:hover{background:#f6f9fb;box-shadow:0 4px 14px #0c314b18;transform:translateY(-1px);}
 #pageClosing .closing-action-symbol{display:inline-flex;flex:none;align-items:center;justify-content:center;}
 #pageClosing .closing-action-symbol svg{display:block;width:24px;height:24px;}
-#pageClosing .closing-action-secondary .closing-action-symbol svg{width:26px;height:26px;}
+#pageClosing .closing-action-secondary .closing-action-symbol svg{width:40px;height:40px;}
 #pageClosing .closing-action-tertiary .closing-action-symbol svg{width:38px;height:38px;}
 #pageClosing .closing-action-arrow{width:18px;height:18px;flex:none;margin-left:6px;opacity:.95;}
 #pageClosing .closing-action-sep{width:1px;height:20px;background:#0f304e;opacity:.15;flex:none;margin:0 2px;}
 #pageClosing .closing-explore{display:flex;justify-content:center;margin:10px 50px 0;padding:0;}
 #pageClosing .closing-action-feedback{width:340px;min-height:44px;height:44px;border-radius:25px;font:600 12.5px/1.4 'Inter',sans-serif;gap:12px;padding:6px 20px;letter-spacing:.1px;}
+#pageClosing .closing-action-feedback .closing-action-symbol svg{width:32px;height:32px;}
 #pageClosing .closing-action-feedback:hover{transform:translateY(-1px);filter:brightness(1.04);}
 #pageClosing .closing-actions .closing-action{width:298px;}
 #pageClosing .closing-actions .closing-action-tertiary{background:linear-gradient(180deg,#ffffff,#fbfdff);border-color:#0f304e;}
@@ -88,7 +89,7 @@
 #pageClosing .closing-wave-lettering{position:absolute;left:12px;top:34px;width:142px;height:auto;display:block;}
 /* Preserve the original wave artwork. Values are free-standing additions,
    not another panel: no card, tint, border, blur or shadow behind the icons. */
-#pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:90px 110px 0 48px;padding:0;list-style:none;border:0;border-radius:0;background:none;box-shadow:none;}
+#pageClosing .closing-footer-values{position:relative;display:flex;align-items:center;justify-content:space-between;gap:0;margin:90px 126px 0 64px;padding:0;list-style:none;border:0;border-radius:0;background:none;box-shadow:none;}
 #pageClosing .closing-footer-values li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 6px;text-align:left;}
 #pageClosing .closing-footer-value-icon{display:block;flex:none;}
 #pageClosing .closing-footer-value-icon svg{display:block;width:25px;height:25px;}
