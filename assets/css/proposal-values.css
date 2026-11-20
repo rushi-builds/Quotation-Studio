@@ -44,3 +44,15 @@
  background-color:#fff;background-image:url('../images/proposal-corner-petals.svg');
  background-repeat:no-repeat;background-position:100% 100%;background-size:170px 170px;
 }
+
+/* Colour-only protection for the two places where the fan passes under type: the
+   footer's tagline / page number, and the value band's labels. Nothing moves and
+   nothing changes size - the type simply carries its own faint white halo, which
+   falls off within a few pixels, so there is no rectangle and no edge. This lets
+   the artwork stay fully present instead of being cut or covered. */
+.page:not(#pageCover):not(#pageClosing)>.pg-foot{
+ text-shadow:0 0 2px #fff,0 0 4px #fff,0 0 7px rgba(255,255,255,.9),0 0 11px rgba(255,255,255,.6);
+}
+.proposal-value-footer .pv-label{
+ text-shadow:0 0 2px #fff,0 0 4px #fff,0 0 6px rgba(255,255,255,.85);
+}
