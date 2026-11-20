@@ -1131,8 +1131,8 @@
       contactLink('v_clProjects', galleryHref);
       if (galleryHref) { projBtn.target = '_blank'; projBtn.rel = 'noopener noreferrer'; }
     }
-    // Explore projects lives below the disclaimer now - its container hides when the link is not public
-    try { const expWrap=document.querySelector('.closing-explore'); if(expWrap) expWrap.hidden = projBtn ? projBtn.hidden : true; } catch(e) {}
+    // Explore (top row) and Feedback (bottom) now swapped - hide their wrappers independently
+    try { const expWrap=document.querySelector('.closing-explore'); if(expWrap) { const fbBtn=$('v_clDiscuss'); expWrap.hidden = fbBtn ? fbBtn.hidden : false; } } catch(e) {}
     const sharedView = document.body.classList.contains('share-mode');
     const inPortal = sharedView && /(?:^|\/)portal\.html$/.test(location.pathname);
     const feedbackLink = feedbackUrl(inPortal ? location.href : s.shareUrl);
