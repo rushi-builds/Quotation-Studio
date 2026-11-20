@@ -64,7 +64,7 @@
 #pageClosing .closing-action-symbol{display:inline-flex;flex:none;align-items:center;justify-content:center;}
 #pageClosing .closing-action-symbol svg{display:block;width:24px;height:24px;}
 #pageClosing .closing-action-secondary .closing-action-symbol svg{width:26px;height:26px;}
-#pageClosing .closing-action-tertiary .closing-action-symbol svg{width:26px;height:26px;}
+#pageClosing .closing-action-tertiary .closing-action-symbol svg{width:38px;height:38px;}
 #pageClosing .closing-action-arrow{width:18px;height:18px;flex:none;margin-left:6px;opacity:.95;}
 #pageClosing .closing-action-sep{width:1px;height:20px;background:#0f304e;opacity:.15;flex:none;margin:0 2px;}
 #pageClosing .closing-explore{display:flex;justify-content:center;margin:10px 50px 0;padding:0;}
