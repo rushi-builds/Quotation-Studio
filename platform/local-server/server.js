@@ -626,6 +626,27 @@ function sha256Hex(text) {
 function hashToken(raw) {
   return sha256Hex(String(raw || ''));
 }
+
+/* ---------- Activity Logging (file-backed) ---------- */
+function logActivity(db, req, actor, action, targetType, targetId, targetName, detail) {
+  if (!db.activity_logs) db.activity_logs = [];
+  db.activity_logs.unshift({
+    id: uid('act'),
+    actor_id: actor ? actor.id : '',
+    actor_name: actor ? actor.name : 'System',
+    actor_email: actor ? actor.email : '',
+    action,
+    target_type: targetType || '',
+    target_id: targetId || '',
+    target_name: targetName || '',
+    detail: detail || '',
+    ip: (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(),
+    created_at: nowISO()
+  });
+  /* Keep last 500 entries to bound file size. */
+  if (db.activity_logs.length > 500) db.activity_logs.length = 500;
+}
+
 function newAccessTokenRaw() {
   return crypto.randomBytes(32).toString('base64url');
 }
@@ -905,12 +926,10 @@ function proposalQuotedValue(row) {
 }
 
 function roleRank(role) {
-  /* Elevated sits ABOVE owner. Because requireRole is a rank comparison, every
-     existing gate — canWrite (sales), canAdmin/canManageTeam (owner), seesAll —
-     inherits the elevation with no further change. */
-  if (role === 'admin') return 4;
-  if (role === 'owner') return 3;
-  if (role === 'sales') return 2;
+  if (role === 'admin') return 5;
+  if (role === 'owner') return 4;
+  if (role === 'manager') return 3;
+  if (role === 'sales' || role === 'production' || role === 'site_engineer') return 2;
   if (role === 'viewer') return 1;
   return 0;
 }
@@ -1216,47 +1235,29 @@ function sessionCookie(token, maxAgeSec, req) {
 /** Free-text role from Create account.
  *  Exact Owner / Sales / Viewer (any case) → built-in access.
  *  Anything else → custom title (sales-level write access, not team admin). */
+/* ---- Role system (professional, all roles) ---- */
 function parseSignupRole(raw) {
   const typed = String(raw || '').trim().replace(/\s+/g, ' ');
-  if (!typed) return { error: 'Enter your role (for example Owner, Sales, Viewer, or Project lead).' };
+  if (!typed) return { error: 'Select a role.' };
   if (typed.length > 60) return { error: 'Role must be at most 60 characters.' };
-  const key = typed.toLowerCase();
+  const key = typed.toLowerCase().replace(/\s+/g, '_');
+  if (key === 'admin') return { error: 'Admin role is assigned by the system only.' };
   if (key === 'owner') return { role: 'owner', roleCustom: null, roleLabel: 'Owner' };
+  if (key === 'manager') return { role: 'manager', roleCustom: null, roleLabel: 'Manager' };
   if (key === 'sales') return { role: 'sales', roleCustom: null, roleLabel: 'Sales' };
+  if (key === 'production') return { role: 'production', roleCustom: null, roleLabel: 'Production' };
+  if (key === 'site_engineer' || key === 'site engineer') return { role: 'site_engineer', roleCustom: null, roleLabel: 'Site Engineer' };
   if (key === 'viewer') return { role: 'viewer', roleCustom: null, roleLabel: 'Viewer' };
   return { role: 'custom', roleCustom: typed, roleLabel: typed };
 }
-/* Role configuration diagnostics — the same fail-open-but-reported shape as
-   phoneIssues() in src/phone.mjs, with one difference: nothing here disables a
-   feature. A missing variable is a legitimate state (the workspace simply runs
-   without a designated owner or admin), so only a MALFORMED value or a
-   conflicting pair is worth reporting.
-
-   Why it exists: a typo in ADMIN_EMAIL does not error anywhere — it silently
-   grants nobody. That is a deploy-time
-   mistake an operator cannot see from the UI, so /api/health says so.
-
-   Never returns an email address or a count of admins: this route is public. */
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function rolesIssues() {
-  const env = process.env;
   const issues = [];
-  const o = ownerEmail(env), a = adminEmail(env);
-  if (o && !EMAIL_SHAPE.test(o)) issues.push('OWNER_EMAIL is set but is not a valid email address, so the workspace owner bootstrap cannot match any account');
-  if (a && !EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address, so the designated admin login cannot match any account');
-  if (a && o && a === o) issues.push('ADMIN_EMAIL and OWNER_EMAIL name the same mailbox, so the ADMIN_EMAIL designation is redundant: the same mailbox is both designations, and the sign-in lockout backstop restores it to Owner whenever no team manager would remain');
+  const a = adminEmail();
+  if (!a) issues.push('ADMIN_EMAIL is not set — no account will have admin privileges');
+  else if (!EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address');
   return issues;
 }
-/* Typed title wins over the power word — parity with the Cloudflare worker.
-   The designated admin login carries owner-and-above powers whatever its
-   stored role reads, and nothing in the product writes a title on that
-   account, so a typed title is always display text and nothing more.
-   Power is decided by permissionRole, never by this string. */
-/* A typed role title, validated exactly like the one on Create account
-   (non-empty, <= 60 chars, whitespace collapsed) but WITHOUT the keyword
-   mapping. Deliberate: a title is display text and must never decide access.
-   Typing "Owner" therefore stores a custom title with sales-level power; only
-   choosing the Owner power key grants owner. The power badge is the truth. */
 function parseRoleTitle(raw) {
   const typed = String(raw || '').trim().replace(/\s+/g, ' ');
   if (!typed) return { error: 'Enter a title (for example Project lead).' };
@@ -1266,201 +1267,99 @@ function parseRoleTitle(raw) {
 function roleDisplay(u) {
   if (!u) return '';
   const r = String(u.role || '').toLowerCase();
-  /* The typed title is the LABEL only where a title is a real thing: owner and
-     custom. A Sales / Engineer row still keeps its wording in role_custom — so
-     it is shown as the job title and returns the moment the member comes back
-     to a titleable role — but it is labelled by its power, like every other
-     row. */
-  if (u.role_custom && (r === 'owner' || r === 'custom')) return String(u.role_custom);
+  if (r === 'admin') return 'Admin';
   if (r === 'owner') return 'Owner';
+  if (r === 'manager') return 'Manager';
   if (r === 'sales') return 'Sales';
+  if (r === 'production') return 'Production';
+  if (r === 'site_engineer') return 'Site Engineer';
   if (r === 'viewer') return 'Viewer';
+  if (u.role_custom) return String(u.role_custom);
   return u.role || '';
 }
 function publicUser(u) {
-  const admin = canManageTeam(u);
-  /* The red-dot flag is the STORED elevation ONLY. The designated mailbox is
-     not elevated by virtue of its address — the address only decides who MAY
-     type "admin" (canElevate) — so the dot appears once, and only once, admin
-     has actually been set. */
-  const elevated = isAdminRow(u);
+  const role = permissionRole(u);
   return {
-    id: u.id,
-    email: u.email,
-    name: u.name,
+    id: u.id, email: u.email, name: u.name,
     role: u.role,
-    roleCustom: u.role_custom || null,
-    roleLabel: roleDisplay(u),
-    /* Capability flags, not titles — the UI gates on these instead of
-       re-deriving `role === 'owner'`, so a hidden admin passes every gate
-       while still displaying only their typed title. */
-    canWrite: roleRank(permissionRole(u)) >= roleRank('sales'),
-    canManageTeam: admin,
+    roleCustom: u.role_custom || null, roleLabel: roleDisplay(u),
+    isAdmin: role === 'admin',
+    canWrite: roleRank(role) >= roleRank('sales'),
+    canManageTeam: roleRank(role) >= roleRank('manager'),
     seesAll: seesAll(u),
-    /* Elevation capability. Sent to the signed-in user only, so it cannot
-       disclose who else is elevated. The front end uses it to decide whether
-       the word "Admin" may appear in a dropdown at all — no name-plate reads
-       it, so elevation changes no chip or profile label. */
-    isAdmin: elevated,
-    /* Stored is_admin — the user's own secret toggle; drives the red dot.
-       Self-only (publicUser is the /me shape). */
-    elevated: isAdminRow(u),
-    canElevate: canElevate(u),
-    /* Contact number and the profile-nudge flag — parity with the worker.
-       Self-only by construction: publicUser is the GET /api/auth/me shape. */
-    phone: u.phone || '',
-    instagram: u.instagram_url || '',
-    linkedin: u.linkedin_url || '',
-    custom: u.custom_url || '',
+    phone: u.phone || '', instagram: u.instagram_url || '',
+    linkedin: u.linkedin_url || '', custom: u.custom_url || '',
     profileDone: Number(u.profile_done || 0) === 1,
     createdAt: u.created_at || null
   };
 }
-/* The badge word for a row, derived from the STORED role only — deliberately
-   blind to is_admin. See memberPayload (S1). */
 function storedRoleWord(u) {
   const r = String((u && u.role) || '').toLowerCase();
+  if (r === 'admin') return 'admin';
   if (r === 'owner') return 'owner';
+  if (r === 'manager') return 'manager';
+  if (r === 'production') return 'production';
+  if (r === 'site_engineer') return 'site_engineer';
   if (r === 'viewer') return 'viewer';
-  return 'sales'; /* sales, and every custom title, act as Sales */
+  return 'sales';
 }
-/* One team-panel row — shared by GET /api/team/members and the response of
-   POST /api/team/role so the two cannot drift apart.
-
-   S1 — the badge is the STORED role and never reflects elevation. Every member
-   can see the team panel (read-only), so a badge reading "Admin" would announce
-   the elevation to the whole workspace and defeat the purpose of it. `power` is
-   derived from `role` alone; permissionRole, which does account for elevation,
-   is never used to produce a label anywhere in this file.
-
-   S2 — nothing that discloses elevation is sent about ANOTHER member's row.
-   isAdmin and canElevate are absent here entirely and canWrite/canManageTeam
-   are the stored-role values, so a viewer-level elevated account is
-   byte-identical to an ordinary viewer in every other member's payload — in
-   the network tab as well as on screen. Only the actor's own row carries the
-   extra fields, via selfMemberPayload(). */
 function memberPayload(u, lastLogin, opts) {
   const stored = storedRoleWord(u);
   const login = lastLogin || u.created_at || null;
   const o = opts || {};
   return {
-    id: u.id,
-    name: u.name,
-    /* Contact detail is owner / designated-admin only — parity with the
-       worker. Omitted rather than blanked, so there is nothing to unhide.
-       The contact number rides the exact same opt-in, so the two can never
-       drift apart: whoever may see the address may see the number. */
+    id: u.id, name: u.name,
     ...(o.contact ? { email: u.email } : {}),
     ...(o.contact ? { phone: u.phone || '' } : {}),
-    /* Profile links and kudos are TEAM-visible by design: a social profile is
-       public anyway and the point of the card is being able to reach the
-       person. `likedByMe` is the caller's own vote only, and the pair confers
-       nothing — it is a count of clicks, never a permission. */
-    instagram: u.instagram_url || '',
-    linkedin: u.linkedin_url || '',
+    instagram: u.instagram_url || '', linkedin: u.linkedin_url || '',
     custom: u.custom_url || '',
-    likes: Number(o.likes || 0),
-    likedByMe: !!o.likedByMe,
+    likes: Number(o.likes || 0), likedByMe: !!o.likedByMe,
     role: u.role,
-    roleCustom: u.role_custom || null,
-    /* Typed title. Elevation never writes it, so this string is identical
-       before and after. */
-    roleLabel: roleDisplay(u),
-    power: stored,
+    roleCustom: u.role_custom || null, roleLabel: roleDisplay(u),
+    power: stored, isAdmin: stored === 'admin',
+    fullAccess: Number((u && u.full_access) || 0) === 1,
     canWrite: roleRank(stored) >= roleRank('sales'),
-    canManageTeam: roleRank(stored) >= roleRank('owner'),
-    /* Sign-in times answer "when was this person last active", which is an
-       owner/admin question. They are OMITTED for everyone else — parity with
-       the worker's S2 move, so a row carries no date to unhide. `login` is
-       still computed above so the creation-time fallback stays in one place.
-       The team list passes `signin` from the CALLER's manage flag; the
-       role-change route passes true because its gate is already owner/admin. */
+    canManageTeam: roleRank(stored) >= roleRank('manager'),
     ...(o.signin ? { lastLogin: login } : {}),
     ...(o.signin ? { lastLoginLabel: login ? new Date(login).toISOString() : null } : {}),
     ...(o.signin ? { createdAt: u.created_at } : {})
   };
 }
-/* The actor's OWN row: the same payload plus what only they may know about
-   themselves. GET /api/auth/me is already self-only, so this discloses nothing
-   new. The effective flags are named apart from the stored-role ones: a
-   viewer-level elevated account reads canWrite false (badge) and
-   effectiveCanWrite true (what it may actually do). */
 function selfMemberPayload(u, lastLogin, opts) {
-  /* Own row: always allowed its own contact detail AND its own sign-in times —
-     parity with the worker. An account may always read when IT last signed in;
-     the team list overrides `signin` with the manage flag for every other row. */
-  return Object.assign(memberPayload(u, lastLogin, Object.assign({ contact: true, signin: true }, opts || {})), {
-    isAdmin: isAdminRow(u),
-    elevated: isAdminRow(u),
-    canElevate: canElevate(u),
-    effectiveCanWrite: requireRole(u, 'sales'),
-    effectiveCanManageTeam: requireRole(u, 'owner')
-  });
+  return Object.assign(memberPayload(u, lastLogin, Object.assign({ contact: true, signin: true }, opts || {})));
 }
-/* ---------- the designated admin (ADMIN_EMAIL) — local parity ----------
-   Two separate ideas, as in the worker:
-
-     ADMIN_EMAIL  who MAY elevate. Computed per request from the environment
-                  and the account email, never persisted, and enough on its own
-                  to clear every gate.
-
-     is_admin     who IS elevated. A stored flag that outranks owner and
-                  survives a change of the variable.
-
-   Neither produces a label: roleDisplay does not read them, and nothing writes
-   a title on that account, so nothing says "Admin" to a member. */
+/* ---------- Admin & Permission System (simplified) ---------- */
 function isAdminRow(user) {
-  return Number((user && user.is_admin) || 0) === 1;
+  const r = String((user && user.role) || '').toLowerCase();
+  return r === 'admin' || r === 'owner';
 }
-function normalizeEmail(v) {
-  return String(v == null ? '' : v).trim().toLowerCase();
-}
-function adminEmail() {
-  return normalizeEmail(process.env.ADMIN_EMAIL);
-}
-function ownerEmail() {
-  return normalizeEmail(process.env.OWNER_EMAIL);
-}
-function isHiddenAdmin(user) {
+function normalizeEmail(v) { return String(v == null ? '' : v).trim().toLowerCase(); }
+function adminEmail() { return normalizeEmail(process.env.ADMIN_EMAIL); }
+function ownerEmail() { return adminEmail(); }
+function isAdminEmail(user) {
   const designated = adminEmail();
   if (!designated || !user) return false;
   return normalizeEmail(user.email) === designated;
 }
-/* P1: both variables naming one mailbox makes the ADMIN_EMAIL designation
-redundant — the sign-in lockout backstop restores that account to Owner
-(preserving any display title) whenever no team manager would remain, and
-saved roles persist exactly as written in between. Reported by /api/health
-as a likely deploy-time mistake. */
-function adminOwnerConflict() {
-  const a = adminEmail(), o = ownerEmail();
-  return !!a && a === o;
+function adminOwnerConflict() { return false; }
+function hasFullAccess(user) {
+  return Number((user && user.full_access) || 0) === 1;
 }
-/** Permission rank: custom titles act as Sales (can write, cannot manage team).
- *  POWER follows the ROLE — an elevated row (one that typed "admin") or a
- *  stored Owner. The ADMIN_EMAIL address itself grants NOTHING: it only decides
- *  who MAY type "admin" (see canElevate). Logging in with that mailbox leaves
- *  you at your stored rank until you do. */
 function permissionRole(user) {
-  if (isAdminRow(user)) return 'admin';
+  if (isAdminEmail(user)) return 'admin';
   const r = String((user && user.role) || '').toLowerCase();
+  if (r === 'admin') return 'admin';
+  if (hasFullAccess(user) && roleRank(r) < roleRank('owner')) return 'owner';
   if (r === 'owner') return 'owner';
+  if (r === 'manager') return 'manager';
+  if (r === 'production') return 'production';
+  if (r === 'site_engineer') return 'site_engineer';
   if (r === 'viewer') return 'viewer';
-  return 'sales'; /* sales + custom */
+  return 'sales';
 }
-function canManageTeam(user) {
-  return requireRole(user, 'owner');
-}
-/* Who may elevate: the ADMIN_EMAIL login only, never "any elevated row". */
-function canElevate(user) {
-  return isHiddenAdmin(user);
-}
-/* Owner-sees-all: owner, elevated and the designated admin read every row;
-   members stay scoped to their own owner_id exactly as before. VISIBILITY IS
-   NOT POWER — the designated mailbox keeps reading this workspace's rows, but
-   team edit/delete comes from permissionRole, i.e. from the ROLE. */
-function seesAll(user) {
-  return requireRole(user, 'owner') || isHiddenAdmin(user);
-}
+function canManageTeam(user) { return requireRole(user, 'manager'); }
+function canElevate(user) { return permissionRole(user) === 'admin'; }
+function seesAll(user) { return requireRole(user, 'manager'); }
 /* In-memory parity with the worker's OWN_SCOPE SQL guard: true when the row is
    visible to this caller. `scope === null` lifts the owner_id filter. */
 function scopeOf(user) {
@@ -1534,43 +1433,14 @@ automatic transition left is the lockout backstop: when a sign-in from the
 designated mailbox arrives while no row holds owner-or-elevated power, that
 sign-in restores the mailbox to Owner (persisted, title preserved) so
 nobody can be locked out of team management. */
+/* Auto-promote ADMIN_EMAIL account to 'admin' role on sign-in. One-way. */
 function applyBootstrapOwner(user, db) {
-  const designated = ownerEmail();
-  if (!designated || !user || user.role === 'owner') return false;
-  if (normalizeEmail(user.email) !== designated) return false;
-  /* LOCKOUT BACKSTOP only: a saved role is never rewritten. Promote
-  solely when NOTHING can manage the team any more - no owner role and no
-  elevated (is_admin = 1) row. Otherwise the saved role stands as-is. */
-  const capable = ((db && db.users) || []).some((u) => u.role === 'owner' || Number(u.is_admin) === 1);
-  if (capable) return false;
-  /* Promote the ROLE only; role_custom is PRESERVED so an owner can carry a
-  display title (powers = Owner, chip = the title) without the backstop
-  erasing it. */
-  user.role = 'owner';
+  if (!user || !isAdminEmail(user)) return false;
+  if (String(user.role || '').toLowerCase() === 'admin') return false;
+  user.role = 'admin';
   user.updated_at = nowISO();
   return true;
 }
-/* There is deliberately NO automatic demotion of the ADMIN_EMAIL row.
-
-   An earlier revision healed that row owner -> viewer on sign-in so the
-   personal mailbox would not show up as a second visible Owner. It is gone,
-   and it should not come back:
-
-     - it fought deliberate promotions. Promoting the designated admin to a
-       visible Owner stored owner/NULL, which re-armed the heal, so the next
-       request from that mailbox silently undid what an owner had just done on
-       purpose. A role that cannot be set is a bug wearing a feature's clothes.
-     - it was never needed for safety. This account's reach comes from
-       ADMIN_EMAIL and, once used, from is_admin - not from its role column.
-       Demotion changed the display and nothing else.
-
-   If the account should read "Viewer" instead of "Owner", change its role once
-   from the team panel (or its own pencil) and it sticks: nothing here writes
-   the role back. The OWNER_EMAIL bootstrap below is the only automatic role
-   transition left in the product. */
-/* Kept as a thin wrapper so the three call sites (requireUser, login,
-   register) read as one named transition. Returns true when it mutated the row
-   so the caller can persist. */
 function applyOwnerBootstrap(user, db) {
   return applyBootstrapOwner(user, db);
 }
@@ -1798,62 +1668,47 @@ async function handleApi(req, res, url) {
     }
     /* AUTH */
     if (parts[0] === 'auth' && parts[1] === 'register' && method === 'POST') {
+      /* Admin-only: only admin/manager can create new team members. */
+      const actor = requireUser(req, db);
+      if (!actor) return sendJson(res, 401, { error: 'Not signed in' });
+      if (!canManageTeam(actor)) return sendJson(res, 403, { error: 'Only admin or manager can create accounts.' });
+
       const body = await readBody(req);
       const email = String(body.email || '').trim().toLowerCase();
       const name = String(body.name || '').trim() || email.split('@')[0] || 'User';
       const password = String(body.password || '');
-      /* Throttle before existence checks so 429 timing/body cannot reveal accounts. */
-      const blocked = authThrottleCheck(req, email);
-      if (blocked != null) return sendAuthLimited(res, blocked);
+
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        authThrottleFail(req, email);
-        return sendJson(res, 400, { error: 'Enter a valid email address (for example name@company.com).' });
+        return sendJson(res, 400, { error: 'Enter a valid email address.' });
       }
       const policy = passwordPolicyError(password);
-      if (policy) {
-        authThrottleFail(req, email);
-        return sendJson(res, 400, { error: policy });
-      }
+      if (policy) return sendJson(res, 400, { error: policy });
       if ((db.users || []).some((u) => u.email.toLowerCase() === email)) {
-        /* Registration needs a clear duplicate message; login stays non-enumerating. */
-        authThrottleFail(req, email);
-        return sendJson(res, 409, {
-          error: 'An account with this email already exists. Sign in instead, or use Forgot password if you cannot access it.'
-        });
+        return sendJson(res, 409, { error: 'An account with this email already exists.' });
       }
-      /* Role is free text on Create account (no dropdown). */
-      const parsed = parseSignupRole(body.role != null ? body.role : body.roleCustom);
-      if (parsed.error) {
-        authThrottleFail(req, email);
-        return sendJson(res, 400, { error: parsed.error });
-      }
+
+      const roleKey = String(body.role || 'sales').trim().toLowerCase().replace(/\s+/g, '_');
+      let role = 'sales', roleCustom = null;
+      if (roleKey === 'admin') return sendJson(res, 400, { error: 'Admin role is assigned by the system only.' });
+      if (roleKey === 'owner') role = 'owner';
+      else if (roleKey === 'manager') role = 'manager';
+      else if (roleKey === 'sales') role = 'sales';
+      else if (roleKey === 'production') role = 'production';
+      else if (roleKey === 'site_engineer') role = 'site_engineer';
+      else if (roleKey === 'viewer') role = 'viewer';
+      else { role = 'custom'; roleCustom = String(body.role || '').trim(); }
+
       const user = {
-        id: uid('usr'),
-        email,
-        name: name.slice(0, 120),
+        id: uid('usr'), email, name: name.slice(0, 120),
         password_hash: hashPassword(password),
-        // A public job-title field is not an authorization grant.
-        // Existing accounts are unchanged; only an existing owner may promote.
-        role: 'viewer',
-        role_custom: String(body.role != null ? body.role : body.roleCustom).trim(),
-        /* Elevation is never granted at signup, and the flag is written
-           explicitly so local JSON rows carry it like the SQL rows do. */
-        is_admin: 0,
-        /* Contact number and the profile-nudge flag, written explicitly so a
-           local JSON row matches what migration 006 gives a SQL row. */
-        phone: '',
-        profile_done: 0,
-        created_at: nowISO(),
-        updated_at: nowISO()
+        role, role_custom: roleCustom,
+        is_admin: 0, phone: '', profile_done: 0,
+        created_at: nowISO(), updated_at: nowISO()
       };
       db.users.push(user);
-      applyOwnerBootstrap(user, db);
-      authThrottleSuccess(email);
-      /* Create Account offers no "Remember me" control, so a fresh sign-up gets
-         the secure default: a session cookie plus the 12-hour server cap. */
-      const sess = createSession(db, user, SESSION_HOURS_SHORT * 3600 * 1000);
+      logActivity(db, req, actor, 'member.created', 'user', user.id, user.name, 'Role: ' + roleDisplay(user));
       saveDb(db);
-      return sendJson(res, 201, { user: publicUser(user), token: sess.token, expiresAt: sess.expiresAt }, authSuccessHeaders(sess.token, req, false));
+      return sendJson(res, 201, { member: memberPayload(user, null, { contact: true, signin: true }) });
     }
 
     if (parts[0] === 'auth' && parts[1] === 'login' && method === 'POST') {
@@ -2087,6 +1942,24 @@ async function handleApi(req, res, url) {
         ok: true,
         message: 'Password changed. Other signed-in sessions were signed out.'
       });
+    }
+
+    /* Admin password reset: admin/manager can reset any member's password. */
+    if (parts[0] === 'team' && parts[1] === 'reset-password' && method === 'POST') {
+      if (!canManageTeam(user)) return sendJson(res, 403, { error: 'Only admin or manager can reset passwords.' });
+      const body = await readBody(req);
+      const targetId = String(body.userId || '');
+      const newPassword = String(body.newPassword || '');
+      const target = (db.users || []).find((u) => u.id === targetId);
+      if (!target) return sendJson(res, 404, { error: 'User not found' });
+      const policy = passwordPolicyError(newPassword);
+      if (policy) return sendJson(res, 400, { error: policy });
+      target.password_hash = hashPassword(newPassword);
+      target.updated_at = nowISO();
+      revokeUserSessions(db, target.id);
+      logActivity(db, req, user, 'member.password_reset', 'user', target.id, target.name, 'Password reset by admin');
+      saveDb(db);
+      return sendJson(res, 200, { ok: true, message: 'Password reset. The member must sign in again.' });
     }
 
     if (parts[0] === 'auth' && parts[1] === 'profile' && method === 'POST') {
@@ -3552,123 +3425,162 @@ async function handleApi(req, res, url) {
     }
 
     if (parts[0] === 'team' && parts[1] === 'role' && method === 'POST') {
+      /* Admin or manager can change roles. */
+      if (!canManageTeam(user)) return sendJson(res, 403, { error: 'Only admin or manager can change roles.' });
+
       const body = await readBody(req);
       const targetId = String(body.userId || '');
       const wanted = String(body.role || '').trim().toLowerCase();
       const rawTitle = (body.roleCustom != null && body.roleCustom !== '')
         ? String(body.roleCustom)
         : (body.title != null && body.title !== '') ? String(body.title) : null;
-      /* THE SELF-ELEVATION DOOR. Power follows the ROLE now, so the designated
-         mailbox reaches this route at its stored rank with nothing to its name
-         — and the owner gate below would refuse it, which would mean elevation
-         could never be STARTED. So before that gate, exactly one passage is
-         open: the designated address, naming its OWN row, asking for the word
-         "admin". It opens nothing else — every other row and every other
-         command stops at the gate — and once inside, the checks that already
-         exist (ELEVATION_NOT_SELF, self-only elevation) apply unchanged. */
-      const wantsAdminWord = (rawTitle != null && rawTitle.trim().toLowerCase() === 'admin') || wanted === 'admin';
-      const selfElevationDoor = canElevate(user) && targetId === user.id && wantsAdminWord;
-      if (!canAdmin && !selfElevationDoor) {
-        return sendJson(res, 403, { error: 'Only the workspace owner can change roles.' });
-      }
+
       const target = (db.users || []).find((u) => u.id === targetId);
       if (!target) return sendJson(res, 404, { error: 'User not found' });
 
-      const actorIsAdmin = canElevate(user);
-      const targetElevated = isAdminRow(target);
-
-      /* An elevated row is out of reach for everyone except the designated
-         admin. The refusal is deliberately indistinguishable from any other
-         "you may not do this", so it never reveals which row is elevated. */
-      if (targetElevated && !actorIsAdmin) {
-        return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
+      /* Admin account cannot be demoted. */
+      if (isAdminEmail(target) && wanted !== 'admin') {
+        return sendJson(res, 403, { error: 'Admin role is permanent and cannot be changed.' });
+      }
+      if (wanted === 'admin') {
+        return sendJson(res, 400, { error: 'Admin role is assigned by the system only.' });
       }
 
-      /* ---- ELEVATION by typing "admin" ----
-         Self-service for the designated ADMIN_EMAIL login only, on its own row.
-         No dropdown, no role value: admin / Admin / ADMIN typed into the
-         custom-title box is the trigger. For anyone else it is a harmless
-         custom title (sales power), so this branch is skipped. */
-      const typedAdmin = rawTitle != null && rawTitle.trim().toLowerCase() === 'admin';
-      /* A POWER-KEY role (owner / sales / viewer) with the word "admin" riding
-         along in the title on ANOTHER row is a role change via the
-         title-preserve path, not an elevation attempt: the team table sends
-         the stored title with every role change, so a row whose stored title
-         happens to read "Admin" would otherwise be locked out of every role
-         edit with this very refusal. Elevation intent (and the self-only
-         refusal below) stays exactly where it was: the Custom / admin
-         shapes, every actor, every other row. */
-      const powerKeyRole = wanted === 'owner' || wanted === 'sales' || wanted === 'viewer';
-      const elevationAttempt = (typedAdmin || wanted === 'admin') && actorIsAdmin &&
-        !(powerKeyRole && target.id !== user.id);
-      if (elevationAttempt) {
-        if (target.id !== user.id) {
-          return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_NOT_SELF' });
-        }
-        /* Display untouched; re-typing "admin" stays ON (idempotent). */
-        target.is_admin = 1;
-        target.updated_at = nowISO();
-        saveDb(db);
-        return sendJson(res, 200, {
-          member: selfMemberPayload(target),
-          note: 'Saved. Nothing about how this account is displayed has changed.'
-        });
-      }
-
-      /* Power key or typed title. The boss case: role 'owner' WITH a title keeps
-         owner power and stores the title as the chip. */
-      const wantsCustom = wanted === 'custom';
-      const wantsOwner = wanted === 'owner';
-      let parsed;
-      if (rawTitle != null) {
+      const wKey = wanted.replace(/\s+/g, '_');
+      let newRole = 'sales', roleCustom = null;
+      if (wKey === 'owner') newRole = 'owner';
+      else if (wKey === 'manager') newRole = 'manager';
+      else if (wKey === 'sales') newRole = 'sales';
+      else if (wKey === 'production') newRole = 'production';
+      else if (wKey === 'site_engineer') newRole = 'site_engineer';
+      else if (wKey === 'viewer') newRole = 'viewer';
+      else if (wKey === 'custom' && rawTitle) {
         const t = parseRoleTitle(rawTitle);
         if (t.error) return sendJson(res, 400, { error: t.error });
-        /* A title rides ALONGSIDE a power key instead of replacing it: owner
-           keeps owner power with the title as its chip, and Sales/Engineer
-           keeps the wording in role_custom — that is the title preserve, so a
-           role change edits ACCESS and never the wording. Only `custom` takes
-           its power from a title arriving with no explicit power key. */
-        parsed = wantsOwner ? { role: 'owner', roleCustom: t.roleCustom }
-          : (wanted === 'sales' || wanted === 'viewer') ? { role: wanted, roleCustom: t.roleCustom }
-          : t;
-      } else if (wantsCustom) {
-        parsed = { error: 'Choose a power level, or send a title to show.' };
-      } else {
-        parsed = parseSignupRole(body.role);
-      }
-      if (parsed.error) return sendJson(res, 400, { error: parsed.error });
-
-      /* /* Self-demotion. Allowed whenever a backstop exists: the OWNER_EMAIL
-lockout backstop restores the company owner whenever no team manager
-would remain, so the workspace can never be left without one. The
-designated admin and any elevated row are exempt (their reach is not in
-this column). Only when there is no OWNER_EMAIL designation AND no other
-owner do we refuse, to avoid a genuine lockout. */
-      if (target.id === user.id && parsed.role !== 'owner' && !actorIsAdmin && !targetElevated) {
-        if (!ownerEmail()) {
-          const otherOwners = (db.users || []).filter((u) => u.id !== user.id && u.role === 'owner');
-          if (!otherOwners.length) {
-            return sendJson(res, 400, { error: 'Promote another owner before changing your own role away from owner.' });
-          }
-        }
+        newRole = 'custom'; roleCustom = t.roleCustom;
+      } else if (rawTitle) {
+        newRole = ['owner','manager','sales','production','site_engineer','viewer'].includes(wKey) ? wKey : 'sales';
+        roleCustom = rawTitle.trim().slice(0, 60);
       }
 
-      /* R2 OFF-switch: the designated admin setting its OWN role to anything but
-         "admin" de-elevates. */
-      if (target.id === user.id && actorIsAdmin && targetElevated) {
-        target.is_admin = 0;
+      target.role = newRole;
+      target.role_custom = roleCustom;
+      target.updated_at = nowISO();
+      logActivity(db, req, user, 'member.role_changed', 'user', target.id, target.name, 'Role changed to ' + roleDisplay(target));
+      saveDb(db);
+
+      const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target, undefined, { signin: true });
+      return sendJson(res, 200, { member: outMember });
+    }
+
+    /* Toggle full_access for a team member — admin only. */
+    if (parts[0] === 'team' && parts[1] === 'access' && method === 'POST') {
+      if (permissionRole(user) !== 'admin') {
+        return sendJson(res, 403, { error: 'Only admin can change access levels.' });
       }
-      target.role = parsed.role;
-      target.role_custom = parsed.roleCustom;
+      const body = await readBody(req);
+      const targetId = String(body.userId || '');
+      const target = (db.users || []).find((u) => u.id === targetId);
+      if (!target) return sendJson(res, 404, { error: 'User not found' });
+      if (isAdminEmail(target)) {
+        return sendJson(res, 400, { error: 'Admin always has full access.' });
+      }
+      const newVal = body.fullAccess ? 1 : 0;
+      target.full_access = newVal;
       target.updated_at = nowISO();
       saveDb(db);
-      const note = normalizeEmail(target.email) === ownerEmail() && parsed.role !== 'owner'
-  ? 'Saved. The saved role now sticks for every mailbox. One safety exception: if this workspace is ever left with no owner and no elevated account, the OWNER_EMAIL mailbox is restored on its next sign-in so nobody is locked out of team management.'
-  : null;
-      /* This route is owner / designated-admin gated, so the returned row keeps
-         its sign-in times and never drifts from the team list's shape. */
+      logActivity(db, req, user, newVal ? 'access.granted' : 'access.revoked',
+        'user', target.id, target.name, newVal ? 'Full access granted' : 'Full access revoked');
+      saveDb(db);
       const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target, undefined, { signin: true });
-      return sendJson(res, 200, { member: outMember, note });
+      return sendJson(res, 200, { member: outMember, fullAccess: newVal === 1 });
+    }
+
+    /* ---- Activity Log (GET /api/activity) ---- */
+    if (parts[0] === 'activity' && method === 'GET') {
+      if (!canManageTeam(user)) return sendJson(res, 403, { error: 'Insufficient access' });
+      const entries = (db.activity_logs || []).slice(0, 200).map((r) => ({
+        id: r.id, actorName: r.actor_name, actorEmail: r.actor_email,
+        action: r.action, targetType: r.target_type, targetId: r.target_id,
+        targetName: r.target_name, detail: r.detail, ip: r.ip, createdAt: r.created_at
+      }));
+      return sendJson(res, 200, { entries });
+    }
+
+    /* ---- Admin Dashboard Stats (GET /api/admin/stats) ---- */
+    if (parts[0] === 'admin' && parts[1] === 'stats' && method === 'GET') {
+      if (!canManageTeam(user)) return sendJson(res, 403, { error: 'Insufficient access' });
+      const members = (db.users || []).length;
+      const proposals = (db.proposals || []).length;
+      const now = Date.now();
+      const activeSessions = (db.sessions || []).filter((s) => Date.parse(s.expires_at) > now).length;
+      const today = new Date(Date.now() - 864e5).toISOString();
+      const activityToday = (db.activity_logs || []).filter((a) => a.created_at > today).length;
+      const statusMap = {};
+      (db.proposals || []).forEach((p) => {
+        const s = p.status || 'draft';
+        statusMap[s] = (statusMap[s] || 0) + 1;
+      });
+      return sendJson(res, 200, { members, proposals, activeSessions, activityToday, proposalsByStatus: statusMap });
+    }
+
+    /* ---- Session Management ---- */
+    if (parts[0] === 'sessions' && method === 'GET') {
+      if (!canManageTeam(user)) return sendJson(res, 403, { error: 'Insufficient access' });
+      const now = Date.now();
+      const active = (db.sessions || []).filter((s) => Date.parse(s.expires_at) > now);
+      const sessions = active.map((s) => {
+        const u = (db.users || []).find((x) => x.id === s.user_id) || {};
+        return {
+          token: s.token.slice(0, 8) + '…',
+          userId: s.user_id, userName: u.name || '', userEmail: u.email || '', userRole: u.role || '',
+          expiresAt: s.expires_at, createdAt: s.created_at
+        };
+      }).slice(0, 100);
+      return sendJson(res, 200, { sessions });
+    }
+    if (parts[0] === 'sessions' && parts[1] && method === 'DELETE') {
+      if (!canManageTeam(user)) return sendJson(res, 403, { error: 'Insufficient access' });
+      const prefix = String(parts[1]);
+      const match = (db.sessions || []).find((s) => s.token.startsWith(prefix));
+      if (!match) return sendJson(res, 404, { error: 'Session not found' });
+      db.sessions = (db.sessions || []).filter((s) => s.token !== match.token);
+      logActivity(db, req, user, 'session.force_logout', 'session', match.token.slice(0, 8), '', 'Forced logout');
+      saveDb(db);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    /* ---- Bulk Team Actions (POST /api/team/bulk) ---- */
+    if (parts[0] === 'team' && parts[1] === 'bulk' && method === 'POST') {
+      if (!canManageTeam(user)) return sendJson(res, 403, { error: 'Only admin or manager can perform bulk actions.' });
+      const body = await readBody(req);
+      const userIds = Array.isArray(body.userIds) ? body.userIds : [];
+      const action = String(body.action || '');
+      if (!userIds.length) return sendJson(res, 400, { error: 'No members selected.' });
+      const results = [];
+      for (const uid of userIds) {
+        const target = (db.users || []).find((u) => u.id === uid);
+        if (!target) { results.push({ id: uid, error: 'Not found' }); continue; }
+        if (isAdminEmail(target)) { results.push({ id: uid, error: 'Admin cannot be changed' }); continue; }
+        if (action === 'role') {
+          const newRole = String(body.role || '').toLowerCase().replace(/\s+/g, '_');
+          if (['owner','manager','sales','production','site_engineer','viewer'].includes(newRole)) {
+            target.role = newRole; target.updated_at = nowISO();
+            results.push({ id: uid, ok: true, role: newRole });
+          } else { results.push({ id: uid, error: 'Invalid role' }); }
+        } else if (action === 'access') {
+          target.full_access = body.fullAccess ? 1 : 0; target.updated_at = nowISO();
+          results.push({ id: uid, ok: true, fullAccess: !!body.fullAccess });
+        } else if (action === 'delete') {
+          if (target.id === user.id) { results.push({ id: uid, error: 'Cannot delete yourself' }); continue; }
+          db.sessions = (db.sessions || []).filter((s) => s.user_id !== target.id);
+          db.users = (db.users || []).filter((u) => u.id !== target.id);
+          results.push({ id: uid, ok: true, deleted: true });
+        } else { results.push({ id: uid, error: 'Unknown action' }); }
+      }
+      logActivity(db, req, user, 'team.bulk_' + action, 'team', '', '', action + ' on ' + userIds.length + ' members');
+      saveDb(db);
+      return sendJson(res, 200, { results });
     }
 
     /* Removing a member — parity with the worker: owner or designated admin
@@ -3705,19 +3617,15 @@ owner do we refuse, to avoid a genuine lockout. */
     }
 
     if (parts[0] === 'team' && parts[1] === 'members' && parts[2] && parts.length === 3 && method === 'DELETE') {
-      if (!canAdmin) return sendJson(res, 403, { error: 'Only the workspace owner can remove members.' });
+      if (!canAdmin) return sendJson(res, 403, { error: 'Only admin or manager can remove members.' });
       const target = (db.users || []).find((u) => u.id === String(parts[2]));
       if (!target) return sendJson(res, 404, { error: 'User not found' });
       if (target.id === user.id) {
-        return sendJson(res, 403, { error: 'You cannot remove the account you are signed in with.' });
+        return sendJson(res, 403, { error: 'You cannot remove your own account.' });
       }
-      if (ownerEmail() && normalizeEmail(target.email) === ownerEmail()) {
-        return sendJson(res, 403, {
-          error: 'This mailbox is the workspace OWNER_EMAIL, so it cannot be removed. Change or remove that server variable first.'
-        });
-      }
-      if (isAdminRow(target) && !canElevate(user)) {
-        return sendJson(res, 403, { error: 'Ask admin', code: 'ELEVATION_FORBIDDEN' });
+      /* Admin account (ADMIN_EMAIL) cannot be removed. */
+      if (isAdminEmail(target)) {
+        return sendJson(res, 403, { error: 'The admin account cannot be removed.' });
       }
 
       const mine = (row) => row && row.owner_id === target.id;
@@ -3751,6 +3659,7 @@ owner do we refuse, to avoid a genuine lockout. */
       db.member_likes = (db.member_likes || [])
         .filter((r) => !(r && (r.liker_id === target.id || r.target_id === target.id)));
       db.users = (db.users || []).filter((u) => u.id !== target.id);
+      logActivity(db, req, user, 'member.deleted', 'user', target.id, target.name, 'Member deleted');
       saveDb(db);
       return sendJson(res, 200, {
         ok: true,

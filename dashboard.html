@@ -95,6 +95,14 @@
             ><button type="button" class="nav-item" data-panel="sales">
               <span class="ico" aria-hidden="true">↗</span
               ><span class="label">Studio Pulse</span>
+            </button
+            ><button type="button" class="nav-item" data-panel="activity" id="navActivity" hidden>
+              <span class="ico" aria-hidden="true">◇</span
+              ><span class="label">Activity Log</span>
+            </button
+            ><button type="button" class="nav-item" data-panel="sessions" id="navSessions" hidden>
+              <span class="ico" aria-hidden="true">◇</span
+              ><span class="label">Sessions</span>
             </button>
           </details>
         </nav>
@@ -233,6 +241,31 @@
             </div>
             <div id="homeBody">
               <div class="hempty">Opening your workspace…</div>
+            </div>
+            <!-- Admin Stats Widget — shown only to admin/manager -->
+            <div id="adminStatsWidget" class="admin-stats-widget" hidden>
+              <div class="card-head">
+                <h2>Workspace Overview</h2>
+                <span class="count-pill" id="statsPill">Admin</span>
+              </div>
+              <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                  <span class="stat-value" id="statMembers">—</span>
+                  <span class="stat-label">Team Members</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value" id="statProposals">—</span>
+                  <span class="stat-label">Total Proposals</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value" id="statSessions">—</span>
+                  <span class="stat-label">Active Sessions</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value" id="statActivity">—</span>
+                  <span class="stat-label">Actions Today</span>
+                </div>
+              </div>
             </div>
           </section>
           <section id="panel-proposals" class="panel">
@@ -941,6 +974,12 @@
                 ><button type="button" data-settings="team">
                   Team & roles <span>→</span>
                 </button>
+                <button type="button" data-settings="activity" id="settingsBtnActivity" hidden>
+                  Activity Log <span>→</span>
+                </button>
+                <button type="button" data-settings="sessions" id="settingsBtnSessions" hidden>
+                  Sessions <span>→</span>
+                </button>
                 <button type="button" data-settings="connections" aria-controls="settingsConnections">
                   Connections <span>→</span>
                 </button>
@@ -1098,11 +1137,10 @@
                 >
                   <div class="card-head">
                     <h2>Your team</h2>
-                    <!-- Set by refreshTeamPanel(): "Owner access" for an owner
-                         or the designated admin, "Read-only" for everyone else.
-                         Every member may see this panel and every row; only
-                         managers change anything. -->
-                    <span id="teamAccessPill" class="count-pill">Read-only</span>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                      <button type="button" id="btnAddMember" class="btn btn-primary btn-sm" hidden>+ Add Member</button>
+                      <span id="teamAccessPill" class="count-pill">Read-only</span>
+                    </div>
                   </div>
                   <p class="sub" id="teamPanelSub">Your members, their roles, everything that matters — in one place.</p>
                   <!-- team-wrap: the team table never scrolls sideways. It is
@@ -1128,6 +1166,44 @@
                     </table>
                   </div>
                 </section>
+                <!-- Activity Log Section -->
+                <section class="card settings-section" id="activityCard" data-settings-section="activity" hidden>
+                  <div class="card-head">
+                    <h2>Activity Log</h2>
+                    <span class="count-pill" id="activityPill">Audit Trail</span>
+                  </div>
+                  <p class="sub">Every action in your workspace, recorded. Admin, role changes, access grants — all here.</p>
+                  <div class="table-wrap">
+                    <table class="data">
+                      <thead>
+                        <tr><th>TIME</th><th>WHO</th><th>ACTION</th><th>TARGET</th><th>DETAIL</th><th>IP</th></tr>
+                      </thead>
+                      <tbody id="activityBody">
+                        <tr><td colspan="6" class="empty">Loading activity…</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <!-- Session Management Section -->
+                <section class="card settings-section" id="sessionsCard" data-settings-section="sessions" hidden>
+                  <div class="card-head">
+                    <h2>Active Sessions</h2>
+                    <span class="count-pill" id="sessionsPill">Live</span>
+                  </div>
+                  <p class="sub">See who is signed in right now. Force logout any session.</p>
+                  <div class="table-wrap">
+                    <table class="data">
+                      <thead>
+                        <tr><th>MEMBER</th><th>ROLE</th><th>SINCE</th><th>EXPIRES</th><th>ACTION</th></tr>
+                      </thead>
+                      <tbody id="sessionsBody">
+                        <tr><td colspan="5" class="empty">Loading sessions…</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
                 <section id="settingsConnections" class="settings-section sc-hub" data-settings-section="connections" aria-labelledby="connectionsTitle" hidden>
                   <header class="sc-heading">
                     <div><span class="eyebrow">YOUR CONNECTED WORKSPACE</span><h2 id="connectionsTitle" tabindex="-1">Connections</h2><p>Company tools. The right people. One place to manage it all.</p></div>
@@ -1294,11 +1370,13 @@
         <div id="miLastRow"><dt>Last sign-in</dt><dd id="miLast">—</dd></div>
       </dl>
       <div id="miManage" hidden>
-        <button type="button" id="miDelete" class="btn btn-danger">Delete this User</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+          <button type="button" id="miResetPassword" class="btn btn-secondary">Reset Password</button>
+          <button type="button" id="miDelete" class="btn btn-danger">Delete this User</button>
+        </div>
         <p class="micro muted">
-          Only the workspace owner and the designated admin can remove a
-          member. Changing a role elsewhere in this table changes access only —
-          the member keeps every quotation, task and file they created.
+          Only admin or manager can manage members. Resetting a password signs out
+          all sessions for that member.
         </p>
       </div>
       <p id="miNote" class="micro" role="status"></p>
@@ -1341,6 +1419,50 @@
         <button type="button" id="cfOk" class="btn btn-primary">Confirm</button>
       </div>
     </dialog>
+    <!-- Add Member dialog -->
+    <dialog id="addMemberDialog" class="member-dialog" aria-label="Add team member">
+      <h2>Add team member</h2>
+      <p class="sub">Create a new account. The member will sign in with these details.</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin:12px 0;">
+        <label>Name <input type="text" id="amName" class="input" required maxlength="120"></label>
+        <label>Email <input type="email" id="amEmail" class="input" required></label>
+        <label>Temporary password <input type="text" id="amPassword" class="input" required minlength="8"></label>
+        <label>Role
+          <select id="amRole" class="input">
+            <option value="sales">Sales</option>
+            <option value="owner">Owner</option>
+            <option value="manager">Manager</option>
+            <option value="production">Production</option>
+            <option value="site_engineer">Site Engineer</option>
+            <option value="viewer">Viewer (Engineer)</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="amFullAccess">
+          <span>Full Access <small class="muted">(can manage team & see all proposals)</small></span>
+        </label>
+      </div>
+      <div class="dc-actions">
+        <button type="button" id="amCancel" class="btn btn-ghost">Cancel</button>
+        <button type="button" id="amSave" class="btn btn-primary">Create account</button>
+      </div>
+      <p id="amNote" class="micro" role="status"></p>
+    </dialog>
+
+    <!-- Reset Password dialog -->
+    <dialog id="resetPasswordDialog" class="member-dialog" aria-label="Reset password">
+      <h2>Reset password</h2>
+      <p class="sub">Set a new temporary password for <strong id="rpName"></strong>. They must sign in again.</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin:12px 0;">
+        <label>New password <input type="text" id="rpPassword" class="input" required minlength="8"></label>
+      </div>
+      <div class="dc-actions">
+        <button type="button" id="rpCancel" class="btn btn-ghost">Cancel</button>
+        <button type="button" id="rpSave" class="btn btn-primary">Reset password</button>
+      </div>
+      <p id="rpNote" class="micro" role="status"></p>
+    </dialog>
+
     <div id="toast" role="status"></div>
       <script src="assets/js/platform-api.js?v=oauth3"></script>
       <script src="assets/js/dashboard.js?v=kudos1"></script>

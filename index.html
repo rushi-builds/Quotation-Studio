@@ -165,13 +165,14 @@ input,button,a{font-family:var(--f)}
    <div class="reco"><label class="rm" for="rememberMe"><input type="checkbox" id="rememberMe" name="remember" value="1"><span>Remember me</span></label><button class="fg" id="forgotPassword" type="button" data-act="forgot">Forgot password?</button></div>
    <button class="cta2" type="submit">Sign In &rarr;</button>
    <p class="alt" aria-hidden="true">or</p>
-   <p class="sw">Don&rsquo;t have an account?<a data-go="up" tabindex="0" role="button">Create one</a></p>
+   <p class="sw" style="display:none">Don&rsquo;t have an account?<a data-go="up" tabindex="0" role="button">Create one</a></p>
+   <p class="sw">Ask your admin to create an account.</p>
   </div>
  </form>
 
- <form id="f-up" class="ov" data-mode="up" novalidate hidden>
+ <form id="f-up" class="ov" data-mode="up" novalidate hidden style="display:none !important">
   <div class="up" style="left:63.457%;top:14.772%;width:30.263%;height:69.501%">
-   <div><h2>Create Account</h2></div><p class="sub">New accounts start read-only. An existing owner must approve editing or administrative access.</p>
+   <div><h2>Account Creation Disabled</h2></div><p class="sub">Public registration is disabled. Ask your admin to create an account for you.</p>
    <div><label for="u-n">Full name</label><input class="f" id="u-n" name="name" autocomplete="name" placeholder="Enter your full name"><div class="e"></div></div>
    <div><label for="u-e">Work email</label><input class="f" id="u-e" name="email" type="email" autocomplete="email" placeholder="Enter your email"><div class="e"></div></div>
    <div><label for="u-r">Your Role</label><input class="f" id="u-r" name="role" autocomplete="organization-title" placeholder="Job title (access starts read-only)"><div class="e"></div></div>

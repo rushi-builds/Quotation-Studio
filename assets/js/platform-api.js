@@ -386,6 +386,34 @@
     deleteTeamMember(userId) {
       return request('DELETE', '/api/team/members/' + encodeURIComponent(userId));
     },
+    /** Reset a team member's password. Admin/manager only. */
+    resetTeamPassword(userId, newPassword) {
+      return request('POST', '/api/team/reset-password', { userId, newPassword });
+    },
+    /** Toggle full_access for a team member. Admin only. */
+    setTeamAccess(userId, fullAccess) {
+      return request('POST', '/api/team/access', { userId, fullAccess: !!fullAccess });
+    },
+    /** Get activity log entries. Admin/owner/manager only. */
+    getActivity(limit) {
+      return request('GET', '/api/activity?limit=' + (limit || 100));
+    },
+    /** Get admin dashboard stats. */
+    getAdminStats() {
+      return request('GET', '/api/admin/stats');
+    },
+    /** List active sessions. Admin only. */
+    listSessions() {
+      return request('GET', '/api/sessions');
+    },
+    /** Force logout a session. Admin only. */
+    forceLogout(tokenPrefix) {
+      return request('DELETE', '/api/sessions/' + encodeURIComponent(tokenPrefix));
+    },
+    /** Bulk team action (role/access/delete on multiple members). */
+    bulkTeamAction(userIds, action, opts) {
+      return request('POST', '/api/team/bulk', Object.assign({ userIds, action }, opts || {}));
+    },
     /** Toggle the heart on the member card. One vote per member per member is
      *  enforced server-side by the unique pair, so the reply is the truth:
      *  the new count and whether this member is now counted. */

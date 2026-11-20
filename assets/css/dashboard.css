@@ -3230,26 +3230,158 @@ html[data-theme="dark"] .sidebar {
 
 /* Red dot: the self-only tell that this account is in elevated admin mode.
    Rendered beside the role on the top chip and in Settings, driven by the
-   stored `elevated` flag, which only ever appears in the actor's own payload —
-   so nobody else sees it and it changes no badge, chip text or typed title. */
-.admin-dot {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin-left: 5px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--red, #e5484d) 60%, transparent);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--red, #e5484d) 12%, transparent);
-  vertical-align: middle;
-  /* Hover-only. The flag behind it is self-only already — no other payload
-     ever carries it — and now the MARK is invisible until the actor points at
-     it, so a glance at the screen shows nothing to catch. */
-  opacity: 0;
-  transition: opacity .15s ease;
+/* Admin badge: clear and visible, no hidden indicators. */
+.role-note {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--muted, #666);
+  background: var(--surface-2, #f5f5f5);
+  border-radius: 6px;
+  margin: 4px 0;
 }
-#chipRole:hover .admin-dot,
-#settingsRole:hover .admin-dot,
-.admin-dot:focus-visible { opacity: 1; }
+
+/* Access badges & toggle */
+.badge-access {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-left: 4px;
+  text-transform: uppercase;
+}
+.badge-access.is-full {
+  background: #12a15020;
+  color: #12a150;
+  border: 1px solid #12a15040;
+}
+.badge-access.is-limited {
+  background: #f5a62320;
+  color: #b07800;
+  border: 1px solid #f5a62340;
+}
+.team-access-toggle {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  color: #666;
+  margin-top: 4px;
+  transition: all 0.15s ease;
+}
+.team-access-toggle:hover {
+  border-color: #12a150;
+  color: #12a150;
+}
+.team-access-toggle.is-full {
+  background: #12a15018;
+  color: #12a150;
+  border-color: #12a15050;
+}
+.team-access-toggle.is-full:hover {
+  background: #e5484d18;
+  color: #e5484d;
+  border-color: #e5484d50;
+}
+.team-access-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Admin Stats Widget ---------- */
+.admin-stats-widget {
+  padding: 0 24px 16px;
+}
+.admin-stats-widget .card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.admin-stats-widget .card-head h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.stat-card {
+  background: var(--surface-2, #f8f9fa);
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  transition: box-shadow 0.15s ease;
+}
+.stat-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.stat-value {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text, #111);
+  line-height: 1.2;
+}
+.stat-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted, #888);
+  margin-top: 4px;
+}
+
+/* ---------- Bulk Action Bar ---------- */
+.bulk-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--surface-2, #f8f9fa);
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.bulk-select-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.bulk-count {
+  font-size: 12px;
+  color: var(--muted, #888);
+  min-width: 80px;
+}
+.bulk-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.team-check-cell {
+  width: 32px;
+  text-align: center;
+  padding: 4px !important;
+}
+.team-check-cell input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent, #2563eb);
+}
 
 /* ---------- team panel: one panel, vertical scroll only ----------
    The team table is laid out to the panel's width (fixed columns, wrapping

@@ -16,13 +16,13 @@
   const QUOTE_PAGE_SIZE = 20;
   let toastTimer = null;
 
-  const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Engineer', custom: 'Custom' };
+  const ROLE_LABEL = { admin: 'Admin', owner: 'Owner', manager: 'Manager', sales: 'Sales', production: 'Production', site_engineer: 'Site Engineer', viewer: 'Engineer', custom: 'Custom' };
   /* The four built-in words the SERVER may send, in the vocabulary this UI
      shows. `viewer` reads "Engineer" on screen everywhere — a label rename
      only: the stored role, its rank and every gate are untouched. Anything
      a member typed passes through verbatim, so a custom title is never
      rewritten. */
-  const SERVER_ROLE_LABEL = { Owner: 'Owner', Sales: 'Sales', Viewer: 'Engineer', Custom: 'Custom' };
+  const SERVER_ROLE_LABEL = { Admin: 'Admin', Owner: 'Owner', Manager: 'Manager', Sales: 'Sales', Production: 'Production', 'Site Engineer': 'Site Engineer', Viewer: 'Engineer', Custom: 'Custom' };
   function roleLabel(roleOrUser) {
     if (roleOrUser && typeof roleOrUser === 'object') {
       if (roleOrUser.roleLabel) return SERVER_ROLE_LABEL[roleOrUser.roleLabel] || roleOrUser.roleLabel;
@@ -110,9 +110,9 @@
   }
   function canManage() {
     if (!user) return false;
-    return user.canManageTeam != null ? !!user.canManageTeam : user.role === 'owner';
+    return user.canManageTeam != null ? !!user.canManageTeam : (user.role === 'admin' || user.role === 'manager');
   }
-  const POWER_LABEL = { owner: 'Owner', sales: 'Sales', viewer: 'Engineer' };
+  const POWER_LABEL = { admin: 'Admin', owner: 'Owner', manager: 'Manager', sales: 'Sales', production: 'Production', site_engineer: 'Site Engineer', viewer: 'Engineer' };
   /* S1 — the badge is the STORED role, so it can never read "Admin". The
      backend already sends `power` derived from `role` alone; this clamps it a
      second time so that no future backend change can put the word on screen.
@@ -120,10 +120,15 @@
      elevation to all of them. Note there is deliberately no 'admin' key in
      POWER_LABEL either. */
   function storedPowerWord(m) {
+    if (m && m.power) return m.power;
     const r = String((m && m.role) || '').toLowerCase();
+    if (r === 'admin') return 'admin';
     if (r === 'owner') return 'owner';
+    if (r === 'manager') return 'manager';
+    if (r === 'production') return 'production';
+    if (r === 'site_engineer') return 'site_engineer';
     if (r === 'viewer') return 'viewer';
-    return 'sales'; /* sales, and every custom title, act as Sales */
+    return 'sales';
   }
   function powerLabel(p) { return POWER_LABEL[String(p || '').toLowerCase()] || 'Member'; }
   function emptyState(title, detail, icon = '◇') {
@@ -179,22 +184,20 @@
          access is identical either way, because this is a label and not a
          grant: `viewer` still gates every write wherever it is displayed. */
       $('settingsRole').textContent = user.roleCustom || roleLabel(user);
-      /* Red dot: self-only tell that this account is in elevated admin mode.
-         Driven by the stored `elevated` flag; nobody else's payload has it. */
-      if (user && user.elevated) {
-        const d = document.createElement('span');
-        d.className = 'admin-dot'; d.title = 'Admin mode';
-        d.setAttribute('aria-label', 'Admin mode');
-        $('settingsRole').appendChild(d);
-      }
     }
     if ($('settingsSince')) $('settingsSince').textContent = memberSince(user);
     wireRolePencil();
+    wireAddMember();
+    wireResetPassword();
+    wireBulkActions();
+    wireAdminPanels();
+    /* Show/hide the Add Member button based on management permission. */
+    if ($('btnAddMember')) $('btnAddMember').hidden = !canManage();
     /* Own pencil stays visible for everyone; only the affordance changes. */
     if ($('btnRoleEdit')) {
       const mine = canManage();
-      $('btnRoleEdit').title = mine ? 'Edit your role' : 'Ask owner to change it';
-      $('btnRoleEdit').setAttribute('aria-label', mine ? 'Edit your role' : 'Ask owner to change it');
+      $('btnRoleEdit').title = mine ? 'Edit your role' : 'Ask admin to change it';
+      $('btnRoleEdit').setAttribute('aria-label', mine ? 'Edit your role' : 'Ask admin to change it');
       $('btnRoleEdit').classList.toggle('is-locked', !mine);
     }
     if ($('profileName')) $('profileName').value = user.name || '';
@@ -610,20 +613,16 @@
 
      There is NO "Admin" dropdown option and no elevation control. Elevation is a
      TYPED TITLE: the designated admin types admin / Admin / ADMIN into the title
-     box and saves; the backend sets is_admin = 1 and leaves the display
-     untouched. For anyone else the same word is just a custom title with sales
-     power (a title never grants access). Setting ANY other role de-elevates. The
-     only tell is the small red dot beside your own role, which nobody else can
-     see and which is driven by the stored `elevated` flag. */
+     Admin role is permanent (system-assigned). */
   function wireRolePencil() {
     const btn = $('btnRoleEdit');
     const box = $('roleEditor');
     if (!btn || !box || btn.dataset.wired) return;
     btn.dataset.wired = '1';
     btn.addEventListener('click', () => {
-      if (!canManage() && !(user && user.canElevate)) {
-        btn.title = 'Ask owner to change it';
-        toast('Ask owner to change it');
+      if (!canManage()) {
+        btn.title = 'Ask admin to change it';
+        toast('Ask admin to change it');
         return;
       }
       if (!box.hidden) { box.hidden = true; box.replaceChildren(); return; }
@@ -632,13 +631,7 @@
     });
   }
 
-  /* Role + typed-title editor.
-       custom  -> title REQUIRED (sales power + that chip)
-       owner   -> title OPTIONAL (owner power; blank chip shows "Owner")
-       sales / viewer -> no title
-     Typing "admin" as a custom title elevates the designated admin on the
-     backend with ZERO display change; the returned member is the source of
-     truth, so the chip does not move and only the red dot appears. */
+  /* Role editor: Manager, Sales, Viewer (+ Custom title). Admin is system-only. */
   function wireRoleEditor(box, btn) {
     const sel = document.createElement('select');
     sel.className = 'role-select';
@@ -650,41 +643,34 @@
     title.maxLength = 60;
     title.setAttribute('aria-label', 'Display title');
 
-    /* Power keys, in order — Custom sits LAST because picking it is what opens
-       the typed-title box. It is offered as an INSTRUCTION, not as a stored
-       value: the wording lives in the box underneath, and a Sales or Engineer
-       row never grows a custom entry just because a title survived a role
-       change. */
-    ['owner', 'sales', 'viewer'].forEach((r) => {
+    /* Admin cannot change their own role — it's permanent. */
+    if (user && user.isAdmin) {
+      const note = document.createElement('div');
+      note.className = 'role-note';
+      note.textContent = 'Admin role is permanent.';
+      box.append(note);
+      return;
+    }
+
+    ['owner', 'manager', 'sales', 'production', 'site_engineer', 'viewer'].forEach((r) => {
       const o = document.createElement('option');
       o.value = r; o.textContent = roleLabel(r);
       if (user.role === r) o.selected = true;
       sel.append(o);
     });
-    /* Custom sits LAST, worded exactly as the team table words it, and its
-       label is an INSTRUCTION rather than a stored value: pick it and the box
-       below is where you type. It is offered on EVERY row, not only one
-       already stored as custom — this pencil is where the designated mailbox
-       types "admin", and a row that starts at Sales would otherwise have no
-       way to reach that door at all. */
     const customOpt = document.createElement('option');
     customOpt.value = 'custom';
-    customOpt.textContent = 'Custom — type here';
+    customOpt.textContent = 'Custom — type below';
     if (user.role === 'custom') customOpt.selected = true;
     sel.append(customOpt);
 
-    /* Whatever title the account already has is loaded ONCE and never blanked
-       by a role choice: a hidden box still holds its text, so saving after a
-       move to Sales or Engineer sends the wording back and preserves it. */
     title.value = user.roleCustom || '';
     function syncTitle() {
       const v = sel.value;
-      const titleable = v === 'custom' || v === 'owner';
+      const titleable = v === 'custom';
       title.hidden = !titleable;
       title.disabled = false;
-      title.placeholder = v === 'custom'
-        ? 'Typed title (for example Project lead)'
-        : 'Display title (optional — blank shows "Owner")';
+      title.placeholder = 'Type a title (for example Project lead)';
     }
     sel.addEventListener('change', syncTitle);
     syncTitle();
@@ -704,27 +690,22 @@
       try {
         const out = await api.setTeamRole(user.id, v, titleToSend);
         const m = (out && out.member) || null;
-        /* The returned member is the source of truth. On elevation the display
-           fields come back UNCHANGED, so copying them keeps the chip identical
-           while `elevated` flips the red dot on. */
         if (m) {
           user.role = m.role;
           user.roleCustom = m.roleCustom || null;
           user.roleLabel = m.roleLabel || roleLabel(m.role);
           if (m.isAdmin != null) user.isAdmin = !!m.isAdmin;
-          if (m.elevated != null) user.elevated = !!m.elevated;
-          if (m.canElevate != null) user.canElevate = !!m.canElevate;
-          user.canWrite = m.effectiveCanWrite != null ? !!m.effectiveCanWrite : (m.canWrite != null ? !!m.canWrite : user.canWrite);
-          user.canManageTeam = m.effectiveCanManageTeam != null ? !!m.effectiveCanManageTeam : (m.canManageTeam != null ? !!m.canManageTeam : user.canManageTeam);
+          user.canWrite = m.canWrite != null ? !!m.canWrite : user.canWrite;
+          user.canManageTeam = m.canManageTeam != null ? !!m.canManageTeam : user.canManageTeam;
         } else {
           user.role = (v === 'custom' && t) ? 'custom' : v;
-          user.roleCustom = ((v === 'owner' || v === 'custom') && t) ? t : null;
+          user.roleCustom = (v === 'custom' && t) ? t : null;
           user.roleLabel = user.roleCustom || roleLabel(v);
         }
         box.hidden = true; box.replaceChildren();
         showApp();
         refreshTeamPanel();
-        toast((out && out.note) || 'Saved');
+        toast('Role saved');
       } catch (err) {
         save.disabled = false;
         toast(err.message || 'Could not change role');
@@ -997,23 +978,36 @@
   async function refreshTeamPanel() {
     const body = $('teamBody');
     if (!body) return;
-    const COLS = 6;
+    const COLS = 7; /* Added checkbox column */
     try {
       const r = await api.listTeam();
       const members = (r && r.members) || [];
-      /* The member card reads from here, because it opens after this function
-         has returned. */
       teamMembers = members;
-      /* Read-only unless the server says this actor manages the team. Falling
-         back to the local flag keeps an older backend behaving as before. */
       const manage = r && r.canManageTeam != null ? !!r.canManageTeam : canManage();
       teamCanManage = manage;
-      /* The heading pill follows the same server flag, so a member is never
-         told this screen is theirs to control. The intro line under the heading
-         is fixed copy in dashboard.html — one theme line for everyone, because
-         the gate speaks for itself: the pill says who may act and the EDIT cell
-         says "Only owner access" on every row a member cannot change. */
-      if ($('teamAccessPill')) $('teamAccessPill').textContent = manage ? 'Owner access' : 'Read-only';
+      if ($('teamAccessPill')) $('teamAccessPill').textContent = manage ? 'Admin access' : 'Read-only';
+
+      /* Bulk action bar — shown above the table when managing. */
+      const tableWrap = body.closest('.table-wrap');
+      let bulkBar = $('bulkActionBar');
+      if (manage && !bulkBar && tableWrap) {
+        bulkBar = document.createElement('div');
+        bulkBar.id = 'bulkActionBar';
+        bulkBar.className = 'bulk-action-bar';
+        bulkBar.innerHTML =
+          '<label class="bulk-select-all"><input type="checkbox" id="teamBulkSelectAll"> Select all</label>' +
+          '<span id="bulkCount" class="bulk-count">0 selected</span>' +
+          '<div class="bulk-actions">' +
+            '<button type="button" class="btn btn-sm btn-secondary" data-bulk-action="role" disabled>Change Role</button>' +
+            '<button type="button" class="btn btn-sm btn-secondary" data-bulk-action="access" disabled>Toggle Access</button>' +
+            '<button type="button" class="btn btn-sm btn-danger" data-bulk-action="delete" disabled>Delete</button>' +
+          '</div>';
+        tableWrap.parentNode.insertBefore(bulkBar, tableWrap);
+        wireBulkActions();
+      } else if (!manage && bulkBar) {
+        bulkBar.remove();
+      }
+
       body.innerHTML = members.map((m) => {
         const pwr = storedPowerWord(m);
         /* Selection follows the POWER KEY alone. A Sales or Engineer row may
@@ -1022,57 +1016,80 @@
            the wording lives on the member card, not in this dropdown. The
            typed-title box therefore appears only for owner and custom. */
         const isCustom = m.role === 'custom';
-        const titleable = isCustom || m.role === 'owner';
+        const titleable = isCustom;
         const titleId = 'teamTitle_' + m.id;
         /* Contact detail goes to EVERY member now: the eye opens the full card
            for anyone, so the address and number ride the same row. Only the
            controls differ — Edit and Remove stay with the manager. */
         const contact = escapeHtml(m.email || '') +
           (m.phone ? '<span class="contact-sub">' + escapeHtml(m.phone) + '</span>' : '');
+        /* Checkbox column for bulk actions (managers only). */
+        const checkbox = manage && !(m.isAdmin || m.role === 'admin')
+          ? '<td class="team-check-cell"><input type="checkbox" class="team-bulk-check" data-bulk-id="' + escapeHtml(m.id) + '" aria-label="Select ' + escapeHtml(m.name) + '"></td>'
+          : '<td class="team-check-cell"></td>';
         /* The eye is the one control every row carries, manager or not. */
         const eye = '<td class="team-info-cell"><button type="button" class="team-info-btn" data-info="' + escapeHtml(m.id) +
           '" aria-label="View info for ' + escapeHtml(m.name) + '" title="View info">👁</button></td>';
         if (!manage) {
-          /* View-only: the same information, no control. The EDIT cell says
-             what it says on the tin instead of offering a dead affordance.
-             Six cells so the header lines up. */
+          /* Access badge helper: shows Full/Limited next to the role badge. */
+          function accessBadge(member) {
+            if (member.isAdmin || member.role === 'admin') return '<span class="badge badge-access is-full" title="Full access (admin)">Full</span>';
+            if (member.fullAccess) return '<span class="badge badge-access is-full" title="Full access granted">Full</span>';
+            return '<span class="badge badge-access is-limited" title="Limited access">Limited</span>';
+          }
+          /* View-only: the same information, no control. */
           return '<tr data-member="' + escapeHtml(m.id) + '" class="team-readonly">' +
+            checkbox +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
-            '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span></td>' +
+            '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + '</td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
-            '<td class="muted micro">Only owner access</td>' +
+            '<td class="muted micro">Read-only</td>' +
             eye +
           '</tr>';
         }
-        let opts = ['owner', 'sales', 'viewer'].map((role) => (
+        /* Admin rows are locked — role cannot be changed. */
+        if (m.isAdmin || m.role === 'admin') {
+          return '<tr data-member="' + escapeHtml(m.id) + '">' +
+            checkbox +
+            '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
+            '<td class="muted">' + contact + '</td>' +
+            '<td><span class="badge badge-power" data-power="admin">Admin</span> <span class="badge badge-access is-full">Full</span></td>' +
+            '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
+            '<td class="muted micro">Admin (permanent)</td>' +
+            eye +
+          '</tr>';
+        }
+        let opts = ['owner', 'manager', 'sales', 'production', 'site_engineer', 'viewer'].map((role) => (
           '<option value="' + role + '"' + (!isCustom && m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
         )).join('');
-        /* Custom sits LAST, and its label is an INSTRUCTION rather than a
-           stored value: pick it and the box below is where you type. The
-           wording itself never lives in the dropdown. */
-        opts += '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom — type here</option>';
-        /* Never an "Admin" entry here: elevation is self-service and lives in
-           the own-role pencil, so no owner can raise or lower anyone else. */
+        opts += '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom — type below</option>';
+        /* Access toggle: only admin sees it. */
+        const isAdminActor = user && user.isAdmin;
+        const accessToggle = isAdminActor
+          ? '<button type="button" class="team-access-toggle' + (m.fullAccess ? ' is-full' : '') + '" data-access-user="' + escapeHtml(m.id) + '" title="' + (m.fullAccess ? 'Revoke full access' : 'Grant full access') + '">' + (m.fullAccess ? 'Full' : 'Limited') + '</button>'
+          : (m.fullAccess ? '<span class="badge badge-access is-full">Full</span>' : '<span class="badge badge-access is-limited">Limited</span>');
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
+          checkbox +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
           '<td class="muted">' + contact + '</td>' +
-          '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span></td>' +
+          '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + '</td>' +
           '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
           '<td class="team-edit-cell">' +
             '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
             opts + '</select>' +
             '<input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
             '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
-            ' placeholder="' + (m.role === 'owner' ? 'Display title (optional)' : 'Typed title') + '"' +
+            ' placeholder="Typed title"' +
             (titleable ? '' : ' hidden') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" />' +
+            accessToggle +
           '</td>' +
           eye +
         '</tr>';
       }).join('') || '<tr><td colspan="' + COLS + '" class="empty">No members.</td></tr>';
       if (!manage && members.length) {
         body.insertAdjacentHTML('beforeend',
-          '<tr><td colspan="' + COLS + '" class="empty micro">Read-only — Only owner access: only the workspace owner can change roles. Your role: ' +
+          '<tr><td colspan="' + COLS + '" class="empty micro">Read-only — Only admin or manager can change roles. Your role: ' +
           escapeHtml(roleLabel(user)) + '.</td></tr>');
       }
       /* No `if (!manage) return` here, and that is deliberate. Everything below
@@ -1092,18 +1109,9 @@
           user.role = out.member.role;
           user.roleCustom = out.member.roleCustom || null;
           user.roleLabel = out.member.roleLabel || roleLabel(out.member.role);
-          /* S2 changed what a member row carries: canWrite/canManageTeam on a
-             team-panel row are now the STORED-role values, and the effective
-             ones arrive as effectiveCanWrite/effectiveCanManageTeam on the
-             actor's own row only. Reading the stored pair here would silently
-             strip a viewer-level elevated account of its reach after any role
-             edit, so the effective fields win whenever the backend sends them. */
-          user.canWrite = out.member.effectiveCanWrite != null
-            ? !!out.member.effectiveCanWrite : out.member.canWrite;
-          user.canManageTeam = out.member.effectiveCanManageTeam != null
-            ? !!out.member.effectiveCanManageTeam : out.member.canManageTeam;
+          user.canWrite = out.member.canWrite;
+          user.canManageTeam = out.member.canManageTeam;
           if (out.member.isAdmin != null) user.isAdmin = !!out.member.isAdmin;
-          if (out.member.canElevate != null) user.canElevate = !!out.member.canElevate;
           showApp();
         }
         return out;
@@ -1116,7 +1124,7 @@
           const input = row ? row.querySelector('.team-title-input') : null;
           /* The box appears only for the two roles that carry wording; on
              Sales / Engineer it is gone rather than greyed out. */
-          const wantsTitle = sel.value === 'custom' || sel.value === 'owner';
+          const wantsTitle = sel.value === 'custom';
           if (input) { input.hidden = !wantsTitle; input.disabled = !wantsTitle; }
           try {
             await applyRole(id, sel.value, input ? input.value.trim() : '');
@@ -1134,7 +1142,7 @@
           const id = input.getAttribute('data-team-title');
           const row = input.closest('tr');
           const sel = row ? row.querySelector('.team-role-select') : null;
-          if (!sel || (sel.value !== 'custom' && sel.value !== 'owner')) return;
+          if (!sel || sel.value !== 'custom') return;
           try {
             await applyRole(id, sel.value, input.value.trim());
             toast('Title updated');
@@ -1142,6 +1150,34 @@
           } catch (err) {
             toast(err.message || 'Could not change title');
             await refreshTeamPanel();
+          }
+        });
+      });
+
+      /* Access toggle: admin clicks to grant/revoke full access. */
+      body.querySelectorAll('.team-access-toggle').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-access-user');
+          const member = memberById(id);
+          if (!member) return;
+          const currentlyFull = !!member.fullAccess;
+          btn.disabled = true;
+          try {
+            const out = await api.setTeamAccess(id, !currentlyFull);
+            if (out && out.member) {
+              /* Update the local team member data. */
+              const idx = teamMembers.findIndex((m) => m.id === id);
+              if (idx >= 0) teamMembers[idx] = Object.assign(teamMembers[idx], out.member);
+              if (id === user.id) {
+                user.canManageTeam = out.member.canManageTeam;
+                user.canWrite = out.member.canWrite;
+              }
+            }
+            toast(currentlyFull ? 'Access set to Limited' : 'Full access granted');
+            await refreshTeamPanel();
+          } catch (err) {
+            btn.disabled = false;
+            toast(err.message || 'Could not change access');
           }
         });
       });
@@ -2092,7 +2128,13 @@
     document.addEventListener('click', e=>document.querySelectorAll('.row-menu[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false;}));
     document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.row-menu[open]').forEach(menu=>menu.open=false);});
     document.querySelectorAll('.nav-item[data-panel]').forEach((n) => {
-      n.addEventListener('click', () => showPanel(n.getAttribute('data-panel')));
+      n.addEventListener('click', () => {
+        const panel = n.getAttribute('data-panel');
+        /* Activity and Sessions route to Settings sub-sections. */
+        if (panel === 'activity') { showPanel('settings'); showSettings('activity'); loadActivityLog(); }
+        else if (panel === 'sessions') { showPanel('settings'); showSettings('sessions'); loadSessions(); }
+        else showPanel(panel);
+      });
     });
 
     $('btnNewFromHome').addEventListener('click', createBlankAndOpen);
@@ -2202,6 +2244,269 @@
       showAuthError(err.message || 'Could not reach platform');
     }
   }
+
+  /* ---------- Add Member dialog ---------- */
+  function wireAddMember() {
+    const btn = $('btnAddMember');
+    const dlg = $('addMemberDialog');
+    if (!btn || !dlg || btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+      if ($('amName')) $('amName').value = '';
+      if ($('amEmail')) $('amEmail').value = '';
+      if ($('amPassword')) $('amPassword').value = '';
+      if ($('amRole')) $('amRole').value = 'sales';
+      if ($('amNote')) $('amNote').textContent = '';
+      if (typeof dlg.showModal === 'function') dlg.showModal();
+      else dlg.setAttribute('open', '');
+    });
+    const cancel = $('amCancel');
+    if (cancel) cancel.addEventListener('click', () => { closeDialog('addMemberDialog'); });
+    const save = $('amSave');
+    if (save) save.addEventListener('click', async () => {
+      const name = ($('amName') || {}).value || '';
+      const email = ($('amEmail') || {}).value || '';
+      const password = ($('amPassword') || {}).value || '';
+      const role = ($('amRole') || {}).value || 'sales';
+      const fullAccess = ($('amFullAccess') || {}).checked || false;
+      if (!name.trim() || !email.trim() || !password) {
+        if ($('amNote')) $('amNote').textContent = 'All fields are required.';
+        return;
+      }
+      save.disabled = true;
+      try {
+        const result = await api.register(name.trim(), email.trim().toLowerCase(), password, role);
+        /* If full access was checked, toggle it after account creation. */
+        if (fullAccess && result && result.member) {
+          await api.setTeamAccess(result.member.id, true);
+        }
+        closeDialog('addMemberDialog');
+        toast('Account created for ' + name.trim() + (fullAccess ? ' (full access)' : ''));
+        await refreshTeamPanel();
+      } catch (err) {
+        if ($('amNote')) $('amNote').textContent = err.message || 'Could not create account';
+      } finally {
+        save.disabled = false;
+      }
+    });
+  }
+
+  /* ---------- Reset Password dialog ---------- */
+  function wireResetPassword() {
+    const btn = $('miResetPassword');
+    const dlg = $('resetPasswordDialog');
+    if (!btn || !dlg || btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+      const m = memberInFocus;
+      if (!m) return;
+      if ($('rpName')) $('rpName').textContent = m.name || 'this member';
+      if ($('rpPassword')) $('rpPassword').value = '';
+      if ($('rpNote')) $('rpNote').textContent = '';
+      if (typeof dlg.showModal === 'function') dlg.showModal();
+      else dlg.setAttribute('open', '');
+    });
+    const cancel = $('rpCancel');
+    if (cancel) cancel.addEventListener('click', () => { closeDialog('resetPasswordDialog'); });
+    const save = $('rpSave');
+    if (save) save.addEventListener('click', async () => {
+      const m = memberInFocus;
+      if (!m) return;
+      const password = ($('rpPassword') || {}).value || '';
+      if (!password) {
+        if ($('rpNote')) $('rpNote').textContent = 'Enter a new password.';
+        return;
+      }
+      save.disabled = true;
+      try {
+        await api.resetTeamPassword(m.id, password);
+        closeDialog('resetPasswordDialog');
+        toast('Password reset for ' + (m.name || 'member'));
+      } catch (err) {
+        if ($('rpNote')) $('rpNote').textContent = err.message || 'Could not reset password';
+      } finally {
+        save.disabled = false;
+      }
+    });
+  }
+
+  /* ---------- Admin Stats Widget ---------- */
+  async function loadAdminStats() {
+    const widget = $('adminStatsWidget');
+    if (!widget || !user || !user.canManageTeam) return;
+    widget.hidden = false;
+    try {
+      const stats = await api.getAdminStats();
+      if ($('statMembers')) $('statMembers').textContent = stats.members || 0;
+      if ($('statProposals')) $('statProposals').textContent = stats.proposals || 0;
+      if ($('statSessions')) $('statSessions').textContent = stats.activeSessions || 0;
+      if ($('statActivity')) $('statActivity').textContent = stats.activityToday || 0;
+    } catch (_) { widget.hidden = true; }
+  }
+
+  /* ---------- Activity Log ---------- */
+  async function loadActivityLog() {
+    const body = $('activityBody');
+    if (!body) return;
+    try {
+      const r = await api.getActivity(100);
+      const entries = (r && r.entries) || [];
+      if ($('activityPill')) $('activityPill').textContent = entries.length + ' entries';
+      if (!entries.length) {
+        body.innerHTML = '<tr><td colspan="6" class="empty">No activity recorded yet.</td></tr>';
+        return;
+      }
+      const ACTION_LABEL = {
+        'member.created': '🆕 Account Created',
+        'member.deleted': '🗑️ Account Deleted',
+        'member.role_changed': '🔄 Role Changed',
+        'member.password_reset': '🔑 Password Reset',
+        'access.granted': '✅ Full Access Granted',
+        'access.revoked': '⛔ Full Access Revoked',
+        'session.force_logout': '🚪 Force Logout',
+        'team.bulk_role': '📦 Bulk Role Change',
+        'team.bulk_access': '📦 Bulk Access Change',
+        'team.bulk_delete': '📦 Bulk Delete'
+      };
+      body.innerHTML = entries.map((e) => {
+        const t = e.createdAt ? new Date(e.createdAt) : null;
+        const time = t ? t.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+        const action = ACTION_LABEL[e.action] || e.action;
+        return '<tr>' +
+          '<td class="muted micro">' + escapeHtml(time) + '</td>' +
+          '<td><strong>' + escapeHtml(e.actorName || '—') + '</strong><br><span class="muted micro">' + escapeHtml(e.actorEmail || '') + '</span></td>' +
+          '<td>' + escapeHtml(action) + '</td>' +
+          '<td>' + escapeHtml(e.targetName || '—') + '</td>' +
+          '<td class="muted micro">' + escapeHtml(e.detail || '') + '</td>' +
+          '<td class="muted micro">' + escapeHtml(e.ip || '') + '</td>' +
+        '</tr>';
+      }).join('');
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="6" class="empty">Could not load activity log.</td></tr>';
+    }
+  }
+
+  /* ---------- Session Management ---------- */
+  async function loadSessions() {
+    const body = $('sessionsBody');
+    if (!body) return;
+    try {
+      const r = await api.listSessions();
+      const sessions = (r && r.sessions) || [];
+      if ($('sessionsPill')) $('sessionsPill').textContent = sessions.length + ' active';
+      if (!sessions.length) {
+        body.innerHTML = '<tr><td colspan="5" class="empty">No active sessions.</td></tr>';
+        return;
+      }
+      body.innerHTML = sessions.map((s) => {
+        const exp = s.expiresAt ? new Date(s.expiresAt) : null;
+        const cre = s.createdAt ? new Date(s.createdAt) : null;
+        const expStr = exp ? exp.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit' }) : '—';
+        const creStr = cre ? cre.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit' }) : '—';
+        return '<tr>' +
+          '<td><strong>' + escapeHtml(s.userName || '—') + '</strong><br><span class="muted micro">' + escapeHtml(s.userEmail || '') + '</span></td>' +
+          '<td><span class="badge badge-power">' + escapeHtml(roleLabel(s.userRole || 'sales')) + '</span></td>' +
+          '<td class="muted micro">' + escapeHtml(creStr) + '</td>' +
+          '<td class="muted micro">' + escapeHtml(expStr) + '</td>' +
+          '<td><button type="button" class="btn btn-sm btn-danger session-logout" data-token="' + escapeHtml(s.token) + '">Force Logout</button></td>' +
+        '</tr>';
+      }).join('');
+      /* Wire logout buttons. */
+      body.querySelectorAll('.session-logout').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          try {
+            await api.forceLogout(btn.getAttribute('data-token'));
+            toast('Session terminated');
+            await loadSessions();
+          } catch (err) {
+            btn.disabled = false;
+            toast(err.message || 'Could not terminate session');
+          }
+        });
+      });
+    } catch (err) {
+      body.innerHTML = '<tr><td colspan="5" class="empty">Could not load sessions.</td></tr>';
+    }
+  }
+
+  /* ---------- Bulk Actions in Team Panel ---------- */
+  function wireBulkActions() {
+    const bar = $('bulkActionBar');
+    if (!bar || bar.dataset.wired) return;
+    bar.dataset.wired = '1';
+    /* Checkbox change tracking. */
+    document.addEventListener('change', (e) => {
+      if (e.target.classList && e.target.classList.contains('team-bulk-check')) {
+        updateBulkBar();
+      }
+      if (e.target.id === 'teamBulkSelectAll') {
+        const checked = e.target.checked;
+        document.querySelectorAll('.team-bulk-check').forEach((cb) => { cb.checked = checked; });
+        updateBulkBar();
+      }
+    });
+    /* Bulk action buttons. */
+    bar.querySelectorAll('[data-bulk-action]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const action = btn.getAttribute('data-bulk-action');
+        const ids = getSelectedTeamIds();
+        if (!ids.length) { toast('Select at least one member'); return; }
+        let opts = {};
+        if (action === 'role') {
+          const role = prompt('Enter role for ' + ids.length + ' members (owner/manager/sales/production/site_engineer/viewer):', 'sales');
+          if (!role) return;
+          opts.role = role.trim().toLowerCase().replace(/\s+/g, '_');
+        } else if (action === 'access') {
+          opts.fullAccess = confirm('Grant Full Access to ' + ids.length + ' members?');
+        } else if (action === 'delete') {
+          if (!confirm('DELETE ' + ids.length + ' members? This is irreversible.')) return;
+        }
+        btn.disabled = true;
+        try {
+          const out = await api.bulkTeamAction(ids, action, opts);
+          const ok = (out.results || []).filter((r) => r.ok).length;
+          const fail = (out.results || []).filter((r) => r.error).length;
+          toast(ok + ' updated' + (fail ? ', ' + fail + ' failed' : ''));
+          await refreshTeamPanel();
+        } catch (err) {
+          toast(err.message || 'Bulk action failed');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+  function getSelectedTeamIds() {
+    return Array.from(document.querySelectorAll('.team-bulk-check:checked')).map((cb) => cb.getAttribute('data-bulk-id'));
+  }
+  function updateBulkBar() {
+    const ids = getSelectedTeamIds();
+    const bar = $('bulkActionBar');
+    if (!bar) return;
+    const count = $('bulkCount');
+    if (count) count.textContent = ids.length + ' selected';
+    bar.querySelectorAll('[data-bulk-action]').forEach((btn) => { btn.disabled = !ids.length; });
+  }
+
+  /* ---------- Panel navigation for Activity & Sessions ---------- */
+  function wireAdminPanels() {
+    if (!user || !user.canManageTeam) return;
+    /* Show sidebar nav items. */
+    if ($('navActivity')) $('navActivity').hidden = false;
+    if ($('navSessions')) $('navSessions').hidden = false;
+    /* Show settings sub-section buttons. */
+    if ($('settingsBtnActivity')) $('settingsBtnActivity').hidden = false;
+    if ($('settingsBtnSessions')) $('settingsBtnSessions').hidden = false;
+    /* Show the activity/sessions cards (they're hidden by default). */
+    if ($('activityCard')) $('activityCard').hidden = false;
+    if ($('sessionsCard')) $('sessionsCard').hidden = false;
+    /* Load stats on home panel. */
+    loadAdminStats();
+  }
+
+  /* Refresh functions for panel navigation. */
+  function refreshActivityPanel() { loadActivityLog(); }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
