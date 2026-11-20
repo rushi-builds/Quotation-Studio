@@ -1080,10 +1080,10 @@
     set('v_clEmail', s.companyEmail);
     set('v_clWebsite', s.companyWebsite);
     const footerValues = [
-      ['helmetSafety', P.footerReliable ?? 'Reliability'],
-      ['constructionWorker', P.footerTeam ?? 'Experience'],
-      ['inspection', P.footerQuality ?? 'Quality'],
-      ['craneTower', P.footerValue ?? 'Long-term value']
+      ['footerHardhat', P.footerReliable ?? 'Reliability'],
+      ['footerWorker', P.footerTeam ?? 'Experience'],
+      ['footerInspection', P.footerQuality ?? 'Quality'],
+      ['footerCrane', P.footerValue ?? 'Long-term value']
     ];
     setHTML('v_clFooterValues', footerValues.map(([icon, label]) =>
       '<li><span class="closing-footer-value-icon" aria-hidden="true">' + I.get(icon, 25, '#eee9f5') + '</span>' +

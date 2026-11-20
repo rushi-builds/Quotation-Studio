@@ -35,6 +35,18 @@ const {chromium}=require('playwright');
   assert(await page.locator('#v_clFooterValues li svg').evaluateAll(els=>els.map(e=>({count:e.querySelectorAll('path,circle,rect').length,html:e.outerHTML.slice(0,80)}))),'footer icons updated from first reference sheet');
   assert.equal(await page.locator('#v_clFooterValues li').count(),4,'four footer values still present with new icons');
   assert(await page.locator('#v_clFooterValues').evaluate(list=>{
+   const rows=[...list.querySelectorAll('li')];
+   const icons=rows.map(row=>row.querySelector('svg'));
+   const centers=icons.map(icon=>{const r=icon.getBoundingClientRect();return r.top+r.height/2;});
+   return Math.max(...centers)-Math.min(...centers)<0.5 && rows.every(row=>{
+    const icon=row.querySelector('svg'), label=row.querySelector('.closing-footer-value-text');
+    const ir=icon.getBoundingClientRect(),lr=label.getBoundingClientRect();
+    return Math.abs((ir.top+ir.height/2)-(lr.top+lr.height/2))<0.5 &&
+     getComputedStyle(label).fontWeight==='400' &&
+     [...icon.children].every(part=>part.getAttribute('fill')==='none' && part.getAttribute('stroke-width')==='1.2');
+   });
+  }),'footer icons and regular-weight labels are aligned, consistent, fine-line drawings');
+  assert(await page.locator('#v_clFooterValues').evaluate(list=>{
    const wave=list.closest('.closing-wave'), art=wave.querySelector('.closing-wave-art');
    const edge=art.querySelector('path[stroke="url(#closingWaveEdge)"]');
    const waveRect=wave.getBoundingClientRect(), foot=document.querySelector('#pageClosing .pg-foot').getBoundingClientRect();

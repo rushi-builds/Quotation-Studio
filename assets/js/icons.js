@@ -80,6 +80,12 @@
     powerCabinet: [R({ x: 6, y: 5, width: 12, height: 13, rx: 1 }), P('M8 8h8M8 11h8M8 14h8'), P('M12 8v9'), P('M13.5 12l2 2-2 2')],
     welder: [C({ cx: 14.5, cy: 6, r: 2.4 }), P('M12 8.5l-3 5h6l-1.5 4'), P('M8 12l-2 4h4'), P('M17 10l2 3-1.5 1')],
     wrenchGear: [P('M14 4a3 3 0 0 0-4.2 4.2L6 12l1.8 1.8 3.8-3.8A3 3 0 0 0 14 4'), C({ cx: 17, cy: 15, r: 4 }), P('M17 11v3M17 19v-3M13 15h3M21 15h-3M14.5 12.5l2.1 2.1M19.5 12.5l-2.1 2.1M14.5 17.5l2.1-2.1M19.5 17.5l-2.1-2.1')],
+    // Closing values: consistent, open 24px construction line drawings. Keep
+    // these separate from other icons so their fine strokes stay PDF-safe.
+    footerHardhat: [P('M4.5 13.8h15M6 13.8v-2a6 6 0 0 1 12 0v2M4.5 13.8v1.6h15v-1.6M10 6.2v3.4M14 6.2v3.4'), P('M7.8 17h3.6v1.1a1.8 1.8 0 0 1-3.6 0V17ZM12.6 17h3.6v1.1a1.8 1.8 0 0 1-3.6 0V17ZM11.4 17.7h1.2')],
+    footerWorker: [P('M7.8 8.2v-.6a4.2 4.2 0 0 1 8.4 0v.6M7 8.2h10M10.7 3.5v2.2M13.3 3.5v2.2'), P('M8.8 9.3v1.3a3.2 3.2 0 0 0 6.4 0V9.3M5.4 20v-1.1a5.2 5.2 0 0 1 5.2-5.2h2.8a5.2 5.2 0 0 1 5.2 5.2V20H5.4ZM10.2 14l1.8 2.1 1.8-2.1M12 16.1V20')],
+    footerInspection: [C({ cx: 10.1, cy: 10.1, r: 6.1 }), P('m14.5 14.5 4.7 4.7M7.4 10.2l1.8 1.8 3.5-3.7')],
+    footerCrane: [P('M7.3 20V6.2L12 3.5l4.7 2.7M4.5 6.2h15M12 3.5V20M7.3 9l4.7 3.3L7.3 16l4.7 3.2M16.7 6.2v5.1M16.7 11.3v1.4a1.5 1.5 0 1 0 2.6 1M5.2 20h9.3')],
     // Second-image: laptop + magnifier + solar (coloured premium for Explore)
     solarSearch: [
       R({ x: 2, y: 3.2, width: 20, height: 13, rx: 1.1 }),
@@ -121,7 +127,7 @@
     const els = ICONS[name] || ICONS.check;
     size = size || 18;
     const S = primary || DEFAULT_PRIMARY;
-    const sw = 1.7;
+    const sw = name.startsWith('footer') ? 1.2 : 1.7;
     let body = '';
     if (halo) {
       body += '<circle cx="12" cy="12" r="10.6" fill="' + (accent || DEFAULT_ACCENT) +

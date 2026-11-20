@@ -92,7 +92,7 @@
 #pageClosing .closing-footer-values li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 6px;text-align:left;}
 #pageClosing .closing-footer-value-icon{display:block;flex:none;}
 #pageClosing .closing-footer-value-icon svg{display:block;width:25px;height:25px;}
-#pageClosing .closing-footer-value-text{font:500 10px/1.25 'Inter',sans-serif;letter-spacing:.1px;color:#f1eef8;white-space:pre-line;overflow-wrap:anywhere;}
+#pageClosing .closing-footer-value-text{font:400 10px/1.25 'Inter',sans-serif;letter-spacing:.1px;color:#f1eef8;white-space:pre-line;overflow-wrap:anywhere;}
 #pageClosing .pg-foot{background:#fcfaf6;border-top:1px solid #d8dfdf;}
 #pageClosing .pg-foot .pf-mid{display:none;}
 #pageClosing .pg-foot .pf-left,#pageClosing .pg-foot .pf-right{color:#647384;}
