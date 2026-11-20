@@ -12,6 +12,7 @@ const {chromium}=require('playwright');
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   const base=process.env.QA_BASE||'http://127.0.0.1:8080';
   await page.goto(base+'/quotation.html');await page.waitForFunction(()=>window.Render?.lastState&&document.querySelector('.studio-ready'));await page.evaluate(()=>document.fonts.ready);
+  assert(await page.evaluate(()=>Icons.get(undefined,18).includes('<svg')),'missing icon names retain the default fallback');
   assert.equal(await page.locator('#pageClosing .accept-block,#pageClosing .sign-box,#pageClosing .engineering-steps').count(),0);
   assert.equal(await page.locator('#v_clHeading').textContent(),'Together for a Greener Tomorrow.');
   assert.equal(await page.locator('#v_clThankHeading').textContent(),'Thank you.');

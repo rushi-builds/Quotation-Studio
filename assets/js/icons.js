@@ -127,7 +127,7 @@
     const els = ICONS[name] || ICONS.check;
     size = size || 18;
     const S = primary || DEFAULT_PRIMARY;
-    const sw = name.startsWith('footer') ? 1.2 : 1.7;
+    const sw = typeof name === 'string' && name.startsWith('footer') ? 1.2 : 1.7;
     let body = '';
     if (halo) {
       body += '<circle cx="12" cy="12" r="10.6" fill="' + (accent || DEFAULT_ACCENT) +
