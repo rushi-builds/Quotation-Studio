@@ -1065,25 +1065,25 @@
         if (!manage) {
           /* View-only: the same information, no control. */
           return '<tr data-member="' + escapeHtml(m.id) + '" class="team-readonly">' +
-            checkbox +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
             '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + ' ' + deptBadgeHtml(m.department) + '</td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
             '<td class="muted micro">Read-only</td>' +
             eye +
+            checkbox +
           '</tr>';
         }
         /* Admin rows are locked — role cannot be changed. */
         if (m.isAdmin || m.role === 'admin') {
           return '<tr data-member="' + escapeHtml(m.id) + '">' +
-            checkbox +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
             '<td><span class="badge badge-power" data-power="admin">Admin</span>' + (user && user.isAdmin ? ' <span class="badge badge-access is-full">Full</span>' : '') + ' ' + deptBadgeHtml(m.department) + '</td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
             '<td class="muted micro">Admin (permanent)</td>' +
             eye +
+            checkbox +
           '</tr>';
         }
         let opts = ['owner', 'manager', 'sales', 'production', 'site_engineer', 'viewer'].map((role) => (
@@ -1096,7 +1096,6 @@
           ? '<button type="button" class="team-access-toggle' + (m.fullAccess ? ' is-full' : '') + '" data-access-user="' + escapeHtml(m.id) + '" title="' + (m.fullAccess ? 'Revoke full access' : 'Grant full access') + '">' + (m.fullAccess ? 'Full' : 'Limited') + '</button>'
           : ''; /* Non-admin: hide badge — they can't change it and managers are limited by default */
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
-          checkbox +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
           '<td class="muted">' + contact + '</td>' +
           '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + ' ' + deptBadgeHtml(m.department) + '</td>' +
@@ -1114,6 +1113,7 @@
             accessToggle +
           '</td>' +
           eye +
+          checkbox +
         '</tr>';
       }).join('') || '<tr><td colspan="' + COLS + '" class="empty">No members.</td></tr>';
       if (!manage && members.length) {
