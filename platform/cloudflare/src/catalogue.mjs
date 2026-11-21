@@ -8,8 +8,10 @@
    Column mappings retain extract_catalogue.ps1; named tables expand these
    legacy baseline row ranges:
      MODULE_DB   tblModule  rows 5..316,   cols 1..22
-     INVERTER_DB tblInv     rows 6..145,   cols 1..23
+     INVERTER_DB tblInv     rows 6..145,   cols 1..23 (+ X..AC optimizer pairing)
      CABLE_DB    tblCable   rows 6..113,   cols 1..11
+   The optimizer database is a fixed block below tblInv (title, header, rows,
+   note). It is read by header detection, never by a hard-coded row number.
    ============================================================================ */
 'use strict';
 
@@ -200,7 +202,11 @@ function extractTable(rowsByRow, kind, bounds) {
         maxDcKw: numOf(cell(10)), vmaxDc: numOf(cell(11)), startV: numOf(cell(12)),
         mpptMin: numOf(cell(13)), mpptMax: numOf(cell(14)), nominalMppt: numOf(cell(15)),
         maxCurrentA: txtOf(cell(16)), maxIscA: txtOf(cell(17)), acOutputA: numOf(cell(18)),
-        efficiency: numOf(cell(19)), ip: txtOf(cell(20)), weightKg: numOf(cell(23))
+        efficiency: numOf(cell(19)), ip: txtOf(cell(20)), weightKg: numOf(cell(23)),
+        /* X..AC: the optimizer the inverter's own datasheet pairs it with.
+           Empty on inverters that do not use optimizers. */
+        optModel: txtOf(cell(24)), optMin: numOf(cell(25)), optMax: numOf(cell(26)),
+        optMaxKw: numOf(cell(27)), optBusV: numOf(cell(28)), optRatedW: numOf(cell(29))
       });
     } else {
       const make = txtOf(cell(1));
@@ -216,7 +222,40 @@ function extractTable(rowsByRow, kind, bounds) {
   return out;
 }
 
-/* Full pipeline: bytes of the .xlsm -> { modules, inverters, cables }. */
+/* The optimizer database sits below tblInv and is not an Excel table, so it is
+   located by its own header row (MODEL | TYPE) and ends at the first blank
+   model cell or the NOTE line. Absent on workbooks without it -> []. */
+function extractOptimizers(rowsByRow, afterRow) {
+  const lastRow = Math.max(0, ...rowsByRow.keys());
+  let header = 0;
+  for (let r = afterRow; r <= Math.min(lastRow, afterRow + 40); r++) {
+    const row = rowsByRow.get(r);
+    if (!row) continue;
+    if (String(row.get(1) || '').trim().toUpperCase() === 'MODEL' &&
+        String(row.get(2) || '').trim().toUpperCase() === 'TYPE') { header = r; break; }
+  }
+  if (!header) return [];
+  const out = [];
+  for (let r = header + 1; r <= Math.min(lastRow, header + 60); r++) {
+    const row = rowsByRow.get(r);
+    const model = row ? txtOf(row.get(1)) : '';
+    if (!model || /^NOTE\b/i.test(model)) break;
+    const cell = (c) => (row.get(c) == null ? null : row.get(c));
+    out.push({
+      model, type: txtOf(cell(2)), ratedW: numOf(cell(3)), absVoc: numOf(cell(4)),
+      mpptRange: txtOf(cell(5)), maxIscA: numOf(cell(6)), maxIinA: numOf(cell(7)),
+      maxIoutA: numOf(cell(8)), outV: txtOf(cell(9)), systemV: numOf(cell(10)),
+      minPo1ph: numOf(cell(11)), maxPo1ph: numOf(cell(12)),
+      minPo3ph: numOf(cell(13)), maxPo3ph: numOf(cell(14)),
+      maxKwStr1ph: numOf(cell(15)), maxKwStr3ph: numOf(cell(16)),
+      compatible: txtOf(cell(17)), ip: txtOf(cell(18)), weightKg: numOf(cell(19)),
+      source: txtOf(cell(20))
+    });
+  }
+  return out;
+}
+
+/* Full pipeline: bytes of the .xlsm -> { modules, inverters, cables, optimizers }. */
 export async function extractCatalogue(buffer, fileName) {
   const entries = await unzipEntries(buffer);
   const sheets = resolveSheets(entries);
@@ -248,14 +287,18 @@ export async function extractCatalogue(buffer, fileName) {
     }
     return KIND_SPECS[kind]; // Older workbooks without named-table XML.
   };
+  const invBounds = bounds('inverters');
   const modules = extractTable(read('modules'), 'modules', bounds('modules'));
-  const inverters = extractTable(read('inverters'), 'inverters', bounds('inverters'));
+  const inverters = extractTable(read('inverters'), 'inverters', invBounds);
   const cables = extractTable(read('cables'), 'cables', bounds('cables'));
+  /* Optimizers are optional: an older workbook simply has no block. */
+  let optimizers = [];
+  try { optimizers = extractOptimizers(read('inverters'), invBounds.to + 1); } catch (_) { optimizers = []; }
   if (!modules.length || !inverters.length || !cables.length) {
     throw new Error('Catalogue extraction came back empty (modules=' + modules.length + ', inverters=' + inverters.length + ', cables=' + cables.length + '). Wrong workbook?');
   }
   const sha = createHash('sha256').update(new Uint8Array(buffer)).digest('hex');
-  return { modules, inverters, cables, sha, fileName: fileName || '' };
+  return { modules, inverters, cables, optimizers, sha, fileName: fileName || '' };
 }
 
 /* ---------------- Google Drive fetch ---------------- */
@@ -279,7 +322,15 @@ function pemToDer(pem) {
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
+/* Isolate-local caches. Cloudflare keeps an isolate warm for minutes, and the
+   app re-checks status on focus/visibility, so without these every check paid
+   a fresh JWT sign + token mint. Nothing here outlives the isolate. */
+const tokenCache = { key: '', token: '', expiresAt: 0 };
+const fileIdCache = new Map(); // folderId -> { id, at }
+
 async function serviceAccountToken(email, pem) {
+  const cacheKey = email + '|' + createHash('sha256').update(String(pem)).digest('hex').slice(0, 16);
+  if (tokenCache.key === cacheKey && tokenCache.token && tokenCache.expiresAt > Date.now()) return tokenCache.token;
   const now = Math.floor(Date.now() / 1000);
   const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claims = b64url(JSON.stringify({
@@ -304,10 +355,14 @@ async function serviceAccountToken(email, pem) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.access_token) throw new Error('Google Drive token failed (' + res.status + '): ' + (data.error_description || data.error || 'unknown'));
+  const ttl = Math.max(60, Number(data.expires_in || 3600) - 300) * 1000;
+  tokenCache.key = cacheKey; tokenCache.token = data.access_token; tokenCache.expiresAt = Date.now() + ttl;
   return data.access_token;
 }
 
 async function findInFolder(folderId, token) {
+  const cached = fileIdCache.get(folderId);
+  if (cached && Date.now() - cached.at < 5 * 60000) return cached.id;
   const q = "name contains 'Solar_EPC' and '" + folderId + "' in parents and mimeType != 'application/vnd.google-apps.folder'";
   const url = 'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) +
     '&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime%20desc&pageSize=10';
@@ -316,6 +371,7 @@ async function findInFolder(folderId, token) {
   if (!res.ok) throw new Error('Google Drive search failed (' + res.status + '): ' + (data.error && data.error.message || 'unknown'));
   const hit = (data.files || []).find((f) => /\.xlsm$/i.test(f.name));
   if (!hit) throw new Error('No Solar_EPC *.xlsm workbook found in the Drive folder. Check that the Desktop → Drive sync has run.');
+  fileIdCache.set(folderId, { id: hit.id, at: Date.now() });
   return hit.id;
 }
 
@@ -402,8 +458,10 @@ export async function fetchCatalogueWorkbook(env) {
   const response = await fetch(url, { headers: source.headers, signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error('The connected Excel workbook could not be downloaded.');
   const bytes = await boundedBytes(response);
-  const after = source.mode === 'public' ? before : await sourceMetadata(source);
-  if (before.revision !== after.revision || (before.checksum && createHash('md5').update(bytes).digest('hex') !== before.checksum)) {
+  /* The md5 of the downloaded bytes proves which revision was extracted, so a
+     second metadata round-trip is unnecessary. Public mode has no checksum and
+     is already documented as unverifiable. */
+  if (before.checksum && createHash('md5').update(bytes).digest('hex') !== before.checksum) {
     throw new Error('Excel changed during sync. Save the workbook and sync again. The previous catalogue has been kept.');
   }
   return { bytes, name: before.fileName, sourceMeta: before };
@@ -430,6 +488,9 @@ export async function storeCatalogue(db, catalogue, meta) {
     const sql = 'INSERT INTO equipment_catalogue (kind, make, model, row_json) VALUES ' + chunk.map(() => '(?, ?, ?, ?)').join(', ');
     stmts.push(db.prepare(sql).bind(...chunk.flat()));
   }
+  /* The optimizer block is small and is not a product table: it is stored as
+     one meta document, which needs no schema change. */
+  const optimizers = Array.isArray(catalogue.optimizers) ? catalogue.optimizers : [];
   const metaRows = [
     ['sha', String(catalogue.sha || '')],
     ['syncedAt', String(meta.syncedAt || new Date().toISOString())],
@@ -437,11 +498,12 @@ export async function storeCatalogue(db, catalogue, meta) {
     ['fileId', String(meta.fileId || '')],
     ['sourceRevision', String(meta.revision || '')],
     ['sourceModifiedAt', String(meta.modifiedAt || '')],
-    ['counts', JSON.stringify({ modules: catalogue.modules.length, inverters: catalogue.inverters.length, cables: catalogue.cables.length })]
+    ['optimizers', JSON.stringify(optimizers)],
+    ['counts', JSON.stringify({ modules: catalogue.modules.length, inverters: catalogue.inverters.length, cables: catalogue.cables.length, optimizers: optimizers.length })]
   ];
   stmts.push(...metaRows.map(([k, v]) => db.prepare('INSERT OR REPLACE INTO equipment_catalogue_meta (key, value) VALUES (?, ?)').bind(k, v)));
   await db.batch(stmts);
-  return { modules: catalogue.modules.length, inverters: catalogue.inverters.length, cables: catalogue.cables.length };
+  return { modules: catalogue.modules.length, inverters: catalogue.inverters.length, cables: catalogue.cables.length, optimizers: optimizers.length };
 }
 
 export async function readCatalogueMeta(db) {
@@ -456,7 +518,9 @@ export async function readCatalogue(db) {
   const meta = await readCatalogueMeta(db);
   if (!meta.syncedAt) return null;
   const rowsRes = await db.prepare('SELECT kind, row_json FROM equipment_catalogue ORDER BY kind, make, model').all();
-  const out = { modules: [], inverters: [], cables: [], syncedAt: meta.syncedAt, source: meta.source || '', sha: meta.sha || '', counts: {} };
+  const out = { modules: [], inverters: [], cables: [], optimizers: [], syncedAt: meta.syncedAt, source: meta.source || '', sha: meta.sha || '', counts: {} };
+  try { out.optimizers = JSON.parse(meta.optimizers || '[]'); } catch (_) { out.optimizers = []; }
+  if (!Array.isArray(out.optimizers)) out.optimizers = [];
   for (const r of rowsRes.results || []) {
     try {
       if (r.kind === 'modules') out.modules.push(JSON.parse(r.row_json));
@@ -486,7 +550,8 @@ export async function syncCatalogue(env, db) {
       sha: catalogue.sha,
       modules: catalogue.modules,
       inverters: catalogue.inverters,
-      cables: catalogue.cables
+      cables: catalogue.cables,
+      optimizers: catalogue.optimizers || []
     }
   };
 }

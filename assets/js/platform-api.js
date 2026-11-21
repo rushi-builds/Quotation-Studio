@@ -424,9 +424,12 @@
       return request('POST', '/api/team/members/' + encodeURIComponent(userId) + '/like', {});
     },
     socialProviders() { return request('GET', '/api/auth/oauth/providers'); },
-    catalogueStatus(fresh = false) { return request('GET', '/api/catalogue/status' + (fresh === true ? '?fresh=1' : ''), undefined, 15000); },
-    equipmentCatalogue() { return request('GET', '/api/catalogue', undefined, 15000); },
-    syncEquipmentCatalogue() { return request('POST', '/api/catalogue/sync', {}, 60000); },
+    catalogueStatus(fresh = false) { return request('GET', '/api/catalogue/status' + (fresh === true ? '?fresh=1' : ''), undefined, 20000); },
+    equipmentCatalogue() { return request('GET', '/api/catalogue', undefined, 20000); },
+    /* The worker mints a Drive token, downloads the workbook and writes the
+       catalogue in one request. 60 s was shorter than a slow Drive day and
+       turned a successful server sync into a "retry" on screen. */
+    syncEquipmentCatalogue() { return request('POST', '/api/catalogue/sync', {}, 240000); },
     productCatalog() { return request('GET', '/api/catalog/products'); },
     syncProductCatalog() { return request('POST', '/api/catalog/products/sync', {}); },
     moduleCatalog() { return request('GET', '/api/catalog/products'); },

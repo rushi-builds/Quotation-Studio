@@ -123,7 +123,7 @@
   /* Cloud-synced catalogue rows (from the Sync Catalogue button). They live in
      their own storage key so the per-proposal user rows never absorb them. */
   function loadCloud() {
-    const empty = { syncedAt: '', source: '', sha: '', counts: {}, modules: [], inverters: [], structures: [], cables: [] };
+    const empty = { syncedAt: '', source: '', sha: '', counts: {}, modules: [], inverters: [], structures: [], cables: [], optimizers: [] };
     try {
       const raw = root.localStorage.getItem(CLOUD_KEY);
       if (!raw) return empty;
@@ -137,7 +137,8 @@
         modules: (d.modules || []).filter((r) => r && r.model),
         inverters: (d.inverters || []).filter((r) => r && r.model),
         structures: [],
-        cables: (d.cables || []).filter((r) => r && r.make)
+        cables: (d.cables || []).filter((r) => r && r.make),
+        optimizers: (d.optimizers || []).filter((r) => r && r.model)
       };
     } catch (e) { return empty; }
   }
@@ -156,7 +157,10 @@
       modules: clean(data && data.modules),
       inverters: clean(data && data.inverters),
       structures: [],
-      cables: clean(data && data.cables)
+      cables: clean(data && data.cables),
+      /* Optimizers arrived after the first syncs; an older snapshot simply
+         carries none and keeps working. */
+      optimizers: clean(data && data.optimizers)
     };
     cacheSaved = true;
     try { root.localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudCache)); } catch (e) { cacheSaved = false; }
@@ -166,7 +170,7 @@
   }
   function cloudInfo() {
     const c = cloudRows();
-    return { persisted: cacheSaved, syncedAt: c.syncedAt, source: c.source, sha: c.sha, counts: c.counts, modules: c.modules.length, inverters: c.inverters.length, cables: c.cables.length };
+    return { persisted: cacheSaved, syncedAt: c.syncedAt, source: c.source, sha: c.sha, counts: c.counts, modules: c.modules.length, inverters: c.inverters.length, cables: c.cables.length, optimizers: c.optimizers.length };
   }
 
   /* Excel is the single catalogue source, including its rating-bin rows.
@@ -179,7 +183,8 @@
         modules: (synced ? c.modules : b.modules).slice(),
         inverters: (synced ? c.inverters : b.inverters).slice(),
         structures: b.structures.slice(), // Not imported: no structure table in this sync.
-        cables: (synced ? c.cables : b.cables).slice()
+        cables: (synced ? c.cables : b.cables).slice(),
+        optimizers: (synced ? c.optimizers : []).slice()
       };
     }
     return merged;
@@ -426,6 +431,10 @@
      nothing is picked for it). */
   function datasheetRow(kind, makeValue, modelValue, target) {
     const t = String(modelValue || '').trim();
+    /* Optimizers are identified by their own model name; they carry no make. */
+    if (kind === 'optimizers') {
+      return t ? ((cat().optimizers || []).find((r) => r && String(r.model) === t) || null) : null;
+    }
     let pool = cat()[kind].filter((r) => r && r.model);
     const make = MAKE_ALIASES[String(makeValue || '')] || String(makeValue || '');
     const eq = (EQUIVALENTS[kind] || []).find((e) => e.label === make);
@@ -501,9 +510,16 @@
       const value = custom && input && input.value !== '' ? input.value : sel.value;
       fillSelect(sel, value, custom, false);
     });
+    refreshOptimizerSelect();
   }
 
   function wire() {
+    const optMode = $('optimizerSystem');
+    if (optMode && !optMode.dataset.wired) {
+      optMode.dataset.wired = '1';
+      optMode.addEventListener('change', syncOptimizerUI);
+    }
+
     FIELDS.forEach((id) => {
       const sel = $(id), input = $(id + 'Custom');
       if (!sel || !input) return;
@@ -531,6 +547,70 @@
       input.addEventListener('input', update);
       input.addEventListener('change', update);
     });
+
+    /* Auto mode follows the inverter the user lands on. These run after the
+       model selectors above, so the new model is already in place. */
+    ['inverterMake', 'inverterModel', 'inverterModelCustom'].forEach((id) => {
+      const el = $(id);
+      if (el) el.addEventListener('change', syncOptimizerAuto);
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Optimizer models                                                    */
+  /* ------------------------------------------------------------------ */
+  /* The optimizer list comes from the workbook's own optimizer database.
+     Auto mode leaves the select disabled (the inverter datasheet names the
+     optimizer); Manual mode lets the user choose from this list. */
+  function optimizerRows() { return (cat().optimizers || []).slice(); }
+
+  function refreshOptimizerSelect() {
+    const sel = $('optimizerModel');
+    if (!sel) return;
+    const current = sel.value;
+    const rows = optimizerRows();
+    const options = rows.map((r) => new Option(
+      r.model + ' · ' + (r.ratedW != null ? r.ratedW + ' W · ' : '') + (r.type || ''), r.model));
+    if (!options.length) options.push(new Option('Sync the catalogue to load optimizer models', ''));
+    sel.replaceChildren(...options);
+    if (current && rows.some((r) => String(r.model) === current)) sel.value = current;
+    else if (!rows.length) sel.value = '';
+    syncOptimizerUI();
+  }
+
+  function syncOptimizerUI() {
+    const mode = $('optimizerSystem'), field = $('optimizerModelField'), model = $('optimizerModel');
+    if (!mode || !field || !model) return;
+    const active = mode.value !== 'none';
+    field.hidden = !active;
+    model.disabled = !active || mode.value === 'auto';
+    const hint = $('optimizerSystemHint');
+    if (hint) hint.hidden = mode.value !== 'auto';
+    if (mode.value === 'auto') syncOptimizerAuto();
+  }
+
+  /* Auto displays the optimizer the selected inverter's own datasheet row
+     pairs with (tblInv X..AC). The field stays disabled - this is the
+     workbook's pairing, not the user's choice. When the row publishes none,
+     the hint says so instead of leaving an empty box looking answered. */
+  function syncOptimizerAuto() {
+    const mode = $('optimizerSystem'), model = $('optimizerModel'), hint = $('optimizerSystemHint');
+    if (!mode || !model || mode.value !== 'auto') return;
+    const makeSel = $('inverterMake'), modelSel = $('inverterModel');
+    const kwEl = $('inverterKw');
+    const kw = kwEl ? numOf(kwEl.value) : null;
+    const row = datasheetRow('inverters',
+      makeSel ? makeSel.value : '', modelSel ? modelSel.value : '', kw === null ? 0 : kw);
+    const paired = row && row.optModel ? String(row.optModel) : '';
+    if (paired && !Array.from(model.options).some((o) => o.value === paired)) {
+      model.append(new Option(paired + ' (paired)', paired));
+    }
+    model.value = paired;
+    if (hint) {
+      hint.textContent = paired
+        ? 'Auto: ' + paired + ' — the optimizer this inverter’s datasheet pairs with.'
+        : 'Auto: this inverter’s datasheet does not publish an optimizer. Switch to Manual to choose one.';
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -543,5 +623,5 @@
     return { count: ['modules','inverters','structures','cables'].reduce((n, kind) => n + u[kind].length, 0) };
   }
 
-  root.EquipmentStore = { cat, datasheetRow, save, refreshSelects, setValue, syncModels, wire, renderManager, legacyInfo, importCloud, cloudInfo, KEY, CLOUD_KEY };
+  root.EquipmentStore = { cat, datasheetRow, save, refreshSelects, setValue, syncModels, wire, renderManager, legacyInfo, importCloud, cloudInfo, optimizerRows, refreshOptimizerSelect, syncOptimizerUI, KEY, CLOUD_KEY };
 })(typeof self !== 'undefined' ? self : this);

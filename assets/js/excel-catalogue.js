@@ -85,22 +85,26 @@
       const local = root.EquipmentStore.cloudInfo();
       // Another owner/browser may have synced the shared catalogue. Download
       // only that saved JSON copy; this GET does not fetch/sync the workbook.
-      const kinds = ['modules','inverters','cables'];
-      const countsMatch = kinds.every(kind => local[kind] > 0 && local[kind] === Number(data.counts && data.counts[kind]));
+      const counts = data.counts || {};
+      /* Optimizers joined the snapshot later; only compare them when the
+         connected worker reports them. */
+      const kinds = ['modules','inverters','cables'].concat(counts.optimizers === undefined ? [] : ['optimizers']);
+      const countsMatch = kinds.every(kind => local[kind] === Number(counts[kind])) &&
+        ['modules','inverters','cables'].every(kind => local[kind] > 0);
       if (data.sha && data.syncedAt && (local.sha !== data.sha || !countsMatch || local.persisted === false)) {
         const saved = await api().equipmentCatalogue();
         if (!saved || !saved.ok || !saved.catalogue || saved.catalogue.sha !== data.sha) throw new Error('The catalogue changed during this check. Check again shortly.');
-        if (!kinds.every(kind => Array.isArray(saved.catalogue[kind]) && saved.catalogue[kind].length === Number(data.counts && data.counts[kind]))) {
+        if (!kinds.every(kind => Array.isArray(saved.catalogue[kind]) && saved.catalogue[kind].length === Number(counts[kind]))) {
           throw new Error('The saved catalogue is incomplete. The previous browser copy has been kept.');
         }
         root.EquipmentStore.importCloud(saved.catalogue);
       }
       const info = root.EquipmentStore.cloudInfo();
-      const count = data.counts || {};
       const parts = [];
       if (data.syncedAt) parts.push('Last synced ' + date(data.syncedAt));
       if (data.checkedAt) parts.push('Checked ' + date(data.checkedAt));
-      if (data.syncedAt) parts.push((Number(count.modules) || 0) + ' modules · ' + (Number(count.inverters) || 0) + ' inverters · ' + (Number(count.cables) || 0) + ' cables');
+      if (data.syncedAt) parts.push((Number(counts.modules) || 0) + ' modules · ' + (Number(counts.inverters) || 0) + ' inverters · ' +
+        (Number(counts.cables) || 0) + ' cables' + (counts.optimizers ? ' · ' + Number(counts.optimizers) + ' optimizers' : ''));
       $('catalogueLastSync').textContent = parts.join(' · ');
       if (info.persisted === false) {
         display('unknown', 'Catalogue loaded for this tab, but browser storage is unavailable. Your saved quotations have not been changed.', 'Storage unavailable');
@@ -129,9 +133,24 @@
       if (!verifiedMetadata) $('catalogueWorkbook').hidden = true;
     } finally { checking = false; controls(); }
   }
+  /* A browser that stops waiting is not proof the server failed: the worker
+     may still finish the Drive download and D1 write. Ask the saved snapshot
+     before telling the user to retry. */
+  async function confirmServerSync(beforeSyncedAt) {
+    try {
+      const status = await api().catalogueStatus(true);
+      if (!status || !status.ok || status.status !== 'up-to-date' || !status.sha || !status.syncedAt) return false;
+      if (status.syncedAt === beforeSyncedAt) return false;
+      const saved = await api().equipmentCatalogue();
+      if (!saved || !saved.ok || !saved.catalogue || saved.catalogue.sha !== status.sha) return false;
+      root.EquipmentStore.importCloud(saved.catalogue);
+      return true;
+    } catch (_) { return false; }
+  }
   async function sync() {
     if (!canSync) { explainPermission(); return; }
     if (busy || checking) return;
+    const beforeSyncedAt = (current && current.syncedAt) || '';
     busy = true; display('syncing', 'Syncing the connected Excel catalogue. Saved quotation values will not be changed.'); controls();
     let success = false;
     try {
@@ -141,8 +160,14 @@
       success = true;
     } catch (error) {
       if (error && (error.status === 401 || error.status === 403)) canSync = false;
-      display('error', error && error.status === 403 ? 'Only the workspace owner or an elevated admin can sync the catalogue.' :
-        'Sync could not be confirmed. Your last browser catalogue is still available. Save the workbook, check the connection and retry.');
+      if (error && (error.status === 401 || error.status === 403)) {
+        display('error', error.status === 403 ? 'Only the workspace owner or an elevated admin can sync the catalogue.' :
+          'Sign in to sync the catalogue.');
+      } else if (error && error.code === 'TIMEOUT' && await confirmServerSync(beforeSyncedAt)) {
+        success = true;
+      } else {
+        display('error', 'Sync could not be confirmed. Your last browser catalogue is still available. Save the workbook, check the connection and retry.');
+      }
     } finally { busy = false; controls(); }
     if (success) await refresh();
   }

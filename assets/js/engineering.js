@@ -207,27 +207,135 @@
      catalogue resolution the tech-spec page prints (equivalents and typed
      models included). Unknown or Custom inverters count as one input - the
      conservative reading, since all strings would share it. */
-  function inverterMpptCount(s) {
-    let n = num(s.inverterMppt, 0);
-    if (n > 0) return n;
+  function inverterRow(s) {
     try {
       const es = root.EquipmentStore;
       if (es && typeof es.datasheetRow === 'function') {
-        const row = es.datasheetRow('inverters', s.inverterMake, s.inverterModel, num(s.inverterKw, 0));
-        if (row) n = num(row.mppt, 0);
+        return es.datasheetRow('inverters', s.inverterMake, s.inverterModel, num(s.inverterKw, 0)) || null;
       }
-    } catch (e) { /* catalogue unavailable: single-input reading */ }
+    } catch (e) { /* catalogue unavailable */ }
+    return null;
+  }
+
+  function optimizerRows() {
+    try {
+      const es = root.EquipmentStore;
+      return (es && typeof es.optimizerRows === 'function') ? es.optimizerRows() : [];
+    } catch (e) { return []; }
+  }
+
+  /* "P-Series (2 modules)" -> 2; every single-module type -> 1. */
+  function modulesPerOptimizer(row) {
+    const m = /(\d+)\s*modules?/i.exec(String((row && row.type) || ''));
+    return m ? Math.max(1, parseInt(m[1], 10)) : 1;
+  }
+
+  function inverterMpptCount(s) {
+    let n = num(s.inverterMppt, 0);
+    if (n > 0) return n;
+    const row = inverterRow(s);
+    if (row) n = num(row.mppt, 0);
     return n > 0 ? n : 1;
+  }
+
+  /* ---------------------------------------------------------------------
+     3a. INVERTERS (N units) AND OPTIMIZERS (optional)
+     ---------------------------------------------------------------------
+     A rooftop is often more than one inverter. The count defaults to the
+     smallest N the selected inverter's own datasheet supports: its maximum
+     DC input power and its MPPT inputs. The operator can override it.
+
+     Optimizers are optional. Auto takes the optimizer the inverter's own
+     row pairs with it (tblInv X..AC). Manual takes the operator's choice
+     from the workbook's optimizer database and judges it by that model's
+     published min/max optimizers per string and maximum kW per string.
+     Every limit used here is read from the workbook row named in the
+     message; nothing is assumed.
+  */
+  function optimizerPlan(s) {
+    const mode = String(s.optimizerSystem || 'none').toLowerCase();
+    const out = { active: mode === 'auto' || mode === 'manual', mode: mode === 'manual' ? 'manual' : 'auto', ok: false };
+    if (!out.active) { out.mode = 'none'; return out; }
+    const inv = inverterRow(s);
+    const phase = inv && num(inv.phase, 0) ? num(inv.phase) : 1;
+    out.inverter = inv ? String(inv.model || '') : '';
+    out.phase = phase;
+    if (mode === 'auto') {
+      /* Auto is the inverter's own published pairing, never a guess. */
+      if (!inv || !inv.optModel) { out.reason = 'no-data'; return out; }
+      const db = optimizerRows().find((r) => String(r.model) === String(inv.optModel)) || null;
+      out.model = String(inv.optModel);
+      out.ratedW = num(inv.optRatedW, null);
+      out.minPerString = num(inv.optMin, null);
+      out.maxPerString = num(inv.optMax, null);
+      out.maxKwString = num(inv.optMaxKw, null);
+      out.busV = num(inv.optBusV, null);
+      out.modulesPerUnit = db ? modulesPerOptimizer(db) : 1;
+      out.maxIout = db ? num(db.maxIoutA, null) : null;
+      out.dbSource = db ? String(db.source || '') : '';
+      out.ratedSource = 'inverter datasheet';
+      out.ok = out.ratedW !== null && out.maxPerString !== null;
+      return out;
+    }
+    const name = String(s.optimizerModel || '');
+    if (!name) { out.reason = 'no-model'; return out; }
+    const db = optimizerRows().find((r) => String(r.model) === name) || null;
+    if (!db) { out.reason = 'unknown-model'; out.model = name; return out; }
+    out.model = name;
+    out.ratedW = num(db.ratedW, null);
+    out.modulesPerUnit = modulesPerOptimizer(db);
+    out.maxIout = num(db.maxIoutA, null);
+    out.minPerString = phase === 3 ? num(db.minPo3ph, null) : num(db.minPo1ph, null);
+    out.maxPerString = phase === 3 ? num(db.maxPo3ph, null) : num(db.maxPo1ph, null);
+    out.maxKwString = phase === 3 ? num(db.maxKwStr3ph, null) : num(db.maxKwStr1ph, null);
+    out.busV = inv ? num(inv.optBusV, null) : null;
+    out.dbSource = String(db.source || '');
+    out.ratedSource = 'optimizer database';
+    out.pairedModel = inv && inv.optModel ? String(inv.optModel) : '';
+    out.mismatch = !!out.pairedModel && out.pairedModel !== name;
+    out.ok = out.ratedW !== null && out.maxPerString !== null && out.minPerString !== null && out.maxKwString !== null;
+    if (!out.ok) out.reason = 'no-phase-rating';
+    return out;
+  }
+
+  /* Why an active optimizer request produced no usable plan - said plainly so
+     the screen never implies optimizers were accounted for. */
+  function optimizerIssueText(pl) {
+    if (pl.reason === 'no-data') return 'Optimizers are on, but this inverter’s datasheet row does not publish a paired optimizer. Choose an optimizer model manually, or pick an inverter that lists one.';
+    if (pl.reason === 'no-model') return 'Optimizers are on but no model is selected. Choose an optimizer model, or switch Optimizer System to Auto.';
+    if (pl.reason === 'unknown-model') return 'Optimizer ' + pl.model + ' is not in the workbook optimizer database, so its limits cannot be checked. Sync the catalogue or pick a listed model.';
+    if (pl.reason === 'no-phase-rating') return 'The optimizer database row for ' + pl.model + ' has no published string limits for this inverter’s phase, so the design cannot be checked against it.';
+    return 'Optimizers are on but the design cannot be checked with the current selection.';
+  }
+
+  /* Optimizers are wired per string, so the order quantity follows the string
+     layout the design already fixed: units per string × strings. A string
+     that is not a whole multiple of the optimizer's module capacity carries
+     one unused module position - reported, never silently mixed. */
+  function optimizerPlanCounts(st) {
+    const plan = st && st.optimizer;
+    if (!st || !st.ok || !plan || !plan.active || !plan.ok) return null;
+    const perUnit = plan.modulesPerUnit || 1;
+    const perString = st.optimizerCountPerString || 0;
+    const strings = st.strings || 0;
+    const total = perString * strings;
+    return {
+      perUnit, perString, strings, total,
+      moduleSlots: total * perUnit,
+      spareSlots: Math.max(0, total * perUnit - (st.modules || 0))
+    };
   }
 
   function string(s, opts) {
     const o = opts || {};
+    const plan = o.optimizer || optimizerPlan(s);
     const need = [];
     ['moduleVoc', 'moduleVmp', 'moduleIsc', 'moduleImp', 'inverterVmaxDc', 'mpptMinV']
       .forEach((k) => { if (!has(s[k])) need.push(k); });
-    const out = { ok: need.length === 0, missing: need };
+    const out = { ok: need.length === 0, missing: need, optimizer: plan };
     if (!out.ok) return out;
     const modules = o.moduleCount || num(s.moduleCount, 0);
+    const moduleWp = num(s.moduleWattage, 0);
     const voc = num(s.moduleVoc), vmp = num(s.moduleVmp), isc = num(s.moduleIsc), imp = num(s.moduleImp);
     const bVocPct = num(s.moduleVocBetaPct, -0.27), bVmpPct = num(s.moduleVmpBetaPct, -0.36);
     const vmax = num(s.inverterVmaxDc), mpptMin = num(s.mpptMinV);
@@ -247,7 +355,21 @@
     out.vocColdPerModule = vocPerModuleCold; out.vmpHotPerModule = vmpPerModuleHot;
     out.maxSeriesByVoltage = maxSeries; out.minSeriesByMppt = minSeries;
     out.maxSeriesByMppt = maxSeriesMppt;
-    const ceiling = maxSeriesMppt === null ? maxSeries : Math.min(maxSeries, maxSeriesMppt);
+    /* With optimizers the string is a series chain of optimizers on a fixed
+       bus, so the published optimizer count and per-string kW cap replace the
+       raw voltage walls - exactly as the Excel engine does (seMin/seMax/sePw). */
+    const usesOpt = plan.active && plan.ok;
+    let ceiling;
+    if (usesOpt) {
+      const perUnit = plan.modulesPerUnit || 1;
+      const byCount = plan.maxPerString > 0 ? plan.maxPerString * perUnit : Infinity;
+      const byPower = (plan.maxKwString > 0 && moduleWp > 0)
+        ? Math.floor((plan.maxKwString * 1000) / moduleWp) : Infinity;
+      ceiling = Math.min(byCount, byPower);
+    } else {
+      ceiling = maxSeriesMppt === null ? maxSeries : Math.min(maxSeries, maxSeriesMppt);
+    }
+    out.ceilingModulesPerString = ceiling;
     /* When not even one module clears the inverter's ceiling, no arrangement
        exists: that is a wrong inverter for these modules, not a long string. */
     out.impossible = !(ceiling >= 1) && modules > 0;
@@ -259,9 +381,25 @@
     out.balancedStrings = out.strings > 0 && modules % out.strings === 0;
     out.vocColdString = out.seriesPerString * vocPerModuleCold;
     out.vmpHotString = out.seriesPerString * vmpPerModuleHot;
-    out.overVoltage = out.impossible || out.vocColdString > vmax;
-    out.belowMppt = out.vmpHotString < mpptMin;
-    out.feasible = maxSeries >= minSeries && maxSeries >= 1;
+    if (usesOpt) {
+      const perUnit = plan.modulesPerUnit || 1;
+      out.optimizerCountPerString = out.seriesPerString > 0 ? Math.ceil(out.seriesPerString / perUnit) : 0;
+      out.stringKwp = (out.seriesPerString * moduleWp) / 1000;
+      out.busVoltageV = plan.busV;
+      /* The inverter regulates the bus, so the cold-Voc wall is not the
+         binding limit; the published optimizer count and kW caps are. */
+      out.overVoltage = false;
+      out.belowMppt = false;
+      out.optimizerTooLong = plan.maxPerString !== null && out.optimizerCountPerString > plan.maxPerString;
+      out.optimizerTooShort = plan.minPerString !== null && out.optimizerCountPerString < plan.minPerString;
+      out.optimizerOverPower = plan.maxKwString !== null && out.stringKwp > plan.maxKwString + 1e-9;
+      out.optimizerUnderRated = plan.ratedW !== null && moduleWp > plan.ratedW;
+      out.feasible = ceiling >= 1;
+    } else {
+      out.overVoltage = out.impossible || out.vocColdString > vmax;
+      out.belowMppt = out.vmpHotString < mpptMin;
+      out.feasible = maxSeries >= minSeries && maxSeries >= 1;
+    }
     out.vocMarginPct = ((vmax - out.vocColdString) / vmax) * 100;
     /* IEC 62548 sizes the string cable and its protection for 1.25 × Isc. */
     out.iscDesignPerString = 1.25 * isc;
@@ -273,12 +411,35 @@
        blocks sound arrays (e.g. one 13.9 A string against a 16 A input). */
     const mpptCount = inverterMpptCount(s);
     out.mpptCount = mpptCount;
-    out.parallelStringsPerMppt = Math.max(1, Math.ceil(out.strings / mpptCount));
-    out.mpptCurrent = isc * out.parallelStringsPerMppt;
+    /* Whole-system sharing across N units. Auto picks the smallest N the
+       inverter datasheet supports (max DC power, MPPT inputs); a typed count
+       overrides it and is judged by the same two limits. */
+    const inv = inverterRow(s);
+    const kwp = (modules * moduleWp) / 1000;
+    const maxDcKw = inv ? num(inv.maxDcKw, 0) : 0;
+    const unitKw = num(s.inverterKw, 0) || (inv ? num(inv.kw, 0) : 0);
+    const byPower = (maxDcKw > 0 && kwp > 0) ? Math.ceil(kwp / maxDcKw) : 1;
+    const byInputs = (out.strings > 0 && mpptCount > 0) ? Math.ceil(out.strings / mpptCount) : 1;
+    out.autoInverterCount = Math.max(1, byPower, byInputs);
+    out.inverterCount = Math.max(1, Math.round(o.count || num(s.inverterCount, 0)) || out.autoInverterCount);
+    out.stringsPerInverter = out.strings > 0 ? Math.ceil(out.strings / out.inverterCount) : 0;
+    out.parallelStringsPerMppt = Math.max(1, Math.ceil(out.stringsPerInverter / mpptCount));
+    /* Under an optimizer the string current is the optimizer's published
+       output current, not the module Isc. */
+    out.mpptCurrent = (usesOpt && plan.maxIout > 0 ? plan.maxIout : isc) * out.parallelStringsPerMppt;
     out.inverterMaxCurrentA = has(s.inverterMaxCurrentA) ? num(s.inverterMaxCurrentA) : null;
     out.iscOverload = out.strings > 0 && out.inverterMaxCurrentA !== null && out.mpptCurrent > out.inverterMaxCurrentA;
+    out.kwpPerInverter = out.inverterCount > 0 ? kwp / out.inverterCount : kwp;
+    out.inverterKw = unitKw;
+    out.maxDcKw = maxDcKw;
+    out.perUnitOverloaded = maxDcKw > 0 && out.kwpPerInverter > maxDcKw + 1e-9;
+    out.mpptShort = out.stringsPerInverter > mpptCount;
+    out.designCurrentPerInverter = out.iscDesignPerString * out.stringsPerInverter;
     out.dcVoltageV = out.seriesPerString * vmp;     // nominal string voltage at STC
     out.moduleImp = imp;
+    out.optimizerActive = plan.active;
+    out.optimizerOk = plan.ok;
+    out.optimizerCounts = optimizerPlanCounts(out);
     return out;
   }
 
@@ -522,6 +683,83 @@
             'above the inverter’s ' + st.inverterMaxCurrentA + ' A per-MPPT Isc limit.'
         });
       }
+      if (st.perUnitOverloaded) {
+        blocking.push({
+          id: 'inverterCount',
+          message: st.inverterCount + ' inverter' + (st.inverterCount === 1 ? '' : 's') +
+            ' would each carry ' + st.kwpPerInverter.toFixed(2) + ' kWp, above this inverter’s ' +
+            st.maxDcKw + ' kW maximum DC input power.'
+        });
+      }
+      if (st.mpptShort) {
+        blocking.push({
+          id: 'inverterCount',
+          message: st.strings + ' strings across ' + st.inverterCount + ' inverter' +
+            (st.inverterCount === 1 ? '' : 's') + ' leaves ' + st.stringsPerInverter +
+            ' strings per unit against ' + st.mpptCount + ' MPPT input' + (st.mpptCount === 1 ? '' : 's') + '.'
+        });
+      }
+      const pl = st.optimizer;
+      if (pl && pl.active && !pl.ok) {
+        advisory.push({ id: 'optimizerSystem', message: optimizerIssueText(pl) });
+      } else if (pl && pl.active && pl.ok) {
+        if (st.optimizerOverPower) {
+          blocking.push({
+            id: 'optimizerModel',
+            message: 'A string of ' + st.seriesPerString + ' modules is ' + st.stringKwp.toFixed(2) +
+              ' kWp, above the ' + pl.model + ' per-string maximum of ' + pl.maxKwString + ' kW (' + pl.ratedSource + ').'
+          });
+        }
+        if (st.optimizerUnderRated) {
+          blocking.push({
+            id: 'optimizerModel',
+            message: 'These modules are ' + num(s.moduleWattage) + ' Wp, above the ' + pl.model +
+              ' rating of ' + pl.ratedW + ' W (' + pl.ratedSource + ').'
+          });
+        }
+        if (st.optimizerTooLong) {
+          blocking.push({
+            id: 'optimizerModel',
+            message: 'A string of ' + st.seriesPerString + ' modules needs ' + st.optimizerCountPerString +
+              ' × ' + pl.model + ', above the published maximum of ' + pl.maxPerString + ' per string.'
+          });
+        }
+        if (st.optimizerTooShort) {
+          advisory.push({
+            id: 'optimizerModel',
+            message: 'A string of ' + st.seriesPerString + ' modules uses only ' + st.optimizerCountPerString +
+              ' × ' + pl.model + ', below the published minimum of ' + pl.minPerString + ' per string.'
+          });
+        }
+        if (pl.mismatch) {
+          advisory.push({
+            id: 'optimizerModel',
+            message: pl.model + ' is not the optimizer this inverter’s datasheet pairs with (' + pl.pairedModel +
+              '). Confirm the combination with the manufacturer before quoting.'
+          });
+        }
+        const oc = st.optimizerCounts;
+        if (oc && oc.total > 0) {
+          notes.push({
+            id: 'optimizerSystem',
+            message: 'Optimizers: ' + oc.total + ' × ' + pl.model + ' — ' + oc.perString + ' per string, ' +
+              oc.strings + ' string' + (oc.strings === 1 ? '' : 's') + ', ' +
+              oc.perUnit + ' module' + (oc.perUnit === 1 ? '' : 's') + ' per unit' +
+              (pl.busV ? ', ' + pl.busV + ' V string bus' : '') +
+              (oc.spareSlots ? '; ' + oc.spareSlots + ' module position' + (oc.spareSlots === 1 ? '' : 's') + ' unused.' : '.')
+          });
+        }
+      }
+      if (st.inverterCount > 1) {
+        const row = inverterRow(s);
+        notes.push({
+          id: 'inverterCount',
+          message: 'Inverter bank: ' + st.inverterCount + ' × ' + ((row && row.model) || 'selected inverter') +
+            ' — ' + st.kwpPerInverter.toFixed(2) + ' kWp and ' + st.stringsPerInverter + ' string' +
+            (st.stringsPerInverter === 1 ? '' : 's') + ' each, across ' + st.mpptCount + ' MPPT input' +
+            (st.mpptCount === 1 ? '' : 's') + ' per unit.'
+        });
+      }
     } else {
       notes.push({
         id: 'moduleVoc',
@@ -577,6 +815,7 @@
 
   root.Engineering = {
     report, wind, shadow, layout, string, cable, earthing, lightning, roofLoad,
+    optimizerPlan, optimizerPlanCounts, inverterMpptCount,
     voltageDrop, electrodeOhm, solarAltitude, moduleAreaEach,
     K2, LPL, RHO_CU_70, WINTER_DECLINATION, ZONE_FACTOR,
     k2For
