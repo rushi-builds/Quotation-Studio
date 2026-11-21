@@ -51,6 +51,13 @@
 
   const TYPE_LABEL = { residential: 'Residential', rwa: 'RWA / Housing Society', commercial: 'Commercial', industrial: 'Industrial' };
 
+/* A single unit prints as "7 kW"; a bank prints as "7 kW × 3 units". */
+  function inverterBankText(f) {
+    if (!(f.inverterUnitKw > 0)) return '-';
+    return f.inverterUnits > 1
+      ? f.inverterUnitKw + ' kW × ' + f.inverterUnits + ' units'
+      : f.inverterUnitKw + ' kW';
+  }
   /* Merge state + finance into the template variable pool. */
   function tplVars(s, f) {
     return {
@@ -59,7 +66,7 @@
       company: s.companyName, companyCaps: s.companyName.toUpperCase(),
       payback: isFinite(f.payback) ? f.payback.toFixed(1) : '-',
       moduleCount: f.moduleCount || '-', moduleWattage: f.moduleWattage || '-',
-      inverterRating: f.inverterKw ? f.inverterKw + ' kW' : '-',
+      inverterRating: inverterBankText(f),
       tariff: s.tariff, escalation: s.escalation, degradation: s.degradation,
       genFactor: s.genFactor, validity: s.validityDays + ' days',
       duration: s.durationText, jurisdiction: s.jurisdiction,
@@ -163,7 +170,7 @@
     const tiles = [
       { l: k.capacity, val: s.capacity + ' kWp', icon: 'panel' },
       { l: k.modules, val: f.moduleCount ? f.moduleCount + ' × ' + f.moduleWattage + ' Wp' : '-', icon: 'grid2' },
-      { l: k.inverter, val: f.inverterKw + ' kW', icon: 'bolt' },
+      { l: k.inverter, val: inverterBankText(f), icon: 'bolt' },
       { l: k.arrayArea, val: f.arrayArea ? Math.round(f.arrayArea) + ' m²' : '-', icon: 'target' },
       { l: k.technology, val: s.moduleTech || 'To be confirmed', icon: 'panel' },
       { l: k.roof, val: s.roofType || 'To be confirmed', icon: 'home' },
@@ -467,13 +474,13 @@
         const cat = root.EquipmentStore && root.EquipmentStore.cat ? root.EquipmentStore.cat() : (root.CATALOGUE_DATA || {});
         const rows = (cat.inverters || []).filter((r) => r && String(r.make || '') === String(s.inverterMake || ''));
         const exact = rows.find((r) => String(r.model || '') === String(s.inverterModel || '')) || null;
-        if (exact || !s.inverterMake || !(f.inverterKw > 0)) return exact;
+        if (exact || !s.inverterMake || !(f.inverterUnitKw > 0)) return exact;
         if (s.inverterModel || !rows.length) {
           return (root.EquipmentStore && root.EquipmentStore.datasheetRow)
-            ? root.EquipmentStore.datasheetRow('inverters', s.inverterMake, s.inverterModel, f.inverterKw) : null;
+            ? root.EquipmentStore.datasheetRow('inverters', s.inverterMake, s.inverterModel, f.inverterUnitKw) : null;
         }
         let best = null, bestD = Infinity;
-        rows.forEach((r) => { const k = Number(r.kw); if (isFinite(k)) { const d = Math.abs(k - f.inverterKw); if (d < bestD) { bestD = d; best = r; } } });
+        rows.forEach((r) => { const k = Number(r.kw); if (isFinite(k)) { const d = Math.abs(k - f.inverterUnitKw); if (d < bestD) { bestD = d; best = r; } } });
         return (best && bestD <= 1) ? best : null;
       } catch (e) { return null; }
     })();
@@ -489,12 +496,26 @@
       ['Model', (invRow && invRow.model) || s.inverterModel || '-'],
       ['Type', invRow ? (invRow.invType === 'String' ? 'Grid-tied string inverter · ' : '') +
         (invRow.phase === 3 ? 'Three-phase' : invRow.phase === 1 ? 'Single-phase' : (invRow.phase || '-')) : '-'],
-      ['Rated Output', f.inverterKw + ' kW'],
+      ['Rated Output', f.inverterUnits > 1
+        ? f.inverterUnitKw + ' kW × ' + f.inverterUnits + ' units (' + f.inverterKw + ' kW total)'
+        : f.inverterKw + ' kW'],
       ['Max. DC Input & Efficiency', dcEff.length ? dcEff.join(' · ') + ' (per datasheet)' : '-'],
       ['MPPT / DC-AC Ratio', mpptRatio.length ? mpptRatio.join(' · ') : '-'],
       ['Protection', invRow && invRow.ip ? invRow.ip + ' (per datasheet)' : '-'],
       ['Monitoring', 'Wi-Fi real-time generation monitoring (mobile app)']
     ];
+    /* Optimizers print only when the design actually uses them, with the
+       count the engineering pass derived - never a guessed quantity. */
+    try {
+      const st = (root.Engineering && typeof root.Engineering.string === 'function')
+        ? root.Engineering.string(s, { moduleCount: f.moduleCount }) : null;
+      const oc = st && st.ok ? st.optimizerCounts : null;
+      if (oc && oc.total > 0) {
+        const at = invRows.findIndex((r) => r[0] === 'Rated Output');
+        invRows.splice(at < 0 ? invRows.length : at + 1, 0, ['Optimizers', oc.total + ' × ' + st.optimizer.model +
+          ' (' + oc.perString + ' per string, ' + oc.perUnit + ' module' + (oc.perUnit === 1 ? '' : 's') + ' each)']);
+      }
+    } catch (e) { /* catalogue unavailable: no optimizer claim */ }
     addRows('INVERTER', invRows);
     // Proposal-stage presentation. Engineering calculations and checks remain
     // in the staff panel; unverified design outputs do not become customer claims.
@@ -562,7 +583,7 @@
     const L = P.diagramLabels;
     const vars = Object.assign({
       moduleCount: f.moduleCount || '-', moduleWattage: f.moduleWattage || '-',
-      inverterRating: f.inverterKw ? f.inverterKw + ' kW' : '-'
+      inverterRating: inverterBankText(f)
     }, v || {});
     const navy = '#17354A', muted = '#64788A', dc = '#EC841F', ac = '#347A9A';
     const ctx = document.createElement('canvas').getContext('2d');
@@ -1451,6 +1472,16 @@
 
   function readState() {
     const g = (id) => { const el = $(id); return el ? el.value : ''; };
+    /* A blank rated-kW field means "take it from the datasheet": every model
+       in the catalogue publishes its own AC rating, and a bank of N units
+       must be sized on that figure rather than on the contracted capacity. */
+    const inverterKw = g('inverterKw') || (function () {
+      try {
+        const row = (root.EquipmentStore && typeof root.EquipmentStore.datasheetRow === 'function')
+          ? root.EquipmentStore.datasheetRow('inverters', g('inverterMake'), g('inverterModel')) : null;
+        return row && row.kw != null && row.kw !== '' ? String(row.kw) : '';
+      } catch (e) { return ''; }
+    })();
     return {
       ...root.Bess.readForm(),
       ...root.AdditionalSystems.readForm(),
@@ -1468,7 +1499,9 @@
       capacity: g('capacity'), genFactor: g('genFactor'),
       moduleMake: g('moduleMake'), moduleWattage: g('moduleWattage'), moduleTech: g('moduleTech'),
       moduleLengthMm: g('moduleLengthMm'), moduleWidthMm: g('moduleWidthMm'),
-      inverterMake: g('inverterMake'), inverterKw: g('inverterKw'),
+      inverterMake: g('inverterMake'), inverterModel: g('inverterModel'), inverterKw,
+      inverterCount: g('inverterCount'),
+      optimizerSystem: g('optimizerSystem'), optimizerModel: g('optimizerModel'),
       mountMake: g('mountMake'), cableMake: g('cableMake'),
       roofType: g('roofType'), availableArea: g('availableArea'),
       roofClearanceFactor: g('roofClearanceFactor'),

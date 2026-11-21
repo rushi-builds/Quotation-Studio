@@ -174,7 +174,18 @@
     const requiredArea = (derived && !(manualClearance > 0))
       ? engLayout.requiredArea : arrayArea * roofClearanceFactor;
     const clearanceSource = manualClearance > 0 ? 'manual' : (derived ? 'derived' : 'fallback');
-    const inverterKw = num(s.inverterKw) || (capacity > 0 ? capacity : 0);
+    const inverterUnitKw = num(s.inverterKw) || (capacity > 0 ? capacity : 0);
+    /* A bank of N identical units is judged per unit for its DC fit and as a
+       bank for the published DC/AC ratio. The count comes from the same
+       engineering pass the staff panel uses (typed count wins, otherwise the
+       smallest bank the datasheet supports). */
+    const engString = (GLOBAL.Engineering && typeof GLOBAL.Engineering.string === 'function')
+      ? GLOBAL.Engineering.string(s, { moduleCount }) : null;
+    const typedUnits = parseInt(s.inverterCount, 10);
+    const inverterUnits = Math.max(1,
+      (engString && engString.ok && engString.inverterCount > 0) ? engString.inverterCount
+        : (Number.isFinite(typedUnits) && typedUnits > 0 ? typedUnits : 1));
+    const inverterKw = inverterUnitKw * inverterUnits;
     const dcAcRatio = (installedKwp > 0 && inverterKw > 0) ? installedKwp / inverterKw : 0;
 
     /* ----- costs -----
@@ -364,7 +375,7 @@
       // engineering
       capacity, contractedKwp, moduleWattage, moduleCount, installedKwp, arrayArea,
       roofClearanceFactor, requiredArea, clearanceSource, layout: engLayout, capacityExact,
-      inverterKw, dcAcRatio,
+      inverterKw, inverterUnitKw, inverterUnits, dcAcRatio,
       // costs
       projectCost, gstAmount, grossTotal, subsidy, stateTopUp, subsidyAuto, netInvestment, rwaEligibleKwp, rwaEligibilityConfirmed,
       costPerWp, costPerWpDelivered, bomItems, bomSum, bomDelta, gstPercent,

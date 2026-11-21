@@ -53,6 +53,10 @@
     inverterMake: 'Sungrow',
     inverterModel: 'SG7.0RT',
     inverterKw: '',
+    /* Blank = the smallest inverter bank the datasheet supports. */
+    inverterCount: '',
+    optimizerSystem: 'none',
+    optimizerModel: '',
     mountMake: 'Hot-Dip GI / Aluminum-ARS Solartech make',
     cableMake: 'Polycab',
     roofType: 'RCC Terrace',
@@ -230,6 +234,8 @@
        models win, otherwise the closest catalogue model fills the datasheet
        fields exactly like the Excel INPUT sheet. */
     if (typeof root.EquipmentStore?.syncModels === 'function') root.EquipmentStore.syncModels(vals || {});
+    /* The optimizer controls hide/disable themselves from the restored mode. */
+    if (typeof root.EquipmentStore?.syncOptimizerUI === 'function') root.EquipmentStore.syncOptimizerUI();
     /* The pricing block repaints from whatever mode the form now holds, and
        follows the band again if the proposal was saved on auto. */
     if (root.PricingAuto && typeof root.PricingAuto.refresh === 'function') root.PricingAuto.refresh();

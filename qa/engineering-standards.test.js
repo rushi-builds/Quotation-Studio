@@ -373,8 +373,9 @@ check('IEC 62548 sizes the conductor for 1.25 × Isc per string', () => {
 });
 
 check('more strings than the inverter input allows is reported', () => {
-  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterMaxCurrentA: '26' };
+  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterMaxCurrentA: '26', inverterCount: '1' };
   const st = E.string(mod, { moduleCount: 46 });
+  assert.equal(st.inverterCount, 1, 'a declared single unit must not be split into a bank');
   assert.equal(st.iscOverload, true);
   assert.ok(st.designCurrent > 26);
 });
@@ -411,7 +412,7 @@ check('a saved proposal with no stored MPPT count still resolves it from the cat
 });
 
 check('2 strings per MPPT still trip the limit: the check is not weakened', () => {
-  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterMaxCurrentA: '26', inverterMppt: '2' };
+  const mod = { ...SITE, moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0', inverterMaxCurrentA: '26', inverterMppt: '2', inverterCount: '1' };
   const st = E.string(mod, { moduleCount: 74 });
   assert.equal(st.strings, 4);
   assert.equal(st.parallelStringsPerMppt, 2);
@@ -424,6 +425,80 @@ check('without datasheet figures the string check is DATA REQUIRED, never a sile
   assert.equal(st.ok, false);
   assert.equal(st.overVoltage, undefined);
   assert.ok(st.missing.includes('moduleVoc'));
+});
+
+/* --------------------------------------------------------------------------
+   Inverter banks and optimizers
+   -------------------------------------------------------------------------- */
+console.log('- inverter banks and optimizers -');
+
+const MOD = { ...SITE, moduleWattage: '505', moduleVoc: '49.7', moduleVmp: '41.5', moduleIsc: '13.9', moduleImp: '13.0' };
+
+check('the bank defaults to the smallest count the datasheet supports, and a typed count is judged', () => {
+  const had = globalThis.EquipmentStore;
+  globalThis.EquipmentStore = {
+    datasheetRow: (kind) => kind === 'inverters'
+      ? { model: 'SG7.0RT', kw: 7, phase: 1, mppt: 2, maxDcKw: 10.5 } : null,
+    optimizerRows: () => []
+  };
+  try {
+    const site = { ...MOD, inverterMake: 'Sungrow', inverterModel: 'SG7.0RT', inverterMaxCurrentA: '30' };
+    const auto = E.string(site, { moduleCount: 60 });          // 30.3 kWp
+    assert.equal(auto.strings, 3);
+    assert.equal(auto.autoInverterCount, 3, 'ceil(30.3 kWp / 10.5 kW DC) = 3 units');
+    assert.equal(auto.inverterCount, 3);
+    assert.equal(auto.stringsPerInverter, 1);
+    assert.equal(auto.perUnitOverloaded, false);
+    near(auto.kwpPerInverter, 30.3 / 3, 1e-9);
+    const two = E.string({ ...site, inverterCount: '2' }, { moduleCount: 60 });
+    assert.equal(two.inverterCount, 2, 'a typed count overrides auto');
+    assert.equal(two.stringsPerInverter, 2);
+    assert.equal(two.perUnitOverloaded, true, '15.15 kWp per unit does not fit a 10.5 kW DC input');
+  } finally { globalThis.EquipmentStore = had; }
+});
+
+check('an optimizer string is judged by optimizer count and kW, not the cold-Voc wall', () => {
+  const had = globalThis.EquipmentStore;
+  globalThis.EquipmentStore = {
+    datasheetRow: (kind) => kind === 'inverters'
+      ? { model: 'SE17K', kw: 17, phase: 3, mppt: 1, maxDcKw: 23, optModel: 'P505', optMin: 12, optMax: 22, optMaxKw: 8.5, optBusV: 750, optRatedW: 505 } : null,
+    optimizerRows: () => [{ model: 'P505', type: 'P-Series (1 module)', ratedW: 505, maxIoutA: 15, minPo3ph: 12, maxPo3ph: 22, maxKwStr3ph: 8.5, source: 'optimizer database' }]
+  };
+  try {
+    const site = { ...MOD, inverterVmaxDc: '600', optimizerSystem: 'auto', inverterMake: 'SolarEdge', inverterModel: 'SE17K' };
+    const st = E.string(site, { moduleCount: 30 });
+    assert.equal(st.optimizer.active, true);
+    assert.equal(st.optimizer.ok, true);
+    assert.equal(st.ceilingModulesPerString, 16, 'min(22 optimizers, floor(8.5 kW / 505 Wp) = 16)');
+    assert.equal(st.strings, 2);
+    assert.equal(st.seriesPerString, 15);
+    assert.equal(st.optimizerCountPerString, 15);
+    assert.equal(st.overVoltage, false, 'the inverter regulates the string bus; 15 × 53 V does not reach a 600 V input');
+    assert.equal(st.optimizerTooLong, false);
+    assert.equal(st.optimizerOverPower, false);
+    near(st.stringKwp, 15 * 0.505, 1e-9);
+    assert.equal(st.optimizerCounts.total, 30);
+    const report = E.report(site, { moduleCount: 30 });
+    assert.ok(report.notes.some((n) => n.id === 'optimizerSystem' && /30 × P505/.test(n.message)), 'the order quantity is stated');
+  } finally { globalThis.EquipmentStore = had; }
+});
+
+check('optimizers requested without a published pairing are reported, never silently dropped', () => {
+  const had = globalThis.EquipmentStore;
+  globalThis.EquipmentStore = {
+    datasheetRow: (kind) => kind === 'inverters' ? { model: 'SG7.0RT', kw: 7, phase: 1, mppt: 2, maxDcKw: 10.5 } : null,
+    optimizerRows: () => []
+  };
+  try {
+    const site = { ...MOD, optimizerSystem: 'auto', inverterMake: 'Sungrow', inverterModel: 'SG7.0RT', inverterMaxCurrentA: '30' };
+    const st = E.string(site, { moduleCount: 13 });
+    assert.equal(st.optimizer.active, true);
+    assert.equal(st.optimizer.ok, false);
+    assert.equal(st.optimizer.reason, 'no-data');
+    assert.equal(st.optimizerCounts, null);
+    const report = E.report(site, { moduleCount: 13 });
+    assert.ok(report.advisory.some((n) => n.id === 'optimizerSystem'), 'the panel says optimizers are not accounted for');
+  } finally { globalThis.EquipmentStore = had; }
 });
 
 /* ==========================================================================

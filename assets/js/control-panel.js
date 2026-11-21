@@ -208,7 +208,7 @@
     const mixedRow = $('moduleTech').closest('.row2');
     const equipmentGroups = [
       ['Modules', 'mint', [$('moduleMake').closest('.field'), $('moduleModel').closest('.field'), $('moduleWattage').closest('.row3'), $('moduleTech').closest('.field')]],
-      ['Inverter', 'blue', [$('inverterKw').closest('.field'), $('inverterMake').closest('.field'), $('inverterModel').closest('.field')]],
+      ['Inverter', 'blue', [$('inverterKw').closest('.field'), $('inverterMake').closest('.field'), $('inverterModel').closest('.field'), $('inverterCount').closest('.row2'), $('optimizerModelField')]],
       ['Mounting & roof', 'sand', [$('mountMake').closest('.field'), $('roofType').closest('.row2')]],
       ['Cables & protection', 'lavender', [$('cableMake').closest('.field')]],
       ['Generation assumption', 'slate', [$('genFactor').closest('.field')]]
@@ -425,7 +425,9 @@
       }
       const summaries = {
         custName: state.custName || 'Add customer details',
-        moduleMake: (state.moduleWattage || '-') + ' W modules · ' + (state.inverterKw || f.inverterKw || '-') + ' kW inverter',
+        moduleMake: (state.moduleWattage || '-') + ' W modules · ' + (f.inverterUnits > 1
+          ? f.inverterUnitKw + ' kW × ' + f.inverterUnits + ' inverters'
+          : (state.inverterKw || f.inverterKw || '-') + ' kW inverter'),
         costPerWp: '₹' + (Math.round((state.costPerKwp || 0) / 10) / 100) + '/Wp · ₹' + (state.tariff || '0') + '/unit',
         payAdvance: [state.payAdvance || 0, state.payDispatch || 0, state.payCompletion || 0].join(' / ') + '% · ' + (f.financing ? 'Financing included' : 'Payment milestones'),
         galleryUrl: state.galleryUrl ? 'Link entered · verify before sharing' : 'Add your public QR destination when ready'

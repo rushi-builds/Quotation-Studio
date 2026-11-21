@@ -438,6 +438,30 @@
             <input type="text" id="inverterModelCustom" data-equipment-custom placeholder="Pick a model, or type a kW rating such as 8 to load that product's own values" autocomplete="off" spellcheck="false" disabled>
           </div>
         </div>
+        <div class="row2">
+          <div class="field">
+            <label for="inverterCount">Number of inverters (blank = auto)</label>
+            <input type="number" id="inverterCount" placeholder="auto" step="1" min="1">
+            <div class="hint" id="inverterCountNote">Blank = the smallest bank this inverter’s datasheet supports (DC power and MPPT inputs).</div>
+          </div>
+          <div class="field">
+            <label for="optimizerSystem">Optimizer system</label>
+            <select id="optimizerSystem">
+              <option value="none" selected>None</option>
+              <option value="auto">Auto — inverter’s paired optimizer</option>
+              <option value="manual">Manual — choose a model</option>
+            </select>
+            <div class="hint">Only where the roof needs module-level MPPT; the design then follows the optimizer’s published limits.</div>
+          </div>
+        </div>
+        <div class="field" id="optimizerModelField" hidden>
+          <label for="optimizerModel">Optimizer model</label>
+          <select id="optimizerModel">
+            <option value="">Sync the catalogue to load optimizer models</option>
+          </select>
+          <div class="hint" id="optimizerSystemHint" hidden>Auto: the optimizer this inverter’s datasheet pairs with.</div>
+          <div class="hint" id="optimizerNote">String limits come from the optimizer’s workbook row: optimizers per string and maximum kW per string.</div>
+        </div>
         <div class="field"><label for="mountMake">Mounting structure</label>
           <select id="mountMake" aria-describedby="equipmentEntryHint" aria-controls="mountMakeCustomWrap">
             <option>Hot-Dip GI / Aluminum-ARS Solartech make</option>

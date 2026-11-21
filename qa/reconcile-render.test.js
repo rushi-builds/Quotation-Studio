@@ -360,8 +360,18 @@ for (const cap of [1, 2, 2.5, 3, 7, 10, 25, 100]) {
     const moduleArea = e.count * (digit(d.getElementById('moduleLengthMm').value) / 1000) *
       (digit(d.getElementById('moduleWidthMm').value) / 1000);
     assert.ok(ts.includes(Math.round(moduleArea) + ' m²'), 'tech spec module area');
-    const dcac = (e.installed / cap).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    assert.ok(ts.includes(dcac + ' : 1'), 'tech spec DC/AC ratio must use the installed array');
+    /* DC/AC is installed array over the WHOLE inverter bank, so read that
+       bank off this same table and make the two printed figures agree. */
+    const ratedText = (/Rated Output(.*?)Max\. DC Input/.exec(ts) || [])[1] || '';
+    const bankTotal = (() => {
+      const total = /\(([\d.]+) kW total\)/.exec(ratedText);
+      if (total) return parseFloat(total[1]);
+      const unit = /^([\d.]+) kW$/.exec(ratedText.trim());
+      return unit ? parseFloat(unit[1]) : NaN;
+    })();
+    assert.ok(bankTotal > 0, 'tech spec must print a Rated Output (' + ratedText + ')');
+    const dcac = (e.installed / bankTotal).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    assert.ok(ts.includes(dcac + ' : 1'), 'tech spec DC/AC ratio must use the installed array over the inverter bank');
 
     /* generation & savings */
     assert.equal(txt('v_svChipGen'), num(e.annualGen) + ' kWh', 'savings page generation chip');
