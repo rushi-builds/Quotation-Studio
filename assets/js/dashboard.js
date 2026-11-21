@@ -1086,7 +1086,7 @@
           return '<tr data-member="' + escapeHtml(m.id) + '" class="team-readonly">' +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
-            '<td>' + deptBadgeHtml(m.department) + ' <span class="badge badge-role">' + escapeHtml(m.role || 'Viewer') + '</span> ' + accessBadge(m) + '</td>' +
+            '<td>' + deptBadgeHtml(m.department) + '</td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
             '<td class="muted micro">Read-only</td>' +
             eye +
@@ -1098,7 +1098,7 @@
           return '<tr data-member="' + escapeHtml(m.id) + '">' +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
-            '<td>' + deptBadgeHtml(m.department) + ' <span class="badge badge-role is-admin">Admin</span>' + (user && user.isAdmin ? ' <span class="badge badge-access is-full">Full</span>' : '') + '</td>' +
+            '<td>' + deptBadgeHtml(m.department) + '</td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
             '<td class="muted micro">Admin (permanent)</td>' +
             eye +
@@ -1113,7 +1113,7 @@
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
           '<td class="muted">' + contact + '</td>' +
-          '<td>' + deptBadgeHtml(m.department) + ' ' + accessBadge(m) + '</td>' +
+          '<td>' + deptBadgeHtml(m.department) + '</td>' +
           '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
           '<td class="team-edit-cell">' +
             '<label class="team-select-label">Department:</label>' +
@@ -1127,7 +1127,6 @@
             '<label class="team-select-label">Role:</label>' +
             '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
             roleOptionsHtml(m.role) + '</select>' +
-            accessToggle +
           '</td>' +
           eye +
           checkbox +
