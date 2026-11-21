@@ -975,7 +975,10 @@
     }
   }
 
-  const TEAM_DEPARTMENTS = ['Super Admin', 'Sales', 'Design', 'Production', 'Accounts', 'Stores', 'Site'];
+  const TEAM_DEPARTMENTS = [
+    'Super Admin', 'Management', 'Sales', 'Estimation', 'Design', 'Procurement',
+    'Production', 'Stores', 'Quality', 'Dispatch', 'Site', 'Accounts', 'HR & Admin'
+  ];
   function deptBadgeHtml(dep) {
     if (!dep) return '';
     const superCls = String(dep).toLowerCase() === 'super admin' ? ' is-super' : '';

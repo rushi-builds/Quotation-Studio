@@ -85,12 +85,15 @@ const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 /* Deployed code marker. /api/health reports it so an operator can prove the
    running Worker is actually the build that contains the role changes,
    instead of inferring it from behaviour. Bump on every behaviour change. */
-const CODE_VERSION = 'departments-r1';
+const CODE_VERSION = 'departments-r2';
 
 /* Departments are organisation labels, not roles: they decide who is the
    workspace's Super Admin, never what a role may do. A member may carry a
    department that is not in this list — the list only seeds the dropdown. */
-const DEPARTMENTS = ['Super Admin', 'Sales', 'Design', 'Production', 'Accounts', 'Stores', 'Site'];
+const DEPARTMENTS = [
+  'Super Admin', 'Management', 'Sales', 'Estimation', 'Design', 'Procurement',
+  'Production', 'Stores', 'Quality', 'Dispatch', 'Site', 'Accounts', 'HR & Admin'
+];
 function departmentValue(raw) {
   return String(raw == null ? '' : raw).trim().replace(/\s+/g, ' ').slice(0, 40);
 }
