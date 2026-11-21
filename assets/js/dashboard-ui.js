@@ -13,8 +13,54 @@
     document.documentElement.dataset.appearance = preference;
     document.documentElement.dataset.theme = preference === 'dark' ? 'dark' : 'light';
     if ($('dashboardTheme')) $('dashboardTheme').value = preference;
+    /* Sync the custom dropdown UI */
+    const label = preference.charAt(0).toUpperCase() + preference.slice(1);
+    if ($('selectedTheme')) $('selectedTheme').textContent = label;
+    document.querySelectorAll('.theme-option').forEach(btn => {
+      const isActive = btn.dataset.theme === preference;
+      btn.classList.toggle('active', isActive);
+    });
   }
   applyTheme();
+  
+  /* Theme dropdown toggle */
+  const themeTrigger = $('themeTrigger');
+  const themeMenu = $('themeMenu');
+  const themeArrow = $('themeArrow');
+  const themeDropdown = $('themeDropdown');
+  
+  if (themeTrigger && themeMenu) {
+    themeTrigger.addEventListener('click', () => {
+      const isOpen = themeMenu.classList.toggle('open');
+      themeTrigger.setAttribute('aria-expanded', String(isOpen));
+      if (themeArrow) themeArrow.classList.toggle('rotated', isOpen);
+    });
+    
+    /* Theme option selection */
+    themeMenu.querySelectorAll('.theme-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const theme = btn.dataset.theme;
+        if (!allowed.includes(theme)) return;
+        preference = theme;
+        try { localStorage.setItem(KEY, preference); } catch (_) {}
+        applyTheme();
+        /* Close dropdown */
+        themeMenu.classList.remove('open');
+        themeTrigger.setAttribute('aria-expanded', 'false');
+        if (themeArrow) themeArrow.classList.remove('rotated');
+      });
+    });
+    
+    /* Close dropdown on outside click */
+    document.addEventListener('click', (e) => {
+      if (themeDropdown && !themeDropdown.contains(e.target)) {
+        themeMenu.classList.remove('open');
+        themeTrigger.setAttribute('aria-expanded', 'false');
+        if (themeArrow) themeArrow.classList.remove('rotated');
+      }
+    });
+  }
+  
   $('dashboardTheme')?.addEventListener('change', event => {
     if (!allowed.includes(event.target.value)) return;
     preference = event.target.value;

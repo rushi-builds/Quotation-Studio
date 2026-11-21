@@ -1073,11 +1073,14 @@
         const isAdminViewer = user && (user.isAdmin || user.role === 'owner' || user.role === 'admin');
         /* Users with fullAccess granted by admin can edit the team panel */
         const canEditTeam = manage && (user.fullAccess || user.isAdmin || user.role === 'owner' || user.role === 'admin');
-        /* Contact detail goes to EVERY member now: the eye opens the full card
-           for anyone, so the address and number ride the same row. Only the
-           controls differ — Edit and Remove stay with the manager. */
-        const contact = (m.email ? '<span class="contact-item"><span class="contact-icon">📧</span> ' + escapeHtml(m.email) + '</span>' : '') +
-          (m.phone ? '<span class="contact-item"><span class="contact-icon">📞</span> ' + escapeHtml(m.phone) + '</span>' : '');
+        /* Contact detail: email and phone with proper SVG icons, stacked vertically */
+        const emailIcon = '<svg class="contact-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>';
+        const phoneIcon = '<svg class="contact-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>';
+        const contact = '<div class="contact-stack">' +
+          (m.email ? '<div class="contact-row">' + emailIcon + '<span class="contact-text">' + escapeHtml(m.email) + '</span></div>' : '') +
+          (m.phone ? '<div class="contact-row">' + phoneIcon + '<span class="contact-text">' + escapeHtml(m.phone) + '</span></div>' : '') +
+          (!m.email && !m.phone ? '<span class="muted">—</span>' : '') +
+          '</div>';
         /* Checkbox column for bulk actions (admin/owner only). */
         const checkbox = isAdminViewer && manage && !(m.isAdmin || m.role === 'admin')
           ? '<td class="team-check-cell"><input type="checkbox" class="team-bulk-check" data-bulk-id="' + escapeHtml(m.id) + '" aria-label="Select ' + escapeHtml(m.name) + '"></td>'
@@ -1118,29 +1121,27 @@
             checkbox +
           '</tr>';
         }
-        /* Access toggle: only admin sees it — they can grant full access to anyone. */
-        const isAdminActor = user && user.isAdmin;
-        const accessToggle = isAdminActor
-          ? '<button type="button" class="team-access-toggle' + (m.fullAccess ? ' is-full' : '') + '" data-access-user="' + escapeHtml(m.id) + '" title="' + (m.fullAccess ? 'Revoke full access' : 'Grant full access to edit team') + '">' + (m.fullAccess ? '✓ Can Edit' : 'Grant Edit Access') + '</button>'
-          : ''; /* Non-admin: hide toggle — only admin can grant access */
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
           '<td class="muted">' + contact + '</td>' +
           '<td>' + deptBadgeHtml(m.department) + '</td>' +
           (isAdminViewer ? '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' : '') +
-          (canEditTeam || isAdminActor ? '<td class="team-edit-cell">' +
-            (canEditTeam ? '<label class="team-select-label">Department:</label>' +
+          (canEditTeam ? '<td class="team-edit-cell">' +
+            '<label class="team-select-label">Department:</label>' +
             '<select class="team-dept-select" data-team-dept="' + escapeHtml(m.id) + '" data-current="' + escapeHtml(m.department || '') + '" aria-label="Department for ' + escapeHtml(m.name) + '">' +
               deptOptionsHtml(m.department) +
             '</select>' +
-            '<input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
-            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
+            '<input type="text" class="team-title-input team-dept-custom" id="' + escapeHtml(titleId) + '_dept' +
+            '" data-team-dept-custom="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.departmentCustom || '') + '"' +
             ' placeholder="Type custom department"' +
-            (titleable ? '' : ' hidden') + ' aria-label="Custom department for ' + escapeHtml(m.name) + '" />' +
+            (m.department === '__custom__' ? '' : ' hidden') + ' aria-label="Custom department for ' + escapeHtml(m.name) + '" />' +
             '<label class="team-select-label">Role:</label>' +
             '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
-            roleOptionsHtml(m.role) + '</select>' : '') +
-            accessToggle +
+            roleOptionsHtml(m.role) + '</select>' +
+            '<input type="text" class="team-title-input team-role-custom" id="' + escapeHtml(titleId) + '_role' +
+            '" data-team-role-custom="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
+            ' placeholder="Type custom role"' +
+            (m.role === 'custom' ? '' : ' hidden') + ' aria-label="Custom role for ' + escapeHtml(m.name) + '" />' +
           '</td>' : '') +
           eye +
           checkbox +
@@ -1200,13 +1201,22 @@
         sel.addEventListener('change', async () => {
           const id = sel.getAttribute('data-team-dept');
           const current = sel.getAttribute('data-current') || '';
+          const row = sel.closest('tr');
+          const customInput = row ? row.querySelector('.team-dept-custom') : null;
           let value = sel.value;
+          
+          /* Show/hide custom input based on selection */
           if (value === '__custom__') {
-            const typed = window.prompt('Department name (for example Accounts)', current);
-            if (typed == null) { sel.value = current; return; }
-            value = typed.trim();
-            if (!value) { sel.value = current; return; }
+            if (customInput) {
+              customInput.hidden = false;
+              customInput.focus();
+            }
+            return; /* Don't save yet, wait for custom input */
           }
+          
+          /* Hide custom input if switching back to predefined */
+          if (customInput) customInput.hidden = true;
+          
           sel.disabled = true;
           try {
             const out = await api.setTeamDepartment(id, value);
@@ -1224,19 +1234,77 @@
         });
       });
 
-      body.querySelectorAll('.team-title-input').forEach((input) => {
+      /* Custom department input */
+      body.querySelectorAll('.team-dept-custom').forEach((input) => {
         input.addEventListener('change', async () => {
-          const id = input.getAttribute('data-team-title');
-          const row = input.closest('tr');
-          const sel = row ? row.querySelector('.team-role-select') : null;
-          if (!sel || sel.value !== 'custom') return;
+          const id = input.getAttribute('data-team-dept-custom');
+          const value = input.value.trim();
+          if (!value) {
+            toast('Please enter a department name');
+            return;
+          }
+          input.disabled = true;
           try {
-            await applyRole(id, sel.value, input.value.trim());
-            toast('Title updated');
+            const out = await api.setTeamDepartment(id, value);
+            toast('Department updated');
             await refreshTeamPanel();
           } catch (err) {
-            toast(err.message || 'Could not change title');
+            toast(err.message || 'Could not save department');
+            input.disabled = false;
+          }
+        });
+      });
+
+      /* Role select */
+      body.querySelectorAll('.team-role-select').forEach((sel) => {
+        sel.addEventListener('change', async () => {
+          const id = sel.getAttribute('data-team-user');
+          const row = sel.closest('tr');
+          const customInput = row ? row.querySelector('.team-role-custom') : null;
+          const value = sel.value;
+          
+          /* Show/hide custom input based on selection */
+          if (value === 'custom') {
+            if (customInput) {
+              customInput.hidden = false;
+              customInput.focus();
+            }
+            return; /* Don't save yet, wait for custom input */
+          }
+          
+          /* Hide custom input if switching back to predefined */
+          if (customInput) customInput.hidden = true;
+          
+          sel.disabled = true;
+          try {
+            await applyRole(id, value, '');
+            toast('Role updated');
             await refreshTeamPanel();
+          } catch (err) {
+            toast(err.message || 'Could not change role');
+            sel.disabled = false;
+            await refreshTeamPanel();
+          }
+        });
+      });
+
+      /* Custom role input */
+      body.querySelectorAll('.team-role-custom').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const id = input.getAttribute('data-team-role-custom');
+          const value = input.value.trim();
+          if (!value) {
+            toast('Please enter a role name');
+            return;
+          }
+          input.disabled = true;
+          try {
+            await applyRole(id, 'custom', value);
+            toast('Role updated');
+            await refreshTeamPanel();
+          } catch (err) {
+            toast(err.message || 'Could not save role');
+            input.disabled = false;
           }
         });
       });
