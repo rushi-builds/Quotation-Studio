@@ -35,6 +35,10 @@ CREATE TABLE IF NOT EXISTS users (
      sign-in and never part of a gate. Existing databases gain it via
      migrations/008-member-custom-link.sql. */
   custom_url    TEXT NOT NULL DEFAULT '',
+  /* Department for team administration. Display + organisation data; role
+     power still comes from `role`, `full_access` and ADMIN_EMAIL. Existing
+     databases gain it via migrations/017-departments.sql. */
+  department    TEXT NOT NULL DEFAULT '',
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );

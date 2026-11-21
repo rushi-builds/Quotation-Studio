@@ -1258,6 +1258,12 @@ function rolesIssues() {
   else if (!EMAIL_SHAPE.test(a)) issues.push('ADMIN_EMAIL is set but is not a valid email address');
   return issues;
 }
+/* Departments are organisation labels, not roles. Kept in parity with the
+   Worker so local development shows the same team panel. */
+const DEPARTMENTS = ['Super Admin', 'Sales', 'Design', 'Production', 'Accounts', 'Stores', 'Site'];
+function departmentValue(raw) {
+  return String(raw == null ? '' : raw).trim().replace(/\s+/g, ' ').slice(0, 40);
+}
 function parseRoleTitle(raw) {
   const typed = String(raw || '').trim().replace(/\s+/g, ' ');
   if (!typed) return { error: 'Enter a title (for example Project lead).' };
@@ -1283,6 +1289,7 @@ function publicUser(u) {
     id: u.id, email: u.email, name: u.name,
     role: u.role,
     roleCustom: u.role_custom || null, roleLabel: roleDisplay(u),
+    department: u.department || '',
     isAdmin: role === 'admin',
     canWrite: roleRank(role) >= roleRank('sales'),
     canManageTeam: roleRank(role) >= roleRank('manager'),
@@ -1316,6 +1323,7 @@ function memberPayload(u, lastLogin, opts) {
     likes: Number(o.likes || 0), likedByMe: !!o.likedByMe,
     role: u.role,
     roleCustom: u.role_custom || null, roleLabel: roleDisplay(u),
+    department: u.department || '',
     power: stored, isAdmin: stored === 'admin',
     fullAccess: Number((u && u.full_access) || 0) === 1,
     canWrite: roleRank(stored) >= roleRank('sales'),
@@ -1687,6 +1695,7 @@ async function handleApi(req, res, url) {
         return sendJson(res, 409, { error: 'An account with this email already exists.' });
       }
 
+      const department = departmentValue(body.department);
       const roleKey = String(body.role || 'sales').trim().toLowerCase().replace(/\s+/g, '_');
       let role = 'sales', roleCustom = null;
       if (roleKey === 'admin') return sendJson(res, 400, { error: 'Admin role is assigned by the system only.' });
@@ -1701,7 +1710,7 @@ async function handleApi(req, res, url) {
       const user = {
         id: uid('usr'), email, name: name.slice(0, 120),
         password_hash: hashPassword(password),
-        role, role_custom: roleCustom,
+        role, role_custom: roleCustom, department,
         is_admin: 0, phone: '', profile_done: 0,
         created_at: nowISO(), updated_at: nowISO()
       };
@@ -3415,6 +3424,7 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, {
         members,
         canManageTeam: canAdmin,
+        departments: DEPARTMENTS,
         roles: [
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
           { id: 'sales', label: 'Sales', canWrite: true, canManageTeam: false },
@@ -3469,6 +3479,22 @@ async function handleApi(req, res, url) {
       logActivity(db, req, user, 'member.role_changed', 'user', target.id, target.name, 'Role changed to ' + roleDisplay(target));
       saveDb(db);
 
+      const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target, undefined, { signin: true });
+      return sendJson(res, 200, { member: outMember });
+    }
+
+    /* Department assignment — parity with the Worker. An organisation label,
+       never a permission; only team managers may change it. */
+    if (parts[0] === 'team' && parts[1] === 'department' && method === 'POST') {
+      if (!canManageTeam(user)) return sendJson(res, 403, { error: 'Only admin or manager can change departments.' });
+      const body = await readBody(req);
+      const target = (db.users || []).find((u) => u.id === String(body.userId || ''));
+      if (!target) return sendJson(res, 404, { error: 'User not found' });
+      target.department = departmentValue(body.department);
+      target.updated_at = nowISO();
+      logActivity(db, req, user, 'member.department_changed', 'user', target.id, target.name,
+        target.department ? 'Department set to ' + target.department : 'Department cleared');
+      saveDb(db);
       const outMember = (target.id === user.id) ? selfMemberPayload(target) : memberPayload(target, undefined, { signin: true });
       return sendJson(res, 200, { member: outMember });
     }
