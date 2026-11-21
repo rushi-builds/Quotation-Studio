@@ -167,14 +167,42 @@
             <div id="gResults" class="drop" role="listbox" aria-label="Search results"></div>
           </div>
           <div class="gright">
-            <label class="theme-picker"
-              ><span class="sr-only">Appearance</span
-              ><select id="dashboardTheme" aria-label="Dashboard appearance" title="System: Transparent glass · Dark: Solar glass · Light: Classic">
+            <div class="theme-dropdown" id="themeDropdown">
+              <button type="button" class="theme-trigger" id="themeTrigger" aria-label="Appearance" aria-expanded="false">
+                <svg class="theme-trigger-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10c1.38 0 2.5-1.12 2.5-2.5 0-.61-.23-1.2-.64-1.67-.08-.1-.13-.21-.13-.33 0-.28.22-.5.5-.5H16c3.31 0 6-2.69 6-6 0-4.96-4.49-9-10-9zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 8 6.5 8 8 8.67 8 9.5 7.33 11 6.5 11zm3-4C8.67 7 8 6.33 8 5.5S8.67 4 9.5 4s1.5.67 1.5 1.5S10.33 7 9.5 7zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 4 14.5 4s1.5.67 1.5 1.5S15.33 7 14.5 7zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 8 17.5 8s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                </svg>
+                <span id="selectedTheme">Light</span>
+                <svg class="theme-arrow" id="themeArrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </button>
+              <div class="theme-menu" id="themeMenu">
+                <button type="button" class="theme-option" data-theme="light">
+                  <svg class="theme-opt-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                  </svg>
+                  <span>Light</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="dark">
+                  <svg class="theme-opt-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                  </svg>
+                  <span>Dark</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="system">
+                  <svg class="theme-opt-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                  </svg>
+                  <span>System</span>
+                </button>
+              </div>
+              <select id="dashboardTheme" hidden aria-label="Dashboard appearance">
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
                 <option value="system">System</option>
-              </select></label
-            >
+              </select>
+            </div>
             <div class="bellwrap">
               <button
                 type="button"
