@@ -456,13 +456,40 @@ small {
   align-items: center;
   gap: 16px;
 }
+.theme-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface-soft, #f5f5f5);
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.theme-picker:hover {
+  background: var(--surface, #fff);
+  border-color: var(--accent, #2563eb);
+}
+.theme-picker::before {
+  content: "🎨";
+  font-size: 16px;
+}
 .theme-picker select {
-  font-size: 10px;
+  font-size: 13px;
+  font-weight: 500;
   background: transparent;
   border: 0;
-  padding: 6px;
-  color: var(--muted);
-  max-width: 80px;
+  padding: 2px 4px;
+  color: var(--text, #333);
+  cursor: pointer;
+  outline: none;
+  min-width: 70px;
+}
+.theme-picker select option {
+  background: var(--surface, #fff);
+  color: var(--text, #333);
+  padding: 8px;
 }
 .iconbtn {
   height: 34px;
