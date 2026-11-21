@@ -3544,15 +3544,26 @@ html[data-theme="dark"] .sidebar {
 .table-wrap.team-wrap th:nth-child(6) { width: 9%; }  /* INFO */
 
 /* ---------- team panel: contact number, edit cell, info button ---------- */
-.contact-item {
-  display: block;
-  font-size: 12px;
-  margin-bottom: 4px;
+.contact-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.contact-icon {
-  display: inline-block;
-  font-size: 14px;
-  margin-right: 4px;
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.contact-svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted, #666);
+  flex-shrink: 0;
+}
+.contact-text {
+  font-size: 13px;
+  color: var(--text, #333);
+  word-break: break-word;
 }
 .contact-sub {
   display: block; font-size: 11px; color: var(--muted); margin-top: 2px;
