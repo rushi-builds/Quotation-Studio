@@ -1260,7 +1260,10 @@ function rolesIssues() {
 }
 /* Departments are organisation labels, not roles. Kept in parity with the
    Worker so local development shows the same team panel. */
-const DEPARTMENTS = ['Super Admin', 'Sales', 'Design', 'Production', 'Accounts', 'Stores', 'Site'];
+const DEPARTMENTS = [
+  'Super Admin', 'Management', 'Sales', 'Estimation', 'Design', 'Procurement',
+  'Production', 'Stores', 'Quality', 'Dispatch', 'Site', 'Accounts', 'HR & Admin'
+];
 function departmentValue(raw) {
   return String(raw == null ? '' : raw).trim().replace(/\s+/g, ' ').slice(0, 40);
 }
