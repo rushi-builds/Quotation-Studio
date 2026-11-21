@@ -1053,10 +1053,11 @@
         /* The eye is the one control every row carries, manager or not. */
         const eye = '<td class="team-info-cell"><button type="button" class="team-info-btn" data-info="' + escapeHtml(m.id) +
           '" aria-label="View info for ' + escapeHtml(m.name) + '" title="View info">👁</button></td>';
-        /* Access badge helper: shows Full/Limited next to the role badge. It is
-           used by BOTH the read-only and the manager row, so it lives here,
-           not inside the read-only branch. */
+        /* Access badge helper: shows Full/Limited next to the role badge.
+           Only admin sees these — managers already know they're limited,
+           and they can't change it anyway. */
         function accessBadge(member) {
+          if (!(user && user.isAdmin)) return '';
           if (member.isAdmin || member.role === 'admin') return '<span class="badge badge-access is-full" title="Full access (admin)">Full</span>';
           if (member.fullAccess) return '<span class="badge badge-access is-full" title="Full access granted">Full</span>';
           return '<span class="badge badge-access is-limited" title="Limited access">Limited</span>';
@@ -1079,7 +1080,7 @@
             checkbox +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
-            '<td><span class="badge badge-power" data-power="admin">Admin</span> <span class="badge badge-access is-full">Full</span> ' + deptBadgeHtml(m.department) + '</td>' +
+            '<td><span class="badge badge-power" data-power="admin">Admin</span>' + (user && user.isAdmin ? ' <span class="badge badge-access is-full">Full</span>' : '') + ' ' + deptBadgeHtml(m.department) + '</td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
             '<td class="muted micro">Admin (permanent)</td>' +
             eye +
@@ -1093,7 +1094,7 @@
         const isAdminActor = user && user.isAdmin;
         const accessToggle = isAdminActor
           ? '<button type="button" class="team-access-toggle' + (m.fullAccess ? ' is-full' : '') + '" data-access-user="' + escapeHtml(m.id) + '" title="' + (m.fullAccess ? 'Revoke full access' : 'Grant full access') + '">' + (m.fullAccess ? 'Full' : 'Limited') + '</button>'
-          : (m.fullAccess ? '<span class="badge badge-access is-full">Full</span>' : '<span class="badge badge-access is-limited">Limited</span>');
+          : ''; /* Non-admin: hide badge — they can't change it and managers are limited by default */
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
           checkbox +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
