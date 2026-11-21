@@ -976,8 +976,13 @@
   }
 
   const TEAM_DEPARTMENTS = [
-    'Super Admin', 'Management', 'Sales', 'Estimation', 'Design', 'Procurement',
-    'Production', 'Stores', 'Quality', 'Dispatch', 'Site', 'Accounts', 'HR & Admin'
+    'Sales', 'Project Engineer', 'Site Engineer', 'Electrical Engineer',
+    'Civil Engineer', 'Engineer', 'Production', 'Manager', 'Owner',
+    'Technical', 'HR', 'Accounts', 'Admin'
+  ];
+  
+  const TEAM_ROLES = [
+    'Viewer', 'Editor', 'Manager', 'Admin'
   ];
   function deptBadgeHtml(dep) {
     if (!dep) return '';
@@ -987,14 +992,28 @@
   function deptOptionsHtml(dep) {
     const current = String(dep || '');
     const known = TEAM_DEPARTMENTS.includes(current);
-    let opts = '<option value=""' + (!current ? ' selected' : '') + '>— No department —</option>';
+    let opts = '<option value=""' + (!current ? ' selected' : '') + '>— Select Department —</option>';
     opts += TEAM_DEPARTMENTS.map((d) =>
       '<option value="' + d + '"' + (current === d ? ' selected' : '') + '>' + d + '</option>'
     ).join('');
     if (current && !known) {
       opts += '<option value="' + escapeHtml(current) + '" selected>' + escapeHtml(current) + '</option>';
     }
-    opts += '<option value="__custom__">Custom…</option>';
+    opts += '<option value="__custom__">Custom — type below</option>';
+    return opts;
+  }
+  
+  function roleOptionsHtml(role) {
+    const current = String(role || '');
+    const known = TEAM_ROLES.includes(current);
+    let opts = '<option value=""' + (!current ? ' selected' : '') + '>— Select Role —</option>';
+    opts += TEAM_ROLES.map((r) =>
+      '<option value="' + r + '"' + (current === r ? ' selected' : '') + '>' + r + '</option>'
+    ).join('');
+    if (current && !known) {
+      opts += '<option value="' + escapeHtml(current) + '" selected>' + escapeHtml(current) + '</option>';
+    }
+    opts += '<option value="__custom__">Custom — type below</option>';
     return opts;
   }
 
@@ -1067,7 +1086,7 @@
           return '<tr data-member="' + escapeHtml(m.id) + '" class="team-readonly">' +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
-            '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + ' ' + deptBadgeHtml(m.department) + '</td>' +
+            '<td>' + deptBadgeHtml(m.department) + ' <span class="badge badge-role">' + escapeHtml(m.role || 'Viewer') + '</span> ' + accessBadge(m) + '</td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
             '<td class="muted micro">Read-only</td>' +
             eye +
@@ -1079,17 +1098,13 @@
           return '<tr data-member="' + escapeHtml(m.id) + '">' +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
-            '<td><span class="badge badge-power" data-power="admin">Admin</span>' + (user && user.isAdmin ? ' <span class="badge badge-access is-full">Full</span>' : '') + ' ' + deptBadgeHtml(m.department) + '</td>' +
+            '<td>' + deptBadgeHtml(m.department) + ' <span class="badge badge-role is-admin">Admin</span>' + (user && user.isAdmin ? ' <span class="badge badge-access is-full">Full</span>' : '') + '</td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
             '<td class="muted micro">Admin (permanent)</td>' +
             eye +
             checkbox +
           '</tr>';
         }
-        let opts = ['owner', 'manager', 'sales', 'production', 'site_engineer', 'viewer'].map((role) => (
-          '<option value="' + role + '"' + (!isCustom && m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
-        )).join('');
-        opts += '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom — type below</option>';
         /* Access toggle: only admin sees it. */
         const isAdminActor = user && user.isAdmin;
         const accessToggle = isAdminActor
@@ -1098,18 +1113,20 @@
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
           '<td class="muted">' + contact + '</td>' +
-          '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + ' ' + deptBadgeHtml(m.department) + '</td>' +
+          '<td>' + deptBadgeHtml(m.department) + ' ' + accessBadge(m) + '</td>' +
           '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
           '<td class="team-edit-cell">' +
-            '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
-            opts + '</select>' +
-            '<input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
-            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
-            ' placeholder="Typed title"' +
-            (titleable ? '' : ' hidden') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" />' +
+            '<label class="team-select-label">Department:</label>' +
             '<select class="team-dept-select" data-team-dept="' + escapeHtml(m.id) + '" data-current="' + escapeHtml(m.department || '') + '" aria-label="Department for ' + escapeHtml(m.name) + '">' +
               deptOptionsHtml(m.department) +
             '</select>' +
+            '<input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
+            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
+            ' placeholder="Type custom department"' +
+            (titleable ? '' : ' hidden') + ' aria-label="Custom department for ' + escapeHtml(m.name) + '" />' +
+            '<label class="team-select-label">Role:</label>' +
+            '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
+            roleOptionsHtml(m.role) + '</select>' +
             accessToggle +
           '</td>' +
           eye +
