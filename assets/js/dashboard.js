@@ -1062,8 +1062,8 @@
         const titleId = 'teamTitle_' + m.id;
         /* Only owner/admin can see last login, edit controls, etc. */
         const isAdminViewer = user && (user.isAdmin || user.role === 'owner' || user.role === 'admin');
-        /* Managers can edit the team panel (not just admin/owner) */
-        const canEditTeam = manage;
+        /* Users with fullAccess granted by admin can edit the team panel */
+        const canEditTeam = manage && (user.fullAccess || user.isAdmin || user.role === 'owner' || user.role === 'admin');
         /* Contact detail goes to EVERY member now: the eye opens the full card
            for anyone, so the address and number ride the same row. Only the
            controls differ — Edit and Remove stay with the manager. */
@@ -1109,18 +1109,18 @@
             checkbox +
           '</tr>';
         }
-        /* Access toggle: only admin sees it. */
+        /* Access toggle: only admin sees it — they can grant full access to anyone. */
         const isAdminActor = user && user.isAdmin;
         const accessToggle = isAdminActor
-          ? '<button type="button" class="team-access-toggle' + (m.fullAccess ? ' is-full' : '') + '" data-access-user="' + escapeHtml(m.id) + '" title="' + (m.fullAccess ? 'Revoke full access' : 'Grant full access') + '">' + (m.fullAccess ? 'Full' : 'Limited') + '</button>'
-          : ''; /* Non-admin: hide badge — they can't change it and managers are limited by default */
+          ? '<button type="button" class="team-access-toggle' + (m.fullAccess ? ' is-full' : '') + '" data-access-user="' + escapeHtml(m.id) + '" title="' + (m.fullAccess ? 'Revoke full access' : 'Grant full access to edit team') + '">' + (m.fullAccess ? '✓ Can Edit' : 'Grant Edit Access') + '</button>'
+          : ''; /* Non-admin: hide toggle — only admin can grant access */
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
           '<td class="muted">' + contact + '</td>' +
           '<td>' + deptBadgeHtml(m.department) + '</td>' +
           (isAdminViewer ? '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' : '') +
-          (canEditTeam ? '<td class="team-edit-cell">' +
-            '<label class="team-select-label">Department:</label>' +
+          (canEditTeam || isAdminActor ? '<td class="team-edit-cell">' +
+            (canEditTeam ? '<label class="team-select-label">Department:</label>' +
             '<select class="team-dept-select" data-team-dept="' + escapeHtml(m.id) + '" data-current="' + escapeHtml(m.department || '') + '" aria-label="Department for ' + escapeHtml(m.name) + '">' +
               deptOptionsHtml(m.department) +
             '</select>' +
@@ -1130,7 +1130,8 @@
             (titleable ? '' : ' hidden') + ' aria-label="Custom department for ' + escapeHtml(m.name) + '" />' +
             '<label class="team-select-label">Role:</label>' +
             '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
-            roleOptionsHtml(m.role) + '</select>' +
+            roleOptionsHtml(m.role) + '</select>' : '') +
+            accessToggle +
           '</td>' : '') +
           eye +
           checkbox +
