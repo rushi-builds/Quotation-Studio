@@ -1062,6 +1062,8 @@
         const titleId = 'teamTitle_' + m.id;
         /* Only owner/admin can see last login, edit controls, etc. */
         const isAdminViewer = user && (user.isAdmin || user.role === 'owner' || user.role === 'admin');
+        /* Managers can edit the team panel (not just admin/owner) */
+        const canEditTeam = manage;
         /* Contact detail goes to EVERY member now: the eye opens the full card
            for anyone, so the address and number ride the same row. Only the
            controls differ — Edit and Remove stay with the manager. */
@@ -1117,7 +1119,7 @@
           '<td class="muted">' + contact + '</td>' +
           '<td>' + deptBadgeHtml(m.department) + '</td>' +
           (isAdminViewer ? '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' : '') +
-          (isAdminViewer ? '<td class="team-edit-cell">' +
+          (canEditTeam ? '<td class="team-edit-cell">' +
             '<label class="team-select-label">Department:</label>' +
             '<select class="team-dept-select" data-team-dept="' + escapeHtml(m.id) + '" data-current="' + escapeHtml(m.department || '') + '" aria-label="Department for ' + escapeHtml(m.name) + '">' +
               deptOptionsHtml(m.department) +
