@@ -1063,8 +1063,8 @@
         /* Contact detail goes to EVERY member now: the eye opens the full card
            for anyone, so the address and number ride the same row. Only the
            controls differ — Edit and Remove stay with the manager. */
-        const contact = escapeHtml(m.email || '') +
-          (m.phone ? '<span class="contact-sub">' + escapeHtml(m.phone) + '</span>' : '');
+        const contact = (m.email ? '<span class="contact-item"><span class="contact-icon">📧</span> ' + escapeHtml(m.email) + '</span>' : '') +
+          (m.phone ? '<span class="contact-item"><span class="contact-icon">📞</span> ' + escapeHtml(m.phone) + '</span>' : '');
         /* Checkbox column for bulk actions (managers only). */
         const checkbox = manage && !(m.isAdmin || m.role === 'admin')
           ? '<td class="team-check-cell"><input type="checkbox" class="team-bulk-check" data-bulk-id="' + escapeHtml(m.id) + '" aria-label="Select ' + escapeHtml(m.name) + '"></td>'

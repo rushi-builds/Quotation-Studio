@@ -3455,6 +3455,16 @@ html[data-theme="dark"] .sidebar {
 .table-wrap.team-wrap th:nth-child(6) { width: 9%; }  /* INFO */
 
 /* ---------- team panel: contact number, edit cell, info button ---------- */
+.contact-item {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.contact-icon {
+  display: inline-block;
+  font-size: 14px;
+  margin-right: 4px;
+}
 .contact-sub {
   display: block; font-size: 11px; color: var(--muted); margin-top: 2px;
 }
