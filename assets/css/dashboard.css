@@ -3314,30 +3314,59 @@ html[data-theme="dark"] .sidebar {
 .badge-power[data-power="owner"] { background: #469e8512; color: var(--green); }
 .badge-power[data-power="sales"] { background: color-mix(in srgb, var(--blue) 12%, transparent); color: var(--blue); }
 .badge-power[data-power="viewer"] { background: var(--surface-soft); color: var(--muted); }
-/* Department label in the team table. Neutral by default; Super Admin is the
-   one designation that will open advanced Settings, so it reads stronger. */
+/* Department badge - clean and consistent */
 .badge-dept {
-  background: var(--surface-soft); color: var(--muted);
-  border: 1px solid var(--line);
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: var(--surface-soft, #f5f5f5);
+  color: var(--text, #333);
+  border: 1px solid var(--line, #e0e0e0);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 .badge-dept.is-super {
   background: color-mix(in srgb, var(--blue) 10%, transparent);
   color: var(--blue);
   border-color: color-mix(in srgb, var(--blue) 28%, transparent);
 }
-.team-edit-cell .team-dept-select {
-  font-size: 12px; padding: 4px 8px; border-radius: 12px; width: 100%;
-  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
-  margin-bottom: 4px;
+.team-edit-cell {
+  min-width: 220px;
+  padding: 8px 12px;
+}
+.team-edit-cell .team-dept-select,
+.team-edit-cell .team-role-select,
+.team-edit-cell .team-title-input {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  width: 100%;
+  border: 1px solid var(--line, #e0e0e0);
+  background: var(--surface, #fff);
+  color: inherit;
+  margin-bottom: 6px;
+  transition: border-color 0.15s ease;
+}
+.team-edit-cell .team-dept-select:focus,
+.team-edit-cell .team-role-select:focus,
+.team-edit-cell .team-title-input:focus {
+  outline: none;
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 .team-select-label {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--muted, #666);
-  margin: 6px 0 2px 0;
+  margin: 8px 0 3px 0;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
+}
+.team-select-label:first-child {
+  margin-top: 0;
 }
 .badge-role {
   display: inline-block;
@@ -3568,12 +3597,7 @@ html[data-theme="dark"] .sidebar {
 .contact-sub {
   display: block; font-size: 11px; color: var(--muted); margin-top: 2px;
 }
-.team-edit-cell { min-width: 170px; }
-.team-edit-cell .team-role-select {
-  font-size: 12px; padding: 4px 8px; border-radius: 12px; width: 100%;
-  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
-  margin-bottom: 4px;
-}
+
 .team-info-cell { text-align: center; }
 .team-info-btn {
   width: 30px; height: 30px; border-radius: 12px; line-height: 1; font-size: 14px;
