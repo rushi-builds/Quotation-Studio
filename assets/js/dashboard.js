@@ -631,8 +631,17 @@
     });
   }
 
-  /* Role editor: Manager, Sales, Viewer (+ Custom title). Admin is system-only. */
+  /* Role editor: Only admin can edit roles. Users see their role as read-only. */
   function wireRoleEditor(box, btn) {
+    /* Only admin can edit roles — everyone else sees read-only display */
+    if (!(user && user.isAdmin)) {
+      const note = document.createElement('div');
+      note.className = 'role-note';
+      note.textContent = 'Your role is set by admin. Contact admin to change it.';
+      box.append(note);
+      return;
+    }
+
     const sel = document.createElement('select');
     sel.className = 'role-select';
     sel.setAttribute('aria-label', 'Your role');
