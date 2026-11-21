@@ -456,13 +456,40 @@ small {
   align-items: center;
   gap: 16px;
 }
+.theme-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface-soft, #f5f5f5);
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.theme-picker:hover {
+  background: var(--surface, #fff);
+  border-color: var(--accent, #2563eb);
+}
+.theme-picker::before {
+  content: "🎨";
+  font-size: 16px;
+}
 .theme-picker select {
-  font-size: 10px;
+  font-size: 13px;
+  font-weight: 500;
   background: transparent;
   border: 0;
-  padding: 6px;
-  color: var(--muted);
-  max-width: 80px;
+  padding: 2px 4px;
+  color: var(--text, #333);
+  cursor: pointer;
+  outline: none;
+  min-width: 70px;
+}
+.theme-picker select option {
+  background: var(--surface, #fff);
+  color: var(--text, #333);
+  padding: 8px;
 }
 .iconbtn {
   height: 34px;
@@ -3241,6 +3268,30 @@ html[data-theme="dark"] .sidebar {
   border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
   margin-bottom: 4px;
 }
+.team-select-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted, #666);
+  margin: 6px 0 2px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.badge-role {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--surface-2, #f0f0f0);
+  color: var(--text, #333);
+  margin-left: 4px;
+}
+.badge-role.is-admin {
+  background: #2563eb20;
+  color: #2563eb;
+  border: 1px solid #2563eb40;
+}
 /* Health warnings in Settings · Profile · Connection details. */
 #settingsHealth .warn { color: var(--red); }
 
@@ -3431,6 +3482,16 @@ html[data-theme="dark"] .sidebar {
 .table-wrap.team-wrap th:nth-child(6) { width: 9%; }  /* INFO */
 
 /* ---------- team panel: contact number, edit cell, info button ---------- */
+.contact-item {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.contact-icon {
+  display: inline-block;
+  font-size: 14px;
+  margin-right: 4px;
+}
 .contact-sub {
   display: block; font-size: 11px; color: var(--muted); margin-top: 2px;
 }

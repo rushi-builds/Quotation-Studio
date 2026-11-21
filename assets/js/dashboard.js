@@ -631,8 +631,17 @@
     });
   }
 
-  /* Role editor: Manager, Sales, Viewer (+ Custom title). Admin is system-only. */
+  /* Role editor: Only admin can edit roles. Users see their role as read-only. */
   function wireRoleEditor(box, btn) {
+    /* Only admin can edit roles — everyone else sees read-only display */
+    if (!(user && user.isAdmin)) {
+      const note = document.createElement('div');
+      note.className = 'role-note';
+      note.textContent = 'Your role is set by admin. Contact admin to change it.';
+      box.append(note);
+      return;
+    }
+
     const sel = document.createElement('select');
     sel.className = 'role-select';
     sel.setAttribute('aria-label', 'Your role');
@@ -976,8 +985,13 @@
   }
 
   const TEAM_DEPARTMENTS = [
-    'Super Admin', 'Management', 'Sales', 'Estimation', 'Design', 'Procurement',
-    'Production', 'Stores', 'Quality', 'Dispatch', 'Site', 'Accounts', 'HR & Admin'
+    'Sales', 'Project Engineer', 'Site Engineer', 'Electrical Engineer',
+    'Civil Engineer', 'Engineer', 'Production', 'Manager', 'Owner',
+    'Technical', 'HR', 'Accounts', 'Admin'
+  ];
+  
+  const TEAM_ROLES = [
+    'Viewer', 'Editor', 'Manager', 'Admin'
   ];
   function deptBadgeHtml(dep) {
     if (!dep) return '';
@@ -987,14 +1001,28 @@
   function deptOptionsHtml(dep) {
     const current = String(dep || '');
     const known = TEAM_DEPARTMENTS.includes(current);
-    let opts = '<option value=""' + (!current ? ' selected' : '') + '>— No department —</option>';
+    let opts = '<option value=""' + (!current ? ' selected' : '') + '>— Select Department —</option>';
     opts += TEAM_DEPARTMENTS.map((d) =>
       '<option value="' + d + '"' + (current === d ? ' selected' : '') + '>' + d + '</option>'
     ).join('');
     if (current && !known) {
       opts += '<option value="' + escapeHtml(current) + '" selected>' + escapeHtml(current) + '</option>';
     }
-    opts += '<option value="__custom__">Custom…</option>';
+    opts += '<option value="__custom__">Custom — type below</option>';
+    return opts;
+  }
+  
+  function roleOptionsHtml(role) {
+    const current = String(role || '');
+    const known = TEAM_ROLES.includes(current);
+    let opts = '<option value=""' + (!current ? ' selected' : '') + '>— Select Role —</option>';
+    opts += TEAM_ROLES.map((r) =>
+      '<option value="' + r + '"' + (current === r ? ' selected' : '') + '>' + r + '</option>'
+    ).join('');
+    if (current && !known) {
+      opts += '<option value="' + escapeHtml(current) + '" selected>' + escapeHtml(current) + '</option>';
+    }
+    opts += '<option value="__custom__">Custom — type below</option>';
     return opts;
   }
 
@@ -1041,15 +1069,19 @@
         const isCustom = m.role === 'custom';
         const titleable = isCustom;
         const titleId = 'teamTitle_' + m.id;
+        /* Only owner/admin can see last login, edit controls, etc. */
+        const isAdminViewer = user && (user.isAdmin || user.role === 'owner' || user.role === 'admin');
+        /* Users with fullAccess granted by admin can edit the team panel */
+        const canEditTeam = manage && (user.fullAccess || user.isAdmin || user.role === 'owner' || user.role === 'admin');
         /* Contact detail goes to EVERY member now: the eye opens the full card
            for anyone, so the address and number ride the same row. Only the
            controls differ — Edit and Remove stay with the manager. */
-        const contact = escapeHtml(m.email || '') +
-          (m.phone ? '<span class="contact-sub">' + escapeHtml(m.phone) + '</span>' : '');
-        /* Checkbox column for bulk actions (managers only). */
-        const checkbox = manage && !(m.isAdmin || m.role === 'admin')
+        const contact = (m.email ? '<span class="contact-item"><span class="contact-icon">📧</span> ' + escapeHtml(m.email) + '</span>' : '') +
+          (m.phone ? '<span class="contact-item"><span class="contact-icon">📞</span> ' + escapeHtml(m.phone) + '</span>' : '');
+        /* Checkbox column for bulk actions (admin/owner only). */
+        const checkbox = isAdminViewer && manage && !(m.isAdmin || m.role === 'admin')
           ? '<td class="team-check-cell"><input type="checkbox" class="team-bulk-check" data-bulk-id="' + escapeHtml(m.id) + '" aria-label="Select ' + escapeHtml(m.name) + '"></td>'
-          : '<td class="team-check-cell"></td>';
+          : '';
         /* The eye is the one control every row carries, manager or not. */
         const eye = '<td class="team-info-cell"><button type="button" class="team-info-btn" data-info="' + escapeHtml(m.id) +
           '" aria-label="View info for ' + escapeHtml(m.name) + '" title="View info">👁</button></td>';
@@ -1067,9 +1099,9 @@
           return '<tr data-member="' + escapeHtml(m.id) + '" class="team-readonly">' +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
-            '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + ' ' + deptBadgeHtml(m.department) + '</td>' +
-            '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
-            '<td class="muted micro">Read-only</td>' +
+            '<td>' + deptBadgeHtml(m.department) + '</td>' +
+            (isAdminViewer ? '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' : '') +
+            (isAdminViewer ? '<td class="muted micro">Read-only</td>' : '') +
             eye +
             checkbox +
           '</tr>';
@@ -1079,39 +1111,37 @@
           return '<tr data-member="' + escapeHtml(m.id) + '">' +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
-            '<td><span class="badge badge-power" data-power="admin">Admin</span>' + (user && user.isAdmin ? ' <span class="badge badge-access is-full">Full</span>' : '') + ' ' + deptBadgeHtml(m.department) + '</td>' +
-            '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
-            '<td class="muted micro">Admin (permanent)</td>' +
+            '<td>' + deptBadgeHtml(m.department) + '</td>' +
+            (isAdminViewer ? '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' : '') +
+            (isAdminViewer ? '<td class="muted micro">Admin (permanent)</td>' : '') +
             eye +
             checkbox +
           '</tr>';
         }
-        let opts = ['owner', 'manager', 'sales', 'production', 'site_engineer', 'viewer'].map((role) => (
-          '<option value="' + role + '"' + (!isCustom && m.role === role ? ' selected' : '') + '>' + roleLabel(role) + '</option>'
-        )).join('');
-        opts += '<option value="custom"' + (isCustom ? ' selected' : '') + '>Custom — type below</option>';
-        /* Access toggle: only admin sees it. */
+        /* Access toggle: only admin sees it — they can grant full access to anyone. */
         const isAdminActor = user && user.isAdmin;
         const accessToggle = isAdminActor
-          ? '<button type="button" class="team-access-toggle' + (m.fullAccess ? ' is-full' : '') + '" data-access-user="' + escapeHtml(m.id) + '" title="' + (m.fullAccess ? 'Revoke full access' : 'Grant full access') + '">' + (m.fullAccess ? 'Full' : 'Limited') + '</button>'
-          : ''; /* Non-admin: hide badge — they can't change it and managers are limited by default */
+          ? '<button type="button" class="team-access-toggle' + (m.fullAccess ? ' is-full' : '') + '" data-access-user="' + escapeHtml(m.id) + '" title="' + (m.fullAccess ? 'Revoke full access' : 'Grant full access to edit team') + '">' + (m.fullAccess ? '✓ Can Edit' : 'Grant Edit Access') + '</button>'
+          : ''; /* Non-admin: hide toggle — only admin can grant access */
         return '<tr data-member="' + escapeHtml(m.id) + '">' +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
           '<td class="muted">' + contact + '</td>' +
-          '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + ' ' + deptBadgeHtml(m.department) + '</td>' +
-          '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
-          '<td class="team-edit-cell">' +
-            '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
-            opts + '</select>' +
-            '<input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
-            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
-            ' placeholder="Typed title"' +
-            (titleable ? '' : ' hidden') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" />' +
+          '<td>' + deptBadgeHtml(m.department) + '</td>' +
+          (isAdminViewer ? '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' : '') +
+          (canEditTeam || isAdminActor ? '<td class="team-edit-cell">' +
+            (canEditTeam ? '<label class="team-select-label">Department:</label>' +
             '<select class="team-dept-select" data-team-dept="' + escapeHtml(m.id) + '" data-current="' + escapeHtml(m.department || '') + '" aria-label="Department for ' + escapeHtml(m.name) + '">' +
               deptOptionsHtml(m.department) +
             '</select>' +
+            '<input type="text" class="team-title-input" id="' + escapeHtml(titleId) +
+            '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
+            ' placeholder="Type custom department"' +
+            (titleable ? '' : ' hidden') + ' aria-label="Custom department for ' + escapeHtml(m.name) + '" />' +
+            '<label class="team-select-label">Role:</label>' +
+            '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
+            roleOptionsHtml(m.role) + '</select>' : '') +
             accessToggle +
-          '</td>' +
+          '</td>' : '') +
           eye +
           checkbox +
         '</tr>';
