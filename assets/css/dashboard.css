@@ -3387,6 +3387,10 @@ html[data-theme="dark"] .sidebar {
   gap: 6px;
   margin-left: auto;
 }
+.team-check-head {
+  width: 32px;
+  padding: 4px !important;
+}
 .team-check-cell {
   width: 32px;
   text-align: center;
