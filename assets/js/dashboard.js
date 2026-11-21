@@ -975,6 +975,26 @@
     }
   }
 
+  const TEAM_DEPARTMENTS = ['Super Admin', 'Sales', 'Design', 'Production', 'Accounts', 'Stores', 'Site'];
+  function deptBadgeHtml(dep) {
+    if (!dep) return '';
+    const superCls = String(dep).toLowerCase() === 'super admin' ? ' is-super' : '';
+    return '<span class="badge badge-dept' + superCls + '">' + escapeHtml(dep) + '</span>';
+  }
+  function deptOptionsHtml(dep) {
+    const current = String(dep || '');
+    const known = TEAM_DEPARTMENTS.includes(current);
+    let opts = '<option value=""' + (!current ? ' selected' : '') + '>— No department —</option>';
+    opts += TEAM_DEPARTMENTS.map((d) =>
+      '<option value="' + d + '"' + (current === d ? ' selected' : '') + '>' + d + '</option>'
+    ).join('');
+    if (current && !known) {
+      opts += '<option value="' + escapeHtml(current) + '" selected>' + escapeHtml(current) + '</option>';
+    }
+    opts += '<option value="__custom__">Custom…</option>';
+    return opts;
+  }
+
   async function refreshTeamPanel() {
     const body = $('teamBody');
     if (!body) return;
@@ -1030,19 +1050,21 @@
         /* The eye is the one control every row carries, manager or not. */
         const eye = '<td class="team-info-cell"><button type="button" class="team-info-btn" data-info="' + escapeHtml(m.id) +
           '" aria-label="View info for ' + escapeHtml(m.name) + '" title="View info">👁</button></td>';
+        /* Access badge helper: shows Full/Limited next to the role badge. It is
+           used by BOTH the read-only and the manager row, so it lives here,
+           not inside the read-only branch. */
+        function accessBadge(member) {
+          if (member.isAdmin || member.role === 'admin') return '<span class="badge badge-access is-full" title="Full access (admin)">Full</span>';
+          if (member.fullAccess) return '<span class="badge badge-access is-full" title="Full access granted">Full</span>';
+          return '<span class="badge badge-access is-limited" title="Limited access">Limited</span>';
+        }
         if (!manage) {
-          /* Access badge helper: shows Full/Limited next to the role badge. */
-          function accessBadge(member) {
-            if (member.isAdmin || member.role === 'admin') return '<span class="badge badge-access is-full" title="Full access (admin)">Full</span>';
-            if (member.fullAccess) return '<span class="badge badge-access is-full" title="Full access granted">Full</span>';
-            return '<span class="badge badge-access is-limited" title="Limited access">Limited</span>';
-          }
           /* View-only: the same information, no control. */
           return '<tr data-member="' + escapeHtml(m.id) + '" class="team-readonly">' +
             checkbox +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
-            '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + '</td>' +
+            '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + ' ' + deptBadgeHtml(m.department) + '</td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
             '<td class="muted micro">Read-only</td>' +
             eye +
@@ -1054,7 +1076,7 @@
             checkbox +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
             '<td class="muted">' + contact + '</td>' +
-            '<td><span class="badge badge-power" data-power="admin">Admin</span> <span class="badge badge-access is-full">Full</span></td>' +
+            '<td><span class="badge badge-power" data-power="admin">Admin</span> <span class="badge badge-access is-full">Full</span> ' + deptBadgeHtml(m.department) + '</td>' +
             '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
             '<td class="muted micro">Admin (permanent)</td>' +
             eye +
@@ -1073,7 +1095,7 @@
           checkbox +
           '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
           '<td class="muted">' + contact + '</td>' +
-          '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + '</td>' +
+          '<td><span class="badge badge-power" data-power="' + escapeHtml(pwr) + '">' + escapeHtml(powerLabel(pwr)) + '</span> ' + accessBadge(m) + ' ' + deptBadgeHtml(m.department) + '</td>' +
           '<td class="muted micro">' + escapeHtml(m.lastLogin ? fmtDate(m.lastLogin) : '—') + '</td>' +
           '<td class="team-edit-cell">' +
             '<select data-team-user="' + escapeHtml(m.id) + '" class="team-role-select" aria-label="Role for ' + escapeHtml(m.name) + '">' +
@@ -1082,6 +1104,9 @@
             '" data-team-title="' + escapeHtml(m.id) + '" maxlength="60" value="' + escapeHtml(m.roleCustom || '') + '"' +
             ' placeholder="Typed title"' +
             (titleable ? '' : ' hidden') + ' aria-label="Display title for ' + escapeHtml(m.name) + '" />' +
+            '<select class="team-dept-select" data-team-dept="' + escapeHtml(m.id) + '" data-current="' + escapeHtml(m.department || '') + '" aria-label="Department for ' + escapeHtml(m.name) + '">' +
+              deptOptionsHtml(m.department) +
+            '</select>' +
             accessToggle +
           '</td>' +
           eye +
@@ -1133,6 +1158,34 @@
           } catch (err) {
             toast(err.message || 'Could not change role');
             await refreshTeamPanel();
+          }
+        });
+      });
+
+      body.querySelectorAll('.team-dept-select').forEach((sel) => {
+        sel.addEventListener('change', async () => {
+          const id = sel.getAttribute('data-team-dept');
+          const current = sel.getAttribute('data-current') || '';
+          let value = sel.value;
+          if (value === '__custom__') {
+            const typed = window.prompt('Department name (for example Accounts)', current);
+            if (typed == null) { sel.value = current; return; }
+            value = typed.trim();
+            if (!value) { sel.value = current; return; }
+          }
+          sel.disabled = true;
+          try {
+            const out = await api.setTeamDepartment(id, value);
+            if (out && out.member && out.member.department && out.member.department !== value.trim().slice(0, 40)) {
+              toast('Department saved as ' + out.member.department);
+            } else {
+              toast('Department updated');
+            }
+            await refreshTeamPanel();
+          } catch (err) {
+            toast(err.message || 'Could not change department');
+            sel.disabled = false;
+            sel.value = current;
           }
         });
       });
@@ -2256,6 +2309,7 @@
       if ($('amEmail')) $('amEmail').value = '';
       if ($('amPassword')) $('amPassword').value = '';
       if ($('amRole')) $('amRole').value = 'sales';
+      if ($('amDepartment')) $('amDepartment').value = '';
       if ($('amNote')) $('amNote').textContent = '';
       if (typeof dlg.showModal === 'function') dlg.showModal();
       else dlg.setAttribute('open', '');
@@ -2268,6 +2322,7 @@
       const email = ($('amEmail') || {}).value || '';
       const password = ($('amPassword') || {}).value || '';
       const role = ($('amRole') || {}).value || 'sales';
+      const department = ($('amDepartment') || {}).value || '';
       const fullAccess = ($('amFullAccess') || {}).checked || false;
       if (!name.trim() || !email.trim() || !password) {
         if ($('amNote')) $('amNote').textContent = 'All fields are required.';
@@ -2275,7 +2330,7 @@
       }
       save.disabled = true;
       try {
-        const result = await api.register(name.trim(), email.trim().toLowerCase(), password, role);
+        const result = await api.register(name.trim(), email.trim().toLowerCase(), password, role, department);
         /* If full access was checked, toggle it after account creation. */
         if (fullAccess && result && result.member) {
           await api.setTeamAccess(result.member.id, true);

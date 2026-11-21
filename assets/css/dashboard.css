@@ -3225,6 +3225,22 @@ html[data-theme="dark"] .sidebar {
 .badge-power[data-power="owner"] { background: #469e8512; color: var(--green); }
 .badge-power[data-power="sales"] { background: color-mix(in srgb, var(--blue) 12%, transparent); color: var(--blue); }
 .badge-power[data-power="viewer"] { background: var(--surface-soft); color: var(--muted); }
+/* Department label in the team table. Neutral by default; Super Admin is the
+   one designation that will open advanced Settings, so it reads stronger. */
+.badge-dept {
+  background: var(--surface-soft); color: var(--muted);
+  border: 1px solid var(--line);
+}
+.badge-dept.is-super {
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+  color: var(--blue);
+  border-color: color-mix(in srgb, var(--blue) 28%, transparent);
+}
+.team-edit-cell .team-dept-select {
+  font-size: 12px; padding: 4px 8px; border-radius: 12px; width: 100%;
+  border: 1px solid var(--line); background: var(--surface, #fff); color: inherit;
+  margin-bottom: 4px;
+}
 /* Health warnings in Settings · Profile · Connection details. */
 #settingsHealth .warn { color: var(--red); }
 

@@ -207,10 +207,10 @@
       catch (_) { return null; }
     },
     me() { return request('GET', '/api/auth/me'); },
-    register(name, email, password, role) {
+    register(name, email, password, role, department) {
       /* role is free text from Create account — server maps Owner/Sales/Viewer or stores custom. */
       return request('POST', '/api/auth/register', {
-        name, email, password, role: role || ''
+        name, email, password, role: role || '', department: department || ''
       });
     },
     login(email, password, remember) {
@@ -374,6 +374,9 @@
     /** role may be a power key (owner/sales/viewer) or 'custom'.
      *  roleCustom carries the typed title; it is sent only when non-empty so
      *  an older backend that ignores it keeps working. */
+    setTeamDepartment(userId, department) {
+      return request('POST', '/api/team/department', { userId, department: department || '' });
+    },
     setTeamRole(userId, role, roleCustom) {
       const body = { userId, role };
       const title = String(roleCustom == null ? '' : roleCustom).trim();

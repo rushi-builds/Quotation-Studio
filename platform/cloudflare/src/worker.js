@@ -85,7 +85,15 @@ const SCRYPT = { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 /* Deployed code marker. /api/health reports it so an operator can prove the
    running Worker is actually the build that contains the role changes,
    instead of inferring it from behaviour. Bump on every behaviour change. */
-const CODE_VERSION = 'feedback-inbox-r1';
+const CODE_VERSION = 'departments-r1';
+
+/* Departments are organisation labels, not roles: they decide who is the
+   workspace's Super Admin, never what a role may do. A member may carry a
+   department that is not in this list — the list only seeds the dropdown. */
+const DEPARTMENTS = ['Super Admin', 'Sales', 'Design', 'Production', 'Accounts', 'Stores', 'Site'];
+function departmentValue(raw) {
+  return String(raw == null ? '' : raw).trim().replace(/\s+/g, ' ').slice(0, 40);
+}
 
 const SEND_CHANNELS = {
   whatsapp_manual: { label: 'WhatsApp (manual)', provider: 'manual' },
@@ -414,6 +422,7 @@ function publicUser(u, env) {
     role: u.role,
     roleCustom: u.role_custom || null,
     roleLabel: roleDisplay(u),
+    department: u.department || '',
     /* Capability flags — straightforward, nothing hidden. */
     isAdmin: role === 'admin',
     canWrite: roleRank(role) >= roleRank('sales'),
@@ -460,6 +469,7 @@ function memberPayload(u, env, lastLogin, opts) {
     role: u.role,
     roleCustom: u.role_custom || null,
     roleLabel: roleDisplay(u),
+    department: u.department || '',
     power: stored,
     isAdmin: stored === 'admin',
     fullAccess: Number((u && u.full_access) || 0) === 1,
@@ -1941,6 +1951,7 @@ async function handleApi(request, env, url, ctx) {
       }
 
       /* Admin can assign any role except 'admin' (reserved for ADMIN_EMAIL). */
+      const department = departmentValue(body.department);
       const roleKey = String(body.role || 'sales').trim().toLowerCase().replace(/\s+/g, '_');
       let role = 'sales', roleCustom = null;
       if (roleKey === 'owner') role = 'owner';
@@ -1961,15 +1972,16 @@ async function handleApi(request, env, url, ctx) {
         password_hash: hashPassword(password),
         role,
         role_custom: roleCustom,
+        department,
         created_at: nowISO(),
         updated_at: nowISO()
       };
       await run(
         db,
-        `INSERT INTO users (id, email, name, password_hash, role, role_custom, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO users (id, email, name, password_hash, role, role_custom, department, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         user.id, user.email, user.name, user.password_hash, user.role, user.role_custom,
-        user.created_at, user.updated_at
+        user.department, user.created_at, user.updated_at
       );
       await logActivity(db, request, actor, 'member.created', 'user', user.id, user.name,
         'Role: ' + roleDisplay(user));
@@ -3717,6 +3729,7 @@ async function handleApi(request, env, url, ctx) {
           ? selfMemberPayload(u, env, u.last_login, kudos(u))
           : memberPayload(u, env, u.last_login, Object.assign({ contact: true, signin: canAdmin }, kudos(u))))),
         canManageTeam: canAdmin,
+        departments: DEPARTMENTS,
         roles: [
           { id: 'owner', label: 'Owner', canWrite: true, canManageTeam: true },
           { id: 'sales', label: 'Sales', canWrite: true, canManageTeam: false },
@@ -3785,6 +3798,28 @@ async function handleApi(request, env, url, ctx) {
         'Role changed to ' + roleDisplay(target));
 
       const outMember = (target.id === user.id) ? selfMemberPayload(target, env) : memberPayload(target, env, undefined, { signin: true });
+      return json({ member: outMember });
+    }
+
+    /* Department assignment. Team managers can set it; the value is an
+       organisation label and never changes a role or permission. Empty clears
+       it. The typed name is accepted, so a workspace is not limited to the
+       seeded list. */
+    if (parts[0] === 'team' && parts[1] === 'department' && method === 'POST') {
+      if (!canManageTeam(user, env)) return json({ error: 'Only admin or manager can change departments.' }, 403);
+      const body = await readBody(request);
+      const targetId = String(body.userId || '');
+      const target = await one(db, 'SELECT * FROM users WHERE id = ?', targetId);
+      if (!target) return json({ error: 'User not found' }, 404);
+      const department = departmentValue(body.department);
+      await run(db, 'UPDATE users SET department = ?, updated_at = ? WHERE id = ?',
+        department, nowISO(), target.id);
+      target.department = department;
+      await logActivity(db, request, user, 'member.department_changed', 'user', target.id, target.name,
+        department ? 'Department set to ' + department : 'Department cleared');
+      const outMember = (target.id === user.id)
+        ? selfMemberPayload(target, env)
+        : memberPayload(target, env, undefined, { signin: true });
       return json({ member: outMember });
     }
 
